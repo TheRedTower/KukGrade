@@ -13,8 +13,9 @@ This repository has the initial runnable foundation:
 - `docs/` - planning, architecture, domain, testing, and workflow documentation.
 - `compose.yaml` - local PostgreSQL service for development.
 
-Authentication and role foundations exist. No student, grading, syllabus, or
-worker implementation exists yet.
+Authentication and role foundations exist. The first student model foundation
+exists, but student API/UI, grading, syllabus, and worker implementation remain
+deferred.
 
 ## Confirmed Direction
 
@@ -93,6 +94,6 @@ Existing planning inputs remain available in `docs/action_plan.md`, `docs/api_co
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No student, grading, syllabus, or audit implementation yet.
+- No student API/UI, grading, syllabus, or audit implementation yet.
 - No background worker implementation until there is a confirmed asynchronous workload.
 - No CI or production Docker image setup yet.

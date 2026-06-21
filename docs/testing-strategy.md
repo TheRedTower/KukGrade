@@ -24,7 +24,21 @@ Planned backend test coverage:
 - audit events for sensitive writes.
 - promotion or rank-change behavior once the promotion process is confirmed.
 
-`pytest` is the expected backend test runner once the Django project exists.
+Backend tests run with `pytest`:
+
+```sh
+cd backend
+uv run pytest
+```
+
+Database-backed model and migration tests should run against local PostgreSQL:
+
+```sh
+docker compose up -d db
+cd backend
+uv run python manage.py migrate
+uv run pytest
+```
 
 ## Frontend Testing
 

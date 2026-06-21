@@ -8,6 +8,7 @@ venv/
 .env
 .env.*
 !.env.example
+.local/
 
 # Django
 db.sqlite3

@@ -1,15 +1,16 @@
 # API Contract for Single‑Discipline Grading App
 
-This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses.  Authentication will use token‑based or session authentication via Django REST Framework.
+This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses. Authentication uses Django session authentication with CSRF protection for the React frontend.
 
 ## 1. Authentication
 
 | Method | Endpoint              | Description                       |
 |-------|------------------------|-----------------------------------|
-| POST  | /api/auth/login/       | Authenticate and return a token   |
-| POST  | /api/auth/logout/      | Invalidate the user’s token        |
-| POST  | /api/auth/refresh/     | Refresh an authentication token    |
+| POST  | /api/auth/login/       | Authenticate with email and password and establish a session |
+| POST  | /api/auth/logout/      | Clear the current session |
 | GET   | /api/auth/me/          | Get the current user profile       |
+
+Login failures use a generic error and must not reveal whether an account exists. Unsafe session-authenticated requests require a CSRF token. The React frontend obtains the CSRF cookie from `/api/auth/me/` during startup and sends credentials with API requests.
 
 ## 2. Users and Roles (Admin only)
 

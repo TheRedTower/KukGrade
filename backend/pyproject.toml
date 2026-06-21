@@ -1,0 +1,45 @@
+[project]
+name = "kukgrade-backend"
+version = "0.1.0"
+description = "Django REST API foundation for KukGrade."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "django>=5.2,<6.0",
+    "django-cors-headers>=4.7,<5.0",
+    "djangorestframework>=3.16,<4.0",
+    "psycopg[binary]>=3.2,<4.0",
+]
+
+[dependency-groups]
+dev = [
+    "django-stubs>=5.2,<6.0",
+    "djangorestframework-stubs>=3.16,<4.0",
+    "mypy>=1.18,<2.0",
+    "pytest>=9.0,<10.0",
+    "pytest-django>=4.11,<5.0",
+    "ruff>=0.14,<1.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "kukgrade.settings"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+testpaths = ["accounts", "health"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "DJ"]
+ignore = ["DJ008"]
+
+[tool.mypy]
+python_version = "3.14"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+warn_unreachable = true
+disallow_any_generics = false
+
+[tool.django-stubs]
+django_settings_module = "kukgrade.settings"

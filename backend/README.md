@@ -16,7 +16,16 @@ Run checks:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health
+uv run mypy kukgrade health accounts students
+```
+
+Run migrations against the local PostgreSQL database:
+
+```sh
+cd ..
+docker compose up -d db
+cd backend
+uv run python manage.py migrate
 ```
 
 Run the development server:

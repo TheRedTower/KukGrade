@@ -27,9 +27,10 @@ Do not scaffold a worker, domain models, audit, or CI until the relevant decisio
 5. Scaffold the React and TypeScript frontend in `frontend/`. Done.
 6. Add frontend API client conventions and first tests. Done.
 7. Implement identity and permissions foundations. Done for authentication and reusable role permissions; audit remains pending.
-8. Implement students, ranks, and syllabus versioning.
-9. Implement grading sessions, draft assessments, final decisions, and confirmed historical rank-change behavior.
-10. Add reporting, certificates, imports, notifications, and worker tasks only after the core workflow is stable.
+8. Implement student records. Initial `Student` model is done; student API/UI remains pending.
+9. Implement ranks and syllabus versioning.
+10. Implement grading sessions, draft assessments, final decisions, and confirmed historical rank-change behavior.
+11. Add reporting, certificates, imports, notifications, and worker tasks only after the core workflow is stable.
 
 ## Documentation Workflow
 
@@ -62,7 +63,7 @@ uv sync
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts
+uv run mypy kukgrade health accounts students
 uv run python manage.py runserver 0.0.0.0:8000
 ```
 
@@ -81,7 +82,21 @@ Local database:
 
 ```sh
 docker compose up -d db
+cd backend
+uv run python manage.py migrate
 ```
+
+PostgreSQL-backed integration test workflow:
+
+```sh
+docker compose up -d db
+cd backend
+uv run pytest
+```
+
+The local Compose database binds PostgreSQL to `127.0.0.1` only and stores data
+under `.local/postgres/`, which is ignored by Git. Use `.env` for local
+overrides and keep production database credentials out of this repository.
 
 Future documentation should define exact commands for:
 

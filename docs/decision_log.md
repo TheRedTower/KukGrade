@@ -18,6 +18,36 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-06-23 - Syllabus catalogue foundation
+
+Status: Accepted
+
+Decision:
+Create a dedicated `syllabus` Django app for the WKSA Version 2014 syllabus
+catalogue. Store stable assessable items in `SyllabusItem` and map them to
+rank-and-age-band testing requirements in `SyllabusRequirement`. Expose
+authenticated read-only DRF endpoints at `/api/syllabus/items/` and
+`/api/syllabus/requirements/`.
+
+Context:
+The official Junior and Adult/Youth testing charts distinguish age 8 and under,
+age 9-12, age 13-17, and adults age 18 and over. These are testing-rule bands,
+not permanent student attributes. The same item can have different numbered
+ranges by rank and age band, so ranges belong on the requirement mapping rather
+than the item.
+
+Consequences:
+`SyllabusItem.code` is globally unique and stable. `SyllabusItem.name` is not
+globally unique so official repeated names remain possible. Numbered technique
+and weapon ranges use `start_number` and `end_number`; form parts such as
+`(1/2)` and `(pt.1)` remain concise notes. Hangul labels from the charts are
+preserved where present. Optional Adult/Youth black-belt material marked "May be
+taught, if time allows" is kept as catalogue items where named, but is not
+mapped as an age-band requirement until its scope is confirmed. Age-band
+resolution from date of birth and grading date, syllabus version workflows,
+grading sessions, assessment results, scoring, attendance, and promotion
+decisions remain deferred.
+
 ### 2026-06-21 - Rank catalogue foundation
 
 Status: Accepted

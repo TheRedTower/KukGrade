@@ -24,7 +24,7 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "kukgrade.settings"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
-testpaths = ["accounts", "health", "ranks", "students"]
+testpaths = ["accounts", "health", "ranks", "students", "syllabus"]
 
 [tool.ruff]
 line-length = 88

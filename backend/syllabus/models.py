@@ -1,0 +1,216 @@
+from __future__ import annotations
+
+from typing import Any
+
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models import F, Q
+
+
+class AgeBand(models.TextChoices):
+    AGE_8_AND_UNDER = "AGE_8_AND_UNDER", "8 and under"
+    AGE_9_TO_12 = "AGE_9_TO_12", "9-12"
+    AGE_13_TO_17 = "AGE_13_TO_17", "13-17"
+    AGE_18_AND_OVER = "AGE_18_AND_OVER", "18+"
+
+
+class SyllabusItem(models.Model):
+    class Category(models.TextChoices):
+        ETIQUETTE = "ETIQUETTE", "Etiquette"
+        FUNDAMENTALS = "FUNDAMENTALS", "Fundamentals"
+        HAND_TECHNIQUES = "HAND_TECHNIQUES", "Hand techniques"
+        KICKING = "KICKING", "Kicking"
+        FALLING = "FALLING", "Falling"
+        BREAKING = "BREAKING", "Breaking"
+        TECHNIQUE_SET = "TECHNIQUE_SET", "Technique set"
+        FORM = "FORM", "Form"
+        WEAPONS = "WEAPONS", "Weapons"
+        OTHER = "OTHER", "Other"
+
+    code = models.CharField(max_length=80, unique=True)
+    name = models.CharField(max_length=160)
+    korean_name = models.CharField(max_length=160, blank=True)
+    category = models.CharField(max_length=32, choices=Category.choices)
+    description = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category", "name", "code"]
+        indexes = [
+            models.Index(fields=["category", "name"], name="syl_item_cat_name_idx"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(code=""),
+                name="syllabus_item_code_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=~Q(name=""),
+                name="syllabus_item_name_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    category__in=[
+                        "ETIQUETTE",
+                        "FUNDAMENTALS",
+                        "HAND_TECHNIQUES",
+                        "KICKING",
+                        "FALLING",
+                        "BREAKING",
+                        "TECHNIQUE_SET",
+                        "FORM",
+                        "WEAPONS",
+                        "OTHER",
+                    ],
+                ),
+                name="syllabus_item_category_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code}: {self.name}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def clean(self) -> None:
+        super().clean()
+        self.code = (self.code or "").strip()
+        self.name = (self.name or "").strip()
+        self.korean_name = (self.korean_name or "").strip()
+
+        errors: dict[str, list[str]] = {}
+        if not self.code:
+            errors["code"] = ["Syllabus item code is required."]
+        if not self.name:
+            errors["name"] = ["Syllabus item name is required."]
+
+        if errors:
+            raise ValidationError(errors)
+
+
+class SyllabusRequirement(models.Model):
+    rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        related_name="syllabus_requirements",
+    )
+    item = models.ForeignKey(
+        SyllabusItem,
+        on_delete=models.PROTECT,
+        related_name="requirements",
+    )
+    age_band = models.CharField(max_length=32, choices=AgeBand.choices)
+    required = models.BooleanField(default=True)
+    sequence = models.PositiveIntegerField()
+    start_number = models.PositiveIntegerField(null=True, blank=True)
+    end_number = models.PositiveIntegerField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["rank__order", "age_band", "sequence", "item__name"]
+        indexes = [
+            models.Index(
+                fields=["rank", "age_band", "sequence"],
+                name="syl_req_rank_age_seq_idx",
+            ),
+            models.Index(
+                fields=["item", "rank", "age_band"],
+                name="syl_req_item_rank_age_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rank", "age_band", "item"],
+                name="unique_syllabus_requirement_rank_age_item",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    age_band__in=[
+                        "AGE_8_AND_UNDER",
+                        "AGE_9_TO_12",
+                        "AGE_13_TO_17",
+                        "AGE_18_AND_OVER",
+                    ],
+                ),
+                name="syllabus_requirement_age_band_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(sequence__gt=0),
+                name="syllabus_requirement_sequence_positive",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(start_number__isnull=True, end_number__isnull=True)
+                    | Q(start_number__isnull=False, end_number__isnull=False)
+                ),
+                name="syllabus_requirement_range_complete",
+            ),
+            models.CheckConstraint(
+                condition=Q(start_number__isnull=True) | Q(start_number__gte=1),
+                name="syllabus_requirement_start_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(end_number__isnull=True)
+                | Q(end_number__gte=F("start_number")),
+                name="syllabus_requirement_end_not_before_start",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.rank.code} {self.age_band} {self.item.code}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def clean(self) -> None:
+        super().clean()
+        self.notes = (self.notes or "").strip()
+
+        errors: dict[str, list[str]] = {}
+        has_start = self.start_number is not None
+        has_end = self.end_number is not None
+
+        if has_start != has_end:
+            message = "Start and end numbers must be provided together."
+            if has_start:
+                errors["end_number"] = [message]
+            else:
+                errors["start_number"] = [message]
+
+        if self.start_number is not None and self.start_number < 1:
+            errors["start_number"] = ["Start number must be at least 1."]
+
+        if (
+            self.start_number is not None
+            and self.end_number is not None
+            and self.end_number < self.start_number
+        ):
+            errors["end_number"] = [
+                "End number must be greater than or equal to start number.",
+            ]
+
+        if self.sequence is not None and self.sequence <= 0:
+            errors["sequence"] = ["Sequence must be positive."]
+
+        if errors:
+            raise ValidationError(errors)
+
+    @property
+    def has_numbered_range(self) -> bool:
+        return self.start_number is not None and self.end_number is not None
+
+    @property
+    def display_range(self) -> str:
+        if not self.has_numbered_range:
+            return ""
+        if self.start_number == self.end_number:
+            return str(self.start_number)
+        return f"{self.start_number}-{self.end_number}"

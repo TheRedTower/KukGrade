@@ -15,8 +15,10 @@ This repository has the initial runnable foundation:
 
 Authentication and role foundations exist. The first student model foundation
 exists. The rank catalogue foundation exists and students now reference their
-current rank. Student API/UI, grading, syllabus, and worker implementation remain
-deferred.
+current rank. The syllabus catalogue foundation exists with read-only API
+lookup for WKSA Version 2014 testing requirements by rank and age band. Student
+API/UI, grading sessions, grading results, scoring, promotion decisions, and
+worker implementation remain deferred.
 
 ## Confirmed Direction
 
@@ -97,9 +99,62 @@ Deliberately deferred rank-related work:
 
 - promotion history.
 - grading sessions.
-- syllabus mapping.
-- age-band-specific requirements.
 - black-belt ranks above PKJN.
+
+## Syllabus Foundation
+
+The `syllabus` Django app stores the current syllabus catalogue as reference
+data. `SyllabusItem` represents a stable assessable item such as `Ki Bohn Soo`,
+`Ki Cho Hyung`, or `Bohng Dol-li-ki`. Item `code` is globally unique and stable;
+item `name` is display text and is deliberately not globally unique so repeated
+official names remain possible.
+
+`SyllabusRequirement` maps an item to a target `Rank` and syllabus age band:
+
+- `AGE_8_AND_UNDER`
+- `AGE_9_TO_12`
+- `AGE_13_TO_17`
+- `AGE_18_AND_OVER`
+
+Age bands are testing-rule bands, not stored on `Student`. Future grading-session
+logic will resolve a student's band from date of birth and the relevant grading
+date.
+
+Numbered technique and weapon ranges are stored on the requirement using
+`start_number` and `end_number`; one item can therefore have different ranges for
+different ranks or age bands. Form sections and parts, such as `(1/2)` or
+`(pt.1)`, are kept in concise requirement notes until a stronger structured
+model is justified.
+
+Seed data comes from the supplied official WKSA Version 2014 Junior and
+Adult/Youth Testing Requirement Charts. Hangul labels from the charts are
+preserved where present. Optional black-belt material marked "May be taught, if
+time allows" is kept in the item catalogue where named, but no age-band
+requirement is seeded because the Adult/Youth chart does not unambiguously scope
+that optional material to a testing age band. The seed does not create ranks
+above JKN requirements and does not implement grading sessions, scoring,
+assessment results, attendance, or promotion history.
+
+Current source notes:
+
+- No chart entry is intentionally skipped because it contains Hangul.
+- `Sword Techs` is kept as the chart abbreviation rather than expanded.
+- `Bohng Dol-li-ki` is used as the canonical item spelling; the Adult/Youth
+  chart renders the same item without one hyphen.
+- Optional Adult/Youth black-belt material names `Yahng Sohn Mohk Soo`,
+  `Ssahng Soo`, and `Dahn Doh Mahk Ki`; its age-band scope is unresolved, so no
+  requirement mapping is seeded for those items yet.
+- The exact grading date rule for resolving age band from date of birth remains
+  deferred.
+
+Authenticated staff can read:
+
+- `/api/syllabus/items/`
+- `/api/syllabus/items/{id}/`
+- `/api/syllabus/requirements/`
+- `/api/syllabus/requirements/{id}/`
+
+Requirement lists support `rank_code` and `age_band` query parameters.
 
 ## Verification
 
@@ -110,7 +165,7 @@ cd backend
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts ranks students
+uv run mypy kukgrade health accounts ranks students syllabus
 ```
 
 Frontend:

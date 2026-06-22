@@ -68,22 +68,40 @@ syllabus management workflows are confirmed.
 | GET    | /api/rank-pathways/{id}/                   | Deferred                                          |
 | PATCH  | /api/rank-pathways/{id}/                   | Deferred                                          |
 
-## 6. Syllabus and Criteria
+## 6. Syllabus Catalogue
 
-| Method | Endpoint                                              | Description                                      |
-|--------|--------------------------------------------------------|--------------------------------------------------|
-| GET    | /api/syllabus-versions/                                | List all syllabus versions                       |
-| POST   | /api/syllabus-versions/                                | Create a new syllabus version                    |
-| GET    | /api/syllabus-versions/{id}/                           | Retrieve syllabus version                        |
-| PATCH  | /api/syllabus-versions/{id}/                           | Update syllabus version                          |
-| GET    | /api/criterion-categories/                             | List categories (filter by syllabus version)     |
-| POST   | /api/criterion-categories/                             | Create a category                                |
-| GET    | /api/criterion-categories/{id}/                        | Retrieve category                                |
-| PATCH  | /api/criterion-categories/{id}/                        | Update category                                  |
-| GET    | /api/criteria/                                         | List criteria (filter by rank, version, category) |
-| POST   | /api/criteria/                                         | Create a criterion                               |
-| GET    | /api/criteria/{id}/                                    | Retrieve criterion details                        |
-| PATCH  | /api/criteria/{id}/                                    | Update criterion                                  |
+Current implementation note: the syllabus foundation exposes authenticated
+read-only lookup endpoints for seeded WKSA Version 2014 syllabus items and
+rank/age-band requirements. Syllabus version management, grading-session
+selection, assessment results, scoring, attendance, and promotion decisions are
+deferred.
+
+| Method | Endpoint                              | Description                                      |
+|--------|----------------------------------------|--------------------------------------------------|
+| GET    | /api/syllabus/items/                   | List active syllabus items                       |
+| GET    | /api/syllabus/items/{id}/              | Retrieve a syllabus item                         |
+| POST   | /api/syllabus/items/                   | 405; API writes deferred                         |
+| PUT    | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
+| PATCH  | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
+| DELETE | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
+| GET    | /api/syllabus/requirements/            | List active requirements                         |
+| GET    | /api/syllabus/requirements/{id}/       | Retrieve a syllabus requirement                  |
+| POST   | /api/syllabus/requirements/            | 405; API writes deferred                         |
+| PUT    | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
+| PATCH  | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
+| DELETE | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
+
+Requirement list filters:
+
+- `rank_code`: rank catalogue code, such as `YELLOW` or `DAHN_BO`.
+- `age_band`: one of `AGE_8_AND_UNDER`, `AGE_9_TO_12`, `AGE_13_TO_17`, or
+  `AGE_18_AND_OVER`.
+
+`SyllabusItem` represents the stable assessable item. `SyllabusRequirement`
+maps that item to a target rank and age band, including `required`, `sequence`,
+`start_number`, `end_number`, and concise notes. Numbered technique and weapon
+ranges are stored on the requirement, not encoded into duplicate item records.
+Form sections or parts from the source charts are currently preserved as notes.
 
 ## 7. Eligibility (V2)
 

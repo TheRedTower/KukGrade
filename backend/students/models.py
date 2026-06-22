@@ -7,12 +7,19 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
+from ranks.models import Rank
+
 
 class Student(models.Model):
     wksa_id = models.CharField(max_length=32, unique=True)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     date_of_birth = models.DateField()
+    current_rank = models.ForeignKey(
+        Rank,
+        on_delete=models.PROTECT,
+        related_name="students_currently_at_rank",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

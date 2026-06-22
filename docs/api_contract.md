@@ -52,16 +52,21 @@ Login failures use a generic error and must not reveal whether an account exists
 
 ## 5. Ranks and Pathways
 
+Current implementation note: the rank foundation exposes a read-only
+authenticated `/api/ranks/` endpoint for the seeded active rank catalogue.
+Writable rank and pathway endpoints are deferred until progression pathway and
+syllabus management workflows are confirmed.
+
 | Method | Endpoint                                  | Description                                       |
 |--------|--------------------------------------------|---------------------------------------------------|
 | GET    | /api/ranks/                                | List ranks (ordered)                              |
-| POST   | /api/ranks/                                | Create a rank                                     |
 | GET    | /api/ranks/{id}/                           | Retrieve rank details                             |
-| PATCH  | /api/ranks/{id}/                           | Update rank                                       |
-| GET    | /api/rank-pathways/                        | List progression pathways                         |
-| POST   | /api/rank-pathways/                        | Create or update a pathway                        |
-| GET    | /api/rank-pathways/{id}/                   | Retrieve pathway details                          |
-| PATCH  | /api/rank-pathways/{id}/                   | Update pathway details                            |
+| POST   | /api/ranks/                                | Deferred                                          |
+| PATCH  | /api/ranks/{id}/                           | Deferred                                          |
+| GET    | /api/rank-pathways/                        | Deferred                                          |
+| POST   | /api/rank-pathways/                        | Deferred                                          |
+| GET    | /api/rank-pathways/{id}/                   | Deferred                                          |
+| PATCH  | /api/rank-pathways/{id}/                   | Deferred                                          |
 
 ## 6. Syllabus and Criteria
 

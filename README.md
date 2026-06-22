@@ -14,7 +14,8 @@ This repository has the initial runnable foundation:
 - `compose.yaml` - local PostgreSQL service for development.
 
 Authentication and role foundations exist. The first student model foundation
-exists, but student API/UI, grading, syllabus, and worker implementation remain
+exists. The rank catalogue foundation exists and students now reference their
+current rank. Student API/UI, grading, syllabus, and worker implementation remain
 deferred.
 
 ## Confirmed Direction
@@ -58,6 +59,48 @@ npm run dev
 
 The backend health endpoint is `http://localhost:8000/api/health/`. The frontend reads it through `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
 
+## Rank Foundation
+
+The `ranks` Django app stores KukGrade's ordered rank catalogue as core
+reference data. Ordering is always determined by the explicit `Rank.order`
+field, not by primary key or alphabetical sorting.
+
+Seeded ranks:
+
+1. White (`WHITE`)
+2. Yellow Stripe (`YELLOW_STRIPE`)
+3. Yellow (`YELLOW`)
+4. Blue Stripe (`BLUE_STRIPE`)
+5. Blue (`BLUE`)
+6. Red Stripe (`RED_STRIPE`)
+7. Red (`RED`)
+8. Brown Stripe (`BROWN_STRIPE`)
+9. Brown (`BROWN`)
+10. Black Stripe (`BLACK_STRIPE`)
+11. Dahn Bo (`DAHN_BO`)
+12. JKN (`JKN`)
+13. KSN (`KSN`)
+14. PSBN (`PSBN`)
+15. SBN (`SBN`)
+16. PKJN (`PKJN`)
+
+White through Black Stripe are categorised as `COLOURED_BELT`, Dahn Bo as
+`BLACK_BELT_CANDIDATE`, and JKN through PKJN as `BLACK_BELT`. Ranks above PKJN
+are deliberately deferred.
+
+`Student.current_rank` is a required `PROTECT` foreign key to `Rank`. Student
+rows do not duplicate rank name, order, or category; those values remain on the
+rank catalogue. The migration path adds the field as nullable, assigns existing
+students to White, and then makes the field required for new and existing rows.
+
+Deliberately deferred rank-related work:
+
+- promotion history.
+- grading sessions.
+- syllabus mapping.
+- age-band-specific requirements.
+- black-belt ranks above PKJN.
+
 ## Verification
 
 Backend:
@@ -67,7 +110,7 @@ cd backend
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts
+uv run mypy kukgrade health accounts ranks students
 ```
 
 Frontend:

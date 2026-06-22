@@ -16,7 +16,7 @@ Run checks:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts students
+uv run mypy kukgrade health accounts ranks students
 ```
 
 Run migrations against the local PostgreSQL database:
@@ -34,4 +34,6 @@ Run the development server:
 uv run python manage.py runserver 0.0.0.0:8000
 ```
 
-The initial public health endpoint is available at `/api/health/`.
+The public health endpoint is available at `/api/health/`. Authenticated staff
+can read the active rank catalogue at `/api/ranks/`; rank writes remain admin
+and migration-managed for this foundation slice.

@@ -4,12 +4,19 @@ from datetime import timedelta
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
+from ranks.models import Rank
 from students.models import Student
 
 pytestmark = pytest.mark.django_db
+
+
+def white_rank() -> Rank:
+    return Rank.objects.get(code="WHITE")
 
 
 def student_kwargs(**overrides: object) -> dict[str, object]:
@@ -18,6 +25,7 @@ def student_kwargs(**overrides: object) -> dict[str, object]:
         "first_name": "Alex",
         "last_name": "Kim",
         "date_of_birth": timezone.localdate().replace(year=2012),
+        "current_rank": white_rank(),
     }
     data.update(overrides)
     return data
@@ -30,6 +38,7 @@ def test_valid_student_can_be_created() -> None:
     assert student.wksa_id == "000123"
     assert student.first_name == "Alex"
     assert student.last_name == "Kim"
+    assert student.current_rank == white_rank()
     assert student.is_active is True
     assert student.created_at is not None
     assert student.updated_at is not None
@@ -92,3 +101,76 @@ def test_future_date_of_birth_is_rejected() -> None:
     assert exc_info.value.message_dict["date_of_birth"] == [
         "Date of birth cannot be in the future.",
     ]
+
+
+def test_current_rank_points_to_expected_rank_record() -> None:
+    student = Student.objects.create(**student_kwargs())
+
+    assert student.current_rank.code == "WHITE"
+    assert student.current_rank.name == "White"
+    assert student.current_rank.order == 1
+
+
+def test_deleting_referenced_rank_is_blocked() -> None:
+    rank = white_rank()
+    Student.objects.create(**student_kwargs(current_rank=rank))
+
+    with pytest.raises(ProtectedError):
+        rank.delete()
+
+
+def test_student_current_rank_can_be_changed() -> None:
+    student = Student.objects.create(**student_kwargs())
+    yellow = Rank.objects.get(code="YELLOW")
+
+    student.current_rank = yellow
+    student.save()
+
+    student.refresh_from_db()
+    assert student.current_rank == yellow
+
+
+def test_student_does_not_duplicate_rank_data() -> None:
+    field_names = {field.name for field in Student._meta.get_fields()}
+
+    assert "current_rank" in field_names
+    assert "rank_name" not in field_names
+    assert "rank_order" not in field_names
+    assert "rank_category" not in field_names
+    assert "current_rank_name" not in field_names
+
+
+@pytest.mark.django_db(transaction=True)
+def test_existing_student_migration_path_assigns_white_rank() -> None:
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+    old_targets = [
+        ("ranks", "0002_seed_rank_catalogue"),
+        ("students", "0001_initial"),
+    ]
+
+    try:
+        executor.migrate(old_targets)
+        old_apps = executor.loader.project_state(old_targets).apps
+        OldStudent = old_apps.get_model("students", "Student")
+        OldStudent.objects.create(
+            wksa_id="MIG001",
+            first_name="Migration",
+            last_name="Student",
+            date_of_birth=timezone.localdate().replace(year=2010),
+            is_active=True,
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("students", "0004_require_current_rank")])
+        new_apps = executor.loader.project_state(
+            [("students", "0004_require_current_rank")],
+        ).apps
+        NewStudent = new_apps.get_model("students", "Student")
+
+        student = NewStudent.objects.get(wksa_id="MIG001")
+
+        assert student.current_rank.code == "WHITE"
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)

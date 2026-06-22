@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-06-21 - Rank catalogue foundation
+
+Status: Accepted
+
+Decision:
+Create a dedicated `ranks` Django app for ordered rank reference data. Seed the
+catalogue from migrations, expose a narrow authenticated read-only ranks API,
+and represent `Student.current_rank` as a required protected foreign key to
+`Rank`.
+
+Context:
+Ranks are shared reference data for student records, future syllabus mapping,
+grading sessions, and historical promotion records. The catalogue must not
+duplicate records by age band because age-specific requirements belong to the
+future syllabus model.
+
+Consequences:
+Rank progression uses the explicit `Rank.order` field. Existing student rows are
+backfilled to White during migration before `current_rank` becomes non-null.
+Promotion history, grading sessions, syllabus mapping, age-band requirements,
+and ranks above PKJN remain deferred.
+
 ### 2026-06-21 - Identity and session authentication foundation
 
 Status: Accepted

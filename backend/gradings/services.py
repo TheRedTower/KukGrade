@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import TypedDict
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -8,15 +9,17 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
+    CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
 from ranks.models import Rank
 from students.models import Student
-from syllabus.models import AgeBand, SyllabusRequirement
+from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 
 ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
     GradingSession.Status.DRAFT: {
@@ -43,6 +46,41 @@ ASSESSMENT_RESULT_ENTRY_SESSION_STATUSES = {
     GradingSession.Status.OPEN,
     GradingSession.Status.LOCKED,
 }
+
+OUTCOME_CREATION_SESSION_STATUSES = {
+    GradingSession.Status.LOCKED,
+}
+
+
+class OverallAssessmentSummary(TypedDict):
+    total: int
+    required: int
+    met: int
+    not_met: int
+    not_assessed: int
+    required_not_met: int
+    required_not_assessed: int
+    all_required_assessed: bool
+    all_required_met: bool
+
+
+class CategoryAssessmentSummary(TypedDict):
+    category: str
+    total: int
+    required: int
+    met: int
+    not_met: int
+    not_assessed: int
+    required_met: int
+    required_not_met: int
+    required_not_assessed: int
+    all_required_assessed: bool
+    all_required_met: bool
+
+
+class CandidateAssessmentSummary(TypedDict):
+    overall: OverallAssessmentSummary
+    categories: list[CategoryAssessmentSummary]
 
 
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
@@ -148,20 +186,23 @@ def validate_session_transition(
         current_status == GradingSession.Status.LOCKED
         and next_status == GradingSession.Status.COMPLETED
     ):
-        incomplete_assessment = (
+        missing_finalised_outcome = (
             session.candidates.exclude(status=GradingCandidate.Status.WITHDRAWN)
             .filter(
                 Q(assessment__isnull=True)
-                | ~Q(assessment__status=CandidateAssessment.Status.COMPLETED),
+                | ~Q(assessment__status=CandidateAssessment.Status.COMPLETED)
+                | Q(outcome__isnull=True)
+                | ~Q(outcome__status=CandidateOutcome.Status.FINALISED),
             )
             .exists()
         )
-        if incomplete_assessment:
+        if missing_finalised_outcome:
             raise ValidationError(
                 {
                     "status": [
                         "Every non-withdrawn candidate must have a completed "
-                        "assessment before the session can be completed.",
+                        "assessment and finalised outcome before the session "
+                        "can be completed.",
                     ],
                 },
             )
@@ -322,6 +363,11 @@ def validate_candidate_assessment_changes(
 
 
 def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
+    outcome = getattr(candidate, "outcome", None)
+    if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
+        raise ValidationError(
+            {"candidate": ["Candidates with finalised outcomes cannot be deleted."]},
+        )
     if candidate.session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.OPEN,
@@ -350,6 +396,274 @@ def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
                 ],
             },
         )
+
+
+def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
+    if outcome.assessment.status != CandidateAssessment.Status.COMPLETED:
+        raise ValidationError(
+            {"assessment": ["Candidate assessment must remain completed."]},
+        )
+    if outcome.candidate.status != GradingCandidate.Status.COMPLETED:
+        raise ValidationError(
+            {"candidate": ["Grading candidate must remain completed."]},
+        )
+    if outcome.candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError(
+            {"candidate": ["Withdrawn candidates cannot have outcome decisions."]},
+        )
+
+
+def validate_candidate_outcome_creation(candidate: GradingCandidate) -> None:
+    if candidate.session.status not in OUTCOME_CREATION_SESSION_STATUSES:
+        raise ValidationError(
+            {"session": ["Candidate outcomes can only be created in locked sessions."]},
+        )
+    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError(
+            {"candidate": ["Cannot create an outcome for a withdrawn candidate."]},
+        )
+    if candidate.status != GradingCandidate.Status.COMPLETED:
+        raise ValidationError(
+            {"candidate": ["Candidate must be completed before outcome creation."]},
+        )
+    assessment = getattr(candidate, "assessment", None)
+    if assessment is None:
+        raise ValidationError(
+            {
+                "assessment": [
+                    "Candidate must have an assessment before outcome creation.",
+                ],
+            },
+        )
+    if assessment.status != CandidateAssessment.Status.COMPLETED:
+        raise ValidationError(
+            {"assessment": ["Assessment must be completed before outcome creation."]},
+        )
+
+
+@transaction.atomic
+def create_candidate_outcome(
+    candidate: GradingCandidate,
+    actor: User | None = None,
+) -> CandidateOutcome:
+    locked_candidate = (
+        GradingCandidate.objects.select_for_update()
+        .select_related("session", "student", "testing_for_rank")
+        .get(pk=candidate.pk)
+    )
+    validate_candidate_outcome_creation(locked_candidate)
+    assessment = locked_candidate.assessment
+    try:
+        return CandidateOutcome.objects.create(
+            candidate=locked_candidate,
+            assessment=assessment,
+        )
+    except IntegrityError as exc:
+        raise ValidationError(
+            {"candidate": ["Candidate already has an outcome."]},
+        ) from exc
+
+
+def _validate_outcome_choice(value: str, field_name: str) -> None:
+    if value not in CandidateOutcome.Outcome.values:
+        raise ValidationError({field_name: ["Invalid candidate outcome."]})
+
+
+@transaction.atomic
+def propose_candidate_outcome(
+    outcome: CandidateOutcome,
+    proposed_outcome: str,
+    proposal_notes: str,
+    actor: User,
+) -> CandidateOutcome:
+    locked_outcome = (
+        CandidateOutcome.objects.select_for_update(of=("self",))
+        .select_related("candidate__session", "assessment", "proposed_by", "decided_by")
+        .get(pk=outcome.pk)
+    )
+    validate_outcome_assessment_state(locked_outcome)
+    if locked_outcome.status == CandidateOutcome.Status.FINALISED:
+        raise ValidationError(
+            {"status": ["Finalised candidate outcomes cannot be reproposed."]},
+        )
+    if locked_outcome.status not in {
+        CandidateOutcome.Status.DRAFT,
+        CandidateOutcome.Status.PROPOSED,
+    }:
+        raise ValidationError({"status": ["Outcome cannot be proposed."]})
+    _validate_outcome_choice(proposed_outcome, "proposed_outcome")
+
+    locked_outcome.proposed_outcome = proposed_outcome
+    locked_outcome.proposal_notes = proposal_notes
+    locked_outcome.proposed_by = actor
+    locked_outcome.proposed_at = timezone.now()
+    locked_outcome.final_outcome = None
+    locked_outcome.decided_by = None
+    locked_outcome.decided_at = None
+    locked_outcome.decision_notes = ""
+    locked_outcome.conditional_requirements = ""
+    locked_outcome.status = CandidateOutcome.Status.PROPOSED
+    locked_outcome._allow_status_transition = True
+    locked_outcome.save()
+    return locked_outcome
+
+
+def validate_final_decision_actor(actor: User) -> None:
+    if not actor.is_active or not actor.has_perm(FINAL_GRADING_DECISION_PERMISSION):
+        raise ValidationError(
+            {"actor": ["Final grading decision authority is required."]},
+        )
+
+
+@transaction.atomic
+def finalise_candidate_outcome(
+    outcome: CandidateOutcome,
+    final_outcome: str,
+    decision_notes: str,
+    conditional_requirements: str,
+    actor: User,
+) -> CandidateOutcome:
+    validate_final_decision_actor(actor)
+    locked_outcome = (
+        CandidateOutcome.objects.select_for_update(of=("self",))
+        .select_related("candidate__session", "assessment", "proposed_by", "decided_by")
+        .get(pk=outcome.pk)
+    )
+    validate_outcome_assessment_state(locked_outcome)
+    if locked_outcome.status != CandidateOutcome.Status.PROPOSED:
+        raise ValidationError(
+            {"status": ["Only proposed candidate outcomes can be finalised."]},
+        )
+    if locked_outcome.candidate.session.status != GradingSession.Status.LOCKED:
+        raise ValidationError(
+            {"session": ["Final decisions can only be made in locked sessions."]},
+        )
+    if locked_outcome.proposed_outcome is None:
+        raise ValidationError(
+            {"proposed_outcome": ["Proposed outcome is required before finalisation."]},
+        )
+    _validate_outcome_choice(final_outcome, "final_outcome")
+
+    cleaned_conditions = (conditional_requirements or "").strip()
+    if final_outcome == CandidateOutcome.Outcome.CONDITIONAL:
+        if not cleaned_conditions:
+            raise ValidationError(
+                {
+                    "conditional_requirements": [
+                        "Conditional requirements are required for "
+                        "conditional outcomes.",
+                    ],
+                },
+            )
+    elif cleaned_conditions:
+        raise ValidationError(
+            {
+                "conditional_requirements": [
+                    "Conditional requirements must be blank for pass or fail outcomes.",
+                ],
+            },
+        )
+
+    locked_outcome.final_outcome = final_outcome
+    locked_outcome.decision_notes = decision_notes
+    locked_outcome.conditional_requirements = cleaned_conditions
+    locked_outcome.decided_by = actor
+    locked_outcome.decided_at = timezone.now()
+    locked_outcome.status = CandidateOutcome.Status.FINALISED
+    locked_outcome._allow_status_transition = True
+    locked_outcome.save()
+    return locked_outcome
+
+
+def validate_candidate_outcome_can_be_deleted(outcome: CandidateOutcome) -> None:
+    if outcome.status == CandidateOutcome.Status.FINALISED:
+        raise ValidationError(
+            {"status": ["Finalised candidate outcomes cannot be deleted."]},
+        )
+
+
+def candidate_assessment_summary(
+    assessment: CandidateAssessment,
+) -> CandidateAssessmentSummary:
+    items = list(
+        assessment.items.all().order_by("category", "requirement_sequence", "pk"),
+    )
+    category_order = dict(
+        (category, index)
+        for index, (category, _label) in enumerate(SyllabusItem.Category.choices)
+    )
+    category_summaries: dict[str, CategoryAssessmentSummary] = {}
+    overall: OverallAssessmentSummary = {
+        "total": 0,
+        "required": 0,
+        "met": 0,
+        "not_met": 0,
+        "not_assessed": 0,
+        "required_not_met": 0,
+        "required_not_assessed": 0,
+        "all_required_assessed": True,
+        "all_required_met": True,
+    }
+
+    for item in items:
+        summary = category_summaries.setdefault(
+            item.category,
+            {
+                "category": item.category,
+                "total": 0,
+                "required": 0,
+                "met": 0,
+                "not_met": 0,
+                "not_assessed": 0,
+                "required_met": 0,
+                "required_not_met": 0,
+                "required_not_assessed": 0,
+                "all_required_assessed": True,
+                "all_required_met": True,
+            },
+        )
+        summary["total"] += 1
+        overall["total"] += 1
+        if item.required:
+            summary["required"] += 1
+            overall["required"] += 1
+
+        if item.result == CandidateAssessmentItem.Result.MET:
+            summary["met"] += 1
+            overall["met"] += 1
+            if item.required:
+                summary["required_met"] += 1
+        elif item.result == CandidateAssessmentItem.Result.NOT_MET:
+            summary["not_met"] += 1
+            overall["not_met"] += 1
+            if item.required:
+                summary["required_not_met"] += 1
+                summary["all_required_met"] = False
+                overall["required_not_met"] += 1
+        else:
+            summary["not_assessed"] += 1
+            overall["not_assessed"] += 1
+            if item.required:
+                summary["required_not_assessed"] += 1
+                summary["all_required_assessed"] = False
+                summary["all_required_met"] = False
+                overall["required_not_assessed"] += 1
+
+    overall["all_required_assessed"] = overall["required_not_assessed"] == 0
+    overall["all_required_met"] = (
+        overall["required_not_assessed"] == 0 and overall["required_not_met"] == 0
+    )
+
+    return {
+        "overall": overall,
+        "categories": sorted(
+            category_summaries.values(),
+            key=lambda summary: (
+                category_order.get(str(summary["category"]), len(category_order)),
+                str(summary["category"]),
+            ),
+        ),
+    }
 
 
 def build_candidate(

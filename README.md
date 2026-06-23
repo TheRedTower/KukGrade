@@ -21,10 +21,11 @@ API/UI is still deferred. The grading-session foundation now exists with
 sessions, candidates, age-band snapshots, next-rank validation, and applicable
 syllabus requirement lookup. Candidate assessment snapshots now preserve the
 exact syllabus requirements assessed for each candidate and store per-item
-`MET`, `NOT_MET`, or `NOT_ASSESSED` results. Final pass/fail/conditional
-grading outcomes, authorised Master decisions, automatic promotion,
-`Student.current_rank` updates, certificates, and worker implementation remain
-deferred.
+`MET`, `NOT_MET`, or `NOT_ASSESSED` results. Candidate outcome records now
+support proposed `PASS`, `FAIL`, or `CONDITIONAL` outcomes, informational
+category summaries, and immutable final decisions by users with final grading
+decision authority. Automatic promotion, `Student.current_rank` updates,
+promotion history, certificates, and worker implementation remain deferred.
 
 ## Confirmed Direction
 
@@ -176,6 +177,9 @@ GradingSession
         -> age-band snapshot
         -> CandidateAssessment
             -> CandidateAssessmentItem snapshot rows
+        -> CandidateOutcome
+            -> proposed outcome
+            -> final authorised Master decision
 ```
 
 `GradingSession` statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and
@@ -237,9 +241,36 @@ grading outcome and does not change `Student.current_rank`.
 
 Session locking now requires every non-withdrawn candidate to have an
 `IN_PROGRESS` or `COMPLETED` assessment. Session completion requires every
-non-withdrawn candidate to have a completed assessment. Withdrawn candidates do
-not block locking or completion. Deletion of candidates with generated
-snapshots is limited to draft, not-started assessments.
+non-withdrawn candidate to have a completed assessment and finalised outcome.
+Withdrawn candidates do not block locking or completion. Deletion of candidates
+with generated snapshots is limited to draft, not-started assessments.
+
+## Candidate Outcomes
+
+Each completed candidate assessment can have one explicit `CandidateOutcome`.
+Outcome creation is a separate action after assessment completion; completing an
+assessment does not automatically create or infer a pass, fail, or conditional
+decision.
+
+Outcome status values are `DRAFT`, `PROPOSED`, and `FINALISED`. A proposal
+records the proposed `PASS`, `FAIL`, or `CONDITIONAL` outcome, proposer,
+timestamp, and optional notes. Proposals may be revised before finalisation.
+Finalisation is allowed only while the parent session is `LOCKED`, only after a
+proposal exists, and only by a user with the existing
+`gradings.can_make_final_grading_decision` Django permission. Final outcomes
+may agree with or override the proposal.
+
+For `CONDITIONAL`, `conditional_requirements` is required and blank-only text is
+rejected. For `PASS` or `FAIL`, conditional requirements must be blank. Finalised
+outcomes are immutable and block ordinary outcome deletion, candidate
+withdrawal, candidate deletion, and assessment deletion. `QuerySet.update()` is
+treated as an unsupported low-level maintenance path, matching the existing
+session status convention.
+
+Category summaries are calculated on demand from `CandidateAssessmentItem`
+snapshot rows. They use the copied category values from the assessment snapshot,
+count required and optional items separately, and do not infer an automatic
+final decision.
 
 Authenticated staff can use:
 
@@ -252,6 +283,12 @@ Authenticated staff can use:
 - `/api/gradings/assessments/{id}/`
 - `/api/gradings/assessment-items/`
 - `/api/gradings/assessment-items/{id}/`
+- `/api/gradings/candidates/{id}/create-outcome/`
+- `/api/gradings/outcomes/`
+- `/api/gradings/outcomes/{id}/`
+- `/api/gradings/outcomes/{id}/propose/`
+- `/api/gradings/outcomes/{id}/finalise/`
+- `/api/gradings/outcomes/{id}/summary/`
 
 Session filters: `status`, `grading_date`, `grading_date_from`,
 `grading_date_to`. Candidate filters: `session`, `student_wksa_id`,
@@ -293,7 +330,8 @@ Existing planning inputs remain available in `docs/action_plan.md`, `docs/api_co
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No student API/UI, assessment results, scoring, promotion decisions,
-  certificates, payments, notifications, or audit implementation yet.
+- No student API/UI, rank updates, promotion history, automatic promotion,
+  certificates, payments, notifications, correction/reopening workflow, or audit
+  implementation yet.
 - No background worker implementation until there is a confirmed asynchronous workload.
 - No CI or production Docker image setup yet.

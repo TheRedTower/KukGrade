@@ -64,6 +64,7 @@ Authenticated staff can manage grading sessions and candidates:
 - `/api/gradings/sessions/{id}/`
 - `/api/gradings/candidates/`
 - `/api/gradings/candidates/{id}/`
+- `POST /api/gradings/candidates/{id}/create-outcome/`
 
 Session statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and `CANCELLED`.
 Allowed transitions are `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
@@ -121,8 +122,9 @@ locked sessions can finish work already in progress but cannot start new
 assessments. Required items must be `MET` or `NOT_MET` before completion;
 optional items may remain `NOT_ASSESSED`. Completing an assessment atomically
 marks the candidate `COMPLETED`. This is only a workflow completion marker:
-final pass/fail/conditional outcomes, authorised Master decisions, promotions,
-rank-history creation, and `Student.current_rank` updates remain deferred.
+final pass/fail/conditional outcomes are created and finalised through the
+separate candidate outcome workflow. Promotions, rank-history creation, and
+`Student.current_rank` updates remain deferred.
 
 Clients may patch only assessment `status` and `notes`, and assessment-item
 `result` and `assessor_notes`. Item result changes are rejected until the
@@ -144,7 +146,55 @@ Filters:
 
 Session locking requires every non-withdrawn candidate to have an `IN_PROGRESS`
 or `COMPLETED` assessment. Session completion requires every non-withdrawn
-candidate to have a completed assessment. Withdrawn candidates do not block
-locking or completion. Generated snapshots prevent candidate student,
-testing-for rank, and session changes; candidate deletion is allowed only for
-draft, not-started assessment snapshots.
+candidate to have a completed assessment and finalised outcome. Withdrawn
+candidates do not block locking or completion. Generated snapshots prevent
+candidate student, testing-for rank, and session changes; candidate deletion is
+allowed only for draft, not-started assessment snapshots.
+
+## Candidate Outcomes
+
+Authenticated staff can read and propose candidate outcomes:
+
+- `GET /api/gradings/outcomes/`
+- `GET /api/gradings/outcomes/{id}/`
+- `PATCH /api/gradings/outcomes/{id}/propose/`
+- `GET /api/gradings/outcomes/{id}/summary/`
+
+Users with the `gradings.can_make_final_grading_decision` Django permission can
+finalise outcomes:
+
+- `PATCH /api/gradings/outcomes/{id}/finalise/`
+
+Outcome collection `POST` is disabled; use the candidate-scoped
+`create-outcome` action after assessment completion. Outcome status values are
+`DRAFT`, `PROPOSED`, and `FINALISED`. Outcome values are `PASS`, `FAIL`, and
+`CONDITIONAL`.
+
+Proposal records are explicit human recommendations and may be revised before
+finalisation. Final decisions are explicit authorised Master decisions made only
+while the parent session is `LOCKED`; they may agree with or override the
+proposal. The system does not automatically infer or finalise pass, fail, or
+conditional outcomes from item counts.
+
+`CONDITIONAL` final decisions require meaningful `conditional_requirements`.
+`PASS` and `FAIL` reject stale conditional text. Finalised outcomes are
+immutable through the model, API, and admin, and they block ordinary outcome
+deletion, candidate withdrawal, candidate deletion, and assessment deletion.
+`QuerySet.update()` remains an unsupported low-level maintenance path.
+
+The summary endpoint calculates category and overall counts from
+`CandidateAssessmentItem` snapshot rows. It uses the copied snapshot category,
+includes optional items in overall counts, distinguishes required item counts,
+and does not return an inferred final outcome.
+
+Outcome filters:
+
+- `session`
+- `candidate`
+- `student_wksa_id`
+- `testing_for_rank_code`
+- `status`
+- `proposed_outcome`
+- `final_outcome`
+- `proposed_by`
+- `decided_by`

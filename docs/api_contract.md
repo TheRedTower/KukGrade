@@ -115,9 +115,9 @@ Form sections or parts from the source charts are currently preserved as notes.
 
 Current implementation note: the grading foundation exposes authenticated CRUD
 endpoints for sessions and candidates, plus generated candidate assessment
-snapshots and per-requirement item results. It does not create final
-pass/fail/conditional outcomes, authorised Master decisions, automatic
-promotion, `Student.current_rank` updates, attendance outside grading
+snapshots, per-requirement item results, candidate outcomes, and authorised
+final Master decisions. It does not create automatic promotion,
+`Student.current_rank` updates, promotion history, attendance outside grading
 participation, certificates, notifications, or payment workflows.
 
 | Method | Endpoint                              | Description                                      |
@@ -135,6 +135,7 @@ participation, certificates, notifications, or payment workflows.
 | PATCH | /api/gradings/candidates/{id}/         | Update candidate status or notes                 |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
+| POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
 
 Session fields:
 
@@ -164,13 +165,14 @@ assessment that is already `IN_PROGRESS` or `COMPLETED`; generation alone is
 insufficient. Assessment start must happen while the session is `OPEN`. Locked
 sessions can finish work already in progress but cannot start new assessments.
 Completing a locked session requires every non-withdrawn candidate to have a
-completed assessment. Withdrawn candidates do not block locking or session
-completion. `LOCKED -> OPEN` is rejected now that assessment records exist.
-Server code must use the canonical `transition_grading_session()` domain service
-for status changes; ordinary model saves reject direct status updates, and
-queryset `update()` is treated as a low-level maintenance escape hatch, not an
-application workflow API. New sessions start in `DRAFT`; API clients cannot
-create sessions directly in `OPEN`, `LOCKED`, `COMPLETED`, or `CANCELLED`.
+completed assessment and finalised candidate outcome. Withdrawn candidates do
+not block locking or session completion. `LOCKED -> OPEN` is rejected now that
+assessment records exist. Server code must use the canonical
+`transition_grading_session()` domain service for status changes; ordinary model
+saves reject direct status updates, and queryset `update()` is treated as a
+low-level maintenance escape hatch, not an application workflow API. New
+sessions start in `DRAFT`; API clients cannot create sessions directly in
+`OPEN`, `LOCKED`, `COMPLETED`, or `CANCELLED`.
 
 Session filters:
 
@@ -202,7 +204,7 @@ Candidate creation rejects locked, completed, and cancelled sessions; duplicate
 student/session pairs; invalid testing-for ranks; and missing student date of
 birth. The testing-for rank must be the next active rank after the student's
 current rank. This feature does not update `Student.current_rank`; promotion
-history and final decisions remain deferred.
+history remains deferred.
 
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
@@ -271,15 +273,63 @@ generator attribution, and informational item counts. Counts report total,
 required, met, not met, and not assessed items only; no pass/fail/conditional
 outcome is produced.
 
-## 10. Decisions and Promotions
+## 10. Outcomes and Promotions
 
-| Method | Endpoint                                       | Description                                  |
+| Method | Endpoint                                      | Description                                  |
 |--------|-----------------------------------------------|----------------------------------------------|
-| POST   | /api/grading-candidates/{id}/final-decision/   | Create a final decision for a candidate      |
-| GET    | /api/final-decisions/{id}/                    | Retrieve decision details                    |
-| POST   | /api/promotions/{final_decision_id}/confirm/  | Confirm a promotion and create record       |
-| GET    | /api/promotions/                             | List promotions                             |
-| GET    | /api/promotions/{id}/                        | Retrieve promotion details                  |
+| GET    | /api/gradings/outcomes/                       | List candidate outcomes                      |
+| POST   | /api/gradings/outcomes/                       | 405; use candidate create-outcome action     |
+| GET    | /api/gradings/outcomes/{id}/                  | Retrieve outcome detail                      |
+| PATCH  | /api/gradings/outcomes/{id}/                  | 400; direct field writes rejected            |
+| DELETE | /api/gradings/outcomes/{id}/                  | 405; correction workflow deferred            |
+| PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
+| PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
+| GET    | /api/gradings/outcomes/{id}/summary/          | Informational assessment summaries           |
+| POST   | /api/promotions/{outcome_id}/confirm/         | Deferred                                     |
+| GET    | /api/promotions/                              | Deferred                                     |
+| GET    | /api/promotions/{id}/                         | Deferred                                     |
+
+Outcome status values are `DRAFT`, `PROPOSED`, and `FINALISED`. Outcome values
+are `PASS`, `FAIL`, and `CONDITIONAL`. Outcome creation is explicit after a
+candidate has a completed assessment in a locked session; assessment completion
+does not automatically create or infer an outcome.
+
+Proposal records are explicit human recommendations. Proposal fields are
+server-controlled for `proposed_by` and `proposed_at`, and proposals may be
+revised before finalisation. Finalisation requires a proposed outcome, a
+completed assessment, a locked parent session, and a user with
+the `gradings.can_make_final_grading_decision` Django permission. The final
+outcome may differ from the proposal. `decided_by` and `decided_at` are
+server-controlled.
+
+For `CONDITIONAL`, `conditional_requirements` is mandatory and blank-only text
+is rejected. For `PASS` and `FAIL`, conditional requirements must be blank.
+Finalised outcomes are immutable; ordinary delete, direct PATCH, direct model
+status spoofing, and admin edits are rejected. `QuerySet.update()` remains an
+unsupported low-level maintenance path.
+
+Outcome list filters:
+
+- `session`
+- `candidate`
+- `student_wksa_id`
+- `testing_for_rank_code`
+- `status`
+- `proposed_outcome`
+- `final_outcome`
+- `proposed_by`
+- `decided_by`
+
+Outcome detail exposes candidate, student name, WKSA ID, testing rank, session,
+assessment status, proposed decision, final decision, timestamps, attribution,
+notes, and conditional requirements. Clients cannot write `status`, candidate,
+assessment, actor, or timestamp fields directly.
+
+The summary action groups `CandidateAssessmentItem` rows by copied snapshot
+category. It returns category and overall counts for total, required, met, not
+met, not assessed, required-met, required-not-met, required-not-assessed,
+all-required-assessed, and all-required-met values. It does not return an
+inferred final outcome.
 
 ## 11. Certificates
 
@@ -294,9 +344,9 @@ outcome is produced.
 | Method | Endpoint                                | Description                                        |
 |--------|------------------------------------------|----------------------------------------------------|
 | GET    | /api/reports/eligibility/                | Report of students by eligibility status           |
-| GET    | /api/reports/outcomes/                   | Report of grading outcomes (pass/fail/defer)       |
+| GET    | /api/reports/outcomes/                   | Report of grading outcomes (pass/fail/conditional) |
 | GET    | /api/reports/rank-distribution/          | Distribution of students per rank                  |
-| GET    | /api/reports/deferred-candidates/        | List of deferred/reassess candidates               |
+| GET    | /api/reports/conditional-candidates/     | Deferred; list conditional candidates              |
 
 ## 13. Audit
 

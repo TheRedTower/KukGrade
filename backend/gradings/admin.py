@@ -12,6 +12,7 @@ from accounts.models import User
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
+    CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
@@ -333,5 +334,99 @@ class GradingCandidateAdmin(admin.ModelAdmin):
                 ),
                 status=obj.status if "status" in changed_data else None,
                 notes=obj.notes if "notes" in changed_data else None,
+            )
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(CandidateOutcome)
+class CandidateOutcomeAdmin(admin.ModelAdmin):
+    list_display = (
+        "candidate",
+        "student",
+        "session",
+        "testing_rank",
+        "status",
+        "proposed_outcome",
+        "proposed_by",
+        "final_outcome",
+        "decided_by",
+        "decided_at",
+    )
+    list_filter = (
+        "status",
+        "proposed_outcome",
+        "final_outcome",
+        "candidate__session",
+        "candidate__testing_for_rank",
+    )
+    search_fields = (
+        "candidate__student__first_name",
+        "candidate__student__last_name",
+        "candidate__student__wksa_id",
+        "candidate__session__title",
+    )
+    ordering = (
+        "candidate__session__grading_date",
+        "candidate__student__last_name",
+        "candidate__student__first_name",
+    )
+    list_select_related = (
+        "candidate__session",
+        "candidate__student",
+        "candidate__testing_for_rank",
+        "assessment",
+        "proposed_by",
+        "decided_by",
+    )
+    actions: tuple[str, ...] = ()
+    readonly_fields = (
+        "candidate",
+        "assessment",
+        "status",
+        "proposed_outcome",
+        "proposed_by",
+        "proposed_at",
+        "proposal_notes",
+        "final_outcome",
+        "decided_by",
+        "decided_at",
+        "decision_notes",
+        "conditional_requirements",
+        "created_at",
+        "updated_at",
+    )
+
+    @admin.display(ordering="candidate__student__last_name")
+    def student(self, obj: CandidateOutcome) -> object:
+        return obj.candidate.student
+
+    @admin.display(ordering="candidate__session__grading_date")
+    def session(self, obj: CandidateOutcome) -> object:
+        return obj.candidate.session
+
+    @admin.display(ordering="candidate__testing_for_rank__order")
+    def testing_rank(self, obj: CandidateOutcome) -> object:
+        return obj.candidate.testing_for_rank
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: CandidateOutcome | None = None,
+    ) -> bool:
+        return False
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: CandidateOutcome,
+        form: ModelForm,
+        change: bool,
+    ) -> None:
+        if change and form.changed_data:
+            raise DjangoValidationError(
+                "Candidate outcomes are changed through the API workflow services.",
             )
         super().save_model(request, obj, form, change)

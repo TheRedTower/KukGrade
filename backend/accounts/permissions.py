@@ -7,6 +7,8 @@ from rest_framework.views import APIView
 
 from accounts.models import User
 
+FINAL_GRADING_DECISION_PERMISSION = "gradings.can_make_final_grading_decision"
+
 
 def _active_user(request: Request) -> User | None:
     user = request.user
@@ -60,11 +62,12 @@ class CanMakeFinalGradingDecision(BasePermission):
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
-        return user is not None and user.can_make_final_grading_decision
+        return user is not None and user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
 
 
 __all__ = [
     "CanMakeFinalGradingDecision",
+    "FINAL_GRADING_DECISION_PERMISSION",
     "IsAdministrator",
     "IsAuthenticatedUser",
     "IsInstructorOrAbove",

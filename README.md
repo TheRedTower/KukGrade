@@ -19,8 +19,12 @@ current rank. The syllabus catalogue foundation exists with read-only API
 lookup for WKSA Version 2014 testing requirements by rank and age band. Student
 API/UI is still deferred. The grading-session foundation now exists with
 sessions, candidates, age-band snapshots, next-rank validation, and applicable
-syllabus requirement lookup. Assessment records, grading results, scoring,
-promotion decisions, and worker implementation remain deferred.
+syllabus requirement lookup. Candidate assessment snapshots now preserve the
+exact syllabus requirements assessed for each candidate and store per-item
+`MET`, `NOT_MET`, or `NOT_ASSESSED` results. Final pass/fail/conditional
+grading outcomes, authorised Master decisions, automatic promotion,
+`Student.current_rank` updates, certificates, and worker implementation remain
+deferred.
 
 ## Confirmed Direction
 
@@ -160,8 +164,9 @@ Requirement lists support `rank_code` and `age_band` query parameters.
 
 ## Grading Session Foundation
 
-The `gradings` Django app establishes the grading workflow boundary without
-creating assessment rows or outcomes yet:
+The `gradings` Django app establishes the grading workflow boundary with
+candidate registration, age-band snapshots, immutable assessment snapshots, and
+per-item assessment results:
 
 ```text
 GradingSession
@@ -169,15 +174,25 @@ GradingSession
         -> Student
         -> testing-for Rank
         -> age-band snapshot
-        -> applicable syllabus requirements query
+        -> CandidateAssessment
+            -> CandidateAssessmentItem snapshot rows
 ```
 
 `GradingSession` statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and
 `CANCELLED`. Allowed transitions are `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
-`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
-`LOCKED -> OPEN`. The locked-to-open transition is a narrow administrative
-correction path while assessment records do not exist. `COMPLETED` and
-`CANCELLED` are terminal, and sessions do not auto-transition from dates.
+`OPEN -> LOCKED`, `OPEN -> CANCELLED`, and `LOCKED -> COMPLETED`.
+`LOCKED -> OPEN` is rejected. `COMPLETED` and `CANCELLED` are terminal, and
+sessions do not auto-transition from dates. Application code must use the
+canonical `transition_grading_session()` service for status changes; ordinary
+model saves reject direct status updates. New sessions start in `DRAFT`; clients
+and admin users cannot create already-open, locked, completed, or cancelled
+sessions through normal workflows.
+
+`OPEN -> LOCKED` requires every non-withdrawn candidate to have an assessment
+that is already `IN_PROGRESS` or `COMPLETED`; generating the assessment alone is
+not enough. Assessment start must happen while the session is `OPEN`. `LOCKED`
+sessions allow work already in progress to be finished but do not allow new
+assessments to begin. Withdrawn candidates do not block locking or completion.
 
 `GradingCandidate` statuses are `REGISTERED`, `WITHDRAWN`, and `COMPLETED`.
 Candidates can only be added to draft or open sessions. Candidate deletion is
@@ -196,10 +211,35 @@ creation requires `testing_for_rank` to be the next active rank after
 `Student.current_rank`, inspect prior grading results, create promotion history,
 or add broad override machinery.
 
-The syllabus boundary remains query-based for now. The grading service returns
-active `SyllabusRequirement` rows for the candidate's testing rank and age-band
-snapshot in deterministic sequence order. Immutable per-candidate requirement
-snapshots will be added with assessment records in the next feature.
+The assessment generation boundary starts from the active `SyllabusRequirement`
+query for the candidate's testing rank and age-band snapshot, then copies those
+requirements into immutable per-candidate snapshot rows.
+
+## Assessment Foundation
+
+Each `GradingCandidate` can have one generated `CandidateAssessment`. Generation
+copies the candidate's currently applicable active syllabus requirements into
+`CandidateAssessmentItem` snapshot rows. The copied fields include age band,
+item code, item name, Korean name, category, sequence, required flag, numbered
+range, and requirement notes. These fields remain unchanged if the live syllabus
+catalogue, item names, requirement ranges, notes, active flags, or source links
+change later.
+
+Assessment generation is allowed only while the parent session is `DRAFT` or
+`OPEN`. Assessments move `NOT_STARTED -> IN_PROGRESS -> COMPLETED`; starting an
+assessment is an explicit lifecycle transition allowed only while the session is
+`OPEN`. Result entry is allowed for `IN_PROGRESS` assessments while the session
+is `OPEN` or `LOCKED`, so locked sessions can finish work already in progress
+but cannot start new assessments. Completion requires every required item to be
+`MET` or `NOT_MET`; optional items may remain `NOT_ASSESSED`. Completing an
+assessment marks the candidate `COMPLETED`, but does not calculate a final
+grading outcome and does not change `Student.current_rank`.
+
+Session locking now requires every non-withdrawn candidate to have an
+`IN_PROGRESS` or `COMPLETED` assessment. Session completion requires every
+non-withdrawn candidate to have a completed assessment. Withdrawn candidates do
+not block locking or completion. Deletion of candidates with generated
+snapshots is limited to draft, not-started assessments.
 
 Authenticated staff can use:
 
@@ -207,6 +247,11 @@ Authenticated staff can use:
 - `/api/gradings/sessions/{id}/`
 - `/api/gradings/candidates/`
 - `/api/gradings/candidates/{id}/`
+- `/api/gradings/candidates/{id}/generate-assessment/`
+- `/api/gradings/assessments/`
+- `/api/gradings/assessments/{id}/`
+- `/api/gradings/assessment-items/`
+- `/api/gradings/assessment-items/{id}/`
 
 Session filters: `status`, `grading_date`, `grading_date_from`,
 `grading_date_to`. Candidate filters: `session`, `student_wksa_id`,

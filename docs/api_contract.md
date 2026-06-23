@@ -113,11 +113,12 @@ Form sections or parts from the source charts are currently preserved as notes.
 
 ## 8. Grading Sessions
 
-Current implementation note: the grading-session foundation exposes
-authenticated CRUD endpoints for sessions and candidates. It does not create
-assessment rows, item results, pass/fail/conditional outcomes, scoring,
-promotion decisions, attendance outside grading participation, certificates,
-notifications, or payment workflows.
+Current implementation note: the grading foundation exposes authenticated CRUD
+endpoints for sessions and candidates, plus generated candidate assessment
+snapshots and per-requirement item results. It does not create final
+pass/fail/conditional outcomes, authorised Master decisions, automatic
+promotion, `Student.current_rank` updates, attendance outside grading
+participation, certificates, notifications, or payment workflows.
 
 | Method | Endpoint                              | Description                                      |
 |-------|----------------------------------------|--------------------------------------------------|
@@ -133,6 +134,7 @@ notifications, or payment workflows.
 | PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
 | PATCH | /api/gradings/candidates/{id}/         | Update candidate status or notes                 |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
+| POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 
 Session fields:
 
@@ -155,11 +157,20 @@ Session lifecycle:
 - `OPEN -> LOCKED`
 - `OPEN -> CANCELLED`
 - `LOCKED -> COMPLETED`
-- `LOCKED -> OPEN`
 
-`LOCKED -> OPEN` is allowed as a narrow administrative correction path while
-assessment records are deferred. `CANCELLED` and `COMPLETED` are terminal.
-Sessions do not auto-transition based on dates.
+`CANCELLED` and `COMPLETED` are terminal. Sessions do not auto-transition based
+on dates. Locking a session requires every non-withdrawn candidate to have an
+assessment that is already `IN_PROGRESS` or `COMPLETED`; generation alone is
+insufficient. Assessment start must happen while the session is `OPEN`. Locked
+sessions can finish work already in progress but cannot start new assessments.
+Completing a locked session requires every non-withdrawn candidate to have a
+completed assessment. Withdrawn candidates do not block locking or session
+completion. `LOCKED -> OPEN` is rejected now that assessment records exist.
+Server code must use the canonical `transition_grading_session()` domain service
+for status changes; ordinary model saves reject direct status updates, and
+queryset `update()` is treated as a low-level maintenance escape hatch, not an
+application workflow API. New sessions start in `DRAFT`; API clients cannot
+create sessions directly in `OPEN`, `LOCKED`, `COMPLETED`, or `CANCELLED`.
 
 Session filters:
 
@@ -195,25 +206,70 @@ history and final decisions remain deferred.
 
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
-writable. Locked, completed, and cancelled sessions reject candidate updates and
-deletes.
+writable. Once an assessment snapshot exists, `student`, `testing_for_rank`, and
+`session` cannot be changed. Candidate `COMPLETED` is controlled by assessment
+completion and cannot be spoofed through the candidate API. Candidates with
+assessment snapshots can be deleted only while the session is `DRAFT` and the
+assessment is `NOT_STARTED`.
 
-The applicable syllabus query is service-layer only for this slice. It returns
-active `SyllabusRequirement` rows for the candidate testing rank and age-band
-snapshot in deterministic sequence order. Immutable per-candidate requirement
-snapshots will be added when assessment records are introduced.
+Assessment generation uses active `SyllabusRequirement` rows for the candidate
+testing rank and age-band snapshot in deterministic sequence order, then copies
+the requirement and item display data into immutable candidate-specific
+snapshot rows.
 
 ## 9. Assessments
 
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
-| GET   | /api/grading-candidates/{id}/assessments/             | List assessments for a candidate                     |
-| POST  | /api/grading-candidates/{id}/assessments/             | Create an assessment (examiner begins scoring)       |
-| GET   | /api/assessments/{id}/                                | Retrieve assessment details                          |
-| PATCH | /api/assessments/{id}/                                | Update assessment (autosave)                         |
-| POST  | /api/assessments/{id}/submit/                         | Submit assessment                                   |
-| GET   | /api/assessments/{id}/scores/                         | List scores for an assessment                       |
-| POST  | /api/assessments/{id}/scores/                         | Create or update a score entry                      |
+| GET   | /api/gradings/assessments/                            | List generated candidate assessments                 |
+| GET   | /api/gradings/assessments/{id}/                       | Retrieve assessment detail and informational counts  |
+| PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
+| POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
+| DELETE| /api/gradings/assessments/{id}/                       | 405; correction workflow deferred                    |
+| GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
+| GET   | /api/gradings/assessment-items/{id}/                  | Retrieve assessment item snapshot and result         |
+| PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
+| POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |
+| DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |
+
+Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
+Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
+`IN_PROGRESS -> COMPLETED`; direct `NOT_STARTED -> COMPLETED` is rejected.
+`NOT_STARTED -> IN_PROGRESS` is allowed only while the session is `OPEN`.
+Completed assessments and their items are immutable in this slice.
+
+Assessment-item result values are `NOT_ASSESSED`, `MET`, and `NOT_MET`. The
+server rejects item result changes until the parent assessment is explicitly
+started. Result changes are allowed for `IN_PROGRESS` assessments while the
+session is `OPEN` or `LOCKED`; locked sessions can finish work already in
+progress but cannot start new assessments. The server sets `assessor` to
+`request.user` and `assessed_at` when a result changes to `MET` or `NOT_MET`.
+Resetting an item to `NOT_ASSESSED` before completion clears assessor metadata.
+Result values are not aggregated into an overall candidate outcome.
+
+Assessment list filters:
+
+- `candidate`
+- `session`
+- `student_wksa_id`
+- `testing_for_rank_code`
+- `status`
+
+Assessment-item list filters:
+
+- `assessment`
+- `candidate`
+- `session`
+- `item_code`
+- `category`
+- `result`
+- `required`
+
+Assessment detail includes candidate id, student name, WKSA ID, testing-for
+rank code and name, candidate age-band snapshot, lifecycle timestamps, notes,
+generator attribution, and informational item counts. Counts report total,
+required, met, not met, and not assessed items only; no pass/fail/conditional
+outcome is produced.
 
 ## 10. Decisions and Promotions
 

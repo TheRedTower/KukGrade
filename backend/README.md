@@ -67,10 +67,18 @@ Authenticated staff can manage grading sessions and candidates:
 
 Session statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and `CANCELLED`.
 Allowed transitions are `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
-`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
-`LOCKED -> OPEN`. Reopening a locked session is documented as a narrow
-administrative correction path until assessment records exist. Completed and
-cancelled sessions are terminal.
+`OPEN -> LOCKED`, `OPEN -> CANCELLED`, and `LOCKED -> COMPLETED`.
+`LOCKED -> OPEN` is rejected. Completed and cancelled sessions are terminal.
+Code must use the canonical `transition_grading_session()` service for status
+changes; ordinary model saves reject direct status updates. New sessions start
+in `DRAFT`; normal API and admin workflows cannot create already-open, locked,
+completed, or cancelled sessions.
+
+`OPEN -> LOCKED` requires every non-withdrawn candidate to have an assessment
+that is already `IN_PROGRESS` or `COMPLETED`; generation alone is insufficient.
+Assessment start must happen while the session is open. Locked sessions can
+finish work already in progress but cannot start new assessments. Withdrawn
+candidates do not block locking or completion.
 
 Candidate statuses are `REGISTERED`, `WITHDRAWN`, and `COMPLETED`. Candidate
 `age_band` is derived from the student's date of birth and the session grading
@@ -86,14 +94,57 @@ only while the parent session is draft or open.
 `created_by`, candidate `student`, and candidate `testing_for_rank` use
 protected foreign keys to preserve historical and reference relationships.
 
+## Candidate Assessments
+
+Authenticated staff can generate and work with candidate assessment snapshots:
+
+- `POST /api/gradings/candidates/{id}/generate-assessment/`
+- `GET /api/gradings/assessments/`
+- `GET /api/gradings/assessments/{id}/`
+- `PATCH /api/gradings/assessments/{id}/`
+- `GET /api/gradings/assessment-items/`
+- `GET /api/gradings/assessment-items/{id}/`
+- `PATCH /api/gradings/assessment-items/{id}/`
+
+Assessments are created only through the generation action. Generation is
+transactional and allowed only for draft or open sessions. It copies active
+applicable requirements into `CandidateAssessmentItem` rows, including age band,
+item code, item name, Korean name, category, sequence, required flag, numbered
+range, and requirement notes. Source requirement, source item, and source rank
+links are trace-only and nullable; historical display uses the copied snapshot
+fields.
+
+Assessment lifecycle is `NOT_STARTED -> IN_PROGRESS -> COMPLETED`. Starting an
+assessment is explicit and is allowed only while the session is open. Result
+entry is allowed only for in-progress assessments in open or locked sessions;
+locked sessions can finish work already in progress but cannot start new
+assessments. Required items must be `MET` or `NOT_MET` before completion;
+optional items may remain `NOT_ASSESSED`. Completing an assessment atomically
+marks the candidate `COMPLETED`. This is only a workflow completion marker:
+final pass/fail/conditional outcomes, authorised Master decisions, promotions,
+rank-history creation, and `Student.current_rank` updates remain deferred.
+
+Clients may patch only assessment `status` and `notes`, and assessment-item
+`result` and `assessor_notes`. Item result changes are rejected until the
+assessment has been explicitly started. The server assigns `assessor` and
+`assessed_at` when an item is marked `MET` or `NOT_MET`; resetting to
+`NOT_ASSESSED` before completion clears those metadata fields. Snapshot and
+source fields are read-only. Ordinary POST and DELETE operations for assessments
+and items are not exposed.
+
 Filters:
 
 - Sessions: `status`, `grading_date`, `grading_date_from`, `grading_date_to`.
 - Candidates: `session`, `student_wksa_id`, `testing_for_rank_code`,
   `age_band`, `status`.
+- Assessments: `candidate`, `session`, `student_wksa_id`,
+  `testing_for_rank_code`, `status`.
+- Assessment items: `assessment`, `candidate`, `session`, `item_code`,
+  `category`, `result`, `required`.
 
-Applicable syllabus requirements are queried from active `SyllabusRequirement`
-rows by candidate testing rank and age-band snapshot. No requirement snapshot
-rows, item assessment rows, pass/fail/conditional outcomes, scores, promotion
-records, certificates, notifications, or payment workflows exist in this
-foundation.
+Session locking requires every non-withdrawn candidate to have an `IN_PROGRESS`
+or `COMPLETED` assessment. Session completion requires every non-withdrawn
+candidate to have a completed assessment. Withdrawn candidates do not block
+locking or completion. Generated snapshots prevent candidate student,
+testing-for rank, and session changes; candidate deletion is allowed only for
+draft, not-started assessment snapshots.

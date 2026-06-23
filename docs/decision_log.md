@@ -18,6 +18,58 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-06-23 - Candidate assessment snapshot foundation
+
+Status: Accepted
+
+Decision:
+Create `CandidateAssessment` as a one-to-one assessment package for a
+`GradingCandidate`, and `CandidateAssessmentItem` as immutable
+per-requirement snapshot rows with `NOT_ASSESSED`, `MET`, and `NOT_MET`
+results. Assessment generation is service-only and transactional. It copies the
+candidate's active applicable syllabus requirements at generation time,
+including age band, item code, item name, Korean name, category, sequence,
+required flag, numbered range, and requirement notes. Source requirement, item,
+and rank relationships are nullable trace links only; historical display must
+use the copied fields.
+
+Context:
+Historical grading records must remain reproducible if syllabus item names,
+requirement ranges, notes, active flags, rank mappings, or catalogue versions
+change later. This slice intentionally captures assessment evidence without
+implementing final grading outcomes.
+
+Consequences:
+Assessments can be generated only while sessions are `DRAFT` or `OPEN`.
+Assessment start is an explicit `NOT_STARTED -> IN_PROGRESS` transition allowed
+only while the session is `OPEN`. Result entry is allowed only for
+`IN_PROGRESS` assessments while sessions are `OPEN` or `LOCKED`; locked
+sessions can finish work already in progress but cannot start new assessments.
+Lifecycle is `NOT_STARTED -> IN_PROGRESS -> COMPLETED`; direct completion from
+not started is rejected. Completion requires every required item to be assessed,
+while optional items may remain `NOT_ASSESSED`. Completing an assessment
+atomically marks the candidate `COMPLETED`, but does not calculate
+pass/fail/conditional outcomes, does not create a Master final decision, does
+not promote the student, and does not update `Student.current_rank`. Session
+status changes must use the canonical `transition_grading_session()` service;
+ordinary model saves reject direct status changes. Session locking requires
+every non-withdrawn candidate to have an `IN_PROGRESS` or `COMPLETED`
+assessment; generation alone is insufficient because assessment start must occur
+while the session is `OPEN`. Session completion requires every non-withdrawn
+candidate to have a completed assessment. `LOCKED -> OPEN` is rejected now that
+assessment records exist. New sessions start in `DRAFT`, and normal API/admin
+workflows cannot create sessions directly in later statuses. Withdrawn
+candidates do not block locking or completion. Generated snapshots prevent
+candidate student,
+testing-for-rank, and session changes. Deletion is limited to draft,
+not-started snapshots. `generated_by` uses `PROTECT`, matching the existing
+session creator audit-attribution policy. `assessor` uses `SET_NULL` so item
+results survive account removal. `source_rank` uses `SET_NULL` because it is a
+trace-only link and the copied item snapshot, not the live rank relationship, is
+the historical record. Correction workflows, stronger audit events, category
+summaries, final decisions, promotion history, certificates, notifications, and
+frontend assessment screens remain deferred.
+
 ### 2026-06-23 - Grading session and candidate foundation
 
 Status: Accepted
@@ -28,10 +80,9 @@ Create a dedicated `gradings` Django app for `GradingSession` and
 `/api/gradings/sessions/` and `/api/gradings/candidates/`. Store candidate
 `age_band` as a historical snapshot derived from `Student.date_of_birth` and the
 session grading date. Validate candidate `testing_for_rank` as the next active
-rank after `Student.current_rank`. Keep applicable syllabus requirements as a
-query over active `SyllabusRequirement` rows for the candidate's testing rank
-and age band until assessment records introduce immutable per-candidate
-requirement snapshots.
+rank after `Student.current_rank`. The later candidate assessment snapshot
+foundation supersedes the live-query-only syllabus boundary for historical
+assessment display.
 
 Context:
 This slice establishes the session-to-candidate foundation needed before
@@ -41,20 +92,20 @@ grading participation, frontend screens, notifications, certificates, and
 payment handling.
 
 Consequences:
-Session lifecycle is narrow: `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
-`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
-`LOCKED -> OPEN`. Reopening a locked session is allowed as a documented
-administrative correction path while no assessment records exist. `CANCELLED`
-and `COMPLETED` are terminal. Session deletion is allowed only for draft or
-cancelled sessions; candidate deletion is allowed only while the parent session
-is draft or open. Candidate fields can be edited only while the parent session
-is draft or open. Session grading dates cannot be changed after candidates are
-added, preserving stored age-band snapshots without adding bulk recalculation
-logic. Leap-day birthdays age on 1 March in non-leap years. `created_by`,
-candidate `student`, and candidate `testing_for_rank` use protected foreign
-keys to preserve historical and reference relationships. `Student.current_rank`
-is not changed by this feature; promotion history, audit logging, and
-role-specific production permissions remain deferred.
+This pre-assessment slice allowed `LOCKED -> OPEN` only while no assessment
+records existed. That correction path is superseded by the candidate assessment
+snapshot foundation, which rejects `LOCKED -> OPEN`. `CANCELLED` and
+`COMPLETED` are terminal. Session deletion is allowed only for draft or
+cancelled sessions; candidate deletion is now further constrained once
+assessment snapshots exist. Candidate fields can be edited only while the parent
+session is draft or open and only before generated snapshots make them
+historical. Session grading dates cannot be changed after candidates are added,
+preserving stored age-band snapshots without adding bulk recalculation logic.
+Leap-day birthdays age on 1 March in non-leap years. `created_by`, candidate
+`student`, and candidate `testing_for_rank` use protected foreign keys to
+preserve historical and reference relationships. `Student.current_rank` is not
+changed by this feature; promotion history, audit logging, and role-specific
+production permissions remain deferred.
 
 ### 2026-06-23 - Syllabus catalogue foundation
 

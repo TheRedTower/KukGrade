@@ -12,7 +12,7 @@ Scope and features:
 	3	Syllabus lookup: implement models to store the discipline’s rank hierarchy and age‑band‑specific technique lists.  Expose endpoints and UI views so examiners can view the relevant syllabus and grading criteria during a session.
 	4	Grading session management: admins can create sessions, assign candidates and examiners, and set session status (draft/in‑progress/completed).
 	5	Assessment entry: examiners record scores and comments against criteria categories (techniques, forms, sparring, etc.), with pass/fail style outcomes.  Provide cohort comments and global comments to reduce repetitive data entry.  Prior grading notes should be visible to aid consistency.
-	6	Final decision capture: head instructors record pass/fail/defer decisions.  Final results and cohort comments are stored for later reporting.
+	6	Final decision capture: authorised Masters record pass/fail/conditional decisions.  Final results and cohort comments are stored for later reporting. Promotion records remain a separate deferred workflow.
 	7	Basic metrics: display simple statistics such as pass/fail counts and improvement from previous attempts.
 	8	Audit trail: log who recorded each final decision and any manual overrides.
 2.2 Version 2 – Operational maturity
@@ -54,10 +54,10 @@ Phase 3 – Grading workflow
 	2	Candidate assignment: allow adding eligible students to a session.  Provide quick search to find students and display their current rank and eligibility status.
 	3	Examiner assignment: assign one or more examiners to each session and restrict scoring access to assigned examiners.
 	4	Assessment entry UI: build a responsive scoring form where examiners input scores and comments by category.  Support autosave drafts and previous comment visibility.  Implement simple pass/fail logic for V1.
-	5	Final decision panel: create a screen for head instructors to review examiner assessments, record final decisions (pass/fail/defer) and add cohort/global comments.  Lock results once finalised and create promotion records.
+	5	Final decision panel: create a screen for authorised Masters to review examiner assessments, record final decisions (pass/fail/conditional) and add cohort/global comments.  Lock results once finalised. Promotion records remain deferred until the promotion workflow is confirmed.
 Phase 4 – Reporting and history
 	1	Promotion records and certificates: implement model to store promotions and generate simple PDF certificates.  Allow staff to download certificates from the student profile.
-	2	Basic reports: build backend endpoints and frontend pages that summarise pass/fail counts, deferred candidates, and improvement metrics.  Provide filters by date range, rank and instructor.
+	2	Basic reports: build backend endpoints and frontend pages that summarise pass/fail/conditional counts and improvement metrics.  Provide filters by date range, rank and instructor.
 	3	Audit log: record changes to critical entities (rank updates, final decisions, rubric changes) and display them in an admin audit view.
 Phase 5 – Maturity and automation (V2)
 	1	Eligibility engine: create a service that calculates eligibility based on time since last promotion, attendance and recommendation status.  Expose results via API and display badges in the student list.  Implement an “eligible/near‑eligible/blocked” dashboard.

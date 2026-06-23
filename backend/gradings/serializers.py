@@ -6,14 +6,18 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
+from accounts.models import User
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
+    CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
 from gradings.services import (
     build_candidate,
+    finalise_candidate_outcome,
+    propose_candidate_outcome,
     transition_grading_session,
     update_candidate,
     update_candidate_assessment,
@@ -400,3 +404,162 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
+
+
+class CandidateOutcomeSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    proposed_outcome_display = serializers.CharField(
+        source="get_proposed_outcome_display",
+        read_only=True,
+    )
+    final_outcome_display = serializers.CharField(
+        source="get_final_outcome_display",
+        read_only=True,
+    )
+    student = serializers.IntegerField(source="candidate.student_id", read_only=True)
+    student_display_name = serializers.CharField(
+        source="candidate.student",
+        read_only=True,
+    )
+    student_wksa_id = serializers.CharField(
+        source="candidate.student.wksa_id",
+        read_only=True,
+    )
+    session = serializers.IntegerField(source="candidate.session_id", read_only=True)
+    session_title = serializers.CharField(
+        source="candidate.session.title",
+        read_only=True,
+    )
+    testing_for_rank = serializers.IntegerField(
+        source="candidate.testing_for_rank_id",
+        read_only=True,
+    )
+    testing_for_rank_code = serializers.CharField(
+        source="candidate.testing_for_rank.code",
+        read_only=True,
+    )
+    testing_for_rank_name = serializers.CharField(
+        source="candidate.testing_for_rank.name",
+        read_only=True,
+    )
+    assessment_status = serializers.CharField(
+        source="assessment.status",
+        read_only=True,
+    )
+    proposed_by_email = serializers.EmailField(
+        source="proposed_by.email",
+        read_only=True,
+    )
+    proposed_by_name = serializers.CharField(
+        source="proposed_by.get_full_name",
+        read_only=True,
+    )
+    decided_by_email = serializers.EmailField(
+        source="decided_by.email",
+        read_only=True,
+    )
+    decided_by_name = serializers.CharField(
+        source="decided_by.get_full_name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = CandidateOutcome
+        fields = (
+            "id",
+            "candidate",
+            "assessment",
+            "assessment_status",
+            "student",
+            "student_display_name",
+            "student_wksa_id",
+            "session",
+            "session_title",
+            "testing_for_rank",
+            "testing_for_rank_code",
+            "testing_for_rank_name",
+            "status",
+            "status_display",
+            "proposed_outcome",
+            "proposed_outcome_display",
+            "proposed_by",
+            "proposed_by_email",
+            "proposed_by_name",
+            "proposed_at",
+            "proposal_notes",
+            "final_outcome",
+            "final_outcome_display",
+            "decided_by",
+            "decided_by_email",
+            "decided_by_name",
+            "decided_at",
+            "decision_notes",
+            "conditional_requirements",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class CandidateOutcomeProposalSerializer(serializers.Serializer):
+    proposed_outcome = serializers.ChoiceField(choices=CandidateOutcome.Outcome.choices)
+    proposal_notes = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def update(
+        self,
+        instance: CandidateOutcome,
+        validated_data: dict[str, Any],
+    ) -> CandidateOutcome:
+        request = self.context["request"]
+        try:
+            return propose_candidate_outcome(
+                instance,
+                proposed_outcome=str(validated_data["proposed_outcome"]),
+                proposal_notes=str(validated_data.get("proposal_notes", "")),
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> CandidateOutcome:
+        raise NotImplementedError
+
+
+class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
+    final_outcome = serializers.ChoiceField(choices=CandidateOutcome.Outcome.choices)
+    decision_notes = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+    conditional_requirements = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def update(
+        self,
+        instance: CandidateOutcome,
+        validated_data: dict[str, Any],
+    ) -> CandidateOutcome:
+        request = self.context["request"]
+        try:
+            return finalise_candidate_outcome(
+                instance,
+                final_outcome=str(validated_data["final_outcome"]),
+                decision_notes=str(validated_data.get("decision_notes", "")),
+                conditional_requirements=str(
+                    validated_data.get("conditional_requirements", ""),
+                ),
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> CandidateOutcome:
+        raise NotImplementedError

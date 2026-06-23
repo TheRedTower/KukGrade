@@ -18,6 +18,47 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-06-23 - Candidate outcome and Master decision foundation
+
+Status: Accepted
+
+Decision:
+Create `CandidateOutcome` as the one-to-one outcome record for a completed
+`GradingCandidate` and its completed `CandidateAssessment`. Outcomes start as
+`DRAFT`, may be revised as `PROPOSED`, and become immutable once `FINALISED`.
+Outcome values are `PASS`, `FAIL`, and `CONDITIONAL`; older defer/reassess
+wording is not used for implemented outcomes. Outcome creation is an explicit
+candidate action after assessment completion, not an automatic side effect of
+assessment completion. Final decisions can be made only while the parent session
+is `LOCKED` and only by a user with the
+`gradings.can_make_final_grading_decision` Django permission.
+
+Context:
+Assessment item counts are useful evidence, but the domain requires the final
+grading decision to remain an explicit human decision by an authorised
+Master-level user. The accepted account model already includes a narrow final
+grading decision capability; this slice implements that boundary as a Django
+permission instead of adding a broader production role architecture or
+hard-coded rank/title checks.
+
+Consequences:
+`CandidateOutcome.assessment` uses `PROTECT` so historical final decisions keep
+their assessment evidence. `proposed_by` and `decided_by` also use `PROTECT`,
+matching the existing policy for key grading attribution such as session
+creator and assessment generator; display-name snapshots are therefore not
+duplicated in this slice. `CONDITIONAL` final decisions require meaningful
+conditional requirements, while `PASS` and `FAIL` reject stale conditional text.
+On-demand category summaries use copied `CandidateAssessmentItem.category`
+snapshot values, include optional items in overall counts, distinguish required
+from optional evidence, and do not infer a pass/fail/conditional result.
+Session completion now requires every non-withdrawn candidate to have both a
+completed assessment and finalised outcome. Finalised outcomes block ordinary
+edits, deletes, candidate withdrawal, candidate deletion, and assessment
+deletion; `QuerySet.update()` remains an unsupported low-level maintenance
+escape hatch. This slice deliberately does not update `Student.current_rank`,
+create promotion history, create certificates, send notifications, add frontend
+screens, or implement correction/reopening after finalisation.
+
 ### 2026-06-23 - Candidate assessment snapshot foundation
 
 Status: Accepted

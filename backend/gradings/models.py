@@ -317,6 +317,294 @@ class CandidateAssessment(models.Model):
         self.notes = (self.notes or "").strip()
 
 
+class CandidateOutcome(models.Model):
+    _allow_status_transition: bool = False
+
+    class Outcome(models.TextChoices):
+        PASS = "PASS", "Pass"
+        FAIL = "FAIL", "Fail"
+        CONDITIONAL = "CONDITIONAL", "Conditional"
+
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        PROPOSED = "PROPOSED", "Proposed"
+        FINALISED = "FINALISED", "Finalised"
+
+    candidate = models.OneToOneField(
+        GradingCandidate,
+        on_delete=models.CASCADE,
+        related_name="outcome",
+    )
+    assessment = models.OneToOneField(
+        CandidateAssessment,
+        on_delete=models.PROTECT,
+        related_name="outcome",
+    )
+    proposed_outcome = models.CharField(  # noqa: DJ001
+        max_length=32,
+        choices=Outcome.choices,
+        null=True,
+        blank=True,
+    )
+    proposed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="proposed_candidate_outcomes",
+        null=True,
+        blank=True,
+    )
+    proposed_at = models.DateTimeField(null=True, blank=True)
+    proposal_notes = models.TextField(blank=True)
+    final_outcome = models.CharField(  # noqa: DJ001
+        max_length=32,
+        choices=Outcome.choices,
+        null=True,
+        blank=True,
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="decided_candidate_outcomes",
+        null=True,
+        blank=True,
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_notes = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=32,
+        choices=Status.choices,
+        default=Status.DRAFT,
+    )
+    conditional_requirements = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [
+            "candidate__session__grading_date",
+            "candidate__student__last_name",
+            "candidate__student__first_name",
+        ]
+        indexes = [
+            models.Index(fields=["status"], name="cand_outcome_status_idx"),
+            models.Index(
+                fields=["proposed_outcome"],
+                name="cand_outcome_proposed_idx",
+            ),
+            models.Index(fields=["final_outcome"], name="cand_outcome_final_idx"),
+            models.Index(fields=["decided_at"], name="cand_outcome_decided_idx"),
+        ]
+        permissions = [
+            (
+                "can_make_final_grading_decision",
+                "Can make final grading decision",
+            ),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=["DRAFT", "PROPOSED", "FINALISED"]),
+                name="candidate_outcome_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(proposed_outcome__isnull=True)
+                | Q(proposed_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                name="candidate_outcome_proposed_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(final_outcome__isnull=True)
+                | Q(final_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                name="candidate_outcome_final_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        status="DRAFT",
+                        proposed_outcome__isnull=True,
+                        proposed_by__isnull=True,
+                        proposed_at__isnull=True,
+                        final_outcome__isnull=True,
+                        decided_by__isnull=True,
+                        decided_at__isnull=True,
+                        conditional_requirements="",
+                    )
+                    | Q(
+                        status="PROPOSED",
+                        proposed_outcome__isnull=False,
+                        proposed_by__isnull=False,
+                        proposed_at__isnull=False,
+                        final_outcome__isnull=True,
+                        decided_by__isnull=True,
+                        decided_at__isnull=True,
+                        conditional_requirements="",
+                    )
+                    | Q(
+                        status="FINALISED",
+                        proposed_outcome__isnull=False,
+                        proposed_by__isnull=False,
+                        proposed_at__isnull=False,
+                        final_outcome__isnull=False,
+                        decided_by__isnull=False,
+                        decided_at__isnull=False,
+                        decided_at__gte=F("proposed_at"),
+                    )
+                ),
+                name="candidate_outcome_status_fields_valid",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        final_outcome="CONDITIONAL",
+                        conditional_requirements__gt="",
+                    )
+                    | (
+                        Q(final_outcome__isnull=True)
+                        | Q(final_outcome__in=["PASS", "FAIL"])
+                    )
+                    & Q(conditional_requirements="")
+                ),
+                name="candidate_outcome_conditions_valid",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Outcome for {self.candidate}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        if self.status == self.Status.FINALISED:
+            raise ValidationError(
+                {"status": ["Finalised candidate outcomes cannot be deleted."]},
+            )
+        return super().delete(*args, **kwargs)
+
+    def clean(self) -> None:
+        super().clean()
+        self.proposal_notes = (self.proposal_notes or "").strip()
+        self.decision_notes = (self.decision_notes or "").strip()
+        self.conditional_requirements = (self.conditional_requirements or "").strip()
+
+        errors: dict[str, list[str]] = {}
+        if (
+            self.candidate_id
+            and self.assessment_id
+            and self.assessment.candidate_id != self.candidate_id
+        ):
+            errors["assessment"] = [
+                "Outcome assessment must belong to the same grading candidate.",
+            ]
+
+        if not self._state.adding and self.pk is not None:
+            previous = (
+                CandidateOutcome.objects.filter(pk=self.pk)
+                .values(
+                    "candidate_id",
+                    "assessment_id",
+                    "status",
+                    "proposed_outcome",
+                    "proposed_by_id",
+                    "proposed_at",
+                    "proposal_notes",
+                    "final_outcome",
+                    "decided_by_id",
+                    "decided_at",
+                    "decision_notes",
+                    "conditional_requirements",
+                )
+                .first()
+            )
+            if previous is not None:
+                status_changed = previous["status"] != self.status
+                if status_changed and not getattr(
+                    self,
+                    "_allow_status_transition",
+                    False,
+                ):
+                    errors["status"] = [
+                        "Use the candidate outcome workflow services for "
+                        "status changes.",
+                    ]
+                if previous["status"] == self.Status.FINALISED:
+                    protected_changes = (
+                        previous["candidate_id"] != self.candidate_id
+                        or previous["assessment_id"] != self.assessment_id
+                        or previous["status"] != self.status
+                        or previous["proposed_outcome"] != self.proposed_outcome
+                        or previous["proposed_by_id"] != self.proposed_by_id
+                        or previous["proposed_at"] != self.proposed_at
+                        or previous["proposal_notes"] != self.proposal_notes
+                        or previous["final_outcome"] != self.final_outcome
+                        or previous["decided_by_id"] != self.decided_by_id
+                        or previous["decided_at"] != self.decided_at
+                        or previous["decision_notes"] != self.decision_notes
+                        or previous["conditional_requirements"]
+                        != self.conditional_requirements
+                    )
+                    if protected_changes:
+                        errors["status"] = [
+                            "Finalised candidate outcomes are immutable.",
+                        ]
+
+        if self.status == self.Status.DRAFT:
+            if self.proposed_outcome is not None:
+                errors["proposed_outcome"] = [
+                    "Draft outcomes cannot have a proposed outcome.",
+                ]
+            if self.proposed_by_id is not None or self.proposed_at is not None:
+                errors["proposed_by"] = [
+                    "Draft outcomes cannot have proposal attribution.",
+                ]
+            if self.final_outcome is not None:
+                errors["final_outcome"] = [
+                    "Draft outcomes cannot have a final outcome.",
+                ]
+        if self.status == self.Status.PROPOSED:
+            if self.proposed_outcome is None:
+                errors["proposed_outcome"] = ["Proposed outcome is required."]
+            if self.proposed_by_id is None or self.proposed_at is None:
+                errors["proposed_by"] = [
+                    "Proposal attribution is required.",
+                ]
+            if self.final_outcome is not None:
+                errors["final_outcome"] = [
+                    "Proposed outcomes cannot have final decision fields.",
+                ]
+        if self.status == self.Status.FINALISED:
+            if self.proposed_outcome is None:
+                errors["proposed_outcome"] = ["Proposed outcome is required."]
+            if self.proposed_by_id is None or self.proposed_at is None:
+                errors["proposed_by"] = ["Proposal attribution is required."]
+            if self.final_outcome is None:
+                errors["final_outcome"] = ["Final outcome is required."]
+            if self.decided_by_id is None or self.decided_at is None:
+                errors["decided_by"] = [
+                    "Final decision attribution is required.",
+                ]
+            if (
+                self.proposed_at is not None
+                and self.decided_at is not None
+                and self.decided_at < self.proposed_at
+            ):
+                errors["decided_at"] = [
+                    "Decision timestamp cannot be before proposal timestamp.",
+                ]
+
+        if self.final_outcome == self.Outcome.CONDITIONAL:
+            if not self.conditional_requirements:
+                errors["conditional_requirements"] = [
+                    "Conditional requirements are required for conditional outcomes.",
+                ]
+        elif self.conditional_requirements:
+            errors["conditional_requirements"] = [
+                "Conditional requirements must be blank for pass or fail outcomes.",
+            ]
+
+        if errors:
+            raise ValidationError(errors)
+
+
 class CandidateAssessmentItem(models.Model):
     class Result(models.TextChoices):
         NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"

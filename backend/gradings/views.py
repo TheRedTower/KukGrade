@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from typing import cast
 
@@ -13,20 +14,27 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
+from accounts.permissions import CanMakeFinalGradingDecision
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
+    CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
 from gradings.serializers import (
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
+    CandidateOutcomeFinaliseSerializer,
+    CandidateOutcomeProposalSerializer,
+    CandidateOutcomeSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
     raise_drf_validation_error,
 )
 from gradings.services import (
+    candidate_assessment_summary,
+    create_candidate_outcome,
     generate_candidate_assessment,
     validate_candidate_can_be_deleted,
     validate_session_can_be_deleted,
@@ -175,6 +183,21 @@ class GradingCandidateViewSet(ModelViewSet):
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["post"], url_path="create-outcome")
+    def create_outcome(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        candidate = self.get_object()
+        try:
+            outcome = create_candidate_outcome(candidate, cast(User, request.user))
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        serializer = CandidateOutcomeSerializer(outcome, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 class CandidateAssessmentViewSet(
     mixins.ListModelMixin,
@@ -301,3 +324,162 @@ class CandidateAssessmentItemViewSet(
             queryset = queryset.none()
 
         return queryset
+
+
+class CandidateOutcomeViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    serializer_class = CandidateOutcomeSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_queryset(self) -> QuerySet[CandidateOutcome]:
+        queryset = (
+            CandidateOutcome.objects.select_related(
+                "candidate__session",
+                "candidate__student",
+                "candidate__testing_for_rank",
+                "assessment",
+                "proposed_by",
+                "decided_by",
+            )
+            .all()
+            .order_by(
+                "candidate__session__grading_date",
+                "candidate__student__last_name",
+                "candidate__student__first_name",
+            )
+        )
+
+        session = self.request.query_params.get("session")
+        if session and session.isdecimal():
+            queryset = queryset.filter(candidate__session_id=int(session))
+        elif session:
+            queryset = queryset.none()
+
+        candidate = self.request.query_params.get("candidate")
+        if candidate and candidate.isdecimal():
+            queryset = queryset.filter(candidate_id=int(candidate))
+        elif candidate:
+            queryset = queryset.none()
+
+        student_wksa_id = self.request.query_params.get("student_wksa_id")
+        if student_wksa_id:
+            queryset = queryset.filter(candidate__student__wksa_id=student_wksa_id)
+
+        testing_for_rank_code = self.request.query_params.get("testing_for_rank_code")
+        if testing_for_rank_code:
+            queryset = queryset.filter(
+                candidate__testing_for_rank__code=testing_for_rank_code,
+            )
+
+        status_filter = self.request.query_params.get("status")
+        if status_filter in CandidateOutcome.Status.values:
+            queryset = queryset.filter(status=status_filter)
+        elif status_filter:
+            queryset = queryset.none()
+
+        proposed_outcome = self.request.query_params.get("proposed_outcome")
+        if proposed_outcome in CandidateOutcome.Outcome.values:
+            queryset = queryset.filter(proposed_outcome=proposed_outcome)
+        elif proposed_outcome:
+            queryset = queryset.none()
+
+        final_outcome = self.request.query_params.get("final_outcome")
+        if final_outcome in CandidateOutcome.Outcome.values:
+            queryset = queryset.filter(final_outcome=final_outcome)
+        elif final_outcome:
+            queryset = queryset.none()
+
+        proposed_by = self.request.query_params.get("proposed_by")
+        if proposed_by:
+            try:
+                queryset = queryset.filter(proposed_by_id=uuid.UUID(proposed_by))
+            except ValueError:
+                queryset = queryset.none()
+
+        decided_by = self.request.query_params.get("decided_by")
+        if decided_by:
+            try:
+                queryset = queryset.filter(decided_by_id=uuid.UUID(decided_by))
+            except ValueError:
+                queryset = queryset.none()
+
+        return queryset
+
+    def partial_update(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        return Response(
+            {
+                "detail": (
+                    "Candidate outcomes are read-only except through proposal "
+                    "and finalisation actions."
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @action(detail=True, methods=["patch"])
+    def propose(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        outcome = self.get_object()
+        serializer = CandidateOutcomeProposalSerializer(
+            outcome,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        response_serializer = CandidateOutcomeSerializer(
+            updated,
+            context={"request": request},
+        )
+        return Response(response_serializer.data)
+
+    @action(
+        detail=True,
+        methods=["patch"],
+        permission_classes=[CanMakeFinalGradingDecision],
+    )
+    def finalise(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        outcome = self.get_object()
+        serializer = CandidateOutcomeFinaliseSerializer(
+            outcome,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        response_serializer = CandidateOutcomeSerializer(
+            updated,
+            context={"request": request},
+        )
+        return Response(response_serializer.data)
+
+    @action(detail=True, methods=["get"])
+    def summary(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        outcome = self.get_object()
+        return Response(candidate_assessment_summary(outcome.assessment))

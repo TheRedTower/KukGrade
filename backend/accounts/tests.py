@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth.models import AnonymousUser, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.views import APIView
 
 from accounts.models import User
 from accounts.permissions import (
+    FINAL_GRADING_DECISION_PERMISSION,
     CanMakeFinalGradingDecision,
     IsAdministrator,
     IsAuthenticatedUser,
@@ -199,6 +201,18 @@ def permission_result(permission: type, user: User | None) -> bool:
     return bool(permission().has_permission(request, APIView()))
 
 
+def grant_final_decision_permission(user: User) -> None:
+    app_label, codename = FINAL_GRADING_DECISION_PERMISSION.split(".")
+    permission = Permission.objects.get(
+        codename=codename,
+        content_type=ContentType.objects.get(
+            app_label=app_label,
+            model="candidateoutcome",
+        ),
+    )
+    user.user_permissions.add(permission)
+
+
 def test_role_permission_classes_against_all_roles() -> None:
     instructor = create_user("instructor@example.com", role=User.Role.INSTRUCTOR)
     manager = create_user("manager@example.com", role=User.Role.MANAGER)
@@ -227,19 +241,26 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
     instructor_master = create_user(
         "instructor-master@example.com",
         role=User.Role.INSTRUCTOR,
-        can_make_final_grading_decision=True,
     )
+    grant_final_decision_permission(instructor_master)
     administrator_without_capability = create_user(
         "administrator-no-capability@example.com",
         role=User.Role.ADMINISTRATOR,
         can_make_final_grading_decision=False,
     )
+    legacy_boolean_only = create_user(
+        "legacy-boolean-only@example.com",
+        can_make_final_grading_decision=True,
+    )
+    superuser = User.objects.create_superuser("permission-superuser@example.com")
 
     assert permission_result(CanMakeFinalGradingDecision, instructor_master) is True
     assert (
         permission_result(CanMakeFinalGradingDecision, administrator_without_capability)
         is False
     )
+    assert permission_result(CanMakeFinalGradingDecision, legacy_boolean_only) is False
+    assert permission_result(CanMakeFinalGradingDecision, superuser) is True
 
 
 def test_inactive_users_fail_reusable_permissions() -> None:

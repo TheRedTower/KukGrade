@@ -113,15 +113,95 @@ Form sections or parts from the source charts are currently preserved as notes.
 
 ## 8. Grading Sessions
 
-| Method | Endpoint                                            | Description                                          |
-|-------|------------------------------------------------------|------------------------------------------------------|
-| GET   | /api/grading-sessions/                               | List grading sessions                                |
-| POST  | /api/grading-sessions/                               | Create a new grading session                         |
-| GET   | /api/grading-sessions/{id}/                          | Retrieve session details                              |
-| PATCH | /api/grading-sessions/{id}/                          | Update session (status, venue, etc.)                 |
-| POST  | /api/grading-sessions/{id}/candidates/               | Add candidates to a session                          |
-| POST  | /api/grading-sessions/{id}/assign-examiners/         | Assign examiners                                     |
-| POST  | /api/grading-sessions/{id}/status/                   | Change session status (e.g. from draft to scheduled) |
+Current implementation note: the grading-session foundation exposes
+authenticated CRUD endpoints for sessions and candidates. It does not create
+assessment rows, item results, pass/fail/conditional outcomes, scoring,
+promotion decisions, attendance outside grading participation, certificates,
+notifications, or payment workflows.
+
+| Method | Endpoint                              | Description                                      |
+|-------|----------------------------------------|--------------------------------------------------|
+| GET   | /api/gradings/sessions/                | List grading sessions                            |
+| POST  | /api/gradings/sessions/                | Create a grading session                         |
+| GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
+| PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |
+| PATCH | /api/gradings/sessions/{id}/           | Update a grading session                         |
+| DELETE| /api/gradings/sessions/{id}/           | Delete only when status is DRAFT or CANCELLED    |
+| GET   | /api/gradings/candidates/              | List grading candidates                          |
+| POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
+| GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
+| PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
+| PATCH | /api/gradings/candidates/{id}/         | Update candidate status or notes                 |
+| DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
+
+Session fields:
+
+- `title`: required human-readable title.
+- `grading_date`: required date.
+- `status`: `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, or `CANCELLED`; defaults to
+  `DRAFT`.
+- `location`: optional human-readable location.
+- `notes`: optional notes.
+- `created_by`: read-only; assigned from the authenticated user.
+
+`grading_date` can be changed only before candidates are added. Once a session
+has candidates, its date is fixed so stored candidate age-band snapshots do not
+become silently inconsistent.
+
+Session lifecycle:
+
+- `DRAFT -> OPEN`
+- `DRAFT -> CANCELLED`
+- `OPEN -> LOCKED`
+- `OPEN -> CANCELLED`
+- `LOCKED -> COMPLETED`
+- `LOCKED -> OPEN`
+
+`LOCKED -> OPEN` is allowed as a narrow administrative correction path while
+assessment records are deferred. `CANCELLED` and `COMPLETED` are terminal.
+Sessions do not auto-transition based on dates.
+
+Session filters:
+
+- `status`
+- `grading_date`
+- `grading_date_from`
+- `grading_date_to`
+
+Candidate fields:
+
+- `session`: grading session id.
+- `student`: student id.
+- `testing_for_rank`: rank id.
+- `age_band`: read-only snapshot derived from student date of birth and session
+  grading date.
+- `status`: `REGISTERED`, `WITHDRAWN`, or `COMPLETED`; defaults to
+  `REGISTERED`.
+- `notes`: optional notes.
+
+Candidate filters:
+
+- `session`
+- `student_wksa_id`
+- `testing_for_rank_code`
+- `age_band`
+- `status`
+
+Candidate creation rejects locked, completed, and cancelled sessions; duplicate
+student/session pairs; invalid testing-for ranks; and missing student date of
+birth. The testing-for rank must be the next active rank after the student's
+current rank. This feature does not update `Student.current_rank`; promotion
+history and final decisions remain deferred.
+
+Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
+only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
+writable. Locked, completed, and cancelled sessions reject candidate updates and
+deletes.
+
+The applicable syllabus query is service-layer only for this slice. It returns
+active `SyllabusRequirement` rows for the candidate testing rank and age-band
+snapshot in deterministic sequence order. Immutable per-candidate requirement
+snapshots will be added when assessment records are introduced.
 
 ## 9. Assessments
 

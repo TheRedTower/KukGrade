@@ -17,8 +17,10 @@ Authentication and role foundations exist. The first student model foundation
 exists. The rank catalogue foundation exists and students now reference their
 current rank. The syllabus catalogue foundation exists with read-only API
 lookup for WKSA Version 2014 testing requirements by rank and age band. Student
-API/UI, grading sessions, grading results, scoring, promotion decisions, and
-worker implementation remain deferred.
+API/UI is still deferred. The grading-session foundation now exists with
+sessions, candidates, age-band snapshots, next-rank validation, and applicable
+syllabus requirement lookup. Assessment records, grading results, scoring,
+promotion decisions, and worker implementation remain deferred.
 
 ## Confirmed Direction
 
@@ -144,8 +146,8 @@ Current source notes:
 - Optional Adult/Youth black-belt material names `Yahng Sohn Mohk Soo`,
   `Ssahng Soo`, and `Dahn Doh Mahk Ki`; its age-band scope is unresolved, so no
   requirement mapping is seeded for those items yet.
-- The exact grading date rule for resolving age band from date of birth remains
-  deferred.
+- Grading-session candidate age bands are resolved from date of birth and the
+  session grading date.
 
 Authenticated staff can read:
 
@@ -156,6 +158,60 @@ Authenticated staff can read:
 
 Requirement lists support `rank_code` and `age_band` query parameters.
 
+## Grading Session Foundation
+
+The `gradings` Django app establishes the grading workflow boundary without
+creating assessment rows or outcomes yet:
+
+```text
+GradingSession
+    -> GradingCandidate
+        -> Student
+        -> testing-for Rank
+        -> age-band snapshot
+        -> applicable syllabus requirements query
+```
+
+`GradingSession` statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and
+`CANCELLED`. Allowed transitions are `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
+`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
+`LOCKED -> OPEN`. The locked-to-open transition is a narrow administrative
+correction path while assessment records do not exist. `COMPLETED` and
+`CANCELLED` are terminal, and sessions do not auto-transition from dates.
+
+`GradingCandidate` statuses are `REGISTERED`, `WITHDRAWN`, and `COMPLETED`.
+Candidates can only be added to draft or open sessions. Candidate deletion is
+allowed only while the parent session is draft or open. Session deletion is
+allowed only for draft or cancelled sessions. Candidate `student`,
+`testing_for_rank`, `status`, and `notes` can only be changed while the parent
+session is draft or open.
+
+Candidate `age_band` is a historical snapshot derived from
+`Student.date_of_birth` and `GradingSession.grading_date`; clients do not supply
+it. Leap-day birthdays are treated as occurring on 1 March in non-leap grading
+years. A session grading date cannot be changed after candidates have been
+added, which avoids silently invalidating stored age-band snapshots. Candidate
+creation requires `testing_for_rank` to be the next active rank after
+`Student.current_rank`. This slice deliberately does not change
+`Student.current_rank`, inspect prior grading results, create promotion history,
+or add broad override machinery.
+
+The syllabus boundary remains query-based for now. The grading service returns
+active `SyllabusRequirement` rows for the candidate's testing rank and age-band
+snapshot in deterministic sequence order. Immutable per-candidate requirement
+snapshots will be added with assessment records in the next feature.
+
+Authenticated staff can use:
+
+- `/api/gradings/sessions/`
+- `/api/gradings/sessions/{id}/`
+- `/api/gradings/candidates/`
+- `/api/gradings/candidates/{id}/`
+
+Session filters: `status`, `grading_date`, `grading_date_from`,
+`grading_date_to`. Candidate filters: `session`, `student_wksa_id`,
+`testing_for_rank_code`, `age_band`, and `status`.
+
 ## Verification
 
 Backend:
@@ -165,7 +221,7 @@ cd backend
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts ranks students syllabus
+uv run mypy kukgrade health accounts ranks students syllabus gradings
 ```
 
 Frontend:
@@ -192,6 +248,7 @@ Existing planning inputs remain available in `docs/action_plan.md`, `docs/api_co
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No student API/UI, grading, syllabus, or audit implementation yet.
+- No student API/UI, assessment results, scoring, promotion decisions,
+  certificates, payments, notifications, or audit implementation yet.
 - No background worker implementation until there is a confirmed asynchronous workload.
 - No CI or production Docker image setup yet.

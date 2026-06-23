@@ -18,6 +18,44 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-06-23 - Grading session and candidate foundation
+
+Status: Accepted
+
+Decision:
+Create a dedicated `gradings` Django app for `GradingSession` and
+`GradingCandidate`. Expose authenticated CRUD endpoints at
+`/api/gradings/sessions/` and `/api/gradings/candidates/`. Store candidate
+`age_band` as a historical snapshot derived from `Student.date_of_birth` and the
+session grading date. Validate candidate `testing_for_rank` as the next active
+rank after `Student.current_rank`. Keep applicable syllabus requirements as a
+query over active `SyllabusRequirement` rows for the candidate's testing rank
+and age band until assessment records introduce immutable per-candidate
+requirement snapshots.
+
+Context:
+This slice establishes the session-to-candidate foundation needed before
+assessment records. It deliberately excludes per-item assessment results,
+pass/fail/conditional outcomes, scoring, promotion decisions, attendance outside
+grading participation, frontend screens, notifications, certificates, and
+payment handling.
+
+Consequences:
+Session lifecycle is narrow: `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
+`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
+`LOCKED -> OPEN`. Reopening a locked session is allowed as a documented
+administrative correction path while no assessment records exist. `CANCELLED`
+and `COMPLETED` are terminal. Session deletion is allowed only for draft or
+cancelled sessions; candidate deletion is allowed only while the parent session
+is draft or open. Candidate fields can be edited only while the parent session
+is draft or open. Session grading dates cannot be changed after candidates are
+added, preserving stored age-band snapshots without adding bulk recalculation
+logic. Leap-day birthdays age on 1 March in non-leap years. `created_by`,
+candidate `student`, and candidate `testing_for_rank` use protected foreign
+keys to preserve historical and reference relationships. `Student.current_rank`
+is not changed by this feature; promotion history, audit logging, and
+role-specific production permissions remain deferred.
+
 ### 2026-06-23 - Syllabus catalogue foundation
 
 Status: Accepted

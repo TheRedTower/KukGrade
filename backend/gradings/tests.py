@@ -1,22 +1,39 @@
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from django.apps import apps
+from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
+from django.forms import ModelForm
+from django.http import HttpRequest
+from django.test import RequestFactory
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from gradings.models import GradingCandidate, GradingSession
+from gradings.admin import GradingSessionAdmin, GradingSessionAdminForm
+from gradings.models import (
+    CandidateAssessment,
+    CandidateAssessmentItem,
+    GradingCandidate,
+    GradingSession,
+)
 from gradings.services import (
     applicable_syllabus_requirements,
     build_candidate,
+    generate_candidate_assessment,
     resolve_age_band,
+    transition_grading_session,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+    validate_candidate_can_be_deleted,
     validate_session_transition,
 )
 from ranks.models import Rank
@@ -35,13 +52,18 @@ def rank(code: str) -> Rank:
 
 
 def grading_session(**overrides: object) -> GradingSession:
+    status = cast(str, overrides.pop("status", GradingSession.Status.DRAFT))
     data: dict[str, object] = {
         "title": "March 2027 Colchester Grading",
         "grading_date": date(2027, 3, 20),
         "created_by": user(f"creator-{GradingSession.objects.count()}@example.com"),
     }
     data.update(overrides)
-    return GradingSession.objects.create(**data)
+    session = GradingSession.objects.create(**data)
+    if status != GradingSession.Status.DRAFT:
+        GradingSession.objects.filter(pk=session.pk).update(status=status)
+        session.refresh_from_db()
+    return session
 
 
 def student(**overrides: object) -> Student:
@@ -76,10 +98,51 @@ def candidate(**overrides: object) -> GradingCandidate:
     return built
 
 
+def assessment(**overrides: object) -> CandidateAssessment:
+    built_candidate = cast(GradingCandidate, overrides.pop("candidate", candidate()))
+    generated_by = cast(
+        User,
+        overrides.pop(
+            "generated_by",
+            user(
+                f"generator-{User.objects.count()}-"
+                f"{CandidateAssessment.objects.count()}@example.com"
+            ),
+        ),
+    )
+    return generate_candidate_assessment(built_candidate, generated_by)
+
+
+def start_assessment(assessment: CandidateAssessment) -> CandidateAssessment:
+    return update_candidate_assessment(
+        assessment,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+
+
+def complete_assessment(assessment: CandidateAssessment) -> CandidateAssessment:
+    assessment.refresh_from_db()
+    if assessment.status == CandidateAssessment.Status.NOT_STARTED:
+        assessment = start_assessment(assessment)
+    assessment.items.filter(required=True).update(
+        result=CandidateAssessmentItem.Result.MET,
+    )
+    return update_candidate_assessment(
+        assessment,
+        status=CandidateAssessment.Status.COMPLETED,
+    )
+
+
 def auth_client(email: str = "grading-api@example.com") -> APIClient:
     client = APIClient()
     client.force_authenticate(user=user(email))
     return client
+
+
+def admin_request(email: str = "grading-admin@example.com") -> HttpRequest:
+    request = RequestFactory().post("/admin/gradings/gradingsession/")
+    request.user = user(email)
+    return cast(HttpRequest, request)
 
 
 def test_valid_grading_session_can_be_created() -> None:
@@ -149,6 +212,18 @@ def test_grading_session_default_status_is_draft() -> None:
     assert grading_session().status == GradingSession.Status.DRAFT
 
 
+def test_new_grading_session_must_start_in_draft_status() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        GradingSession.objects.create(
+            title="Locked on create",
+            grading_date=date(2027, 3, 20),
+            status=GradingSession.Status.LOCKED,
+            created_by=user("locked-on-create@example.com"),
+        )
+
+    assert "New grading sessions must start in draft status." in str(exc_info.value)
+
+
 def test_grading_session_ordering_is_deterministic() -> None:
     first = grading_session(title="First", grading_date=date(2027, 1, 1))
     latest_early = grading_session(title="Latest Early", grading_date=date(2027, 5, 1))
@@ -165,7 +240,6 @@ def test_grading_session_ordering_is_deterministic() -> None:
         (GradingSession.Status.OPEN, GradingSession.Status.LOCKED),
         (GradingSession.Status.OPEN, GradingSession.Status.CANCELLED),
         (GradingSession.Status.LOCKED, GradingSession.Status.COMPLETED),
-        (GradingSession.Status.LOCKED, GradingSession.Status.OPEN),
     ],
 )
 def test_valid_lifecycle_transitions(from_status: str, to_status: str) -> None:
@@ -179,6 +253,7 @@ def test_valid_lifecycle_transitions(from_status: str, to_status: str) -> None:
         (GradingSession.Status.DRAFT, GradingSession.Status.COMPLETED),
         (GradingSession.Status.OPEN, GradingSession.Status.COMPLETED),
         (GradingSession.Status.LOCKED, GradingSession.Status.CANCELLED),
+        (GradingSession.Status.LOCKED, GradingSession.Status.OPEN),
         (GradingSession.Status.COMPLETED, GradingSession.Status.OPEN),
         (GradingSession.Status.CANCELLED, GradingSession.Status.OPEN),
     ],
@@ -360,8 +435,8 @@ def test_candidate_update_rejected_for_locked_or_terminal_session(
     session_status: str,
 ) -> None:
     built = candidate()
-    built.session.status = session_status
-    built.session.save()
+    GradingSession.objects.filter(pk=built.session_id).update(status=session_status)
+    built.session.refresh_from_db()
     built.notes = "Changed after close"
 
     with pytest.raises(ValidationError) as exc_info:
@@ -478,6 +553,23 @@ def test_authenticated_session_crud_and_created_by_spoofing_rejected() -> None:
     assert delete_response.status_code == 400
 
 
+def test_session_api_rejects_non_draft_initial_status() -> None:
+    client = auth_client("api-non-draft-create@example.com")
+
+    response = client.post(
+        "/api/gradings/sessions/",
+        {
+            "title": "Locked on create",
+            "grading_date": "2027-04-01",
+            "status": GradingSession.Status.LOCKED,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not GradingSession.objects.filter(title="Locked on create").exists()
+
+
 def test_session_api_filters_work() -> None:
     draft = grading_session(
         title="Draft",
@@ -536,6 +628,89 @@ def test_session_api_lifecycle_validation() -> None:
     assert valid_response.json()["status"] == GradingSession.Status.OPEN
 
 
+def test_session_api_enforces_assessment_prerequisites_for_locking() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    client = auth_client("session-lock-api@example.com")
+
+    missing_response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.LOCKED},
+        format="json",
+    )
+    start_assessment(assessment(candidate=built))
+    allowed_response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.LOCKED},
+        format="json",
+    )
+
+    assert missing_response.status_code == 400
+    assert allowed_response.status_code == 200
+    assert allowed_response.json()["status"] == GradingSession.Status.LOCKED
+
+
+def test_session_api_rejects_locking_when_assessment_is_not_started() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    assessment(candidate=built)
+    client = auth_client("session-lock-not-started-api@example.com")
+
+    response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.LOCKED},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "in progress or completed" in str(response.json())
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+
+
+def test_session_api_enforces_assessment_completion_before_session_completion() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    client = auth_client("session-complete-api@example.com")
+
+    incomplete_response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.COMPLETED},
+        format="json",
+    )
+    complete_assessment(generated)
+    complete_response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.COMPLETED},
+        format="json",
+    )
+
+    assert incomplete_response.status_code == 400
+    assert complete_response.status_code == 200
+    assert complete_response.json()["status"] == GradingSession.Status.COMPLETED
+
+
+def test_session_api_rejects_locked_to_open_transition() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    start_assessment(assessment(candidate=built))
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    client = auth_client("session-reopen-api@example.com")
+
+    response = client.patch(
+        f"/api/gradings/sessions/{session.id}/",
+        {"status": GradingSession.Status.OPEN},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+
+
 def test_session_api_rejects_grading_date_change_after_candidates_exist() -> None:
     session = grading_session()
     candidate(session=session)
@@ -566,6 +741,263 @@ def test_session_api_delete_rules_work() -> None:
     assert client.delete(f"/api/gradings/sessions/{completed.id}/").status_code == 400
     assert client.delete(f"/api/gradings/sessions/{draft.id}/").status_code == 204
     assert client.delete(f"/api/gradings/sessions/{cancelled.id}/").status_code == 204
+
+
+def test_direct_session_save_rejects_status_changes_and_allows_other_edits() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    session.location = "New hall"
+    session.save()
+    session.refresh_from_db()
+    assert session.location == "New hall"
+
+    session.status = GradingSession.Status.LOCKED
+    with pytest.raises(ValidationError) as exc_info:
+        session.save()
+
+    assert "transition_grading_session" in str(exc_info.value)
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+
+
+def test_transition_service_enforces_session_prerequisites_and_terminal_states() -> (
+    None
+):
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+
+    with pytest.raises(ValidationError):
+        transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    generated = assessment(candidate=built)
+    with pytest.raises(ValidationError) as not_started_exc:
+        transition_grading_session(session, GradingSession.Status.LOCKED)
+    assert "in progress or completed" in str(not_started_exc.value)
+
+    start_assessment(generated)
+    locked = transition_grading_session(session, GradingSession.Status.LOCKED)
+    assert locked.status == GradingSession.Status.LOCKED
+
+    with pytest.raises(ValidationError):
+        transition_grading_session(locked, GradingSession.Status.OPEN)
+    with pytest.raises(ValidationError):
+        transition_grading_session(locked, GradingSession.Status.COMPLETED)
+
+    complete_assessment(generated)
+    completed = transition_grading_session(locked, GradingSession.Status.COMPLETED)
+    assert completed.status == GradingSession.Status.COMPLETED
+
+    with pytest.raises(ValidationError):
+        transition_grading_session(completed, GradingSession.Status.OPEN)
+
+    cancelled = grading_session(status=GradingSession.Status.CANCELLED)
+    with pytest.raises(ValidationError):
+        transition_grading_session(cancelled, GradingSession.Status.OPEN)
+
+
+def test_session_lock_rejects_not_started_assessment() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+
+    with pytest.raises(ValidationError) as exc_info:
+        transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    assert "in progress or completed" in str(exc_info.value)
+    session.refresh_from_db()
+    generated.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+    assert generated.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_session_lock_allows_all_in_progress_assessments() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    start_assessment(assessment(candidate=candidate(session=session)))
+    start_assessment(assessment(candidate=candidate(session=session)))
+
+    locked = transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    assert locked.status == GradingSession.Status.LOCKED
+
+
+def test_session_lock_allows_all_completed_assessments() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    complete_assessment(assessment(candidate=candidate(session=session)))
+    complete_assessment(assessment(candidate=candidate(session=session)))
+
+    locked = transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    assert locked.status == GradingSession.Status.LOCKED
+
+
+def test_session_lock_allows_mixed_in_progress_and_completed_assessments() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    start_assessment(assessment(candidate=candidate(session=session)))
+    complete_assessment(assessment(candidate=candidate(session=session)))
+
+    locked = transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    assert locked.status == GradingSession.Status.LOCKED
+
+
+def test_withdrawn_candidates_do_not_block_session_locking() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    active = candidate(session=session)
+    withdrawn_without_assessment = candidate(
+        session=session,
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    withdrawn_with_not_started_assessment = candidate(session=session)
+    assessment(candidate=withdrawn_with_not_started_assessment)
+    withdrawn_with_not_started_assessment.status = GradingCandidate.Status.WITHDRAWN
+    withdrawn_with_not_started_assessment.save()
+    start_assessment(assessment(candidate=active))
+
+    locked = transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    assert locked.status == GradingSession.Status.LOCKED
+    assert not CandidateAssessment.objects.filter(
+        candidate=withdrawn_without_assessment,
+    ).exists()
+    withdrawn_snapshot = withdrawn_with_not_started_assessment.assessment
+    assert withdrawn_snapshot.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_admin_session_form_reports_transition_prerequisite_errors() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    candidate(session=session)
+    form = GradingSessionAdminForm(
+        data={
+            "title": session.title,
+            "grading_date": session.grading_date,
+            "status": GradingSession.Status.LOCKED,
+            "location": session.location,
+            "notes": session.notes,
+            "created_by": session.created_by_id,
+        },
+        instance=session,
+    )
+
+    assert form.is_valid() is False
+    assert "status" in form.errors
+
+
+def test_admin_session_form_reports_not_started_assessment_lock_error() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    assessment(candidate=candidate(session=session))
+    form = GradingSessionAdminForm(
+        data={
+            "title": session.title,
+            "grading_date": session.grading_date,
+            "status": GradingSession.Status.LOCKED,
+            "location": session.location,
+            "notes": session.notes,
+            "created_by": session.created_by_id,
+        },
+        instance=session,
+    )
+
+    assert form.is_valid() is False
+    assert "status" in form.errors
+    assert "in progress or completed" in str(form.errors["status"])
+
+
+def test_admin_session_form_rejects_non_draft_initial_status() -> None:
+    form = GradingSessionAdminForm(
+        data={
+            "title": "Locked on create",
+            "grading_date": date(2027, 3, 20),
+            "status": GradingSession.Status.LOCKED,
+            "location": "",
+            "notes": "",
+            "created_by": user("admin-non-draft-create@example.com").id,
+        },
+    )
+
+    assert form.is_valid() is False
+    assert "status" in form.errors
+
+
+def test_admin_session_save_uses_transition_service_for_status_changes() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    candidate(session=session)
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    session.status = GradingSession.Status.LOCKED
+    form = cast(ModelForm, SimpleNamespace(changed_data=["status"]))
+
+    with pytest.raises(ValidationError):
+        model_admin.save_model(
+            admin_request("session-admin-lock@example.com"),
+            session,
+            form,
+            True,
+        )
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+
+
+def test_admin_session_save_handles_valid_status_and_field_change_atomically() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    start_assessment(assessment(candidate=candidate(session=session)))
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    session.status = GradingSession.Status.LOCKED
+    session.location = "Main hall"
+    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+
+    model_admin.save_model(
+        admin_request("session-admin-valid-mixed@example.com"),
+        session,
+        form,
+        True,
+    )
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+    assert session.location == "Main hall"
+
+
+def test_admin_session_save_rolls_back_field_change_when_transition_fails() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
+    candidate(session=session)
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    session.status = GradingSession.Status.LOCKED
+    session.location = "Should roll back"
+    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+
+    with pytest.raises(ValidationError):
+        model_admin.save_model(
+            admin_request("session-admin-invalid-mixed@example.com"),
+            session,
+            form,
+            True,
+        )
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+    assert session.location == "Old hall"
+
+
+def test_admin_session_save_rolls_back_field_change_when_assessment_not_started() -> (
+    None
+):
+    session = grading_session(status=GradingSession.Status.OPEN, location="Old hall")
+    assessment(candidate=candidate(session=session))
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    session.status = GradingSession.Status.LOCKED
+    session.location = "Should roll back"
+    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+
+    with pytest.raises(ValidationError) as exc_info:
+        model_admin.save_model(
+            admin_request("session-admin-not-started-mixed@example.com"),
+            session,
+            form,
+            True,
+        )
+
+    assert "in progress or completed" in str(exc_info.value)
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.OPEN
+    assert session.location == "Old hall"
 
 
 def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
@@ -702,8 +1134,8 @@ def test_candidate_api_rejects_updates_for_locked_or_terminal_session(
     session_status: str,
 ) -> None:
     built = candidate()
-    built.session.status = session_status
-    built.session.save()
+    GradingSession.objects.filter(pk=built.session_id).update(status=session_status)
+    built.session.refresh_from_db()
     client = auth_client(f"candidate-update-{session_status.lower()}@example.com")
 
     response = client.patch(
@@ -727,8 +1159,10 @@ def test_candidate_api_delete_rules_work() -> None:
         student=student(wksa_id="OPENDELETE"),
     )
     locked_candidate = candidate()
-    locked_candidate.session.status = GradingSession.Status.LOCKED
-    locked_candidate.session.save()
+    GradingSession.objects.filter(pk=locked_candidate.session_id).update(
+        status=GradingSession.Status.LOCKED,
+    )
+    locked_candidate.session.refresh_from_db()
     client = auth_client("candidate-delete@example.com")
 
     assert (
@@ -745,6 +1179,776 @@ def test_candidate_api_delete_rules_work() -> None:
     )
 
 
+def test_generate_candidate_assessment_creates_snapshot_items() -> None:
+    built = candidate()
+    generator = user("assessment-generator@example.com")
+    requirements = list(applicable_syllabus_requirements(built))
+
+    generated = generate_candidate_assessment(built, generator)
+
+    assert generated.candidate == built
+    assert generated.generated_by == generator
+    assert generated.status == CandidateAssessment.Status.NOT_STARTED
+    assert generated.generated_at is not None
+    assert generated.items.count() == len(requirements)
+    first_requirement = requirements[0]
+    first_item = generated.items.get(source_requirement=first_requirement)
+    assert first_item.source_item == first_requirement.item
+    assert first_item.source_rank == built.testing_for_rank
+    assert first_item.source_age_band == built.age_band
+    assert first_item.item_code == first_requirement.item.code
+    assert first_item.item_name == first_requirement.item.name
+    assert first_item.korean_name == first_requirement.item.korean_name
+    assert first_item.category == first_requirement.item.category
+    assert first_item.requirement_sequence == first_requirement.sequence
+    assert first_item.required is first_requirement.required
+    assert first_item.start_number == first_requirement.start_number
+    assert first_item.end_number == first_requirement.end_number
+    assert first_item.requirement_notes == first_requirement.notes
+
+
+def test_generate_candidate_assessment_retains_optional_requirements() -> None:
+    built = candidate()
+    optional_item = SyllabusItem.objects.create(
+        code="OPTIONAL_ASSESSMENT_ITEM",
+        name="Optional Assessment Item",
+        category=SyllabusItem.Category.OTHER,
+    )
+    optional_requirement = SyllabusRequirement.objects.create(
+        rank=built.testing_for_rank,
+        item=optional_item,
+        age_band=built.age_band,
+        required=False,
+        sequence=999,
+        notes="May be assessed if time allows.",
+    )
+
+    generated = assessment(candidate=built)
+
+    snapshot = generated.items.get(source_requirement=optional_requirement)
+    assert snapshot.required is False
+    assert snapshot.requirement_notes == "May be assessed if time allows."
+
+
+def test_generate_candidate_assessment_excludes_inactive_requirements_and_items() -> (
+    None
+):
+    built = candidate()
+    inactive_item = SyllabusItem.objects.create(
+        code="INACTIVE_ASSESSMENT_ITEM",
+        name="Inactive Assessment Item",
+        category=SyllabusItem.Category.OTHER,
+        active=False,
+    )
+    inactive_requirement_item = SyllabusItem.objects.create(
+        code="INACTIVE_REQUIREMENT_ITEM",
+        name="Inactive Requirement Item",
+        category=SyllabusItem.Category.OTHER,
+    )
+    SyllabusRequirement.objects.create(
+        rank=built.testing_for_rank,
+        item=inactive_item,
+        age_band=built.age_band,
+        sequence=990,
+    )
+    SyllabusRequirement.objects.create(
+        rank=built.testing_for_rank,
+        item=inactive_requirement_item,
+        age_band=built.age_band,
+        sequence=991,
+        active=False,
+    )
+
+    generated = assessment(candidate=built)
+
+    assert not generated.items.filter(
+        item_code__in=["INACTIVE_ASSESSMENT_ITEM", "INACTIVE_REQUIREMENT_ITEM"],
+    ).exists()
+
+
+def test_generate_candidate_assessment_rejects_no_applicable_requirements() -> None:
+    current_rank = Rank.objects.create(
+        code="NO_REQ_CURRENT",
+        name="No Requirement Current",
+        order=100,
+        category=Rank.Category.COLOURED_BELT,
+    )
+    target_rank = Rank.objects.create(
+        code="NO_REQ_TARGET",
+        name="No Requirement Target",
+        order=101,
+        category=Rank.Category.COLOURED_BELT,
+    )
+    built = candidate(
+        student=student(current_rank=current_rank),
+        testing_for_rank=target_rank,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        assessment(candidate=built)
+
+    assert "No applicable syllabus requirements exist." in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "session_status",
+    [
+        GradingSession.Status.LOCKED,
+        GradingSession.Status.COMPLETED,
+        GradingSession.Status.CANCELLED,
+    ],
+)
+def test_generate_candidate_assessment_rejected_for_closed_session_states(
+    session_status: str,
+) -> None:
+    built = candidate()
+    GradingSession.objects.filter(pk=built.session_id).update(status=session_status)
+    built.session.refresh_from_db()
+
+    with pytest.raises(ValidationError):
+        assessment(candidate=built)
+
+
+def test_generate_candidate_assessment_rejects_duplicate_generation() -> None:
+    built = candidate()
+    assessment(candidate=built)
+
+    with pytest.raises(ValidationError):
+        assessment(candidate=built)
+
+
+def test_duplicate_assessment_is_prevented_at_database_level() -> None:
+    built = candidate()
+    generator = user("db-duplicate-generator@example.com")
+    CandidateAssessment.objects.create(candidate=built, generated_by=generator)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessment.objects.bulk_create(
+            [CandidateAssessment(candidate=built, generated_by=generator)],
+        )
+
+
+def test_generation_is_atomic_if_item_creation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built = candidate()
+
+    def fail_bulk_create(*args: object, **kwargs: object) -> None:
+        raise IntegrityError("forced item failure")
+
+    monkeypatch.setattr(
+        CandidateAssessmentItem.objects, "bulk_create", fail_bulk_create
+    )
+
+    with pytest.raises(ValidationError):
+        assessment(candidate=built)
+
+    assert not CandidateAssessment.objects.filter(candidate=built).exists()
+
+
+def test_assessment_snapshot_survives_live_syllabus_edits() -> None:
+    generated = assessment()
+    snapshot = generated.items.select_related(
+        "source_requirement", "source_item"
+    ).first()
+    assert snapshot is not None
+    source_requirement = snapshot.source_requirement
+    source_item = snapshot.source_item
+    assert source_requirement is not None
+    assert source_item is not None
+
+    original_name = snapshot.item_name
+    original_start = snapshot.start_number
+    original_end = snapshot.end_number
+    source_item.name = "Changed Live Item Name"
+    source_item.save()
+    source_requirement.start_number = 99
+    source_requirement.end_number = 100
+    source_requirement.notes = "Changed live notes"
+    source_requirement.save()
+
+    snapshot.refresh_from_db()
+    assert snapshot.item_name == original_name
+    assert snapshot.start_number == original_start
+    assert snapshot.end_number == original_end
+    assert snapshot.requirement_notes != "Changed live notes"
+
+
+def test_deleting_source_requirement_and_item_preserves_snapshot_display_data() -> None:
+    built = candidate()
+    source_item = SyllabusItem.objects.create(
+        code="DELETABLE_SOURCE_ITEM",
+        name="Deletable Source Item",
+        category=SyllabusItem.Category.OTHER,
+    )
+    source_requirement = SyllabusRequirement.objects.create(
+        rank=built.testing_for_rank,
+        item=source_item,
+        age_band=built.age_band,
+        sequence=997,
+    )
+    generated = assessment(candidate=built)
+    snapshot = generated.items.select_related("source_requirement", "source_item").get(
+        source_requirement=source_requirement
+    )
+    assert snapshot is not None
+    item_name = snapshot.item_name
+    item_code = snapshot.item_code
+
+    source_requirement.delete()
+    source_item.delete()
+
+    snapshot.refresh_from_db()
+    assert snapshot.source_requirement is None
+    assert snapshot.source_item is None
+    assert snapshot.item_name == item_name
+    assert snapshot.item_code == item_code
+
+
+def test_assessment_lifecycle_requires_start_before_completion() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    )
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment(
+            generated,
+            status=CandidateAssessment.Status.COMPLETED,
+        )
+
+    started = update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+
+    assert started.status == CandidateAssessment.Status.IN_PROGRESS
+    assert started.started_at is not None
+
+
+def test_not_started_assessment_cannot_begin_in_locked_session() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    GradingSession.objects.filter(pk=session.pk).update(
+        status=GradingSession.Status.LOCKED,
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        update_candidate_assessment(
+            generated,
+            status=CandidateAssessment.Status.IN_PROGRESS,
+        )
+
+    assert "open sessions" in str(exc_info.value)
+    generated.refresh_from_db()
+    assert generated.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_assessment_completion_requires_required_items_and_completes_candidate() -> (
+    None
+):
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    generated = assessment(candidate=built)
+    update_candidate_assessment(
+        generated, status=CandidateAssessment.Status.IN_PROGRESS
+    )
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment(
+            generated, status=CandidateAssessment.Status.COMPLETED
+        )
+
+    generated.items.filter(required=True).update(
+        result=CandidateAssessmentItem.Result.MET,
+    )
+    completed = update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.COMPLETED,
+    )
+
+    built.refresh_from_db()
+    assert completed.status == CandidateAssessment.Status.COMPLETED
+    assert completed.completed_at is not None
+    assert built.status == GradingCandidate.Status.COMPLETED
+
+
+def test_optional_not_assessed_items_do_not_block_completion() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    optional_item = SyllabusItem.objects.create(
+        code="OPTIONAL_COMPLETION_ITEM",
+        name="Optional Completion Item",
+        category=SyllabusItem.Category.OTHER,
+    )
+    SyllabusRequirement.objects.create(
+        rank=built.testing_for_rank,
+        item=optional_item,
+        age_band=built.age_band,
+        required=False,
+        sequence=998,
+    )
+    generated = assessment(candidate=built)
+    update_candidate_assessment(
+        generated, status=CandidateAssessment.Status.IN_PROGRESS
+    )
+    generated.items.filter(required=True).update(
+        result=CandidateAssessmentItem.Result.MET,
+    )
+
+    completed = update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.COMPLETED,
+    )
+
+    assert completed.status == CandidateAssessment.Status.COMPLETED
+    assert generated.items.get(item_code="OPTIONAL_COMPLETION_ITEM").result == (
+        CandidateAssessmentItem.Result.NOT_ASSESSED
+    )
+
+
+def test_completed_assessment_is_immutable() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    generated = assessment(candidate=built)
+    update_candidate_assessment(
+        generated, status=CandidateAssessment.Status.IN_PROGRESS
+    )
+    generated.items.filter(required=True).update(
+        result=CandidateAssessmentItem.Result.MET,
+    )
+    completed = update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.COMPLETED,
+    )
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment(completed, notes="Too late")
+    completed_item = completed.items.first()
+    assert completed_item is not None
+    with pytest.raises(ValidationError):
+        update_candidate_assessment_item(
+            completed_item,
+            result=CandidateAssessmentItem.Result.NOT_MET,
+            assessor=user("too-late-assessor@example.com"),
+        )
+
+
+def test_assessment_item_result_updates_set_and_clear_assessor_metadata() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    )
+    update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    item = generated.items.first()
+    assert item is not None
+    assessor = user("item-assessor@example.com")
+
+    updated = update_candidate_assessment_item(
+        item,
+        result=CandidateAssessmentItem.Result.MET,
+        assessor_notes="Strong basics",
+        assessor=assessor,
+    )
+
+    assert updated.result == CandidateAssessmentItem.Result.MET
+    assert updated.assessor == assessor
+    assert updated.assessed_at is not None
+    assert updated.assessor_notes == "Strong basics"
+    updated.assessment.refresh_from_db()
+    assert updated.assessment.status == CandidateAssessment.Status.IN_PROGRESS
+
+    reset = update_candidate_assessment_item(
+        updated,
+        result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+        assessor=assessor,
+    )
+
+    assert reset.assessor is None
+    assert reset.assessed_at is None
+
+
+def test_assessment_item_update_rejected_until_assessment_is_started() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    )
+    item = generated.items.first()
+    assert item is not None
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment_item(
+            item,
+            result=CandidateAssessmentItem.Result.MET,
+            assessor_notes="Should not save",
+            assessor=user("not-started-assessor@example.com"),
+        )
+
+    item.refresh_from_db()
+    generated.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
+    assert item.assessor is None
+    assert item.assessed_at is None
+    assert item.assessor_notes == ""
+    assert generated.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_not_started_assessment_item_update_rejected_in_locked_session() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    GradingSession.objects.filter(pk=session.pk).update(
+        status=GradingSession.Status.LOCKED,
+    )
+    session.refresh_from_db()
+    item = generated.items.first()
+    assert item is not None
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment_item(
+            item,
+            result=CandidateAssessmentItem.Result.MET,
+            assessor=user("locked-not-started-assessor@example.com"),
+        )
+
+    generated.refresh_from_db()
+    item.refresh_from_db()
+    assert generated.status == CandidateAssessment.Status.NOT_STARTED
+    assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
+
+
+def test_in_progress_assessment_item_update_allowed_in_locked_session() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    item = generated.items.first()
+    assert item is not None
+    assessor = user("locked-in-progress-assessor@example.com")
+
+    updated = update_candidate_assessment_item(
+        item,
+        result=CandidateAssessmentItem.Result.MET,
+        assessor=assessor,
+    )
+
+    assert updated.result == CandidateAssessmentItem.Result.MET
+    assert updated.assessor == assessor
+
+
+@pytest.mark.parametrize(
+    "session_status",
+    [
+        GradingSession.Status.COMPLETED,
+        GradingSession.Status.CANCELLED,
+    ],
+)
+def test_assessment_item_update_rejected_in_terminal_sessions(
+    session_status: str,
+) -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    GradingSession.objects.filter(pk=session.pk).update(status=session_status)
+    item = generated.items.first()
+    assert item is not None
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment_item(
+            item,
+            result=CandidateAssessmentItem.Result.MET,
+            assessor=user(f"terminal-{session_status.lower()}@example.com"),
+        )
+
+    item.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
+
+
+def test_assessment_item_result_update_rejected_in_draft_session() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.DRAFT))
+    )
+    generated.status = CandidateAssessment.Status.IN_PROGRESS
+    generated.started_at = timezone.now()
+    generated.save()
+    item = generated.items.first()
+    assert item is not None
+
+    with pytest.raises(ValidationError):
+        update_candidate_assessment_item(
+            item,
+            result=CandidateAssessmentItem.Result.MET,
+            assessor=user("draft-result@example.com"),
+        )
+
+
+def test_candidate_core_fields_cannot_change_after_assessment_generation() -> None:
+    generated = assessment()
+    built = generated.candidate
+    built.student = student(wksa_id="CHANGEDCORE")
+
+    with pytest.raises(ValidationError):
+        built.save()
+
+
+def test_candidate_deletion_allowed_only_for_draft_unstarted_assessment() -> None:
+    draft_candidate = candidate(
+        session=grading_session(status=GradingSession.Status.DRAFT)
+    )
+    assessment(candidate=draft_candidate)
+    draft_candidate.delete()
+    assert not GradingCandidate.objects.filter(pk=draft_candidate.pk).exists()
+
+    open_candidate = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN)
+    )
+    open_assessment = assessment(candidate=open_candidate)
+    update_candidate_assessment(
+        open_assessment,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+
+    with pytest.raises(ValidationError):
+        validate_candidate_can_be_deleted(open_candidate)
+
+
+def test_session_lock_and_completion_require_assessments() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+
+    with pytest.raises(ValidationError):
+        validate_session_transition(
+            GradingSession.Status.OPEN,
+            GradingSession.Status.LOCKED,
+            session=session,
+        )
+
+    generated = assessment(candidate=built)
+    with pytest.raises(ValidationError):
+        validate_session_transition(
+            GradingSession.Status.OPEN,
+            GradingSession.Status.LOCKED,
+            session=session,
+        )
+
+    start_assessment(generated)
+    session = transition_grading_session(session, GradingSession.Status.LOCKED)
+
+    with pytest.raises(ValidationError):
+        validate_session_transition(
+            GradingSession.Status.LOCKED,
+            GradingSession.Status.COMPLETED,
+            session=session,
+        )
+
+    complete_assessment(generated)
+    validate_session_transition(
+        GradingSession.Status.LOCKED,
+        GradingSession.Status.COMPLETED,
+        session=session,
+    )
+
+
+def test_withdrawn_candidates_do_not_block_session_completion() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    built.status = GradingCandidate.Status.WITHDRAWN
+    built.save()
+
+    validate_session_transition(
+        GradingSession.Status.OPEN,
+        GradingSession.Status.LOCKED,
+        session=session,
+    )
+    session = transition_grading_session(session, GradingSession.Status.LOCKED)
+    validate_session_transition(
+        GradingSession.Status.LOCKED,
+        GradingSession.Status.COMPLETED,
+        session=session,
+    )
+
+
+def test_direct_candidate_completed_spoofing_rejected_through_api() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    client = auth_client("candidate-complete-spoof@example.com")
+
+    response = client.patch(
+        f"/api/gradings/candidates/{built.id}/",
+        {"status": GradingCandidate.Status.COMPLETED},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+
+
+def test_assessment_api_generation_lists_filters_counts_and_rejects_delete() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    client = auth_client("assessment-api@example.com")
+
+    unauthenticated = APIClient().post(
+        f"/api/gradings/candidates/{built.id}/generate-assessment/",
+    )
+    generate_response = client.post(
+        f"/api/gradings/candidates/{built.id}/generate-assessment/",
+    )
+    duplicate_response = client.post(
+        f"/api/gradings/candidates/{built.id}/generate-assessment/",
+    )
+
+    assert unauthenticated.status_code == 403
+    assert generate_response.status_code == 201
+    assert duplicate_response.status_code == 400
+    payload = generate_response.json()
+    assert payload["candidate"] == built.id
+    assert (
+        payload["item_counts"]["total"]
+        == CandidateAssessmentItem.objects.filter(
+            assessment_id=payload["id"],
+        ).count()
+    )
+    assert "outcome" not in payload
+
+    list_response = client.get(
+        "/api/gradings/assessments/"
+        f"?candidate={built.id}&session={session.id}"
+        f"&student_wksa_id={built.student.wksa_id}"
+        "&testing_for_rank_code=YELLOW_STRIPE"
+        "&status=NOT_STARTED",
+    )
+    detail_response = client.get(f"/api/gradings/assessments/{payload['id']}/")
+    post_response = client.post("/api/gradings/assessments/", {}, format="json")
+    delete_response = client.delete(f"/api/gradings/assessments/{payload['id']}/")
+
+    assert list_response.status_code == 200
+    assert [item["id"] for item in list_response.json()] == [payload["id"]]
+    assert detail_response.status_code == 200
+    assert post_response.status_code == 405
+    assert delete_response.status_code == 405
+
+
+def test_assessment_api_lifecycle_patch_uses_service_rules() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    )
+    client = auth_client("assessment-lifecycle-api@example.com")
+
+    invalid_response = client.patch(
+        f"/api/gradings/assessments/{generated.id}/",
+        {"status": CandidateAssessment.Status.COMPLETED},
+        format="json",
+    )
+    start_response = client.patch(
+        f"/api/gradings/assessments/{generated.id}/",
+        {"status": CandidateAssessment.Status.IN_PROGRESS, "notes": "Started"},
+        format="json",
+    )
+
+    assert invalid_response.status_code == 400
+    assert start_response.status_code == 200
+    assert start_response.json()["status"] == CandidateAssessment.Status.IN_PROGRESS
+    assert start_response.json()["notes"] == "Started"
+
+
+def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
+    generated = assessment(
+        candidate=candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    )
+    update_candidate_assessment(
+        generated,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    item = generated.items.first()
+    assert item is not None
+    original_name = item.item_name
+    spoofed_assessor = user("spoofed-assessor@example.com")
+    real_assessor = user("real-assessor@example.com")
+    client = APIClient()
+    client.force_authenticate(user=real_assessor)
+
+    patch_response = client.patch(
+        f"/api/gradings/assessment-items/{item.id}/",
+        {
+            "result": CandidateAssessmentItem.Result.NOT_MET,
+            "assessor_notes": "Needs work",
+            "item_name": "Client changed name",
+            "assessor": spoofed_assessor.id,
+            "assessed_at": "2030-01-01T00:00:00Z",
+        },
+        format="json",
+    )
+    item.refresh_from_db()
+    list_response = client.get(
+        "/api/gradings/assessment-items/"
+        f"?assessment={generated.id}&candidate={generated.candidate_id}"
+        f"&session={generated.candidate.session_id}&item_code={item.item_code}"
+        f"&category={item.category}&result=NOT_MET&required=true",
+    )
+    post_response = client.post("/api/gradings/assessment-items/", {}, format="json")
+    delete_response = client.delete(f"/api/gradings/assessment-items/{item.id}/")
+
+    assert patch_response.status_code == 200
+    assert item.item_name == original_name
+    assert item.result == CandidateAssessmentItem.Result.NOT_MET
+    assert item.assessor == real_assessor
+    assert item.assessed_at is not None
+    assert item.assessor_notes == "Needs work"
+    assert [payload["id"] for payload in list_response.json()] == [item.id]
+    assert post_response.status_code == 405
+    assert delete_response.status_code == 405
+
+
+def test_assessment_database_constraints_are_enforced() -> None:
+    generated = assessment()
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessment.objects.bulk_create(
+            [
+                CandidateAssessment(
+                    candidate=candidate(),
+                    generated_by=user("invalid-assessment-status@example.com"),
+                    status="INVALID",
+                ),
+            ],
+        )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessmentItem.objects.bulk_create(
+            [
+                CandidateAssessmentItem(
+                    assessment=generated,
+                    source_age_band="INVALID",
+                    item_code="BAD_AGE",
+                    item_name="Bad Age",
+                    category=SyllabusItem.Category.OTHER,
+                    requirement_sequence=1,
+                ),
+            ],
+        )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessmentItem.objects.bulk_create(
+            [
+                CandidateAssessmentItem(
+                    assessment=generated,
+                    source_age_band=AgeBand.AGE_9_TO_12,
+                    item_code="BAD_RANGE",
+                    item_name="Bad Range",
+                    category=SyllabusItem.Category.OTHER,
+                    requirement_sequence=1,
+                    start_number=5,
+                    end_number=1,
+                ),
+            ],
+        )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
     assert connection.vendor == "postgresql"
@@ -754,18 +1958,28 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
     try:
         executor.migrate([("gradings", None)])
         executor = MigrationExecutor(connection)
-        executor.migrate([("gradings", "0001_initial")])
+        executor.migrate(
+            [("gradings", "0002_candidateassessment_candidateassessmentitem_and_more")]
+        )
         state_apps = executor.loader.project_state(
-            [("gradings", "0001_initial")],
+            [("gradings", "0002_candidateassessment_candidateassessmentitem_and_more")],
         ).apps
         HistoricalSession = state_apps.get_model("gradings", "GradingSession")
         HistoricalCandidate = state_apps.get_model("gradings", "GradingCandidate")
+        HistoricalAssessment = state_apps.get_model("gradings", "CandidateAssessment")
+        HistoricalItem = state_apps.get_model("gradings", "CandidateAssessmentItem")
 
         session_constraints = {
             constraint.name for constraint in HistoricalSession._meta.constraints
         }
         candidate_constraints = {
             constraint.name for constraint in HistoricalCandidate._meta.constraints
+        }
+        assessment_constraints = {
+            constraint.name for constraint in HistoricalAssessment._meta.constraints
+        }
+        item_constraints = {
+            constraint.name for constraint in HistoricalItem._meta.constraints
         }
 
         assert "grading_session_title_not_blank" in session_constraints
@@ -777,6 +1991,15 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
         assert "unique_grading_candidate_session_student" in candidate_constraints
         assert "grading_candidate_age_band_valid" in candidate_constraints
         assert "grading_candidate_status_valid" in candidate_constraints
+        assert "candidate_assessment_status_valid" in assessment_constraints
+        assert "candidate_assessment_timestamps_valid" in assessment_constraints
+        assert "candidate_item_age_band_valid" in item_constraints
+        assert "candidate_item_category_valid" in item_constraints
+        assert "candidate_item_result_valid" in item_constraints
+        assert "candidate_item_sequence_positive" in item_constraints
+        assert "candidate_item_range_complete" in item_constraints
+        assert "unique_assessment_source_requirement" in item_constraints
+        assert "unique_assessment_item_snapshot" in item_constraints
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)

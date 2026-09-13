@@ -27,6 +27,23 @@ because pytest imports Django settings before it loads `conftest.py`, so the
 environment cannot be prepared there. The production branch of the real
 settings module is covered directly by `kukgrade/tests.py`.
 
+## Pagination
+
+Every list endpoint is paginated, including bounded reference collections such
+as `/api/ranks/`. There are no exemptions: the frontend needs one unwrap helper
+rather than a table of which endpoints are enveloped, and no endpoint can
+quietly grow into an unbounded response.
+
+```json
+{"count": 373, "next": "...?page=2", "previous": null, "results": [...]}
+```
+
+Default page size is 50, chosen so a single candidate's assessment (typically
+around 40 snapshot items) fits on one page. Clients may pass `?page_size=` up
+to a maximum of 200. An out-of-range `?page=` returns 404 rather than an empty
+page. Detail endpoints and custom actions such as
+`/api/gradings/outcomes/{id}/summary/` are not lists and are not enveloped.
+
 ## Commands
 
 Install dependencies:

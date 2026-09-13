@@ -163,6 +163,8 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_RENDERER_CLASSES": _RENDERER_CLASSES,
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "kukgrade.pagination.DefaultPagination",
+    "PAGE_SIZE": 50,
 }
 
 CORS_ALLOWED_ORIGINS = env_list(

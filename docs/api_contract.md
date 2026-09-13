@@ -13,6 +13,18 @@ or deferred unless a section explicitly says otherwise.
 
 This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses. Authentication uses Django session authentication with CSRF protection for the React frontend.
 
+## 0. Response conventions
+
+All list endpoints return a page envelope:
+
+```json
+{"count": 373, "next": "...?page=2", "previous": null, "results": [...]}
+```
+
+Default page size 50, `?page_size=` overridable to a maximum of 200, and an
+out-of-range page returns 404. Detail endpoints and custom actions return the
+object directly. See `backend/README.md` for the rationale.
+
 ## 1. Authentication
 
 | Method | Endpoint              | Description                       |

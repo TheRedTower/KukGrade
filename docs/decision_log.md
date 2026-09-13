@@ -18,6 +18,51 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-13 - Syllabus versioning and immutability
+
+Status: Accepted
+
+Decision:
+The syllabus is versioned and set in stone. Introduce `SyllabusVersion` with a
+`DRAFT -> PUBLISHED -> SUPERSEDED` lifecycle:
+
+- A version is authored by uploading a structured spreadsheet (CSV/Excel), one
+  row per requirement: rank, age band, item code, item name, Korean name,
+  category, sequence, start/end number, required flag, notes. The import is
+  validated as a whole and rejected entirely if malformed.
+- While `DRAFT` a version is editable, so typos can be fixed before release.
+- Publishing freezes the version permanently. Published items and requirements
+  can never be edited or deleted.
+- Publishing a new version supersedes the current one. Superseded versions stay
+  readable forever so historical gradings remain reconstructable; nothing is
+  ever deleted. "Removing" a syllabus means retiring it from use.
+- `SyllabusRequirement`'s unique constraint becomes
+  `unique(version, rank, age_band, item)` so versions can coexist.
+- Assessment generation resolves the current published version and records it on
+  the assessment, alongside the existing per-item display snapshots.
+
+This resolves open question Q6 and re-scopes audit finding KG-014.
+
+Context:
+The current model has no version concept: 32 items and 373 requirements are
+mutable rows with `active` flags, seeded by a data migration. The 2026-09-13
+audit rated KG-014 as P3 on the grounds that per-item snapshots already protect
+historical meaning, so an explicit version was provenance rather than
+correctness. That reasoning holds for reading history but misses how the
+syllabus is authored: immutability is the core maintenance rule, not a reporting
+feature. KG-014 is re-rated P2 accordingly.
+
+Consequences:
+The unique-constraint change is a migration against seeded production-shaped
+data; existing items and requirements are migrated into a `WKSA 2014` published
+version. Per-item display snapshots are retained as well as the version link -
+belt and braces, and the snapshots already have test coverage. The instructor
+syllabus capability from the capability-map decision cannot be granted until
+this lands, so syllabus versioning is sequenced immediately after the
+permissions, integrity and audit work and before frontend integration.
+Estimated 3-4 days. A syllabus upload screen is deferred; the first import path
+may be a management command.
+
 ### 2026-09-13 - Capability map and role definitions
 
 Status: Accepted
@@ -28,10 +73,9 @@ administrators and the Master in charge.
 
 Groups and their Django permissions:
 
-- Instructor: full add/change/view on students, grading sessions, grading
-  candidates, and the syllabus catalogue; full assessment and outcome-proposal
-  workflow. `is_staff` is granted so syllabus editing works through Django admin
-  until a syllabus write API exists. No user or role management.
+- Instructor: full add/change/view on students, grading sessions, and grading
+  candidates; full assessment and outcome-proposal workflow; authoring and
+  publishing of new syllabus versions. No user or role management.
 - Administrator: everything an instructor has, plus user and role management.
 - Master: not a group. The three sensitive permissions
   (`can_make_final_grading_decision`, `can_promote_student`, and the new
@@ -49,12 +93,16 @@ make the final decision, promote a student, or withdraw a candidate from a
 locked session. No code or documentation uses the `manager` role.
 
 Consequences:
-Instructors gain Django admin access via `is_staff`, which also exposes student
-date of birth in the admin; instructors already require student access, so this
-is accepted rather than mitigated. Syllabus write API endpoints remain deferred
-and the existing `test_syllabus_api_rejects_write_methods` test stands. A new
-`can_withdraw_locked_candidate` permission is added for KG-008 rather than
-reusing final-decision authority.
+A new `can_withdraw_locked_candidate` permission is added for KG-008 rather than
+reusing final-decision authority. Instructors are not granted `is_staff`, so
+Django admin stays closed to them.
+
+Amended later the same day: this entry originally granted instructors `is_staff`
+so that syllabus editing worked through Django admin. That was wrong. The
+syllabus is immutable once published, and Django admin's whole affordance is
+editing rows in place. The instructor syllabus capability is delivered by the
+syllabus versioning decision below instead, and cannot be granted until that
+work lands.
 
 ### 2026-09-13 - Outcome revision is logged, not gated
 

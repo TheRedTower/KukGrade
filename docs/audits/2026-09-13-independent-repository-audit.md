@@ -194,7 +194,7 @@ Severity: **P0** immediate · **P1** release blocker · **P2** important for pro
 | KG-011 | P3 | Integrity | `CandidateAssessmentItem.assessor` unconstrained — nothing enforces "assessor set iff result ≠ NOT_ASSESSED". The service maintains it; nothing else does. | `services.py:976-985` | Add a CheckConstraint. |
 | KG-012 | P3 | Dead code | `validate_outcome_assessment_state` checks `status != COMPLETED` (raises), then checks `== WITHDRAWN` — unreachable. | `services.py:406-413` | Delete the dead branch. |
 | KG-013 | P3 | Correctness | `GradingSessionSerializer.validate` mutates `self.instance.grading_date` during validation, leaving the instance dirty if a later check fails. | `serializers.py:79-84` | Validate against a local, don't mutate. |
-| KG-014 | P3 | Domain | No explicit `SyllabusVersion`. Snapshots copy display fields, which *does* protect historical meaning — but there is no way to answer "which published syllabus version was this graded against?" | `services.py:760-780`; AGENTS.md calls it confirmed | Provenance/reporting gap, not a correctness defect. See re-severity note below. |
+| KG-014 | **P2** | Domain | No explicit `SyllabusVersion`. 32 items and 373 requirements are freely mutable rows with `active` flags, seeded by a data migration. **RE-RATED P3→P2 on 2026-09-13:** I originally argued this was provenance rather than correctness because per-item snapshots already protect historical meaning. That holds for *reading* history but misses how the syllabus is *authored* — the confirmed requirement is that a published syllabus is immutable and new editions arrive as new versions, which is a core maintenance rule, not a reporting feature. | `services.py:760-780`; `syllabus/models.py` | **RESOLVED 2026-09-13:** `SyllabusVersion` with DRAFT→PUBLISHED→SUPERSEDED, authored by validated spreadsheet upload, published versions frozen forever, superseded versions permanently readable. `unique(rank, age_band, item)` becomes `unique(version, rank, age_band, item)`. ~3-4 days. |
 | KG-021 | P3 | Concurrency | Inconsistent locking. `propose_`/`finalise_candidate_outcome` use `select_for_update(of=("self",))`; `generate_candidate_assessment`, `create_candidate_outcome`, `update_candidate_assessment*` and worktree `promote_candidate` use bare `select_for_update()` with `select_related`, which on Postgres **also locks the joined session, student and rank rows**. | `services.py:480,528` vs `789,450,881,967` | Unnecessary contention; deadlock surface grows with each new workflow. Standardise on `of=("self",)`. |
 | KG-022 | P3 | Tests | Zero concurrency tests. Every locking guarantee is asserted by code reading only. | whole suite | Add `TransactionTestCase`-style double-transaction tests for promotion, outcome creation and session transition. |
 | KG-025 | P3 | Domain | `Student.is_active` is binary; AGENTS.md requires active / inactive / **left**. | `students/models.py:23` | Confirmed requirement, unimplemented. |
@@ -428,6 +428,11 @@ Pagination; one error envelope; frontend error parsing; auth-provider failure ha
 Wire permissions to Groups; drop the role classes and the inert boolean; move deletion gates into the model layer; add the locked-session escape; add the missing DB constraints; add concurrency tests; **build the minimal append-only `AuditEvent` and wire it to outcome proposals, final decisions, promotions and syllabus changes** (moved forward from Phase 4 — KG-029 makes it load-bearing).
 *Depends on:* Phase 0. *Completion:* a permission matrix test per endpoint per role; deletion rules provable from `shell` and admin; a locked session can always be resolved without fabricating results.
 
+### Phase 2b — Syllabus versioning (≈3–4 days)
+*Purpose:* make the syllabus authorable and immutable, and unlock the instructor syllabus capability.
+`SyllabusVersion` with DRAFT→PUBLISHED→SUPERSEDED; migrate the existing 32 items and 373 requirements into a published `WKSA 2014` version; change the unique constraint to include version; validated spreadsheet import; assessments record the resolved version.
+*Depends on:* Phase 2 (audit events must exist to record publishing). *Completion:* a second syllabus version can be uploaded, published and superseded, and a past grading still resolves to the version it was assessed against.
+
 ### Phase 3 — Frontend integration (≈4–6 weeks, the long pole)
 *Purpose:* turn a backend into a product.
 Real router, server-state layer, generated or contract-tested types; then screens in workflow order: students → sessions → candidates → assessment entry → outcome proposal → finalisation → promotion.
@@ -601,7 +606,7 @@ Priority order. Each is sized to be a single reviewable slice.
 
 **Q5 · What is the retention and erasure policy, especially for minors?** *Blocks:* KG-NEXT-019. *My recommended default:* retain grading history indefinitely (it is the rank's provenance); support anonymise-in-place on request; document the reasoning.
 
-**Q6 · What is a "syllabus version" operationally?** Dated editions (WKSA 2014, 2026), or an internal revision counter? *Blocks:* KG-NEXT-020. *My recommended default:* a published, immutable `SyllabusVersion` with an effective date, referenced by assessment snapshots. Do not start until permissions and integrity are done.
+**Q6 · What is a "syllabus version" operationally?** — **RESOLVED 2026-09-13.** A published, immutable edition authored by spreadsheet upload. Editable while `DRAFT`, frozen permanently on publish, superseded (never deleted) when the next edition lands. This also re-rates KG-014 from P3 to P2 and moves the work forward: the instructor syllabus capability cannot be granted until it exists. See `docs/decision_log.md`.
 
 ---
 

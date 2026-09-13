@@ -1,4 +1,12 @@
-Single‑Discipline Martial Arts Grading App – Planning & Execution
+Single-Discipline Martial Arts Grading App - Planning & Execution
+
+Status: legacy planning input.
+
+This document predates the current Django/DRF and React/Vite foundation. Retain
+it as product and sequencing context, but do not treat it as current
+implementation truth. Use `docs/current-system.md`, `README.md`, and accepted
+entries in `docs/decision_log.md` before coding against any claim here.
+
 This document outlines a detailed, phased plan to build a secure, single‑discipline martial arts grading management system.  The plan reflects the latest insights from industry surveys and developer trends, and follows the product scope and stack recommendations previously agreed.  It is intended to serve as a hand‑off document for building a working prototype and full application.
 1. Overview
 The goal of the project is to replace spreadsheets and ad‑hoc processes with a role‑based web application that manages student progression, grading sessions, examiner assessments and promotion records.  The product focuses on a single martial arts discipline and operates initially as an internal staff tool.  It later evolves to support operational maturity and automation.

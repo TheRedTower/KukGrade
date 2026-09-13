@@ -1,4 +1,12 @@
-# Data Model for Single‑Discipline Grading App
+# Data Model for Single-Discipline Grading App
+
+Status: legacy/target planning input.
+
+This document is not the current database schema. It records a broader target
+model from early planning and uses names that do not always match the
+implemented Django models. Use `docs/current-system.md`, migrations, and model
+code for current implementation. Use this document only as planning context
+when a future slice explicitly reconciles it with accepted decisions.
 
 This document defines the main entities and relationships in the martial‑arts grading application.  It is intended to guide database schema implementation in Django and help align API endpoints with the underlying data.
 

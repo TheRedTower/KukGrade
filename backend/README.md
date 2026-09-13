@@ -95,6 +95,11 @@ only while the parent session is draft or open.
 `created_by`, candidate `student`, and candidate `testing_for_rank` use
 protected foreign keys to preserve historical and reference relationships.
 
+Audit note: the repository audit found that some documented deletion and
+immutability rules are currently strongest through API/service/admin workflows
+and still need hardening at model, queryset, database, and concurrency
+boundaries. Track remediation in `../docs/audits/remediation-status.md`.
+
 ## Candidate Assessments
 
 Authenticated staff can generate and work with candidate assessment snapshots:

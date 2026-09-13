@@ -4,17 +4,36 @@
 
 KukGrade is an internal martial-arts grading management application for Kuk Sool Won instructors, grading managers, administrators, and authorised Masters. Students do not directly access the application.
 
-The repository is currently in the planning stage. `api/`, `web/`, and `worker/` are intended boundaries, not completed applications. Before scaffolding or implementation, read:
+The repository is past initial planning and now has a runnable Django/DRF
+backend, React/TypeScript frontend, local PostgreSQL configuration, and several
+implemented domain foundations. `backend/`, `frontend/`, and `docs/` are the
+accepted top-level boundaries. There is no `api/` or `web/` application
+directory, and no worker should be scaffolded until a real asynchronous
+workload is accepted.
+
+Before implementation, read:
 
 - `README.md`
 - `docs/README.md`
+- `docs/current-system.md`
 - `docs/action_plan.md`
 - `docs/decision_log.md`
+- `docs/product-requirements.md`
+- `docs/architecture.md`
+- `docs/domain-model.md`
+- `docs/permissions.md`
+- `docs/testing-strategy.md`
+- `docs/development-workflow.md`
 - `docs/data_model.md`
 - `docs/api_contract.md`
 - `docs/grading_app_planning.md`
 
-Planned stack: Django, Django REST Framework, React, TypeScript, PostgreSQL, pytest, React Testing Library with Vitest or Jest, and Docker for production deployment.
+Implemented stack: Django, Django REST Framework, React, TypeScript, Vite,
+PostgreSQL, pytest, Ruff, mypy, React Testing Library, Vitest, and local Docker
+Compose for PostgreSQL. Production Docker images and CI are not implemented.
+Treat `docs/api_contract.md`, `docs/data_model.md`, and
+`docs/grading_app_planning.md` as older target/legacy planning inputs unless
+they have been reconciled with `docs/current-system.md` and accepted decisions.
 
 ## Domain Rules
 
@@ -24,10 +43,13 @@ Planned stack: Django, Django REST Framework, React, TypeScript, PostgreSQL, pyt
 - Assessment data must support category-level results, item-level met/not-met results, comments, and positive observations.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
-- Each grading must retain the exact syllabus version used at the time.
+- Each grading must retain the exact syllabus version used at the time. This is
+  a confirmed requirement but is not implemented yet; current assessments copy
+  requirement display snapshots but do not store an explicit `SyllabusVersion`.
 - Updating a syllabus must not change historical grading records.
 - Never hard-code syllabus rules directly into React components. Keep syllabus and grading rules in backend/domain data and APIs.
-- Student status must support active, inactive, and left.
+- Student status must support active, inactive, and left. This is a confirmed
+  requirement but the current model has only binary `is_active`.
 - Missing a grading must not automatically mean that a student left.
 
 ## Reference Data
@@ -63,6 +85,7 @@ Ranks:
 - Treat student details, attendance, grading comments, and outcomes as personal data.
 - Apply least-privilege permissions throughout the API and UI.
 - Sensitive changes must be auditable, especially syllabus changes, permission changes, final decisions, overrides, rank changes, and student status changes.
+- Audit events are a confirmed requirement but are not implemented yet.
 - Do not commit secrets, credentials, production exports, or real student data.
 - Prefer explicit fixtures and anonymised test data.
 
@@ -78,6 +101,9 @@ Ranks:
 - Prefer small, reviewable implementation slices.
 - Confirm unresolved decisions in `docs/decision_log.md` before large scaffolding, dependency, schema, or workflow choices.
 - Keep `worker/` dormant until there is a real asynchronous workload.
+- Follow the staged audit remediation programme in
+  `docs/audits/remediation-status.md`; do not combine unrelated remediation
+  stages.
 
 ## Definition of Done
 

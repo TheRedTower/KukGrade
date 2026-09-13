@@ -1,4 +1,15 @@
-# API Contract for Single‑Discipline Grading App
+# API Contract for Single-Discipline Grading App
+
+Status: mixed current and target contract.
+
+This document started as a broad target REST contract and now contains both
+implemented endpoints and deferred target endpoints. Before building against an
+endpoint, check the section notes and `docs/current-system.md`. Implemented
+current endpoints are authentication, health, ranks, syllabus lookup, grading
+sessions, grading candidates, candidate assessments, assessment items, and
+candidate outcomes. Users/roles, organisations/branches, student CRUD,
+eligibility, promotions, certificates, reports, and audit endpoints are target
+or deferred unless a section explicitly says otherwise.
 
 This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses. Authentication uses Django session authentication with CSRF protection for the React frontend.
 
@@ -14,6 +25,8 @@ Login failures use a generic error and must not reveal whether an account exists
 
 ## 2. Users and Roles (Admin only)
 
+Status: target/deferred. These API endpoints are not implemented on `dev`.
+
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
 | GET    | /api/users/                  | List users                                    |
@@ -24,6 +37,8 @@ Login failures use a generic error and must not reveal whether an account exists
 | POST   | /api/users/{id}/roles/       | Assign roles to a user                        |
 
 ## 3. Organisation and Branches
+
+Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 | Method | Endpoint                          | Description                                       |
 |--------|------------------------------------|---------------------------------------------------|
@@ -37,6 +52,10 @@ Login failures use a generic error and must not reveal whether an account exists
 | PATCH  | /api/branches/{id}/                | Update branch details                             |
 
 ## 4. Students
+
+Status: target/deferred for API endpoints. The backend has an initial
+`Student` model, but student CRUD, history, eligibility, and recommendation API
+routes are not implemented on `dev`.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
@@ -104,6 +123,8 @@ ranges are stored on the requirement, not encoded into duplicate item records.
 Form sections or parts from the source charts are currently preserved as notes.
 
 ## 7. Eligibility (V2)
+
+Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 | Method | Endpoint                                 | Description                                        |
 |--------|-------------------------------------------|----------------------------------------------------|
@@ -204,7 +225,7 @@ Candidate creation rejects locked, completed, and cancelled sessions; duplicate
 student/session pairs; invalid testing-for ranks; and missing student date of
 birth. The testing-for rank must be the next active rank after the student's
 current rank. This feature does not update `Student.current_rank`; promotion
-history remains deferred.
+history remains deferred on `dev`.
 
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
@@ -333,6 +354,8 @@ inferred final outcome.
 
 ## 11. Certificates
 
+Status: target/deferred. These API endpoints are not implemented on `dev`.
+
 | Method | Endpoint                                           | Description                                      |
 |--------|-----------------------------------------------------|--------------------------------------------------|
 | POST   | /api/promotions/{promotion_id}/certificate/         | Generate a certificate PDF                       |
@@ -340,6 +363,8 @@ inferred final outcome.
 | GET    | /api/certificates/{id}/download/                   | Download certificate file                        |
 
 ## 12. Reports
+
+Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 | Method | Endpoint                                | Description                                        |
 |--------|------------------------------------------|----------------------------------------------------|
@@ -349,6 +374,8 @@ inferred final outcome.
 | GET    | /api/reports/conditional-candidates/     | Deferred; list conditional candidates              |
 
 ## 13. Audit
+
+Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 | Method | Endpoint                                    | Description                                  |
 |--------|----------------------------------------------|----------------------------------------------|

@@ -66,7 +66,8 @@ npm install
 npm run dev
 ```
 
-The backend health endpoint is `http://localhost:8000/api/health/`. The frontend reads it through `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
+The backend health endpoint is `http://localhost:8000/api/health/`. Frontend
+API calls use `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
 
 ## Rank Foundation
 
@@ -105,7 +106,6 @@ students to White, and then makes the field required for new and existing rows.
 Deliberately deferred rank-related work:
 
 - promotion history.
-- grading sessions.
 - black-belt ranks above PKJN.
 
 ## Syllabus Foundation
@@ -139,7 +139,7 @@ preserved where present. Optional black-belt material marked "May be taught, if
 time allows" is kept in the item catalogue where named, but no age-band
 requirement is seeded because the Adult/Youth chart does not unambiguously scope
 that optional material to a testing age band. The seed does not create ranks
-above JKN requirements and does not implement grading sessions, scoring,
+above JKN requirements and does not itself create grading sessions, scoring,
 assessment results, attendance, or promotion history.
 
 Current source notes:

@@ -11,7 +11,7 @@
 
 ## Backend Testing
 
-Planned backend test coverage:
+Backend test coverage should include:
 
 - model constraints and relationships.
 - serializer validation.
@@ -19,10 +19,15 @@ Planned backend test coverage:
 - DRF endpoint validation failures.
 - role and object-level permission boundaries.
 - grading workflow state transitions.
-- syllabus version immutability and historical references.
-- age-band and syllabus-version selection behavior once the date rule is confirmed.
-- audit events for sensitive writes.
-- promotion or rank-change behavior once the promotion process is confirmed.
+- assessment snapshot immutability across API, service, model, admin, queryset,
+  database, and concurrency paths as applicable.
+- syllabus version immutability and historical references once versioning is
+  implemented.
+- age-band and syllabus-version selection behavior once version selection is
+  implemented.
+- audit events for sensitive writes once audit events are implemented.
+- promotion or rank-change behavior once the promotion process is accepted on
+  top of the hardened domain.
 
 Backend tests run with `pytest`:
 
@@ -52,7 +57,7 @@ Planned frontend test coverage:
 - final decision review screens.
 - syllabus rendering from API data rather than hard-coded rules.
 
-React Testing Library with Vitest or Jest is expected once the React project exists. The choice remains unresolved.
+React Testing Library with Vitest is configured.
 
 ## Contract And Workflow Testing
 
@@ -70,10 +75,37 @@ API behavior should be covered by tests before frontend work depends on it. When
 - Include examples across ranks and age bands only when needed for the behavior under test.
 - Do not include production exports or copied real grading comments.
 
+## Current Verification Commands
+
+Backend:
+
+```sh
+docker compose up -d db
+cd backend
+uv sync --frozen
+uv run python manage.py migrate
+uv run python manage.py makemigrations --check --dry-run
+uv run python manage.py check
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy kukgrade health accounts ranks students syllabus gradings
+```
+
+Frontend:
+
+```sh
+cd frontend
+npm ci
+npm run test
+npm run lint
+npm run typecheck
+npm run build
+```
+
 ## Unresolved Decisions
 
-- Exact backend test command.
-- Exact frontend test runner: Vitest or Jest.
 - Whether to add end-to-end browser tests in V1.
 - Whether API schema generation is required before frontend scaffolding.
 - Whether test data factories should use a package or plain fixtures.
+- How concurrency tests should be structured for the grading aggregate.

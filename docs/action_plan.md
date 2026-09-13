@@ -5,10 +5,15 @@ This plan translates the existing project documents into a controlled implementa
 ## Current status
 
 - Phase 0 documentation exists for product direction, data model, and API contract.
-- `backend/` and `frontend/` contain the initial runnable application foundation.
+- `backend/` and `frontend/` contain runnable application foundations.
 - Local PostgreSQL is configured through Docker Compose.
-- Health checks and first tests exist.
-- Domain features, authentication, syllabus, grading, and worker implementation are still deferred.
+- Health checks and backend/frontend tests exist.
+- Authentication and session/CSRF foundations are implemented.
+- Student, rank, syllabus, grading session, assessment snapshot, and candidate
+  outcome foundations are implemented.
+- Explicit syllabus versioning, least-privilege role enforcement, audit events,
+  promotion/rank history on `dev`, student API/UI, grading frontend workflows,
+  CI, production hardening, and worker implementation remain pending.
 
 ## Phase 0 - Confirm Foundations
 
@@ -30,17 +35,35 @@ This plan translates the existing project documents into a controlled implementa
 
 ## Phase 2 - Core Domain Skeleton
 
-1. Implement organisation, branch, role, rank, and student models.
-2. Add serializers, viewsets, permissions, and admin configuration for those models.
-3. Add frontend routes for login shell, dashboard shell, students list, and student detail.
-4. Add focused tests for model constraints and API permissions.
+1. Implement organisation, branch, role, rank, and student models. Partially
+   done: custom user, role field, rank catalogue, and initial student model
+   exist; organisation, branch, explicit active/inactive/left status, and
+   production role policy remain pending.
+2. Add serializers, viewsets, permissions, and admin configuration for those
+   models. Partially done for auth, ranks, syllabus, and grading foundations;
+   student API and least-privilege action rules remain pending.
+3. Add frontend routes for login shell, dashboard shell, students list, and
+   student detail. Login/protected shell exists; real routing and student
+   screens remain pending.
+4. Add focused tests for model constraints and API permissions. Existing tests
+   are extensive for implemented foundations; role/action permission coverage
+   remains pending.
 
 ## Phase 3 - Syllabus and Grading Workflow
 
 1. Implement syllabus versions, categories, criteria, and rank pathways.
-2. Implement grading sessions, candidates, examiner assignments, assessments, scores, and final decisions.
-3. Build examiner-facing scoring flows and head-instructor decision flows in small increments.
-4. Add audit events around final decisions, overrides, and rank-changing actions.
+   Current implementation has syllabus items and requirements only; explicit
+   versioning and publication remain pending.
+2. Implement grading sessions, candidates, examiner assignments, assessments,
+   scores, and final decisions. Grading sessions, candidates, assessment
+   snapshots, item-level met/not-met results, outcome proposals, and final
+   decisions exist; examiner assignments, scoring beyond met/not-met, and
+   hardened integrity boundaries remain pending.
+3. Build examiner-facing scoring flows and head-instructor decision flows in
+   small increments. Backend foundations exist; frontend workflows remain
+   pending.
+4. Add audit events around final decisions, overrides, and rank-changing
+   actions. Pending.
 
 ## Phase 4 - Reporting and Operational Maturity
 
@@ -51,3 +74,7 @@ This plan translates the existing project documents into a controlled implementa
 ## Decision rule
 
 Every implementation slice should have a clear acceptance check before it starts. If a slice needs a structural choice, record the choice in `decision_log.md` first.
+
+During the audit cleanup programme, `docs/audits/remediation-status.md` defines
+the required stage order. Do not start new product features until the relevant
+remediation gate is complete.

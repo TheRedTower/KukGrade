@@ -18,6 +18,210 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-13 - Capability map and role definitions
+
+Status: Accepted
+
+Decision:
+Instructors own everything related to Kuk Sool; logistics beyond that is left to
+administrators and the Master in charge.
+
+Groups and their Django permissions:
+
+- Instructor: full add/change/view on students, grading sessions, grading
+  candidates, and the syllabus catalogue; full assessment and outcome-proposal
+  workflow. `is_staff` is granted so syllabus editing works through Django admin
+  until a syllabus write API exists. No user or role management.
+- Administrator: everything an instructor has, plus user and role management.
+- Master: not a group. The three sensitive permissions
+  (`can_make_final_grading_decision`, `can_promote_student`, and the new
+  `can_withdraw_locked_candidate`) are grantable to any user independently of
+  their group, so authority survives a specific person being unavailable.
+
+`User.Role` drops `manager`, leaving `instructor` and `administrator`.
+
+Context:
+The 2026-09-13 authority-primitive decision settled the mechanism but not the
+policy, which blocked KG-NEXT-008. The confirmed policy is that an instructor
+can run a grading end to end - schedule it, register candidates, maintain
+student records, edit the syllabus, assess, and propose an outcome - but cannot
+make the final decision, promote a student, or withdraw a candidate from a
+locked session. No code or documentation uses the `manager` role.
+
+Consequences:
+Instructors gain Django admin access via `is_staff`, which also exposes student
+date of birth in the admin; instructors already require student access, so this
+is accepted rather than mitigated. Syllabus write API endpoints remain deferred
+and the existing `test_syllabus_api_rejects_write_methods` test stands. A new
+`can_withdraw_locked_candidate` permission is added for KG-008 rather than
+reusing final-decision authority.
+
+### 2026-09-13 - Outcome revision is logged, not gated
+
+Status: Accepted
+
+Decision:
+Instructors may freely revise a proposed outcome until the Master finalises it.
+No reason field is required, no approval step is added, and no proposal-history
+model is introduced. Instead, every proposal, revision, final decision,
+promotion, and syllabus change is recorded as an append-only audit event.
+Disagreements are discussed in person, not captured as structured data.
+
+Context:
+The audit found (KG-029) that `propose_candidate_outcome` overwrites the
+previous proposal in place, so if one instructor changes another's proposed
+outcome the change is invisible - including to the Master who must adjudicate
+it. Requiring a reason, keeping an append-only proposal model, and a two-stage
+sign-off were all considered and rejected as more process than the setting
+warrants. "Locked by the Master" is already enforced: finalised outcomes cannot
+be re-proposed.
+
+Consequences:
+No domain logic changes. The audit log becomes load-bearing rather than
+supporting scenery, so a minimal `AuditEvent` model moves from Phase 4 into
+Phase 2 alongside the permissions work, estimated 1-2 days. Until it lands,
+outcome revisions remain unrecorded. The `actor` parameters already stubbed at
+`services.py:235` and `services.py:447` are the insertion points.
+
+### 2026-09-13 - Authority primitive is Django permissions
+
+Status: Accepted
+
+Decision:
+Django permissions are the single authority primitive for KukGrade. `User.role`
+becomes a convenience label that assigns a Group, not an enforcement mechanism.
+Delete the unused `IsInstructorOrAbove`, `IsManagerOrAdministrator`,
+`IsAdministrator`, and `IsAuthenticatedUser` role classes; keep small custom
+permission classes only for the six custom actions (`generate-assessment`,
+`create-outcome`, `propose`, `finalise`, `summary`, `promote`). Remove the
+inert `User.can_make_final_grading_decision` boolean. "Authorised Master" is a
+permission, consistently with everything else.
+
+Context:
+The 2026-09-13 independent audit found three competing authority mechanisms in
+one codebase: role classes wired to zero views (KG-001), Django permissions
+that are the only thing actually enforcing anything, and an inert boolean
+(KG-003). These are not three problems but one: the authority primitive had
+never been chosen. This completes the 2026-06-25 final-decision-authority
+decision rather than superseding it.
+
+Consequences:
+Closes KG-001, KG-003, and open question Q2 in one change. Authority becomes
+adjustable through admin Groups without a deploy. Every endpoint needs an
+explicit permission class and a role-by-operation matrix test, which is the
+highest-value test addition currently missing. Estimated 1.5-2 days.
+
+### 2026-09-13 - Locked grading session exit paths
+
+Status: Accepted
+
+Decision:
+Add two exits from `LOCKED`. First, authorised post-lock candidate withdrawal:
+gated by final-decision authority, requiring a recorded reason plus
+`withdrawn_by` and `withdrawn_at`, blocked once the candidate's outcome is
+`FINALISED`. Second, `LOCKED -> CANCELLED` for a genuinely abandoned grading.
+The assessment snapshot is retained unchanged on withdrawal; partial results
+stay as they were recorded.
+
+Context:
+The audit found (KG-008) that a locked session had no safe exit for a candidate
+who could not finish. Withdrawal and deletion both require a draft or open
+session, `LOCKED` transitions only to `COMPLETED`, and completion requires every
+non-withdrawn candidate to hold a finalised outcome. The only in-app escape was
+to mark unassessed items `NOT_MET` and finalise a false `FAIL`, writing
+fabricated results into a record the system then correctly refuses to change.
+`LOCKED -> CANCELLED` alone was rejected as the primary remedy because
+`PROMOTION_SESSION_STATUSES` requires a locked or completed session, so
+cancelling would strip promotion from every other candidate in the session.
+Exam-board practice (absent and incomplete coded separately from any grade) and
+clinical data capture (never impute a value for "not done"; always record a
+reason) both support recording the true event rather than reusing a
+nearby-looking one.
+
+Consequences:
+`validate_candidate_can_be_changed` and `validate_candidate_assessment_changes`
+each need a narrow carve-out reachable only through the authorised service path.
+Withdrawn candidates are already excluded from lock and completion checks, so no
+new exclusion logic is required. A separate `DID_NOT_FINISH` outcome was
+considered and deferred; revisit only if grading paperwork distinguishes "did
+not finish" from "withdrew". Estimated half a day plus one hour.
+
+### 2026-09-13 - API error envelope and list pagination
+
+Status: Accepted
+
+Decision:
+Extend the existing `custom_exception_handler` envelope with a `fields` member
+so validation errors reach clients as structured per-field messages alongside
+the existing `code` and `message`. Return 405 rather than 400 for unsupported
+outcome mutation. Apply DRF `PageNumberPagination` uniformly to every list
+endpoint with no exemptions, including small reference collections.
+
+Context:
+The audit found (KG-015) that the frontend discards all field-level validation
+errors because it reads only `error.message` or `detail`, while DRF sends
+`{"field": ["msg"]}`; every 400 degrades to a generic message, blocking every
+form in the application. Three error envelopes currently coexist (KG-017), and
+no list endpoint is paginated (KG-004). Stripe, GitHub, Google, and RFC 9457 all
+converged on machine code plus human message plus a separate structured
+field-error member; the existing handler already has the first two.
+`drf-standardized-errors` was considered and deferred because its main advantage
+is OpenAPI schema generation, which only pays for itself alongside
+`drf-spectacular`.
+
+Consequences:
+Both are response-shape changes and must land before frontend screens are built,
+or the screens get rebuilt. Pagination is uniform so the client needs exactly one
+unwrap helper and no special cases. Moving to cursor pagination later would only
+remove `count`, a far smaller break than adding an envelope after the fact.
+TypeScript types remain hand-maintained for now; the type-synchronisation half of
+open question Q4 is still unresolved.
+
+### 2026-06-25 - Documentation truth and audit remediation tracker
+
+Status: Accepted
+
+Decision:
+Create `docs/current-system.md` as the current implementation source of truth,
+create `docs/audits/remediation-status.md` as the audit remediation tracker,
+and mark older broad planning documents as legacy or mixed target/current
+inputs. Treat `docs/api_contract.md`, `docs/data_model.md`, and
+`docs/grading_app_planning.md` as planning context unless reconciled with the
+current-system document and accepted decisions.
+
+Context:
+The repository audit found that current-state documentation, target planning,
+and legacy planning language were mixed together. This caused stale claims such
+as the project being only in planning, grading foundations being deferred, and
+some unimplemented target endpoints looking current.
+
+Consequences:
+Future implementation must check `docs/current-system.md` and the remediation
+tracker before acting on older planning files. Audit remediation should proceed
+by stage, with documentation, tests, and review evidence recorded in the
+tracker.
+
+### 2026-06-25 - Final decision authority source
+
+Status: Accepted
+
+Decision:
+Treat the Django permission `gradings.can_make_final_grading_decision` as the
+current runtime authority for final grading decisions. The older
+`User.can_make_final_grading_decision` boolean is a legacy field and must not
+be presented as granting final-decision authority. Removing or replacing that
+boolean is tracked as audit finding M-01.
+
+Context:
+The 2026-06-21 identity decision described a separate boolean capability, but
+the later candidate outcome implementation uses a Django permission and tests
+prove the boolean alone does not grant finalisation authority.
+
+Consequences:
+Documentation and UI must not imply that ticking the legacy boolean grants
+final-decision authority. A future remediation stage should migrate/remove the
+field or deliberately redefine it with tests and documentation.
+
 ### 2026-06-23 - Candidate outcome and Master decision foundation
 
 Status: Accepted

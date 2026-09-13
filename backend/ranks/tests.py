@@ -6,6 +6,7 @@ from django.db import IntegrityError, transaction
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from kukgrade.testing import results
 from ranks.models import Rank
 
 pytestmark = pytest.mark.django_db
@@ -176,7 +177,7 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
     response = client.get("/api/ranks/")
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = results(response)
     assert [rank["code"] for rank in payload] == [
         code for code, _name, _order, _category in REQUIRED_RANKS
     ]

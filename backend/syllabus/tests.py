@@ -12,6 +12,7 @@ from django.db.models.deletion import ProtectedError
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from kukgrade.testing import results
 from ranks.models import Rank
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 
@@ -363,7 +364,7 @@ def test_syllabus_requirement_api_filters_by_rank_code() -> None:
     response = client.get("/api/syllabus/requirements/?rank_code=YELLOW")
 
     assert response.status_code == 200
-    assert {item["rank_code"] for item in response.json()} == {"YELLOW"}
+    assert {item["rank_code"] for item in results(response)} == {"YELLOW"}
 
 
 def test_syllabus_requirement_api_filters_by_age_band() -> None:
@@ -374,7 +375,7 @@ def test_syllabus_requirement_api_filters_by_age_band() -> None:
     )
 
     assert response.status_code == 200
-    assert {item["age_band"] for item in response.json()} == {AgeBand.AGE_8_AND_UNDER}
+    assert {item["age_band"] for item in results(response)} == {AgeBand.AGE_8_AND_UNDER}
 
 
 def test_syllabus_requirement_api_combined_filtering() -> None:
@@ -385,7 +386,7 @@ def test_syllabus_requirement_api_combined_filtering() -> None:
     )
 
     assert response.status_code == 200
-    payload = response.json()
+    payload = results(response)
     assert payload
     assert {item["rank_code"] for item in payload} == {"YELLOW"}
     assert {item["age_band"] for item in payload} == {AgeBand.AGE_9_TO_12}
@@ -400,7 +401,7 @@ def test_syllabus_requirement_api_ordering_is_deterministic() -> None:
     )
 
     assert response.status_code == 200
-    sequences = [item["sequence"] for item in response.json()]
+    sequences = [item["sequence"] for item in results(response)]
     assert sequences == sorted(sequences)
 
 

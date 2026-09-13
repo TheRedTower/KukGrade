@@ -55,6 +55,7 @@ from gradings.services import (
     validate_candidate_can_be_deleted,
     validate_session_transition,
 )
+from kukgrade.testing import results
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
@@ -668,7 +669,7 @@ def test_session_api_filters_work() -> None:
     )
 
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()] == [draft.id]
+    assert [item["id"] for item in results(response)] == [draft.id]
 
 
 def test_session_api_malformed_or_reversed_date_filters_return_empty_list() -> None:
@@ -682,9 +683,9 @@ def test_session_api_malformed_or_reversed_date_filters_return_empty_list() -> N
     )
 
     assert malformed_response.status_code == 200
-    assert malformed_response.json() == []
+    assert results(malformed_response) == []
     assert reversed_response.status_code == 200
-    assert reversed_response.json() == []
+    assert results(reversed_response) == []
 
 
 def test_session_api_lifecycle_validation() -> None:
@@ -1139,7 +1140,7 @@ def test_candidate_api_filters_work() -> None:
     )
 
     assert response.status_code == 200
-    assert [item["id"] for item in response.json()] == [built.id]
+    assert [item["id"] for item in results(response)] == [built.id]
 
 
 def test_candidate_api_duplicate_returns_validation_error() -> None:
@@ -1917,7 +1918,7 @@ def test_assessment_api_generation_lists_filters_counts_and_rejects_delete() -> 
     delete_response = client.delete(f"/api/gradings/assessments/{payload['id']}/")
 
     assert list_response.status_code == 200
-    assert [item["id"] for item in list_response.json()] == [payload["id"]]
+    assert [item["id"] for item in results(list_response)] == [payload["id"]]
     assert detail_response.status_code == 200
     assert post_response.status_code == 405
     assert delete_response.status_code == 405
@@ -1989,7 +1990,7 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert item.assessor == real_assessor
     assert item.assessed_at is not None
     assert item.assessor_notes == "Needs work"
-    assert [payload["id"] for payload in list_response.json()] == [item.id]
+    assert [payload["id"] for payload in results(list_response)] == [item.id]
     assert post_response.status_code == 405
     assert delete_response.status_code == 405
 
@@ -2600,7 +2601,7 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
     assert summary_response.status_code == 200
     assert "final_outcome" not in summary_response.json()
-    assert [item["id"] for item in list_response.json()] == [outcome_id]
+    assert [item["id"] for item in results(list_response)] == [outcome_id]
     assert delete_response.status_code == 405
     assert finalised_patch.status_code == 400
 
@@ -2999,7 +3000,7 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     assert duplicate.status_code == 400
     assert arbitrary_post.status_code == 405
     assert detail_response.status_code == 200
-    assert [item["id"] for item in list_response.json()] == [promotion_id]
+    assert [item["id"] for item in results(list_response)] == [promotion_id]
     assert rank_history_response.status_code == 200
     assert rank_history_response.json()["current_rank_code"] == "YELLOW_STRIPE"
     assert [item["id"] for item in rank_history_response.json()["promotions"]] == [

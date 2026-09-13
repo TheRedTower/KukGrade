@@ -55,6 +55,17 @@ class Student(models.Model):
             errors["last_name"] = ["Last name is required."]
         if self.date_of_birth and self.date_of_birth > timezone.localdate():
             errors["date_of_birth"] = ["Date of birth cannot be in the future."]
+        if not self._state.adding and self.pk is not None:
+            previous_rank_id = (
+                Student.objects.filter(pk=self.pk)
+                .values_list("current_rank_id", flat=True)
+                .first()
+            )
+            if previous_rank_id != self.current_rank_id and self.promotions.exists():
+                errors["current_rank"] = [
+                    "Use the promotion workflow to change current rank after "
+                    "promotion history exists.",
+                ]
 
         if errors:
             raise ValidationError(errors)

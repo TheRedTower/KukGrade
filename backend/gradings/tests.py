@@ -20,11 +20,15 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.permissions import (
+    FINAL_GRADING_DECISION_PERMISSION,
+    PROMOTE_STUDENT_PERMISSION,
+)
 from gradings.admin import (
     CandidateOutcomeAdmin,
     GradingSessionAdmin,
     GradingSessionAdminForm,
+    PromotionAdmin,
 )
 from gradings.models import (
     CandidateAssessment,
@@ -32,6 +36,7 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from gradings.services import (
     applicable_syllabus_requirements,
@@ -40,8 +45,10 @@ from gradings.services import (
     create_candidate_outcome,
     finalise_candidate_outcome,
     generate_candidate_assessment,
+    promote_candidate,
     propose_candidate_outcome,
     resolve_age_band,
+    student_rank_timeline,
     transition_grading_session,
     update_candidate_assessment,
     update_candidate_assessment_item,
@@ -161,6 +168,24 @@ def grant_final_decision_permission(finaliser: User) -> None:
         ),
     )
     finaliser.user_permissions.add(permission)
+
+
+def promoter(email: str = "promoter@example.com") -> User:
+    promotion_user = user(email)
+    grant_promotion_permission(promotion_user)
+    return promotion_user
+
+
+def grant_promotion_permission(promotion_user: User) -> None:
+    app_label, codename = PROMOTE_STUDENT_PERMISSION.split(".")
+    permission = Permission.objects.get(
+        codename=codename,
+        content_type=ContentType.objects.get(
+            app_label=app_label,
+            model="promotion",
+        ),
+    )
+    promotion_user.user_permissions.add(permission)
 
 
 def finalised_outcome(
@@ -2595,6 +2620,445 @@ def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> 
         model_admin.save_model(request, outcome, form, True)
 
 
+def test_valid_promotion_updates_student_rank_and_records_history() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    actor = promoter("promotion-valid@example.com")
+    student_before = Student.objects.values().get(pk=built.student_id)
+
+    promotion = promote_candidate(outcome, actor, notes="Promoted at grading.")
+
+    built.student.refresh_from_db()
+    student_after = Student.objects.values().get(pk=built.student_id)
+
+    assert promotion.student == built.student
+    assert promotion.outcome == outcome
+    assert promotion.grading_candidate == built
+    assert promotion.from_rank.code == "WHITE"
+    assert promotion.to_rank.code == "YELLOW_STRIPE"
+    assert promotion.promoted_by == actor
+    assert promotion.promoted_at is not None
+    assert promotion.effective_date == built.session.grading_date
+    assert promotion.notes == "Promoted at grading."
+    assert built.student.current_rank == promotion.to_rank
+    assert student_after["current_rank_id"] != student_before["current_rank_id"]
+    assert student_after["wksa_id"] == student_before["wksa_id"]
+    assert student_after["first_name"] == student_before["first_name"]
+    assert student_after["last_name"] == student_before["last_name"]
+    assert student_after["date_of_birth"] == student_before["date_of_birth"]
+    assert student_after["is_active"] == student_before["is_active"]
+    assert student_after["created_at"] == student_before["created_at"]
+    assert student_after["updated_at"] == student_before["updated_at"]
+    assert str(promotion) == (
+        f"{built.student} promoted from {promotion.from_rank} to {promotion.to_rank}"
+    )
+
+
+def test_promotion_database_constraints_and_model_validation() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    actor = promoter("promotion-db@example.com")
+    promotion = promote_candidate(outcome, actor)
+
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, actor)
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Promotion.objects.bulk_create(
+            [
+                Promotion(
+                    student=promotion.student,
+                    outcome=promotion.outcome,
+                    grading_candidate=promotion.grading_candidate,
+                    from_rank=promotion.from_rank,
+                    to_rank=promotion.to_rank,
+                    promoted_by=actor,
+                    effective_date=promotion.effective_date,
+                ),
+            ],
+        )
+
+    other_built, _other_generated = locked_completed_candidate()
+    other_outcome = finalised_outcome(other_built)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Promotion.objects.bulk_create(
+            [
+                Promotion(
+                    student=other_built.student,
+                    outcome=other_outcome,
+                    grading_candidate=other_built,
+                    from_rank=rank("WHITE"),
+                    to_rank=rank("WHITE"),
+                    promoted_by=actor,
+                    effective_date=other_built.session.grading_date,
+                ),
+            ],
+        )
+
+    mismatch = Promotion(
+        student=other_built.student,
+        outcome=outcome,
+        grading_candidate=other_built,
+        from_rank=rank("WHITE"),
+        to_rank=rank("YELLOW_STRIPE"),
+        promoted_by=actor,
+        effective_date=other_built.session.grading_date,
+    )
+    with pytest.raises(ValidationError) as exc_info:
+        mismatch.full_clean()
+    assert "outcome" in exc_info.value.message_dict
+
+    assessment_mismatch_built, _assessment_mismatch_generated = (
+        locked_completed_candidate()
+    )
+    assessment_mismatch_outcome = finalised_outcome(assessment_mismatch_built)
+    _foreign_built, foreign_generated = locked_completed_candidate()
+    CandidateOutcome.objects.filter(pk=assessment_mismatch_outcome.pk).update(
+        assessment=foreign_generated,
+    )
+    assessment_mismatch_outcome.refresh_from_db()
+    mismatch_assessment = Promotion(
+        student=assessment_mismatch_built.student,
+        outcome=assessment_mismatch_outcome,
+        grading_candidate=assessment_mismatch_built,
+        from_rank=rank("WHITE"),
+        to_rank=rank("YELLOW_STRIPE"),
+        promoted_by=actor,
+        effective_date=assessment_mismatch_built.session.grading_date,
+    )
+    with pytest.raises(ValidationError) as assessment_exc:
+        mismatch_assessment.full_clean()
+    assert "assessment" in assessment_exc.value.message_dict
+
+    wrong_student = student(wksa_id="PROMO-WRONG-STUDENT")
+    mismatch_student = Promotion(
+        student=wrong_student,
+        outcome=other_outcome,
+        grading_candidate=other_built,
+        from_rank=rank("WHITE"),
+        to_rank=rank("YELLOW_STRIPE"),
+        promoted_by=actor,
+        effective_date=other_built.session.grading_date,
+    )
+    with pytest.raises(ValidationError) as student_exc:
+        mismatch_student.full_clean()
+    assert "student" in student_exc.value.message_dict
+
+    missing_effective_date = Promotion(
+        student=other_built.student,
+        outcome=other_outcome,
+        grading_candidate=other_built,
+        from_rank=rank("WHITE"),
+        to_rank=rank("YELLOW_STRIPE"),
+        promoted_by=actor,
+    )
+    with pytest.raises(ValidationError) as date_exc:
+        missing_effective_date.full_clean()
+    assert "effective_date" in date_exc.value.message_dict
+
+
+def test_promotion_permission_is_separate_from_final_decision_authority() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, user("promotion-ordinary@example.com"))
+    with pytest.raises(ValidationError):
+        promote_candidate(
+            outcome,
+            user(
+                "promotion-legacy-boolean@example.com",
+                can_make_final_grading_decision=True,
+            ),
+        )
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, master("promotion-final-only@example.com"))
+
+    actor = promoter("promotion-authorised@example.com")
+    promotion = promote_candidate(outcome, actor)
+    assert promotion.promoted_by == actor
+
+    second_built, _second_generated = locked_completed_candidate()
+    second_outcome = finalised_outcome(second_built)
+    superuser = User.objects.create_superuser(email="promotion-superuser@example.com")
+    second_promotion = promote_candidate(second_outcome, superuser)
+    assert second_promotion.promoted_by == superuser
+
+
+@pytest.mark.parametrize(
+    ("status", "final_outcome"),
+    [
+        (CandidateOutcome.Status.DRAFT, None),
+        (CandidateOutcome.Status.PROPOSED, None),
+        (CandidateOutcome.Status.FINALISED, CandidateOutcome.Outcome.FAIL),
+        (CandidateOutcome.Status.FINALISED, CandidateOutcome.Outcome.CONDITIONAL),
+    ],
+)
+def test_promotion_rejects_ineligible_outcome_states(
+    status: str,
+    final_outcome: str | None,
+) -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = create_candidate_outcome(built, user(f"promotion-state-{status}@x.com"))
+    if status == CandidateOutcome.Status.PROPOSED:
+        outcome = propose_candidate_outcome(
+            outcome,
+            CandidateOutcome.Outcome.PASS,
+            "",
+            user("promotion-state-proposer@example.com"),
+        )
+    elif status == CandidateOutcome.Status.FINALISED:
+        proposed = propose_candidate_outcome(
+            outcome,
+            CandidateOutcome.Outcome.PASS,
+            "",
+            user(f"promotion-state-proposer-{final_outcome}@example.com"),
+        )
+        outcome = finalise_candidate_outcome(
+            proposed,
+            cast(str, final_outcome),
+            "",
+            (
+                "Additional review required."
+                if final_outcome == CandidateOutcome.Outcome.CONDITIONAL
+                else ""
+            ),
+            master(f"promotion-state-master-{final_outcome}@example.com"),
+        )
+
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, promoter(f"promotion-state-{status}-actor@x.com"))
+
+
+def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> None:
+    open_candidate = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN)
+    )
+    open_assessment = assessment(candidate=open_candidate)
+    start_assessment(open_assessment)
+    complete_assessment(open_assessment)
+    transition_grading_session(open_candidate.session, GradingSession.Status.LOCKED)
+    outcome = finalised_outcome(open_candidate)
+    GradingSession.objects.filter(pk=open_candidate.session_id).update(
+        status=GradingSession.Status.CANCELLED,
+    )
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, promoter("promotion-cancelled@example.com"))
+
+    built, generated = locked_completed_candidate()
+    second_outcome = finalised_outcome(built)
+    CandidateAssessment.objects.filter(pk=generated.pk).update(
+        status=CandidateAssessment.Status.IN_PROGRESS,
+        completed_at=None,
+    )
+    with pytest.raises(ValidationError):
+        promote_candidate(second_outcome, promoter("promotion-assessment@example.com"))
+
+    mismatch_built, _mismatch_generated = locked_completed_candidate()
+    mismatch_outcome = finalised_outcome(mismatch_built)
+    _foreign_built, foreign_generated = locked_completed_candidate()
+    CandidateOutcome.objects.filter(pk=mismatch_outcome.pk).update(
+        assessment=foreign_generated,
+    )
+    mismatch_outcome.refresh_from_db()
+    with pytest.raises(ValidationError):
+        promote_candidate(
+            mismatch_outcome,
+            promoter("promotion-assessment-mismatch@example.com"),
+        )
+
+    withdrawn, _withdrawn_assessment = locked_completed_candidate()
+    withdrawn_outcome = finalised_outcome(withdrawn)
+    GradingCandidate.objects.filter(pk=withdrawn.pk).update(
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    with pytest.raises(ValidationError):
+        promote_candidate(
+            withdrawn_outcome, promoter("promotion-withdrawn@example.com")
+        )
+
+
+def test_promotion_rejects_rank_progression_drift() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    Student.objects.filter(pk=built.student_id).update(current_rank=rank("YELLOW"))
+
+    with pytest.raises(ValidationError):
+        promote_candidate(outcome, promoter("promotion-rank-changed@example.com"))
+
+    skipped_built, _skipped_generated = locked_completed_candidate()
+    skipped_outcome = finalised_outcome(skipped_built)
+    GradingCandidate.objects.filter(pk=skipped_built.pk).update(
+        testing_for_rank=rank("YELLOW"),
+    )
+    with pytest.raises(ValidationError):
+        promote_candidate(skipped_outcome, promoter("promotion-skipped@example.com"))
+
+    inactive_built, _inactive_generated = locked_completed_candidate()
+    inactive_outcome = finalised_outcome(inactive_built)
+    Rank.objects.filter(code="YELLOW_STRIPE").update(active=False)
+    with pytest.raises(ValidationError):
+        promote_candidate(inactive_outcome, promoter("promotion-inactive@example.com"))
+
+
+def test_promotion_effective_date_policy_and_atomic_failure() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    original_rank = built.student.current_rank
+
+    with pytest.raises(ValidationError):
+        promote_candidate(
+            outcome,
+            promoter("promotion-date@example.com"),
+            effective_date=date(2027, 3, 21),
+        )
+
+    built.student.refresh_from_db()
+    assert built.student.current_rank == original_rank
+    assert not Promotion.objects.filter(outcome=outcome).exists()
+
+
+def test_promotion_records_are_immutable_and_protected() -> None:
+    built, _generated = locked_completed_candidate()
+    promotion = promote_candidate(
+        finalised_outcome(built),
+        promoter("promotion-immutable@example.com"),
+    )
+
+    promotion.notes = "Changed"
+    with pytest.raises(ValidationError):
+        promotion.save()
+    with pytest.raises(ValidationError):
+        promotion.delete()
+    with pytest.raises(ValidationError):
+        Promotion.objects.filter(pk=promotion.pk).delete()
+
+    built.student.current_rank = rank("YELLOW")
+    with pytest.raises(ValidationError):
+        built.student.save()
+
+
+def test_promotion_api_workflow_filters_and_rank_history() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    actor = promoter("promotion-api@example.com")
+    client = APIClient()
+
+    unauthenticated = client.post(f"/api/gradings/outcomes/{outcome.id}/promote/")
+    client.force_authenticate(user=user("promotion-api-ordinary@example.com"))
+    forbidden = client.post(f"/api/gradings/outcomes/{outcome.id}/promote/")
+    client.force_authenticate(user=actor)
+    spoofed = client.post(
+        f"/api/gradings/outcomes/{outcome.id}/promote/",
+        {
+            "effective_date": "2030-01-01",
+            "promoted_by": str(user("promotion-spoof@example.com").id),
+        },
+        format="json",
+    )
+    promote_response = client.post(
+        f"/api/gradings/outcomes/{outcome.id}/promote/",
+        {"notes": "API promotion."},
+        format="json",
+    )
+    duplicate = client.post(f"/api/gradings/outcomes/{outcome.id}/promote/")
+    arbitrary_post = client.post("/api/gradings/promotions/", {}, format="json")
+
+    promotion_id = promote_response.json()["id"]
+    detail_response = client.get(f"/api/gradings/promotions/{promotion_id}/")
+    list_response = client.get(
+        "/api/gradings/promotions/"
+        f"?student={built.student_id}"
+        f"&student_wksa_id={built.student.wksa_id}"
+        "&from_rank_code=WHITE"
+        "&to_rank_code=YELLOW_STRIPE"
+        f"&session={built.session_id}"
+        f"&effective_date={built.session.grading_date.isoformat()}"
+        f"&effective_date_from={built.session.grading_date.isoformat()}"
+        f"&effective_date_to={built.session.grading_date.isoformat()}"
+        f"&promoted_by={actor.id}",
+    )
+    rank_history_response = client.get(
+        f"/api/students/{built.student_id}/rank-history/",
+    )
+    patch_response = client.patch(
+        f"/api/gradings/promotions/{promotion_id}/",
+        {"notes": "Changed"},
+        format="json",
+    )
+    delete_response = client.delete(f"/api/gradings/promotions/{promotion_id}/")
+
+    assert unauthenticated.status_code == 403
+    assert forbidden.status_code == 403
+    assert spoofed.status_code == 400
+    assert promote_response.status_code == 201
+    assert promote_response.json()["promoted_by"] == str(actor.id)
+    assert promote_response.json()["effective_date"] == str(built.session.grading_date)
+    assert promote_response.json()["student_wksa_id"] == built.student.wksa_id
+    assert promote_response.json()["student_current_rank_code"] == "YELLOW_STRIPE"
+    assert duplicate.status_code == 400
+    assert arbitrary_post.status_code == 405
+    assert detail_response.status_code == 200
+    assert [item["id"] for item in list_response.json()] == [promotion_id]
+    assert rank_history_response.status_code == 200
+    assert rank_history_response.json()["current_rank_code"] == "YELLOW_STRIPE"
+    assert [item["id"] for item in rank_history_response.json()["promotions"]] == [
+        promotion_id,
+    ]
+    assert patch_response.status_code == 405
+    assert delete_response.status_code == 405
+
+
+def test_student_rank_timeline_ordering_is_deterministic() -> None:
+    first_built, _first_generated = locked_completed_candidate()
+    timeline_student = first_built.student
+    first = promote_candidate(
+        finalised_outcome(first_built),
+        promoter("promotion-timeline-first@example.com"),
+    )
+    timeline_student.refresh_from_db()
+    second_session = grading_session(status=GradingSession.Status.OPEN)
+    second_built = candidate(
+        session=second_session,
+        student=timeline_student,
+        testing_for_rank=rank("YELLOW"),
+    )
+    second_generated = assessment(candidate=second_built)
+    start_assessment(second_generated)
+    transition_grading_session(second_session, GradingSession.Status.LOCKED)
+    complete_assessment(second_generated)
+    second = promote_candidate(
+        finalised_outcome(second_built),
+        promoter("promotion-timeline-second@example.com"),
+    )
+
+    timeline = student_rank_timeline(timeline_student)
+
+    assert timeline["current_rank"].code == "YELLOW"
+    assert [promotion.pk for promotion in timeline["promotions"]] == [
+        second.pk,
+        first.pk,
+    ]
+
+
+def test_promotion_admin_is_read_only_and_has_no_bulk_actions() -> None:
+    built, _generated = locked_completed_candidate()
+    promotion = promote_candidate(
+        finalised_outcome(built),
+        promoter("promotion-admin@example.com"),
+    )
+    model_admin = PromotionAdmin(Promotion, admin.site)
+    request = admin_request("promotion-admin-request@example.com")
+    promotion.notes = "Unsafe admin edit"
+    form = cast(ModelForm, SimpleNamespace(changed_data=["notes"]))
+
+    assert model_admin.has_add_permission(request) is False
+    assert model_admin.has_delete_permission(request, promotion) is False
+    assert model_admin.actions == ()
+    with pytest.raises(ValidationError):
+        model_admin.save_model(request, promotion, form, True)
+
+
 def test_assessment_database_constraints_are_enforced() -> None:
     generated = assessment()
 
@@ -2649,15 +3113,16 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
     try:
         executor.migrate([("gradings", None)])
         executor = MigrationExecutor(connection)
-        executor.migrate([("gradings", "0003_candidateoutcome")])
+        executor.migrate([("gradings", "0004_promotion")])
         state_apps = executor.loader.project_state(
-            [("gradings", "0003_candidateoutcome")],
+            [("gradings", "0004_promotion")],
         ).apps
         HistoricalSession = state_apps.get_model("gradings", "GradingSession")
         HistoricalCandidate = state_apps.get_model("gradings", "GradingCandidate")
         HistoricalAssessment = state_apps.get_model("gradings", "CandidateAssessment")
         HistoricalItem = state_apps.get_model("gradings", "CandidateAssessmentItem")
         HistoricalOutcome = state_apps.get_model("gradings", "CandidateOutcome")
+        HistoricalPromotion = state_apps.get_model("gradings", "Promotion")
 
         session_constraints = {
             constraint.name for constraint in HistoricalSession._meta.constraints
@@ -2673,6 +3138,9 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
         }
         outcome_constraints = {
             constraint.name for constraint in HistoricalOutcome._meta.constraints
+        }
+        promotion_constraints = {
+            constraint.name for constraint in HistoricalPromotion._meta.constraints
         }
 
         assert "grading_session_title_not_blank" in session_constraints
@@ -2704,10 +3172,20 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
             "cand_outcome_final_idx",
             "cand_outcome_decided_idx",
         }
+        assert "promotion_from_to_rank_distinct" in promotion_constraints
+        assert {index.name for index in HistoricalPromotion._meta.indexes} == {
+            "promotion_student_history_idx",
+            "promotion_effective_idx",
+            "promotion_promoted_idx",
+        }
         assert (
             "can_make_final_grading_decision",
             "Can make final grading decision",
         ) in HistoricalOutcome._meta.permissions
+        assert (
+            "can_promote_student",
+            "Can promote student",
+        ) in HistoricalPromotion._meta.permissions
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from accounts.models import User
 
 FINAL_GRADING_DECISION_PERMISSION = "gradings.can_make_final_grading_decision"
+PROMOTE_STUDENT_PERMISSION = "gradings.can_promote_student"
 
 
 def _active_user(request: Request) -> User | None:
@@ -65,11 +66,21 @@ class CanMakeFinalGradingDecision(BasePermission):
         return user is not None and user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
 
 
+class CanPromoteStudent(BasePermission):
+    message = "Student promotion authority is required."
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        user = _active_user(request)
+        return user is not None and user.has_perm(PROMOTE_STUDENT_PERMISSION)
+
+
 __all__ = [
     "CanMakeFinalGradingDecision",
+    "CanPromoteStudent",
     "FINAL_GRADING_DECISION_PERMISSION",
     "IsAdministrator",
     "IsAuthenticatedUser",
     "IsInstructorOrAbove",
     "IsManagerOrAdministrator",
+    "PROMOTE_STUDENT_PERMISSION",
 ]

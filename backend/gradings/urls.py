@@ -8,6 +8,7 @@ from gradings.views import (
     CandidateOutcomeViewSet,
     GradingCandidateViewSet,
     GradingSessionViewSet,
+    PromotionViewSet,
 )
 
 router = SimpleRouter()
@@ -31,6 +32,11 @@ router.register(
     "gradings/outcomes",
     CandidateOutcomeViewSet,
     basename="candidate-outcome",
+)
+router.register(
+    "gradings/promotions",
+    PromotionViewSet,
+    basename="promotion",
 )
 
 urlpatterns = router.urls

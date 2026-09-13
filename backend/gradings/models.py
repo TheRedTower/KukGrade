@@ -804,3 +804,161 @@ class CandidateAssessmentItem(models.Model):
         if self.start_number == self.end_number:
             return str(self.start_number)
         return f"{self.start_number}-{self.end_number}"
+
+
+class PromotionQuerySet(models.QuerySet):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+        )
+
+
+class PromotionManager(models.Manager):
+    def get_queryset(self) -> PromotionQuerySet:
+        return PromotionQuerySet(self.model, using=self._db)
+
+
+class Promotion(models.Model):
+    student = models.ForeignKey(
+        "students.Student",
+        on_delete=models.PROTECT,
+        related_name="promotions",
+    )
+    outcome = models.OneToOneField(
+        CandidateOutcome,
+        on_delete=models.PROTECT,
+        related_name="promotion",
+    )
+    grading_candidate = models.OneToOneField(
+        GradingCandidate,
+        on_delete=models.PROTECT,
+        related_name="promotion",
+    )
+    from_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        related_name="promotions_from_rank",
+    )
+    to_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        related_name="promotions_to_rank",
+    )
+    promoted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="recorded_promotions",
+    )
+    promoted_at = models.DateTimeField(auto_now_add=True)
+    effective_date = models.DateField()
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = PromotionManager()
+
+    class Meta:
+        ordering = ["-effective_date", "-promoted_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["student", "-effective_date", "-promoted_at"],
+                name="promotion_student_history_idx",
+            ),
+            models.Index(fields=["effective_date"], name="promotion_effective_idx"),
+            models.Index(fields=["promoted_at"], name="promotion_promoted_idx"),
+        ]
+        permissions = [
+            ("can_promote_student", "Can promote student"),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=~Q(from_rank=F("to_rank")),
+                name="promotion_from_to_rank_distinct",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student} promoted from {self.from_rank} to {self.to_rank}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+        )
+
+    def clean(self) -> None:
+        super().clean()
+        self.notes = (self.notes or "").strip()
+
+        errors: dict[str, list[str]] = {}
+        if (
+            self.outcome_id
+            and self.grading_candidate_id
+            and self.outcome.candidate_id != self.grading_candidate_id
+        ):
+            errors["outcome"] = [
+                "Promotion outcome must belong to the grading candidate.",
+            ]
+        if (
+            self.outcome_id
+            and self.grading_candidate_id
+            and self.outcome.assessment.candidate_id != self.grading_candidate_id
+        ):
+            errors["assessment"] = [
+                "Promotion outcome assessment must belong to the grading candidate.",
+            ]
+        if (
+            self.grading_candidate_id
+            and self.student_id
+            and self.grading_candidate.student_id != self.student_id
+        ):
+            errors["student"] = [
+                "Promotion student must match the grading candidate student.",
+            ]
+        if (
+            self.grading_candidate_id
+            and self.to_rank_id
+            and self.grading_candidate.testing_for_rank_id != self.to_rank_id
+        ):
+            errors["to_rank"] = [
+                "Promotion target rank must match the candidate testing-for rank.",
+            ]
+        if (
+            self.from_rank_id
+            and self.to_rank_id
+            and self.from_rank_id == self.to_rank_id
+        ):
+            errors["to_rank"] = ["Promotion target rank must differ from source rank."]
+
+        if not self._state.adding and self.pk is not None:
+            previous = (
+                Promotion.objects.filter(pk=self.pk)
+                .values(
+                    "student_id",
+                    "outcome_id",
+                    "grading_candidate_id",
+                    "from_rank_id",
+                    "to_rank_id",
+                    "promoted_by_id",
+                    "promoted_at",
+                    "effective_date",
+                    "notes",
+                )
+                .first()
+            )
+            if previous is not None:
+                changed_fields = [
+                    field
+                    for field, value in previous.items()
+                    if getattr(self, field) != value
+                ]
+                if changed_fields:
+                    errors["promotion"] = [
+                        "Promotion records are immutable after creation.",
+                    ]
+
+        if errors:
+            raise ValidationError(errors)

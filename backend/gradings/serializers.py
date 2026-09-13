@@ -13,10 +13,12 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from gradings.services import (
     build_candidate,
     finalise_candidate_outcome,
+    promote_candidate,
     propose_candidate_outcome,
     transition_grading_session,
     update_candidate,
@@ -562,4 +564,116 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
             raise_drf_validation_error(exc)
 
     def create(self, validated_data: dict[str, Any]) -> CandidateOutcome:
+        raise NotImplementedError
+
+
+class PromotionSerializer(serializers.ModelSerializer):
+    student_display_name = serializers.CharField(source="student", read_only=True)
+    student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
+    student_current_rank = serializers.IntegerField(
+        source="student.current_rank_id",
+        read_only=True,
+    )
+    student_current_rank_code = serializers.CharField(
+        source="student.current_rank.code",
+        read_only=True,
+    )
+    student_current_rank_name = serializers.CharField(
+        source="student.current_rank.name",
+        read_only=True,
+    )
+    from_rank_code = serializers.CharField(source="from_rank.code", read_only=True)
+    from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
+    to_rank_code = serializers.CharField(source="to_rank.code", read_only=True)
+    to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
+    session = serializers.IntegerField(
+        source="grading_candidate.session_id",
+        read_only=True,
+    )
+    session_title = serializers.CharField(
+        source="grading_candidate.session.title",
+        read_only=True,
+    )
+    grading_date = serializers.DateField(
+        source="grading_candidate.session.grading_date",
+        read_only=True,
+    )
+    promoted_by_email = serializers.EmailField(
+        source="promoted_by.email",
+        read_only=True,
+    )
+    promoted_by_name = serializers.CharField(
+        source="promoted_by.get_full_name",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Promotion
+        fields = (
+            "id",
+            "student",
+            "student_display_name",
+            "student_wksa_id",
+            "student_current_rank",
+            "student_current_rank_code",
+            "student_current_rank_name",
+            "outcome",
+            "grading_candidate",
+            "session",
+            "session_title",
+            "grading_date",
+            "from_rank",
+            "from_rank_code",
+            "from_rank_name",
+            "to_rank",
+            "to_rank_code",
+            "to_rank_name",
+            "promoted_by",
+            "promoted_by_email",
+            "promoted_by_name",
+            "promoted_at",
+            "effective_date",
+            "notes",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class CandidatePromotionSerializer(serializers.Serializer):
+    notes = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs: dict[str, object]) -> dict[str, object]:
+        forbidden_fields = {"effective_date", "promoted_by", "promoted_at"} & set(
+            self.initial_data,
+        )
+        if forbidden_fields:
+            raise serializers.ValidationError(
+                {
+                    field: ["This field is server-controlled."]
+                    for field in sorted(forbidden_fields)
+                },
+            )
+        return attrs
+
+    def update(
+        self,
+        instance: CandidateOutcome,
+        validated_data: dict[str, Any],
+    ) -> Promotion:
+        request = self.context["request"]
+        try:
+            return promote_candidate(
+                instance,
+                actor=cast(User, request.user),
+                notes=str(validated_data.get("notes", "")),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> Promotion:
         raise NotImplementedError

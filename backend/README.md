@@ -2,6 +2,31 @@
 
 Django and Django REST Framework API for KukGrade.
 
+## Configuration
+
+Settings fail closed. `DJANGO_DEBUG` defaults to **false**, and when debug is
+off a missing `DJANGO_SECRET_KEY` raises `ImproperlyConfigured` rather than
+falling back to a known key, so an unconfigured deployment refuses to start
+instead of serving debug tracebacks signed with a key that is in the
+repository.
+
+With `DJANGO_DEBUG=false` the transport-security settings
+(`SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`,
+`SECURE_HSTS_PRELOAD`, `SECURE_PROXY_SSL_HEADER`) and the secure cookie flags
+all default to their hardened values; each can be overridden individually to
+opt out. The browsable API renderer is only registered when debug is on, so it
+is never exposed in production. `manage.py check --deploy --fail-level WARNING`
+is clean and is enforced in CI.
+
+For local development copy `.env.example` to `.env` and export it, or set
+`DJANGO_DEBUG=true` in your shell.
+
+Tests and type checking use `kukgrade.settings_test`, which sets a development
+environment and then star-imports the real settings module. This is necessary
+because pytest imports Django settings before it loads `conftest.py`, so the
+environment cannot be prepared there. The production branch of the real
+settings module is covered directly by `kukgrade/tests.py`.
+
 ## Commands
 
 Install dependencies:

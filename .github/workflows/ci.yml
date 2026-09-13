@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [dev, prod]
+  pull_request:
+    branches: [dev, prod]
+
+# A superseded run on the same branch is cancelled rather than left to finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: kukgrade
+          POSTGRES_USER: kukgrade
+          POSTGRES_PASSWORD: kukgrade_ci_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kukgrade -d kukgrade"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      POSTGRES_DB: kukgrade
+      POSTGRES_USER: kukgrade
+      POSTGRES_PASSWORD: kukgrade_ci_password
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: 5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy kukgrade health accounts ranks students syllabus gradings
+
+      - name: Django system checks
+        run: uv run python manage.py check
+
+      - name: Migrations match models
+        run: uv run python manage.py makemigrations --check --dry-run
+
+      # Warnings do not fail this step: Django's default --fail-level is ERROR.
+      # Tighten to `--fail-level WARNING` once KG-NEXT-004 lands, which clears
+      # the three current warnings (W004 no HSTS, W008 no SSL redirect,
+      # W009 weak SECRET_KEY).
+      - name: Deployment checks
+        run: uv run python manage.py check --deploy
+        env:
+          DJANGO_DEBUG: "false"
+
+      - name: Tests
+        run: uv run pytest -q
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to an LTS line that Vite 7 supports. Local development is
+      # currently on a newer Node; add an .nvmrc if that drift ever bites.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      # Gated at critical while KG-020 is open: there are currently 5 high and
+      # 3 moderate advisories, all in dev/build tooling rather than the shipped
+      # react runtime. Tighten to `--audit-level=high` once KG-020 is cleared.
+      - name: Dependency audit
+        run: npm audit --audit-level=critical

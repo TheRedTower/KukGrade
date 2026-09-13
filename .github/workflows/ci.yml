@@ -39,6 +39,10 @@ jobs:
           --health-retries 5
 
     env:
+      # The settings module now fails closed: management commands refuse to
+      # start without a secret key unless DJANGO_DEBUG is true. Tests supply
+      # their own via kukgrade.settings_test.
+      DJANGO_SECRET_KEY: ci-only-secret-key-000000000000000000000000000000000000
       POSTGRES_DB: kukgrade
       POSTGRES_USER: kukgrade
       POSTGRES_PASSWORD: kukgrade_ci_password
@@ -72,14 +76,13 @@ jobs:
       - name: Migrations match models
         run: uv run python manage.py makemigrations --check --dry-run
 
-      # Warnings do not fail this step: Django's default --fail-level is ERROR.
-      # Tighten to `--fail-level WARNING` once KG-NEXT-004 lands, which clears
-      # the three current warnings (W004 no HSTS, W008 no SSL redirect,
-      # W009 weak SECRET_KEY).
+      # Blocking at WARNING since KG-NEXT-004: the deployment check is clean,
+      # so any new security warning fails the build rather than scrolling past.
       - name: Deployment checks
-        run: uv run python manage.py check --deploy
+        run: uv run python manage.py check --deploy --fail-level WARNING
         env:
           DJANGO_DEBUG: "false"
+          DJANGO_ALLOWED_HOSTS: kukgrade.example.com
 
       - name: Tests
         run: uv run pytest -q

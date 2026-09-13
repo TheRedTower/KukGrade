@@ -22,9 +22,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "kukgrade.settings"
+DJANGO_SETTINGS_MODULE = "kukgrade.settings_test"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
-testpaths = ["accounts", "health", "ranks", "students", "syllabus", "gradings"]
+testpaths = ["kukgrade", "accounts", "health", "ranks", "students", "syllabus", "gradings"]
 
 [tool.ruff]
 line-length = 88
@@ -42,4 +42,8 @@ warn_unreachable = true
 disallow_any_generics = false
 
 [tool.django-stubs]
-django_settings_module = "kukgrade.settings"
+# Points at the test settings module because the real one fails closed: it
+# raises ImproperlyConfigured without DJANGO_SECRET_KEY, which the plugin
+# cannot satisfy. settings_test star-imports settings, so the type
+# information is identical.
+django_settings_module = "kukgrade.settings_test"

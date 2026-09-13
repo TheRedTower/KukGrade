@@ -9,13 +9,17 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from accounts.models import User
-from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.permissions import (
+    FINAL_GRADING_DECISION_PERMISSION,
+    PROMOTE_STUDENT_PERMISSION,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from ranks.models import Rank
 from students.models import Student
@@ -51,6 +55,11 @@ OUTCOME_CREATION_SESSION_STATUSES = {
     GradingSession.Status.LOCKED,
 }
 
+PROMOTION_SESSION_STATUSES = {
+    GradingSession.Status.LOCKED,
+    GradingSession.Status.COMPLETED,
+}
+
 
 class OverallAssessmentSummary(TypedDict):
     total: int
@@ -81,6 +90,12 @@ class CategoryAssessmentSummary(TypedDict):
 class CandidateAssessmentSummary(TypedDict):
     overall: OverallAssessmentSummary
     categories: list[CategoryAssessmentSummary]
+
+
+class StudentRankTimeline(TypedDict):
+    student: Student
+    current_rank: Rank
+    promotions: list[Promotion]
 
 
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
@@ -515,6 +530,13 @@ def validate_final_decision_actor(actor: User) -> None:
         )
 
 
+def validate_promotion_actor(actor: User) -> None:
+    if not actor.is_active or not actor.has_perm(PROMOTE_STUDENT_PERMISSION):
+        raise ValidationError(
+            {"actor": ["Student promotion authority is required."]},
+        )
+
+
 @transaction.atomic
 def finalise_candidate_outcome(
     outcome: CandidateOutcome,
@@ -580,6 +602,176 @@ def validate_candidate_outcome_can_be_deleted(outcome: CandidateOutcome) -> None
         raise ValidationError(
             {"status": ["Finalised candidate outcomes cannot be deleted."]},
         )
+
+
+def validate_promotion_eligibility(
+    *,
+    outcome: CandidateOutcome,
+    candidate: GradingCandidate,
+    assessment: CandidateAssessment,
+    student: Student,
+    effective_date: date,
+) -> tuple[Rank, Rank]:
+    if Promotion.objects.filter(outcome=outcome).exists():
+        raise ValidationError({"outcome": ["Outcome already has a promotion."]})
+    if Promotion.objects.filter(grading_candidate=candidate).exists():
+        raise ValidationError(
+            {"grading_candidate": ["Grading candidate already has a promotion."]},
+        )
+    if outcome.candidate_id != candidate.pk:
+        raise ValidationError(
+            {"outcome": ["Outcome must belong to the grading candidate."]},
+        )
+    if outcome.assessment_id != assessment.pk:
+        raise ValidationError(
+            {"assessment": ["Outcome assessment must match the locked assessment."]},
+        )
+    if assessment.candidate_id != candidate.pk:
+        raise ValidationError(
+            {"assessment": ["Outcome assessment must belong to the candidate."]},
+        )
+    if candidate.student_id != student.pk:
+        raise ValidationError(
+            {"student": ["Candidate student must match the promoted student."]},
+        )
+    if outcome.status != CandidateOutcome.Status.FINALISED:
+        raise ValidationError(
+            {"status": ["Only finalised candidate outcomes can be promoted."]},
+        )
+    if outcome.final_outcome != CandidateOutcome.Outcome.PASS:
+        raise ValidationError({"final_outcome": ["Only PASS outcomes are promotable."]})
+    if candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError(
+            {"candidate": ["Withdrawn candidates cannot be promoted."]},
+        )
+    if candidate.status != GradingCandidate.Status.COMPLETED:
+        raise ValidationError(
+            {"candidate": ["Candidate must be completed before promotion."]},
+        )
+    if assessment.status != CandidateAssessment.Status.COMPLETED:
+        raise ValidationError(
+            {"assessment": ["Assessment must be completed before promotion."]},
+        )
+    if candidate.session.status not in PROMOTION_SESSION_STATUSES:
+        raise ValidationError(
+            {"session": ["Promotions require a locked or completed grading session."]},
+        )
+    if effective_date != candidate.session.grading_date:
+        raise ValidationError(
+            {
+                "effective_date": [
+                    "Promotion effective date must equal the grading session date.",
+                ],
+            },
+        )
+
+    from_rank = student.current_rank
+    to_rank = candidate.testing_for_rank
+    if from_rank == to_rank:
+        raise ValidationError(
+            {"to_rank": ["Promotion target rank must differ from source rank."]},
+        )
+    next_rank = get_next_active_rank(from_rank)
+    if next_rank is None:
+        raise ValidationError({"to_rank": ["Student has no next active rank."]})
+    if to_rank != next_rank:
+        raise ValidationError(
+            {
+                "to_rank": [
+                    "Candidate testing-for rank is no longer the next active "
+                    "rank after the student's current rank.",
+                ],
+            },
+        )
+    return from_rank, to_rank
+
+
+@transaction.atomic
+def promote_candidate(
+    outcome: CandidateOutcome,
+    actor: User,
+    effective_date: date | None = None,
+    notes: str = "",
+) -> Promotion:
+    validate_promotion_actor(actor)
+    locked_outcome = (
+        CandidateOutcome.objects.select_for_update()
+        .select_related("candidate", "assessment")
+        .get(pk=outcome.pk)
+    )
+    locked_candidate = (
+        GradingCandidate.objects.select_for_update()
+        .select_related("session", "student", "testing_for_rank")
+        .get(pk=locked_outcome.candidate_id)
+    )
+    locked_assessment = CandidateAssessment.objects.select_for_update().get(
+        pk=locked_outcome.assessment_id,
+    )
+    locked_student = (
+        Student.objects.select_for_update()
+        .select_related("current_rank")
+        .get(pk=locked_candidate.student_id)
+    )
+    candidate_effective_date = effective_date or locked_candidate.session.grading_date
+    from_rank, to_rank = validate_promotion_eligibility(
+        outcome=locked_outcome,
+        candidate=locked_candidate,
+        assessment=locked_assessment,
+        student=locked_student,
+        effective_date=candidate_effective_date,
+    )
+
+    try:
+        promotion = Promotion.objects.create(
+            student=locked_student,
+            outcome=locked_outcome,
+            grading_candidate=locked_candidate,
+            from_rank=from_rank,
+            to_rank=to_rank,
+            promoted_by=actor,
+            effective_date=candidate_effective_date,
+            notes=notes,
+        )
+    except IntegrityError as exc:
+        raise ValidationError(
+            {"promotion": ["Outcome or grading candidate already has a promotion."]},
+        ) from exc
+
+    updated = Student.objects.filter(pk=locked_student.pk).update(current_rank=to_rank)
+    if updated != 1:
+        raise ValidationError(
+            {"student": ["Student current rank could not be updated."]},
+        )
+    locked_student.current_rank = to_rank
+    return Promotion.objects.select_related(
+        "student__current_rank",
+        "outcome",
+        "grading_candidate__session",
+        "from_rank",
+        "to_rank",
+        "promoted_by",
+    ).get(pk=promotion.pk)
+
+
+def student_rank_timeline(student: Student) -> StudentRankTimeline:
+    timeline_student = Student.objects.select_related("current_rank").get(pk=student.pk)
+    promotions = list(
+        Promotion.objects.filter(student=timeline_student)
+        .select_related(
+            "student__current_rank",
+            "outcome",
+            "grading_candidate__session",
+            "from_rank",
+            "to_rank",
+            "promoted_by",
+        )
+        .order_by("-effective_date", "-promoted_at", "-pk"),
+    )
+    return {
+        "student": timeline_student,
+        "current_rank": timeline_student.current_rank,
+        "promotions": promotions,
+    }
 
 
 def candidate_assessment_summary(

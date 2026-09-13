@@ -15,6 +15,7 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from gradings.services import (
     build_candidate,
@@ -428,5 +429,81 @@ class CandidateOutcomeAdmin(admin.ModelAdmin):
         if change and form.changed_data:
             raise DjangoValidationError(
                 "Candidate outcomes are changed through the API workflow services.",
+            )
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = (
+        "student",
+        "student_wksa_id",
+        "from_rank",
+        "to_rank",
+        "effective_date",
+        "promoted_by",
+        "promoted_at",
+        "session",
+        "outcome",
+    )
+    list_filter = ("from_rank", "to_rank", "effective_date", "promoted_by")
+    search_fields = (
+        "student__first_name",
+        "student__last_name",
+        "student__wksa_id",
+        "grading_candidate__session__title",
+    )
+    ordering = ("-effective_date", "-promoted_at", "-pk")
+    list_select_related = (
+        "student",
+        "outcome",
+        "grading_candidate__session",
+        "from_rank",
+        "to_rank",
+        "promoted_by",
+    )
+    actions: tuple[str, ...] = ()
+    readonly_fields = (
+        "student",
+        "outcome",
+        "grading_candidate",
+        "from_rank",
+        "to_rank",
+        "promoted_by",
+        "promoted_at",
+        "effective_date",
+        "notes",
+        "created_at",
+        "updated_at",
+    )
+
+    @admin.display(ordering="student__wksa_id")
+    def student_wksa_id(self, obj: Promotion) -> str:
+        return obj.student.wksa_id
+
+    @admin.display(ordering="grading_candidate__session__grading_date")
+    def session(self, obj: Promotion) -> object:
+        return obj.grading_candidate.session
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: Promotion | None = None,
+    ) -> bool:
+        return False
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: Promotion,
+        form: ModelForm,
+        change: bool,
+    ) -> None:
+        if change and form.changed_data:
+            raise DjangoValidationError(
+                "Promotion records are immutable after creation.",
             )
         super().save_model(request, obj, form, change)

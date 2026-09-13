@@ -11,16 +11,17 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 
 from accounts.models import User
-from accounts.permissions import CanMakeFinalGradingDecision
+from accounts.permissions import CanMakeFinalGradingDecision, CanPromoteStudent
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    Promotion,
 )
 from gradings.serializers import (
     CandidateAssessmentItemSerializer,
@@ -28,8 +29,10 @@ from gradings.serializers import (
     CandidateOutcomeFinaliseSerializer,
     CandidateOutcomeProposalSerializer,
     CandidateOutcomeSerializer,
+    CandidatePromotionSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
+    PromotionSerializer,
     raise_drf_validation_error,
 )
 from gradings.services import (
@@ -334,7 +337,7 @@ class CandidateOutcomeViewSet(
 ):
     serializer_class = CandidateOutcomeSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ["get", "patch", "head", "options"]
+    http_method_names = ["get", "patch", "post", "head", "options"]
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         queryset = (
@@ -483,3 +486,111 @@ class CandidateOutcomeViewSet(
     ) -> Response:
         outcome = self.get_object()
         return Response(candidate_assessment_summary(outcome.assessment))
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[CanPromoteStudent],
+    )
+    def promote(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        outcome = self.get_object()
+        serializer = CandidatePromotionSerializer(
+            outcome,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        promotion = serializer.save()
+        response_serializer = PromotionSerializer(
+            promotion,
+            context={"request": request},
+        )
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class PromotionViewSet(ReadOnlyModelViewSet):
+    serializer_class = PromotionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self) -> QuerySet[Promotion]:
+        queryset = (
+            Promotion.objects.select_related(
+                "student__current_rank",
+                "outcome",
+                "grading_candidate__session",
+                "from_rank",
+                "to_rank",
+                "promoted_by",
+            )
+            .all()
+            .order_by("-effective_date", "-promoted_at", "-pk")
+        )
+
+        student = self.request.query_params.get("student")
+        if student and student.isdecimal():
+            queryset = queryset.filter(student_id=int(student))
+        elif student:
+            queryset = queryset.none()
+
+        student_wksa_id = self.request.query_params.get("student_wksa_id")
+        if student_wksa_id:
+            queryset = queryset.filter(student__wksa_id=student_wksa_id)
+
+        from_rank_code = self.request.query_params.get("from_rank_code")
+        if from_rank_code:
+            queryset = queryset.filter(from_rank__code=from_rank_code)
+
+        to_rank_code = self.request.query_params.get("to_rank_code")
+        if to_rank_code:
+            queryset = queryset.filter(to_rank__code=to_rank_code)
+
+        session = self.request.query_params.get("session")
+        if session and session.isdecimal():
+            queryset = queryset.filter(grading_candidate__session_id=int(session))
+        elif session:
+            queryset = queryset.none()
+
+        effective_date_value = self.request.query_params.get("effective_date")
+        effective_date = parse_date_filter(effective_date_value)
+        if effective_date:
+            queryset = queryset.filter(effective_date=effective_date)
+        elif effective_date_value:
+            return queryset.none()
+
+        effective_date_from_value = self.request.query_params.get(
+            "effective_date_from",
+        )
+        effective_date_from = parse_date_filter(effective_date_from_value)
+        if effective_date_from:
+            queryset = queryset.filter(effective_date__gte=effective_date_from)
+        elif effective_date_from_value:
+            return queryset.none()
+
+        effective_date_to_value = self.request.query_params.get("effective_date_to")
+        effective_date_to = parse_date_filter(effective_date_to_value)
+        if effective_date_to:
+            queryset = queryset.filter(effective_date__lte=effective_date_to)
+        elif effective_date_to_value:
+            return queryset.none()
+
+        if (
+            effective_date_from is not None
+            and effective_date_to is not None
+            and effective_date_from > effective_date_to
+        ):
+            return queryset.none()
+
+        promoted_by = self.request.query_params.get("promoted_by")
+        if promoted_by:
+            try:
+                queryset = queryset.filter(promoted_by_id=uuid.UUID(promoted_by))
+            except ValueError:
+                queryset = queryset.none()
+
+        return queryset

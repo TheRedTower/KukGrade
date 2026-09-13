@@ -1,10 +1,11 @@
 name: CI
 
 on:
+  # Every branch, not just dev/prod. The repo convention is to merge feature
+  # branches into dev directly, so triggering on dev alone would only verify
+  # a change after it had already landed.
   push:
-    branches: [dev, prod]
   pull_request:
-    branches: [dev, prod]
 
 # A superseded run on the same branch is cancelled rather than left to finish.
 concurrency:
@@ -45,10 +46,10 @@ jobs:
       POSTGRES_PORT: 5432
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
@@ -91,11 +92,11 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Pinned to an LTS line that Vite 7 supports. Local development is
       # currently on a newer Node; add an .nvmrc if that drift ever bites.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm

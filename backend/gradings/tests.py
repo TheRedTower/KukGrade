@@ -2676,7 +2676,7 @@ def test_valid_promotion_updates_student_rank_and_records_history() -> None:
     assert student_after["first_name"] == student_before["first_name"]
     assert student_after["last_name"] == student_before["last_name"]
     assert student_after["date_of_birth"] == student_before["date_of_birth"]
-    assert student_after["is_active"] == student_before["is_active"]
+    assert student_after["status"] == student_before["status"]
     assert student_after["created_at"] == student_before["created_at"]
     assert student_after["updated_at"] == student_before["updated_at"]
     assert str(promotion) == (
@@ -3674,3 +3674,35 @@ def test_cancelled_session_without_marking_is_still_deletable() -> None:
     session.delete()
 
     assert not GradingSession.objects.filter(pk=session.pk).exists()
+
+
+def test_a_student_who_has_left_cannot_be_registered_for_a_grading() -> None:
+    session = grading_session(status=GradingSession.Status.DRAFT)
+    learner = student(wksa_id="LEFT-001")
+    learner.status = Student.Status.LEFT
+    learner.save()
+
+    with pytest.raises(ValidationError) as exc_info:
+        build_candidate(
+            session=session,
+            student=learner,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+        )
+
+    assert "has left" in str(exc_info.value)
+
+
+def test_an_inactive_student_can_still_be_registered() -> None:
+    session = grading_session(status=GradingSession.Status.DRAFT)
+    learner = student(wksa_id="BREAK-001")
+    learner.status = Student.Status.INACTIVE
+    learner.save()
+
+    built = build_candidate(
+        session=session,
+        student=learner,
+        testing_for_rank=rank("YELLOW_STRIPE"),
+    )
+    built.save()
+
+    assert built.pk is not None

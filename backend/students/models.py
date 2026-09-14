@@ -11,6 +11,15 @@ from ranks.models import Rank
 
 
 class Student(models.Model):
+    class Status(models.TextChoices):
+        # A temporary break - injury, exams, travel - which blocks nothing.
+        # Missing a grading never sets this: only a person does, deliberately.
+        ACTIVE = "ACTIVE", "Active"
+        INACTIVE = "INACTIVE", "Inactive"
+        # Gone. Blocks registration as a grading candidate, and is reversible
+        # if they come back. Grading history is retained either way.
+        LEFT = "LEFT", "Left"
+
     wksa_id = models.CharField(max_length=32, unique=True)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
@@ -20,7 +29,11 @@ class Student(models.Model):
         on_delete=models.PROTECT,
         related_name="students_currently_at_rank",
     )
-    is_active = models.BooleanField(default=True)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -30,6 +43,10 @@ class Student(models.Model):
             models.CheckConstraint(
                 condition=~Q(wksa_id=""),
                 name="student_wksa_id_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=Q(status__in=["ACTIVE", "INACTIVE", "LEFT"]),
+                name="student_status_valid",
             ),
         ]
 
@@ -69,3 +86,8 @@ class Student(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    @property
+    def can_be_graded(self) -> bool:
+        """Whether this student may be registered as a grading candidate."""
+        return self.status != Student.Status.LEFT

@@ -16,12 +16,13 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
-    build_candidate,
+    apply_candidate_update,
+    create_grading_session,
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
+    register_candidate,
     transition_grading_session,
-    update_candidate,
     update_candidate_assessment,
     update_candidate_assessment_item,
     validate_session_grading_date_change,
@@ -90,9 +91,15 @@ class GradingSessionSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> GradingSession:
         request = self.context["request"]
-        validated_data["created_by"] = request.user
         try:
-            return cast(GradingSession, super().create(validated_data))
+            return create_grading_session(
+                title=str(validated_data["title"]),
+                grading_date=validated_data["grading_date"],
+                location=str(validated_data.get("location", "")),
+                notes=str(validated_data.get("notes", "")),
+                created_by=cast(User, request.user),
+                status=cast(str | None, validated_data.get("status")),
+            )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
 
@@ -176,7 +183,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> GradingCandidate:
         try:
-            candidate = build_candidate(
+            candidate = register_candidate(
                 session=cast(GradingSession, validated_data["session"]),
                 student=cast(Student, validated_data["student"]),
                 testing_for_rank=cast(Rank, validated_data["testing_for_rank"]),
@@ -187,8 +194,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
                     ),
                 ),
                 notes=str(validated_data.get("notes", "")),
+                actor=cast(User, self.context["request"].user),
             )
-            candidate.save()
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         except IntegrityError as exc:
@@ -203,7 +210,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         validated_data: dict[str, Any],
     ) -> GradingCandidate:
         try:
-            candidate = update_candidate(
+            candidate = apply_candidate_update(
                 instance,
                 session=cast(GradingSession | None, validated_data.get("session")),
                 student=cast(Student | None, validated_data.get("student")),
@@ -213,8 +220,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
                 ),
                 status=cast(str | None, validated_data.get("status")),
                 notes=cast(str | None, validated_data.get("notes")),
+                actor=cast(User, self.context["request"].user),
             )
-            candidate.save()
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         except IntegrityError as exc:
@@ -326,6 +333,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
                 instance,
                 status=cast(str | None, validated_data.get("status")),
                 notes=cast(str | None, validated_data.get("notes")),
+                actor=cast(User, self.context["request"].user),
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)

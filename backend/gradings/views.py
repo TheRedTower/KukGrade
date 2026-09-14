@@ -44,6 +44,8 @@ from gradings.serializers import (
 from gradings.services import (
     candidate_assessment_summary,
     create_candidate_outcome,
+    delete_candidate,
+    delete_grading_session,
     generate_candidate_assessment,
     validate_candidate_can_be_deleted,
     validate_session_can_be_deleted,
@@ -118,9 +120,9 @@ class GradingSessionViewSet(ModelViewSet):
         instance = self.get_object()
         try:
             validate_session_can_be_deleted(instance)
+            delete_grading_session(instance, actor=cast(User, request.user))
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -190,9 +192,9 @@ class GradingCandidateViewSet(ModelViewSet):
         instance = self.get_object()
         try:
             validate_candidate_can_be_deleted(instance)
+            delete_candidate(instance, actor=cast(User, request.user))
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-        self.perform_destroy(instance)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="generate-assessment")

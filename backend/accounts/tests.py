@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
@@ -19,6 +21,7 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
+from audit.models import AuditAction, AuditEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -414,3 +417,401 @@ def test_role_alone_never_grants_grading_authority() -> None:
     assert payload["can_make_final_grading_decision"] is False
     assert payload["can_promote_student"] is False
     assert payload["can_override_locked_session"] is False
+
+
+# ---------------------------------------------------------------------------
+# The users API: list, retrieve, create, partial_update. No delete, no PUT.
+# Authority and set-password as separate actions.
+# ---------------------------------------------------------------------------
+
+
+def admin_client(email: str = "users-api-admin@example.com") -> tuple[APIClient, User]:
+    admin = User.objects.create_user(email=email, role=User.Role.ADMINISTRATOR)
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    return client, admin
+
+
+def create_user_via_api(client: APIClient, **overrides: object) -> dict[str, Any]:
+    payload: dict[str, object] = {
+        "email": "created-user@example.com",
+        "password": "kg-Str0ngPassw0rd!",
+        "first_name": "Created",
+        "last_name": "User",
+    }
+    payload.update(overrides)
+    response = client.post("/api/users/", payload, format="json")
+    assert response.status_code == 201, response.json()
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def test_anonymous_cannot_read_or_write_users() -> None:
+    client = APIClient()
+
+    assert client.get("/api/users/").status_code == 403
+    assert client.post("/api/users/", {}, format="json").status_code == 403
+
+
+def test_instructors_cannot_read_or_write_users() -> None:
+    instructor = create_user("plain-instructor-users@example.com")
+    client = APIClient()
+    client.force_authenticate(user=instructor)
+
+    assert client.get("/api/users/").status_code == 403
+    assert client.post("/api/users/", {}, format="json").status_code == 403
+
+
+def test_administrators_can_list_and_retrieve() -> None:
+    client, _admin = admin_client("list-retrieve-admin@example.com")
+    created = create_user_via_api(client, email="list-target@example.com")
+
+    listing = client.get("/api/users/").json()
+    detail = client.get(f"/api/users/{created['id']}/").json()
+
+    assert any(row["email"] == "list-target@example.com" for row in listing["results"])
+    assert detail["email"] == "list-target@example.com"
+
+
+def test_weak_password_is_rejected_with_a_field_error() -> None:
+    client, _admin = admin_client("weak-password-admin@example.com")
+
+    response = client.post(
+        "/api/users/",
+        {"email": "weak@example.com", "password": "12345678"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password" in response.json()["error"]["fields"]
+    assert not User.objects.filter(email="weak@example.com").exists()
+
+
+def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
+    client, _admin = admin_client("duplicate-email-admin@example.com")
+    create_user_via_api(client, email="dup@example.com")
+
+    response = client.post(
+        "/api/users/",
+        {"email": "dup@example.com", "password": "kg-Str0ngPassw0rd!"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.json()["error"]["fields"]
+
+
+def test_is_staff_and_is_superuser_cannot_be_granted_through_create() -> None:
+    client, _admin = admin_client("no-staff-grant-admin@example.com")
+
+    created = create_user_via_api(
+        client,
+        email="attempted-staff@example.com",
+        is_staff=True,
+        is_superuser=True,
+    )
+
+    assert created["is_staff"] is False
+    assert created["is_superuser"] is False
+    stored = User.objects.get(pk=created["id"])
+    assert stored.is_staff is False
+    assert stored.is_superuser is False
+
+
+def test_create_records_a_user_created_event() -> None:
+    client, _admin = admin_client("create-audit-admin@example.com")
+    before = AuditEvent.objects.filter(action=AuditAction.USER_CREATED).count()
+
+    create_user_via_api(client, email="audit-create@example.com")
+
+    assert (
+        AuditEvent.objects.filter(action=AuditAction.USER_CREATED).count() == before + 1
+    )
+
+
+def test_a_no_op_patch_writes_no_audit_event() -> None:
+    client, _admin = admin_client("no-op-admin@example.com")
+    created = create_user_via_api(client, email="no-op-target@example.com")
+    before = AuditEvent.objects.count()
+
+    response = client.patch(
+        f"/api/users/{created['id']}/",
+        {"first_name": created["first_name"]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert AuditEvent.objects.count() == before
+
+
+def test_patch_cannot_change_the_password() -> None:
+    # The password field is removed entirely from the update serializer, not
+    # just made optional: password changes go through set-password only.
+    client, _admin = admin_client("patch-password-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="patch-password-target@example.com",
+        password="kg-Original-Passw0rd!",
+    )
+
+    response = client.patch(
+        f"/api/users/{created['id']}/",
+        {"first_name": "Changed", "password": "kg-Attempted-Change!"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert "password" not in response.json()
+    target = User.objects.get(pk=created["id"])
+    assert target.check_password("kg-Original-Passw0rd!") is True
+    assert target.check_password("kg-Attempted-Change!") is False
+
+
+def test_put_and_delete_are_not_allowed() -> None:
+    client, _admin = admin_client("no-put-delete-admin@example.com")
+    created = create_user_via_api(client, email="no-method-target@example.com")
+
+    put_response = client.put(
+        f"/api/users/{created['id']}/",
+        {"first_name": "X"},
+        format="json",
+    )
+    delete_response = client.delete(f"/api/users/{created['id']}/")
+
+    assert put_response.status_code == 405
+    assert delete_response.status_code == 405
+    assert User.objects.filter(pk=created["id"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# Authority sub-resource
+# ---------------------------------------------------------------------------
+
+
+def test_granting_authority_is_reflected_immediately_in_the_response() -> None:
+    # Django caches has_perm() on the instance; the service must refetch
+    # before recomputing, or this response would show the pre-change state
+    # even though the database was updated correctly.
+    client, _admin = admin_client("grant-authority-admin@example.com")
+    created = create_user_via_api(client, email="grant-authority-target@example.com")
+
+    response = client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": True},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["can_make_final_grading_decision"] is True
+    assert response.json()["can_promote_student"] is False
+
+
+def test_revoking_authority_works_and_is_independent_per_flag() -> None:
+    client, _admin = admin_client("revoke-authority-admin@example.com")
+    created = create_user_via_api(client, email="revoke-authority-target@example.com")
+    client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": True, "can_promote_student": True},
+        format="json",
+    )
+
+    response = client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": False},
+        format="json",
+    )
+
+    assert response.json()["can_make_final_grading_decision"] is False
+    # Revoking one must not touch the other.
+    assert response.json()["can_promote_student"] is True
+
+
+def test_a_combined_authority_change_writes_exactly_one_event() -> None:
+    client, _admin = admin_client("combined-authority-admin@example.com")
+    created = create_user_via_api(client, email="combined-authority-target@example.com")
+    before = AuditEvent.objects.count()
+
+    client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": True, "can_override_locked_session": True},
+        format="json",
+    )
+
+    new_events = AuditEvent.objects.filter(
+        entity_type="User",
+        entity_id=created["id"],
+        action=AuditAction.USER_AUTHORITY_CHANGED,
+    )
+    assert new_events.count() == 1
+    event = new_events.get()
+    assert event.metadata["before"] == {
+        "can_make_final_grading_decision": False,
+        "can_promote_student": False,
+        "can_override_locked_session": False,
+    }
+    assert event.metadata["after"] == {
+        "can_make_final_grading_decision": True,
+        "can_promote_student": False,
+        "can_override_locked_session": True,
+    }
+    assert AuditEvent.objects.count() == before + 1
+
+
+def test_a_no_op_authority_patch_writes_no_event() -> None:
+    client, _admin = admin_client("no-op-authority-admin@example.com")
+    created = create_user_via_api(client, email="no-op-authority-target@example.com")
+    before = AuditEvent.objects.count()
+
+    response = client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_promote_student": False},  # already false; nothing changes
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert AuditEvent.objects.count() == before
+
+
+def test_an_administrator_cannot_change_their_own_authority() -> None:
+    # Self-granting would defeat the point of authority being separate from
+    # role and from being an administrator.
+    client, admin = admin_client("self-authority-admin@example.com")
+
+    response = client.patch(
+        f"/api/users/{admin.pk}/authority/",
+        {"can_make_final_grading_decision": True},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "authority" in response.json()["error"]["fields"]
+    admin.refresh_from_db()
+    assert admin.has_perm(FINAL_GRADING_DECISION_PERMISSION) is False
+
+
+def test_only_administrators_hold_change_user_for_the_authority_action() -> None:
+    instructor = create_user("cannot-grant-authority@example.com")
+    client, _admin = admin_client("authority-target-owner@example.com")
+    created = create_user_via_api(client, email="authority-victim@example.com")
+
+    instructor_client = APIClient()
+    instructor_client.force_authenticate(user=instructor)
+    response = instructor_client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_promote_student": True},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Password reset
+# ---------------------------------------------------------------------------
+
+
+def test_administrator_can_reset_another_users_password() -> None:
+    client, _admin = admin_client("reset-password-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="reset-target@example.com",
+        password="kg-Original-Str0ng!",
+    )
+
+    response = client.post(
+        f"/api/users/{created['id']}/set-password/",
+        {"password": "kg-Replacement-Str0ng!"},
+        format="json",
+    )
+
+    assert response.status_code == 204
+    target = User.objects.get(pk=created["id"])
+    assert target.check_password("kg-Replacement-Str0ng!") is True
+    assert target.check_password("kg-Original-Str0ng!") is False
+
+
+def test_weak_reset_password_is_rejected() -> None:
+    client, _admin = admin_client("weak-reset-admin@example.com")
+    created = create_user_via_api(client, email="weak-reset-target@example.com")
+
+    response = client.post(
+        f"/api/users/{created['id']}/set-password/",
+        {"password": "12345678"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password" in response.json()["error"]["fields"]
+
+
+def test_password_reset_is_recorded_without_leaking_the_password() -> None:
+    client, _admin = admin_client("reset-audit-admin@example.com")
+    created = create_user_via_api(client, email="reset-audit-target@example.com")
+
+    client.post(
+        f"/api/users/{created['id']}/set-password/",
+        {"password": "kg-NewSecret-Value!"},
+        format="json",
+    )
+
+    event = AuditEvent.objects.filter(
+        entity_type="User",
+        entity_id=created["id"],
+        action=AuditAction.USER_UPDATED,
+    ).latest("pk")
+    assert "kg-NewSecret-Value!" not in event.summary
+    assert "kg-NewSecret-Value!" not in str(event.metadata)
+
+
+def test_new_password_actually_works_for_login() -> None:
+    client, _admin = admin_client("reset-login-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="reset-login-target@example.com",
+        password="kg-Original-Login!",
+    )
+    client.post(
+        f"/api/users/{created['id']}/set-password/",
+        {"password": "kg-New-Login-Value!"},
+        format="json",
+    )
+
+    old_login = APIClient().post(
+        "/api/auth/login/",
+        {"email": "reset-login-target@example.com", "password": "kg-Original-Login!"},
+        format="json",
+    )
+    new_login = APIClient().post(
+        "/api/auth/login/",
+        {"email": "reset-login-target@example.com", "password": "kg-New-Login-Value!"},
+        format="json",
+    )
+
+    assert old_login.status_code == 400
+    assert new_login.status_code == 200
+
+
+def test_search_and_role_filters_work() -> None:
+    client, _admin = admin_client("filters-admin@example.com")
+    create_user_via_api(
+        client,
+        email="alex.kim@example.com",
+        first_name="Alex",
+        last_name="Kim",
+    )
+    create_user_via_api(
+        client,
+        email="blair.diaz@example.com",
+        first_name="Blair",
+        last_name="Diaz",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    by_search = client.get("/api/users/?search=kim").json()
+    by_role = client.get(f"/api/users/?role={User.Role.ADMINISTRATOR}").json()
+    unknown_role = client.get("/api/users/?role=nonsense").json()
+
+    assert {r["email"] for r in by_search["results"]} == {"alex.kim@example.com"}
+    assert "blair.diaz@example.com" in {r["email"] for r in by_role["results"]}
+    assert "alex.kim@example.com" not in {r["email"] for r in by_role["results"]}
+    assert unknown_role["count"] == 0

@@ -129,7 +129,7 @@ who may be minors.
 
 ---
 
-## 3 · Users API  (closes KG-031)
+## 3 · Users API  (closes KG-031) — **DONE 2026-09-14**
 
 **Why.** Administrators hold `accounts.*` permissions but cannot use them:
 Django admin needs `is_staff`, no group grants it, and no user API exists. So
@@ -246,7 +246,7 @@ records failures without writing personal data or credentials into logs.
 |---|---|---|---|
 | 1 | AuditEvent | — | ~~1.5–2 days~~ **done** |
 | 2 | Students API | — | ~~1 day~~ **done** |
-| 3 | Users API | 1 (authority change is audited) | 2–3 days |
+| 3 | Users API | 1 (authority change is audited) | ~~2–3 days~~ **done** |
 | 4 | End-to-end test | 2, 3 | 0.5 day |
 | 5 | Concurrency tests | — | 1 day |
 | 6 | Smaller items | 5 for NEXT-014 | 0.5 day |

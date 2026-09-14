@@ -67,16 +67,26 @@ Login failures use a generic error and must not reveal whether an account exists
 
 ## 2. Users and Roles (Admin only)
 
-Status: target/deferred. These API endpoints are not implemented on `dev`.
+Status: implemented, list/retrieve/create/update, plus two dedicated actions.
+Permission `accounts.view_user` / `add_user` / `change_user`, held only by the
+Administrator group.
 
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
-| GET    | /api/users/                  | List users                                    |
-| POST   | /api/users/                  | Create a new user                             |
+| GET    | /api/users/                  | List users; filters `role`, `search`          |
+| POST   | /api/users/                  | Create a user; requires `password`, validated against Django's password validators |
 | GET    | /api/users/{id}/             | Retrieve a user                               |
-| PATCH  | /api/users/{id}/             | Update user details                           |
-| GET    | /api/roles/                  | List available roles                          |
-| POST   | /api/users/{id}/roles/       | Assign roles to a user                        |
+| PATCH  | /api/users/{id}/             | Update user details (not `password` - see below) |
+| PUT, DELETE | /api/users/{id}/         | 405; not exposed (every attribution FK is `PROTECT`; deactivate via `is_active` instead) |
+| PATCH  | /api/users/{id}/authority/    | Grant or revoke the three sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
+| POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
+
+`is_staff` and `is_superuser` are read-only through this API - it cannot hand
+out Django admin access. `role` is `instructor` or `administrator`; changing
+it moves the user between the corresponding permission groups. There is no
+`/api/roles/` endpoint: roles are the two fixed values above, not a managed
+resource. No self-service password change or invite flow - both need email,
+which this system does not have.
 
 ## 3. Organisation and Branches
 

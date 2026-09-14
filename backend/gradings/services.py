@@ -14,6 +14,8 @@ from accounts.permissions import (
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
+from audit.models import AuditAction
+from audit.recording import record
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -311,6 +313,7 @@ def transition_grading_session(
                 },
             )
 
+    previous_status = locked_session.status
     locked_session.status = target_status
     locked_session.cancellation_reason = cancellation_reason
     locked_session.updated_at = timezone.now()
@@ -318,6 +321,19 @@ def transition_grading_session(
         status=locked_session.status,
         cancellation_reason=locked_session.cancellation_reason,
         updated_at=locked_session.updated_at,
+    )
+    record(
+        AuditAction.SESSION_TRANSITIONED,
+        locked_session,
+        f"Grading session moved from {previous_status} to {target_status}.",
+        actor=actor,
+        metadata={
+            "before": {"status": previous_status},
+            "after": {
+                "status": target_status,
+                "cancellation_reason": cancellation_reason,
+            },
+        },
     )
     return locked_session
 
@@ -378,6 +394,16 @@ def withdraw_locked_candidate(
     locked_candidate.withdrawn_at = timezone.now()
     locked_candidate._allow_locked_withdrawal = True
     locked_candidate.save()
+    record(
+        AuditAction.CANDIDATE_WITHDRAWN,
+        locked_candidate,
+        (
+            f"{locked_candidate.student} withdrawn from a locked session "
+            f"({locked_candidate.get_withdrawal_reason_display()})."
+        ),
+        actor=actor,
+        metadata={"reason": reason, "note": locked_candidate.withdrawal_note},
+    )
     return locked_candidate
 
 
@@ -600,10 +626,17 @@ def create_candidate_outcome(
     validate_candidate_outcome_creation(locked_candidate)
     assessment = locked_candidate.assessment
     try:
-        return CandidateOutcome.objects.create(
+        outcome = CandidateOutcome.objects.create(
             candidate=locked_candidate,
             assessment=assessment,
         )
+        record(
+            AuditAction.OUTCOME_CREATED,
+            outcome,
+            f"Outcome record opened for {locked_candidate.student}.",
+            actor=actor,
+        )
+        return outcome
     except IntegrityError as exc:
         raise ValidationError(
             {"candidate": ["Candidate already has an outcome."]},
@@ -639,6 +672,16 @@ def propose_candidate_outcome(
         raise ValidationError({"status": ["Outcome cannot be proposed."]})
     _validate_outcome_choice(proposed_outcome, "proposed_outcome")
 
+    previous_proposal = {
+        "proposed_outcome": locked_outcome.proposed_outcome,
+        "proposal_notes": locked_outcome.proposal_notes,
+        "proposed_by": (
+            str(locked_outcome.proposed_by_id)
+            if locked_outcome.proposed_by_id
+            else None
+        ),
+    }
+
     locked_outcome.proposed_outcome = proposed_outcome
     locked_outcome.proposal_notes = proposal_notes
     locked_outcome.proposed_by = actor
@@ -651,6 +694,29 @@ def propose_candidate_outcome(
     locked_outcome.status = CandidateOutcome.Status.PROPOSED
     locked_outcome._allow_status_transition = True
     locked_outcome.save()
+    # `before` is what makes a disagreement visible: without it the Master
+    # sees only the latest proposal and no sign it ever said anything else.
+    record(
+        AuditAction.OUTCOME_PROPOSED,
+        locked_outcome,
+        (
+            f"Outcome proposed as {proposed_outcome}"
+            + (
+                f", revising an earlier {previous_proposal['proposed_outcome']}."
+                if previous_proposal["proposed_outcome"]
+                else "."
+            )
+        ),
+        actor=actor,
+        metadata={
+            "before": previous_proposal,
+            "after": {
+                "proposed_outcome": proposed_outcome,
+                "proposal_notes": proposal_notes,
+                "proposed_by": str(actor.pk),
+            },
+        },
+    )
     return locked_outcome
 
 
@@ -725,6 +791,26 @@ def finalise_candidate_outcome(
     locked_outcome.status = CandidateOutcome.Status.FINALISED
     locked_outcome._allow_status_transition = True
     locked_outcome.save()
+    record(
+        AuditAction.OUTCOME_FINALISED,
+        locked_outcome,
+        (
+            f"Final decision {final_outcome} recorded for "
+            f"{locked_outcome.candidate.student}"
+            + (
+                f", overriding a proposed {locked_outcome.proposed_outcome}."
+                if locked_outcome.proposed_outcome != final_outcome
+                else "."
+            )
+        ),
+        actor=actor,
+        metadata={
+            "proposed_outcome": locked_outcome.proposed_outcome,
+            "final_outcome": final_outcome,
+            "overrode_proposal": locked_outcome.proposed_outcome != final_outcome,
+            "conditional_requirements": cleaned_conditions,
+        },
+    )
     return locked_outcome
 
 
@@ -880,6 +966,18 @@ def promote_candidate(
             {"student": ["Student current rank could not be updated."]},
         )
     locked_student.current_rank = to_rank
+    record(
+        AuditAction.PROMOTION_RECORDED,
+        promotion,
+        (f"{locked_student} promoted from {from_rank.name} to {to_rank.name}."),
+        actor=actor,
+        metadata={
+            "from_rank": from_rank.code,
+            "to_rank": to_rank.code,
+            "effective_date": str(candidate_effective_date),
+            "outcome": str(locked_outcome.pk),
+        },
+    )
     return Promotion.objects.select_related(
         "student__current_rank",
         "outcome",
@@ -1058,6 +1156,126 @@ def update_candidate(
     return candidate
 
 
+@transaction.atomic
+def create_grading_session(
+    *,
+    title: str,
+    grading_date: date,
+    location: str,
+    notes: str,
+    created_by: User,
+    status: str | None = None,
+) -> GradingSession:
+    # Passed through rather than ignored so the model's "new sessions must
+    # start in draft" guard still rejects a client that supplies one, instead
+    # of silently overriding it.
+    session = GradingSession.objects.create(
+        title=title,
+        grading_date=grading_date,
+        location=location,
+        notes=notes,
+        created_by=created_by,
+        **({"status": status} if status is not None else {}),
+    )
+    record(
+        AuditAction.SESSION_CREATED,
+        session,
+        f"Grading session '{session.title}' created for {session.grading_date}.",
+        actor=created_by,
+    )
+    return session
+
+
+@transaction.atomic
+def delete_grading_session(session: GradingSession, actor: User | None = None) -> None:
+    # Recorded before the row goes, so the event still carries its identity.
+    record(
+        AuditAction.SESSION_DELETED,
+        session,
+        f"Grading session '{session.title}' deleted while {session.status}.",
+        actor=actor,
+        metadata={"status": session.status, "title": session.title},
+    )
+    session.delete()
+
+
+@transaction.atomic
+def register_candidate(
+    *,
+    session: GradingSession,
+    student: Student,
+    testing_for_rank: Rank,
+    status: str = GradingCandidate.Status.REGISTERED,
+    notes: str = "",
+    actor: User | None = None,
+) -> GradingCandidate:
+    candidate = build_candidate(
+        session=session,
+        student=student,
+        testing_for_rank=testing_for_rank,
+        status=status,
+        notes=notes,
+    )
+    candidate.save()
+    record(
+        AuditAction.CANDIDATE_REGISTERED,
+        candidate,
+        (
+            f"{student} registered for '{session.title}' testing for "
+            f"{testing_for_rank.name}."
+        ),
+        actor=actor,
+        metadata={"age_band": candidate.age_band},
+    )
+    return candidate
+
+
+@transaction.atomic
+def apply_candidate_update(
+    candidate: GradingCandidate,
+    *,
+    session: GradingSession | None = None,
+    student: Student | None = None,
+    testing_for_rank: Rank | None = None,
+    status: str | None = None,
+    notes: str | None = None,
+    actor: User | None = None,
+) -> GradingCandidate:
+    before = {"status": candidate.status, "notes": candidate.notes}
+    updated = update_candidate(
+        candidate,
+        session=session,
+        student=student,
+        testing_for_rank=testing_for_rank,
+        status=status,
+        notes=notes,
+    )
+    updated.save()
+    record(
+        AuditAction.CANDIDATE_UPDATED,
+        updated,
+        f"Candidate record for {updated.student} updated.",
+        actor=actor,
+        metadata={
+            "before": before,
+            "after": {"status": updated.status, "notes": updated.notes},
+        },
+    )
+    return updated
+
+
+@transaction.atomic
+def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> None:
+    record(
+        AuditAction.CANDIDATE_DELETED,
+        candidate,
+        f"{candidate.student} removed from '{candidate.session.title}'.",
+        actor=actor,
+        metadata={"status": candidate.status},
+    )
+    candidate.delete()
+
+
 def applicable_syllabus_requirements(
     candidate: GradingCandidate,
 ) -> QuerySet[SyllabusRequirement]:
@@ -1149,6 +1367,16 @@ def generate_candidate_assessment(
         raise ValidationError(
             {"candidate": ["Candidate already has an assessment snapshot."]},
         ) from exc
+    record(
+        AuditAction.ASSESSMENT_GENERATED,
+        assessment,
+        (
+            f"Assessment generated for {locked_candidate.student} with "
+            f"{len(requirements)} requirements."
+        ),
+        actor=generated_by,
+        metadata={"item_count": len(requirements)},
+    )
     return assessment
 
 
@@ -1208,6 +1436,7 @@ def update_candidate_assessment(
     *,
     status: str | None = None,
     notes: str | None = None,
+    actor: User | None = None,
 ) -> CandidateAssessment:
     locked_assessment = (
         CandidateAssessment.objects.select_for_update()
@@ -1220,12 +1449,15 @@ def update_candidate_assessment(
     if notes is not None:
         locked_assessment.notes = notes
 
+    recorded_action: str | None = None
     if status is not None and status != locked_assessment.status:
         if status == CandidateAssessment.Status.IN_PROGRESS:
+            recorded_action = AuditAction.ASSESSMENT_STARTED
             validate_assessment_can_start(locked_assessment)
             locked_assessment.status = CandidateAssessment.Status.IN_PROGRESS
             locked_assessment.started_at = timezone.now()
         elif status == CandidateAssessment.Status.COMPLETED:
+            recorded_action = AuditAction.ASSESSMENT_COMPLETED
             validate_assessment_can_complete(locked_assessment)
             locked_assessment.status = CandidateAssessment.Status.COMPLETED
             locked_assessment.completed_at = timezone.now()
@@ -1244,6 +1476,16 @@ def update_candidate_assessment(
             )
 
     locked_assessment.save()
+    if recorded_action is not None:
+        record(
+            recorded_action,
+            locked_assessment,
+            (
+                f"Assessment for {locked_assessment.candidate.student} "
+                f"{locked_assessment.get_status_display().lower()}."
+            ),
+            actor=actor,
+        )
     return locked_assessment
 
 
@@ -1301,6 +1543,7 @@ def update_candidate_assessment_item(
         .get(pk=item.pk)
     )
     validate_assessment_item_can_be_changed(locked_item, result=result)
+    previous_result = locked_item.result
 
     if assessor_notes is not None:
         locked_item.assessor_notes = assessor_notes
@@ -1317,4 +1560,16 @@ def update_candidate_assessment_item(
             locked_item.assessed_at = timezone.now()
 
     locked_item.save()
+    if result is not None and result != previous_result:
+        record(
+            AuditAction.ITEM_RESULT_RECORDED,
+            locked_item,
+            f"{locked_item.item_name} recorded as {result}.",
+            actor=assessor,
+            metadata={
+                "before": {"result": previous_result},
+                "after": {"result": result},
+                "assessment": str(locked_item.assessment_id),
+            },
+        )
     return locked_item

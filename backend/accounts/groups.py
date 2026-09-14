@@ -48,6 +48,7 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "add_candidateoutcome"),
     ("gradings", "change_candidateoutcome"),
     ("gradings", "view_promotion"),
+    ("audit", "view_auditevent"),
 )
 
 # Administrators additionally manage people. Logistics beyond Kuk Sool.

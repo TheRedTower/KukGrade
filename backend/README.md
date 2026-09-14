@@ -58,7 +58,7 @@ Run checks:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts ranks students syllabus gradings
+uv run mypy kukgrade health accounts audit ranks students syllabus gradings
 ```
 
 Run migrations against the local PostgreSQL database:

@@ -39,7 +39,7 @@ def test_valid_student_can_be_created() -> None:
     assert student.first_name == "Alex"
     assert student.last_name == "Kim"
     assert student.current_rank == white_rank()
-    assert student.is_active is True
+    assert student.status == Student.Status.ACTIVE
     assert student.created_at is not None
     assert student.updated_at is not None
     assert str(student) == "Alex Kim (000123)"
@@ -158,6 +158,8 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
             first_name="Migration",
             last_name="Student",
             date_of_birth=timezone.localdate().replace(year=2010),
+            # The historical model at students/0001: `status` does not exist
+            # yet, and 0005 is what converts this flag.
             is_active=True,
         )
 
@@ -174,3 +176,48 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)
+
+
+def test_student_status_defaults_to_active() -> None:
+    assert (
+        Student.objects.create(**student_kwargs(wksa_id="ST-005")).status
+        == Student.Status.ACTIVE
+    )
+
+
+def test_inactive_students_can_still_be_graded() -> None:
+    # A break - injury, exams, travel - blocks nothing.
+    learner = Student.objects.create(**student_kwargs(wksa_id="ST-006"))
+    learner.status = Student.Status.INACTIVE
+    learner.save()
+
+    assert learner.can_be_graded is True
+
+
+def test_a_student_who_has_left_cannot_be_graded() -> None:
+    learner = Student.objects.create(**student_kwargs(wksa_id="ST-007"))
+    learner.status = Student.Status.LEFT
+    learner.save()
+
+    assert learner.can_be_graded is False
+
+
+def test_leaving_is_reversible_and_keeps_history() -> None:
+    learner = Student.objects.create(**student_kwargs(wksa_id="ST-008"))
+    original_rank = learner.current_rank
+
+    learner.status = Student.Status.LEFT
+    learner.save()
+    learner.status = Student.Status.ACTIVE
+    learner.save()
+
+    learner.refresh_from_db()
+    assert learner.can_be_graded is True
+    assert learner.current_rank == original_rank
+
+
+def test_invalid_student_status_is_rejected_by_the_database() -> None:
+    learner = Student.objects.create(**student_kwargs(wksa_id="ST-009"))
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Student.objects.filter(pk=learner.pk).update(status="GONE_FISHING")

@@ -135,6 +135,18 @@ def get_next_active_rank(current_rank: Rank) -> Rank | None:
     )
 
 
+def validate_student_can_be_graded(student: Student) -> None:
+    if not student.can_be_graded:
+        raise ValidationError(
+            {
+                "student": [
+                    "This student has left and cannot be registered for a "
+                    "grading. Set their status back to active or inactive first.",
+                ],
+            },
+        )
+
+
 def validate_testing_for_rank(student: Student, testing_for_rank: Rank) -> None:
     next_rank = get_next_active_rank(student.current_rank)
     if next_rank is None:
@@ -992,6 +1004,7 @@ def build_candidate(
     notes: str = "",
 ) -> GradingCandidate:
     validate_session_accepts_candidates(session)
+    validate_student_can_be_graded(student)
     validate_testing_for_rank(student, testing_for_rank)
     return GradingCandidate(
         session=session,
@@ -1026,6 +1039,8 @@ def update_candidate(
     )
     if session is not None:
         validate_session_accepts_candidates(new_session)
+    if student is not None:
+        validate_student_can_be_graded(new_student)
     validate_testing_for_rank(new_student, new_testing_for_rank)
 
     candidate.session = new_session

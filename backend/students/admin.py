@@ -13,8 +13,8 @@ class StudentAdmin(admin.ModelAdmin):
         "last_name",
         "date_of_birth",
         "current_rank",
-        "is_active",
+        "status",
     )
-    list_filter = ("current_rank", "is_active")
+    list_filter = ("current_rank", "status")
     search_fields = ("wksa_id", "first_name", "last_name")
     ordering = ("last_name", "first_name", "wksa_id")

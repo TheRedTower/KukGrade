@@ -8,14 +8,16 @@ from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.views import APIView
 
+from accounts.groups import (
+    ADMINISTRATOR_GROUP,
+    INSTRUCTOR_GROUP,
+    SENSITIVE_PERMISSIONS,
+)
 from accounts.models import User
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
     CanMakeFinalGradingDecision,
-    IsAdministrator,
-    IsAuthenticatedUser,
-    IsInstructorOrAbove,
-    IsManagerOrAdministrator,
+    HasRequiredPermissions,
 )
 
 pytestmark = pytest.mark.django_db
@@ -73,23 +75,24 @@ def test_email_is_normalised_and_unique() -> None:
 
 def test_login_success_sets_session_and_returns_current_user() -> None:
     create_user(
-        email="manager@example.com",
+        email="admin@example.com",
         password="StrongPass123!",
-        role=User.Role.MANAGER,
+        role=User.Role.ADMINISTRATOR,
     )
     client = APIClient(enforce_csrf_checks=True)
     token = csrf_token(client)
 
+    # Mixed case on purpose: emails are normalised before lookup.
     response = client.post(
         "/api/auth/login/",
-        {"email": "MANAGER@example.com", "password": "StrongPass123!"},
+        {"email": "ADMIN@example.com", "password": "StrongPass123!"},
         format="json",
         HTTP_X_CSRFTOKEN=token,
     )
 
     assert response.status_code == 200
-    assert response.json()["email"] == "manager@example.com"
-    assert response.json()["role"] == User.Role.MANAGER
+    assert response.json()["email"] == "admin@example.com"
+    assert response.json()["role"] == User.Role.ADMINISTRATOR
     assert "sessionid" in response.cookies
 
 
@@ -213,28 +216,81 @@ def grant_final_decision_permission(user: User) -> None:
     user.user_permissions.add(permission)
 
 
-def test_role_permission_classes_against_all_roles() -> None:
+def test_role_assigns_the_matching_group() -> None:
     instructor = create_user("instructor@example.com", role=User.Role.INSTRUCTOR)
-    manager = create_user("manager@example.com", role=User.Role.MANAGER)
     administrator = create_user(
         "administrator@example.com",
         role=User.Role.ADMINISTRATOR,
     )
 
-    assert permission_result(IsAuthenticatedUser, None) is False
-    assert permission_result(IsAuthenticatedUser, instructor) is True
+    assert list(instructor.groups.values_list("name", flat=True)) == [
+        INSTRUCTOR_GROUP,
+    ]
+    assert list(administrator.groups.values_list("name", flat=True)) == [
+        ADMINISTRATOR_GROUP,
+    ]
 
-    assert permission_result(IsInstructorOrAbove, instructor) is True
-    assert permission_result(IsInstructorOrAbove, manager) is True
-    assert permission_result(IsInstructorOrAbove, administrator) is True
 
-    assert permission_result(IsManagerOrAdministrator, instructor) is False
-    assert permission_result(IsManagerOrAdministrator, manager) is True
-    assert permission_result(IsManagerOrAdministrator, administrator) is True
+def test_changing_role_moves_the_user_between_groups() -> None:
+    user = create_user("promoted@example.com", role=User.Role.INSTRUCTOR)
 
-    assert permission_result(IsAdministrator, instructor) is False
-    assert permission_result(IsAdministrator, manager) is False
-    assert permission_result(IsAdministrator, administrator) is True
+    user.role = User.Role.ADMINISTRATOR
+    user.save()
+
+    names = set(user.groups.values_list("name", flat=True))
+    assert names == {ADMINISTRATOR_GROUP}
+    assert INSTRUCTOR_GROUP not in names
+
+
+def test_only_administrators_manage_users() -> None:
+    instructor = create_user("perm-instructor@example.com")
+    administrator = create_user(
+        "perm-administrator@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    # Both run gradings; only one manages people.
+    for user in (instructor, administrator):
+        assert user.has_perm("gradings.add_gradingsession")
+        assert user.has_perm("students.change_student")
+    assert instructor.has_perm("accounts.add_user") is False
+    assert administrator.has_perm("accounts.add_user") is True
+
+
+def test_sensitive_permissions_are_in_no_role_group() -> None:
+    # Master authority is granted per user so it survives one person being
+    # away, and so it never arrives as a side effect of a role change.
+    for user in (
+        create_user("plain-instructor@example.com"),
+        create_user("plain-admin@example.com", role=User.Role.ADMINISTRATOR),
+    ):
+        for permission in SENSITIVE_PERMISSIONS:
+            assert user.has_perm(permission) is False
+
+
+def test_undeclared_actions_are_denied() -> None:
+    # Failing closed: an endpoint added without declaring its permissions
+    # locks everyone out rather than opening to every authenticated user.
+    user = create_user("undeclared@example.com")
+    request = APIRequestFactory().get("/whatever/")
+    request.user = user
+
+    view = APIView()
+    view.action = "some_new_action"  # type: ignore[attr-defined]
+    view.permission_map = {"list": ()}  # type: ignore[attr-defined]
+
+    assert HasRequiredPermissions().has_permission(request, view) is False
+
+
+def test_views_without_a_permission_map_are_denied() -> None:
+    user = create_user("no-map@example.com")
+    request = APIRequestFactory().get("/whatever/")
+    request.user = user
+
+    view = APIView()
+    view.action = "list"  # type: ignore[attr-defined]
+
+    assert HasRequiredPermissions().has_permission(request, view) is False
 
 
 def test_final_grading_decision_capability_is_independent_of_role() -> None:
@@ -263,14 +319,18 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
     assert permission_result(CanMakeFinalGradingDecision, superuser) is True
 
 
-def test_inactive_users_fail_reusable_permissions() -> None:
+def test_inactive_users_fail_every_permission_check() -> None:
     inactive = create_user("inactive@example.com", is_active=False)
+    grant_final_decision_permission(inactive)
 
-    assert permission_result(IsAuthenticatedUser, inactive) is False
-    assert permission_result(IsInstructorOrAbove, inactive) is False
-    assert permission_result(IsManagerOrAdministrator, inactive) is False
-    assert permission_result(IsAdministrator, inactive) is False
     assert permission_result(CanMakeFinalGradingDecision, inactive) is False
+
+    request = APIRequestFactory().get("/whatever/")
+    request.user = inactive
+    view = APIView()
+    view.action = "list"  # type: ignore[attr-defined]
+    view.permission_map = {"list": ()}  # type: ignore[attr-defined]
+    assert HasRequiredPermissions().has_permission(request, view) is False
 
 
 def test_configured_user_model_is_custom_user() -> None:

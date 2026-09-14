@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from django.db.models import QuerySet
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
+from accounts.permissions import HasRequiredPermissions
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 from syllabus.serializers import (
     SyllabusItemSerializer,
@@ -18,12 +18,20 @@ class SyllabusItemViewSet(ReadOnlyModelViewSet):
         "code",
     )
     serializer_class = SyllabusItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("syllabus.view_syllabusitem",),
+        "retrieve": ("syllabus.view_syllabusitem",),
+    }
 
 
 class SyllabusRequirementViewSet(ReadOnlyModelViewSet):
     serializer_class = SyllabusRequirementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("syllabus.view_syllabusrequirement",),
+        "retrieve": ("syllabus.view_syllabusrequirement",),
+    }
 
     def get_queryset(self) -> QuerySet[SyllabusRequirement]:
         queryset = (

@@ -9,24 +9,34 @@
 - Sensitive changes must be auditable.
 - Students do not directly access the system.
 
-## Proposed Role Capabilities
+## Implemented Capability Map
 
-These capabilities are proposed starting points and must be validated before implementation.
+Accepted 2026-09-13, implemented in `accounts/groups.py`. Django permissions
+are the authority primitive; `User.role` is a label that decides group
+membership and is never consulted when authorising a request.
 
-| Capability | Instructor | Manager | Administrator | Authorised Master |
-| --- | --- | --- | --- | --- |
-| View assigned or branch students | Proposed | Proposed | Proposed | Proposed |
-| Edit student profile details | Unresolved | Proposed | Proposed | Unresolved |
-| Create grading sessions | Unresolved | Proposed | Proposed | Unresolved |
-| Assign candidates | Unresolved | Proposed | Proposed | Unresolved |
-| Enter draft assessments | Proposed | Unresolved | Unresolved | Proposed |
-| Submit assessments | Proposed | Unresolved | Unresolved | Proposed |
-| Make final decisions | Not permitted | Not permitted | Not permitted unless also authorised Master | Confirmed |
-| Manage syllabus versions | Unresolved | Unresolved | Proposed | Unresolved |
-| Manage users and roles | Unresolved | Unresolved | Proposed | Unresolved |
-| View audit events | Unresolved | Unresolved | Proposed | Unresolved |
+| Capability | Instructor | Administrator | Master |
+| --- | --- | --- | --- |
+| Read ranks and syllabus | Yes | Yes | via group |
+| Students: view, add, change | Yes | Yes | via group |
+| Grading sessions: full CRUD | Yes | Yes | via group |
+| Candidates: full CRUD | Yes | Yes | via group |
+| Assessments and item results | Yes | Yes | via group |
+| Propose or revise an outcome | Yes | Yes | via group |
+| **Final grading decision** | No | No | **Yes** |
+| **Promote a student** | No | No | **Yes** |
+| Manage users and roles | No | Yes | via group |
 
-Do not implement this table as final policy without confirmation.
+"Master" is not a group. `gradings.can_make_final_grading_decision` and
+`gradings.can_promote_student` are granted per user, independently of role, so
+authority survives one person being unavailable and never arrives as a side
+effect of a role change. The two are separate: holding one does not confer the
+other.
+
+`manager` was removed from `User.Role` in 2026-09. Nothing used it.
+
+Syllabus authoring is granted with syllabus versioning in Phase 2b; the
+catalogue is read-only until then.
 
 ## Backend Enforcement
 

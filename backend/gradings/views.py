@@ -9,13 +9,16 @@ from django.db.models import QuerySet
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
 
 from accounts.models import User
-from accounts.permissions import CanMakeFinalGradingDecision, CanPromoteStudent
+from accounts.permissions import (
+    CanMakeFinalGradingDecision,
+    CanPromoteStudent,
+    HasRequiredPermissions,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -57,7 +60,15 @@ def parse_date_filter(value: str | None) -> date | None:
 
 class GradingSessionViewSet(ModelViewSet):
     serializer_class = GradingSessionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("gradings.view_gradingsession",),
+        "retrieve": ("gradings.view_gradingsession",),
+        "create": ("gradings.add_gradingsession",),
+        "update": ("gradings.change_gradingsession",),
+        "partial_update": ("gradings.change_gradingsession",),
+        "destroy": ("gradings.delete_gradingsession",),
+    }
 
     def get_queryset(self) -> QuerySet[GradingSession]:
         queryset = GradingSession.objects.select_related("created_by").order_by(
@@ -113,7 +124,19 @@ class GradingSessionViewSet(ModelViewSet):
 
 class GradingCandidateViewSet(ModelViewSet):
     serializer_class = GradingCandidateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("gradings.view_gradingcandidate",),
+        "retrieve": ("gradings.view_gradingcandidate",),
+        "create": ("gradings.add_gradingcandidate",),
+        "update": ("gradings.change_gradingcandidate",),
+        "partial_update": ("gradings.change_gradingcandidate",),
+        "destroy": ("gradings.delete_gradingcandidate",),
+        # These create other models, so they are named for what they make
+        # rather than for the candidate they hang off.
+        "generate_assessment": ("gradings.add_candidateassessment",),
+        "create_outcome": ("gradings.add_candidateoutcome",),
+    }
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
         queryset = (
@@ -210,8 +233,13 @@ class CandidateAssessmentViewSet(
     GenericViewSet,
 ):
     serializer_class = CandidateAssessmentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
     http_method_names = ["get", "patch", "head", "options"]
+    permission_map = {
+        "list": ("gradings.view_candidateassessment",),
+        "retrieve": ("gradings.view_candidateassessment",),
+        "partial_update": ("gradings.change_candidateassessment",),
+    }
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
         queryset = (
@@ -267,8 +295,13 @@ class CandidateAssessmentItemViewSet(
     GenericViewSet,
 ):
     serializer_class = CandidateAssessmentItemSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
     http_method_names = ["get", "patch", "head", "options"]
+    permission_map = {
+        "list": ("gradings.view_candidateassessmentitem",),
+        "retrieve": ("gradings.view_candidateassessmentitem",),
+        "partial_update": ("gradings.change_candidateassessmentitem",),
+    }
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         queryset = (
@@ -337,8 +370,19 @@ class CandidateOutcomeViewSet(
     GenericViewSet,
 ):
     serializer_class = CandidateOutcomeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
     http_method_names = ["get", "patch", "post", "head", "options"]
+    permission_map = {
+        "list": ("gradings.view_candidateoutcome",),
+        "retrieve": ("gradings.view_candidateoutcome",),
+        "partial_update": ("gradings.change_candidateoutcome",),
+        "propose": ("gradings.change_candidateoutcome",),
+        "summary": ("gradings.view_candidateoutcome",),
+        # The sensitive half of these two is enforced by the dedicated
+        # permission class on the action, which also gives a better message.
+        "finalise": ("gradings.view_candidateoutcome",),
+        "promote": ("gradings.view_candidateoutcome",),
+    }
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         queryset = (
@@ -457,7 +501,7 @@ class CandidateOutcomeViewSet(
     @action(
         detail=True,
         methods=["patch"],
-        permission_classes=[CanMakeFinalGradingDecision],
+        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
     )
     def finalise(
         self,
@@ -493,7 +537,7 @@ class CandidateOutcomeViewSet(
     @action(
         detail=True,
         methods=["post"],
-        permission_classes=[CanPromoteStudent],
+        permission_classes=[HasRequiredPermissions, CanPromoteStudent],
     )
     def promote(
         self,
@@ -519,7 +563,11 @@ class CandidateOutcomeViewSet(
 
 class PromotionViewSet(ReadOnlyModelViewSet):
     serializer_class = PromotionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("gradings.view_promotion",),
+        "retrieve": ("gradings.view_promotion",),
+    }
 
     def get_queryset(self) -> QuerySet[Promotion]:
         queryset = (

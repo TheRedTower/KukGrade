@@ -33,6 +33,14 @@ are all clean, and CI enforces every one of them on each push.
 - Syllabus catalogue for WKSA Version 2014, read-only.
 - Student model with `ACTIVE` / `INACTIVE` / `LEFT`. `LEFT` blocks grading
   registration; both non-active states are reversible and keep history.
+- **Students API**: list, retrieve, create, partial update.
+  `GET /api/students/` and detail exclude no fields except that list omits
+  date of birth - the most sensitive field held, shown only on a record an
+  instructor deliberately opened. `wksa_id` is writable on create and
+  read-only afterwards, since it is the external identifier grading records
+  are matched against. Filters: `status`, `current_rank_code`, `search`
+  (name and WKSA ID). No delete: every relationship to a student is PROTECT
+  and history is retained by decision.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
@@ -64,9 +72,6 @@ are all clean, and CI enforces every one of them on each push.
 
 - **Concurrency tests.** Every locking guarantee is asserted by reading the
   code, not by running two transactions at once.
-- **Student list, retrieve and create endpoints.** Only
-  `/api/students/{id}/rank-history/` exists, so students are created and found
-  through Django admin.
 - **User management.** Administrators hold the permissions but cannot reach
   them: Django admin needs `is_staff`, which no group grants, and there is no
   user API. Granting Master authority requires a superuser.

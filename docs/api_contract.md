@@ -95,21 +95,23 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 ## 4. Students
 
-Status: target/deferred for API endpoints. The backend has an initial
-`Student` model, but student CRUD, history, eligibility, and recommendation API
-routes are not implemented on `dev`.
+Status: implemented, list/retrieve/create/update. Deferred: `DELETE`
+(every relationship to a student is `PROTECT` and history is retained by
+decision - deactivate via `status` instead), eligibility and recommendation
+endpoints (not part of any accepted design).
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; supports filters (rank, branch)   |
+| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
-| DELETE| /api/students/{id}/                         | Archive/deactivate a student                    |
-| GET   | /api/students/{id}/history/                 | View promotion history                          |
-| GET   | /api/students/{id}/eligibility/             | View current eligibility status                 |
-| POST  | /api/students/{id}/recommendations/         | Submit a recommendation (V2)                    |
-| GET   | /api/students/{id}/recommendations/         | List recommendations                            |
+| PUT, DELETE | /api/students/{id}/                   | 405; not exposed                                 |
+| GET   | /api/students/{id}/rank-history/            | Current rank plus every promotion record         |
+
+The list representation omits `date_of_birth`; the detail representation
+includes it. `wksa_id` is writable on create and read-only afterwards. See
+`docs/current-system.md` for the rationale.
 
 ## 5. Ranks and Pathways
 

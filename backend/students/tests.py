@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import Any
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -8,7 +9,10 @@ from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
+from rest_framework.test import APIClient
 
+from accounts.models import User
+from audit.models import AuditAction, AuditEvent
 from ranks.models import Rank
 from students.models import Student
 
@@ -221,3 +225,254 @@ def test_invalid_student_status_is_rejected_by_the_database() -> None:
 
     with pytest.raises(IntegrityError), transaction.atomic():
         Student.objects.filter(pk=learner.pk).update(status="GONE_FISHING")
+
+
+# ---------------------------------------------------------------------------
+# The students API: list, retrieve, create, partial_update. No delete, no PUT.
+# ---------------------------------------------------------------------------
+
+
+def auth_client(email: str = "students-api@example.com") -> APIClient:
+    client = APIClient()
+    client.force_authenticate(user=User.objects.create_user(email=email))
+    return client
+
+
+def create_via_api(client: APIClient, **overrides: object) -> dict[str, Any]:
+    payload: dict[str, object] = {
+        "wksa_id": "API-001",
+        "first_name": "Api",
+        "last_name": "Student",
+        "date_of_birth": "2010-06-15",
+        "current_rank": white_rank().id,
+    }
+    payload.update(overrides)
+    response = client.post("/api/students/", payload, format="json")
+    assert response.status_code == 201, response.json()
+    body: dict[str, Any] = response.json()
+    return body
+
+
+def test_anonymous_cannot_read_or_write_students() -> None:
+    client = APIClient()
+
+    assert client.get("/api/students/").status_code == 403
+    assert (
+        client.post(
+            "/api/students/",
+            {"wksa_id": "X"},
+            format="json",
+        ).status_code
+        == 403
+    )
+
+
+def test_list_excludes_date_of_birth_but_detail_includes_it() -> None:
+    client = auth_client("list-vs-detail@example.com")
+    created = create_via_api(client, wksa_id="LIST-001")
+
+    listing = client.get("/api/students/").json()
+    detail = client.get(f"/api/students/{created['id']}/").json()
+
+    assert "date_of_birth" not in listing["results"][0]
+    assert detail["date_of_birth"] == "2010-06-15"
+
+
+def test_create_records_a_student_created_event() -> None:
+    client = auth_client("create-audit@example.com")
+    before = AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
+
+    create_via_api(client, wksa_id="AUDIT-CREATE")
+
+    assert (
+        AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
+        == before + 1
+    )
+
+
+def test_duplicate_wksa_id_is_a_field_error_not_a_server_error() -> None:
+    client = auth_client("duplicate-wksa@example.com")
+    create_via_api(client, wksa_id="DUP-001")
+
+    response = client.post(
+        "/api/students/",
+        {
+            "wksa_id": "DUP-001",
+            "first_name": "Second",
+            "last_name": "Student",
+            "date_of_birth": "2011-01-01",
+            "current_rank": white_rank().id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "wksa_id" in response.json()["error"]["fields"]
+
+
+def test_wksa_id_cannot_be_changed_after_creation() -> None:
+    client = auth_client("immutable-wksa@example.com")
+    created = create_via_api(client, wksa_id="IMMUTABLE-001")
+
+    response = client.patch(
+        f"/api/students/{created['id']}/",
+        {"wksa_id": "HACKED", "first_name": "Changed"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["wksa_id"] == "IMMUTABLE-001"
+    assert response.json()["first_name"] == "Changed"
+    student = Student.objects.get(pk=created["id"])
+    assert student.wksa_id == "IMMUTABLE-001"
+
+
+def test_a_no_op_patch_writes_no_audit_event() -> None:
+    client = auth_client("no-op-patch@example.com")
+    created = create_via_api(client, wksa_id="NOOP-001")
+    before = AuditEvent.objects.count()
+
+    response = client.patch(
+        f"/api/students/{created['id']}/",
+        {"first_name": created["first_name"]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert AuditEvent.objects.count() == before
+
+
+def test_a_status_change_alongside_other_edits_writes_exactly_one_event() -> None:
+    # Not one generic STUDENT_UPDATED plus a separate STUDENT_STATUS_CHANGED
+    # for what is a single PATCH - that would be recording the same edit twice.
+    client = auth_client("combined-edit@example.com")
+    created = create_via_api(client, wksa_id="COMBINED-001")
+    before = AuditEvent.objects.count()
+
+    response = client.patch(
+        f"/api/students/{created['id']}/",
+        {"status": Student.Status.INACTIVE, "last_name": "NewLastName"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    new_events = AuditEvent.objects.filter(
+        entity_type="Student",
+        entity_id=str(created["id"]),
+    ).exclude(action=AuditAction.STUDENT_CREATED)
+    assert new_events.count() == 1
+    event = new_events.get()
+    assert event.action == AuditAction.STUDENT_STATUS_CHANGED
+    assert event.metadata["after"]["last_name"] == "NewLastName"
+    assert event.metadata["after"]["status"] == Student.Status.INACTIVE
+    assert AuditEvent.objects.count() == before + 1
+
+
+def test_a_plain_field_edit_records_student_updated_not_status_changed() -> None:
+    client = auth_client("plain-edit@example.com")
+    created = create_via_api(client, wksa_id="PLAIN-001")
+
+    client.patch(
+        f"/api/students/{created['id']}/",
+        {"last_name": "Different"},
+        format="json",
+    )
+
+    event = AuditEvent.objects.filter(
+        entity_type="Student",
+        entity_id=str(created["id"]),
+    ).latest("pk")
+    assert event.action == AuditAction.STUDENT_UPDATED
+
+
+def test_put_and_delete_are_not_allowed() -> None:
+    client = auth_client("no-put-delete@example.com")
+    created = create_via_api(client, wksa_id="NOMETHOD-001")
+
+    put_response = client.put(
+        f"/api/students/{created['id']}/",
+        {"first_name": "X"},
+        format="json",
+    )
+    delete_response = client.delete(f"/api/students/{created['id']}/")
+
+    assert put_response.status_code == 405
+    assert put_response.json()["error"]["code"] == "method_not_allowed"
+    assert delete_response.status_code == 405
+    assert Student.objects.filter(pk=created["id"]).exists()
+
+
+def test_status_filter_and_search_and_rank_filter_work() -> None:
+    client = auth_client("filters@example.com")
+    yellow_stripe = Rank.objects.get(code="YELLOW_STRIPE")
+    create_via_api(client, wksa_id="FILTER-A", first_name="Alex", last_name="Kim")
+    left_student = create_via_api(
+        client,
+        wksa_id="FILTER-B",
+        first_name="Blair",
+        last_name="Diaz",
+        current_rank=yellow_stripe.id,
+    )
+    client.patch(
+        f"/api/students/{left_student['id']}/",
+        {"status": Student.Status.LEFT},
+        format="json",
+    )
+
+    by_status = client.get(f"/api/students/?status={Student.Status.LEFT}").json()
+    by_rank = client.get(
+        f"/api/students/?current_rank_code={yellow_stripe.code}",
+    ).json()
+    by_search = client.get("/api/students/?search=kim").json()
+    unknown_status = client.get("/api/students/?status=NONSENSE").json()
+
+    assert {r["wksa_id"] for r in by_status["results"]} == {"FILTER-B"}
+    assert {r["wksa_id"] for r in by_rank["results"]} == {"FILTER-B"}
+    assert {r["wksa_id"] for r in by_search["results"]} == {"FILTER-A"}
+    assert unknown_status["count"] == 0
+
+
+def test_can_be_graded_reflects_status_in_the_api_response() -> None:
+    client = auth_client("can-be-graded@example.com")
+    created = create_via_api(client, wksa_id="GRADABLE-001")
+    assert client.get(f"/api/students/{created['id']}/").json()["can_be_graded"] is True
+
+    client.patch(
+        f"/api/students/{created['id']}/",
+        {"status": Student.Status.LEFT},
+        format="json",
+    )
+
+    assert (
+        client.get(f"/api/students/{created['id']}/").json()["can_be_graded"] is False
+    )
+
+
+def test_only_students_view_student_can_read() -> None:
+    from django.contrib.auth.models import Permission
+
+    reader = User.objects.create_user(email="perm-reader@example.com")
+    reader.user_permissions.clear()
+    client = APIClient()
+    client.force_authenticate(user=reader)
+
+    # An instructor without students.view_student (removed explicitly here,
+    # rather than assuming group membership) must be refused.
+    reader.groups.clear()
+    assert client.get("/api/students/").status_code == 403
+
+    reader.user_permissions.add(
+        Permission.objects.get(
+            codename="view_student",
+            content_type__app_label="students",
+        ),
+    )
+    # force_authenticate reuses the same in-memory user object across
+    # requests, and Django caches computed permissions on that object once
+    # checked. Re-fetching and re-authenticating is what makes the newly
+    # granted permission actually visible, exactly as in
+    # accounts/tests.py::test_me_capabilities_are_computed_from_permissions.
+    reader = User.objects.get(pk=reader.pk)
+    client.force_authenticate(user=reader)
+    assert client.get("/api/students/").status_code == 200
+    assert client.post("/api/students/", {}, format="json").status_code == 403

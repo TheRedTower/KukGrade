@@ -90,7 +90,7 @@ revision case carries before and after; a rollback test proves no orphan event.
 
 ---
 
-## 2 · Students API  (closes KG-030, KG-024 properly)
+## 2 · Students API  (closes KG-030, KG-024 properly) — **DONE 2026-09-14**
 
 **Why.** `StudentViewSet` exposes only `rank-history`. Students can only be
 created or found through Django admin, so no student screen can be built, and
@@ -245,7 +245,7 @@ records failures without writing personal data or credentials into logs.
 | # | Item | Depends on | Estimate |
 |---|---|---|---|
 | 1 | AuditEvent | — | ~~1.5–2 days~~ **done** |
-| 2 | Students API | — | 1 day |
+| 2 | Students API | — | ~~1 day~~ **done** |
 | 3 | Users API | 1 (authority change is audited) | 2–3 days |
 | 4 | End-to-end test | 2, 3 | 0.5 day |
 | 5 | Concurrency tests | — | 1 day |

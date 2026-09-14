@@ -301,6 +301,81 @@ def reachable_actions(viewset: Any) -> set[str]:
     return actions
 
 
+# put -> update, delete -> destroy: the two verbs a viewset most commonly
+# excludes via http_method_names while still including the mixin that
+# defines the method. DRF's router binds them regardless of
+# http_method_names, so if the exclusion isn't handled by the permission
+# class, the request is denied as an undeclared action (403) instead of
+# falling through to Django's own "method not allowed" (405).
+_VERB_TO_MIXIN_ACTION = {"put": "update", "delete": "destroy"}
+
+
+def routed_detail_routes() -> list[tuple[str, str, Any]]:
+    """(url_name, basename, viewset) for every registered detail route."""
+    from gradings.urls import router as gradings_router
+    from ranks.urls import router as ranks_router
+    from students.urls import router as students_router
+    from syllabus.urls import router as syllabus_router
+
+    routers = [gradings_router, ranks_router, students_router, syllabus_router]
+    return [
+        (f"{basename}-detail", basename, viewset)
+        for router in routers
+        for _prefix, viewset, basename in router.registry
+    ]
+
+
+def excluded_but_bound_methods(viewset: Any) -> list[str]:
+    """Verbs this viewset's http_method_names excludes, whose mixin method
+    the class still defines - exactly the shape that masked PUT as 403 on
+    CandidateAssessmentViewSet, CandidateAssessmentItemViewSet, and
+    CandidateOutcomeViewSet before it was noticed on a fourth viewset built
+    later (StudentViewSet) and fixed once, at the source, in
+    HasRequiredPermissions rather than per view.
+    """
+    declared = getattr(viewset, "http_method_names", None)
+    if declared is None:
+        return []
+    return [
+        verb
+        for verb, action_name in _VERB_TO_MIXIN_ACTION.items()
+        if verb not in declared and hasattr(viewset, action_name)
+    ]
+
+
+def excluded_method_cases() -> list[tuple[str, str, str]]:
+    return [
+        (url_name, basename, verb)
+        for url_name, basename, viewset in routed_detail_routes()
+        for verb in excluded_but_bound_methods(viewset)
+    ]
+
+
+@pytest.mark.parametrize("url_name,basename,verb", excluded_method_cases())
+def test_excluded_http_methods_answer_not_allowed_not_permission_denied(
+    url_name: str,
+    basename: str,
+    verb: str,
+) -> None:
+    """Every current and future case of the PUT-masked-as-403 shape, at once.
+
+    Parametrized over the live router registry rather than pinned to one
+    endpoint: a new viewset built the same way is covered automatically,
+    with no test to remember to add.
+    """
+    from django.urls import reverse
+
+    client = administrator(f"method-exclusion-{basename}-{verb}@example.com")
+    url = reverse(url_name, args=["999999999"])
+
+    response = getattr(client, verb)(url, {}, format="json")
+
+    assert response.status_code == 405, (
+        f"{basename} {verb.upper()} -> {response.status_code}, expected 405"
+    )
+    assert response.json()["error"]["code"] == "method_not_allowed"
+
+
 @pytest.mark.parametrize("name,viewset", routed_viewsets())
 def test_every_routed_action_declares_its_permissions(
     name: str,
@@ -315,53 +390,3 @@ def test_every_routed_action_declares_its_permissions(
     missing = reachable_actions(viewset) - declared
 
     assert not missing, f"{name} does not declare permissions for: {sorted(missing)}"
-
-
-def test_excluded_http_method_answers_not_allowed_not_permission_denied() -> None:
-    """PUT on a PATCH-only viewset must be 405, not a masked 403.
-
-    DRF's router binds 'put' to whatever the view's update mixin provides
-    regardless of http_method_names, so `view.action` is a real, bound
-    action here - not None - and would otherwise be denied as an
-    undeclared action before Django's own method check is ever reached.
-    """
-    from datetime import date
-
-    from gradings.models import GradingSession
-    from gradings.services import (
-        build_candidate,
-        generate_candidate_assessment,
-    )
-    from ranks.models import Rank
-    from students.models import Student
-
-    creator = User.objects.create_user(email="method-check-creator@example.com")
-    session = GradingSession.objects.create(
-        title="Method check",
-        grading_date=date(2027, 8, 1),
-        created_by=creator,
-    )
-    learner = Student.objects.create(
-        wksa_id="METHODCHECK",
-        first_name="Method",
-        last_name="Check",
-        date_of_birth=date(2010, 1, 1),
-        current_rank=Rank.objects.get(code="WHITE"),
-    )
-    candidate = build_candidate(
-        session=session,
-        student=learner,
-        testing_for_rank=Rank.objects.get(code="YELLOW_STRIPE"),
-    )
-    candidate.save()
-    assessment = generate_candidate_assessment(candidate, creator)
-
-    client = administrator("method-check@example.com")
-    response = client.put(
-        f"/api/gradings/assessments/{assessment.id}/",
-        {"notes": "x"},
-        format="json",
-    )
-
-    assert response.status_code == 405
-    assert response.json()["error"]["code"] == "method_not_allowed"

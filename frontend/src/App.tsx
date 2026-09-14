@@ -94,9 +94,29 @@ function LoginPage() {
   );
 }
 
+function ConnectionErrorPage() {
+  const { error, retry } = useAuth();
+
+  return (
+    <main className="auth-page">
+      <section className="login-panel" aria-labelledby="connection-error-title">
+        <p className="eyebrow">KukGrade</p>
+        <h1 id="connection-error-title">Can&rsquo;t reach KukGrade</h1>
+        <p className="form-error" role="alert">
+          {error ?? "Something went wrong."}
+        </p>
+        <button className="primary-button" onClick={retry} type="button">
+          Try again
+        </button>
+      </section>
+    </main>
+  );
+}
+
 function ApplicationShell() {
   const { user, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   if (user === null) {
     return null;
@@ -104,9 +124,14 @@ function ApplicationShell() {
 
   async function handleLogout() {
     setIsLoggingOut(true);
+    setLogoutError(null);
     try {
       await logout();
       navigate("/login");
+    } catch {
+      // The session may still be live, so the viewer stays signed in
+      // rather than being shown a signed-out UI backed by a valid cookie.
+      setLogoutError("Could not sign out. Check your connection and retry.");
     } finally {
       setIsLoggingOut(false);
     }
@@ -134,6 +159,11 @@ function ApplicationShell() {
       </header>
       <section className="workspace" aria-labelledby="workspace-title">
         <h2 id="workspace-title">Application</h2>
+        {logoutError ? (
+          <p className="form-error" role="alert">
+            {logoutError}
+          </p>
+        ) : null}
         <p>Welcome back.</p>
       </section>
     </main>
@@ -145,7 +175,9 @@ function AuthenticatedRoutes() {
   const path = usePathname();
 
   useEffect(() => {
-    if (status === "loading") {
+    // "error" means the session is unknown, not that the viewer is signed
+    // out, so it must not redirect to the login route.
+    if (status === "loading" || status === "error") {
       return;
     }
     if (user === null && path !== "/login") {
@@ -162,6 +194,10 @@ function AuthenticatedRoutes() {
         <p className="loading-state">Loading KukGrade</p>
       </main>
     );
+  }
+
+  if (status === "error") {
+    return <ConnectionErrorPage />;
   }
 
   if (user === null) {

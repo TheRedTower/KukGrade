@@ -25,6 +25,30 @@ Default page size 50, `?page_size=` overridable to a maximum of 200, and an
 out-of-range page returns 404. Detail endpoints and custom actions return the
 object directly. See `backend/README.md` for the rationale.
 
+## 0b. Error responses
+
+Every error response uses one envelope:
+
+```json
+{"error": {"code": "validation_error",
+           "message": "The request contained invalid data.",
+           "fields": {"title": ["This field may not be blank."]}}}
+```
+
+- `code` is stable and machine-readable. Current codes: `validation_error`,
+  `authentication_required`, `authentication_failed`, `permission_denied`,
+  `not_found`, `method_not_allowed`, `csrf_failed`, `throttled`, `error`.
+- `message` is human-readable and safe to show. When a validation failure has
+  exactly one message it is promoted here, because a lone message is nearly
+  always a domain rule rather than a form error and should be usable as a
+  toast without inspecting `fields`. Several messages leave a generic summary.
+- `fields` is present **only** on `validation_error`. Keys mirror the
+  serializer; errors raised at serializer level are keyed `non_field_errors`.
+  Leaves are always plain strings.
+
+Unhandled server errors (500) are not enveloped: they never reach DRF's
+exception handler. A JSON 500 handler is tracked separately.
+
 ## 1. Authentication
 
 | Method | Endpoint              | Description                       |

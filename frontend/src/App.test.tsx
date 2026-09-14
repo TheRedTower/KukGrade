@@ -127,7 +127,15 @@ describe("App authentication", () => {
       .mockResolvedValueOnce(authRequiredResponse())
       .mockResolvedValueOnce(
         jsonResponse(400, {
-          email: ["Enter a valid email address."],
+          error: {
+            code: "validation_error",
+            message: "Unable to log in with the provided credentials.",
+            fields: {
+              non_field_errors: [
+                "Unable to log in with the provided credentials.",
+              ],
+            },
+          },
         }),
       );
     vi.stubGlobal("fetch", fetchMock);

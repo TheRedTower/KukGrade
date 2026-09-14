@@ -7,6 +7,7 @@ from typing import cast
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from rest_framework import mixins, status
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -419,14 +420,16 @@ class CandidateOutcomeViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        return Response(
-            {
-                "detail": (
-                    "Candidate outcomes are read-only except through proposal "
-                    "and finalisation actions."
-                ),
-            },
-            status=status.HTTP_400_BAD_REQUEST,
+        # PATCH is routed here by the router but is only meaningful on the
+        # propose and finalise actions, so the method genuinely is not
+        # allowed on the detail route. 405 rather than 400, and it flows
+        # through the shared error envelope.
+        raise MethodNotAllowed(
+            "PATCH",
+            detail=(
+                "Candidate outcomes are read-only except through the propose "
+                "and finalise actions."
+            ),
         )
 
     @action(detail=True, methods=["patch"])

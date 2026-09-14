@@ -376,6 +376,14 @@ class CandidateAssessment(models.Model):
             ),
         ]
         constraints = [
+            # Not redundant with the OneToOne on `candidate`: it is the
+            # unique target the composite foreign key from CandidateOutcome
+            # references, which is what stops an outcome being attached to
+            # another candidate's assessment.
+            models.UniqueConstraint(
+                fields=["id", "candidate"],
+                name="unique_assessment_id_candidate",
+            ),
             models.CheckConstraint(
                 condition=Q(
                     status__in=["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
@@ -752,9 +760,13 @@ class CandidateAssessmentItem(models.Model):
         choices=Result.choices,
         default=Result.NOT_ASSESSED,
     )
+    # PROTECT, not SET_NULL. Every other attribution field on these models
+    # already protects: generated_by, proposed_by, decided_by, promoted_by.
+    # Nulling an assessor on user deletion would both erase who judged an
+    # item and violate the attribution constraint below.
     assessor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         related_name="assessed_candidate_items",
         null=True,
         blank=True,
@@ -845,6 +857,23 @@ class CandidateAssessmentItem(models.Model):
                     "requirement_sequence",
                 ],
                 name="unique_assessment_item_snapshot",
+            ),
+            # A recorded judgement always says who made it and when; an
+            # unassessed item never claims either.
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        result="NOT_ASSESSED",
+                        assessor__isnull=True,
+                        assessed_at__isnull=True,
+                    )
+                    | Q(
+                        result__in=["MET", "NOT_MET"],
+                        assessor__isnull=False,
+                        assessed_at__isnull=False,
+                    )
+                ),
+                name="candidate_item_assessor_matches_result",
             ),
         ]
 

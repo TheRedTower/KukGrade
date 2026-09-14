@@ -143,12 +143,17 @@ def start_assessment(assessment: CandidateAssessment) -> CandidateAssessment:
     )
 
 
-def complete_assessment(assessment: CandidateAssessment) -> CandidateAssessment:
+def complete_assessment(
+    assessment: CandidateAssessment,
+    assessor: User | None = None,
+) -> CandidateAssessment:
     assessment.refresh_from_db()
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
         assessment = start_assessment(assessment)
     assessment.items.filter(required=True).update(
         result=CandidateAssessmentItem.Result.MET,
+        assessor=assessor or user(f"bulk-assessor-{assessment.pk}@example.com"),
+        assessed_at=timezone.now(),
     )
     return update_candidate_assessment(
         assessment,
@@ -1554,6 +1559,8 @@ def test_assessment_completion_requires_required_items_and_completes_candidate()
 
     generated.items.filter(required=True).update(
         result=CandidateAssessmentItem.Result.MET,
+        assessor=user(f"inline-assessor-{generated.pk}@example.com"),
+        assessed_at=timezone.now(),
     )
     completed = update_candidate_assessment(
         generated,
@@ -1586,6 +1593,8 @@ def test_optional_not_assessed_items_do_not_block_completion() -> None:
     )
     generated.items.filter(required=True).update(
         result=CandidateAssessmentItem.Result.MET,
+        assessor=user(f"inline-assessor-{generated.pk}@example.com"),
+        assessed_at=timezone.now(),
     )
 
     completed = update_candidate_assessment(
@@ -1607,6 +1616,8 @@ def test_completed_assessment_is_immutable() -> None:
     )
     generated.items.filter(required=True).update(
         result=CandidateAssessmentItem.Result.MET,
+        assessor=user(f"inline-assessor-{generated.pk}@example.com"),
+        assessed_at=timezone.now(),
     )
     completed = update_candidate_assessment(
         generated,
@@ -2047,12 +2058,15 @@ def test_candidate_outcome_database_constraints_are_enforced() -> None:
         )
     assert other_generated.pk is not None
 
+    # One consistent pair, so this exercises the status check constraint
+    # rather than tripping the composite foreign key on a mismatched pair.
+    status_built, status_generated = locked_completed_candidate()
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.bulk_create(
             [
                 CandidateOutcome(
-                    candidate=locked_completed_candidate()[0],
-                    assessment=locked_completed_candidate()[1],
+                    candidate=status_built,
+                    assessment=status_generated,
                     status="INVALID",
                 ),
             ],
@@ -2436,9 +2450,13 @@ def test_candidate_assessment_summary_uses_snapshot_categories_and_counts() -> N
     start_assessment(generated)
     required_items = list(generated.items.filter(required=True).order_by("pk"))
     required_items[0].result = CandidateAssessmentItem.Result.NOT_MET
+    required_items[0].assessor = user(f"not-met-assessor-{generated.pk}@example.com")
+    required_items[0].assessed_at = timezone.now()
     required_items[0].save()
     generated.items.filter(required=True).exclude(pk=required_items[0].pk).update(
         result=CandidateAssessmentItem.Result.MET,
+        assessor=user(f"summary-assessor-{generated.pk}@example.com"),
+        assessed_at=timezone.now(),
     )
     optional_snapshot = generated.items.get(source_requirement=optional_requirement)
     source_item = optional_snapshot.source_item
@@ -2720,27 +2738,19 @@ def test_promotion_database_constraints_and_model_validation() -> None:
         mismatch.full_clean()
     assert "outcome" in exc_info.value.message_dict
 
+    # Attaching an outcome to another candidate's assessment used to be
+    # possible through QuerySet.update(), which bypasses model validation.
+    # The composite foreign key now refuses the write itself, so the
+    # mismatched state this once set up can no longer exist (KG-010).
     assessment_mismatch_built, _assessment_mismatch_generated = (
         locked_completed_candidate()
     )
     assessment_mismatch_outcome = finalised_outcome(assessment_mismatch_built)
     _foreign_built, foreign_generated = locked_completed_candidate()
-    CandidateOutcome.objects.filter(pk=assessment_mismatch_outcome.pk).update(
-        assessment=foreign_generated,
-    )
-    assessment_mismatch_outcome.refresh_from_db()
-    mismatch_assessment = Promotion(
-        student=assessment_mismatch_built.student,
-        outcome=assessment_mismatch_outcome,
-        grading_candidate=assessment_mismatch_built,
-        from_rank=rank("WHITE"),
-        to_rank=rank("YELLOW_STRIPE"),
-        promoted_by=actor,
-        effective_date=assessment_mismatch_built.session.grading_date,
-    )
-    with pytest.raises(ValidationError) as assessment_exc:
-        mismatch_assessment.full_clean()
-    assert "assessment" in assessment_exc.value.message_dict
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateOutcome.objects.filter(pk=assessment_mismatch_outcome.pk).update(
+            assessment=foreign_generated,
+        )
 
     wrong_student = student(wksa_id="PROMO-WRONG-STUDENT")
     mismatch_student = Promotion(
@@ -2865,17 +2875,14 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
     with pytest.raises(ValidationError):
         promote_candidate(second_outcome, promoter("promotion-assessment@example.com"))
 
+    # The service still validates this, but the state is now unreachable:
+    # the database refuses to create it. See KG-010.
     mismatch_built, _mismatch_generated = locked_completed_candidate()
     mismatch_outcome = finalised_outcome(mismatch_built)
     _foreign_built, foreign_generated = locked_completed_candidate()
-    CandidateOutcome.objects.filter(pk=mismatch_outcome.pk).update(
-        assessment=foreign_generated,
-    )
-    mismatch_outcome.refresh_from_db()
-    with pytest.raises(ValidationError):
-        promote_candidate(
-            mismatch_outcome,
-            promoter("promotion-assessment-mismatch@example.com"),
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateOutcome.objects.filter(pk=mismatch_outcome.pk).update(
+            assessment=foreign_generated,
         )
 
     withdrawn, _withdrawn_assessment = locked_completed_candidate()
@@ -3569,3 +3576,76 @@ def test_withdraw_api_records_the_withdrawal() -> None:
     assert response.json()["status"] == GradingCandidate.Status.WITHDRAWN
     built.refresh_from_db()
     assert built.withdrawn_by == master_user
+
+
+# ---------------------------------------------------------------------------
+# Integrity guaranteed by the database, not only the model (KG-010, KG-011)
+# ---------------------------------------------------------------------------
+
+
+def test_outcome_cannot_be_attached_to_another_candidates_assessment() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    _other_built, other_generated = locked_completed_candidate()
+
+    # QuerySet.update() bypasses model validation entirely; before the
+    # composite foreign key this silently succeeded.
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateOutcome.objects.filter(pk=outcome.pk).update(
+            assessment=other_generated,
+        )
+
+
+def test_assessed_item_cannot_lose_its_assessor() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    item = generated.items.first()
+    assert item is not None
+    update_candidate_assessment_item(
+        item,
+        result=CandidateAssessmentItem.Result.MET,
+        assessor=user("keeps-attribution@example.com"),
+    )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessmentItem.objects.filter(pk=item.pk).update(
+            assessor=None,
+            assessed_at=None,
+        )
+
+
+def test_unassessed_item_cannot_claim_an_assessor() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    item = generated.items.first()
+    assert item is not None
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        CandidateAssessmentItem.objects.filter(pk=item.pk).update(
+            assessor=user("phantom-assessor@example.com"),
+            assessed_at=timezone.now(),
+        )
+
+
+def test_deleting_an_assessor_is_blocked_rather_than_erasing_attribution() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    item = generated.items.first()
+    assert item is not None
+    judge = user("protected-assessor@example.com")
+    update_candidate_assessment_item(
+        item,
+        result=CandidateAssessmentItem.Result.MET,
+        assessor=judge,
+    )
+
+    # Previously SET_NULL, which would have erased who judged the item and
+    # violated the attribution constraint. Now consistent with generated_by,
+    # proposed_by, decided_by and promoted_by.
+    with pytest.raises(ProtectedError):
+        judge.delete()

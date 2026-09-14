@@ -58,8 +58,11 @@ class UserManager(BaseUserManager["User"]):
 
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
+        # A label that decides group membership, never consulted when
+        # authorising a request. "manager" was removed in 2026-09: nothing
+        # used it, and the confirmed policy has instructors and
+        # administrators only.
         INSTRUCTOR = "instructor", "Instructor"
-        MANAGER = "manager", "Manager"
         ADMINISTRATOR = "administrator", "Administrator"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

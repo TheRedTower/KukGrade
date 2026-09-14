@@ -1,3 +1,15 @@
+"""Request authorisation.
+
+Django permissions are the authority primitive. A view declares, per action,
+exactly which permissions it requires; anything not declared is denied. Failing
+closed is deliberate - adding an endpoint without declaring its permissions
+locks everyone out, which is noticed immediately, rather than silently opening
+it to every authenticated user, which is not.
+
+`User.role` is never consulted here. It decides group membership, and the group
+carries the permissions. See `accounts/groups.py`.
+"""
+
 from __future__ import annotations
 
 from django.contrib.auth.models import AnonymousUser
@@ -20,42 +32,43 @@ def _active_user(request: Request) -> User | None:
     return user
 
 
-class IsAuthenticatedUser(BasePermission):
-    message = "Authentication is required."
+class HasRequiredPermissions(BasePermission):
+    """Require the permissions a view declares for the current action.
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        return _active_user(request) is not None
+    Views set `permission_map`, an action name to a tuple of permission
+    strings. An empty tuple means "authenticated is enough". A missing action
+    is denied.
+    """
 
-
-class IsInstructorOrAbove(BasePermission):
-    message = "Instructor access or above is required."
-
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        user = _active_user(request)
-        return user is not None and user.role in {
-            User.Role.INSTRUCTOR,
-            User.Role.MANAGER,
-            User.Role.ADMINISTRATOR,
-        }
-
-
-class IsManagerOrAdministrator(BasePermission):
-    message = "Manager or administrator access is required."
+    message = "You do not have permission to perform this action."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
-        return user is not None and user.role in {
-            User.Role.MANAGER,
-            User.Role.ADMINISTRATOR,
-        }
+        if user is None:
+            return False
 
+        permission_map: dict[str, tuple[str, ...]] | None = getattr(
+            view,
+            "permission_map",
+            None,
+        )
+        if permission_map is None:
+            return False
 
-class IsAdministrator(BasePermission):
-    message = "Administrator access is required."
+        action = getattr(view, "action", None)
+        if action is None:
+            # The HTTP method is not routed to any action, so there is no
+            # handler and DRF will answer 405. Denying here would turn an
+            # honest "that method does not exist" into a misleading 403.
+            # Guarded to ViewSets: an APIView has no action_map, and
+            # allowing one through would open it to every authenticated
+            # user, which is the opposite of failing closed.
+            return hasattr(view, "action_map")
+        if action not in permission_map:
+            return False
 
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        user = _active_user(request)
-        return user is not None and user.role == User.Role.ADMINISTRATOR
+        required = permission_map[action]
+        return all(user.has_perm(permission) for permission in required)
 
 
 class CanMakeFinalGradingDecision(BasePermission):
@@ -75,12 +88,9 @@ class CanPromoteStudent(BasePermission):
 
 
 __all__ = [
+    "FINAL_GRADING_DECISION_PERMISSION",
+    "PROMOTE_STUDENT_PERMISSION",
     "CanMakeFinalGradingDecision",
     "CanPromoteStudent",
-    "FINAL_GRADING_DECISION_PERMISSION",
-    "IsAdministrator",
-    "IsAuthenticatedUser",
-    "IsInstructorOrAbove",
-    "IsManagerOrAdministrator",
-    "PROMOTE_STUDENT_PERMISSION",
+    "HasRequiredPermissions",
 ]

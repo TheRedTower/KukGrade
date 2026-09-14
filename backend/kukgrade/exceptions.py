@@ -1,14 +1,92 @@
+"""A single error envelope for the whole API.
+
+Every error response the API produces has the same shape:
+
+    {"error": {"code": "...", "message": "...", "fields": {...}}}
+
+`code` is stable and machine-readable, `message` is human-readable, and
+`fields` is present only for validation errors. Previously three shapes
+coexisted - a structured envelope for authentication and permission errors,
+DRF's raw ``{"field": ["msg"]}`` for validation, and a bare ``{"detail": ...}``
+elsewhere - which meant the frontend could not reach per-field messages at all
+and every 400 degraded to a generic string.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
-from django.http import HttpRequest, JsonResponse
+from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.http import Http404, HttpRequest, JsonResponse
 from rest_framework import exceptions, status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
+# DRF's own default_code is used when an exception is not listed here. These
+# overrides exist where DRF's code is unhelpfully generic ("invalid") or where
+# the frontend already depends on the spelling.
+ERROR_CODES: dict[type[Exception], str] = {
+    exceptions.AuthenticationFailed: "authentication_failed",
+    exceptions.NotAuthenticated: "authentication_required",
+    exceptions.PermissionDenied: "permission_denied",
+    exceptions.ValidationError: "validation_error",
+}
 
-def _error_payload(code: str, message: str) -> dict[str, dict[str, str]]:
+GENERIC_VALIDATION_MESSAGE = "The request contained invalid data."
+NON_FIELD_KEY = "non_field_errors"
+
+
+def _stringify(value: Any) -> Any:
+    """Convert DRF's ErrorDetail leaves to plain strings, keeping structure.
+
+    Nested serializers produce nested dicts and lists; preserving that shape
+    is lossless and lets a client address a nested field if it ever needs to.
+    """
+    if isinstance(value, dict):
+        return {str(key): _stringify(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_stringify(item) for item in value]
+    return str(value)
+
+
+def _collect_messages(value: Any) -> list[str]:
+    """Flatten every leaf message, for deciding whether there is only one."""
+    if isinstance(value, dict):
+        return [msg for item in value.values() for msg in _collect_messages(item)]
+    if isinstance(value, list):
+        return [msg for item in value for msg in _collect_messages(item)]
+    return [str(value)]
+
+
+def _error_code(exc: Exception) -> str:
+    for exc_type, code in ERROR_CODES.items():
+        if isinstance(exc, exc_type):
+            return code
+    default_code = getattr(exc, "default_code", None)
+    return str(default_code) if default_code else "error"
+
+
+def _validation_payload(detail: Any) -> dict[str, Any]:
+    fields = (
+        _stringify(detail)
+        if isinstance(detail, dict)
+        else {NON_FIELD_KEY: _stringify(detail)}
+    )
+    messages = _collect_messages(detail)
+    # A single message is almost always a domain rule rather than a form
+    # error, so surfacing it directly gives a usable toast. Several messages
+    # belong against their fields, and the summary stays generic.
+    message = messages[0] if len(messages) == 1 else GENERIC_VALIDATION_MESSAGE
+    return {
+        "error": {
+            "code": "validation_error",
+            "message": message,
+            "fields": fields,
+        },
+    }
+
+
+def _error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
     return {"error": {"code": code, "message": message}}
 
 
@@ -20,13 +98,22 @@ def custom_exception_handler(
     if response is None:
         return None
 
-    if isinstance(exc, exceptions.AuthenticationFailed):
-        response.data = _error_payload("authentication_failed", str(exc.detail))
-    elif isinstance(exc, exceptions.NotAuthenticated):
-        response.data = _error_payload("authentication_required", str(exc.detail))
-    elif isinstance(exc, exceptions.PermissionDenied):
-        response.data = _error_payload("permission_denied", str(exc.detail))
+    # DRF's handler translates these two into APIException equivalents for
+    # the purpose of building the response, but the exception it hands us is
+    # still the original, which carries no default_code. Without mirroring
+    # the translation a 404 would be reported as the generic "error" code.
+    if isinstance(exc, Http404):
+        exc = exceptions.NotFound(*exc.args)
+    elif isinstance(exc, DjangoPermissionDenied):
+        exc = exceptions.PermissionDenied(*exc.args)
 
+    if isinstance(exc, exceptions.ValidationError):
+        response.data = _validation_payload(exc.detail)
+        return response
+
+    detail = getattr(exc, "detail", None)
+    message = str(detail) if detail is not None else str(exc)
+    response.data = _error_payload(_error_code(exc), message)
     return response
 
 

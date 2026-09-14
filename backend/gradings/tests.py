@@ -1176,7 +1176,12 @@ def test_candidate_api_invalid_next_rank_returns_validation_error() -> None:
     )
 
     assert response.status_code == 400
-    assert "testing_for_rank" in response.json()
+    payload = response.json()["error"]
+    assert payload["code"] == "validation_error"
+    assert "testing_for_rank" in payload["fields"]
+    # A single validation message is surfaced directly, so a toast is usable
+    # without the client having to dig through the fields map.
+    assert payload["message"] == payload["fields"]["testing_for_rank"][0]
 
 
 @pytest.mark.parametrize(
@@ -2592,7 +2597,8 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
         format="json",
     )
 
-    assert direct_patch.status_code == 400
+    assert direct_patch.status_code == 405
+    assert direct_patch.json()["error"]["code"] == "method_not_allowed"
     assert propose_response.status_code == 200
     assert propose_response.json()["proposed_by"] == str(actor.id)
     assert forbidden_finalise.status_code == 403
@@ -2603,7 +2609,7 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
     assert "final_outcome" not in summary_response.json()
     assert [item["id"] for item in results(list_response)] == [outcome_id]
     assert delete_response.status_code == 405
-    assert finalised_patch.status_code == 400
+    assert finalised_patch.status_code == 405
 
 
 def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> None:

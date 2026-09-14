@@ -20,15 +20,49 @@ export type AuthUser = {
   is_superuser: boolean;
 };
 
+/**
+ * Per-field validation messages, mirroring the serializer's shape. Values are
+ * message lists for ordinary fields; nested serializers nest further. Errors
+ * raised at serializer level rather than against a field are keyed under
+ * `non_field_errors`.
+ */
+export type FieldErrors = { [field: string]: string[] | FieldErrors };
+
+export type ApiErrorBody = {
+  error?: {
+    code?: string;
+    message?: string;
+    fields?: FieldErrors;
+  };
+};
+
 export class ApiError extends Error {
   status: number;
   code?: string;
+  fields?: FieldErrors;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    fields?: FieldErrors,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.fields = fields;
+  }
+
+  /** Messages for one field, or an empty array when it has no errors. */
+  messagesFor(field: string): string[] {
+    const value = this.fields?.[field];
+    return Array.isArray(value) ? value : [];
+  }
+
+  /** Errors raised against the request as a whole rather than a field. */
+  get nonFieldMessages(): string[] {
+    return this.messagesFor("non_field_errors");
   }
 }
 
@@ -74,17 +108,17 @@ async function apiRequest<T>(
   if (!response.ok) {
     let message = `API request failed with status ${response.status}`;
     let code: string | undefined;
+    let fields: FieldErrors | undefined;
     try {
-      const body = (await response.json()) as {
-        detail?: string;
-        error?: { code?: string; message?: string };
-      };
-      message = body.error?.message ?? body.detail ?? message;
+      const body = (await response.json()) as ApiErrorBody;
+      message = body.error?.message ?? message;
       code = body.error?.code;
+      fields = body.error?.fields;
     } catch {
-      // Keep the status-derived message when the response is not JSON.
+      // Keep the status-derived message when the response is not JSON,
+      // which is what a proxy error or a gateway timeout looks like.
     }
-    throw new ApiError(message, response.status, code);
+    throw new ApiError(message, response.status, code, fields);
   }
 
   if (response.status === 204) {

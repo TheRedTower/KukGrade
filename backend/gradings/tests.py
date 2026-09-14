@@ -9,6 +9,8 @@ from django.apps import apps
 from django.contrib import admin
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.contrib.sessions.backends.db import SessionStore
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
@@ -3199,3 +3201,129 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
 def test_all_new_tests_use_postgresql_backend() -> None:
     assert connection.vendor == "postgresql"
     assert apps.is_installed("gradings")
+
+
+# ---------------------------------------------------------------------------
+# Deletion rules hold from every path, not just the API (KG-009)
+# ---------------------------------------------------------------------------
+
+
+def test_session_delete_rule_holds_from_model_delete() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+
+    with pytest.raises(ValidationError):
+        session.delete()
+
+    assert GradingSession.objects.filter(pk=session.pk).exists()
+
+
+def test_session_delete_rule_holds_from_queryset_delete() -> None:
+    # QuerySet.delete() does not call Model.delete(); before this it was the
+    # simplest way to walk past the rule entirely.
+    session = grading_session(status=GradingSession.Status.OPEN)
+
+    with pytest.raises(ValidationError):
+        GradingSession.objects.filter(pk=session.pk).delete()
+
+    assert GradingSession.objects.filter(pk=session.pk).exists()
+
+
+def test_session_delete_rule_blocks_a_whole_bulk_selection() -> None:
+    deletable = grading_session(status=GradingSession.Status.DRAFT)
+    blocked = grading_session(status=GradingSession.Status.OPEN)
+
+    with pytest.raises(ValidationError):
+        GradingSession.objects.filter(pk__in=[deletable.pk, blocked.pk]).delete()
+
+    # All or nothing: the deletable row must not vanish alongside the refusal.
+    assert GradingSession.objects.filter(pk=deletable.pk).exists()
+    assert GradingSession.objects.filter(pk=blocked.pk).exists()
+
+
+def test_draft_session_still_deletes_from_every_path() -> None:
+    by_model = grading_session(status=GradingSession.Status.DRAFT)
+    by_queryset = grading_session(status=GradingSession.Status.CANCELLED)
+
+    by_model.delete()
+    GradingSession.objects.filter(pk=by_queryset.pk).delete()
+
+    assert not GradingSession.objects.filter(
+        pk__in=[by_model.pk, by_queryset.pk],
+    ).exists()
+
+
+def test_candidate_delete_rule_holds_from_model_and_queryset() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+
+    with pytest.raises(ValidationError):
+        built.delete()
+    with pytest.raises(ValidationError):
+        GradingCandidate.objects.filter(pk=built.pk).delete()
+
+    assert GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_candidate_delete_rule_holds_through_the_related_manager() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+
+    with pytest.raises(ValidationError):
+        session.candidates.all().delete()
+
+    assert GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_admin_hides_delete_for_a_session_that_cannot_be_deleted() -> None:
+    request = RequestFactory().get("/admin/")
+    request.user = User.objects.create_superuser("delete-admin@example.com")
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+    draft_session = grading_session(status=GradingSession.Status.DRAFT)
+
+    assert model_admin.has_delete_permission(request, open_session) is False
+    assert model_admin.has_delete_permission(request, draft_session) is True
+    # The changelist still offers the action; delete_queryset does the check.
+    assert model_admin.has_delete_permission(request, None) is True
+
+
+def test_admin_bulk_delete_refuses_the_whole_selection() -> None:
+    request = RequestFactory().post("/admin/")
+    request.user = User.objects.create_superuser("bulk-admin@example.com")
+    request.session = SessionStore()
+    request._messages = FallbackStorage(request)  # type: ignore[attr-defined]
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    deletable = grading_session(status=GradingSession.Status.DRAFT)
+    blocked = grading_session(status=GradingSession.Status.OPEN)
+
+    model_admin.delete_queryset(
+        request,
+        GradingSession.objects.filter(pk__in=[deletable.pk, blocked.pk]),
+    )
+
+    assert GradingSession.objects.filter(pk=deletable.pk).exists()
+    assert GradingSession.objects.filter(pk=blocked.pk).exists()
+
+
+def test_admin_bulk_delete_proceeds_when_every_row_is_deletable() -> None:
+    request = RequestFactory().post("/admin/")
+    request.user = User.objects.create_superuser("bulk-ok-admin@example.com")
+    request.session = SessionStore()
+    request._messages = FallbackStorage(request)  # type: ignore[attr-defined]
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    first = grading_session(status=GradingSession.Status.DRAFT)
+    second = grading_session(status=GradingSession.Status.CANCELLED)
+
+    model_admin.delete_queryset(
+        request,
+        GradingSession.objects.filter(pk__in=[first.pk, second.pk]),
+    )
+
+    assert not GradingSession.objects.filter(pk__in=[first.pk, second.pk]).exists()

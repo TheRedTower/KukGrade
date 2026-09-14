@@ -2275,7 +2275,6 @@ def test_finalisation_rules_permissions_and_conditional_policy() -> None:
             "",
             user(
                 "finalise-legacy-boolean@example.com",
-                can_make_final_grading_decision=True,
             ),
         )
     with pytest.raises(ValidationError):
@@ -2775,7 +2774,6 @@ def test_promotion_permission_is_separate_from_final_decision_authority() -> Non
             outcome,
             user(
                 "promotion-legacy-boolean@example.com",
-                can_make_final_grading_decision=True,
             ),
         )
     with pytest.raises(ValidationError):

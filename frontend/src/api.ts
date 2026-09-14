@@ -5,7 +5,7 @@ export type HealthResponse = {
   status: "ok";
 };
 
-export type UserRole = "instructor" | "manager" | "administrator";
+export type UserRole = "instructor" | "administrator";
 
 export type AuthUser = {
   id: string;
@@ -15,7 +15,13 @@ export type AuthUser = {
   full_name: string;
   role: UserRole;
   role_display: string;
+  /**
+   * Computed server-side from the permissions that gate these actions, so
+   * they cannot disagree with what the API will allow. Use them to hide
+   * affordances only - the server is the enforcement boundary.
+   */
   can_make_final_grading_decision: boolean;
+  can_promote_student: boolean;
   is_staff: boolean;
   is_superuser: boolean;
 };

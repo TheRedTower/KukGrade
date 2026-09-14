@@ -10,6 +10,7 @@ blank error message in the browser.
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import pytest
 from django.contrib.auth.models import Permission
@@ -28,15 +29,16 @@ def auth_client(email: str = "errors@example.com") -> APIClient:
     return api
 
 
-def envelope(response: object) -> dict[str, object]:
-    payload = response.json()  # type: ignore[attr-defined]
+def envelope(response: Any) -> dict[str, Any]:
+    payload = response.json()
     assert set(payload) == {"error"}, payload
     error = payload["error"]
     assert set(error) <= {"code", "message", "fields"}
     assert {"code", "message"} <= set(error)
     assert isinstance(error["code"], str) and error["code"]
     assert isinstance(error["message"], str) and error["message"]
-    return error
+    typed: dict[str, Any] = error
+    return typed
 
 
 def test_unauthenticated_request_uses_the_envelope() -> None:

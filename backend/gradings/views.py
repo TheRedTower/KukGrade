@@ -7,8 +7,8 @@ from typing import cast
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import QuerySet
 from rest_framework import mixins, status
-from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response

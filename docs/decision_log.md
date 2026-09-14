@@ -18,6 +18,99 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-14 - Frontend stack and generated API types
+
+Status: Accepted
+
+Decision:
+React Router for navigation and TanStack Query for server state. API response
+types are generated from a `drf-spectacular` OpenAPI schema rather than
+hand-maintained, so the frontend's description of server data cannot silently
+drift from the serializers.
+
+Context:
+Phase 3 is the critical path at 4-6 weeks and could not start without this. The
+2026-09-13 error-envelope decision deferred `drf-spectacular`, leaving types
+hand-written; that deferral is now reversed. The existing error envelope stays
+as built - it already matches the shape the industry converged on, and
+`drf-standardized-errors` would only have earned its place by generating the
+schema, which `drf-spectacular` now does directly.
+
+No hand-written API types anywhere. This includes the existing ones in
+`frontend/src/api.ts` - `AuthUser`, `HealthResponse` and the error-envelope
+types are replaced by generated equivalents rather than left as exceptions.
+
+Consequences:
+Three dependencies, each justified. Type generation costs roughly half a day to
+wire and removes a class of failure that otherwise surfaces mid-grading rather
+than at build time. The generated schema must be regenerated whenever a
+serializer changes; CI should check it is current, so a serializer change that
+nobody mirrors fails the build rather than a screen.
+
+### 2026-09-14 - Syllabus versioning deferred, not cancelled
+
+Status: Accepted
+
+Decision:
+Do not build `SyllabusVersion`, the spreadsheet import, or a syllabus upload
+screen now. Syllabus content is maintained directly by the project owner when
+an update is needed. Revisit when a second real edition exists.
+
+Context:
+The 2026-09-13 syllabus versioning decision assumed instructors would author
+versions in the app. The owner will handle updates personally instead. The
+capability map already gives instructors view-only syllabus access and no
+Django admin, so the syllabus is effectively immutable to everyone using the
+application, which was the property "set in stone" was protecting. Assessment
+snapshots independently protect historical gradings from any later change.
+
+Consequences:
+Saves the 3-4 day Phase 2b slice. KG-014 returns to its original P3 rating:
+the outstanding gap is provenance - "which edition was this graded against" is
+unanswerable - not correctness. Replacing syllabus rows in place will leave
+existing snapshots intact but unlinked to their source, which is the cost of
+deferring.
+
+### 2026-09-14 - Data erasure handled manually
+
+Status: Accepted
+
+Decision:
+Build no anonymisation or erasure mechanism. Erasure requests are handled
+manually if one arises. `KG-NEXT-019` is dropped from the backlog.
+
+Context:
+The recommendation was anonymise-in-place: strip name and date of birth, keep
+the grading record so a rank retains its provenance. The owner accepts handling
+this by hand instead.
+
+Consequences:
+PROTECT foreign keys mean a student with grading history cannot be deleted
+through the application at all, so a manual request needs direct database work.
+Recorded here so the position is deliberate rather than an oversight. Revisit if
+the club grows or a request actually arrives.
+
+### 2026-09-14 - Student status semantics
+
+Status: Accepted
+
+Decision:
+`Student` gains `ACTIVE`, `INACTIVE`, and `LEFT`, replacing the binary
+`is_active` flag. `INACTIVE` means a temporary break - injury, exams, travel -
+and blocks nothing. `LEFT` blocks registration as a grading candidate. Both are
+reversible, and grading history is retained in every case.
+
+Context:
+AGENTS.md lists the three values as a confirmed requirement (audit KG-025) but
+never defined their behaviour. It also states that missing a grading must never
+automatically mean a student left, so status is only ever changed deliberately
+by a person.
+
+Consequences:
+Migration maps `is_active=True` to `ACTIVE` and `False` to `INACTIVE`, the
+conservative reading: an existing inactive student is on a break, not gone.
+Candidate registration gains a status check.
+
 ### 2026-09-13 - Syllabus versioning and immutability
 
 Status: Accepted

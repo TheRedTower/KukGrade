@@ -9,6 +9,7 @@ blank error message in the browser.
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from typing import Any
 
@@ -165,3 +166,21 @@ def test_domain_rule_violation_reaches_the_client_with_its_field() -> None:
     assert response.status_code == 400
     assert "status" in error["fields"]
     assert "Cannot transition" in error["fields"]["status"][0]
+
+
+def test_unhandled_server_errors_are_enveloped_too() -> None:
+    # A 500 never reaches DRF's exception handler, so without handler500 the
+    # API answers with Django's HTML page and a browser client shows a blank
+    # screen rather than a message.
+    from django.test import Client
+
+    from kukgrade.exceptions import server_error
+
+    response = server_error(Client().request(PATH_INFO="/boom").wsgi_request)
+
+    assert response.status_code == 500
+    payload = json.loads(response.content)
+    assert payload["error"]["code"] == "server_error"
+    assert "try again" in payload["error"]["message"]
+    # The cause belongs in the logs, not the response.
+    assert "Traceback" not in response.content.decode()

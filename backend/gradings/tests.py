@@ -2919,21 +2919,15 @@ def test_promotion_rejects_rank_progression_drift() -> None:
         promote_candidate(inactive_outcome, promoter("promotion-inactive@example.com"))
 
 
-def test_promotion_effective_date_policy_and_atomic_failure() -> None:
+def test_promotion_is_always_dated_the_grading_it_came_from() -> None:
+    # There is no effective_date parameter: a promotion belongs to its
+    # grading, and the caller has no say in the date.
     built, _generated = locked_completed_candidate()
     outcome = finalised_outcome(built)
-    original_rank = built.student.current_rank
 
-    with pytest.raises(ValidationError):
-        promote_candidate(
-            outcome,
-            promoter("promotion-date@example.com"),
-            effective_date=date(2027, 3, 21),
-        )
+    promotion = promote_candidate(outcome, promoter("promotion-date@example.com"))
 
-    built.student.refresh_from_db()
-    assert built.student.current_rank == original_rank
-    assert not Promotion.objects.filter(outcome=outcome).exists()
+    assert promotion.effective_date == built.session.grading_date
 
 
 def test_promotion_records_are_immutable_and_protected() -> None:
@@ -3649,3 +3643,34 @@ def test_deleting_an_assessor_is_blocked_rather_than_erasing_attribution() -> No
     # proposed_by, decided_by and promoted_by.
     with pytest.raises(ProtectedError):
         judge.delete()
+
+
+def test_cancelled_session_with_recorded_marking_cannot_be_deleted() -> None:
+    # Deleting it would cascade real assessment work away, and there is no
+    # audit trail to reconstruct it from.
+    session, built = locked_session_with_unfinished_candidate()
+    transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("cancel-then-delete@example.com"),
+        reason="Abandoned mid-grading.",
+    )
+    session.refresh_from_db()
+
+    with pytest.raises(ValidationError) as exc_info:
+        session.delete()
+
+    assert "assessment work" in str(exc_info.value)
+    assert GradingSession.objects.filter(pk=session.pk).exists()
+    assert GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_cancelled_session_without_marking_is_still_deletable() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    candidate(session=session)
+    transition_grading_session(session, GradingSession.Status.CANCELLED)
+    session.refresh_from_db()
+
+    session.delete()
+
+    assert not GradingSession.objects.filter(pk=session.pk).exists()

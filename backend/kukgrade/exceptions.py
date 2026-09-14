@@ -122,3 +122,23 @@ def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:
         _error_payload("csrf_failed", "CSRF verification failed."),
         status=status.HTTP_403_FORBIDDEN,
     )
+
+
+def server_error(request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
+    """Handler500 for the project.
+
+    An unhandled exception never reaches DRF's exception handler, so without
+    this the API answers with Django's HTML error page. A browser client
+    parsing it as JSON gets nothing usable and shows a blank screen, which is
+    the worst possible presentation of "something broke".
+
+    Deliberately says nothing about the cause: with DEBUG off the detail
+    belongs in the logs, not in a response.
+    """
+    return JsonResponse(
+        _error_payload(
+            "server_error",
+            "Something went wrong on the server. Please try again.",
+        ),
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )

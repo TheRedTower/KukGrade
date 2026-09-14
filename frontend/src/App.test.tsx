@@ -178,3 +178,116 @@ describe("App authentication", () => {
     expect(window.location.pathname).toBe("/login");
   });
 });
+
+describe("Connection failures are not sign-outs", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("shows a retryable error for a server fault instead of the login page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(500, {
+          error: { code: "error", message: "Internal Server Error" },
+        }),
+      ),
+    );
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Can’t reach KukGrade" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Sign in" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "KukGrade is not responding",
+    );
+  });
+
+  it("shows a retryable error when the network is unreachable", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "KukGrade could not be reached",
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Sign in" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not redirect to the login route on a connection failure", async () => {
+    window.history.replaceState({}, "", "/sessions");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("alert");
+    expect(window.location.pathname).toBe("/sessions");
+  });
+
+  it("recovers to the application shell when the retry succeeds", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(jsonResponse(200, authUser));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Casey Instructor")).toBeVisible();
+    });
+  });
+
+  it("still treats a genuine authentication answer as anonymous", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" }),
+    ).toBeVisible();
+  });
+
+  it("keeps the viewer signed in when sign-out fails", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, authUser))
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    // The session may still be live, so a signed-out UI would be a lie.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not sign out",
+    );
+    expect(screen.getByText("Casey Instructor")).toBeVisible();
+    expect(window.location.pathname).toBe("/");
+  });
+});

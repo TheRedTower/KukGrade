@@ -1,15 +1,26 @@
 from __future__ import annotations
 
 from django.contrib.auth import login, logout
+from django.db.models import Q, QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
-from rest_framework import status
+from rest_framework import mixins, status
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import GenericViewSet
 
-from accounts.serializers import LoginSerializer, UserSerializer
+from accounts.models import User
+from accounts.permissions import HasRequiredPermissions
+from accounts.serializers import (
+    LoginSerializer,
+    SetPasswordSerializer,
+    UserAuthoritySerializer,
+    UserManagementSerializer,
+    UserSerializer,
+)
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -38,3 +49,87 @@ class CurrentUserView(APIView):
 
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(request.user).data)
+
+
+class UserViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet,
+):
+    """The administrator-facing users API.
+
+    No delete: every attribution foreign key in this codebase is PROTECT,
+    so a user who has graded, proposed, decided or promoted anyone cannot be
+    removed. Deactivate via is_active instead. No PUT: partial_update covers
+    every real edit.
+    """
+
+    http_method_names = ["get", "post", "patch", "head", "options"]
+    permission_classes = [HasRequiredPermissions]
+    serializer_class = UserManagementSerializer
+    permission_map = {
+        "list": ("accounts.view_user",),
+        "retrieve": ("accounts.view_user",),
+        "create": ("accounts.add_user",),
+        "partial_update": ("accounts.change_user",),
+        "authority": ("accounts.change_user",),
+        "set_password": ("accounts.change_user",),
+    }
+
+    def get_queryset(self) -> QuerySet[User]:
+        queryset = User.objects.all().order_by("email")
+
+        role_filter = self.request.query_params.get("role")
+        if role_filter in User.Role.values:
+            queryset = queryset.filter(role=role_filter)
+        elif role_filter:
+            queryset = queryset.none()
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(email__icontains=search)
+                | Q(first_name__icontains=search)
+                | Q(last_name__icontains=search),
+            )
+
+        return queryset
+
+    @action(detail=True, methods=["patch"])
+    def authority(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        target = self.get_object()
+        serializer = UserAuthoritySerializer(
+            target,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(
+            UserManagementSerializer(updated, context={"request": request}).data,
+        )
+
+    @action(detail=True, methods=["post"], url_path="set-password")
+    def set_password(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        target = self.get_object()
+        serializer = SetPasswordSerializer(
+            target,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)

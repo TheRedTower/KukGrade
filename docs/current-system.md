@@ -58,6 +58,14 @@ are all clean, and CI enforces every one of them on each push.
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are
   PROTECT.
+- **Users API**: list, retrieve, create, partial update, plus two dedicated
+  actions. `PATCH /api/users/{id}/authority/` grants or revokes the three
+  sensitive permissions as booleans in the same shape `/api/auth/me/`
+  returns them, and refuses a user changing their own authority.
+  `POST /api/users/{id}/set-password/` resets a password, validated by
+  Django's configured password validators. `is_staff` and `is_superuser`
+  are never writable through the API. No delete: every attribution
+  foreign key is `PROTECT`.
 - **Audit log**: append-only `audit` app recording session, candidate,
   assessment, item, outcome and promotion actions. Written inside the acting
   service's transaction, so no event survives a rolled-back action. Outcome
@@ -72,9 +80,6 @@ are all clean, and CI enforces every one of them on each push.
 
 - **Concurrency tests.** Every locking guarantee is asserted by reading the
   code, not by running two transactions at once.
-- **User management.** Administrators hold the permissions but cannot reach
-  them: Django admin needs `is_staff`, which no group grants, and there is no
-  user API. Granting Master authority requires a superuser.
 - **Any grading screen.** The frontend is the authentication shell only.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.

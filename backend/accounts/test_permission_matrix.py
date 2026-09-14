@@ -268,12 +268,19 @@ STANDARD_ACTION_METHODS = {
 
 
 def routed_viewsets() -> list[tuple[str, Any]]:
+    from accounts.urls import router as accounts_router
     from gradings.urls import router as gradings_router
     from ranks.urls import router as ranks_router
     from students.urls import router as students_router
     from syllabus.urls import router as syllabus_router
 
-    routers = [gradings_router, ranks_router, students_router, syllabus_router]
+    routers = [
+        accounts_router,
+        gradings_router,
+        ranks_router,
+        students_router,
+        syllabus_router,
+    ]
     return [
         (f"{viewset.__name__}", viewset)
         for router in routers
@@ -312,12 +319,19 @@ _VERB_TO_MIXIN_ACTION = {"put": "update", "delete": "destroy"}
 
 def routed_detail_routes() -> list[tuple[str, str, Any]]:
     """(url_name, basename, viewset) for every registered detail route."""
+    from accounts.urls import router as accounts_router
     from gradings.urls import router as gradings_router
     from ranks.urls import router as ranks_router
     from students.urls import router as students_router
     from syllabus.urls import router as syllabus_router
 
-    routers = [gradings_router, ranks_router, students_router, syllabus_router]
+    routers = [
+        accounts_router,
+        gradings_router,
+        ranks_router,
+        students_router,
+        syllabus_router,
+    ]
     return [
         (f"{basename}-detail", basename, viewset)
         for router in routers

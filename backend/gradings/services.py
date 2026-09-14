@@ -406,6 +406,24 @@ def validate_session_can_be_deleted(session: GradingSession) -> None:
         raise ValidationError(
             {"status": ["Only draft or cancelled grading sessions can be deleted."]},
         )
+    # A cancelled session can have come from OPEN, so it may hold assessments
+    # people actually sat. Deleting it cascades that work away silently, and
+    # there is no audit trail to reconstruct it from. Cancel, do not erase.
+    if (
+        session.candidates.exclude(
+            assessment__status=CandidateAssessment.Status.NOT_STARTED,
+        )
+        .filter(assessment__isnull=False)
+        .exists()
+    ):
+        raise ValidationError(
+            {
+                "session": [
+                    "This session cannot be deleted because assessment work "
+                    "has already been recorded against it. Cancel it instead.",
+                ],
+            },
+        )
 
 
 def validate_candidate_can_be_changed(candidate: GradingCandidate) -> None:
@@ -791,9 +809,15 @@ def validate_promotion_eligibility(
 def promote_candidate(
     outcome: CandidateOutcome,
     actor: User,
-    effective_date: date | None = None,
     notes: str = "",
 ) -> Promotion:
+    """Promote a candidate whose outcome was a finalised PASS.
+
+    The promotion is always dated the grading it came from, so there is no
+    effective_date parameter: validation required any value passed to equal
+    the session date, which made the argument redundant when correct and
+    rejected when not.
+    """
     validate_promotion_actor(actor)
     locked_outcome = (
         CandidateOutcome.objects.select_for_update()
@@ -813,7 +837,7 @@ def promote_candidate(
         .select_related("current_rank")
         .get(pk=locked_candidate.student_id)
     )
-    candidate_effective_date = effective_date or locked_candidate.session.grading_date
+    candidate_effective_date = locked_candidate.session.grading_date
     from_rank, to_rank = validate_promotion_eligibility(
         outcome=locked_outcome,
         candidate=locked_candidate,

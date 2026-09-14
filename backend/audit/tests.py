@@ -273,3 +273,24 @@ def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> Non
     client.force_authenticate(user=user("audit-badfilter@example.com"))
 
     assert client.get("/api/audit-events/?action=NONSENSE").json()["count"] == 0
+
+
+def test_deleting_a_session_records_what_was_cascaded_away() -> None:
+    from .conftest_helpers import draft_session_with_candidates
+
+    session, candidates = draft_session_with_candidates()
+    actor = User.objects.get(email="audit-creator@example.com")
+
+    from gradings.services import delete_grading_session
+
+    delete_grading_session(session, actor=actor)
+
+    event = AuditEvent.objects.get(action=AuditAction.SESSION_DELETED)
+    cascaded = event.metadata["cascaded_candidates"]
+
+    # Otherwise two candidates would disappear with nothing recording it.
+    assert len(cascaded) == len(candidates)
+    assert {c["student_wksa_id"] for c in cascaded} == {
+        c.student.wksa_id for c in candidates
+    }
+    assert "removing 2 registered candidate(s)" in event.summary

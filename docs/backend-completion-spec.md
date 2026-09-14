@@ -8,7 +8,7 @@ Order matters: dependencies are noted per item.
 
 ---
 
-## 1 · AuditEvent  (NEXT-018, closes KG-007, KG-034)
+## 1 · AuditEvent  (NEXT-018, closes KG-007, KG-034) — **DONE 2026-09-14**
 
 **Why.** Outcome revisions are currently neither gated nor logged. An
 instructor may freely overwrite another's proposed outcome, and the Master who
@@ -244,7 +244,7 @@ records failures without writing personal data or credentials into logs.
 
 | # | Item | Depends on | Estimate |
 |---|---|---|---|
-| 1 | AuditEvent | — | 1.5–2 days |
+| 1 | AuditEvent | — | ~~1.5–2 days~~ **done** |
 | 2 | Students API | — | 1 day |
 | 3 | Users API | 1 (authority change is audited) | 2–3 days |
 | 4 | End-to-end test | 2, 3 | 0.5 day |

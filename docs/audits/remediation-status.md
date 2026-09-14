@@ -19,7 +19,7 @@ documentation, independent review with no blocker, and recorded evidence.
 | H-02 | Assessment lifecycle and snapshot immutability are not model-level invariants | High | Open | | Required | Required | |
 | H-03 | Confirmed least-privilege/role enforcement is not implemented | High | Open | | Required | Required | |
 | H-04 | Exact syllabus-version provenance is absent | High | Open | | Required | Required | |
-| H-05 | Sensitive-action audit logging is not implemented | High | Open | | Required | Required | |
+| H-05 | Sensitive-action audit logging is not implemented | High | Closed | | Required | Required | |
 | H-06 | Parent/child workflow transactions are vulnerable to stale-state races | High | Open | | Required | Required | |
 | M-01 | Legacy final-decision boolean is dead, exposed, and misleading | Medium | Open | | Required | Required | |
 | M-02 | Student status and rank governance do not match confirmed requirements | Medium | Open | | Required | Required | |
@@ -50,7 +50,7 @@ findings are `KG-nnn` and its verified status is in
 | H-01, H-02 (deletion / immutability bypass) | KG-009, **closed** |
 | H-03 (least privilege) | KG-001, **closed** |
 | H-04 (syllabus version) | KG-014, **deferred by decision** |
-| H-05 (audit logging) | KG-007, open |
+| H-05 (audit logging) | KG-007, **closed** |
 | H-06 (stale-state races) | KG-021, KG-022, open |
 | M-01 (legacy boolean) | KG-003, **closed** |
 | M-02 (student status) | KG-025, **closed** |

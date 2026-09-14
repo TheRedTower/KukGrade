@@ -1189,12 +1189,34 @@ def create_grading_session(
 @transaction.atomic
 def delete_grading_session(session: GradingSession, actor: User | None = None) -> None:
     # Recorded before the row goes, so the event still carries its identity.
+    #
+    # Deleting a session cascades its candidates away. Recording only the
+    # session would leave those disappearances invisible, so the cascade is
+    # captured here rather than emitting one event per candidate, which on a
+    # twenty-candidate session would bury the deletion that caused it.
+    cascaded = list(
+        session.candidates.values_list("id", "student__wksa_id"),
+    )
     record(
         AuditAction.SESSION_DELETED,
         session,
-        f"Grading session '{session.title}' deleted while {session.status}.",
+        (
+            f"Grading session '{session.title}' deleted while {session.status}"
+            + (
+                f", removing {len(cascaded)} registered candidate(s)."
+                if cascaded
+                else "."
+            )
+        ),
         actor=actor,
-        metadata={"status": session.status, "title": session.title},
+        metadata={
+            "status": session.status,
+            "title": session.title,
+            "cascaded_candidates": [
+                {"id": candidate_id, "student_wksa_id": wksa_id}
+                for candidate_id, wksa_id in cascaded
+            ],
+        },
     )
     session.delete()
 

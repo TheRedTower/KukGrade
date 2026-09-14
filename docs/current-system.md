@@ -50,13 +50,18 @@ are all clean, and CI enforces every one of them on each push.
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are
   PROTECT.
+- **Audit log**: append-only `audit` app recording session, candidate,
+  assessment, item, outcome and promotion actions. Written inside the acting
+  service's transaction, so no event survives a rolled-back action. Outcome
+  revisions carry the previous proposal, which is what makes a disagreement
+  visible. Immutable from model, queryset, admin and HTTP. Readable and
+  filterable by any signed-in user.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server".
 
 ## Not Implemented
 
-- **Audit events.** Decided and accepted, not yet built. Outcome revisions are
-  currently neither gated nor logged.
+
 - **Concurrency tests.** Every locking guarantee is asserted by reading the
   code, not by running two transactions at once.
 - **Student list, retrieve and create endpoints.** Only

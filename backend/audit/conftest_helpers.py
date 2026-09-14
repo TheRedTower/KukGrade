@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import date
 
 from accounts.models import User
-from gradings.models import CandidateAssessmentItem, CandidateOutcome, GradingSession
+from gradings.models import (
+    CandidateAssessmentItem,
+    CandidateOutcome,
+    GradingCandidate,
+    GradingSession,
+)
 from gradings.services import (
     create_candidate_outcome,
     create_grading_session,
@@ -63,3 +68,32 @@ def locked_completed_candidate_with_outcome() -> tuple[CandidateOutcome, User, U
     candidate.refresh_from_db()
     outcome = create_candidate_outcome(candidate, creator)
     return outcome, first, second
+
+
+def draft_session_with_candidates() -> tuple[GradingSession, list[GradingCandidate]]:
+    creator = User.objects.create_user(email="audit-creator@example.com")
+    session = create_grading_session(
+        title="Cascade grading",
+        grading_date=date(2027, 12, 1),
+        location="",
+        notes="",
+        created_by=creator,
+    )
+    candidates = []
+    for index in range(2):
+        student = Student.objects.create(
+            wksa_id=f"CASCADE-{index}",
+            first_name="Cascade",
+            last_name=f"Student{index}",
+            date_of_birth=date(2010, 1, 1),
+            current_rank=Rank.objects.get(code="WHITE"),
+        )
+        candidates.append(
+            register_candidate(
+                session=session,
+                student=student,
+                testing_for_rank=Rank.objects.get(code="YELLOW_STRIPE"),
+                actor=creator,
+            ),
+        )
+    return session, candidates

@@ -185,6 +185,7 @@ def test_current_user_returns_authenticated_user() -> None:
         # Computed from the permission, not from a stored flag.
         "can_make_final_grading_decision": True,
         "can_promote_student": False,
+        "can_override_locked_session": False,
         "is_staff": False,
         "is_superuser": False,
     }
@@ -361,6 +362,43 @@ def test_superuser_capabilities_reflect_implicit_authority() -> None:
 
     assert payload["can_make_final_grading_decision"] is True
     assert payload["can_promote_student"] is True
+    assert payload["can_override_locked_session"] is True
+
+
+def test_me_override_locked_session_capability_is_computed_from_its_permission() -> (
+    None
+):
+    # can_override_locked_session was added to the model after
+    # can_make_final_grading_decision and can_promote_student; nothing
+    # updated the serializer when it landed, so /api/auth/me/ silently
+    # never reported it. Found while building the users API, which reuses
+    # this exact response shape.
+    from django.contrib.auth.models import Permission
+    from django.contrib.contenttypes.models import ContentType
+
+    from gradings.models import GradingSession
+
+    user = create_user("override-caps@example.com")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    before = client.get("/api/auth/me/").json()
+    assert before["can_override_locked_session"] is False
+
+    user.user_permissions.add(
+        Permission.objects.get(
+            codename="can_override_locked_session",
+            content_type=ContentType.objects.get_for_model(GradingSession),
+        ),
+    )
+    user = User.objects.get(pk=user.pk)  # drop the permission cache
+    client.force_authenticate(user=user)
+
+    after = client.get("/api/auth/me/").json()
+    assert after["can_override_locked_session"] is True
+    # Independent of the other two, exactly as the model intends.
+    assert after["can_make_final_grading_decision"] is False
+    assert after["can_promote_student"] is False
 
 
 def test_role_alone_never_grants_grading_authority() -> None:
@@ -375,3 +413,4 @@ def test_role_alone_never_grants_grading_authority() -> None:
 
     assert payload["can_make_final_grading_decision"] is False
     assert payload["can_promote_student"] is False
+    assert payload["can_override_locked_session"] is False

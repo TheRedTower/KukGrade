@@ -15,6 +15,7 @@ const authUser = {
   role_display: "Instructor",
   can_make_final_grading_decision: false,
   can_promote_student: false,
+  can_override_locked_session: false,
   is_staff: false,
   is_superuser: false,
 };

@@ -22,6 +22,7 @@ export type AuthUser = {
    */
   can_make_final_grading_decision: boolean;
   can_promote_student: boolean;
+  can_override_locked_session: boolean;
   is_staff: boolean;
   is_superuser: boolean;
 };

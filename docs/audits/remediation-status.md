@@ -39,6 +39,29 @@ documentation, independent review with no blocker, and recorded evidence.
 | L-04 | Health endpoint is liveness only | Low | Open | | Required if readiness added | Required if readiness added | |
 | L-05 | Whitespace-only values are not uniformly database-protected | Low | Open | | Required if changed | Required if policy changes | |
 
+## 2026-09-14 Verification Audit
+
+The independent audit of 2026-09-13 superseded this register's numbering. Its
+findings are `KG-nnn` and its verified status is in
+`docs/audits/2026-09-14-verification-audit.md`. Mapping for the prior register:
+
+| Prior | Now |
+|---|---|
+| H-01, H-02 (deletion / immutability bypass) | KG-009, **closed** |
+| H-03 (least privilege) | KG-001, **closed** |
+| H-04 (syllabus version) | KG-014, **deferred by decision** |
+| H-05 (audit logging) | KG-007, open |
+| H-06 (stale-state races) | KG-021, KG-022, open |
+| M-01 (legacy boolean) | KG-003, **closed** |
+| M-02 (student status) | KG-025, **closed** |
+| M-03, M-04 (DB invariants) | KG-010, KG-011, **closed** |
+| M-05 (documentation truth) | recurred as KG-033, **closed again** |
+| M-06 (category semantics) | still blocked by decision |
+| M-07, M-08 (frontend errors) | KG-016, KG-015, **closed** |
+| M-09 (settings fail open) | KG-002, **closed** |
+| M-10 (no CI) | KG-019, **closed** |
+| M-11, M-12, L-01..L-05 | open, all P3 |
+
 ## Stage 0 Baseline Reconciliation
 
 Performed against `/Users/adi/VScode/KukGrade` on `dev` at

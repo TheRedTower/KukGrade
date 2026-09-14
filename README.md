@@ -24,8 +24,11 @@ exact syllabus requirements assessed for each candidate and store per-item
 `MET`, `NOT_MET`, or `NOT_ASSESSED` results. Candidate outcome records now
 support proposed `PASS`, `FAIL`, or `CONDITIONAL` outcomes, informational
 category summaries, and immutable final decisions by users with final grading
-decision authority. Automatic promotion, `Student.current_rank` updates,
-promotion history, certificates, and worker implementation remain deferred.
+decision authority. Promotion, `Student.current_rank` updates and immutable rank history are now
+implemented, as are role-based permissions, CI, pagination, a single error
+envelope, and an exit for locked sessions. Certificates and worker
+implementation remain deferred. See `docs/current-system.md` for the verified
+current state.
 
 ## Confirmed Direction
 
@@ -330,8 +333,9 @@ Existing planning inputs remain available in `docs/action_plan.md`, `docs/api_co
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No student API/UI, rank updates, promotion history, automatic promotion,
-  certificates, payments, notifications, correction/reopening workflow, or audit
-  implementation yet.
+- No student list/create API or UI, no user-management API, no audit event
+  implementation, no certificates, payments, notifications, or
+  correction/reopening workflow yet. Rank updates and promotion history are
+  implemented.
 - No background worker implementation until there is a confirmed asynchronous workload.
-- No CI or production Docker image setup yet.
+- No production Docker image or deployment setup yet. CI is implemented.

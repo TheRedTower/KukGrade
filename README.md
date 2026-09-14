@@ -333,9 +333,9 @@ Existing planning inputs remain available in `docs/action_plan.md`, `docs/api_co
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No student list/create API or UI, no user-management API, no audit event
-  implementation, no certificates, payments, notifications, or
-  correction/reopening workflow yet. Rank updates and promotion history are
-  implemented.
+- No user-management API or UI yet. No certificates, payments,
+  notifications, or correction/reopening workflow yet. Students API
+  (list/retrieve/create/update), rank updates, promotion history and an
+  append-only audit log are implemented.
 - No background worker implementation until there is a confirmed asynchronous workload.
 - No production Docker image or deployment setup yet. CI is implemented.

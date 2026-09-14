@@ -315,3 +315,53 @@ def test_every_routed_action_declares_its_permissions(
     missing = reachable_actions(viewset) - declared
 
     assert not missing, f"{name} does not declare permissions for: {sorted(missing)}"
+
+
+def test_excluded_http_method_answers_not_allowed_not_permission_denied() -> None:
+    """PUT on a PATCH-only viewset must be 405, not a masked 403.
+
+    DRF's router binds 'put' to whatever the view's update mixin provides
+    regardless of http_method_names, so `view.action` is a real, bound
+    action here - not None - and would otherwise be denied as an
+    undeclared action before Django's own method check is ever reached.
+    """
+    from datetime import date
+
+    from gradings.models import GradingSession
+    from gradings.services import (
+        build_candidate,
+        generate_candidate_assessment,
+    )
+    from ranks.models import Rank
+    from students.models import Student
+
+    creator = User.objects.create_user(email="method-check-creator@example.com")
+    session = GradingSession.objects.create(
+        title="Method check",
+        grading_date=date(2027, 8, 1),
+        created_by=creator,
+    )
+    learner = Student.objects.create(
+        wksa_id="METHODCHECK",
+        first_name="Method",
+        last_name="Check",
+        date_of_birth=date(2010, 1, 1),
+        current_rank=Rank.objects.get(code="WHITE"),
+    )
+    candidate = build_candidate(
+        session=session,
+        student=learner,
+        testing_for_rank=Rank.objects.get(code="YELLOW_STRIPE"),
+    )
+    candidate.save()
+    assessment = generate_candidate_assessment(candidate, creator)
+
+    client = administrator("method-check@example.com")
+    response = client.put(
+        f"/api/gradings/assessments/{assessment.id}/",
+        {"notes": "x"},
+        format="json",
+    )
+
+    assert response.status_code == 405
+    assert response.json()["error"]["code"] == "method_not_allowed"

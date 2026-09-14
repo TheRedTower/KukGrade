@@ -56,14 +56,26 @@ class HasRequiredPermissions(BasePermission):
         if permission_map is None:
             return False
 
+        # A method a view has deliberately excluded via http_method_names
+        # (e.g. PUT on a PATCH-only viewset) must answer 405, not 403.
+        # DRF's router still binds 'put' to whatever method the relevant
+        # mixin provides regardless of http_method_names, so `view.action`
+        # is a real, bound action here - not None - and would otherwise be
+        # denied as undeclared. Checked ahead of the action lookup so it
+        # takes priority over "undeclared action" for exactly this case.
+        method = (request.method or "").lower()
+        allowed_methods = getattr(view, "http_method_names", None)
+        if allowed_methods is not None and method not in allowed_methods:
+            return True
+
         action = getattr(view, "action", None)
         if action is None:
-            # The HTTP method is not routed to any action, so there is no
-            # handler and DRF will answer 405. Denying here would turn an
-            # honest "that method does not exist" into a misleading 403.
-            # Guarded to ViewSets: an APIView has no action_map, and
-            # allowing one through would open it to every authenticated
-            # user, which is the opposite of failing closed.
+            # The HTTP method is not routed to any action at all, so there
+            # is no handler and DRF will answer 405. Denying here would
+            # turn an honest "that method does not exist" into a
+            # misleading 403. Guarded to ViewSets: an APIView has no
+            # action_map, and allowing one through would open it to every
+            # authenticated user, which is the opposite of failing closed.
             return hasattr(view, "action_map")
         if action not in permission_map:
             return False

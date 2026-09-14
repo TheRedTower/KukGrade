@@ -16,6 +16,7 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 from accounts.models import User
 from accounts.permissions import (
     CanMakeFinalGradingDecision,
+    CanOverrideLockedSession,
     CanPromoteStudent,
     HasRequiredPermissions,
 )
@@ -36,6 +37,7 @@ from gradings.serializers import (
     CandidatePromotionSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
+    LockedCandidateWithdrawalSerializer,
     PromotionSerializer,
     raise_drf_validation_error,
 )
@@ -136,6 +138,9 @@ class GradingCandidateViewSet(ModelViewSet):
         # rather than for the candidate they hang off.
         "generate_assessment": ("gradings.add_candidateassessment",),
         "create_outcome": ("gradings.add_candidateoutcome",),
+        # The sensitive half is enforced by CanOverrideLockedSession on the
+        # action itself, which also gives a clearer message.
+        "withdraw": ("gradings.change_gradingcandidate",),
     }
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
@@ -209,6 +214,30 @@ class GradingCandidateViewSet(ModelViewSet):
             context={"request": request},
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[HasRequiredPermissions, CanOverrideLockedSession],
+    )
+    def withdraw(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        candidate = self.get_object()
+        serializer = LockedCandidateWithdrawalSerializer(
+            candidate,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(
+            GradingCandidateSerializer(updated, context={"request": request}).data,
+        )
 
     @action(detail=True, methods=["post"], url_path="create-outcome")
     def create_outcome(

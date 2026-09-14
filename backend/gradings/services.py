@@ -11,6 +11,7 @@ from django.utils import timezone
 from accounts.models import User
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
+    OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
 from gradings.models import (
@@ -36,6 +37,10 @@ ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
     },
     GradingSession.Status.LOCKED: {
         GradingSession.Status.COMPLETED,
+        # An abandoned grading needs somewhere to go. Without this a locked
+        # session could only ever be completed, so a candidate who could not
+        # finish blocked it permanently.
+        GradingSession.Status.CANCELLED,
     },
     GradingSession.Status.COMPLETED: set(),
     GradingSession.Status.CANCELLED: set(),
@@ -243,11 +248,23 @@ def validate_grading_session_transition(
     validate_session_transition(persisted.status, target_status, session=persisted)
 
 
+def validate_locked_session_override_actor(actor: User | None) -> None:
+    if actor is None or not actor.is_active:
+        raise ValidationError(
+            {"actor": ["Locked session override authority is required."]}
+        )
+    if not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION):
+        raise ValidationError(
+            {"actor": ["Locked session override authority is required."]}
+        )
+
+
 @transaction.atomic
 def transition_grading_session(
     session: GradingSession,
     target_status: str,
     actor: User | None = None,
+    reason: str = "",
 ) -> GradingSession:
     if session.pk is None:
         raise ValidationError(
@@ -263,13 +280,93 @@ def transition_grading_session(
         session=locked_session,
     )
 
+    cancellation_reason = locked_session.cancellation_reason
+    abandoning_a_locked_session = (
+        locked_session.status == GradingSession.Status.LOCKED
+        and target_status == GradingSession.Status.CANCELLED
+    )
+    if abandoning_a_locked_session:
+        # Candidates have already been assessed here, so this needs both
+        # authority and a recorded justification.
+        validate_locked_session_override_actor(actor)
+        cancellation_reason = (reason or "").strip()
+        if not cancellation_reason:
+            raise ValidationError(
+                {
+                    "cancellation_reason": [
+                        "A reason is required to cancel a locked grading session.",
+                    ],
+                },
+            )
+
     locked_session.status = target_status
+    locked_session.cancellation_reason = cancellation_reason
     locked_session.updated_at = timezone.now()
     GradingSession.objects.filter(pk=locked_session.pk).update(
         status=locked_session.status,
+        cancellation_reason=locked_session.cancellation_reason,
         updated_at=locked_session.updated_at,
     )
     return locked_session
+
+
+@transaction.atomic
+def withdraw_locked_candidate(
+    candidate: GradingCandidate,
+    reason: str,
+    note: str,
+    actor: User,
+) -> GradingCandidate:
+    """Withdraw a candidate who cannot finish, from a locked session.
+
+    Without this the only way out was to mark their unassessed required items
+    NOT_MET and finalise a FAIL, which writes fabricated results into a record
+    the system then correctly refuses to change. Their partial assessment is
+    kept exactly as recorded.
+    """
+    validate_locked_session_override_actor(actor)
+    locked_candidate = (
+        GradingCandidate.objects.select_for_update(of=("self",))
+        .select_related("session", "student")
+        .get(pk=candidate.pk)
+    )
+
+    if locked_candidate.session.status != GradingSession.Status.LOCKED:
+        raise ValidationError(
+            {
+                "session": [
+                    "This withdrawal path is only for locked sessions. Use an "
+                    "ordinary candidate update while the session is draft or open.",
+                ],
+            },
+        )
+    if locked_candidate.status == GradingCandidate.Status.WITHDRAWN:
+        raise ValidationError({"candidate": ["Candidate is already withdrawn."]})
+    if reason not in GradingCandidate.WithdrawalReason.values:
+        raise ValidationError({"withdrawal_reason": ["Invalid withdrawal reason."]})
+
+    outcome = getattr(locked_candidate, "outcome", None)
+    if outcome is not None:
+        if outcome.status == CandidateOutcome.Status.FINALISED:
+            raise ValidationError(
+                {
+                    "candidate": [
+                        "A candidate with a finalised outcome cannot be withdrawn.",
+                    ],
+                },
+            )
+        # A draft or proposed outcome was never a decision, and leaving one
+        # attached to a withdrawn candidate would misrepresent the record.
+        outcome.delete()
+
+    locked_candidate.status = GradingCandidate.Status.WITHDRAWN
+    locked_candidate.withdrawal_reason = reason
+    locked_candidate.withdrawal_note = (note or "").strip()
+    locked_candidate.withdrawn_by = actor
+    locked_candidate.withdrawn_at = timezone.now()
+    locked_candidate._allow_locked_withdrawal = True
+    locked_candidate.save()
+    return locked_candidate
 
 
 def validate_session_grading_date_change(session: GradingSession) -> None:
@@ -312,6 +409,8 @@ def validate_session_can_be_deleted(session: GradingSession) -> None:
 
 
 def validate_candidate_can_be_changed(candidate: GradingCandidate) -> None:
+    if getattr(candidate, "_allow_locked_withdrawal", False):
+        return
     if candidate.session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.OPEN,
@@ -334,6 +433,8 @@ def validate_candidate_assessment_changes(
     testing_for_rank_changed: bool = False,
     status: str | None = None,
 ) -> None:
+    if getattr(candidate, "_allow_locked_withdrawal", False):
+        return
     assessment = getattr(candidate, "assessment", None)
     if assessment is None:
         if status == GradingCandidate.Status.COMPLETED:

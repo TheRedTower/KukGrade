@@ -56,6 +56,7 @@ from gradings.services import (
     update_candidate_assessment_item,
     validate_candidate_can_be_deleted,
     validate_session_transition,
+    withdraw_locked_candidate,
 )
 from kukgrade.testing import results
 from ranks.models import Rank
@@ -322,6 +323,10 @@ def test_grading_session_ordering_is_deterministic() -> None:
         (GradingSession.Status.OPEN, GradingSession.Status.LOCKED),
         (GradingSession.Status.OPEN, GradingSession.Status.CANCELLED),
         (GradingSession.Status.LOCKED, GradingSession.Status.COMPLETED),
+        # Added 2026-09: an abandoned grading needs an exit. Authority and a
+        # recorded reason are enforced by transition_grading_session, not by
+        # the transition table.
+        (GradingSession.Status.LOCKED, GradingSession.Status.CANCELLED),
     ],
 )
 def test_valid_lifecycle_transitions(from_status: str, to_status: str) -> None:
@@ -334,7 +339,6 @@ def test_valid_lifecycle_transitions(from_status: str, to_status: str) -> None:
         (GradingSession.Status.DRAFT, GradingSession.Status.LOCKED),
         (GradingSession.Status.DRAFT, GradingSession.Status.COMPLETED),
         (GradingSession.Status.OPEN, GradingSession.Status.COMPLETED),
-        (GradingSession.Status.LOCKED, GradingSession.Status.CANCELLED),
         (GradingSession.Status.LOCKED, GradingSession.Status.OPEN),
         (GradingSession.Status.COMPLETED, GradingSession.Status.OPEN),
         (GradingSession.Status.CANCELLED, GradingSession.Status.OPEN),
@@ -3327,3 +3331,241 @@ def test_admin_bulk_delete_proceeds_when_every_row_is_deletable() -> None:
     )
 
     assert not GradingSession.objects.filter(pk__in=[first.pk, second.pk]).exists()
+
+
+# ---------------------------------------------------------------------------
+# A locked session always has an honest way out (KG-008)
+# ---------------------------------------------------------------------------
+
+
+def override_master(email: str) -> User:
+    actor = user(email)
+    actor.user_permissions.add(
+        Permission.objects.get(
+            codename="can_override_locked_session",
+            content_type=ContentType.objects.get_for_model(GradingSession),
+        ),
+    )
+    return User.objects.get(pk=actor.pk)
+
+
+def locked_session_with_unfinished_candidate() -> tuple[
+    GradingSession, GradingCandidate
+]:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    session.refresh_from_db()
+    return session, built
+
+
+def test_candidate_who_cannot_finish_no_longer_blocks_a_locked_session() -> None:
+    # The whole point of the finding: before this, an injured candidate could
+    # only be cleared by marking their unassessed items NOT_MET and finalising
+    # a FAIL, fabricating results into a record the system will not let anyone
+    # correct afterwards.
+    session, built = locked_session_with_unfinished_candidate()
+    master_user = override_master("override-master@example.com")
+
+    withdrawn = withdraw_locked_candidate(
+        built,
+        reason=GradingCandidate.WithdrawalReason.INJURY,
+        note="Ankle injury during breaking.",
+        actor=master_user,
+    )
+
+    assert withdrawn.status == GradingCandidate.Status.WITHDRAWN
+    assert withdrawn.withdrawal_reason == GradingCandidate.WithdrawalReason.INJURY
+    assert withdrawn.withdrawn_by == master_user
+    assert withdrawn.withdrawn_at is not None
+
+    # And the session can now complete, since withdrawn candidates do not block.
+    completed = transition_grading_session(
+        session,
+        GradingSession.Status.COMPLETED,
+    )
+    assert completed.status == GradingSession.Status.COMPLETED
+
+
+def test_withdrawal_keeps_the_partial_assessment_exactly_as_recorded() -> None:
+    session, built = locked_session_with_unfinished_candidate()
+    generated = built.assessment
+    item = generated.items.first()
+    assert item is not None
+    update_candidate_assessment_item(
+        item,
+        result=CandidateAssessmentItem.Result.MET,
+        assessor=user("partial-assessor@example.com"),
+    )
+
+    withdraw_locked_candidate(
+        built,
+        reason=GradingCandidate.WithdrawalReason.INJURY,
+        note="",
+        actor=override_master("keeps-partial@example.com"),
+    )
+
+    item.refresh_from_db()
+    generated.refresh_from_db()
+    assert item.result == CandidateAssessmentItem.Result.MET
+    assert generated.status == CandidateAssessment.Status.IN_PROGRESS
+
+
+def test_locked_withdrawal_requires_authority() -> None:
+    _session, built = locked_session_with_unfinished_candidate()
+
+    with pytest.raises(ValidationError):
+        withdraw_locked_candidate(
+            built,
+            reason=GradingCandidate.WithdrawalReason.INJURY,
+            note="",
+            actor=user("no-override-authority@example.com"),
+        )
+
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+
+
+def test_locked_withdrawal_is_refused_once_the_outcome_is_finalised() -> None:
+    built, _generated = locked_completed_candidate()
+    finalised_outcome(built)
+
+    with pytest.raises(ValidationError) as exc_info:
+        withdraw_locked_candidate(
+            built,
+            reason=GradingCandidate.WithdrawalReason.WITHDREW,
+            note="",
+            actor=override_master("too-late@example.com"),
+        )
+
+    assert "finalised outcome" in str(exc_info.value)
+
+
+def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = create_candidate_outcome(built, user("draft-outcome@example.com"))
+    propose_candidate_outcome(
+        outcome,
+        proposed_outcome=CandidateOutcome.Outcome.PASS,
+        proposal_notes="",
+        actor=user("proposer-before-withdrawal@example.com"),
+    )
+
+    withdraw_locked_candidate(
+        built,
+        reason=GradingCandidate.WithdrawalReason.ADMIN_ERROR,
+        note="Registered against the wrong session.",
+        actor=override_master("clears-proposal@example.com"),
+    )
+
+    # A proposal was never a decision; leaving it attached to a withdrawn
+    # candidate would misrepresent the record.
+    assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+
+
+def test_locked_withdrawal_rejects_an_unknown_reason() -> None:
+    _session, built = locked_session_with_unfinished_candidate()
+
+    with pytest.raises(ValidationError):
+        withdraw_locked_candidate(
+            built,
+            reason="BECAUSE",
+            note="",
+            actor=override_master("bad-reason@example.com"),
+        )
+
+
+def test_cancelling_a_locked_session_requires_authority_and_a_reason() -> None:
+    session, _built = locked_session_with_unfinished_candidate()
+
+    with pytest.raises(ValidationError):
+        transition_grading_session(
+            session,
+            GradingSession.Status.CANCELLED,
+            actor=user("cannot-cancel-locked@example.com"),
+        )
+
+    with pytest.raises(ValidationError) as exc_info:
+        transition_grading_session(
+            session,
+            GradingSession.Status.CANCELLED,
+            actor=override_master("no-reason-given@example.com"),
+            reason="   ",
+        )
+    assert "reason is required" in str(exc_info.value)
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+
+
+def test_cancelling_a_locked_session_records_the_reason() -> None:
+    session, _built = locked_session_with_unfinished_candidate()
+
+    cancelled = transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("cancels-locked@example.com"),
+        reason="Venue lost; grading abandoned.",
+    )
+
+    assert cancelled.status == GradingSession.Status.CANCELLED
+    assert cancelled.cancellation_reason == "Venue lost; grading abandoned."
+
+
+def test_cancelling_a_draft_session_still_needs_no_reason() -> None:
+    session = grading_session(status=GradingSession.Status.DRAFT)
+
+    cancelled = transition_grading_session(session, GradingSession.Status.CANCELLED)
+
+    assert cancelled.status == GradingSession.Status.CANCELLED
+    assert cancelled.cancellation_reason == ""
+
+
+def test_withdrawal_attribution_is_a_database_constraint() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            GradingCandidate.objects.filter(pk=built.pk).update(
+                withdrawal_reason=GradingCandidate.WithdrawalReason.INJURY,
+                withdrawn_by=None,
+                withdrawn_at=None,
+            )
+
+
+def test_withdraw_api_requires_override_authority() -> None:
+    _session, built = locked_session_with_unfinished_candidate()
+    client = auth_client("withdraw-api-plain@example.com")
+
+    response = client.post(
+        f"/api/gradings/candidates/{built.id}/withdraw/",
+        {"withdrawal_reason": GradingCandidate.WithdrawalReason.INJURY},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "permission_denied"
+
+
+def test_withdraw_api_records_the_withdrawal() -> None:
+    _session, built = locked_session_with_unfinished_candidate()
+    master_user = override_master("withdraw-api-master@example.com")
+    client = APIClient()
+    client.force_authenticate(user=master_user)
+
+    response = client.post(
+        f"/api/gradings/candidates/{built.id}/withdraw/",
+        {
+            "withdrawal_reason": GradingCandidate.WithdrawalReason.ABSENT,
+            "withdrawal_note": "Did not arrive.",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == GradingCandidate.Status.WITHDRAWN
+    built.refresh_from_db()
+    assert built.withdrawn_by == master_user

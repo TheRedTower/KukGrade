@@ -25,10 +25,12 @@ membership and is never consulted when authorising a request.
 | Propose or revise an outcome | Yes | Yes | via group |
 | **Final grading decision** | No | No | **Yes** |
 | **Promote a student** | No | No | **Yes** |
+| **Withdraw from / cancel a locked session** | No | No | **Yes** |
 | Manage users and roles | No | Yes | via group |
 
-"Master" is not a group. `gradings.can_make_final_grading_decision` and
-`gradings.can_promote_student` are granted per user, independently of role, so
+"Master" is not a group. `gradings.can_make_final_grading_decision`,
+`gradings.can_promote_student` and `gradings.can_override_locked_session` are
+granted per user, independently of role, so
 authority survives one person being unavailable and never arrives as a side
 effect of a role change. The two are separate: holding one does not confer the
 other.

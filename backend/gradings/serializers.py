@@ -26,6 +26,7 @@ from gradings.services import (
     update_candidate_assessment_item,
     validate_session_grading_date_change,
     validate_session_transition,
+    withdraw_locked_candidate,
 )
 from ranks.models import Rank
 from students.models import Student
@@ -54,6 +55,7 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "status_display",
             "location",
             "notes",
+            "cancellation_reason",
             "created_by",
             "created_by_email",
             "created_at",
@@ -100,6 +102,7 @@ class GradingSessionSerializer(serializers.ModelSerializer):
         validated_data: dict[str, Any],
     ) -> GradingSession:
         target_status = cast(str | None, validated_data.pop("status", None))
+        reason = cast(str, validated_data.pop("cancellation_reason", ""))
         try:
             with transaction.atomic():
                 if validated_data:
@@ -112,6 +115,7 @@ class GradingSessionSerializer(serializers.ModelSerializer):
                         instance,
                         target_status,
                         actor=self.context["request"].user,
+                        reason=reason,
                     )
                 return instance
         except DjangoValidationError as exc:
@@ -676,4 +680,34 @@ class CandidatePromotionSerializer(serializers.Serializer):
             raise_drf_validation_error(exc)
 
     def create(self, validated_data: dict[str, Any]) -> Promotion:
+        raise NotImplementedError
+
+
+class LockedCandidateWithdrawalSerializer(serializers.Serializer):
+    withdrawal_reason = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+    )
+    withdrawal_note = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def update(
+        self,
+        instance: GradingCandidate,
+        validated_data: dict[str, Any],
+    ) -> GradingCandidate:
+        request = self.context["request"]
+        try:
+            return withdraw_locked_candidate(
+                instance,
+                reason=str(validated_data["withdrawal_reason"]),
+                note=str(validated_data.get("withdrawal_note", "")),
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> GradingCandidate:
         raise NotImplementedError

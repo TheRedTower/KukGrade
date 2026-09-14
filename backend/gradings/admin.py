@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.forms import ModelForm
@@ -23,7 +23,9 @@ from gradings.services import (
     update_candidate,
     update_candidate_assessment,
     update_candidate_assessment_item,
+    validate_candidate_can_be_deleted,
     validate_grading_session_transition,
+    validate_session_can_be_deleted,
     validate_session_grading_date_change,
 )
 
@@ -60,8 +62,59 @@ class GradingSessionAdminForm(ModelForm):
         return cleaned_data
 
 
+class StateGatedDeleteMixin:
+    """Applies the service deletion rule to both admin delete paths.
+
+    The change page hides Delete when the rule refuses, and the changelist
+    bulk action refuses as a whole rather than part-deleting a selection.
+    Without this, admin bulk delete walked past rules the API enforced -
+    and instructors now hold the delete permissions, so the changelist is
+    the most reachable way to reach them.
+    """
+
+    deletion_validator: Any
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: Any = None,
+    ) -> bool:
+        if not super().has_delete_permission(request, obj):  # type: ignore[misc]
+            return False
+        if obj is None:
+            return True
+        try:
+            type(self).deletion_validator(obj)
+        except DjangoValidationError:
+            return False
+        return True
+
+    def delete_queryset(self, request: HttpRequest, queryset: Any) -> None:
+        blocked = [obj for obj in queryset if not self._is_deletable(obj)]
+        if blocked:
+            self.message_user(  # type: ignore[attr-defined]
+                request,
+                (
+                    f"Nothing was deleted. {len(blocked)} of the selected "
+                    f"records cannot be deleted in their current state: "
+                    f"{', '.join(str(obj) for obj in blocked[:5])}"
+                ),
+                level=messages.ERROR,
+            )
+            return
+        queryset.delete()
+
+    def _is_deletable(self, obj: Any) -> bool:
+        try:
+            type(self).deletion_validator(obj)
+        except DjangoValidationError:
+            return False
+        return True
+
+
 @admin.register(GradingSession)
-class GradingSessionAdmin(admin.ModelAdmin):
+class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
+    deletion_validator = staticmethod(validate_session_can_be_deleted)
     form = GradingSessionAdminForm
     list_display = (
         "title",
@@ -289,7 +342,8 @@ class GradingCandidateAdminForm(ModelForm):
 
 
 @admin.register(GradingCandidate)
-class GradingCandidateAdmin(admin.ModelAdmin):
+class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
+    deletion_validator = staticmethod(validate_candidate_can_be_deleted)
     form = GradingCandidateAdminForm
     list_display = (
         "session",

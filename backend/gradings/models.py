@@ -10,6 +10,17 @@ from django.db.models import F, Q
 from syllabus.models import AgeBand, SyllabusItem
 
 
+class GradingSessionQuerySet(models.QuerySet["GradingSession"]):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        # QuerySet.delete() does not call Model.delete(), so the rule has to
+        # be applied here too or a bulk delete walks straight past it.
+        from gradings.services import validate_session_can_be_deleted
+
+        for session in self:
+            validate_session_can_be_deleted(session)
+        return super().delete()
+
+
 class GradingSession(models.Model):
     class Status(models.TextChoices):
         DRAFT = "DRAFT", "Draft"
@@ -34,6 +45,8 @@ class GradingSession(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = GradingSessionQuerySet.as_manager()
 
     class Meta:
         ordering = ["-grading_date", "created_at"]
@@ -70,6 +83,12 @@ class GradingSession(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        from gradings.services import validate_session_can_be_deleted
+
+        validate_session_can_be_deleted(self)
+        return super().delete(*args, **kwargs)
+
     def clean(self) -> None:
         super().clean()
         self.title = (self.title or "").strip()
@@ -102,6 +121,15 @@ class GradingSession(models.Model):
                 )
 
 
+class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        from gradings.services import validate_candidate_can_be_deleted
+
+        for candidate in self:
+            validate_candidate_can_be_deleted(candidate)
+        return super().delete()
+
+
 class GradingCandidate(models.Model):
     class Status(models.TextChoices):
         REGISTERED = "REGISTERED", "Registered"
@@ -132,6 +160,8 @@ class GradingCandidate(models.Model):
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = GradingCandidateQuerySet.as_manager()
 
     class Meta:
         ordering = [
@@ -183,6 +213,12 @@ class GradingCandidate(models.Model):
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()
         super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        from gradings.services import validate_candidate_can_be_deleted
+
+        validate_candidate_can_be_deleted(self)
+        return super().delete(*args, **kwargs)
 
     def clean(self) -> None:
         super().clean()

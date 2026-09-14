@@ -137,10 +137,16 @@ only while the parent session is draft or open.
 `created_by`, candidate `student`, and candidate `testing_for_rank` use
 protected foreign keys to preserve historical and reference relationships.
 
-Audit note: the repository audit found that some documented deletion and
-immutability rules are currently strongest through API/service/admin workflows
-and still need hardening at model, queryset, database, and concurrency
-boundaries. Track remediation in `../docs/audits/remediation-status.md`.
+Deletion rules are enforced at the model, so they hold from `Model.delete()`,
+`QuerySet.delete()`, a related manager, `manage.py shell` and Django admin -
+not only through the API. A bulk delete is all-or-nothing: if any row in the
+selection is refused, nothing is deleted, so a selection cannot be
+part-applied. Admin hides Delete on a change page when the rule refuses.
+
+One boundary deliberately remains: deleting a session the rule allows still
+cascades to its candidates and their assessments, because that is what
+deleting a draft or cancelled session means. Immutability and concurrency
+hardening are tracked in `../docs/audits/remediation-status.md`.
 
 ## Candidate Assessments
 

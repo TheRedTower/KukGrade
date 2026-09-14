@@ -83,7 +83,9 @@ describe("App authentication", () => {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeVisible();
     });
 
-    expect(window.location.pathname).toBe("/login");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/login");
+    });
   });
 
   it("logs in with a CSRF-protected session request", async () => {
@@ -176,7 +178,9 @@ describe("App authentication", () => {
         method: "POST",
       }),
     );
-    expect(window.location.pathname).toBe("/login");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/login");
+    });
   });
 });
 

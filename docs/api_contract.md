@@ -57,11 +57,11 @@ exception handler. A JSON 500 handler is tracked separately.
 | POST  | /api/auth/logout/      | Clear the current session |
 | GET   | /api/auth/me/          | Get the current user profile       |
 
-`/api/auth/me/` returns `can_make_final_grading_decision` and
-`can_promote_student`, both **computed from the caller's Django permissions**
-rather than stored. Use them to hide affordances; the server remains the
-enforcement boundary. `role` is `instructor` or `administrator` and carries no
-authority of its own.
+`/api/auth/me/` returns `can_make_final_grading_decision`,
+`can_promote_student` and `can_override_locked_session`, all **computed from
+the caller's Django permissions** rather than stored. Use them to hide
+affordances; the server remains the enforcement boundary. `role` is
+`instructor` or `administrator` and carries no authority of its own.
 
 Login failures use a generic error and must not reveal whether an account exists. Unsafe session-authenticated requests require a CSRF token. The React frontend obtains the CSRF cookie from `/api/auth/me/` during startup and sends credentials with API requests.
 

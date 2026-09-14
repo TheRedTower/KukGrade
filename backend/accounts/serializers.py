@@ -6,6 +6,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
+    OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
 
@@ -18,6 +19,7 @@ class UserSerializer(serializers.ModelSerializer):
     # model field that nothing consulted; it now means what it says.
     can_make_final_grading_decision = serializers.SerializerMethodField()
     can_promote_student = serializers.SerializerMethodField()
+    can_override_locked_session = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -31,6 +33,7 @@ class UserSerializer(serializers.ModelSerializer):
             "role_display",
             "can_make_final_grading_decision",
             "can_promote_student",
+            "can_override_locked_session",
             "is_staff",
             "is_superuser",
         )
@@ -41,6 +44,14 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_can_promote_student(self, obj: User) -> bool:
         return obj.has_perm(PROMOTE_STUDENT_PERMISSION)
+
+    def get_can_override_locked_session(self, obj: User) -> bool:
+        # Added after can_make_final_grading_decision / can_promote_student:
+        # this permission did not exist yet when those two were written, and
+        # nothing updated this serializer when it was introduced in the
+        # locked-session-exit work. Found while building the users API,
+        # which reuses this exact shape - fixed here rather than propagated.
+        return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
 
 
 class LoginSerializer(serializers.Serializer):

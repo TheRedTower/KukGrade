@@ -166,8 +166,8 @@ def test_current_user_returns_authenticated_user() -> None:
         email="current@example.com",
         first_name="Current",
         last_name="User",
-        can_make_final_grading_decision=True,
     )
+    grant_final_decision_permission(user)
     client = APIClient()
     client.force_authenticate(user=user)
 
@@ -182,7 +182,9 @@ def test_current_user_returns_authenticated_user() -> None:
         "full_name": "Current User",
         "role": User.Role.INSTRUCTOR,
         "role_display": "Instructor",
+        # Computed from the permission, not from a stored flag.
         "can_make_final_grading_decision": True,
+        "can_promote_student": False,
         "is_staff": False,
         "is_superuser": False,
     }
@@ -302,11 +304,6 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
     administrator_without_capability = create_user(
         "administrator-no-capability@example.com",
         role=User.Role.ADMINISTRATOR,
-        can_make_final_grading_decision=False,
-    )
-    legacy_boolean_only = create_user(
-        "legacy-boolean-only@example.com",
-        can_make_final_grading_decision=True,
     )
     superuser = User.objects.create_superuser("permission-superuser@example.com")
 
@@ -315,7 +312,6 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
         permission_result(CanMakeFinalGradingDecision, administrator_without_capability)
         is False
     )
-    assert permission_result(CanMakeFinalGradingDecision, legacy_boolean_only) is False
     assert permission_result(CanMakeFinalGradingDecision, superuser) is True
 
 
@@ -335,3 +331,47 @@ def test_inactive_users_fail_every_permission_check() -> None:
 
 def test_configured_user_model_is_custom_user() -> None:
     assert get_user_model() is User
+
+
+def test_me_capabilities_are_computed_from_permissions() -> None:
+    user = create_user("capabilities@example.com")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    before = client.get("/api/auth/me/").json()
+    assert before["can_make_final_grading_decision"] is False
+    assert before["can_promote_student"] is False
+
+    grant_final_decision_permission(user)
+    user = User.objects.get(pk=user.pk)  # drop the permission cache
+    client.force_authenticate(user=user)
+
+    after = client.get("/api/auth/me/").json()
+    # The same key that used to be a stored flag nothing consulted.
+    assert after["can_make_final_grading_decision"] is True
+    assert after["can_promote_student"] is False
+
+
+def test_superuser_capabilities_reflect_implicit_authority() -> None:
+    superuser = User.objects.create_superuser("super-caps@example.com")
+    client = APIClient()
+    client.force_authenticate(user=superuser)
+
+    payload = client.get("/api/auth/me/").json()
+
+    assert payload["can_make_final_grading_decision"] is True
+    assert payload["can_promote_student"] is True
+
+
+def test_role_alone_never_grants_grading_authority() -> None:
+    administrator = create_user(
+        "admin-no-authority@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    client = APIClient()
+    client.force_authenticate(user=administrator)
+
+    payload = client.get("/api/auth/me/").json()
+
+    assert payload["can_make_final_grading_decision"] is False
+    assert payload["can_promote_student"] is False

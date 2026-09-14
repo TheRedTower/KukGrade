@@ -50,7 +50,6 @@ class UserChangeForm(forms.ModelForm):
             "first_name",
             "last_name",
             "role",
-            "can_make_final_grading_decision",
             "is_active",
             "is_staff",
             "is_superuser",
@@ -71,13 +70,11 @@ class UserAdmin(DjangoUserAdmin):
         "first_name",
         "last_name",
         "role",
-        "can_make_final_grading_decision",
         "is_staff",
         "is_active",
     )
     list_filter = (
         "role",
-        "can_make_final_grading_decision",
         "is_staff",
         "is_superuser",
         "is_active",
@@ -90,7 +87,7 @@ class UserAdmin(DjangoUserAdmin):
         (_("Personal info"), {"fields": ("first_name", "last_name")}),
         (
             _("KukGrade access"),
-            {"fields": ("role", "can_make_final_grading_decision")},
+            {"fields": ("role",)},
         ),
         (
             _("Django permissions"),
@@ -116,7 +113,6 @@ class UserAdmin(DjangoUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
-                    "can_make_final_grading_decision",
                     "password1",
                     "password2",
                     "is_staff",

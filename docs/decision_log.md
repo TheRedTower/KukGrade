@@ -78,8 +78,8 @@ Groups and their Django permissions:
   publishing of new syllabus versions. No user or role management.
 - Administrator: everything an instructor has, plus user and role management.
 - Master: not a group. The three sensitive permissions
-  (`can_make_final_grading_decision`, `can_promote_student`, and the new
-  `can_withdraw_locked_candidate`) are grantable to any user independently of
+  (`can_make_final_grading_decision`, `can_promote_student`, and
+  `can_override_locked_session`) are grantable to any user independently of
   their group, so authority survives a specific person being unavailable.
 
 `User.Role` drops `manager`, leaving `instructor` and `administrator`.
@@ -185,6 +185,13 @@ Exam-board practice (absent and incomplete coded separately from any grade) and
 clinical data capture (never impute a value for "not done"; always record a
 reason) both support recording the true event rather than reusing a
 nearby-looking one.
+
+Amended on implementation: the permission is `can_override_locked_session`,
+not `can_withdraw_locked_candidate`. This decision has two exceptional
+post-lock actions - withdrawing a candidate and cancelling the session - and
+gating only the first would have left any instructor able to destroy a locked
+grading. They are the same kind of intervention, so they share one permission
+rather than proliferating two.
 
 Consequences:
 `validate_candidate_can_be_changed` and `validate_candidate_assessment_changes`

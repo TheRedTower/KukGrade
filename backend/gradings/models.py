@@ -38,6 +38,10 @@ class GradingSession(models.Model):
     )
     location = models.CharField(max_length=200, blank=True)
     notes = models.TextField(blank=True)
+    # Required only when cancelling a LOCKED session. Cancelling a draft is
+    # routine; abandoning a grading people have already been assessed in is
+    # exceptional and has to say why.
+    cancellation_reason = models.TextField(blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -50,6 +54,12 @@ class GradingSession(models.Model):
 
     class Meta:
         ordering = ["-grading_date", "created_at"]
+        permissions = [
+            (
+                "can_override_locked_session",
+                "Can withdraw a candidate from, or cancel, a locked session",
+            ),
+        ]
         indexes = [
             models.Index(
                 fields=["status", "grading_date"],
@@ -131,10 +141,19 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
 
 
 class GradingCandidate(models.Model):
+    # Set only by withdraw_locked_candidate(), which checks authority first.
+    _allow_locked_withdrawal: bool = False
+
     class Status(models.TextChoices):
         REGISTERED = "REGISTERED", "Registered"
         WITHDRAWN = "WITHDRAWN", "Withdrawn"
         COMPLETED = "COMPLETED", "Completed"
+
+    class WithdrawalReason(models.TextChoices):
+        INJURY = "INJURY", "Injured during grading"
+        WITHDREW = "WITHDREW", "Withdrew voluntarily"
+        ABSENT = "ABSENT", "Did not attend"
+        ADMIN_ERROR = "ADMIN_ERROR", "Registered in error"
 
     session = models.ForeignKey(
         GradingSession,
@@ -158,6 +177,22 @@ class GradingCandidate(models.Model):
         default=Status.REGISTERED,
     )
     notes = models.TextField(blank=True)
+    # Populated only for a withdrawal from a LOCKED session. A withdrawal
+    # before the session locks is routine and needs no justification.
+    withdrawal_reason = models.CharField(
+        max_length=32,
+        choices=WithdrawalReason.choices,
+        blank=True,
+    )
+    withdrawal_note = models.TextField(blank=True)
+    withdrawn_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="withdrawn_grading_candidates",
+        null=True,
+        blank=True,
+    )
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -204,6 +239,35 @@ class GradingCandidate(models.Model):
                     ],
                 ),
                 name="grading_candidate_status_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    withdrawal_reason__in=[
+                        "INJURY",
+                        "WITHDREW",
+                        "ABSENT",
+                        "ADMIN_ERROR",
+                    ],
+                )
+                | Q(withdrawal_reason=""),
+                name="grading_candidate_withdrawal_reason_valid",
+            ),
+            # Attribution travels together, and only ever on a withdrawal.
+            models.CheckConstraint(
+                condition=(
+                    Q(
+                        withdrawal_reason="",
+                        withdrawn_by__isnull=True,
+                        withdrawn_at__isnull=True,
+                    )
+                    | Q(
+                        status="WITHDRAWN",
+                        withdrawn_by__isnull=False,
+                        withdrawn_at__isnull=False,
+                    )
+                    & ~Q(withdrawal_reason="")
+                ),
+                name="grading_candidate_withdrawal_attribution_valid",
             ),
         ]
 

@@ -68,6 +68,7 @@ GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
 SENSITIVE_PERMISSIONS: tuple[str, ...] = (
     "gradings.can_make_final_grading_decision",
     "gradings.can_promote_student",
+    "gradings.can_override_locked_session",
 )
 
 

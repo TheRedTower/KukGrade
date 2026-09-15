@@ -3326,7 +3326,7 @@ def test_assessment_database_constraints_are_enforced() -> None:
         )
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
     assert connection.vendor == "postgresql"
     executor = MigrationExecutor(connection)

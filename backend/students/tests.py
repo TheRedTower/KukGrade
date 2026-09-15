@@ -144,7 +144,7 @@ def test_student_does_not_duplicate_rank_data() -> None:
     assert "current_rank_name" not in field_names
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_existing_student_migration_path_assigns_white_rank() -> None:
     executor = MigrationExecutor(connection)
     final_targets = executor.loader.graph.leaf_nodes()

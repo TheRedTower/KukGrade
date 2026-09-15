@@ -210,10 +210,10 @@ Two personas: an instructor for everything up to `propose`, a Master for
 
 ---
 
-## 5 · Concurrency tests  (NEXT-011, closes KG-022)
+## 5 · Concurrency tests  (NEXT-011, closes KG-022) — **DONE 2026-09-15**
 
 Real threads, real Postgres connections, a `threading.Barrier` to force genuine
-overlap, `django_db(transaction=True)`.
+overlap, `django_db(transaction=True)`. Landed in `gradings/test_concurrency.py`.
 
 | Scenario | Must hold |
 |---|---|
@@ -225,6 +225,28 @@ overlap, `django_db(transaction=True)`.
 
 Marked `@pytest.mark.concurrency` so they can be deselected if they prove flaky
 on CI without losing the rest of the suite.
+
+Two different guarantees are exercised, verified by temporarily removing each
+one's `select_for_update` and watching the corresponding test fail, then
+restoring it: finalisation and session transitions have no unique-constraint
+backstop, so only the row lock catches the race; assessment generation,
+outcome creation and promotion also sit behind a real `OneToOneField`, so the
+loser is refused by an `IntegrityError` even without the lock - the lock
+there exists to avoid the wasted work of losing that race, not to prevent a
+duplicate row.
+
+Writing these surfaced a real pre-existing test-isolation bug, not something
+new: `students/tests.py`, `syllabus/tests.py` (two tests) and
+`gradings/tests.py` already had `@pytest.mark.django_db(transaction=True)`
+migration-from-zero tests without `serialized_rollback=True`. Their flush
+lets Django's `post_migrate` signal recreate the `Instructor` and
+`Administrator` groups; a later `serialized_rollback=True` test then tries to
+restore the pristine snapshot on top of those already-recreated rows and
+collides on `auth_group_name_key`. All four now carry
+`serialized_rollback=True` for consistency, which is also what makes the
+rank catalogue - seeded by a migration, not a signal - survive each
+concurrency test's own flush. Confirmed load-bearing by reverting it and
+watching all five concurrency tests fail with exactly that collision.
 
 **These must land before NEXT-014** standardises `select_for_update(of=("self",))`,
 so that change is made under test rather than on faith.
@@ -254,7 +276,7 @@ records failures without writing personal data or credentials into logs.
 | 2 | Students API | — | ~~1 day~~ **done** |
 | 3 | Users API | 1 (authority change is audited) | ~~2–3 days~~ **done** |
 | 4 | End-to-end test | 2, 3 | ~~0.5 day~~ **done** |
-| 5 | Concurrency tests | — | 1 day |
+| 5 | Concurrency tests | — | ~~1 day~~ **done** |
 | 6 | Smaller items | 5 for NEXT-014 | 0.5 day |
 
 **Roughly 7–8 days.** At that point every audit finding is closed or

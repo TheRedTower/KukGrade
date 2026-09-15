@@ -81,7 +81,13 @@ def update_platform_user(
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> User:
-    before = _snapshot(user)
+    # Read fresh from the database rather than snapshotting `user` as
+    # received: Django admin's own save flow constructs the new field
+    # values onto this exact instance before save_model() ever runs, so a
+    # comparison against the argument as-is would always see the new value
+    # on both sides. The API path is unaffected, since DRF passes the
+    # unmodified instance.
+    before = _snapshot(User.objects.get(pk=user.pk))
 
     if email is not None:
         user.email = email

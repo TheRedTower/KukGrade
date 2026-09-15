@@ -376,6 +376,7 @@ def withdraw_locked_candidate(
         raise ValidationError({"withdrawal_reason": ["Invalid withdrawal reason."]})
 
     outcome = getattr(locked_candidate, "outcome", None)
+    discarded_proposal: dict[str, object] | None = None
     if outcome is not None:
         if outcome.status == CandidateOutcome.Status.FINALISED:
             raise ValidationError(
@@ -386,7 +387,18 @@ def withdraw_locked_candidate(
                 },
             )
         # A draft or proposed outcome was never a decision, and leaving one
-        # attached to a withdrawn candidate would misrepresent the record.
+        # attached to a withdrawn candidate would misrepresent the record -
+        # but discarding it silently would erase that someone had proposed
+        # PASS or FAIL, so it is captured here before the delete, the same
+        # way delete_grading_session captures its cascaded candidates.
+        discarded_proposal = {
+            "status": outcome.status,
+            "proposed_outcome": outcome.proposed_outcome,
+            "proposal_notes": outcome.proposal_notes,
+            "proposed_by": (
+                str(outcome.proposed_by_id) if outcome.proposed_by_id else None
+            ),
+        }
         outcome.delete()
 
     locked_candidate.status = GradingCandidate.Status.WITHDRAWN
@@ -404,7 +416,11 @@ def withdraw_locked_candidate(
             f"({locked_candidate.get_withdrawal_reason_display()})."
         ),
         actor=actor,
-        metadata={"reason": reason, "note": locked_candidate.withdrawal_note},
+        metadata={
+            "reason": reason,
+            "note": locked_candidate.withdrawal_note,
+            "discarded_proposal": discarded_proposal,
+        },
     )
     return locked_candidate
 
@@ -1254,6 +1270,16 @@ def register_candidate(
     return candidate
 
 
+def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
+    return {
+        "session": candidate.session_id,
+        "student": candidate.student_id,
+        "testing_for_rank": candidate.testing_for_rank_id,
+        "status": candidate.status,
+        "notes": candidate.notes,
+    }
+
+
 @transaction.atomic
 def apply_candidate_update(
     candidate: GradingCandidate,
@@ -1265,7 +1291,14 @@ def apply_candidate_update(
     notes: str | None = None,
     actor: User | None = None,
 ) -> GradingCandidate:
-    before = {"status": candidate.status, "notes": candidate.notes}
+    # Read fresh from the database rather than snapshotting the `candidate`
+    # argument as received: Django admin's own save flow constructs the new
+    # field values onto this exact instance before save_model() ever runs,
+    # so by the time this function saw it here it could already carry the
+    # new values - which would make every real admin edit look like a no-op
+    # and go unrecorded. The API path is unaffected either way, since DRF
+    # passes the unmodified instance.
+    before = _candidate_snapshot(GradingCandidate.objects.get(pk=candidate.pk))
     updated = update_candidate(
         candidate,
         session=session,
@@ -1275,15 +1308,19 @@ def apply_candidate_update(
         notes=notes,
     )
     updated.save()
+
+    after = _candidate_snapshot(updated)
+    if before == after:
+        # A no-op PATCH (resending the same values) writes nothing: an audit
+        # trail exists to show what changed, and nothing did.
+        return updated
+
     record(
         AuditAction.CANDIDATE_UPDATED,
         updated,
         f"Candidate record for {updated.student} updated.",
         actor=actor,
-        metadata={
-            "before": before,
-            "after": {"status": updated.status, "notes": updated.notes},
-        },
+        metadata={"before": before, "after": after},
     )
     return updated
 
@@ -1568,6 +1605,7 @@ def update_candidate_assessment_item(
     )
     validate_assessment_item_can_be_changed(locked_item, result=result)
     previous_result = locked_item.result
+    previous_notes = locked_item.assessor_notes
 
     if assessor_notes is not None:
         locked_item.assessor_notes = assessor_notes
@@ -1584,15 +1622,28 @@ def update_candidate_assessment_item(
             locked_item.assessed_at = timezone.now()
 
     locked_item.save()
-    if result is not None and result != previous_result:
+
+    result_changed = result is not None and result != previous_result
+    notes_changed = assessor_notes is not None and assessor_notes != previous_notes
+    # One event per call covering whatever changed, not one per field - a
+    # notes-only edit used to record nothing at all, which meant the
+    # written judgement about a candidate could be silently rewritten.
+    if result_changed or notes_changed:
         record(
             AuditAction.ITEM_RESULT_RECORDED,
             locked_item,
-            f"{locked_item.item_name} recorded as {result}.",
+            (
+                f"{locked_item.item_name} recorded as {result}."
+                if result_changed
+                else f"{locked_item.item_name} assessor notes updated."
+            ),
             actor=assessor,
             metadata={
-                "before": {"result": previous_result},
-                "after": {"result": result},
+                "before": {"result": previous_result, "assessor_notes": previous_notes},
+                "after": {
+                    "result": locked_item.result,
+                    "assessor_notes": locked_item.assessor_notes,
+                },
                 "assessment": str(locked_item.assessment_id),
             },
         )

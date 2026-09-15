@@ -30,6 +30,7 @@ from audit.models import AuditAction, AuditEvent
 from gradings.admin import (
     CandidateAssessmentAdmin,
     CandidateOutcomeAdmin,
+    GradingCandidateAdmin,
     GradingSessionAdmin,
     GradingSessionAdminForm,
     PromotionAdmin,
@@ -44,6 +45,7 @@ from gradings.models import (
 )
 from gradings.services import (
     applicable_syllabus_requirements,
+    apply_candidate_update,
     build_candidate,
     candidate_assessment_summary,
     create_candidate_outcome,
@@ -1013,6 +1015,34 @@ def test_admin_session_form_rejects_non_draft_initial_status() -> None:
     assert "status" in form.errors
 
 
+def test_admin_created_session_is_persisted_and_audited() -> None:
+    # Previously this went straight through ModelAdmin's default save,
+    # bypassing create_grading_session() and its audit call entirely
+    # (KG-036).
+    creator = user("admin-session-creator@example.com")
+    obj = GradingSession(
+        title="Admin-created session",
+        grading_date=date(2027, 11, 1),
+        created_by=creator,
+    )
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    request = admin_request("admin-session-operator@example.com")
+
+    model_admin.save_model(
+        request, obj, cast(ModelForm, SimpleNamespace(changed_data=[])), False
+    )
+
+    assert obj.pk is not None
+    persisted = GradingSession.objects.get(pk=obj.pk)
+    assert persisted.title == "Admin-created session"
+    assert persisted.status == GradingSession.Status.DRAFT
+    event = AuditEvent.objects.filter(
+        action=AuditAction.SESSION_CREATED,
+        entity_id=str(obj.pk),
+    ).latest("occurred_at")
+    assert event.actor == creator
+
+
 def test_admin_session_save_uses_transition_service_for_status_changes() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     candidate(session=session)
@@ -1111,6 +1141,99 @@ def test_admin_assessment_status_change_is_attributed_to_the_admin_user() -> Non
 
     event = AuditEvent.objects.filter(
         action=AuditAction.ASSESSMENT_STARTED,
+    ).latest("occurred_at")
+    assert event.actor == admin_user
+
+
+def test_noop_candidate_update_records_no_audit_event() -> None:
+    # Matches the rule students/services.py and accounts/services.py already
+    # apply: resending the same values is not a change, and an audit trail
+    # exists to show what changed - nothing did here.
+    built = candidate()
+    before = AuditEvent.objects.filter(action=AuditAction.CANDIDATE_UPDATED).count()
+
+    apply_candidate_update(
+        built,
+        status=built.status,
+        notes=built.notes,
+        actor=user("noop-candidate-actor@example.com"),
+    )
+
+    after = AuditEvent.objects.filter(action=AuditAction.CANDIDATE_UPDATED).count()
+    assert after == before
+
+
+def test_real_candidate_update_records_exactly_one_event_with_full_metadata() -> None:
+    built = candidate(notes="Original note")
+
+    updated = apply_candidate_update(
+        built,
+        notes="Changed note",
+        actor=user("real-candidate-update-actor@example.com"),
+    )
+
+    events = AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_UPDATED,
+        entity_id=str(updated.pk),
+    )
+    assert events.count() == 1
+    metadata = events.get().metadata
+    assert metadata["before"]["notes"] == "Original note"
+    assert metadata["after"]["notes"] == "Changed note"
+    assert metadata["before"]["session"] == built.session_id
+    assert metadata["after"]["session"] == built.session_id
+
+
+def test_admin_created_candidate_is_persisted_and_audited() -> None:
+    # Previously this called build_candidate() (unsaved) and relied on the
+    # plain ModelAdmin save to persist it, so register_candidate()'s audit
+    # call never ran (KG-036).
+    session = grading_session()
+    learner = student()
+    obj = GradingCandidate(
+        session=session,
+        student=learner,
+        testing_for_rank=rank("YELLOW_STRIPE"),
+        status=GradingCandidate.Status.REGISTERED,
+        notes="",
+    )
+    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
+    admin_user = user("admin-candidate-creator@example.com")
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = admin_user
+
+    model_admin.save_model(
+        request,
+        obj,
+        cast(ModelForm, SimpleNamespace(changed_data=[])),
+        False,
+    )
+
+    assert obj.pk is not None
+    assert GradingCandidate.objects.filter(pk=obj.pk).exists()
+    event = AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_REGISTERED,
+        entity_id=str(obj.pk),
+    ).latest("occurred_at")
+    assert event.actor == admin_user
+
+
+def test_admin_candidate_update_is_audited() -> None:
+    built = candidate(notes="Before")
+    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
+    built.notes = "After"
+    form = cast(ModelForm, SimpleNamespace(changed_data=["notes"]))
+    admin_user = user("admin-candidate-updater@example.com")
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = admin_user
+
+    model_admin.save_model(request, built, form, True)
+
+    built.refresh_from_db()
+    assert built.notes == "After"
+    event = AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_UPDATED,
+        entity_id=str(built.pk),
     ).latest("occurred_at")
     assert event.actor == admin_user
 
@@ -3695,15 +3818,16 @@ def test_locked_withdrawal_is_refused_once_the_outcome_is_finalised() -> None:
 
 def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
     built, _generated = locked_completed_candidate()
+    proposer = user("proposer-before-withdrawal@example.com")
     outcome = create_candidate_outcome(built, user("draft-outcome@example.com"))
     propose_candidate_outcome(
         outcome,
         proposed_outcome=CandidateOutcome.Outcome.PASS,
-        proposal_notes="",
-        actor=user("proposer-before-withdrawal@example.com"),
+        proposal_notes="Strong performance, recommend a pass.",
+        actor=proposer,
     )
 
-    withdraw_locked_candidate(
+    withdrawn = withdraw_locked_candidate(
         built,
         reason=GradingCandidate.WithdrawalReason.ADMIN_ERROR,
         note="Registered against the wrong session.",
@@ -3713,6 +3837,18 @@ def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
     # A proposal was never a decision; leaving it attached to a withdrawn
     # candidate would misrepresent the record.
     assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+
+    # But discarding it silently would erase that someone proposed PASS -
+    # captured into the withdrawal event before the delete (KG-041).
+    event = AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_WITHDRAWN,
+        entity_id=str(withdrawn.pk),
+    ).latest("occurred_at")
+    discarded = event.metadata["discarded_proposal"]
+    assert discarded["status"] == CandidateOutcome.Status.PROPOSED
+    assert discarded["proposed_outcome"] == CandidateOutcome.Outcome.PASS
+    assert discarded["proposal_notes"] == "Strong performance, recommend a pass."
+    assert discarded["proposed_by"] == str(proposer.pk)
 
 
 def test_locked_withdrawal_rejects_an_unknown_reason() -> None:
@@ -3748,6 +3884,55 @@ def test_cancelling_a_locked_session_requires_authority_and_a_reason() -> None:
 
     session.refresh_from_db()
     assert session.status == GradingSession.Status.LOCKED
+
+
+def test_admin_session_form_accepts_a_cancellation_reason() -> None:
+    # The regression this actually guards against: driving save_model with a
+    # stub form (as the test below does) never exercises Meta.fields at all,
+    # so it would pass even with the field missing from the real form. Only
+    # binding real POST-shaped data through GradingSessionAdminForm proves
+    # the field is there to submit in the first place (KG-050).
+    session, _built = locked_session_with_unfinished_candidate()
+
+    form = GradingSessionAdminForm(
+        data={
+            "title": session.title,
+            "grading_date": session.grading_date,
+            "status": GradingSession.Status.CANCELLED,
+            "location": session.location,
+            "notes": session.notes,
+            "cancellation_reason": "Venue lost power; grading abandoned.",
+            "created_by": session.created_by_id,
+        },
+        instance=session,
+    )
+
+    assert form.is_valid(), form.errors
+    saved = form.save(commit=False)
+    assert saved.cancellation_reason == "Venue lost power; grading abandoned."
+
+
+def test_admin_can_cancel_a_locked_session_with_a_reason() -> None:
+    # Complements the form-binding test above: once the reason reaches the
+    # object, save_model must actually thread it through to
+    # transition_grading_session rather than dropping it.
+    session, _built = locked_session_with_unfinished_candidate()
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    master_user = override_master("admin-cancel-master@example.com")
+    session.status = GradingSession.Status.CANCELLED
+    session.cancellation_reason = "Venue lost power; grading abandoned."
+    form = cast(
+        ModelForm,
+        SimpleNamespace(changed_data=["status", "cancellation_reason"]),
+    )
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = master_user
+
+    model_admin.save_model(request, session, form, True)
+
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.CANCELLED
+    assert session.cancellation_reason == "Venue lost power; grading abandoned."
 
 
 def test_cancelling_a_locked_session_records_the_reason() -> None:
@@ -3842,6 +4027,63 @@ def test_outcome_cannot_be_attached_to_another_candidates_assessment() -> None:
         CandidateOutcome.objects.filter(pk=outcome.pk).update(
             assessment=other_generated,
         )
+
+
+def test_notes_only_item_change_is_recorded() -> None:
+    # Previously only a result change recorded anything, so the written
+    # judgement about a candidate - the part a dispute would turn on -
+    # could be silently rewritten with no trace (KG-037).
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    item = generated.items.first()
+    assert item is not None
+    assessor = user("notes-only-assessor@example.com")
+    before = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+
+    updated = update_candidate_assessment_item(
+        item,
+        assessor_notes="Clean technique on the first attempt.",
+        assessor=assessor,
+    )
+
+    after = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+    assert after == before + 1
+    event = AuditEvent.objects.filter(
+        action=AuditAction.ITEM_RESULT_RECORDED,
+        entity_id=str(updated.pk),
+    ).latest("occurred_at")
+    assert event.metadata["before"]["assessor_notes"] == ""
+    assert (
+        event.metadata["after"]["assessor_notes"]
+        == "Clean technique on the first attempt."
+    )
+    assert event.actor == assessor
+
+
+def test_repeating_the_same_item_notes_records_nothing() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    item = generated.items.first()
+    assert item is not None
+    update_candidate_assessment_item(
+        item,
+        assessor_notes="Already recorded.",
+        assessor=user("repeat-notes-assessor@example.com"),
+    )
+    before = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+
+    update_candidate_assessment_item(
+        item,
+        assessor_notes="Already recorded.",
+        assessor=user("repeat-notes-assessor-2@example.com"),
+    )
+
+    after = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+    assert after == before
 
 
 def test_assessed_item_cannot_lose_its_assessor() -> None:

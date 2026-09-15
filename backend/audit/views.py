@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import uuid
+from typing import cast
 
 from django.db.models import QuerySet
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
+from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from audit.models import AuditAction, AuditEvent
+from audit.models import USER_MANAGEMENT_ACTIONS, AuditAction, AuditEvent
 from audit.serializers import AuditEventSerializer
 from kukgrade.filtering import parse_date_filter
 
@@ -26,6 +28,14 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
             "-occurred_at",
             "-pk",
         )
+
+        # Logistics is an administrator concern, the same boundary the
+        # Users API itself draws - excluded here rather than in
+        # permission_map, since it depends on the row's own action, not the
+        # request method. A direct retrieve of an excluded id 404s, same as
+        # any other object outside the caller's queryset.
+        if not cast(User, self.request.user).has_perm("accounts.view_user"):
+            queryset = queryset.exclude(action__in=USER_MANAGEMENT_ACTIONS)
 
         action = self.request.query_params.get("action")
         if action in AuditAction.values:

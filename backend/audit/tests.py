@@ -294,3 +294,81 @@ def test_deleting_a_session_records_what_was_cascaded_away() -> None:
         c.student.wksa_id for c in candidates
     }
     assert "removing 2 registered candidate(s)" in event.summary
+
+
+# ---------------------------------------------------------------------------
+# Logistics is an administrator concern (KG-048)
+# ---------------------------------------------------------------------------
+
+
+def administrator(email: str) -> User:
+    return User.objects.create_user(email=email, role=User.Role.ADMINISTRATOR)
+
+
+def test_instructor_cannot_see_user_management_events_in_the_log() -> None:
+    from accounts.services import create_platform_user
+
+    admin_actor = administrator("audit-user-mgmt-admin@example.com")
+    created = create_platform_user(
+        email="audit-user-mgmt-target@example.com",
+        password="Str0ng-Passphrase!42",
+        actor=admin_actor,
+    )
+    client = APIClient()
+    client.force_authenticate(user=user("audit-instructor-reader@example.com"))
+
+    listing = client.get("/api/audit-events/")
+    event_id = AuditEvent.objects.get(
+        action=AuditAction.USER_CREATED,
+        entity_id=str(created.pk),
+    ).pk
+    detail = client.get(f"/api/audit-events/{event_id}/")
+    filtered = client.get("/api/audit-events/?action=USER_CREATED")
+
+    assert AuditAction.USER_CREATED not in {
+        row["action"] for row in listing.json()["results"]
+    }
+    assert detail.status_code == 404
+    assert filtered.json()["count"] == 0
+
+
+def test_administrator_can_see_user_management_events_in_the_log() -> None:
+    from accounts.services import create_platform_user
+
+    admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
+    created = create_platform_user(
+        email="audit-user-mgmt-target-2@example.com",
+        password="Str0ng-Passphrase!42",
+        actor=admin_actor,
+    )
+    client = APIClient()
+    client.force_authenticate(user=administrator("audit-admin-reader@example.com"))
+
+    listing = client.get("/api/audit-events/")
+    event_id = AuditEvent.objects.get(
+        action=AuditAction.USER_CREATED,
+        entity_id=str(created.pk),
+    ).pk
+    detail = client.get(f"/api/audit-events/{event_id}/")
+
+    assert AuditAction.USER_CREATED in {
+        row["action"] for row in listing.json()["results"]
+    }
+    assert detail.status_code == 200
+
+
+def test_instructor_still_sees_every_other_action_in_the_log() -> None:
+    from .conftest_helpers import locked_completed_candidate_with_outcome
+
+    locked_completed_candidate_with_outcome()
+    client = APIClient()
+    client.force_authenticate(user=user("audit-instructor-general-reader@example.com"))
+
+    # page_size raised well past the number of events this fixture writes,
+    # so a large item-result trail cannot push SESSION_CREATED onto a
+    # second page and produce a false failure here.
+    response = client.get("/api/audit-events/?page_size=200")
+
+    actions = {row["action"] for row in response.json()["results"]}
+    assert AuditAction.SESSION_CREATED in actions
+    assert AuditAction.CANDIDATE_REGISTERED in actions

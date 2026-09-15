@@ -18,6 +18,64 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-15 - User-management audit events are administrator-only
+
+Status: Accepted
+
+Decision:
+`USER_CREATED`, `USER_UPDATED` and `USER_AUTHORITY_CHANGED` audit events are
+readable only by callers holding `accounts.view_user` (administrators). Every
+other action stays readable by any signed-in user, unchanged.
+
+Context:
+Found during the post-completion audit (KG-048): `/api/users/` is
+administrator-only, but the audit log was readable by any signed-in user,
+so an instructor could read who was created, edited, or granted Master
+authority through the log even though the Users API itself was closed to
+them. Asked directly: logistics - actual running of the app, not Kuk Sool -
+is an administrator and Master concern; instructors do not need it and it
+should come out of their permissions. This is the same boundary the
+capability map already drew on 2026-09-13, applied to a channel that had
+been missed.
+
+Consequences:
+`AuditEventViewSet.get_queryset()` excludes the three user-management
+actions unless the caller holds `accounts.view_user`. A direct retrieve of
+an excluded event's id answers 404. `audit.models.USER_MANAGEMENT_ACTIONS`
+names the affected actions in one place, so a new user-management action
+added later is filtered by construction if it is added to that tuple.
+
+### 2026-09-15 - Login throttle stays process-local; Redis if that changes
+
+Status: Accepted
+
+Decision:
+No shared cache is being added for the login throttle now. Confirmed the
+deployment is single-process for the foreseeable future, so `LocMemCache`
+already gives the intended 10/min bound with no gap. If that ever changes -
+multiple gunicorn workers, multiple container replicas - the throttle
+should move to Redis, not the database cache, at that point.
+
+Context:
+Found during the post-completion audit (KG-039): `ScopedRateThrottle`
+stores its counters in Django's cache framework, which defaults to a
+per-process in-memory dict with no `CACHES` setting configured. Under
+multiple processes each would count independently, loosening the bound to
+roughly `10/min x process count` and resetting on every restart. Asked
+directly: the deployment is single-process today, which makes this a
+non-issue rather than a bug to fix now - and nothing in this repository
+currently even defines a multi-process deployment (`compose.yaml` has no
+`web` service, no Dockerfile, no process manager). Redis was the stated
+preference for if that ever changes, over the zero-new-infrastructure
+alternative (a Postgres-backed database cache), so that preference is
+recorded here rather than left to be re-litigated later.
+
+Consequences:
+No code change. Revisit if the deployment ever becomes multi-process:
+add a `CACHES` entry pointing at Redis and confirm the throttle picks it up
+before shipping that topology, rather than discovering the gap in
+production.
+
 ### 2026-09-14 - Frontend stack and generated API types
 
 Status: Accepted

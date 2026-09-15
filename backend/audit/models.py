@@ -48,6 +48,19 @@ class AuditAction(models.TextChoices):
     USER_AUTHORITY_CHANGED = "USER_AUTHORITY_CHANGED", "User authority changed"
 
 
+# Logistics - who runs the roster - is an administrator concern, the same
+# boundary the Users API itself draws. An instructor cannot open
+# /api/users/ at all; reading who was created, edited, or granted Master
+# authority through the audit log instead would be the same information
+# through a side door. Every other action stays visible to any signed-in
+# user, matching that everyone can already read grading decisions directly.
+USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
+    AuditAction.USER_CREATED,
+    AuditAction.USER_UPDATED,
+    AuditAction.USER_AUTHORITY_CHANGED,
+)
+
+
 class AuditEventQuerySet(models.QuerySet["AuditEvent"]):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})

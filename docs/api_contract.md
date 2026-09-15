@@ -475,9 +475,19 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 ## 13. Audit
 
 Status: implemented, read-only. Permission `audit.view_auditevent`, granted
-to **both** role groups - any signed-in user can read the log. This is not a
-new exposure: an instructor can already read every proposal and decision
-note through the outcomes API.
+to **both** role groups - any signed-in user can read most of the log. This
+is not a new exposure for grading events: an instructor can already read
+every proposal and decision note through the outcomes API.
+
+**Exception: user-management events are administrator-only.** `USER_CREATED`,
+`USER_UPDATED` and `USER_AUTHORITY_CHANGED` are additionally filtered to
+callers holding `accounts.view_user` - the same permission that gates
+`/api/users/` itself. An instructor cannot open the Users API at all, so
+reading who was created, edited, or granted Master authority through the
+audit log instead would be the same information through a side door;
+logistics is an administrator concern, matching the boundary drawn
+everywhere else in this API. A direct `GET` on an excluded event's id
+answers 404, the same as any other object outside the caller's queryset.
 
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|

@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 436 backend tests and
+Verified by running the tooling, not by reading the code: 439 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -87,7 +87,9 @@ are all clean, and CI enforces every one of them on each push.
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.
   Immutable from model, queryset, admin and HTTP. Readable and filterable
-  by any signed-in user.
+  by any signed-in user, except user-management events (`USER_CREATED`,
+  `USER_UPDATED`, `USER_AUTHORITY_CHANGED`), which are administrator-only -
+  logistics, same as the Users API itself.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The
   login form distinguishes wrong credentials, CSRF failure, throttling, a

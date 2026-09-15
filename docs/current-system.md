@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-14. This document
+Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 350 backend tests and
+Verified by running the tooling, not by reading the code: 405 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -74,6 +74,10 @@ are all clean, and CI enforces every one of them on each push.
   filterable by any signed-in user.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server".
+- **One end-to-end HTTP test** drives the entire grading workflow - login,
+  student, session, candidate, assessment generation and marking, outcome
+  proposal, finalisation and promotion, rank history - taking every
+  identifier from the previous response, the way a real frontend must.
 
 ## Not Implemented
 

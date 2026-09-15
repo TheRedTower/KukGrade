@@ -16,8 +16,13 @@ are all clean, and CI enforces every one of them on each push.
 - **CI** runs the full verification set on every branch push and pull request.
   Verified to fail on a deliberate error.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
-  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect,
-  proxy header and secure cookies default on. The browsable API is debug-only.
+  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and
+  secure cookies default on. The one exception is the reverse-proxy header
+  (`DJANGO_BEHIND_TLS_PROXY`), which defaults **off** even in production and
+  must be opted into explicitly - trusting it without a proxy that actually
+  strips it lets a client spoof an already-secure request. The browsable API
+  is debug-only. PostgreSQL only; a SQLite fallback used to exist and could
+  not actually run this application, so it was removed rather than fixed.
 - **Authentication**: email-first custom user, Django sessions, CSRF.
 - **Authorisation**: Django permissions are the authority primitive. `User.role`
   (`instructor`, `administrator`) decides group membership and is never
@@ -57,7 +62,9 @@ are all clean, and CI enforces every one of them on each push.
 - **Database-level integrity**: a composite foreign key stops an outcome being
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are
-  PROTECT.
+  PROTECT. `Promotion` and a finalised `CandidateOutcome` refuse
+  `QuerySet.update()` as well as `save()`/`delete()` - the one path that
+  could previously rewrite an immutable record from a shell.
 - **Row locking is consistent**: every `select_for_update()` in
   `gradings/services.py` locks only its own row (`of=("self",)`), never a
   joined session, student or rank row picked up incidentally through
@@ -77,7 +84,10 @@ are all clean, and CI enforces every one of them on each push.
   visible. Immutable from model, queryset, admin and HTTP. Readable and
   filterable by any signed-in user.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
-  that distinguishes "not signed in" from "could not reach the server".
+  that distinguishes "not signed in" from "could not reach the server". The
+  login form distinguishes wrong credentials, CSRF failure, throttling, a
+  server error, and a dropped connection - it does not tell a rate-limited
+  user their password is wrong.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every
@@ -90,7 +100,13 @@ are all clean, and CI enforces every one of them on each push.
 - **Login is rate-limited**: `ScopedRateThrottle` at 10/min, scoped so no
   other endpoint is affected. A failed attempt is logged with the email
   only; no log line in the codebase ever includes a password or a raw
-  request body.
+  request body. The rate is per-process (no shared cache is configured -
+  KG-039), so a multi-worker deployment is throttled more loosely than the
+  number alone suggests.
+- **Password validation is consistent everywhere an account can be
+  created**: the users API, `SetPasswordSerializer`, and the Django admin
+  add-user form all run the full configured validator set, including
+  `UserAttributeSimilarityValidator` against the account's own email.
 - **Sensitive actions cannot silently lose their authority class**: a
   permission-completeness test pins `finalise`, `promote` and `withdraw` to
   the per-user permission class each requires, independent of the ordinary

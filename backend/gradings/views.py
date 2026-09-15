@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
 from typing import cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -50,16 +49,8 @@ from gradings.services import (
     validate_candidate_can_be_deleted,
     validate_session_can_be_deleted,
 )
+from kukgrade.filtering import parse_date_filter
 from syllabus.models import AgeBand, SyllabusItem
-
-
-def parse_date_filter(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
 
 
 class GradingSessionViewSet(ModelViewSet):

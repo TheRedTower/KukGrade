@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
 
 from django.db.models import QuerySet
 from rest_framework.viewsets import ReadOnlyModelViewSet
@@ -9,15 +8,7 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 from accounts.permissions import HasRequiredPermissions
 from audit.models import AuditAction, AuditEvent
 from audit.serializers import AuditEventSerializer
-
-
-def parse_date_filter(value: str | None) -> date | None:
-    if not value:
-        return None
-    try:
-        return date.fromisoformat(value)
-    except ValueError:
-        return None
+from kukgrade.filtering import parse_date_filter
 
 
 class AuditEventViewSet(ReadOnlyModelViewSet):

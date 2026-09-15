@@ -26,7 +26,9 @@ from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
+from audit.models import AuditAction, AuditEvent
 from gradings.admin import (
+    CandidateAssessmentAdmin,
     CandidateOutcomeAdmin,
     GradingSessionAdmin,
     GradingSessionAdminForm,
@@ -1093,6 +1095,24 @@ def test_admin_session_save_rolls_back_field_change_when_assessment_not_started(
     session.refresh_from_db()
     assert session.status == GradingSession.Status.OPEN
     assert session.location == "Old hall"
+
+
+def test_admin_assessment_status_change_is_attributed_to_the_admin_user() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(candidate=candidate(session=session))
+    model_admin = CandidateAssessmentAdmin(CandidateAssessment, admin.site)
+    generated.status = CandidateAssessment.Status.IN_PROGRESS
+    form = cast(ModelForm, SimpleNamespace(changed_data=["status"]))
+    admin_user = user("assessment-admin-actor@example.com")
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = admin_user
+
+    model_admin.save_model(request, generated, form, True)
+
+    event = AuditEvent.objects.filter(
+        action=AuditAction.ASSESSMENT_STARTED,
+    ).latest("occurred_at")
+    assert event.actor == admin_user
 
 
 def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
@@ -2402,6 +2422,12 @@ def test_finalised_outcome_is_immutable_and_protects_deletion() -> None:
         outcome.save()
     with pytest.raises(ValidationError):
         outcome.delete()
+    with pytest.raises(ValidationError):
+        CandidateOutcome.objects.filter(pk=outcome.pk).update(
+            decision_notes="Bulk-changed",
+        )
+    outcome.refresh_from_db()
+    assert outcome.decision_notes != "Bulk-changed"
     with pytest.raises(ProtectedError):
         generated.delete()
     with pytest.raises(ValidationError):
@@ -2741,11 +2767,16 @@ def test_promotion_database_constraints_and_model_validation() -> None:
     # Attaching an outcome to another candidate's assessment used to be
     # possible through QuerySet.update(), which bypasses model validation.
     # The composite foreign key now refuses the write itself, so the
-    # mismatched state this once set up can no longer exist (KG-010).
+    # mismatched state this once set up can no longer exist (KG-010). Not
+    # finalised: that would hit the separate immutable-outcome guard first
+    # and never reach the constraint this is testing.
     assessment_mismatch_built, _assessment_mismatch_generated = (
         locked_completed_candidate()
     )
-    assessment_mismatch_outcome = finalised_outcome(assessment_mismatch_built)
+    assessment_mismatch_outcome = create_candidate_outcome(
+        assessment_mismatch_built,
+        user("assessment-mismatch-creator@example.com"),
+    )
     _foreign_built, foreign_generated = locked_completed_candidate()
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.filter(pk=assessment_mismatch_outcome.pk).update(
@@ -2876,9 +2907,13 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
         promote_candidate(second_outcome, promoter("promotion-assessment@example.com"))
 
     # The service still validates this, but the state is now unreachable:
-    # the database refuses to create it. See KG-010.
+    # the database refuses to create it. See KG-010. Not finalised, so the
+    # write reaches the constraint rather than the immutable-outcome guard.
     mismatch_built, _mismatch_generated = locked_completed_candidate()
-    mismatch_outcome = finalised_outcome(mismatch_built)
+    mismatch_outcome = create_candidate_outcome(
+        mismatch_built,
+        user("promotion-mismatch-creator@example.com"),
+    )
     _foreign_built, foreign_generated = locked_completed_candidate()
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.filter(pk=mismatch_outcome.pk).update(
@@ -2944,6 +2979,10 @@ def test_promotion_records_are_immutable_and_protected() -> None:
         promotion.delete()
     with pytest.raises(ValidationError):
         Promotion.objects.filter(pk=promotion.pk).delete()
+    with pytest.raises(ValidationError):
+        Promotion.objects.filter(pk=promotion.pk).update(notes="Bulk-changed")
+    promotion.refresh_from_db()
+    assert promotion.notes != "Bulk-changed"
 
     built.student.current_rank = rank("YELLOW")
     with pytest.raises(ValidationError):
@@ -3789,11 +3828,16 @@ def test_withdraw_api_records_the_withdrawal() -> None:
 
 def test_outcome_cannot_be_attached_to_another_candidates_assessment() -> None:
     built, _generated = locked_completed_candidate()
-    outcome = finalised_outcome(built)
+    outcome = create_candidate_outcome(
+        built,
+        user("outcome-reattach-creator@example.com"),
+    )
     _other_built, other_generated = locked_completed_candidate()
 
     # QuerySet.update() bypasses model validation entirely; before the
-    # composite foreign key this silently succeeded.
+    # composite foreign key this silently succeeded. Not finalised, so this
+    # reaches the constraint rather than the separate immutable-outcome
+    # guard on QuerySet.update() (KG-044).
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.filter(pk=outcome.pk).update(
             assessment=other_generated,

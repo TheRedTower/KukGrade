@@ -173,8 +173,18 @@ class UserManagementSerializer(serializers.ModelSerializer):
         return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
 
     def validate_password(self, value: str) -> str:
+        # This only ever runs on create - update() has no password field, see
+        # __init__ above. Without an unsaved User built from the other
+        # submitted fields, UserAttributeSimilarityValidator has nothing to
+        # compare against and a password identical to the new account's own
+        # email would pass.
+        candidate = User(
+            email=self.initial_data.get("email", ""),
+            first_name=self.initial_data.get("first_name", ""),
+            last_name=self.initial_data.get("last_name", ""),
+        )
         try:
-            validate_password(value)
+            validate_password(value, user=candidate)
         except DjangoValidationError as exc:
             raise serializers.ValidationError(list(exc.messages)) from exc
         return value

@@ -5,11 +5,11 @@ Status: mixed current and target contract.
 This document started as a broad target REST contract and now contains both
 implemented endpoints and deferred target endpoints. Before building against an
 endpoint, check the section notes and `docs/current-system.md`. Implemented
-current endpoints are authentication, health, ranks, syllabus lookup, grading
-sessions, grading candidates, candidate assessments, assessment items, and
-candidate outcomes. Users/roles, organisations/branches, student CRUD,
-eligibility, promotions, certificates, reports, and audit endpoints are target
-or deferred unless a section explicitly says otherwise.
+current endpoints are authentication, health, users/roles, ranks, syllabus
+lookup, students, grading sessions, grading candidates, candidate assessments,
+assessment items, candidate outcomes, promotions, and audit events.
+Organisations/branches, eligibility, certificates, and reports are target or
+deferred unless a section explicitly says otherwise.
 
 This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses. Authentication uses Django session authentication with CSRF protection for the React frontend.
 
@@ -196,10 +196,11 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 Current implementation note: the grading foundation exposes authenticated CRUD
 endpoints for sessions and candidates, plus generated candidate assessment
-snapshots, per-requirement item results, candidate outcomes, and authorised
-final Master decisions. It does not create automatic promotion,
-`Student.current_rank` updates, promotion history, attendance outside grading
-participation, certificates, notifications, or payment workflows.
+snapshots, per-requirement item results, candidate outcomes, authorised final
+Master decisions, and promotion (`Student.current_rank` updates and rank
+history - see section 10). It does not create automatic promotion,
+attendance outside grading participation, certificates, notifications, or
+payment workflows.
 
 | Method | Endpoint                              | Description                                      |
 |-------|----------------------------------------|--------------------------------------------------|
@@ -217,6 +218,7 @@ participation, certificates, notifications, or payment workflows.
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
+| POST  | /api/gradings/candidates/{id}/withdraw/ | Withdraw from a *locked* session with a reason; requires `gradings.can_override_locked_session` |
 
 Session fields:
 
@@ -239,6 +241,10 @@ Session lifecycle:
 - `OPEN -> LOCKED`
 - `OPEN -> CANCELLED`
 - `LOCKED -> COMPLETED`
+- `LOCKED -> CANCELLED`: the locked-session exit. Requires
+  `gradings.can_override_locked_session` and a non-blank
+  `cancellation_reason` - an abandoned grading has to say why, since
+  candidates have already been assessed by this point.
 
 `CANCELLED` and `COMPLETED` are terminal. Sessions do not auto-transition based
 on dates. Locking a session requires every non-withdrawn candidate to have an
@@ -284,8 +290,9 @@ Candidate filters:
 Candidate creation rejects locked, completed, and cancelled sessions; duplicate
 student/session pairs; invalid testing-for ranks; and missing student date of
 birth. The testing-for rank must be the next active rank after the student's
-current rank. This feature does not update `Student.current_rank`; promotion
-history remains deferred on `dev`.
+current rank. Registering a candidate does not itself change
+`Student.current_rank` - that happens only on promotion, once the outcome is
+finalised as `PASS` (see section 10).
 
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
@@ -361,14 +368,15 @@ outcome is produced.
 | GET    | /api/gradings/outcomes/                       | List candidate outcomes                      |
 | POST   | /api/gradings/outcomes/                       | 405; use candidate create-outcome action     |
 | GET    | /api/gradings/outcomes/{id}/                  | Retrieve outcome detail                      |
-| PATCH  | /api/gradings/outcomes/{id}/                  | 400; direct field writes rejected            |
+| PATCH  | /api/gradings/outcomes/{id}/                  | 405; not a direct-write resource - use propose/finalise |
 | DELETE | /api/gradings/outcomes/{id}/                  | 405; correction workflow deferred            |
 | PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
 | GET    | /api/gradings/outcomes/{id}/summary/          | Informational assessment summaries           |
-| POST   | /api/promotions/{outcome_id}/confirm/         | Deferred                                     |
-| GET    | /api/promotions/                              | Deferred                                     |
-| GET    | /api/promotions/{id}/                         | Deferred                                     |
+| POST   | /api/gradings/outcomes/{id}/promote/          | Promote a finalised PASS; requires `gradings.can_promote_student` |
+| GET    | /api/gradings/promotions/                     | List promotion records (rank history)        |
+| GET    | /api/gradings/promotions/{id}/                | Retrieve one promotion record                |
+| PUT, PATCH, DELETE | /api/gradings/promotions/{id}/    | 405; promotions are immutable and undeletable once created |
 
 Outcome status values are `DRAFT`, `PROPOSED`, and `FINALISED`. Outcome values
 are `PASS`, `FAIL`, and `CONDITIONAL`. Outcome creation is explicit after a
@@ -412,6 +420,37 @@ met, not assessed, required-met, required-not-met, required-not-assessed,
 all-required-assessed, and all-required-met values. It does not return an
 inferred final outcome.
 
+### Promotion
+
+`POST /api/gradings/outcomes/{id}/promote/` promotes a candidate whose outcome
+is a finalised `PASS`. It requires the `gradings.can_promote_student` Django
+permission - a separate authority from
+`gradings.can_make_final_grading_decision`, so a Master who decided the
+outcome does not automatically get to promote it, and vice versa. The request
+body accepts only an optional `notes`; `effective_date` is
+server-controlled and always equals the grading session's date, never a
+client-supplied value. A second promotion attempt on the same outcome or the
+same grading candidate is rejected - each can be promoted at most once. On
+success it creates a `Promotion` record and updates `Student.current_rank`.
+
+`Promotion` records are immutable and undeletable once created (`PUT`,
+`PATCH`, `DELETE` all 405). `GET /api/gradings/promotions/` and
+`/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 4)
+returns a student's current rank plus every promotion in one call, which is
+the more convenient read for a single student's history.
+
+Promotion list filters:
+
+- `student`
+- `student_wksa_id`
+- `from_rank_code`
+- `to_rank_code`
+- `session`
+- `effective_date`
+- `effective_date_from`
+- `effective_date_to`
+- `promoted_by`
+
 ## 11. Certificates
 
 Status: target/deferred. These API endpoints are not implemented on `dev`.
@@ -435,12 +474,35 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 ## 13. Audit
 
-Status: target/deferred. These API endpoints are not implemented on `dev`.
+Status: implemented, read-only. Permission `audit.view_auditevent`, granted
+to **both** role groups - any signed-in user can read the log. This is not a
+new exposure: an instructor can already read every proposal and decision
+note through the outcomes API.
 
-| Method | Endpoint                                    | Description                                  |
-|--------|----------------------------------------------|----------------------------------------------|
-| GET    | /api/audit-events/                           | List audit events (admin only)               |
-| GET    | /api/audit-events/{entity_type}/{entity_id}/ | Audit events for a specific entity           |
+| Method | Endpoint                    | Description                          |
+|--------|------------------------------|---------------------------------------|
+| GET    | /api/audit-events/           | List audit events, newest first       |
+| GET    | /api/audit-events/{id}/      | Retrieve one audit event              |
+
+Every event has `actor` (nullable - null only for a system action),
+`action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
+a record outlives the schema it describes), `occurred_at`, a human-readable
+`summary`, and `metadata` (a `{"before": {...}, "after": {...}}` object for a
+revision, `{}` otherwise). The model is append-only: no admin, API, queryset
+or shell path can update or delete a row.
+
+Filters:
+
+- `action`
+- `entity_type`
+- `entity_id`
+- `actor`
+- `occurred_from`
+- `occurred_to`
+
+**Written by the API only, today.** Writes made through Django admin - the
+only usable interface until Phase 3 ships grading screens - do not currently
+produce an audit event. Tracked as KG-036.
 
 ---
 

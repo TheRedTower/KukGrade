@@ -235,6 +235,7 @@ class CandidateAssessmentAdmin(admin.ModelAdmin):
                 obj,
                 status=obj.status if "status" in form.changed_data else None,
                 notes=obj.notes if "notes" in form.changed_data else None,
+                actor=cast(User, request.user),
             )
         else:
             super().save_model(request, obj, form, change)

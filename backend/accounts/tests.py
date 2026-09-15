@@ -14,6 +14,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from accounts.admin import UserCreationForm
 from accounts.groups import (
     ADMINISTRATOR_GROUP,
     INSTRUCTOR_GROUP,
@@ -550,6 +551,62 @@ def test_weak_password_is_rejected_with_a_field_error() -> None:
     assert response.status_code == 400
     assert "password" in response.json()["error"]["fields"]
     assert not User.objects.filter(email="weak@example.com").exists()
+
+
+def test_password_matching_the_new_accounts_own_email_is_rejected() -> None:
+    # UserAttributeSimilarityValidator has nothing to compare against on
+    # create unless the serializer builds an unsaved User from the other
+    # submitted fields first - this is the case that catches a regression.
+    client, _admin = admin_client("similarity-admin@example.com")
+
+    response = client.post(
+        "/api/users/",
+        {
+            "email": "graham.mitchell@example.com",
+            "password": "graham.mitchell@example.com",
+            "first_name": "Graham",
+            "last_name": "Mitchell",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "password" in response.json()["error"]["fields"]
+    assert not User.objects.filter(email="graham.mitchell@example.com").exists()
+
+
+def test_admin_add_user_form_enforces_the_same_password_validators() -> None:
+    # UserCreationForm is a plain ModelForm subclass, not Django's own
+    # contrib.auth.forms.UserCreationForm - it must validate the password
+    # itself, or admin becomes a second door with a lower standard than
+    # the API.
+    weak = UserCreationForm(
+        data={
+            "email": "weak-admin-form@example.com",
+            "first_name": "Weak",
+            "last_name": "Password",
+            "role": User.Role.INSTRUCTOR,
+            "password1": "12345678",
+            "password2": "12345678",
+        },
+    )
+
+    assert weak.is_valid() is False
+    assert "password2" in weak.errors
+
+    similar = UserCreationForm(
+        data={
+            "email": "graham.mitchell@example.com",
+            "first_name": "Graham",
+            "last_name": "Mitchell",
+            "role": User.Role.INSTRUCTOR,
+            "password1": "graham.mitchell@example.com",
+            "password2": "graham.mitchell@example.com",
+        },
+    )
+
+    assert similar.is_valid() is False
+    assert "password2" in similar.errors
 
 
 def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:

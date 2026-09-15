@@ -284,7 +284,9 @@ def transition_grading_session(
         raise ValidationError(
             {"status": ["Unsaved grading sessions cannot be transitioned."]},
         )
-    locked_session = GradingSession.objects.select_for_update().get(pk=session.pk)
+    locked_session = GradingSession.objects.select_for_update(of=("self",)).get(
+        pk=session.pk
+    )
     if locked_session.status == target_status:
         return locked_session
 
@@ -619,7 +621,7 @@ def create_candidate_outcome(
     actor: User | None = None,
 ) -> CandidateOutcome:
     locked_candidate = (
-        GradingCandidate.objects.select_for_update()
+        GradingCandidate.objects.select_for_update(of=("self",))
         .select_related("session", "student", "testing_for_rank")
         .get(pk=candidate.pk)
     )
@@ -918,20 +920,20 @@ def promote_candidate(
     """
     validate_promotion_actor(actor)
     locked_outcome = (
-        CandidateOutcome.objects.select_for_update()
+        CandidateOutcome.objects.select_for_update(of=("self",))
         .select_related("candidate", "assessment")
         .get(pk=outcome.pk)
     )
     locked_candidate = (
-        GradingCandidate.objects.select_for_update()
+        GradingCandidate.objects.select_for_update(of=("self",))
         .select_related("session", "student", "testing_for_rank")
         .get(pk=locked_outcome.candidate_id)
     )
-    locked_assessment = CandidateAssessment.objects.select_for_update().get(
+    locked_assessment = CandidateAssessment.objects.select_for_update(of=("self",)).get(
         pk=locked_outcome.assessment_id,
     )
     locked_student = (
-        Student.objects.select_for_update()
+        Student.objects.select_for_update(of=("self",))
         .select_related("current_rank")
         .get(pk=locked_candidate.student_id)
     )
@@ -1358,7 +1360,7 @@ def generate_candidate_assessment(
     generated_by: User,
 ) -> CandidateAssessment:
     locked_candidate = (
-        GradingCandidate.objects.select_for_update()
+        GradingCandidate.objects.select_for_update(of=("self",))
         .select_related("session", "student", "testing_for_rank")
         .get(pk=candidate.pk)
     )
@@ -1461,7 +1463,7 @@ def update_candidate_assessment(
     actor: User | None = None,
 ) -> CandidateAssessment:
     locked_assessment = (
-        CandidateAssessment.objects.select_for_update()
+        CandidateAssessment.objects.select_for_update(of=("self",))
         .select_related("candidate__session")
         .get(pk=assessment.pk)
     )
@@ -1560,7 +1562,7 @@ def update_candidate_assessment_item(
     assessor: User,
 ) -> CandidateAssessmentItem:
     locked_item = (
-        CandidateAssessmentItem.objects.select_for_update()
+        CandidateAssessmentItem.objects.select_for_update(of=("self",))
         .select_related("assessment__candidate__session", "assessment__candidate")
         .get(pk=item.pk)
     )

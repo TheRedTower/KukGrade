@@ -58,6 +58,10 @@ are all clean, and CI enforces every one of them on each push.
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are
   PROTECT.
+- **Row locking is consistent**: every `select_for_update()` in
+  `gradings/services.py` locks only its own row (`of=("self",)`), never a
+  joined session, student or rank row picked up incidentally through
+  `select_related`.
 - **Users API**: list, retrieve, create, partial update, plus two dedicated
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the three
   sensitive permissions as booleans in the same shape `/api/auth/me/`

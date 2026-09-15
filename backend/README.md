@@ -110,7 +110,10 @@ Authenticated staff can manage grading sessions and candidates:
 
 Session statuses are `DRAFT`, `OPEN`, `LOCKED`, `COMPLETED`, and `CANCELLED`.
 Allowed transitions are `DRAFT -> OPEN`, `DRAFT -> CANCELLED`,
-`OPEN -> LOCKED`, `OPEN -> CANCELLED`, and `LOCKED -> COMPLETED`.
+`OPEN -> LOCKED`, `OPEN -> CANCELLED`, `LOCKED -> COMPLETED`, and
+`LOCKED -> CANCELLED`. That last one is the locked-session exit: it requires
+`gradings.can_override_locked_session` and a non-blank `cancellation_reason`,
+since candidates have already been assessed by that point.
 `LOCKED -> OPEN` is rejected. Completed and cancelled sessions are terminal.
 Code must use the canonical `transition_grading_session()` service for status
 changes; ordinary model saves reject direct status updates. New sessions start
@@ -128,7 +131,8 @@ Candidate statuses are `REGISTERED`, `WITHDRAWN`, and `COMPLETED`. Candidate
 date, then stored as a historical snapshot. Clients cannot set it. Candidate
 creation validates that the testing-for rank is the next active rank after the
 student's current rank. A session grading date cannot be changed after
-candidates have been added. The feature does not update `Student.current_rank`.
+candidates have been added. Candidate completion alone does not update
+`Student.current_rank`; rank changes happen only through the promotion service.
 
 Deletion is state-gated: sessions can be deleted only while draft or cancelled;
 candidates can be deleted only while their parent session is draft or open.
@@ -176,8 +180,8 @@ assessments. Required items must be `MET` or `NOT_MET` before completion;
 optional items may remain `NOT_ASSESSED`. Completing an assessment atomically
 marks the candidate `COMPLETED`. This is only a workflow completion marker:
 final pass/fail/conditional outcomes are created and finalised through the
-separate candidate outcome workflow. Promotions, rank-history creation, and
-`Student.current_rank` updates remain deferred.
+separate candidate outcome workflow. Rank changes happen only later through the
+controlled promotion workflow for finalised PASS outcomes.
 
 Clients may patch only assessment `status` and `notes`, and assessment-item
 `result` and `assessor_notes`. Item result changes are rejected until the
@@ -251,3 +255,69 @@ Outcome filters:
 - `final_outcome`
 - `proposed_by`
 - `decided_by`
+
+## Promotions And Rank History
+
+Users with the `gradings.can_promote_student` Django permission can promote a
+candidate from a finalised PASS outcome:
+
+- `POST /api/gradings/outcomes/{id}/promote/`
+
+Promotion records are read-only:
+
+- `GET /api/gradings/promotions/`
+- `GET /api/gradings/promotions/{id}/`
+- `GET /api/students/{id}/rank-history/`
+
+Promotion is explicit and separate from final outcome recording. The service
+accepts only a finalised `PASS` outcome. `FAIL` and `CONDITIONAL` outcomes do
+not create a promotion and do not change `Student.current_rank`.
+`gradings.can_promote_student` is a separate grant from
+`gradings.can_make_final_grading_decision`: deciding an outcome does not confer
+authority to promote it, and vice versa.
+
+Eligibility requires:
+
+- outcome status `FINALISED`;
+- final outcome `PASS`;
+- non-withdrawn candidate status `COMPLETED`;
+- assessment status `COMPLETED`;
+- session status `LOCKED` or `COMPLETED`;
+- candidate testing-for rank still equals the next active rank after the
+  student's current rank;
+- no existing promotion for the outcome or grading candidate.
+
+`promote_candidate()` is the canonical mutation path. It runs in one database
+transaction, locks the outcome, candidate, assessment, and student rows, creates
+the immutable `Promotion` record, and updates only `Student.current_rank`. If
+any validation or uniqueness check fails, the rank update is not persisted.
+
+The API derives `promoted_by` from `request.user`, `promoted_at` from the
+server timestamp, and `effective_date` from the grading session date. API
+clients cannot submit actor or effective-date fields. Backdating, postdating,
+promotion correction, reversal, demotion, certificate generation, frontend
+screens, notifications, and payment workflows are deferred.
+
+`Promotion` is the v1 rank-history source. It stores from-rank, to-rank, the
+candidate outcome, grading candidate, promoter, effective date, and optional
+notes. Records are immutable after creation and cannot be changed or deleted
+through the model, queryset, API, or admin workflows - `QuerySet.update()` and
+`QuerySet.delete()` both refuse, so the rule holds from the shell too. Once a
+student has promotion history, ordinary student saves cannot directly change
+`current_rank`; use the promotion workflow for progression. Rank history begins
+with promotions recorded by KukGrade and may not include a student's rank
+changes before adoption of the application. Reversing migration
+`gradings.0004_promotion` is a schema rollback only; it does not implement a
+business promotion reversal or rank rollback workflow.
+
+Promotion filters:
+
+- `student`
+- `student_wksa_id`
+- `from_rank_code`
+- `to_rank_code`
+- `session`
+- `effective_date`
+- `effective_date_from`
+- `effective_date_to`
+- `promoted_by`

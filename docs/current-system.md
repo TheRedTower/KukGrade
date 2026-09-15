@@ -107,9 +107,11 @@ are all clean, and CI enforces every one of them on each push.
 - **Login is rate-limited**: `ScopedRateThrottle` at 10/min, scoped so no
   other endpoint is affected. A failed attempt is logged with the email
   only; no log line in the codebase ever includes a password or a raw
-  request body. The rate is per-process (no shared cache is configured -
-  KG-039), so a multi-worker deployment is throttled more loosely than the
-  number alone suggests.
+  request body. Counters live in Django's default per-process cache, which
+  is correct for the single-process deployment this runs as - the 10/min
+  bound holds as stated. If that ever becomes multi-process, the throttle
+  needs a shared cache (Redis) or the bound loosens to 10/min per process;
+  see the 2026-09-15 decision log entry.
 - **Password validation is consistent everywhere an account can be
   created**: the users API, `SetPasswordSerializer`, and the Django admin
   add-user form all run the full configured validator set, including

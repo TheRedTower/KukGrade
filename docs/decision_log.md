@@ -428,6 +428,57 @@ Documentation and UI must not imply that ticking the legacy boolean grants
 final-decision authority. A future remediation stage should migrate/remove the
 field or deliberately redefine it with tests and documentation.
 
+### 2026-06-23 - Promotion and rank-history foundation
+
+Status: Accepted
+
+Decision:
+Create `Promotion` as the immutable rank-history record for successful grading
+progression. Promotion is explicit, PASS-only, and separate from final outcome
+recording. A candidate can be promoted only from a `FINALISED` `PASS` outcome
+when the candidate and assessment are `COMPLETED`, the candidate is not
+withdrawn, the session is `LOCKED` or `COMPLETED`, the candidate
+testing-for rank is still the next active rank after the student's current
+rank, and no promotion already exists for the outcome or grading candidate.
+Promotion requires the separate `gradings.can_promote_student` Django
+permission. `gradings.can_make_final_grading_decision` does not imply promotion
+authority.
+
+Context:
+Final Master decisions and assessment snapshots already preserve grading
+evidence, but they deliberately did not change student rank. Rank progression
+needs an auditable administrative action that can happen after finalisation,
+without forcing all candidates to be promoted before session completion and
+without promoting `FAIL` or `CONDITIONAL` outcomes.
+
+Consequences:
+The canonical `promote_candidate()` service runs in one transaction: it locks
+the outcome, candidate, assessment, and student rows, creates `Promotion`, and
+updates only `Student.current_rank`. Both the history record and rank update
+succeed or neither is persisted. `Promotion` stores protected references to the
+student, outcome, grading candidate, from-rank, to-rank, and promoter, plus
+server-controlled `promoted_at`, grading-date `effective_date`, and optional
+notes. Records are immutable after creation and cannot be deleted through
+normal model, API, or admin paths. The API derives actor and effective date
+server-side and rejects client-supplied actor/date fields. Once a student has
+promotion history, ordinary student saves cannot directly change
+`current_rank`; initial rank assignment and pre-history corrections remain
+possible. Rank history begins with KukGrade-managed promotions and may not
+include rank changes that predate application adoption. Reversing migration
+`gradings.0004_promotion` is a schema rollback only; it deletes promotion rows
+and the custom permission but does not implement business promotion reversal or
+automatic student-rank rollback. Backdating, postdating, demotion, reversal,
+promotion correction, conditional follow-up, certificate generation,
+notifications, payment handling, frontend screens, and broader audit-event
+infrastructure remain deferred.
+
+Note added 2026-09-15 while recovering this entry from an unmerged worktree:
+immutability was later strengthened beyond what this entry describes -
+`QuerySet.update()` and `QuerySet.delete()` on `Promotion` now refuse as well,
+so the rule holds from the shell too (KG-044). Row locking was also narrowed to
+`of=("self",)` so a promotion no longer incidentally locks the joined session,
+student and rank rows (NEXT-014).
+
 ### 2026-06-23 - Candidate outcome and Master decision foundation
 
 Status: Accepted

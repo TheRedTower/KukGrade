@@ -87,9 +87,42 @@ def test_production_settings_are_hardened(
     assert settings.SECURE_HSTS_SECONDS == 31536000
     assert settings.SECURE_HSTS_INCLUDE_SUBDOMAINS is True
     assert settings.SECURE_HSTS_PRELOAD is True
-    assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
+    # Unlike every other transport setting above, this one is not implied by
+    # DEBUG=false: trusting a proxy header is only safe when the deployment
+    # guarantees the proxy strips it, which is not something this code can
+    # know on its own - it has to be opted into explicitly (see below).
+    assert not hasattr(settings, "SECURE_PROXY_SSL_HEADER")
     assert settings.SESSION_COOKIE_SECURE is True
     assert settings.CSRF_COOKIE_SECURE is True
+    # Pinned so that deleting either half of the throttle - the class or the
+    # rate - is caught here rather than only by the fact that login becomes
+    # silently unthrottled. accounts/tests.py proves the throttle actually
+    # engages; this proves the number it engages at.
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] == [
+        "rest_framework.throttling.ScopedRateThrottle",
+    ]
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] == {"login": "10/min"}
+
+
+def test_login_view_opts_into_the_scoped_throttle() -> None:
+    # The setting above only throttles a view that names this scope. Without
+    # this, renaming or removing LoginView.throttle_scope would leave login
+    # unthrottled while every assertion about the *rate* kept passing.
+    from accounts.views import LoginView
+
+    assert LoginView.throttle_scope == "login"
+
+
+def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        DJANGO_BEHIND_TLS_PROXY="true",
+    )
+
+    assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 def test_browsable_api_is_not_exposed_in_production(

@@ -155,6 +155,36 @@ describe("App authentication", () => {
     expect(await screen.findByText("Email or password is incorrect.")).toBeVisible();
   });
 
+  it("shows the server's own message when login is throttled, not a credential error", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(authRequiredResponse())
+      .mockResolvedValueOnce(
+        jsonResponse(429, {
+          error: {
+            code: "throttled",
+            message: "Request was throttled. Expected available in 42 seconds.",
+          },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    await user.type(screen.getByLabelText("Email"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "wrong");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByText(
+        "Request was throttled. Expected available in 42 seconds.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText("Email or password is incorrect.")).not.toBeInTheDocument();
+  });
+
   it("logs out and returns to the login route", async () => {
     const fetchMock = vi
       .fn()

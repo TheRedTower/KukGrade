@@ -42,10 +42,21 @@ function LoginPage() {
       await login(email, password);
       navigate("/");
     } catch (loginError) {
-      if (loginError instanceof ApiError && loginError.status === 403) {
-        setError("Session verification failed. Refresh the page and try again.");
+      if (loginError instanceof ApiError) {
+        if (loginError.status === 403) {
+          setError("Session verification failed. Refresh the page and try again.");
+        } else if (loginError.status === 429) {
+          // The server's own message names how long to wait.
+          setError(loginError.message);
+        } else if (loginError.status >= 500) {
+          setError(
+            "KukGrade is not responding. Your password may be fine - try again in a moment.",
+          );
+        } else {
+          setError("Email or password is incorrect.");
+        }
       } else {
-        setError("Email or password is incorrect.");
+        setError("KukGrade could not be reached. Check your connection and try again.");
       }
     } finally {
       setIsSubmitting(false);

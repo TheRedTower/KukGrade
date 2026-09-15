@@ -4,6 +4,7 @@ from typing import cast
 
 from django import forms
 from django.contrib import admin
+from django.contrib.auth import password_validation
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
@@ -29,6 +30,21 @@ class UserCreationForm(forms.ModelForm):
         if password1 and password2 and password1 != password2:
             raise ValidationError(_("The two password fields did not match."))
         return str(password2)
+
+    def _post_clean(self) -> None:
+        # Same pattern Django's own UserCreationForm uses, and for the same
+        # reason: self.instance only has email/first_name/last_name/role on
+        # it after super()._post_clean() runs construct_instance(), so this
+        # is the earliest point UserAttributeSimilarityValidator has
+        # anything real to compare the password against. The API's
+        # equivalent path (accounts/serializers.py) had the same gap.
+        super()._post_clean()  # type: ignore[misc]
+        password = self.cleaned_data.get("password2")
+        if password:
+            try:
+                password_validation.validate_password(password, self.instance)
+            except ValidationError as error:
+                self.add_error("password2", error)
 
     def save(self, commit: bool = True) -> User:
         user = super().save(commit=False)

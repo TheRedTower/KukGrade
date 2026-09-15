@@ -425,6 +425,19 @@ class CandidateAssessment(models.Model):
         self.notes = (self.notes or "").strip()
 
 
+class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
+    def update(self, **kwargs: Any) -> int:
+        # clean() already refuses to change a finalised outcome through
+        # save(); QuerySet.update() bypasses clean() entirely and was the
+        # one path left that could rewrite a finalised decision from a
+        # shell with no validation and no trace.
+        if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
+            raise ValidationError(
+                {"status": ["Finalised candidate outcomes are immutable."]},
+            )
+        return super().update(**kwargs)
+
+
 class CandidateOutcome(models.Model):
     _allow_status_transition: bool = False
 
@@ -486,6 +499,8 @@ class CandidateOutcome(models.Model):
     conditional_requirements = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = CandidateOutcomeQuerySet.as_manager()
 
     class Meta:
         ordering = [
@@ -939,6 +954,14 @@ class PromotionQuerySet(models.QuerySet):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError(
             {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+        )
+
+    def update(self, **kwargs: Any) -> int:
+        # save() and delete() already refuse; QuerySet.update() bypasses both
+        # (no clean(), no delete()) and was the one path left that could
+        # silently rewrite a promotion's rank or attribution from a shell.
+        raise ValidationError(
+            {"promotion": ["Promotion records are immutable and cannot be changed."]},
         )
 
 

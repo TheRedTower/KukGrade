@@ -101,27 +101,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "kukgrade.wsgi.application"
 
-if os.environ.get("DJANGO_DATABASE_ENGINE") == "sqlite":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
+# PostgreSQL only. A SQLite fallback branch used to exist here; it could not
+# actually run this application - migration 0006 issues raw PostgreSQL
+# ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY DDL, and SQLite does not
+# support the SELECT ... FOR UPDATE locking every write path in
+# gradings/services.py depends on. A developer who found that switch got a
+# bare SQL syntax error rather than a reason, so it was removed rather than
+# fixed: nothing in this codebase can honestly run against SQLite.
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("POSTGRES_DB", "kukgrade"),
+        "USER": os.environ.get("POSTGRES_USER", "kukgrade"),
+        "PASSWORD": os.environ.get(
+            "POSTGRES_PASSWORD",
+            "kukgrade_local_password",
+        ),
+        "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "kukgrade"),
-            "USER": os.environ.get("POSTGRES_USER", "kukgrade"),
-            "PASSWORD": os.environ.get(
-                "POSTGRES_PASSWORD",
-                "kukgrade_local_password",
-            ),
-            "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
-            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
-        }
-    }
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -207,7 +206,14 @@ SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", not DEBUG)
 
 # Set when TLS terminates at a reverse proxy that forwards the scheme, so
 # Django can tell an already-secure request from one that needs redirecting.
-if env_bool("DJANGO_BEHIND_TLS_PROXY", not DEBUG):
+# Defaults off even in production, unlike every other transport setting
+# above: trusting this header is only safe when the proxy is guaranteed to
+# strip or overwrite any client-supplied value first, and Django's own
+# documentation warns that enabling it without that guarantee lets a client
+# spoof "this request is already secure" and defeat SECURE_SSL_REDIRECT.
+# That guarantee is a deployment fact this code cannot verify, so it has to
+# be opted into rather than assumed.
+if env_bool("DJANGO_BEHIND_TLS_PROXY", False):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # No request body, no user object and no exception argument is ever passed

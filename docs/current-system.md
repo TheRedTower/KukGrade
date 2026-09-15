@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 410 backend tests and
+Verified by running the tooling, not by reading the code: 436 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -78,11 +78,16 @@ are all clean, and CI enforces every one of them on each push.
   are never writable through the API. No delete: every attribution
   foreign key is `PROTECT`.
 - **Audit log**: append-only `audit` app recording session, candidate,
-  assessment, item, outcome and promotion actions. Written inside the acting
-  service's transaction, so no event survives a rolled-back action. Outcome
-  revisions carry the previous proposal, which is what makes a disagreement
-  visible. Immutable from model, queryset, admin and HTTP. Readable and
-  filterable by any signed-in user.
+  assessment, item, outcome, promotion, student and user actions. Written
+  inside the acting service's transaction, so no event survives a
+  rolled-back action. Django admin routes every write through the same
+  services the API uses, so an admin-created or admin-edited record is
+  audited and attributed identically. Outcome revisions carry the previous
+  proposal, and a locked-session withdrawal that discards an undecided
+  proposal carries what it said, before it is deleted - both are what make
+  a disagreement or an overridden decision visible after the fact.
+  Immutable from model, queryset, admin and HTTP. Readable and filterable
+  by any signed-in user.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The
   login form distinguishes wrong credentials, CSRF failure, throttling, a

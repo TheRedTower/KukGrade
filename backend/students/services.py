@@ -68,8 +68,15 @@ def update_student(
     status: str | None = None,
     actor: User | None = None,
 ) -> Student:
-    before = _snapshot(student)
-    status_changing = status is not None and status != student.status
+    # Read fresh from the database rather than snapshotting `student` as
+    # received: Django admin's own save flow constructs the new field
+    # values onto this exact instance before save_model() ever runs, so a
+    # comparison against the argument as-is would always see the new value
+    # on both sides. The API path is unaffected, since DRF passes the
+    # unmodified instance.
+    persisted = Student.objects.get(pk=student.pk)
+    before = _snapshot(persisted)
+    status_changing = status is not None and status != persisted.status
 
     if first_name is not None:
         student.first_name = first_name

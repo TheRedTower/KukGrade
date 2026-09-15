@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache as django_cache
 from django.core.exceptions import ValidationError
+from django.forms import ModelForm
+from django.test import RequestFactory
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.admin import UserCreationForm
+from accounts.admin import UserAdmin, UserCreationForm
 from accounts.groups import (
     ADMINISTRATOR_GROUP,
     INSTRUCTOR_GROUP,
@@ -937,3 +941,122 @@ def test_search_and_role_filters_work() -> None:
     assert "blair.diaz@example.com" in {r["email"] for r in by_role["results"]}
     assert "alex.kim@example.com" not in {r["email"] for r in by_role["results"]}
     assert unknown_role["count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Admin routes through the same services the API uses (KG-036)
+# ---------------------------------------------------------------------------
+
+
+def admin_operator_request(email: str) -> Any:
+    request = RequestFactory().post("/admin/")
+    request.user = User.objects.create_user(
+        email=email,
+        role=User.Role.ADMINISTRATOR,
+    )
+    return request
+
+
+def test_admin_created_user_is_persisted_and_audited() -> None:
+    # Previously ModelAdmin's default save persisted the user without ever
+    # calling create_platform_user(), so USER_CREATED never fired.
+    obj = User(
+        email="admin-add-form@example.com",
+        first_name="New",
+        last_name="Person",
+        role=User.Role.INSTRUCTOR,
+        is_active=True,
+    )
+    model_admin = UserAdmin(User, admin.site)
+    request = admin_operator_request("user-admin-creator@example.com")
+    form = cast(
+        ModelForm,
+        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
+    )
+
+    model_admin.save_model(request, obj, form, False)
+
+    assert obj.pk is not None
+    persisted = User.objects.get(pk=obj.pk)
+    assert persisted.check_password("Str0ng-Passphrase!42")
+    assert persisted.is_staff is False
+    assert persisted.is_superuser is False
+    event = AuditEvent.objects.filter(
+        action=AuditAction.USER_CREATED,
+        entity_id=str(obj.pk),
+    ).latest("occurred_at")
+    assert event.actor == request.user
+
+
+def test_admin_can_still_create_a_staff_or_superuser_account() -> None:
+    # create_platform_user() deliberately refuses is_staff/is_superuser, the
+    # same way the API does - admin must still be able to grant them
+    # directly, since that is Django's own privilege system, not the API's.
+    obj = User(
+        email="admin-superuser-add@example.com",
+        first_name="Super",
+        last_name="User",
+        role=User.Role.ADMINISTRATOR,
+        is_active=True,
+        is_staff=True,
+        is_superuser=True,
+    )
+    model_admin = UserAdmin(User, admin.site)
+    request = admin_operator_request("user-admin-superuser-creator@example.com")
+    form = cast(
+        ModelForm,
+        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
+    )
+
+    model_admin.save_model(request, obj, form, False)
+
+    persisted = User.objects.get(pk=obj.pk)
+    assert persisted.is_staff is True
+    assert persisted.is_superuser is True
+    # Still exactly one audit event - granting is_staff/is_superuser is a
+    # detail of the same creation, not a second action.
+    assert (
+        AuditEvent.objects.filter(
+            action=AuditAction.USER_CREATED,
+            entity_id=str(obj.pk),
+        ).count()
+        == 1
+    )
+
+
+def test_admin_user_update_is_audited() -> None:
+    target = User.objects.create_user(
+        email="admin-change-form@example.com",
+        first_name="Before",
+    )
+    model_admin = UserAdmin(User, admin.site)
+    target.first_name = "After"
+    request = admin_operator_request("user-admin-updater@example.com")
+    form = cast(ModelForm, SimpleNamespace(changed_data=["first_name"]))
+
+    model_admin.save_model(request, target, form, True)
+
+    target.refresh_from_db()
+    assert target.first_name == "After"
+    event = AuditEvent.objects.filter(
+        action=AuditAction.USER_UPDATED,
+        entity_id=str(target.pk),
+    ).latest("occurred_at")
+    assert event.actor == request.user
+
+
+def test_admin_is_staff_only_change_is_not_blocked_by_the_service() -> None:
+    # update_platform_user()'s no-op check only tracks the five API-writable
+    # fields; is_staff is not one of them, so this must still persist even
+    # though none of those five changed.
+    target = User.objects.create_user(email="admin-staff-toggle@example.com")
+    assert target.is_staff is False
+    model_admin = UserAdmin(User, admin.site)
+    target.is_staff = True
+    request = admin_operator_request("user-admin-staff-toggler@example.com")
+    form = cast(ModelForm, SimpleNamespace(changed_data=["is_staff"]))
+
+    model_admin.save_model(request, target, form, True)
+
+    target.refresh_from_db()
+    assert target.is_staff is True

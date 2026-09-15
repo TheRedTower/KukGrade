@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
+from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
+from django.forms import ModelForm
+from django.test import RequestFactory
 from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from ranks.models import Rank
+from students.admin import StudentAdmin
 from students.models import Student
 
 pytestmark = pytest.mark.django_db
@@ -476,3 +481,76 @@ def test_only_students_view_student_can_read() -> None:
     client.force_authenticate(user=reader)
     assert client.get("/api/students/").status_code == 200
     assert client.post("/api/students/", {}, format="json").status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Admin routes through the same services the API uses (KG-036)
+# ---------------------------------------------------------------------------
+
+
+def admin_request(email: str) -> Any:
+    request = RequestFactory().post("/admin/")
+    request.user = User.objects.create_user(email=email)
+    return request
+
+
+def test_admin_created_student_is_persisted_and_audited() -> None:
+    obj = Student(**student_kwargs(wksa_id="ADMIN-CREATE-01"))
+    model_admin = StudentAdmin(Student, admin.site)
+    request = admin_request("admin-student-creator@example.com")
+    before = AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
+
+    model_admin.save_model(
+        request,
+        obj,
+        cast(ModelForm, SimpleNamespace(changed_data=[])),
+        False,
+    )
+
+    assert obj.pk is not None
+    assert Student.objects.filter(pk=obj.pk).exists()
+    after = AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
+    assert after == before + 1
+    event = AuditEvent.objects.filter(
+        action=AuditAction.STUDENT_CREATED,
+        entity_id=str(obj.pk),
+    ).latest("occurred_at")
+    assert event.actor == request.user
+
+
+def test_admin_student_update_is_audited() -> None:
+    learner = Student.objects.create(**student_kwargs(wksa_id="ADMIN-UPDATE-01"))
+    model_admin = StudentAdmin(Student, admin.site)
+    learner.first_name = "Changed"
+    request = admin_request("admin-student-updater@example.com")
+    before = AuditEvent.objects.filter(action=AuditAction.STUDENT_UPDATED).count()
+
+    model_admin.save_model(
+        request,
+        learner,
+        cast(ModelForm, SimpleNamespace(changed_data=["first_name"])),
+        True,
+    )
+
+    learner.refresh_from_db()
+    assert learner.first_name == "Changed"
+    after = AuditEvent.objects.filter(action=AuditAction.STUDENT_UPDATED).count()
+    assert after == before + 1
+
+
+def test_admin_cannot_change_wksa_id_after_creation() -> None:
+
+    learner = Student.objects.create(**student_kwargs(wksa_id="ADMIN-WKSA-LOCK"))
+    model_admin = StudentAdmin(Student, admin.site)
+
+    assert "wksa_id" in model_admin.get_readonly_fields(
+        admin_request("admin-wksa-guard@example.com"),
+        learner,
+    )
+    assert (
+        model_admin.get_readonly_fields(
+            admin_request("admin-wksa-guard-add@example.com"),
+            None,
+        )
+        == ()
+    )

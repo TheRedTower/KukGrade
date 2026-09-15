@@ -8,9 +8,12 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
+from django.forms import ModelForm
+from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import User
+from accounts.services import create_platform_user, update_platform_user
 
 
 class UserCreationForm(forms.ModelForm):
@@ -138,3 +141,45 @@ class UserAdmin(DjangoUserAdmin):
             },
         ),
     )
+
+    def save_model(
+        self,
+        request: HttpRequest,
+        obj: User,
+        form: ModelForm,
+        change: bool,
+    ) -> None:
+        # Routed through the same services the API uses, so an admin-created
+        # or admin-edited user is audited too, attributed to whoever is
+        # signed into admin (KG-036). is_staff/is_superuser stay a direct
+        # admin capability - create_platform_user() deliberately refuses
+        # them, the same way the API does, so they are applied as an
+        # explicit second step on create rather than routed through it.
+        if not change:
+            created = create_platform_user(
+                email=obj.email,
+                password=form.cleaned_data["password1"],
+                first_name=obj.first_name,
+                last_name=obj.last_name,
+                role=obj.role,
+                is_active=obj.is_active,
+                actor=cast(User, request.user),
+            )
+            if obj.is_staff or obj.is_superuser:
+                created.is_staff = obj.is_staff
+                created.is_superuser = obj.is_superuser
+                created.save(update_fields=["is_staff", "is_superuser"])
+            obj.pk = created.pk
+            obj.refresh_from_db()
+            return
+
+        changed_data = set(form.changed_data)
+        update_platform_user(
+            obj,
+            email=obj.email if "email" in changed_data else None,
+            first_name=obj.first_name if "first_name" in changed_data else None,
+            last_name=obj.last_name if "last_name" in changed_data else None,
+            role=obj.role if "role" in changed_data else None,
+            is_active=obj.is_active if "is_active" in changed_data else None,
+            actor=cast(User, request.user),
+        )

@@ -500,9 +500,12 @@ Filters:
 - `occurred_from`
 - `occurred_to`
 
-**Written by the API only, today.** Writes made through Django admin - the
-only usable interface until Phase 3 ships grading screens - do not currently
-produce an audit event. Tracked as KG-036.
+**Written by admin too.** Django admin - the only usable interface until
+Phase 3 ships grading screens - routes its writes through the same service
+functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
+`StudentAdmin`, `UserAdmin`), so a session, candidate, student or user
+created or edited through admin is audited and attributed to whoever is
+signed in, exactly as if it had gone through the API.
 
 ---
 

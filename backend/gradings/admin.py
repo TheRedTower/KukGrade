@@ -18,9 +18,10 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
-    build_candidate,
+    apply_candidate_update,
+    create_grading_session,
+    register_candidate,
     transition_grading_session,
-    update_candidate,
     update_candidate_assessment,
     update_candidate_assessment_item,
     validate_candidate_can_be_deleted,
@@ -39,6 +40,7 @@ class GradingSessionAdminForm(ModelForm):
             "status",
             "location",
             "notes",
+            "cancellation_reason",
             "created_by",
         )
 
@@ -59,6 +61,16 @@ class GradingSessionAdminForm(ModelForm):
                         else exc.messages
                     ) or exc.messages
                     self.add_error("status", messages)
+                else:
+                    # This form has already validated the transition against
+                    # the persisted state above. Without this,
+                    # ModelForm._post_clean() calls instance.full_clean()
+                    # with the new status already applied, and the model's
+                    # own guard rejects any status change outright - the
+                    # form would never validate at all, for any transition,
+                    # and save_model()'s own routing through
+                    # transition_grading_session() would never be reached.
+                    self.instance._allow_status_transition = True
         return cleaned_data
 
 
@@ -135,9 +147,23 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
         form: ModelForm,
         change: bool,
     ) -> None:
+        if not change:
+            # Routed through the same service the API uses to create a
+            # session, so an admin-created session is audited too (KG-036).
+            created = create_grading_session(
+                title=obj.title,
+                grading_date=obj.grading_date,
+                location=obj.location,
+                notes=obj.notes,
+                created_by=obj.created_by,
+            )
+            obj.pk = created.pk
+            obj.refresh_from_db()
+            return
+
         changed_data = set(form.changed_data)
-        if not change or "status" not in changed_data:
-            if change and "grading_date" in changed_data:
+        if "status" not in changed_data:
+            if "grading_date" in changed_data:
                 validate_session_grading_date_change(obj)
             super().save_model(request, obj, form, change)
             return
@@ -157,6 +183,7 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
                 obj,
                 target_status,
                 actor=cast(User, request.user),
+                reason=obj.cancellation_reason,
             )
         obj.status = transitioned.status
 
@@ -370,28 +397,34 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
         form: ModelForm,
         change: bool,
     ) -> None:
+        # Routed through the same services the API uses, so an admin-created
+        # or admin-edited candidate is audited too, attributed to whoever is
+        # signed into admin (KG-036).
         if not change:
-            candidate = build_candidate(
+            created = register_candidate(
                 session=obj.session,
                 student=obj.student,
                 testing_for_rank=obj.testing_for_rank,
                 status=obj.status,
                 notes=obj.notes,
+                actor=cast(User, request.user),
             )
-            obj.age_band = candidate.age_band
-        else:
-            changed_data = set(form.changed_data)
-            update_candidate(
-                obj,
-                session=obj.session if "session" in changed_data else None,
-                student=obj.student if "student" in changed_data else None,
-                testing_for_rank=(
-                    obj.testing_for_rank if "testing_for_rank" in changed_data else None
-                ),
-                status=obj.status if "status" in changed_data else None,
-                notes=obj.notes if "notes" in changed_data else None,
-            )
-        super().save_model(request, obj, form, change)
+            obj.pk = created.pk
+            obj.refresh_from_db()
+            return
+
+        changed_data = set(form.changed_data)
+        apply_candidate_update(
+            obj,
+            session=obj.session if "session" in changed_data else None,
+            student=obj.student if "student" in changed_data else None,
+            testing_for_rank=(
+                obj.testing_for_rank if "testing_for_rank" in changed_data else None
+            ),
+            status=obj.status if "status" in changed_data else None,
+            notes=obj.notes if "notes" in changed_data else None,
+            actor=cast(User, request.user),
+        )
 
 
 @admin.register(CandidateOutcome)

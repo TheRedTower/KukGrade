@@ -274,8 +274,19 @@ on `ScopedRateThrottle.THROTTLE_RATES`, since `override_settings` does not
 reach a class attribute bound once at import time) and that the log line
 never contains the attempted password.
 
-**NEXT-014** — standardise the five bare `select_for_update()` calls to
-`of=("self",)`. Depends on item 5.
+**NEXT-014** — **DONE 2026-09-15.** Standardised every bare
+`select_for_update()` call in `gradings/services.py` to `of=("self",)` -
+nine by the time this landed, not the five counted when this item was
+written, since `create_candidate_outcome`, `promote_candidate` (four
+separate locks), `generate_candidate_assessment`,
+`update_candidate_assessment` and `update_candidate_assessment_item` all
+gained one as the backend grew. Each of these also uses `select_related`,
+so without `of=("self",)` Postgres was locking the joined session, student,
+rank or candidate row too - unnecessary contention that grows with every
+new workflow, and the exact drift NEXT-014 exists to close. Verified by the
+concurrency suite (item 5), landed first specifically so this change was
+made under test rather than on faith: 415 backend tests pass, stable across
+three consecutive full runs.
 
 ---
 
@@ -288,10 +299,10 @@ never contains the attempted password.
 | 3 | Users API | 1 (authority change is audited) | ~~2–3 days~~ **done** |
 | 4 | End-to-end test | 2, 3 | ~~0.5 day~~ **done** |
 | 5 | Concurrency tests | — | ~~1 day~~ **done** |
-| 6 | Smaller items | 5 for NEXT-014 | 0.5 day |
+| 6 | Smaller items | 5 for NEXT-014 | ~~0.5 day~~ **done** |
 
-**Roughly 7–8 days.** At that point every audit finding is closed or
-deliberately deferred, and the backend is complete for Phase 3.
+**Roughly 7–8 days.** Every audit finding is now closed or deliberately
+deferred, and the backend is complete for Phase 3.
 
 ## Explicitly not in scope
 

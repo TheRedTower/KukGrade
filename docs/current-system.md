@@ -83,6 +83,14 @@ are all clean, and CI enforces every one of them on each push.
   race rather than by reading the code: exactly one snapshot, one outcome,
   one finalisation and one promotion survive a race, and two competing
   session transitions never leave a mixed state.
+- **Login is rate-limited**: `ScopedRateThrottle` at 10/min, scoped so no
+  other endpoint is affected. A failed attempt is logged with the email
+  only; no log line in the codebase ever includes a password or a raw
+  request body.
+- **Sensitive actions cannot silently lose their authority class**: a
+  permission-completeness test pins `finalise`, `promote` and `withdraw` to
+  the per-user permission class each requires, independent of the ordinary
+  `permission_map` check.
 
 ## Not Implemented
 

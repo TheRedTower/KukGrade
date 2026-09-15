@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from django.contrib.auth import authenticate
@@ -21,6 +22,8 @@ from accounts.services import (
     update_platform_user,
 )
 from gradings.serializers import raise_drf_validation_error
+
+security_logger = logging.getLogger("kukgrade.security")
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -85,6 +88,11 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(request=request, email=email, password=password)
 
         if user is None:
+            # The email identifies which account was targeted, which is
+            # exactly what makes this useful for spotting a brute-force
+            # attempt; the password itself is never in this call or any
+            # other log line in this codebase.
+            security_logger.warning("Failed login attempt for %s", email)
             self.fail("invalid_credentials")
 
         attrs["user"] = user

@@ -24,6 +24,11 @@ from django.contrib.contenttypes.models import ContentType
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import (
+    CanMakeFinalGradingDecision,
+    CanOverrideLockedSession,
+    CanPromoteStudent,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -404,3 +409,45 @@ def test_every_routed_action_declares_its_permissions(
     missing = reachable_actions(viewset) - declared
 
     assert not missing, f"{name} does not declare permissions for: {sorted(missing)}"
+
+
+# --------------------------------------------------------------------------
+# Sensitive actions: a permission_map entry alone is not enough (KG-035)
+# --------------------------------------------------------------------------
+
+# Actions gated by a per-user authority permission - never granted to a
+# group - are enforced by a dedicated permission class on the @action
+# itself, not by permission_map. The completeness test above only sees
+# permission_map, so it would still pass if one of these lost its class and
+# fell back to whatever ordinary permission_map entry remained, silently
+# handing final-decision, promotion or override authority to every
+# instructor. Add a new sensitive action here the day it is written.
+SENSITIVE_ACTIONS: dict[tuple[str, str], type] = {
+    ("CandidateOutcomeViewSet", "finalise"): CanMakeFinalGradingDecision,
+    ("CandidateOutcomeViewSet", "promote"): CanPromoteStudent,
+    ("GradingCandidateViewSet", "withdraw"): CanOverrideLockedSession,
+}
+
+
+@pytest.mark.parametrize(
+    "name,action_name,required_class",
+    [
+        (name, action_name, required_class)
+        for (name, action_name), required_class in SENSITIVE_ACTIONS.items()
+    ],
+)
+def test_sensitive_actions_declare_their_authority_class(
+    name: str,
+    action_name: str,
+    required_class: type,
+) -> None:
+    viewset = next(
+        viewset for viewset_name, viewset in routed_viewsets() if viewset_name == name
+    )
+    bound_action = getattr(viewset, action_name)
+    declared_classes = bound_action.kwargs.get("permission_classes", [])
+
+    assert required_class in declared_classes, (
+        f"{name}.{action_name} must declare {required_class.__name__} - "
+        "permission_map alone is not enough for a sensitive action."
+    )

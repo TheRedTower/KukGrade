@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.contrib.contenttypes.models import ContentType
+from django.core.cache import cache as django_cache
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.groups import (
@@ -155,6 +159,67 @@ def test_login_requires_csrf_token() -> None:
 
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "csrf_failed"
+
+
+def test_failed_login_logs_the_email_and_never_the_password(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    create_user(email="logged-target@example.com", password="StrongPass123!")
+    client = APIClient(enforce_csrf_checks=True)
+    token = csrf_token(client)
+
+    with caplog.at_level(logging.WARNING, logger="kukgrade.security"):
+        client.post(
+            "/api/auth/login/",
+            {
+                "email": "logged-target@example.com",
+                "password": "TotallySecretPassphrase1!",
+            },
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("logged-target@example.com" in message for message in messages)
+    assert not any("TotallySecretPassphrase1!" in message for message in messages)
+
+
+def test_repeated_failed_logins_are_throttled() -> None:
+    # ScopedRateThrottle.THROTTLE_RATES is bound from api_settings once at
+    # import time, so override_settings(REST_FRAMEWORK=...) does not reach
+    # it - patching the class attribute directly is what actually changes
+    # the rate for the duration of the test.
+    create_user(email="throttle-target@example.com", password="StrongPass123!")
+    client = APIClient(enforce_csrf_checks=True)
+    token = csrf_token(client)
+    django_cache.clear()
+
+    try:
+        with patch.object(ScopedRateThrottle, "THROTTLE_RATES", {"login": "2/min"}):
+            attempts = [
+                client.post(
+                    "/api/auth/login/",
+                    {
+                        "email": "throttle-target@example.com",
+                        "password": "wrong",
+                    },
+                    format="json",
+                    HTTP_X_CSRFTOKEN=token,
+                )
+                for _ in range(2)
+            ]
+            throttled = client.post(
+                "/api/auth/login/",
+                {"email": "throttle-target@example.com", "password": "wrong"},
+                format="json",
+                HTTP_X_CSRFTOKEN=token,
+            )
+    finally:
+        django_cache.clear()
+
+    assert [response.status_code for response in attempts] == [400, 400]
+    assert throttled.status_code == 429
+    assert throttled.json()["error"]["code"] == "throttled"
 
 
 def test_current_user_requires_authentication() -> None:

@@ -181,7 +181,7 @@ the Administrator group only.
 
 ---
 
-## 4 · End-to-end workflow test  (closes KG-032)
+## 4 · End-to-end workflow test  (closes KG-032) — **DONE 2026-09-15**
 
 One test, pure HTTP, no service-layer shortcuts, following the exact sequence a
 frontend must:
@@ -189,10 +189,16 @@ frontend must:
 ```
 log in  ->  create student  ->  create session  ->  register candidate
 ->  open session  ->  generate assessment  ->  start assessment
-->  record every required item  ->  complete assessment
-->  create outcome  ->  propose  ->  lock session
+->  record every required item  ->  lock session  ->  complete assessment
+->  create outcome  ->  propose
 ->  finalise (as Master)  ->  promote (as Master)  ->  read rank history
 ```
+
+Locking before completing the assessment, not after propose, is not a
+simplification - `create_candidate_outcome` refuses unless the session is
+already `LOCKED`. Recording item results and completing an assessment are
+both allowed in `OPEN` or `LOCKED`, so nothing about entering results needs
+to move.
 
 Every step takes its identifiers **from the previous response**, never from an
 ORM object. The point is not that each step works — that is already covered —
@@ -247,7 +253,7 @@ records failures without writing personal data or credentials into logs.
 | 1 | AuditEvent | — | ~~1.5–2 days~~ **done** |
 | 2 | Students API | — | ~~1 day~~ **done** |
 | 3 | Users API | 1 (authority change is audited) | ~~2–3 days~~ **done** |
-| 4 | End-to-end test | 2, 3 | 0.5 day |
+| 4 | End-to-end test | 2, 3 | ~~0.5 day~~ **done** |
 | 5 | Concurrency tests | — | 1 day |
 | 6 | Smaller items | 5 for NEXT-014 | 0.5 day |
 

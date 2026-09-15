@@ -255,13 +255,24 @@ so that change is made under test rather than on faith.
 
 ## 6 · Smaller items
 
-**KG-035** — extend the permission completeness test so an action in a
-`SENSITIVE_ACTIONS` set must carry its authority class. Today the net catches an
-undeclared action but cannot see the three sensitive permissions, because they
-are enforced by action-level classes rather than `permission_map`.
+**KG-035** — **DONE 2026-09-15.** Extended the permission completeness test
+with a `SENSITIVE_ACTIONS` registry (`accounts/test_permission_matrix.py`)
+pinning today's three action-level authority classes, on
+`CandidateOutcomeViewSet.finalise`/`.promote` and
+`GradingCandidateViewSet.withdraw`, so a future regression that drops the
+class but leaves an ordinary `permission_map` entry in place is caught here
+instead of silently handing Master authority to every instructor. Confirmed
+load-bearing by removing `CanMakeFinalGradingDecision` from `finalise` and
+watching it fail.
 
-**NEXT-015** — `ScopedRateThrottle` on login, and a `LOGGING` config that
-records failures without writing personal data or credentials into logs.
+**NEXT-015** — **DONE 2026-09-15.** `ScopedRateThrottle` on `LoginView`
+(`throttle_scope = "login"`, `10/min`, scoped so no other view is affected);
+a `LOGGING` config with one app logger, `kukgrade.security`, used solely to
+record a failed login's email - never the password, never `request.data`
+wholesale. Verified the throttle actually engages (`unittest.mock.patch.object`
+on `ScopedRateThrottle.THROTTLE_RATES`, since `override_settings` does not
+reach a class attribute bound once at import time) and that the log line
+never contains the attempted password.
 
 **NEXT-014** — standardise the five bare `select_for_update()` calls to
 `of=("self",)`. Depends on item 5.

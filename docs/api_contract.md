@@ -46,8 +46,11 @@ Every error response uses one envelope:
   serializer; errors raised at serializer level are keyed `non_field_errors`.
   Leaves are always plain strings.
 
-Unhandled server errors (500) are not enveloped: they never reach DRF's
-exception handler. A JSON 500 handler is tracked separately.
+Unhandled server errors (500) never reach DRF's exception handler, so they
+are enveloped separately: `kukgrade.exceptions.server_error`, wired as
+Django's `handler500`, returns the same `{"error": {...}}` shape with code
+`server_error` and no detail about the cause - that belongs in the logs,
+not the response.
 
 ## 1. Authentication
 
@@ -56,6 +59,9 @@ exception handler. A JSON 500 handler is tracked separately.
 | POST  | /api/auth/login/       | Authenticate with email and password and establish a session |
 | POST  | /api/auth/logout/      | Clear the current session |
 | GET   | /api/auth/me/          | Get the current user profile       |
+
+`/api/auth/login/` is rate-limited to 10 requests per minute per client IP
+(`error.code = "throttled"` past that). No other endpoint is throttled.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student` and `can_override_locked_session`, all **computed from

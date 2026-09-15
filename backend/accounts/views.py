@@ -27,6 +27,9 @@ from accounts.serializers import (
 class LoginView(APIView):
     authentication_classes: list[type] = []
     permission_classes = [AllowAny]
+    # The one view in the API that opts into ScopedRateThrottle - unlimited
+    # password attempts is the risk this closes.
+    throttle_scope = "login"
 
     def post(self, request: Request) -> Response:
         serializer = LoginSerializer(data=request.data, context={"request": request})

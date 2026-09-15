@@ -166,6 +166,12 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "kukgrade.pagination.DefaultPagination",
     "PAGE_SIZE": 50,
+    # Scoped so it only throttles views that opt in with throttle_scope - a
+    # view without one is never rate limited by this. LoginView is the only
+    # one that sets it today, since unlimited password attempts is the risk
+    # this exists to close.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
 }
 
 CORS_ALLOWED_ORIGINS = env_list(
@@ -203,3 +209,41 @@ SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", not DEBUG)
 # Django can tell an already-secure request from one that needs redirecting.
 if env_bool("DJANGO_BEHIND_TLS_PROXY", not DEBUG):
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# No request body, no user object and no exception argument is ever passed
+# to a log call anywhere in this codebase - only plain, pre-formatted
+# strings such as an email address, so a stray password or session cookie
+# cannot end up in a log line by accident. "kukgrade.security" is the one
+# app logger today, used for failed login attempts.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "plain": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "plain",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "kukgrade.security": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

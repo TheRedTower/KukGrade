@@ -437,7 +437,7 @@ def test_syllabus_api_rejects_write_methods(method: str, path: str) -> None:
     assert response.status_code == 405
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_syllabus_migrations_apply_from_zero_and_seed_deterministic_records() -> None:
     executor = MigrationExecutor(connection)
     final_targets = executor.loader.graph.leaf_nodes()
@@ -478,7 +478,7 @@ def test_syllabus_migrations_apply_from_zero_and_seed_deterministic_records() ->
         executor.migrate(final_targets)
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
 def test_syllabus_seed_reverse_targets_only_exact_seeded_rows() -> None:
     rank_seed_migration = importlib.import_module(
         "ranks.migrations.0002_seed_rank_catalogue",

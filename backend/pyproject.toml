@@ -24,6 +24,9 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "kukgrade.settings_test"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
+markers = [
+    "concurrency: real-thread tests of database locking under a genuine race. Deselect with -m 'not concurrency' if one proves flaky in a given CI environment.",
+]
 testpaths = [
     "kukgrade",
     "accounts",

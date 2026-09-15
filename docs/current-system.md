@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 405 backend tests and
+Verified by running the tooling, not by reading the code: 410 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -78,12 +78,14 @@ are all clean, and CI enforces every one of them on each push.
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every
   identifier from the previous response, the way a real frontend must.
+- **Concurrency tests** (`gradings/test_concurrency.py`, marked
+  `concurrency`) prove five locking guarantees under a genuine multi-thread
+  race rather than by reading the code: exactly one snapshot, one outcome,
+  one finalisation and one promotion survive a race, and two competing
+  session transitions never leave a mixed state.
 
 ## Not Implemented
 
-
-- **Concurrency tests.** Every locking guarantee is asserted by reading the
-  code, not by running two transactions at once.
 - **Any grading screen.** The frontend is the authentication shell only.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.

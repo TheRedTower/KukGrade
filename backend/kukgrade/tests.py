@@ -101,16 +101,20 @@ def test_production_settings_are_hardened(
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] == [
         "rest_framework.throttling.ScopedRateThrottle",
     ]
-    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] == {"login": "10/min"}
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] == {
+        "login": "10/min",
+        "password_change": "10/min",
+    }
 
 
 def test_login_view_opts_into_the_scoped_throttle() -> None:
     # The setting above only throttles a view that names this scope. Without
     # this, renaming or removing LoginView.throttle_scope would leave login
     # unthrottled while every assertion about the *rate* kept passing.
-    from accounts.views import LoginView
+    from accounts.views import ChangePasswordView, LoginView
 
     assert LoginView.throttle_scope == "login"
+    assert ChangePasswordView.throttle_scope == "password_change"
 
 
 def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(

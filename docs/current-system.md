@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 455 backend tests and
+Verified by running the tooling, not by reading the code: 465 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -92,6 +92,13 @@ are all clean, and CI enforces every one of them on each push.
   Django's configured password validators. `is_staff` and `is_superuser`
   are never writable through the API. No delete: every attribution
   foreign key is `PROTECT`.
+- **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
+  user change their own first/last name only - email, role and authority
+  stay administrator-only. `POST /api/auth/change-password/` lets a user
+  change their own password, given their current one; throttled the same
+  way login is, validated by the same password validators as every other
+  password path, and never logs the value. Both are audited as the user's
+  own action.
 - **Audit log**: append-only `audit` app recording session, candidate,
   assessment, item, outcome, promotion, student and user actions. Written
   inside the acting service's transaction, so no event survives a

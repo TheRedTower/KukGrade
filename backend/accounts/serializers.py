@@ -38,7 +38,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "email",
             "first_name",
@@ -52,7 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
         )
-        read_only_fields = fields
+        read_only_fields: tuple[str, ...] = fields
 
     def get_can_make_final_grading_decision(self, obj: User) -> bool:
         return obj.has_perm(FINAL_GRADING_DECISION_PERMISSION)
@@ -67,6 +67,31 @@ class UserSerializer(serializers.ModelSerializer):
         # locked-session-exit work. Found while building the users API,
         # which reuses this exact shape - fixed here rather than propagated.
         return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
+
+
+class SelfProfileSerializer(UserSerializer):
+    """PATCH /api/auth/me/.
+
+    Everything UserSerializer exposes, but first_name and last_name become
+    writable - the only things a user may change about themselves. Email,
+    role and authority stay administrator-only, on UserManagementSerializer;
+    a separate serializer keeps "what a user can do to themselves" from ever
+    silently growing alongside admin capabilities.
+    """
+
+    class Meta(UserSerializer.Meta):
+        read_only_fields: tuple[str, ...] = tuple(
+            field
+            for field in UserSerializer.Meta.fields
+            if field not in {"first_name", "last_name"}
+        )
+
+    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
+        request = self.context["request"]
+        try:
+            return update_platform_user(instance, actor=request.user, **validated_data)
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -253,6 +278,50 @@ class SetPasswordSerializer(serializers.Serializer):
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
         instance.set_password(validated_data["password"])
+        instance.save(update_fields=["password"])
+        record_password_reset(instance, actor=request.user)
+        return instance
+
+    def create(self, validated_data: dict[str, Any]) -> User:
+        raise NotImplementedError
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """POST /api/auth/change-password/.
+
+    Self-service, unlike SetPasswordSerializer: an administrator resetting
+    someone else's password already proved their own authority to manage
+    that account, so no current-password check applies there. Here the
+    caller is proving they still control the account, not managing someone
+    else's - current_password is required precisely because a hijacked
+    session should not be enough to lock the real owner out.
+    """
+
+    current_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+    )
+
+    def validate_current_password(self, value: str) -> str:
+        request = self.context["request"]
+        if not request.user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def validate_new_password(self, value: str) -> str:
+        try:
+            validate_password(value, user=self.instance)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages)) from exc
+        return value
+
+    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
+        request = self.context["request"]
+        instance.set_password(validated_data["new_password"])
         instance.save(update_fields=["password"])
         record_password_reset(instance, actor=request.user)
         return instance

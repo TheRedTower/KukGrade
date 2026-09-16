@@ -28,6 +28,9 @@ from gradings.models import (
     Promotion,
 )
 from gradings.serializers import (
+    BulkAssessmentGenerationSerializer,
+    BulkCandidateRegistrationSerializer,
+    BulkCandidateStatusUpdateSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
     CandidateOutcomeFinaliseSerializer,
@@ -41,6 +44,9 @@ from gradings.serializers import (
     raise_drf_validation_error,
 )
 from gradings.services import (
+    bulk_generate_candidate_assessments,
+    bulk_register_candidates,
+    bulk_update_candidate_status,
     candidate_assessment_summary,
     create_candidate_outcome,
     delete_candidate,
@@ -131,6 +137,9 @@ class GradingCandidateViewSet(ModelViewSet):
         # rather than for the candidate they hang off.
         "generate_assessment": ("gradings.add_candidateassessment",),
         "create_outcome": ("gradings.add_candidateoutcome",),
+        "bulk_register": ("gradings.add_gradingcandidate",),
+        "bulk_generate_assessments": ("gradings.add_candidateassessment",),
+        "bulk_update_status": ("gradings.change_gradingcandidate",),
         # The sensitive half is enforced by CanOverrideLockedSession on the
         # action itself, which also gives a clearer message.
         "withdraw": ("gradings.change_gradingcandidate",),
@@ -207,6 +216,92 @@ class GradingCandidateViewSet(ModelViewSet):
             context={"request": request},
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="bulk-register")
+    def bulk_register(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        input_serializer = BulkCandidateRegistrationSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        created, errors = bulk_register_candidates(
+            session=input_serializer.validated_data["session"],
+            rows=input_serializer.validated_data["candidates"],
+            actor=cast(User, request.user),
+            generate_assessments=input_serializer.validated_data[
+                "generate_assessments"
+            ],
+        )
+        created_data = [
+            {
+                "candidate": GradingCandidateSerializer(
+                    candidate_obj,
+                    context={"request": request},
+                ).data,
+                "assessment": (
+                    CandidateAssessmentSerializer(
+                        assessment_obj,
+                        context={"request": request},
+                    ).data
+                    if assessment_obj is not None
+                    else None
+                ),
+            }
+            for candidate_obj, assessment_obj in created
+        ]
+        return Response(
+            {"created": created_data, "errors": errors},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["post"], url_path="bulk-generate-assessments")
+    def bulk_generate_assessments(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        input_serializer = BulkAssessmentGenerationSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        created, errors = bulk_generate_candidate_assessments(
+            candidates=input_serializer.validated_data["candidates"],
+            generated_by=cast(User, request.user),
+        )
+        serializer = CandidateAssessmentSerializer(
+            created,
+            many=True,
+            context={"request": request},
+        )
+        return Response(
+            {"created": serializer.data, "errors": errors},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["post"], url_path="bulk-update-status")
+    def bulk_update_status(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        input_serializer = BulkCandidateStatusUpdateSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        updated, errors = bulk_update_candidate_status(
+            candidates=input_serializer.validated_data["candidates"],
+            new_status=input_serializer.validated_data["status"],
+            actor=cast(User, request.user),
+        )
+        serializer = GradingCandidateSerializer(
+            updated,
+            many=True,
+            context={"request": request},
+        )
+        return Response(
+            {"updated": serializer.data, "errors": errors},
+            status=status.HTTP_200_OK,
+        )
 
     @action(
         detail=True,

@@ -89,6 +89,21 @@ def update_platform_user(
     # unmodified instance.
     before = _snapshot(User.objects.get(pk=user.pk))
 
+    if role == User.Role.ADMINISTRATOR and user.has_perm(
+        FINAL_GRADING_DECISION_PERMISSION,
+    ):
+        from django.core.exceptions import ValidationError
+
+        raise ValidationError(
+            {
+                "role": [
+                    "This user holds final grading decision authority and "
+                    "cannot become an administrator. Revoke that authority "
+                    "first.",
+                ],
+            },
+        )
+
     if email is not None:
         user.email = email
     if first_name is not None:
@@ -126,7 +141,11 @@ def update_platform_user(
     return user
 
 
-def validate_authority_change(target: User, actor: User) -> None:
+def validate_authority_change(
+    target: User,
+    actor: User,
+    **flags: bool | None,
+) -> None:
     from django.core.exceptions import ValidationError
 
     if target.pk == actor.pk:
@@ -139,6 +158,20 @@ def validate_authority_change(target: User, actor: User) -> None:
             },
         )
 
+    if (
+        flags.get("can_make_final_grading_decision")
+        and target.role == User.Role.ADMINISTRATOR
+    ):
+        raise ValidationError(
+            {
+                "can_make_final_grading_decision": [
+                    "Administrators cannot hold final grading decision "
+                    "authority. Only one designated Master should - grant "
+                    "it to an instructor instead.",
+                ],
+            },
+        )
+
 
 @transaction.atomic
 def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
@@ -146,9 +179,11 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
 
     Not a role: granted per user so authority survives one person being
     unavailable, and self-granting is refused so an administrator cannot
-    make themselves a Master unilaterally.
+    make themselves a Master unilaterally. Administrators are also refused
+    final-decision authority outright - the confirmed policy is one
+    designated Master, with administrators holding everything else instead.
     """
-    validate_authority_change(target, actor)
+    validate_authority_change(target, actor, **flags)
 
     before = {
         name: target.has_perm(perm) for name, perm in AUTHORITY_PERMISSIONS.items()

@@ -108,6 +108,26 @@ class CanPromoteStudent(BasePermission):
         return user is not None and user.has_perm(PROMOTE_STUDENT_PERMISSION)
 
 
+class CanViewAuditLog(BasePermission):
+    """Logistics access (KG-048) plus Master authority, not every instructor.
+
+    Administrators see it as part of running the school; a Master sees it
+    because they are the one who adjudicates the decisions it records. A
+    plain instructor holding neither is refused, even though they can still
+    act on most of what the log describes.
+    """
+
+    message = "Audit log access requires administrator or Master authority."
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        user = _active_user(request)
+        if user is None:
+            return False
+        return user.role == User.Role.ADMINISTRATOR or user.has_perm(
+            FINAL_GRADING_DECISION_PERMISSION
+        )
+
+
 __all__ = [
     "FINAL_GRADING_DECISION_PERMISSION",
     "OVERRIDE_LOCKED_SESSION_PERMISSION",
@@ -115,5 +135,6 @@ __all__ = [
     "CanMakeFinalGradingDecision",
     "CanOverrideLockedSession",
     "CanPromoteStudent",
+    "CanViewAuditLog",
     "HasRequiredPermissions",
 ]

@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 439 backend tests and
+Verified by running the tooling, not by reading the code: 453 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -47,6 +47,18 @@ are all clean, and CI enforces every one of them on each push.
   (name and WKSA ID). No delete: every relationship to a student is PROTECT
   and history is retained by decision.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
+- **Bulk operations**: `bulk-register` registers several candidates against
+  one session (optionally generating their assessments in the same request);
+  `bulk-generate-assessments` generates assessments for several already-
+  registered candidates; `bulk-update-status` sets status on several
+  candidates at once (built for confirming attendance - tick the no-shows,
+  set `WITHDRAWN`, confirm). All three process rows **independently**: each
+  runs the same domain service as its single-item endpoint inside its own
+  savepoint, and one row's failure never blocks the others. Every response
+  lists what succeeded plus an `errors` map keyed by row index for what
+  did not. A `bulk-register` row's `testing_for_rank` is optional and
+  resolves to that student's own next active rank when omitted, so a
+  mixed-belt group registers in one request with no rank picked at all.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
@@ -86,10 +98,22 @@ are all clean, and CI enforces every one of them on each push.
   proposal, and a locked-session withdrawal that discards an undecided
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.
-  Immutable from model, queryset, admin and HTTP. Readable and filterable
-  by any signed-in user, except user-management events (`USER_CREATED`,
-  `USER_UPDATED`, `USER_AUTHORITY_CHANGED`), which are administrator-only -
-  logistics, same as the Users API itself.
+  Immutable from model, queryset, admin and HTTP. **Readable only by
+  administrators and holders of Master (final-decision) authority** - a
+  plain instructor gets 403, in both the API (`CanViewAuditLog`) and Django
+  admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`); no
+  group carries the `view_auditevent` permission for this reason. Even for
+  those two, user-management events (`USER_CREATED`, `USER_UPDATED`,
+  `USER_AUTHORITY_CHANGED`) are administrator-only - logistics, same as the
+  Users API itself, so a Master who is not an administrator still cannot
+  see them.
+- **Master authority is administrator-exclusive by design**: granting
+  `can_make_final_grading_decision` to an administrator is refused
+  (`POST /api/users/{id}/authority/`), and promoting a user who already
+  holds it to administrator is refused too
+  (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
+  designated Master, never an administrator; administrators hold every
+  other capability, including the other two sensitive permissions.
 - Frontend: login, logout, current-user bootstrap, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The
   login form distinguishes wrong credentials, CSRF failure, throttling, a

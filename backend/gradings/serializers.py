@@ -231,6 +231,48 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         return candidate
 
 
+class BulkCandidateRegistrationItemSerializer(serializers.Serializer):
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    # Optional: students in one batch are usually a mix of belts (a group of
+    # blue belts plus a couple of white belts plus one brown stripe, say), so
+    # there is no single rank to default the batch to. Omitting it resolves
+    # to that student's own next active rank - the same rank the single-item
+    # endpoint would insist on anyway - so the common case needs no rank
+    # picked at all; it is only needed to catch an out-of-turn request early.
+    testing_for_rank = serializers.PrimaryKeyRelatedField(
+        queryset=Rank.objects.all(),
+        required=False,
+    )
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class BulkCandidateRegistrationSerializer(serializers.Serializer):
+    session = serializers.PrimaryKeyRelatedField(queryset=GradingSession.objects.all())
+    candidates = BulkCandidateRegistrationItemSerializer(many=True, allow_empty=False)
+    # When set, each successfully registered candidate also has its
+    # assessment generated immediately, in the same per-row savepoint - so
+    # adding a group to a session and starting their assessments is one
+    # request instead of two.
+    generate_assessments = serializers.BooleanField(required=False, default=False)
+
+
+class BulkAssessmentGenerationSerializer(serializers.Serializer):
+    candidates = serializers.PrimaryKeyRelatedField(
+        queryset=GradingCandidate.objects.all(),
+        many=True,
+        allow_empty=False,
+    )
+
+
+class BulkCandidateStatusUpdateSerializer(serializers.Serializer):
+    candidates = serializers.PrimaryKeyRelatedField(
+        queryset=GradingCandidate.objects.all(),
+        many=True,
+        allow_empty=False,
+    )
+    status = serializers.ChoiceField(choices=GradingCandidate.Status.choices)
+
+
 class CandidateAssessmentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     candidate_student_name = serializers.CharField(

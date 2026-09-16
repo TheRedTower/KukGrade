@@ -1683,6 +1683,38 @@ def update_candidate_assessment(
     return locked_assessment
 
 
+@transaction.atomic
+def bulk_start_candidate_assessments(
+    *,
+    assessments: Sequence[CandidateAssessment],
+    actor: User | None = None,
+) -> tuple[list[CandidateAssessment], dict[str, list[str]]]:
+    """Start every assessment, independently of the others.
+
+    A separate, optional action - not bundled into registration or
+    generation, so starting assessments in bulk is always a deliberate
+    choice rather than a side effect of adding candidates or generating
+    their snapshots. One assessment already started, or its session having
+    since locked, does not block the rest. Same independent-rows,
+    savepoint-per-row shape as the other bulk endpoints.
+    """
+    started: list[CandidateAssessment] = []
+    errors: dict[str, list[str]] = {}
+    for index, assessment in enumerate(assessments):
+        try:
+            with transaction.atomic():
+                started.append(
+                    update_candidate_assessment(
+                        assessment,
+                        status=CandidateAssessment.Status.IN_PROGRESS,
+                        actor=actor,
+                    ),
+                )
+        except ValidationError as exc:
+            errors[str(index)] = exc.messages
+    return started, errors
+
+
 def validate_assessment_item_can_be_changed(
     item: CandidateAssessmentItem,
     *,

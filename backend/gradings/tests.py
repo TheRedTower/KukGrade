@@ -1651,6 +1651,76 @@ def test_bulk_generate_assessments_is_independent_per_row() -> None:
     assert CandidateAssessment.objects.filter(candidate=fresh_candidate).exists()
 
 
+def test_bulk_start_starts_every_assessment_in_one_request() -> None:
+    # A separate, deliberate action - not bundled into generation, so a
+    # caller chooses whether to bulk-start assessments or not.
+    session = grading_session(status=GradingSession.Status.OPEN)
+    first_assessment = assessment(
+        candidate=candidate(session=session, student=student(wksa_id="BULKSTART001")),
+    )
+    second_assessment = assessment(
+        candidate=candidate(session=session, student=student(wksa_id="BULKSTART002")),
+    )
+    client = auth_client("bulk-start@example.com")
+
+    response = client.post(
+        "/api/gradings/assessments/bulk-start/",
+        {"assessments": [first_assessment.id, second_assessment.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert [item["id"] for item in payload["started"]] == [
+        first_assessment.id,
+        second_assessment.id,
+    ]
+    assert all(
+        item["status"] == CandidateAssessment.Status.IN_PROGRESS
+        for item in payload["started"]
+    )
+    first_assessment.refresh_from_db()
+    second_assessment.refresh_from_db()
+    assert first_assessment.status == CandidateAssessment.Status.IN_PROGRESS
+    assert second_assessment.status == CandidateAssessment.Status.IN_PROGRESS
+
+
+def test_bulk_start_is_independent_per_row() -> None:
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+    fresh_assessment = assessment(
+        candidate=candidate(
+            session=open_session,
+            student=student(wksa_id="BULKSTART003"),
+        ),
+    )
+    # Generated while still draft (allowed), but starting requires the
+    # session to already be open - this row fails independently of the
+    # first, which is in an open session and starts cleanly.
+    draft_session_assessment = assessment(
+        candidate=candidate(
+            session=grading_session(status=GradingSession.Status.DRAFT),
+            student=student(wksa_id="BULKSTART004"),
+        ),
+    )
+    client = auth_client("bulk-start-partial@example.com")
+
+    response = client.post(
+        "/api/gradings/assessments/bulk-start/",
+        {"assessments": [fresh_assessment.id, draft_session_assessment.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["id"] for item in payload["started"]] == [fresh_assessment.id]
+    assert list(payload["errors"].keys()) == ["1"]
+    fresh_assessment.refresh_from_db()
+    draft_session_assessment.refresh_from_db()
+    assert fresh_assessment.status == CandidateAssessment.Status.IN_PROGRESS
+    assert draft_session_assessment.status == CandidateAssessment.Status.NOT_STARTED
+
+
 def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
     # The tick-boxes-then-confirm workflow: select the candidates who did
     # not show up, set them WITHDRAWN in one request, and everyone else is

@@ -29,6 +29,7 @@ from gradings.models import (
 )
 from gradings.serializers import (
     BulkAssessmentGenerationSerializer,
+    BulkAssessmentStartSerializer,
     BulkCandidateRegistrationSerializer,
     BulkCandidateStatusUpdateSerializer,
     CandidateAssessmentItemSerializer,
@@ -46,6 +47,7 @@ from gradings.serializers import (
 from gradings.services import (
     bulk_generate_candidate_assessments,
     bulk_register_candidates,
+    bulk_start_candidate_assessments,
     bulk_update_candidate_status,
     candidate_assessment_summary,
     create_candidate_outcome,
@@ -351,11 +353,12 @@ class CandidateAssessmentViewSet(
 ):
     serializer_class = CandidateAssessmentSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "head", "options"]
+    http_method_names = ["get", "patch", "post", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessment",),
         "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
+        "bulk_start": ("gradings.change_candidateassessment",),
     }
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
@@ -403,6 +406,29 @@ class CandidateAssessmentViewSet(
             queryset = queryset.none()
 
         return queryset
+
+    @action(detail=False, methods=["post"], url_path="bulk-start")
+    def bulk_start(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        input_serializer = BulkAssessmentStartSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        started, errors = bulk_start_candidate_assessments(
+            assessments=input_serializer.validated_data["assessments"],
+            actor=cast(User, request.user),
+        )
+        serializer = CandidateAssessmentSerializer(
+            started,
+            many=True,
+            context={"request": request},
+        )
+        return Response(
+            {"started": serializer.data, "errors": errors},
+            status=status.HTTP_200_OK,
+        )
 
 
 class CandidateAssessmentItemViewSet(

@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 453 backend tests and
+Verified by running the tooling, not by reading the code: 455 backend tests and
 16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
@@ -50,10 +50,13 @@ are all clean, and CI enforces every one of them on each push.
 - **Bulk operations**: `bulk-register` registers several candidates against
   one session (optionally generating their assessments in the same request);
   `bulk-generate-assessments` generates assessments for several already-
-  registered candidates; `bulk-update-status` sets status on several
-  candidates at once (built for confirming attendance - tick the no-shows,
-  set `WITHDRAWN`, confirm). All three process rows **independently**: each
-  runs the same domain service as its single-item endpoint inside its own
+  registered candidates; `bulk-start` (on `/api/gradings/assessments/`)
+  starts several already-generated assessments - a separate, deliberate
+  action, never bundled into generation or registration, so bulk-starting is
+  always a choice; `bulk-update-status` sets status on several candidates at
+  once (built for confirming attendance - tick the no-shows, set
+  `WITHDRAWN`, confirm). All four process rows **independently**: each runs
+  the same domain service as its single-item endpoint inside its own
   savepoint, and one row's failure never blocks the others. Every response
   lists what succeeded plus an `errors` map keyed by row index for what
   did not. A `bulk-register` row's `testing_for_rank` is optional and

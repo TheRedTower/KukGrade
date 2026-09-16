@@ -1007,6 +1007,33 @@ def promote_candidate(
     ).get(pk=promotion.pk)
 
 
+@transaction.atomic
+def bulk_promote_candidates(
+    *,
+    outcomes: Sequence[CandidateOutcome],
+    actor: User,
+) -> tuple[list[Promotion], dict[str, list[str]]]:
+    """Promote every outcome, independently of the others.
+
+    Built for a Master clearing a whole cohort at once: any number of
+    finalised PASS outcomes, from one to an entire session, promoted in a
+    single request. Same independent-rows, savepoint-per-row shape as the
+    other bulk endpoints - one outcome that is not eligible (not finalised,
+    not a PASS, already promoted) does not block the rest. Returns the
+    promotions that were created and a map of row index to error messages
+    for the rest.
+    """
+    promoted: list[Promotion] = []
+    errors: dict[str, list[str]] = {}
+    for index, outcome in enumerate(outcomes):
+        try:
+            with transaction.atomic():
+                promoted.append(promote_candidate(outcome, actor=actor))
+        except ValidationError as exc:
+            errors[str(index)] = exc.messages
+    return promoted, errors
+
+
 def student_rank_timeline(student: Student) -> StudentRankTimeline:
     timeline_student = Student.objects.select_related("current_rank").get(pk=student.pk)
     promotions = list(

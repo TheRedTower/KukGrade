@@ -32,6 +32,7 @@ from gradings.serializers import (
     BulkAssessmentStartSerializer,
     BulkCandidateRegistrationSerializer,
     BulkCandidateStatusUpdateSerializer,
+    BulkPromotionSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
     CandidateOutcomeFinaliseSerializer,
@@ -46,6 +47,7 @@ from gradings.serializers import (
 )
 from gradings.services import (
     bulk_generate_candidate_assessments,
+    bulk_promote_candidates,
     bulk_register_candidates,
     bulk_start_candidate_assessments,
     bulk_update_candidate_status,
@@ -525,6 +527,7 @@ class CandidateOutcomeViewSet(
         # permission class on the action, which also gives a better message.
         "finalise": ("gradings.view_candidateoutcome",),
         "promote": ("gradings.view_candidateoutcome",),
+        "bulk_promote": ("gradings.view_candidateoutcome",),
     }
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
@@ -702,6 +705,34 @@ class CandidateOutcomeViewSet(
             context={"request": request},
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk-promote",
+        permission_classes=[HasRequiredPermissions, CanPromoteStudent],
+    )
+    def bulk_promote(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        input_serializer = BulkPromotionSerializer(data=request.data)
+        input_serializer.is_valid(raise_exception=True)
+        promoted, errors = bulk_promote_candidates(
+            outcomes=input_serializer.validated_data["outcomes"],
+            actor=cast(User, request.user),
+        )
+        serializer = PromotionSerializer(
+            promoted,
+            many=True,
+            context={"request": request},
+        )
+        return Response(
+            {"promoted": serializer.data, "errors": errors},
+            status=status.HTTP_200_OK,
+        )
 
 
 class PromotionViewSet(ReadOnlyModelViewSet):

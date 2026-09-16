@@ -473,6 +473,7 @@ outcome is produced.
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
 | GET    | /api/gradings/outcomes/{id}/summary/          | Informational assessment summaries           |
 | POST   | /api/gradings/outcomes/{id}/promote/          | Promote a finalised PASS; requires `gradings.can_promote_student` |
+| POST   | /api/gradings/outcomes/bulk-promote/           | Promote several finalised PASS outcomes in one request |
 | GET    | /api/gradings/promotions/                     | List promotion records (rank history)        |
 | GET    | /api/gradings/promotions/{id}/                | Retrieve one promotion record                |
 | PUT, PATCH, DELETE | /api/gradings/promotions/{id}/    | 405; promotions are immutable and undeletable once created |
@@ -537,6 +538,18 @@ success it creates a `Promotion` record and updates `Student.current_rank`.
 `/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 4)
 returns a student's current rank plus every promotion in one call, which is
 the more convenient read for a single student's history.
+
+`POST /api/gradings/outcomes/bulk-promote/` promotes several outcomes in one
+request - any quantity, from one to an entire cohort - independently per
+row, same shape as the other bulk endpoints (see section 8): each outcome
+runs through the same `promote_candidate()` validation as the single-item
+action, in its own savepoint, so one outcome that is not eligible (not
+finalised, not a `PASS`, already promoted) does not block the rest. Requires
+the same `gradings.can_promote_student` authority. Body:
+
+```json
+{"outcomes": [201, 202, 203]}
+```
 
 Returns `200` with `{"promoted": [...promotion records...], "errors": {...}}`.
 

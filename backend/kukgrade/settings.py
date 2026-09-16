@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "syllabus",
     "gradings",
     "audit",
+    "drf_spectacular",
 ]
 
 MIDDLEWARE = [
@@ -171,6 +172,37 @@ REST_FRAMEWORK = {
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"login": "10/min"},
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# The frontend generates its TypeScript types from this schema rather than
+# hand-maintaining them (2026-09-14 decision) - see
+# frontend/package.json's generate:types script.
+SPECTACULAR_SETTINGS = {
+    "TITLE": "KukGrade API",
+    "DESCRIPTION": (
+        "Grading management API for Kuk Sool Won instructors and administrators."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # Five different models each have their own "status" field, and two have
+    # a "category" field - without this every one of them collides on the
+    # same generated enum name. CandidateOutcome.Outcome and syllabus.AgeBand
+    # are each reused across two fields and get named inconsistently
+    # depending on which field is processed first; pinning one name each
+    # keeps the generated schema (and the frontend types built from it)
+    # stable across regenerations.
+    "ENUM_NAME_OVERRIDES": {
+        "StudentStatusEnum": "students.models.Student.Status",
+        "GradingSessionStatusEnum": "gradings.models.GradingSession.Status",
+        "GradingCandidateStatusEnum": "gradings.models.GradingCandidate.Status",
+        "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
+        "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
+        "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",
+        "RankCategoryEnum": "ranks.models.Rank.Category",
+        "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
+        "AgeBandEnum": "syllabus.models.AgeBand",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env_list(

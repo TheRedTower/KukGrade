@@ -1,0 +1,3607 @@
+openapi: 3.0.3
+info:
+  title: KukGrade API
+  version: 1.0.0
+  description: Grading management API for Kuk Sool Won instructors and administrators.
+paths:
+  /api/audit-events/:
+    get:
+      operationId: audit_events_list
+      description: 'Read-only by construction: the model refuses writes from every
+        path.'
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - audit-events
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAuditEventList'
+          description: ''
+  /api/audit-events/{id}/:
+    get:
+      operationId: audit_events_retrieve
+      description: 'Read-only by construction: the model refuses writes from every
+        path.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this audit event.
+        required: true
+      tags:
+      - audit-events
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditEvent'
+          description: ''
+  /api/auth/login/:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/gradings/assessment-items/:
+    get:
+      operationId: gradings_assessment_items_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateAssessmentItemList'
+          description: ''
+  /api/gradings/assessment-items/{id}/:
+    get:
+      operationId: gradings_assessment_items_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment
+          item.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessmentItem'
+          description: ''
+    patch:
+      operationId: gradings_assessment_items_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment
+          item.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessmentItem'
+          description: ''
+  /api/gradings/assessments/:
+    get:
+      operationId: gradings_assessments_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateAssessmentList'
+          description: ''
+  /api/gradings/assessments/{id}/:
+    get:
+      operationId: gradings_assessments_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
+    patch:
+      operationId: gradings_assessments_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateAssessment'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
+  /api/gradings/assessments/bulk-start/:
+    post:
+      operationId: gradings_assessments_bulk_start_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateAssessment'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateAssessment'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateAssessment'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
+  /api/gradings/candidates/:
+    get:
+      operationId: gradings_candidates_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGradingCandidateList'
+          description: ''
+    post:
+      operationId: gradings_candidates_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/{id}/:
+    get:
+      operationId: gradings_candidates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+    put:
+      operationId: gradings_candidates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+    patch:
+      operationId: gradings_candidates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingCandidate'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+    delete:
+      operationId: gradings_candidates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/gradings/candidates/{id}/create-outcome/:
+    post:
+      operationId: gradings_candidates_create_outcome_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/{id}/generate-assessment/:
+    post:
+      operationId: gradings_candidates_generate_assessment_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/{id}/withdraw/:
+    post:
+      operationId: gradings_candidates_withdraw_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading candidate.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/bulk-generate-assessments/:
+    post:
+      operationId: gradings_candidates_bulk_generate_assessments_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/bulk-register/:
+    post:
+      operationId: gradings_candidates_bulk_register_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/candidates/bulk-update-status/:
+    post:
+      operationId: gradings_candidates_bulk_update_status_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingCandidate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingCandidate'
+          description: ''
+  /api/gradings/outcomes/:
+    get:
+      operationId: gradings_outcomes_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCandidateOutcomeList'
+          description: ''
+  /api/gradings/outcomes/{id}/:
+    get:
+      operationId: gradings_outcomes_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+    patch:
+      operationId: gradings_outcomes_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+  /api/gradings/outcomes/{id}/finalise/:
+    patch:
+      operationId: gradings_outcomes_finalise_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+  /api/gradings/outcomes/{id}/promote/:
+    post:
+      operationId: gradings_outcomes_promote_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+  /api/gradings/outcomes/{id}/propose/:
+    patch:
+      operationId: gradings_outcomes_propose_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCandidateOutcome'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+  /api/gradings/outcomes/{id}/summary/:
+    get:
+      operationId: gradings_outcomes_summary_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
+  /api/gradings/promotions/:
+    get:
+      operationId: gradings_promotions_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPromotionList'
+          description: ''
+  /api/gradings/promotions/{id}/:
+    get:
+      operationId: gradings_promotions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this promotion.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+          description: ''
+  /api/gradings/sessions/:
+    get:
+      operationId: gradings_sessions_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedGradingSessionList'
+          description: ''
+    post:
+      operationId: gradings_sessions_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
+  /api/gradings/sessions/{id}/:
+    get:
+      operationId: gradings_sessions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
+    put:
+      operationId: gradings_sessions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/GradingSession'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
+    patch:
+      operationId: gradings_sessions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingSession'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingSession'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedGradingSession'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GradingSession'
+          description: ''
+    delete:
+      operationId: gradings_sessions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this grading session.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/health/:
+    get:
+      operationId: health_retrieve
+      tags:
+      - health
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: ''
+  /api/ranks/:
+    get:
+      operationId: ranks_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - ranks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedRankList'
+          description: ''
+  /api/ranks/{id}/:
+    get:
+      operationId: ranks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this rank.
+        required: true
+      tags:
+      - ranks
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Rank'
+          description: ''
+  /api/students/:
+    get:
+      operationId: students_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - students
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStudentListList'
+          description: ''
+    post:
+      operationId: students_create
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Student'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Student'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Student'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/students/{id}/:
+    get:
+      operationId: students_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+    patch:
+      operationId: students_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStudent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStudent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStudent'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Student'
+          description: ''
+  /api/students/{id}/rank-history/:
+    get:
+      operationId: students_rank_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentRankHistory'
+          description: ''
+  /api/syllabus/items/:
+    get:
+      operationId: syllabus_items_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSyllabusItemList'
+          description: ''
+  /api/syllabus/items/{id}/:
+    get:
+      operationId: syllabus_items_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus item.
+        required: true
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusItem'
+          description: ''
+  /api/syllabus/requirements/:
+    get:
+      operationId: syllabus_requirements_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedSyllabusRequirementList'
+          description: ''
+  /api/syllabus/requirements/{id}/:
+    get:
+      operationId: syllabus_requirements_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this syllabus requirement.
+        required: true
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyllabusRequirement'
+          description: ''
+  /api/users/:
+    get:
+      operationId: users_list
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUserManagementList'
+          description: ''
+    post:
+      operationId: users_create
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagement'
+          description: ''
+  /api/users/{id}/:
+    get:
+      operationId: users_retrieve
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagement'
+          description: ''
+    patch:
+      operationId: users_partial_update
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagement'
+          description: ''
+  /api/users/{id}/authority/:
+    patch:
+      operationId: users_authority_partial_update
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserManagement'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagement'
+          description: ''
+  /api/users/{id}/set-password/:
+    post:
+      operationId: users_set_password_create
+      description: |-
+        The administrator-facing users API.
+
+        No delete: every attribution foreign key in this codebase is PROTECT,
+        so a user who has graded, proposed, decided or promoted anyone cannot be
+        removed. Deactivate via is_active instead. No PUT: partial_update covers
+        every real edit.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserManagement'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserManagement'
+          description: ''
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - SESSION_CREATED
+      - SESSION_TRANSITIONED
+      - SESSION_DELETED
+      - CANDIDATE_REGISTERED
+      - CANDIDATE_UPDATED
+      - CANDIDATE_WITHDRAWN
+      - CANDIDATE_DELETED
+      - ASSESSMENT_GENERATED
+      - ASSESSMENT_STARTED
+      - ASSESSMENT_COMPLETED
+      - ITEM_RESULT_RECORDED
+      - OUTCOME_CREATED
+      - OUTCOME_PROPOSED
+      - OUTCOME_FINALISED
+      - PROMOTION_RECORDED
+      - STUDENT_CREATED
+      - STUDENT_UPDATED
+      - STUDENT_STATUS_CHANGED
+      - USER_CREATED
+      - USER_UPDATED
+      - USER_AUTHORITY_CHANGED
+      type: string
+      description: |-
+        * `SESSION_CREATED` - Grading session created
+        * `SESSION_TRANSITIONED` - Grading session transitioned
+        * `SESSION_DELETED` - Grading session deleted
+        * `CANDIDATE_REGISTERED` - Candidate registered
+        * `CANDIDATE_UPDATED` - Candidate updated
+        * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
+        * `CANDIDATE_DELETED` - Candidate deleted
+        * `ASSESSMENT_GENERATED` - Assessment generated
+        * `ASSESSMENT_STARTED` - Assessment started
+        * `ASSESSMENT_COMPLETED` - Assessment completed
+        * `ITEM_RESULT_RECORDED` - Assessment item result recorded
+        * `OUTCOME_CREATED` - Outcome created
+        * `OUTCOME_PROPOSED` - Outcome proposed
+        * `OUTCOME_FINALISED` - Outcome finalised
+        * `PROMOTION_RECORDED` - Promotion recorded
+        * `STUDENT_CREATED` - Student created
+        * `STUDENT_UPDATED` - Student updated
+        * `STUDENT_STATUS_CHANGED` - Student status changed
+        * `USER_CREATED` - User created
+        * `USER_UPDATED` - User updated
+        * `USER_AUTHORITY_CHANGED` - User authority changed
+    AgeBandEnum:
+      enum:
+      - AGE_8_AND_UNDER
+      - AGE_9_TO_12
+      - AGE_13_TO_17
+      - AGE_18_AND_OVER
+      type: string
+      description: |-
+        * `AGE_8_AND_UNDER` - 8 and under
+        * `AGE_9_TO_12` - 9-12
+        * `AGE_13_TO_17` - 13-17
+        * `AGE_18_AND_OVER` - 18+
+    AuditEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        occurred_at:
+          type: string
+          format: date-time
+          readOnly: true
+        action:
+          allOf:
+          - $ref: '#/components/schemas/ActionEnum'
+          readOnly: true
+        action_display:
+          type: string
+          readOnly: true
+        entity_type:
+          type: string
+          readOnly: true
+        entity_id:
+          type: string
+          readOnly: true
+        actor:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        actor_email:
+          type: string
+          format: email
+          readOnly: true
+        actor_name:
+          type: string
+          readOnly: true
+        summary:
+          type: string
+          readOnly: true
+        metadata:
+          readOnly: true
+      required:
+      - action
+      - action_display
+      - actor
+      - actor_email
+      - actor_name
+      - entity_id
+      - entity_type
+      - id
+      - metadata
+      - occurred_at
+      - summary
+    CandidateAssessment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+          readOnly: true
+        candidate_student_name:
+          type: string
+          readOnly: true
+        candidate_student_wksa_id:
+          type: string
+          readOnly: true
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        generated_by:
+          type: string
+          format: uuid
+          readOnly: true
+        generated_by_email:
+          type: string
+          format: email
+          readOnly: true
+        generated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+        item_counts:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - age_band
+      - age_band_display
+      - candidate
+      - candidate_student_name
+      - candidate_student_wksa_id
+      - completed_at
+      - created_at
+      - generated_at
+      - generated_by
+      - generated_by_email
+      - id
+      - item_counts
+      - started_at
+      - status_display
+      - testing_for_rank_code
+      - testing_for_rank_name
+      - updated_at
+    CandidateAssessmentItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        assessment:
+          type: integer
+          readOnly: true
+        source_requirement:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_item:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_age_band:
+          allOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
+          readOnly: true
+        item_code:
+          type: string
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        korean_name:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        requirement_sequence:
+          type: integer
+          readOnly: true
+        required:
+          type: boolean
+          readOnly: true
+        start_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        end_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        display_range:
+          type: string
+          readOnly: true
+        requirement_notes:
+          type: string
+          readOnly: true
+        result:
+          $ref: '#/components/schemas/ResultEnum'
+        result_display:
+          type: string
+          readOnly: true
+        assessor:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        assessor_email:
+          type: string
+          format: email
+          readOnly: true
+        assessed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        assessor_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assessed_at
+      - assessment
+      - assessor
+      - assessor_email
+      - category
+      - category_display
+      - created_at
+      - display_range
+      - end_number
+      - id
+      - item_code
+      - item_name
+      - korean_name
+      - required
+      - requirement_notes
+      - requirement_sequence
+      - result_display
+      - source_age_band
+      - source_item
+      - source_rank
+      - source_requirement
+      - start_number
+      - updated_at
+    CandidateAssessmentStatusEnum:
+      enum:
+      - NOT_STARTED
+      - IN_PROGRESS
+      - COMPLETED
+      type: string
+      description: |-
+        * `NOT_STARTED` - Not started
+        * `IN_PROGRESS` - In progress
+        * `COMPLETED` - Completed
+    CandidateOutcome:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+          readOnly: true
+        assessment:
+          type: integer
+          readOnly: true
+        assessment_status:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        session:
+          type: integer
+          readOnly: true
+        session_title:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+          readOnly: true
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        proposed_outcome:
+          readOnly: true
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        proposed_outcome_display:
+          type: string
+          readOnly: true
+        proposed_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        proposed_by_email:
+          type: string
+          format: email
+          readOnly: true
+        proposed_by_name:
+          type: string
+          readOnly: true
+        proposed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        proposal_notes:
+          type: string
+          readOnly: true
+        final_outcome:
+          readOnly: true
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        final_outcome_display:
+          type: string
+          readOnly: true
+        decided_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        decided_by_email:
+          type: string
+          format: email
+          readOnly: true
+        decided_by_name:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        decision_notes:
+          type: string
+          readOnly: true
+        conditional_requirements:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assessment
+      - assessment_status
+      - candidate
+      - conditional_requirements
+      - created_at
+      - decided_at
+      - decided_by
+      - decided_by_email
+      - decided_by_name
+      - decision_notes
+      - final_outcome
+      - final_outcome_display
+      - id
+      - proposal_notes
+      - proposed_at
+      - proposed_by
+      - proposed_by_email
+      - proposed_by_name
+      - proposed_outcome
+      - proposed_outcome_display
+      - session
+      - session_title
+      - status
+      - status_display
+      - student
+      - student_display_name
+      - student_wksa_id
+      - testing_for_rank
+      - testing_for_rank_code
+      - testing_for_rank_name
+      - updated_at
+    CandidateOutcomeOutcomeEnum:
+      enum:
+      - PASS
+      - FAIL
+      - CONDITIONAL
+      type: string
+      description: |-
+        * `PASS` - Pass
+        * `FAIL` - Fail
+        * `CONDITIONAL` - Conditional
+    CandidateOutcomeStatusEnum:
+      enum:
+      - DRAFT
+      - PROPOSED
+      - FINALISED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `PROPOSED` - Proposed
+        * `FINALISED` - Finalised
+    GradingCandidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        session_title:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - age_band
+      - age_band_display
+      - created_at
+      - id
+      - session
+      - session_title
+      - status_display
+      - student
+      - student_display_name
+      - student_wksa_id
+      - testing_for_rank
+      - testing_for_rank_code
+      - testing_for_rank_name
+      - updated_at
+    GradingCandidateStatusEnum:
+      enum:
+      - REGISTERED
+      - WITHDRAWN
+      - COMPLETED
+      type: string
+      description: |-
+        * `REGISTERED` - Registered
+        * `WITHDRAWN` - Withdrawn
+        * `COMPLETED` - Completed
+    GradingSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        grading_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/GradingSessionStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        location:
+          type: string
+          maxLength: 200
+        notes:
+          type: string
+        cancellation_reason:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+        created_by_email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - created_by
+      - created_by_email
+      - grading_date
+      - id
+      - status_display
+      - title
+      - updated_at
+    GradingSessionStatusEnum:
+      enum:
+      - DRAFT
+      - OPEN
+      - LOCKED
+      - COMPLETED
+      - CANCELLED
+      type: string
+      description: |-
+        * `DRAFT` - Draft
+        * `OPEN` - Open
+        * `LOCKED` - Locked
+        * `COMPLETED` - Completed
+        * `CANCELLED` - Cancelled
+    HealthResponse:
+      type: object
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+      required:
+      - service
+      - status
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          writeOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    NullEnum:
+      enum:
+      - null
+    PaginatedAuditEventList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEvent'
+    PaginatedCandidateAssessmentItemList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateAssessmentItem'
+    PaginatedCandidateAssessmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateAssessment'
+    PaginatedCandidateOutcomeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateOutcome'
+    PaginatedGradingCandidateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradingCandidate'
+    PaginatedGradingSessionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradingSession'
+    PaginatedPromotionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Promotion'
+    PaginatedRankList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Rank'
+    PaginatedStudentListList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentList'
+    PaginatedSyllabusItemList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyllabusItem'
+    PaginatedSyllabusRequirementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyllabusRequirement'
+    PaginatedUserManagementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserManagement'
+    PatchedCandidateAssessment:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+          readOnly: true
+        candidate_student_name:
+          type: string
+          readOnly: true
+        candidate_student_wksa_id:
+          type: string
+          readOnly: true
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        generated_by:
+          type: string
+          format: uuid
+          readOnly: true
+        generated_by_email:
+          type: string
+          format: email
+          readOnly: true
+        generated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+        item_counts:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCandidateAssessmentItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        assessment:
+          type: integer
+          readOnly: true
+        source_requirement:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_item:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        source_age_band:
+          allOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
+          readOnly: true
+        item_code:
+          type: string
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        korean_name:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        requirement_sequence:
+          type: integer
+          readOnly: true
+        required:
+          type: boolean
+          readOnly: true
+        start_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        end_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        display_range:
+          type: string
+          readOnly: true
+        requirement_notes:
+          type: string
+          readOnly: true
+        result:
+          $ref: '#/components/schemas/ResultEnum'
+        result_display:
+          type: string
+          readOnly: true
+        assessor:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        assessor_email:
+          type: string
+          format: email
+          readOnly: true
+        assessed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        assessor_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedCandidateOutcome:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        candidate:
+          type: integer
+          readOnly: true
+        assessment:
+          type: integer
+          readOnly: true
+        assessment_status:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        session:
+          type: integer
+          readOnly: true
+        session_title:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+          readOnly: true
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        proposed_outcome:
+          readOnly: true
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        proposed_outcome_display:
+          type: string
+          readOnly: true
+        proposed_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        proposed_by_email:
+          type: string
+          format: email
+          readOnly: true
+        proposed_by_name:
+          type: string
+          readOnly: true
+        proposed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        proposal_notes:
+          type: string
+          readOnly: true
+        final_outcome:
+          readOnly: true
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        final_outcome_display:
+          type: string
+          readOnly: true
+        decided_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        decided_by_email:
+          type: string
+          format: email
+          readOnly: true
+        decided_by_name:
+          type: string
+          readOnly: true
+        decided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        decision_notes:
+          type: string
+          readOnly: true
+        conditional_requirements:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedGradingCandidate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+        session_title:
+          type: string
+          readOnly: true
+        student:
+          type: integer
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedGradingSession:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        grading_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/GradingSessionStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        location:
+          type: string
+          maxLength: 200
+        notes:
+          type: string
+        cancellation_reason:
+          type: string
+        created_by:
+          type: string
+          format: uuid
+          readOnly: true
+        created_by_email:
+          type: string
+          format: email
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedStudent:
+      type: object
+      description: |-
+        Detail, create and update. wksa_id is writable only on create.
+
+        One serializer rather than three: create and update share every field
+        except wksa_id, and splitting them further would just be the same
+        fields copied into different classes.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        wksa_id:
+          type: string
+          maxLength: 32
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        date_of_birth:
+          type: string
+          format: date
+        current_rank:
+          type: integer
+        current_rank_code:
+          type: string
+          readOnly: true
+        current_rank_name:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StudentStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        can_be_graded:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedUserManagement:
+      type: object
+      description: |-
+        List, retrieve, create and update for the administrator-facing API.
+
+        Deliberately separate from UserSerializer, which is a fixed read-only
+        self-view for /api/auth/me/: that one has no reason to expose is_active
+        or date_joined about the caller to themselves, and has no reason to be
+        writable at all. Sharing one class between the two would couple changes
+        meant for one endpoint to the other.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        can_make_final_grading_decision:
+          type: boolean
+          readOnly: true
+        can_promote_student:
+          type: boolean
+          readOnly: true
+        can_override_locked_session:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+    Promotion:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        student_current_rank:
+          type: integer
+          readOnly: true
+        student_current_rank_code:
+          type: string
+          readOnly: true
+        student_current_rank_name:
+          type: string
+          readOnly: true
+        outcome:
+          type: integer
+          readOnly: true
+        grading_candidate:
+          type: integer
+          readOnly: true
+        session:
+          type: integer
+          readOnly: true
+        session_title:
+          type: string
+          readOnly: true
+        grading_date:
+          type: string
+          format: date
+          readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_code:
+          type: string
+          readOnly: true
+        from_rank_name:
+          type: string
+          readOnly: true
+        to_rank:
+          type: integer
+          readOnly: true
+        to_rank_code:
+          type: string
+          readOnly: true
+        to_rank_name:
+          type: string
+          readOnly: true
+        promoted_by:
+          type: string
+          format: uuid
+          readOnly: true
+        promoted_by_email:
+          type: string
+          format: email
+          readOnly: true
+        promoted_by_name:
+          type: string
+          readOnly: true
+        promoted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        effective_date:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - effective_date
+      - from_rank
+      - from_rank_code
+      - from_rank_name
+      - grading_candidate
+      - grading_date
+      - id
+      - notes
+      - outcome
+      - promoted_at
+      - promoted_by
+      - promoted_by_email
+      - promoted_by_name
+      - session
+      - session_title
+      - student
+      - student_current_rank
+      - student_current_rank_code
+      - student_current_rank_name
+      - student_display_name
+      - student_wksa_id
+      - to_rank
+      - to_rank_code
+      - to_rank_name
+      - updated_at
+    PromotionRankHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_code:
+          type: string
+          readOnly: true
+        from_rank_name:
+          type: string
+          readOnly: true
+        to_rank:
+          type: integer
+          readOnly: true
+        to_rank_code:
+          type: string
+          readOnly: true
+        to_rank_name:
+          type: string
+          readOnly: true
+        session:
+          type: integer
+          readOnly: true
+        session_title:
+          type: string
+          readOnly: true
+        grading_date:
+          type: string
+          format: date
+          readOnly: true
+        outcome:
+          type: integer
+          readOnly: true
+        outcome_status:
+          type: string
+          readOnly: true
+        final_outcome:
+          type: string
+          readOnly: true
+        promoted_by:
+          type: string
+          format: uuid
+          readOnly: true
+        promoted_by_email:
+          type: string
+          format: email
+          readOnly: true
+        promoted_by_name:
+          type: string
+          readOnly: true
+        promoted_at:
+          type: string
+          format: date-time
+          readOnly: true
+        effective_date:
+          type: string
+          format: date
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+      required:
+      - effective_date
+      - final_outcome
+      - from_rank
+      - from_rank_code
+      - from_rank_name
+      - grading_date
+      - id
+      - notes
+      - outcome
+      - outcome_status
+      - promoted_at
+      - promoted_by
+      - promoted_by_email
+      - promoted_by_name
+      - session
+      - session_title
+      - to_rank
+      - to_rank_code
+      - to_rank_name
+    Rank:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        order:
+          type: integer
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/RankCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        active:
+          type: boolean
+          readOnly: true
+      required:
+      - active
+      - category
+      - category_display
+      - code
+      - id
+      - name
+      - order
+    RankCategoryEnum:
+      enum:
+      - COLOURED_BELT
+      - BLACK_BELT_CANDIDATE
+      - BLACK_BELT
+      type: string
+      description: |-
+        * `COLOURED_BELT` - Coloured belt
+        * `BLACK_BELT_CANDIDATE` - Black belt candidate
+        * `BLACK_BELT` - Black belt
+    ResultEnum:
+      enum:
+      - NOT_ASSESSED
+      - MET
+      - NOT_MET
+      type: string
+      description: |-
+        * `NOT_ASSESSED` - Not assessed
+        * `MET` - Met
+        * `NOT_MET` - Not met
+    RoleEnum:
+      enum:
+      - instructor
+      - administrator
+      type: string
+      description: |-
+        * `instructor` - Instructor
+        * `administrator` - Administrator
+    Student:
+      type: object
+      description: |-
+        Detail, create and update. wksa_id is writable only on create.
+
+        One serializer rather than three: create and update share every field
+        except wksa_id, and splitting them further would just be the same
+        fields copied into different classes.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        wksa_id:
+          type: string
+          maxLength: 32
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        date_of_birth:
+          type: string
+          format: date
+        current_rank:
+          type: integer
+        current_rank_code:
+          type: string
+          readOnly: true
+        current_rank_name:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StudentStatusEnum'
+        status_display:
+          type: string
+          readOnly: true
+        can_be_graded:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - can_be_graded
+      - created_at
+      - current_rank
+      - current_rank_code
+      - current_rank_name
+      - date_of_birth
+      - first_name
+      - id
+      - last_name
+      - status_display
+      - updated_at
+      - wksa_id
+    StudentList:
+      type: object
+      description: |-
+        The list representation. Deliberately excludes date of birth.
+
+        Date of birth is the most sensitive field held, on people who may be
+        minors. It appears on a single record an instructor deliberately opened,
+        never in a page of two hundred names.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        wksa_id:
+          type: string
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        current_rank:
+          type: integer
+          readOnly: true
+        current_rank_code:
+          type: string
+          readOnly: true
+        current_rank_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/StudentStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+      required:
+      - current_rank
+      - current_rank_code
+      - current_rank_name
+      - first_name
+      - id
+      - last_name
+      - status
+      - status_display
+      - wksa_id
+    StudentRankHistory:
+      type: object
+      properties:
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        current_rank:
+          type: integer
+          readOnly: true
+        current_rank_code:
+          type: string
+          readOnly: true
+        current_rank_name:
+          type: string
+          readOnly: true
+        promotions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromotionRankHistory'
+          readOnly: true
+      required:
+      - current_rank
+      - current_rank_code
+      - current_rank_name
+      - promotions
+      - student
+      - student_display_name
+      - student_wksa_id
+    StudentStatusEnum:
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - LEFT
+      type: string
+      description: |-
+        * `ACTIVE` - Active
+        * `INACTIVE` - Inactive
+        * `LEFT` - Left
+    SyllabusItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        code:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        korean_name:
+          type: string
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        active:
+          type: boolean
+          readOnly: true
+      required:
+      - active
+      - category
+      - category_display
+      - code
+      - description
+      - id
+      - korean_name
+      - name
+    SyllabusItemCategoryEnum:
+      enum:
+      - ETIQUETTE
+      - FUNDAMENTALS
+      - HAND_TECHNIQUES
+      - KICKING
+      - FALLING
+      - BREAKING
+      - TECHNIQUE_SET
+      - FORM
+      - WEAPONS
+      - OTHER
+      type: string
+      description: |-
+        * `ETIQUETTE` - Etiquette
+        * `FUNDAMENTALS` - Fundamentals
+        * `HAND_TECHNIQUES` - Hand techniques
+        * `KICKING` - Kicking
+        * `FALLING` - Falling
+        * `BREAKING` - Breaking
+        * `TECHNIQUE_SET` - Technique set
+        * `FORM` - Form
+        * `WEAPONS` - Weapons
+        * `OTHER` - Other
+    SyllabusRequirement:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        rank:
+          type: integer
+          readOnly: true
+        rank_code:
+          type: string
+          readOnly: true
+        rank_name:
+          type: string
+          readOnly: true
+        rank_order:
+          type: integer
+          readOnly: true
+        age_band:
+          allOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
+          readOnly: true
+        item:
+          type: integer
+          readOnly: true
+        item_code:
+          type: string
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        item_korean_name:
+          type: string
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        start_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        end_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        display_range:
+          type: string
+          readOnly: true
+        sequence:
+          type: integer
+          readOnly: true
+        required:
+          type: boolean
+          readOnly: true
+        active:
+          type: boolean
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+      required:
+      - active
+      - age_band
+      - category
+      - category_display
+      - display_range
+      - end_number
+      - id
+      - item
+      - item_code
+      - item_korean_name
+      - item_name
+      - notes
+      - rank
+      - rank_code
+      - rank_name
+      - rank_order
+      - required
+      - sequence
+      - start_number
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        role_display:
+          type: string
+          readOnly: true
+        can_make_final_grading_decision:
+          type: boolean
+          readOnly: true
+        can_promote_student:
+          type: boolean
+          readOnly: true
+        can_override_locked_session:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+      required:
+      - can_make_final_grading_decision
+      - can_override_locked_session
+      - can_promote_student
+      - email
+      - first_name
+      - full_name
+      - id
+      - is_staff
+      - is_superuser
+      - last_name
+      - role
+      - role_display
+    UserManagement:
+      type: object
+      description: |-
+        List, retrieve, create and update for the administrator-facing API.
+
+        Deliberately separate from UserSerializer, which is a fixed read-only
+        self-view for /api/auth/me/: that one has no reason to expose is_active
+        or date_joined about the caller to themselves, and has no reason to be
+        writable at all. Sharing one class between the two would couple changes
+        meant for one endpoint to the other.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        can_make_final_grading_decision:
+          type: boolean
+          readOnly: true
+        can_promote_student:
+          type: boolean
+          readOnly: true
+        can_override_locked_session:
+          type: boolean
+          readOnly: true
+        is_staff:
+          type: boolean
+          readOnly: true
+        is_superuser:
+          type: boolean
+          readOnly: true
+          title: Superuser status
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - can_make_final_grading_decision
+      - can_override_locked_session
+      - can_promote_student
+      - date_joined
+      - email
+      - full_name
+      - id
+      - is_staff
+      - is_superuser
+      - password
+      - role_display
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

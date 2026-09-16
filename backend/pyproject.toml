@@ -8,6 +8,7 @@ dependencies = [
     "django>=5.2,<6.0",
     "django-cors-headers>=4.7,<5.0",
     "djangorestframework>=3.16,<4.0",
+    "drf-spectacular>=0.30.0",
     "psycopg[binary]>=3.2,<4.0",
 ]
 

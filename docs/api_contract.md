@@ -388,6 +388,7 @@ snapshot rows.
 | GET   | /api/gradings/assessments/{id}/                       | Retrieve assessment detail and informational counts  |
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
+| POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
 | DELETE| /api/gradings/assessments/{id}/                       | 405; correction workflow deferred                    |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
 | GET   | /api/gradings/assessment-items/{id}/                  | Retrieve assessment item snapshot and result         |
@@ -400,6 +401,21 @@ Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
 `IN_PROGRESS -> COMPLETED`; direct `NOT_STARTED -> COMPLETED` is rejected.
 `NOT_STARTED -> IN_PROGRESS` is allowed only while the session is `OPEN`.
 Completed assessments and their items are immutable in this slice.
+
+`POST /api/gradings/assessments/bulk-start/` body:
+
+```json
+{"assessments": [201, 202, 203]}
+```
+
+A separate, deliberate action - not bundled into `bulk-generate-assessments`
+or `bulk-register`, so a caller chooses whether to start assessments in bulk
+or not, rather than it happening as a side effect of generating them. Same
+independent-rows shape as every other bulk endpoint: each assessment starts
+through the same validation as the single-item `PATCH`, in its own
+savepoint, so one assessment that cannot start (already started, session no
+longer open) does not block the rest. Returns `200` with
+`{"started": [...assessments...], "errors": {...}}`.
 
 Assessment-item result values are `NOT_ASSESSED`, `MET`, and `NOT_MET`. The
 server rejects item result changes until the parent assessment is explicitly

@@ -179,6 +179,7 @@ Authenticated staff can generate and work with candidate assessment snapshots:
 
 - `POST /api/gradings/candidates/{id}/generate-assessment/`
 - `POST /api/gradings/candidates/bulk-generate-assessments/`
+- `POST /api/gradings/assessments/bulk-start/`
 - `GET /api/gradings/assessments/`
 - `GET /api/gradings/assessments/{id}/`
 - `PATCH /api/gradings/assessments/{id}/`
@@ -200,7 +201,11 @@ candidate's assessment already existing does not block generation for the
 rest of the batch.
 
 Assessment lifecycle is `NOT_STARTED -> IN_PROGRESS -> COMPLETED`. Starting an
-assessment is explicit and is allowed only while the session is open. Result
+assessment is explicit and is allowed only while the session is open.
+`bulk-start` starts several assessments in one request, independently per
+row - a separate, deliberate action, not bundled into generation or
+registration, so bulk-starting is always a choice the caller makes rather
+than an automatic side effect. Result
 entry is allowed only for in-progress assessments in open or locked sessions;
 locked sessions can finish work already in progress but cannot start new
 assessments. Required items must be `MET` or `NOT_MET` before completion;

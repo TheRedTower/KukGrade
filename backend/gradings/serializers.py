@@ -273,6 +273,14 @@ class BulkCandidateStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=GradingCandidate.Status.choices)
 
 
+class BulkAssessmentStartSerializer(serializers.Serializer):
+    assessments = serializers.PrimaryKeyRelatedField(
+        queryset=CandidateAssessment.objects.all(),
+        many=True,
+        allow_empty=False,
+    )
+
+
 class CandidateAssessmentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     candidate_student_name = serializers.CharField(

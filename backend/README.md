@@ -294,6 +294,7 @@ Users with the `gradings.can_promote_student` Django permission can promote a
 candidate from a finalised PASS outcome:
 
 - `POST /api/gradings/outcomes/{id}/promote/`
+- `POST /api/gradings/outcomes/bulk-promote/`
 
 Promotion records are read-only:
 
@@ -323,6 +324,12 @@ Eligibility requires:
 transaction, locks the outcome, candidate, assessment, and student rows, creates
 the immutable `Promotion` record, and updates only `Student.current_rank`. If
 any validation or uniqueness check fails, the rank update is not persisted.
+
+`bulk-promote` promotes several outcomes in one request - any quantity, up to
+a whole cohort - independently per row through the same `promote_candidate()`
+call, in its own savepoint, same shape as the other bulk endpoints: one
+ineligible outcome does not block the rest. Requires the same
+`gradings.can_promote_student` authority.
 
 The API derives `promoted_by` from `request.user`, `promoted_at` from the
 server timestamp, and `effective_date` from the grading session date. API

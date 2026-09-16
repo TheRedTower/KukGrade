@@ -3548,6 +3548,91 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     assert delete_response.status_code == 405
 
 
+def test_bulk_promote_promotes_every_eligible_outcome_in_one_request() -> None:
+    first_candidate, _first_assessment = locked_completed_candidate()
+    second_candidate, _second_assessment = locked_completed_candidate()
+    first_outcome = finalised_outcome(first_candidate)
+    second_outcome = finalised_outcome(second_candidate)
+    actor = promoter("bulk-promote@example.com")
+    client = APIClient()
+    client.force_authenticate(user=actor)
+
+    response = client.post(
+        "/api/gradings/outcomes/bulk-promote/",
+        {"outcomes": [first_outcome.id, second_outcome.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert {item["outcome"] for item in payload["promoted"]} == {
+        first_outcome.id,
+        second_outcome.id,
+    }
+    first_candidate.student.refresh_from_db()
+    second_candidate.student.refresh_from_db()
+    assert first_candidate.student.current_rank.code == "YELLOW_STRIPE"
+    assert second_candidate.student.current_rank.code == "YELLOW_STRIPE"
+    assert (
+        Promotion.objects.filter(
+            outcome_id__in=[first_outcome.id, second_outcome.id],
+        ).count()
+        == 2
+    )
+
+
+def test_bulk_promote_is_independent_per_row() -> None:
+    eligible_candidate, _eligible_assessment = locked_completed_candidate()
+    ineligible_candidate, _ineligible_assessment = locked_completed_candidate()
+    eligible_outcome = finalised_outcome(eligible_candidate)
+    # A finalised FAIL is not promotable - this row must fail independently
+    # of the eligible one.
+    ineligible_outcome = finalised_outcome(
+        ineligible_candidate,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    actor = promoter("bulk-promote-partial@example.com")
+    client = APIClient()
+    client.force_authenticate(user=actor)
+
+    response = client.post(
+        "/api/gradings/outcomes/bulk-promote/",
+        {"outcomes": [eligible_outcome.id, ineligible_outcome.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["outcome"] for item in payload["promoted"]] == [eligible_outcome.id]
+    assert list(payload["errors"].keys()) == ["1"]
+    assert Promotion.objects.filter(outcome=eligible_outcome).exists()
+    assert not Promotion.objects.filter(outcome=ineligible_outcome).exists()
+
+
+def test_bulk_promote_requires_promotion_authority() -> None:
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    client = APIClient()
+
+    unauthenticated = client.post(
+        "/api/gradings/outcomes/bulk-promote/",
+        {"outcomes": [outcome.id]},
+        format="json",
+    )
+    client.force_authenticate(user=user("bulk-promote-ordinary@example.com"))
+    forbidden = client.post(
+        "/api/gradings/outcomes/bulk-promote/",
+        {"outcomes": [outcome.id]},
+        format="json",
+    )
+
+    assert unauthenticated.status_code == 403
+    assert forbidden.status_code == 403
+    assert not Promotion.objects.filter(outcome=outcome).exists()
+
+
 def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     """One grading, start to finish, entirely over HTTP.
 

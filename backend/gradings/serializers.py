@@ -741,6 +741,14 @@ class CandidatePromotionSerializer(serializers.Serializer):
         raise NotImplementedError
 
 
+class BulkPromotionSerializer(serializers.Serializer):
+    outcomes = serializers.PrimaryKeyRelatedField(
+        queryset=CandidateOutcome.objects.all(),
+        many=True,
+        allow_empty=False,
+    )
+
+
 class LockedCandidateWithdrawalSerializer(serializers.Serializer):
     withdrawal_reason = serializers.ChoiceField(
         choices=GradingCandidate.WithdrawalReason.choices,

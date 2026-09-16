@@ -862,6 +862,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/CandidateOutcome'
           description: ''
+  /api/gradings/outcomes/bulk-promote/:
+    post:
+      operationId: gradings_outcomes_bulk_promote_create
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CandidateOutcome'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateOutcome'
+          description: ''
   /api/gradings/promotions/:
     get:
       operationId: gradings_promotions_list

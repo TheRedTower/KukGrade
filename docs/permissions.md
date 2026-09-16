@@ -27,13 +27,22 @@ membership and is never consulted when authorising a request.
 | **Promote a student** | No | No | **Yes** |
 | **Withdraw from / cancel a locked session** | No | No | **Yes** |
 | Manage users and roles | No | Yes | via group |
+| **Read the audit log** | No | **Yes** | **Yes** |
 
 "Master" is not a group. `gradings.can_make_final_grading_decision`,
 `gradings.can_promote_student` and `gradings.can_override_locked_session` are
 granted per user, independently of role, so
 authority survives one person being unavailable and never arrives as a side
-effect of a role change. The two are separate: holding one does not confer the
-other.
+effect of a role change. The three are separate: holding one does not confer
+the others.
+
+Final-decision authority is administrator-exclusive by decision (2026-09-16,
+see `decision_log.md`): granting it to an administrator, or promoting a
+holder to administrator, is refused outright. Exactly one designated Master
+holds it; administrators hold the other two sensitive permissions and every
+other capability instead. The audit log follows the same administrator-or-
+Master line, unlike every other capability above where Master access "via
+group" already covers it - a plain instructor with neither is refused.
 
 `manager` was removed from `User.Role` in 2026-09. Nothing used it.
 

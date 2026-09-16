@@ -33,6 +33,15 @@ def grant(actor: User, codename: str, model: str) -> User:
     return User.objects.get(pk=actor.pk)
 
 
+def master(email: str) -> User:
+    """An instructor holding Master (final-decision) authority.
+
+    Distinct from an administrator - CanViewAuditLog grants audit log
+    access to either, and several tests need to tell the two paths apart.
+    """
+    return grant(user(email), "can_make_final_grading_decision", "candidateoutcome")
+
+
 def events_for(action: str) -> list[AuditEvent]:
     return list(AuditEvent.objects.filter(action=action))
 
@@ -219,12 +228,40 @@ def test_every_event_names_who_did_it() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_any_signed_in_user_can_read_the_log() -> None:
+def test_plain_instructor_cannot_read_the_log() -> None:
     from .conftest_helpers import locked_completed_candidate_with_outcome
 
     locked_completed_candidate_with_outcome()
     client = APIClient()
-    client.force_authenticate(user=user("audit-reader@example.com"))
+    client.force_authenticate(user=user("audit-plain-instructor@example.com"))
+
+    assert client.get("/api/audit-events/").status_code == 403
+
+
+def test_administrator_can_read_the_log() -> None:
+    from .conftest_helpers import locked_completed_candidate_with_outcome
+
+    locked_completed_candidate_with_outcome()
+    client = APIClient()
+    client.force_authenticate(
+        user=User.objects.create_user(
+            email="audit-admin-reader-2@example.com",
+            role=User.Role.ADMINISTRATOR,
+        ),
+    )
+
+    response = client.get("/api/audit-events/")
+
+    assert response.status_code == 200
+    assert response.json()["count"] > 0
+
+
+def test_master_authority_instructor_can_read_the_log() -> None:
+    from .conftest_helpers import locked_completed_candidate_with_outcome
+
+    locked_completed_candidate_with_outcome()
+    client = APIClient()
+    client.force_authenticate(user=master("audit-master-reader@example.com"))
 
     response = client.get("/api/audit-events/")
 
@@ -241,7 +278,7 @@ def test_the_log_is_filterable_so_marking_does_not_drown_decisions() -> None:
 
     outcome, _first, _second = locked_completed_candidate_with_outcome()
     client = APIClient()
-    client.force_authenticate(user=user("audit-filter@example.com"))
+    client.force_authenticate(user=master("audit-filter@example.com"))
 
     everything = client.get("/api/audit-events/").json()["count"]
     outcomes_only = client.get(
@@ -259,7 +296,7 @@ def test_the_log_is_filterable_so_marking_does_not_drown_decisions() -> None:
 
 def test_the_log_is_read_only_over_http() -> None:
     client = APIClient()
-    client.force_authenticate(user=user("audit-readonly@example.com"))
+    client.force_authenticate(user=master("audit-readonly@example.com"))
 
     assert client.post("/api/audit-events/", {}, format="json").status_code == 405
     assert client.delete("/api/audit-events/1/").status_code == 405
@@ -270,7 +307,7 @@ def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> Non
 
     locked_completed_candidate_with_outcome()
     client = APIClient()
-    client.force_authenticate(user=user("audit-badfilter@example.com"))
+    client.force_authenticate(user=master("audit-badfilter@example.com"))
 
     assert client.get("/api/audit-events/?action=NONSENSE").json()["count"] == 0
 
@@ -305,7 +342,9 @@ def administrator(email: str) -> User:
     return User.objects.create_user(email=email, role=User.Role.ADMINISTRATOR)
 
 
-def test_instructor_cannot_see_user_management_events_in_the_log() -> None:
+def test_master_authority_instructor_cannot_see_user_management_events_in_the_log() -> (
+    None
+):
     from accounts.services import create_platform_user
 
     admin_actor = administrator("audit-user-mgmt-admin@example.com")
@@ -315,7 +354,7 @@ def test_instructor_cannot_see_user_management_events_in_the_log() -> None:
         actor=admin_actor,
     )
     client = APIClient()
-    client.force_authenticate(user=user("audit-instructor-reader@example.com"))
+    client.force_authenticate(user=master("audit-instructor-reader@example.com"))
 
     listing = client.get("/api/audit-events/")
     event_id = AuditEvent.objects.get(
@@ -357,12 +396,14 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     assert detail.status_code == 200
 
 
-def test_instructor_still_sees_every_other_action_in_the_log() -> None:
+def test_master_authority_instructor_still_sees_every_other_action_in_the_log() -> None:
     from .conftest_helpers import locked_completed_candidate_with_outcome
 
     locked_completed_candidate_with_outcome()
     client = APIClient()
-    client.force_authenticate(user=user("audit-instructor-general-reader@example.com"))
+    client.force_authenticate(
+        user=master("audit-instructor-general-reader@example.com")
+    )
 
     # page_size raised well past the number of events this fixture writes,
     # so a large item-result trail cannot push SESSION_CREATED onto a

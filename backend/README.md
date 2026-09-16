@@ -134,6 +134,27 @@ student's current rank. A session grading date cannot be changed after
 candidates have been added. Candidate completion alone does not update
 `Student.current_rank`; rank changes happen only through the promotion service.
 
+`POST /api/gradings/candidates/bulk-update-status/` sets status on several
+candidates in one request - independently per candidate, same savepoint
+shape as the other bulk endpoints. Built for confirming attendance: tick the
+candidates who did not show up, set `WITHDRAWN`, confirm, and the rest are
+left untouched. Uses the same guard as a normal `PATCH` (status changes only
+while the parent session is draft or open), so one candidate's session
+already being locked does not block the others.
+
+`POST /api/gradings/candidates/bulk-register/` registers several candidates
+against one session in a single request. Each row runs through the same
+validation as a single `POST`, independently, in its own savepoint: one row
+failing (already registered, wrong rank) does not stop the others from being
+registered. A row's `testing_for_rank` is optional and resolves to that
+student's own next active rank when omitted, so a mixed-belt group (some
+blue belts, a couple of white belts, one brown stripe) registers in one
+request with no rank picked at all. Setting `generate_assessments: true` also
+generates each registered candidate's assessment in the same savepoint as its
+registration, so adding a group and starting their assessments is one
+request. The response lists what succeeded and an `errors` map keyed by row
+index for what did not - see `../docs/api_contract.md` for the exact shape.
+
 Deletion is state-gated: sessions can be deleted only while draft or cancelled;
 candidates can be deleted only while their parent session is draft or open.
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
@@ -157,6 +178,7 @@ hardening are tracked in `../docs/audits/remediation-status.md`.
 Authenticated staff can generate and work with candidate assessment snapshots:
 
 - `POST /api/gradings/candidates/{id}/generate-assessment/`
+- `POST /api/gradings/candidates/bulk-generate-assessments/`
 - `GET /api/gradings/assessments/`
 - `GET /api/gradings/assessments/{id}/`
 - `PATCH /api/gradings/assessments/{id}/`
@@ -171,6 +193,11 @@ item code, item name, Korean name, category, sequence, required flag, numbered
 range, and requirement notes. Source requirement, source item, and source rank
 links are trace-only and nullable; historical display uses the copied snapshot
 fields.
+
+The bulk variant generates an assessment for every candidate id in the
+request independently, same savepoint-per-row shape as `bulk-register`: one
+candidate's assessment already existing does not block generation for the
+rest of the batch.
 
 Assessment lifecycle is `NOT_STARTED -> IN_PROGRESS -> COMPLETED`. Starting an
 assessment is explicit and is allowed only while the session is open. Result

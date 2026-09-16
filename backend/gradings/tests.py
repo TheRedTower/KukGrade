@@ -1422,6 +1422,301 @@ def test_candidate_api_delete_rules_work() -> None:
     )
 
 
+def test_bulk_register_creates_every_candidate_in_one_request() -> None:
+    session = grading_session()
+    first_student = student(wksa_id="BULKREG001")
+    second_student = student(wksa_id="BULKREG002", first_name="Sam")
+    client = auth_client("bulk-register@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {
+                    "student": first_student.id,
+                    "testing_for_rank": rank("YELLOW_STRIPE").id,
+                    "notes": "First candidate",
+                },
+                {"student": second_student.id},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert [item["candidate"]["student"] for item in payload["created"]] == [
+        first_student.id,
+        second_student.id,
+    ]
+    assert all(item["assessment"] is None for item in payload["created"])
+    assert GradingCandidate.objects.filter(session=session).count() == 2
+    assert (
+        AuditEvent.objects.filter(action=AuditAction.CANDIDATE_REGISTERED).count() == 2
+    )
+
+
+def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -> None:
+    # A group is rarely one belt. Mirrors registering a mixed cohort - some
+    # blue belts, a couple of white belts, a brown stripe, some browns - in
+    # one request with no rank picked at all, and each resolves to that
+    # student's own next active rank.
+    session = grading_session()
+    white_student = student(wksa_id="BULKREG010", current_rank=rank("WHITE"))
+    blue_student = student(
+        wksa_id="BULKREG011",
+        current_rank=rank("BLUE"),
+        first_name="Robin",
+    )
+    brown_stripe_student = student(
+        wksa_id="BULKREG012",
+        current_rank=rank("BROWN_STRIPE"),
+        first_name="Sam",
+    )
+    client = auth_client("bulk-register-mixed@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {"student": white_student.id},
+                {"student": blue_student.id},
+                {"student": brown_stripe_student.id},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    resolved_ranks = {
+        item["candidate"]["student"]: item["candidate"]["testing_for_rank_code"]
+        for item in payload["created"]
+    }
+    assert resolved_ranks == {
+        white_student.id: "YELLOW_STRIPE",
+        blue_student.id: "RED_STRIPE",
+        brown_stripe_student.id: "BROWN",
+    }
+
+
+def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
+    session = grading_session()
+    valid_student = student(wksa_id="BULKREG003")
+    already_registered_student = student(wksa_id="BULKREG004")
+    candidate(session=session, student=already_registered_student)
+    client = auth_client("bulk-register-partial@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {"student": valid_student.id},
+                # Already registered for this session - this row fails, but
+                # that must not stop the first row from being registered.
+                {"student": already_registered_student.id},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["candidate"]["student"] for item in payload["created"]] == [
+        valid_student.id,
+    ]
+    assert list(payload["errors"].keys()) == ["1"]
+    assert GradingCandidate.objects.filter(student=valid_student).exists()
+    assert (
+        GradingCandidate.objects.filter(student=already_registered_student).count() == 1
+    )
+
+
+def test_bulk_register_can_generate_assessments_in_the_same_request() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    first_student = student(wksa_id="BULKREG020")
+    second_student = student(wksa_id="BULKREG021", first_name="Robin")
+    client = auth_client("bulk-register-generate@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {"student": first_student.id},
+                {"student": second_student.id},
+            ],
+            "generate_assessments": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert all(item["assessment"] is not None for item in payload["created"])
+    assert (
+        CandidateAssessment.objects.filter(
+            candidate__student__in=[first_student, second_student],
+        ).count()
+        == 2
+    )
+
+
+def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None:
+    # A student already at the top rank cannot be registered at all (no next
+    # active rank to resolve to), but that must not block the other row's
+    # registration-and-generation in the same request.
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registerable_student = student(wksa_id="BULKREG030")
+    topped_out_student = student(
+        wksa_id="BULKREG031",
+        current_rank=rank("PKJN"),
+        first_name="Robin",
+    )
+    client = auth_client("bulk-register-generate-partial@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {"student": registerable_student.id},
+                {"student": topped_out_student.id},
+            ],
+            "generate_assessments": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["candidate"]["student"] for item in payload["created"]] == [
+        registerable_student.id,
+    ]
+    assert payload["created"][0]["assessment"] is not None
+    assert list(payload["errors"].keys()) == ["1"]
+    assert not GradingCandidate.objects.filter(student=topped_out_student).exists()
+
+
+def test_bulk_generate_assessments_creates_every_snapshot_in_one_request() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    first_candidate = candidate(session=session, student=student(wksa_id="BULKGEN001"))
+    second_candidate = candidate(session=session, student=student(wksa_id="BULKGEN002"))
+    client = auth_client("bulk-generate@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-generate-assessments/",
+        {"candidates": [first_candidate.id, second_candidate.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert [item["candidate"] for item in payload["created"]] == [
+        first_candidate.id,
+        second_candidate.id,
+    ]
+    assert (
+        CandidateAssessment.objects.filter(
+            candidate_id__in=[first_candidate.id, second_candidate.id],
+        ).count()
+        == 2
+    )
+
+
+def test_bulk_generate_assessments_is_independent_per_row() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    fresh_candidate = candidate(session=session, student=student(wksa_id="BULKGEN003"))
+    already_assessed = candidate(session=session, student=student(wksa_id="BULKGEN004"))
+    assessment(candidate=already_assessed)
+    client = auth_client("bulk-generate-partial@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-generate-assessments/",
+        {"candidates": [fresh_candidate.id, already_assessed.id]},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["candidate"] for item in payload["created"]] == [fresh_candidate.id]
+    assert list(payload["errors"].keys()) == ["1"]
+    assert CandidateAssessment.objects.filter(candidate=fresh_candidate).exists()
+
+
+def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
+    # The tick-boxes-then-confirm workflow: select the candidates who did
+    # not show up, set them WITHDRAWN in one request, and everyone else is
+    # left untouched.
+    session = grading_session()
+    absent_first = candidate(session=session, student=student(wksa_id="BULKATT001"))
+    absent_second = candidate(
+        session=session,
+        student=student(wksa_id="BULKATT002", first_name="Robin"),
+    )
+    client = auth_client("bulk-attendance@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-update-status/",
+        {
+            "candidates": [absent_first.id, absent_second.id],
+            "status": GradingCandidate.Status.WITHDRAWN,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["errors"] == {}
+    assert {item["id"] for item in payload["updated"]} == {
+        absent_first.id,
+        absent_second.id,
+    }
+    absent_first.refresh_from_db()
+    absent_second.refresh_from_db()
+    assert absent_first.status == GradingCandidate.Status.WITHDRAWN
+    assert absent_second.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked() -> (
+    None
+):
+    open_session_candidate = candidate(
+        session=grading_session(status=GradingSession.Status.OPEN),
+        student=student(wksa_id="BULKATT003"),
+    )
+    locked_session_candidate = candidate(student=student(wksa_id="BULKATT004"))
+    GradingSession.objects.filter(
+        pk=locked_session_candidate.session_id,
+    ).update(status=GradingSession.Status.LOCKED)
+    client = auth_client("bulk-attendance-partial@example.com")
+
+    response = client.post(
+        "/api/gradings/candidates/bulk-update-status/",
+        {
+            "candidates": [open_session_candidate.id, locked_session_candidate.id],
+            "status": GradingCandidate.Status.WITHDRAWN,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["id"] for item in payload["updated"]] == [open_session_candidate.id]
+    assert list(payload["errors"].keys()) == ["1"]
+    open_session_candidate.refresh_from_db()
+    locked_session_candidate.refresh_from_db()
+    assert open_session_candidate.status == GradingCandidate.Status.WITHDRAWN
+    assert locked_session_candidate.status == GradingCandidate.Status.REGISTERED
+
+
 def test_generate_candidate_assessment_creates_snapshot_items() -> None:
     built = candidate()
     generator = user("assessment-generator@example.com")

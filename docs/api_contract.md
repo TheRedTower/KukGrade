@@ -219,6 +219,79 @@ payment workflows.
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
 | POST  | /api/gradings/candidates/{id}/withdraw/ | Withdraw from a *locked* session with a reason; requires `gradings.can_override_locked_session` |
+| POST  | /api/gradings/candidates/bulk-register/ | Register several candidates against one session in a single request, optionally generating their assessments too |
+| POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
+| POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
+
+Bulk endpoints process every row **independently**, not all-or-nothing: each
+row is validated and saved through the same domain service as its
+single-item counterpart, in its own savepoint. One row failing does not stop
+the others - registering ten students does not fail all ten because one of
+them was already registered. Every bulk endpoint returns `200` with the same
+two-key shape: the list of what succeeded, and an `errors` map keyed by the
+zero-based index of each row that failed (e.g.
+`{"1": ["Student is already registered for this session."]}`). A caller
+always knows exactly which rows landed and which did not, and why.
+
+`POST /api/gradings/candidates/bulk-register/` body:
+
+```json
+{
+  "session": 4,
+  "candidates": [
+    {"student": 12},
+    {"student": 15, "notes": "left knee strapped"},
+    {"student": 20, "testing_for_rank": 6}
+  ],
+  "generate_assessments": false
+}
+```
+
+A row's `testing_for_rank` is optional. When omitted it resolves to that
+student's own next active rank - the same rank the single-item endpoint would
+insist on anyway - so a mixed-belt group (some blue belts, a couple of white
+belts, one brown stripe) registers in one request with no rank picked at all;
+there is no rank that would even apply to the whole batch. It can still be
+set explicitly per row to catch an out-of-turn request early.
+
+When `generate_assessments` is `true`, each successfully registered
+candidate also has its assessment generated immediately, in the same
+savepoint as the registration - a row that registers but fails to generate
+does not leave a candidate with no assessment behind, but a different row's
+generation failure never blocks this row's registration.
+
+Returns `200`:
+
+```json
+{
+  "created": [
+    {"candidate": { /* same shape as GET .../candidates/{id}/ */ }, "assessment": null},
+    {"candidate": { ... }, "assessment": { /* same shape as generate-assessment */ }}
+  ],
+  "errors": {"2": ["Testing-for rank must be the next active rank after the student's current rank."]}
+}
+```
+
+`POST /api/gradings/candidates/bulk-generate-assessments/` body:
+
+```json
+{"candidates": [101, 102, 103]}
+```
+
+Returns `200` with `{"created": [...generated assessments...], "errors": {...}}`.
+
+`POST /api/gradings/candidates/bulk-update-status/` body:
+
+```json
+{"candidates": [101, 102], "status": "WITHDRAWN"}
+```
+
+Built for confirming attendance in bulk: tick the candidates who did not show
+up, set `WITHDRAWN`, and confirm - the rest are left untouched. Uses the same
+guard as a normal `PATCH` (status changes only while the parent session is
+draft or open), applied per candidate, so one candidate's session already
+being locked does not block the others. Returns `200` with
+`{"updated": [...candidates...], "errors": {...}}`.
 
 Session fields:
 

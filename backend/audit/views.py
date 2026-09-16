@@ -7,7 +7,7 @@ from django.db.models import QuerySet
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from accounts.models import User
-from accounts.permissions import HasRequiredPermissions
+from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
 from audit.models import USER_MANAGEMENT_ACTIONS, AuditAction, AuditEvent
 from audit.serializers import AuditEventSerializer
 from kukgrade.filtering import parse_date_filter
@@ -17,10 +17,16 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
     """Read-only by construction: the model refuses writes from every path."""
 
     serializer_class = AuditEventSerializer
-    permission_classes = [HasRequiredPermissions]
+    # Gated by CanViewAuditLog (administrator or Master authority), not a
+    # Django permission: no group carries a view_auditevent grant, since
+    # that would need to reach a Master instructor without also reaching
+    # every other instructor. permission_map is authenticated-is-enough so
+    # HasRequiredPermissions still answers a wrong-method request with 405
+    # rather than a misleading 403.
+    permission_classes = [HasRequiredPermissions, CanViewAuditLog]
     permission_map = {
-        "list": ("audit.view_auditevent",),
-        "retrieve": ("audit.view_auditevent",),
+        "list": (),
+        "retrieve": (),
     }
 
     def get_queryset(self) -> QuerySet[AuditEvent]:

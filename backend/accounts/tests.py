@@ -831,6 +831,73 @@ def test_only_administrators_hold_change_user_for_the_authority_action() -> None
     assert response.status_code == 403
 
 
+def test_granting_final_decision_authority_to_an_administrator_is_refused() -> None:
+    # Confirmed policy: exactly one designated Master, never an
+    # administrator - administrators keep every other capability instead.
+    client, _admin = admin_client("no-master-admin-grantor@example.com")
+    created = create_user_via_api(
+        client,
+        email="no-master-admin-target@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    response = client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": True},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "can_make_final_grading_decision" in response.json()["error"]["fields"]
+    target = User.objects.get(pk=created["id"])
+    assert target.has_perm(FINAL_GRADING_DECISION_PERMISSION) is False
+
+
+def test_granting_other_authority_to_an_administrator_still_works() -> None:
+    # Only final-decision authority is refused for administrators - "admins
+    # having everything else" was explicit.
+    client, _admin = admin_client("admin-other-authority-grantor@example.com")
+    created = create_user_via_api(
+        client,
+        email="admin-other-authority-target@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    response = client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_promote_student": True, "can_override_locked_session": True},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["can_promote_student"] is True
+    assert response.json()["can_override_locked_session"] is True
+
+
+def test_promoting_a_master_authority_instructor_to_administrator_is_refused() -> None:
+    client, _admin = admin_client("no-master-promotion-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="master-cannot-become-admin@example.com",
+    )
+    client.patch(
+        f"/api/users/{created['id']}/authority/",
+        {"can_make_final_grading_decision": True},
+        format="json",
+    )
+
+    response = client.patch(
+        f"/api/users/{created['id']}/",
+        {"role": User.Role.ADMINISTRATOR},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "role" in response.json()["error"]["fields"]
+    target = User.objects.get(pk=created["id"])
+    assert target.role == User.Role.INSTRUCTOR
+
+
 # ---------------------------------------------------------------------------
 # Password reset
 # ---------------------------------------------------------------------------

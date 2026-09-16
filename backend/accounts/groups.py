@@ -48,7 +48,9 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "add_candidateoutcome"),
     ("gradings", "change_candidateoutcome"),
     ("gradings", "view_promotion"),
-    ("audit", "view_auditevent"),
+    # Deliberately not "audit", "view_auditevent" here: audit log access is
+    # administrator-or-Master (accounts.permissions.CanViewAuditLog), a
+    # narrower cut than either role group, so no group grants it at all.
 )
 
 # Administrators additionally manage people. Logistics beyond Kuk Sool.

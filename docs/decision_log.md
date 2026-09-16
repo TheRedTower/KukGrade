@@ -18,6 +18,95 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-16 - Audit log is administrator-or-Master, not every instructor
+
+Status: Accepted
+
+Decision:
+The audit log (`/api/audit-events/` and Django admin's `AuditEventAdmin`) is
+readable only by administrators and holders of Master (final-decision)
+authority. A plain instructor holding neither is refused entirely, not just
+filtered - a stricter cut than the 2026-09-15 user-management-only exclusion,
+which still applies on top of this for the same reason (a Master who is not
+an administrator still cannot see `USER_*` events).
+
+Context:
+Raised directly while reviewing the new bulk-operations endpoints: "the only
+people that can see the audit log ... should be master and admin." No group
+carries `audit.view_auditevent` any more; access is decided by
+`accounts.permissions.CanViewAuditLog` (administrator role, or
+`gradings.can_make_final_grading_decision`), mirrored in
+`AuditEventAdmin.has_view_permission`/`has_module_permission` so Django
+admin enforces the same rule as the API.
+
+Consequences:
+`accounts/groups.py` no longer grants `audit.view_auditevent` to either role
+group. `audit/views.py` gates `list`/`retrieve` with
+`[HasRequiredPermissions, CanViewAuditLog]` rather than a Django permission
+in `permission_map`.
+
+### 2026-09-16 - Master authority is administrator-exclusive
+
+Status: Accepted
+
+Decision:
+`gradings.can_make_final_grading_decision` can never be held by a user whose
+role is Administrator. Granting it to an administrator
+(`POST /api/users/{id}/authority/`) is refused, and promoting a user who
+already holds it to administrator (`PATCH /api/users/{id}/`, `role`) is
+refused too. Administrators keep the other two sensitive permissions
+(`can_promote_student`, `can_override_locked_session`) and every other
+capability unchanged - only final-decision authority is carved out.
+
+Context:
+Raised directly: "I want to run by admins not having the final locked
+decision permission and only the master having that but admins having
+everything else." The stated reasoning is operational - exactly one
+designated Master should make final decisions, while administrators remain a
+deliberate safety valve ("if for any reason something doesn't work it can be
+dealt with as per SOP") for everything short of that one decision.
+
+Consequences:
+Enforced in `accounts/services.py`: `validate_authority_change` refuses the
+grant, and `update_platform_user` refuses the role change, both with a
+plain `ValidationError` surfaced through the normal error envelope. Note
+that a Django superuser bypasses every permission check regardless of what
+is explicitly granted, so this guarantee holds for ordinary administrator
+accounts but not for whoever holds `is_superuser` (normally only the
+bootstrap account, since `is_staff`/`is_superuser` are not API-writable).
+
+### 2026-09-16 - Rank-hierarchy decision overrides will not be built
+
+Status: Rejected
+
+Decision:
+No instructor-rank hierarchy (JKN < KSN < PSBN < SBN < PKJN, mirroring the
+student belt ladder) will govern who can override a provisional outcome
+proposal before an outcome is finalised. `propose_candidate_outcome` keeps
+its current shape: any caller with `gradings.change_candidateoutcome` can
+revise a DRAFT/PROPOSED outcome, and the audit log already records what a
+revision overwrote (2026-09-15's `test_revising_a_proposal_records_what_it_said_before`
+case). Only the existing Master-authority finalisation gate governs the
+final decision.
+
+Context:
+Proposed as: a JKN's provisional decision could not be changed except by a
+PSBN-or-higher instructor or the Master, mirroring Kuk Sool grade seniority.
+Explored at length and walked back for two concrete reasons once discussed:
+first, the school's own instructor grades do not track cleanly onto the
+existing student `Rank` catalogue - a JKN-ranked instructor holds more
+authority than a JKN-ranked student, so the ladder would need a wholly
+separate staff-seniority concept, not a reuse of `Rank`. Second, the two
+people expected to use the override most (both KSN) explicitly did not want
+same-rank mutual override to be true going forward, which undermined the
+premise before a design was even settled. Decided not to add the complexity
+now; revisit only if a concrete, reconciled ranking scheme is proposed later.
+
+Consequences:
+None - no code changed. Recorded so the idea is not silently re-explored
+without this context, and so `CandidateOutcome` is not mistaken for missing
+an intended feature.
+
 ### 2026-09-15 - User-management audit events are administrator-only
 
 Status: Accepted

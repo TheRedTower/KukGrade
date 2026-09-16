@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import date
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -1270,6 +1271,80 @@ def register_candidate(
     return candidate
 
 
+@transaction.atomic
+def bulk_register_candidates(
+    *,
+    session: GradingSession,
+    rows: Sequence[Mapping[str, object]],
+    actor: User | None = None,
+    generate_assessments: bool = False,
+) -> tuple[
+    list[tuple[GradingCandidate, CandidateAssessment | None]], dict[str, list[str]]
+]:
+    """Register every row against `session`, independently of the others.
+
+    This is adding candidates one at a time through the single-item endpoint,
+    just in one request: a batch of ten students does not fail all ten
+    because one of them was already registered. Each row runs in its own
+    savepoint so one row's IntegrityError cannot poison the rows after it.
+
+    A row's `testing_for_rank` is optional: when omitted it resolves to that
+    student's own next active rank, so a mixed-belt group (some blue belts,
+    a couple of white belts, one brown stripe) can be registered in one
+    batch without picking a rank for the whole request - there is no rank
+    that would even apply to all of them.
+
+    When `generate_assessments` is set, each registered candidate's
+    assessment is generated in the same savepoint, so a row that registers
+    but fails to generate does not leave a candidate with no assessment
+    behind.
+
+    Returns a (candidate, assessment) pair per created row - assessment is
+    `None` unless `generate_assessments` was set - and a map of row index to
+    error messages for the rows that failed.
+    """
+    created: list[tuple[GradingCandidate, CandidateAssessment | None]] = []
+    errors: dict[str, list[str]] = {}
+    for index, row in enumerate(rows):
+        try:
+            with transaction.atomic():
+                row_student = cast(Student, row["student"])
+                testing_for_rank = cast(Rank | None, row.get("testing_for_rank"))
+                if testing_for_rank is None:
+                    testing_for_rank = get_next_active_rank(row_student.current_rank)
+                    if testing_for_rank is None:
+                        raise ValidationError(
+                            {"testing_for_rank": ["Student has no next active rank."]},
+                        )
+                registered = register_candidate(
+                    session=session,
+                    student=row_student,
+                    testing_for_rank=testing_for_rank,
+                    notes=cast(str, row.get("notes", "")),
+                    actor=actor,
+                )
+                generated_assessment = None
+                if generate_assessments:
+                    if actor is None:
+                        raise ValidationError(
+                            {
+                                "actor": [
+                                    "An actor is required to generate assessments."
+                                ]
+                            },
+                        )
+                    generated_assessment = generate_candidate_assessment(
+                        registered,
+                        actor,
+                    )
+                created.append((registered, generated_assessment))
+        except ValidationError as exc:
+            # `.messages` always flattens to a list of strings regardless of
+            # whether the underlying error is dict- or list-shaped.
+            errors[str(index)] = exc.messages
+    return created, errors
+
+
 def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
     return {
         "session": candidate.session_id,
@@ -1439,6 +1514,64 @@ def generate_candidate_assessment(
         metadata={"item_count": len(requirements)},
     )
     return assessment
+
+
+@transaction.atomic
+def bulk_generate_candidate_assessments(
+    *,
+    candidates: Sequence[GradingCandidate],
+    generated_by: User,
+) -> tuple[list[CandidateAssessment], dict[str, list[str]]]:
+    """Generate an assessment for every candidate, independently of the others.
+
+    Same independent-rows shape as `bulk_register_candidates`: one
+    candidate's assessment already existing does not block generation for
+    the rest of the batch. Returns the assessments that were created and a
+    map of row index to error messages for the rest.
+    """
+    created: list[CandidateAssessment] = []
+    errors: dict[str, list[str]] = {}
+    for index, candidate in enumerate(candidates):
+        try:
+            with transaction.atomic():
+                created.append(
+                    generate_candidate_assessment(candidate, generated_by),
+                )
+        except ValidationError as exc:
+            errors[str(index)] = exc.messages
+    return created, errors
+
+
+@transaction.atomic
+def bulk_update_candidate_status(
+    *,
+    candidates: Sequence[GradingCandidate],
+    new_status: str,
+    actor: User | None = None,
+) -> tuple[list[GradingCandidate], dict[str, list[str]]]:
+    """Set `new_status` on every candidate, independently of the others.
+
+    Built for confirming attendance in bulk: tick the candidates who did not
+    show up, set WITHDRAWN, and confirm - the rest are left untouched. One
+    candidate's session already being locked does not block the others.
+    Returns the candidates that were updated and a map of row index to error
+    messages for the rest.
+    """
+    updated: list[GradingCandidate] = []
+    errors: dict[str, list[str]] = {}
+    for index, candidate in enumerate(candidates):
+        try:
+            with transaction.atomic():
+                updated.append(
+                    apply_candidate_update(
+                        candidate,
+                        status=new_status,
+                        actor=actor,
+                    ),
+                )
+        except ValidationError as exc:
+            errors[str(index)] = exc.messages
+    return updated, errors
 
 
 def validate_assessment_can_start(assessment: CandidateAssessment) -> None:

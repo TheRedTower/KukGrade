@@ -59,9 +59,19 @@ not the response.
 | POST  | /api/auth/login/       | Authenticate with email and password and establish a session |
 | POST  | /api/auth/logout/      | Clear the current session |
 | GET   | /api/auth/me/          | Get the current user profile       |
+| PATCH | /api/auth/me/          | Update the caller's own first/last name only - not email, role or authority |
+| POST  | /api/auth/change-password/ | Change the caller's own password, given their current one |
 
-`/api/auth/login/` is rate-limited to 10 requests per minute per client IP
-(`error.code = "throttled"` past that). No other endpoint is throttled.
+`/api/auth/login/` and `/api/auth/change-password/` are each rate-limited to
+10 requests per minute per client IP (`error.code = "throttled"` past that).
+No other endpoint is throttled.
+
+`POST /api/auth/change-password/` body: `{"current_password": "...",
+"new_password": "..."}`. The current password must check out first - a
+hijacked session alone is not enough to lock the real owner out. The new
+password runs through the same Django password validators as every other
+password path in the app. Returns `204` on success; the value is never
+logged or included in the audit event it writes.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student` and `can_override_locked_session`, all **computed from
@@ -527,6 +537,8 @@ success it creates a `Promotion` record and updates `Student.current_rank`.
 `/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 4)
 returns a student's current rank plus every promotion in one call, which is
 the more convenient read for a single student's history.
+
+Returns `200` with `{"promoted": [...promotion records...], "errors": {...}}`.
 
 Promotion list filters:
 

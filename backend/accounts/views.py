@@ -16,7 +16,9 @@ from rest_framework.viewsets import GenericViewSet
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from accounts.serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
+    SelfProfileSerializer,
     SetPasswordSerializer,
     UserAuthoritySerializer,
     UserManagementSerializer,
@@ -56,6 +58,36 @@ class CurrentUserView(APIView):
     @extend_schema(responses=UserSerializer)
     def get(self, request: Request) -> Response:
         return Response(UserSerializer(request.user).data)
+
+    @extend_schema(request=SelfProfileSerializer, responses=UserSerializer)
+    def patch(self, request: Request) -> Response:
+        serializer = SelfProfileSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(UserSerializer(updated).data)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+    # Repeated wrong-current-password guesses should be rate-limited the
+    # same as login attempts.
+    throttle_scope = "password_change"
+
+    @extend_schema(request=ChangePasswordSerializer, responses={204: None})
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordSerializer(
+            request.user,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class UserViewSet(

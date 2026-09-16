@@ -26,12 +26,13 @@ os.environ.setdefault(
 from kukgrade.settings import *  # noqa: E402,F403
 from kukgrade.settings import REST_FRAMEWORK  # noqa: E402
 
-# The login throttle's cache key is scope+IP, and the test client always
-# uses the same IP, so the production rate would make one test's login
-# attempts start failing others' with 429. Raised here so the throttle
-# class still runs on every request; a dedicated test lowers it back down
-# with override_settings to actually exercise the limit.
+# Every scoped throttle's cache key is scope+IP, and the test client always
+# uses the same IP, so the production rate would make one test's attempts
+# start failing others' with 429. Raised here so the throttle classes still
+# run on every request; a dedicated test lowers each back down with
+# patch.object(ScopedRateThrottle, "THROTTLE_RATES", ...) to actually
+# exercise the limit.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
-    "DEFAULT_THROTTLE_RATES": {"login": "1000/min"},
+    "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "password_change": "1000/min"},
 }

@@ -274,6 +274,207 @@ def test_logout_clears_session() -> None:
     assert response.status_code == 204
 
 
+# ---------------------------------------------------------------------------
+# Self-service profile: display name
+# ---------------------------------------------------------------------------
+
+
+def test_current_user_can_update_their_own_display_name() -> None:
+    user = create_user(
+        email="rename-self@example.com",
+        first_name="Old",
+        last_name="Name",
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.patch(
+        "/api/auth/me/",
+        {"first_name": "New", "last_name": "Name"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["first_name"] == "New"
+    assert response.json()["full_name"] == "New Name"
+    user.refresh_from_db()
+    assert user.first_name == "New"
+
+    event = AuditEvent.objects.get(
+        action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
+    )
+    assert event.actor == user
+    assert event.metadata["before"]["first_name"] == "Old"
+    assert event.metadata["after"]["first_name"] == "New"
+
+
+def test_current_user_profile_patch_cannot_change_email_role_or_authority() -> None:
+    user = create_user(email="rename-boundary@example.com", role=User.Role.INSTRUCTOR)
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.patch(
+        "/api/auth/me/",
+        {
+            "first_name": "Changed",
+            "email": "escalated@example.com",
+            "role": User.Role.ADMINISTRATOR,
+            "is_staff": True,
+            "is_superuser": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    user.refresh_from_db()
+    assert user.first_name == "Changed"
+    assert user.email == "rename-boundary@example.com"
+    assert user.role == User.Role.INSTRUCTOR
+    assert user.is_staff is False
+    assert user.is_superuser is False
+
+
+def test_current_user_profile_patch_requires_authentication() -> None:
+    response = APIClient().patch("/api/auth/me/", {"first_name": "X"}, format="json")
+
+    assert response.status_code == 403
+
+
+def test_noop_profile_patch_records_no_audit_event() -> None:
+    user = create_user(
+        email="rename-noop@example.com",
+        first_name="Same",
+        last_name="Name",
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+    before = AuditEvent.objects.count()
+
+    response = client.patch(
+        "/api/auth/me/",
+        {"first_name": "Same", "last_name": "Name"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert AuditEvent.objects.count() == before
+
+
+# ---------------------------------------------------------------------------
+# Self-service password change
+# ---------------------------------------------------------------------------
+
+
+def test_change_password_requires_the_correct_current_password() -> None:
+    user = create_user(email="change-pw-wrong@example.com", password="OldPassw0rd!")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {"current_password": "WrongPassword!", "new_password": "NewPassw0rd!42"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "current_password" in response.json()["error"]["fields"]
+    user.refresh_from_db()
+    assert user.check_password("OldPassw0rd!")
+
+
+def test_change_password_enforces_the_configured_validators() -> None:
+    user = create_user(
+        email="change-pw-weak@example.com",
+        password="OldPassw0rd!",
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        # Matches the account's own email, which UserAttributeSimilarityValidator
+        # rejects - only reachable if the instance is passed through to
+        # validate_password(), same as SetPasswordSerializer.
+        {
+            "current_password": "OldPassw0rd!",
+            "new_password": "change-pw-weak@example.com",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "new_password" in response.json()["error"]["fields"]
+    user.refresh_from_db()
+    assert user.check_password("OldPassw0rd!")
+
+
+def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> None:
+    user = create_user(email="change-pw-ok@example.com", password="OldPassw0rd!")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {"current_password": "OldPassw0rd!", "new_password": "BrandNewPassw0rd!42"},
+        format="json",
+    )
+
+    assert response.status_code == 204
+    user.refresh_from_db()
+    assert user.check_password("BrandNewPassw0rd!42")
+    assert not user.check_password("OldPassw0rd!")
+
+    event = AuditEvent.objects.get(
+        action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
+    )
+    assert event.actor == user
+    assert "BrandNewPassw0rd" not in event.summary
+    assert "BrandNewPassw0rd" not in str(event.metadata)
+
+
+def test_change_password_requires_authentication() -> None:
+    response = APIClient().post(
+        "/api/auth/change-password/",
+        {"current_password": "x", "new_password": "y"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_repeated_wrong_current_passwords_are_throttled() -> None:
+    user = create_user(email="change-pw-throttle@example.com", password="OldPassw0rd!")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    django_cache.clear()
+
+    try:
+        with patch.object(
+            ScopedRateThrottle, "THROTTLE_RATES", {"password_change": "2/min"}
+        ):
+            attempts = [
+                client.post(
+                    "/api/auth/change-password/",
+                    {
+                        "current_password": "wrong",
+                        "new_password": "Whatever42!Password",
+                    },
+                    format="json",
+                )
+                for _ in range(2)
+            ]
+            throttled = client.post(
+                "/api/auth/change-password/",
+                {"current_password": "wrong", "new_password": "Whatever42!Password"},
+                format="json",
+            )
+    finally:
+        django_cache.clear()
+
+    assert [response.status_code for response in attempts] == [400, 400]
+    assert throttled.status_code == 429
+
+
 def permission_result(permission: type, user: User | None) -> bool:
     request = APIRequestFactory().get("/permission-test/")
     request.user = user if user is not None else AnonymousUser()

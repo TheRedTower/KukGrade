@@ -38,6 +38,19 @@
   --color-on-gold: #17140f;
   --color-focus-ring: rgb(242 167 27 / 35%);
 
+  --color-accent: #d6900e;
+  --color-accent-strong: #b87b0a;
+  --color-on-accent: #17140f;
+
+  /* Primary Action Buttons */
+  --btn-primary-bg: #f2a71b;
+  --btn-primary-text: #17140f;
+  --btn-primary-border: #d6900e;
+  --btn-primary-hover-bg: #e59e19;
+  --btn-primary-hover-border: #b87b0a;
+  --btn-primary-hover-text: #17140f;
+  --btn-primary-shadow: 0 2px 8px rgb(197 155 39 / 20%);
+
   /* Reserved for operational meaning (FDR-003) - never the sole carrier of
      it, always paired with text or an icon. */
   --color-success: #1e7d4b;
@@ -75,6 +88,19 @@
     --color-on-gold: #17140f;
     --color-focus-ring: rgb(242 167 27 / 45%);
 
+    --color-accent: #ffbb3d;
+    --color-accent-strong: #ffd073;
+    --color-on-accent: #14110c;
+
+    /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
+    --btn-primary-bg: #e8a838;
+    --btn-primary-text: #14110c;
+    --btn-primary-border: #ffbb3d;
+    --btn-primary-hover-bg: #ffbb3d;
+    --btn-primary-hover-border: #ffd073;
+    --btn-primary-hover-text: #0e0c08;
+    --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
+
     --color-success: #33a06b;
     --color-success-surface: #1d3227;
     --color-warning: #e8a93b;
@@ -102,6 +128,19 @@
   --color-gold-strong: #ffbb3d;
   --color-on-gold: #17140f;
   --color-focus-ring: rgb(242 167 27 / 45%);
+
+  --color-accent: #ffbb3d;
+  --color-accent-strong: #ffd073;
+  --color-on-accent: #14110c;
+
+  /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
+  --btn-primary-bg: #e8a838;
+  --btn-primary-text: #14110c;
+  --btn-primary-border: #ffbb3d;
+  --btn-primary-hover-bg: #ffbb3d;
+  --btn-primary-hover-border: #ffd073;
+  --btn-primary-hover-text: #0e0c08;
+  --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
 
   --color-success: #33a06b;
   --color-success-surface: #1d3227;

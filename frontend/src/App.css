@@ -1170,9 +1170,9 @@ h2 {
 }
 
 .action-button-gold {
-  background: var(--color-gold);
-  color: var(--color-on-gold);
-  border: none;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-border);
   border-radius: 6px;
   padding: 0.75rem 1.25rem;
   font-size: 0.95rem;
@@ -1184,11 +1184,14 @@ h2 {
   width: 100%;
   min-height: 44px;
   cursor: pointer;
-  transition: background 160ms ease;
+  box-shadow: var(--btn-primary-shadow);
+  transition: background 160ms ease, border-color 160ms ease;
 }
 
 .action-button-gold:hover {
-  background: var(--color-gold-strong);
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
+  color: var(--btn-primary-hover-text);
 }
 
 .attention-list {
@@ -1548,26 +1551,28 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--color-accent);
-  color: #0f0f11;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-border);
   font-size: 0.95rem;
   font-weight: 700;
   padding: 0.65rem 1.25rem;
   border-radius: 6px;
-  border: none;
   cursor: pointer;
   min-height: 44px;
-  box-shadow: 0 2px 8px rgb(197 155 39 / 20%);
-  transition: opacity 160ms ease, transform 160ms ease;
+  box-shadow: var(--btn-primary-shadow);
+  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, border-color 160ms ease;
 }
 
 .btn-add-student:hover {
-  opacity: 0.95;
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
+  color: var(--btn-primary-hover-text);
   transform: translateY(-1px);
 }
 
 .btn-add-student:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
 
@@ -1859,9 +1864,9 @@ h2 {
 }
 
 .btn-pagination.active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: #0f0f11;
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-border);
+  color: var(--btn-primary-text);
 }
 
 .btn-pagination:disabled {
@@ -1900,26 +1905,49 @@ h2 {
   max-width: 26rem;
 }
 
-.btn-clear-filters,
+.btn-clear-filters {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: all 140ms ease;
+}
+
+.btn-clear-filters:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
 .btn-add-first-student {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-accent);
-  color: #0f0f11;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-border);
   font-size: 0.9rem;
   font-weight: 700;
   padding: 0.6rem 1.25rem;
   border-radius: 6px;
-  border: none;
   cursor: pointer;
   min-height: 44px;
-  transition: opacity 140ms ease;
+  box-shadow: var(--btn-primary-shadow);
+  transition: opacity 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
-.btn-clear-filters:hover,
 .btn-add-first-student:hover {
-  opacity: 0.92;
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
+  color: var(--btn-primary-hover-text);
 }
 
 

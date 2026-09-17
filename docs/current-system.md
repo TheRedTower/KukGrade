@@ -146,6 +146,19 @@ are all clean, and CI enforces every one of them on each push.
   answer the instant it arrives, not a transient failure to paper over, and
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
+- **Design tokens for the "Quiet Command" visual direction** live in
+  `frontend/src/theme.css` as CSS custom properties (`--color-*`,
+  `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
+  FDR-001 through FDR-004 and FDR-012. Every component reads colour through a
+  token, never a literal hex value. Dark mode follows `prefers-color-scheme`
+  automatically today, built from layered charcoal surfaces rather than an
+  inversion of the light palette (no pure-black panels, no neon); the
+  `[data-theme="light"/"dark"]` attribute selectors are already wired for the
+  explicit Light/Dark/System toggle planned for the Settings page (not yet
+  built) to set without a token rewrite. The existing login and application
+  shell now render through these tokens; the two-panel login layout and
+  ink navigation rail from the concept screens are separate, not-yet-started
+  steps.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases

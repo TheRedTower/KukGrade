@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useState, type CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+
 
 import "./theme.css";
 import "./App.css";
@@ -20,6 +21,7 @@ import { MustChangePassword } from "./MustChangePassword";
 import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
 import { AddStudentScreen } from "./AddStudentScreen";
+import { StudentDetailScreen } from "./StudentDetailScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -281,21 +283,9 @@ function StudentsPage() {
 }
 
 function StudentDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  return (
-    <section aria-labelledby="student-detail-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="student-detail-heading">Student Record</h1>
-          <p className="section-subtitle">Student detail and rank progression history</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Student profile and rank timeline for #{id}.</p>
-      </div>
-    </section>
-  );
+  return <StudentDetailScreen />;
 }
+
 
 function AddStudentPage() {
   return <AddStudentScreen />;

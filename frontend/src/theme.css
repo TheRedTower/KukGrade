@@ -20,6 +20,12 @@
   --color-surface: #ffffff;
   --color-surface-sunken: #f5f1e8;
   --color-ink: #15130f;
+  /* The structural ink panel (nav rail, login brand panel). Distinct from
+     --color-ink in dark mode, where ink and the page background would
+     otherwise be the same colour and the panel would read as a seamless
+     void instead of its own object - see FDR-004 and FDR-012. */
+  --color-rail: #15130f;
+  --color-rail-border: transparent;
   --color-border: #e1dbcb;
 
   --color-text: #17140f;
@@ -55,6 +61,8 @@
     --color-surface: #221e18;
     --color-surface-sunken: #1c1914;
     --color-ink: #16130f;
+    --color-rail: #241f18;
+    --color-rail-border: #3a3226;
     --color-border: #332d24;
 
     --color-text: #f3efe6;
@@ -81,6 +89,8 @@
   --color-surface: #221e18;
   --color-surface-sunken: #1c1914;
   --color-ink: #16130f;
+  --color-rail: #241f18;
+  --color-rail-border: #3a3226;
   --color-border: #332d24;
 
   --color-text: #f3efe6;

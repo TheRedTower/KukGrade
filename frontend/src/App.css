@@ -56,7 +56,8 @@ button:disabled {
   flex-direction: column;
   justify-content: space-between;
   gap: 3rem;
-  background: var(--color-ink);
+  border-right: 1px solid var(--color-rail-border);
+  background: var(--color-rail);
   color: var(--color-text-on-ink);
   padding: clamp(1.5rem, 4vw, 3rem);
 }

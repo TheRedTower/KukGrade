@@ -1,4 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -25,6 +32,20 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const CURRENT_USER_QUERY_KEY = ["currentUser"] as const;
+
+// Per-device, not per-account: lets the login screen say "Welcome back"
+// instead of "Sign in" once this browser has ever seen a signed-in session,
+// without needing to know who is about to sign in.
+const HAS_SIGNED_IN_STORAGE_KEY = "kukgrade-has-signed-in";
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function hasSignedInBefore(): boolean {
+  try {
+    return window.localStorage.getItem(HAS_SIGNED_IN_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Only a genuine "you are not signed in" answer from the server counts as
@@ -77,6 +98,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const user = currentUserQuery.data ?? null;
+
+  useEffect(() => {
+    if (user === null) {
+      return;
+    }
+    try {
+      window.localStorage.setItem(HAS_SIGNED_IN_STORAGE_KEY, "true");
+    } catch {
+      // Private browsing or a blocked store just means the login screen
+      // says "Sign in" every time instead of "Welcome back" - not worth
+      // surfacing to the viewer.
+    }
+  }, [user]);
 
   // Fetching covers both the initial load and a retry, so both read as
   // "loading" without a separate attempt counter. A query in flight always

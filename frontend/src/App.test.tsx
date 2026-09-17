@@ -45,10 +45,23 @@ function authRequiredResponse(): Response {
   });
 }
 
+// Theme and "have we seen this browser before" both live in localStorage and
+// a DOM attribute, not component state, so they survive across tests in this
+// file unless cleared - every test starts from the same first-time,
+// system-theme baseline.
+afterEach(() => {
+  window.localStorage.removeItem("kukgrade-has-signed-in");
+  window.localStorage.removeItem("kukgrade-theme");
+  document.documentElement.removeAttribute("data-theme");
+});
+
 describe("App authentication", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
     document.cookie = "csrftoken=test-csrf-token";
+    // These tests exercise the ordinary sign-in/out flow, not first-time
+    // copy - see "First-time login copy" below for that.
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
   });
 
   afterEach(() => {
@@ -219,6 +232,7 @@ describe("Connection failures are not sign-outs", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
     document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
   });
 
   afterEach(() => {
@@ -325,5 +339,95 @@ describe("Connection failures are not sign-outs", () => {
     );
     expect(screen.getByText("Casey Instructor")).toBeVisible();
     expect(window.location.pathname).toBe("/");
+  });
+});
+
+describe("First-time login copy", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("greets a browser that has never signed in with 'Sign in', not 'Welcome back'", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+  });
+
+  it("says 'Welcome back' once this browser has signed in before", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(authRequiredResponse())
+      .mockResolvedValueOnce(jsonResponse(200, authUser))
+      .mockResolvedValueOnce(emptyResponse(204));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+    });
+  });
+});
+
+describe("Login theme toggle", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("defaults to following the system preference with no stored choice", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("pins an explicit choice to the page and remembers it for next time", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    await user.click(screen.getByRole("button", { name: "Dark" }));
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(window.localStorage.getItem("kukgrade-theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 });

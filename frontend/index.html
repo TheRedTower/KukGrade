@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>KukGrade</title>
+    <script>
+      // Applied before first paint so an explicit stored theme choice never
+      // flashes the system default first - see src/useTheme.ts, which reads
+      // and writes the same "kukgrade-theme" key. No stored value (the
+      // common case) leaves data-theme unset and the page follows
+      // prefers-color-scheme purely through CSS, exactly as if this script
+      // did not run.
+      (function () {
+        try {
+          var stored = window.localStorage.getItem("kukgrade-theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.setAttribute("data-theme", stored);
+          }
+        } catch (error) {
+          // Private browsing or a blocked store: fall back to the system
+          // default, same as if no preference had ever been stored.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

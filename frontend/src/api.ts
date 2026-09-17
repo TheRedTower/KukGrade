@@ -9,6 +9,20 @@ export type HealthResponse = components["schemas"]["HealthResponse"];
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
 
+export type PaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};
+
+export type GradingSession = components["schemas"]["GradingSession"];
+export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
+export type GradingCandidate = components["schemas"]["GradingCandidate"];
+export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
+export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
+export type AuditEvent = components["schemas"]["AuditEvent"];
+
 /**
  * The error envelope itself has no generated equivalent: `custom_exception_handler`
  * builds it outside DRF's serializer-driven response path, so drf-spectacular
@@ -160,4 +174,66 @@ export async function changePassword(
       new_password: newPassword,
     }),
   });
+}
+
+export async function getGradingSessions(params?: {
+  status?: string;
+  grading_date?: string;
+  grading_date_from?: string;
+  grading_date_to?: string;
+}): Promise<PaginatedResponse<GradingSession>> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set("status", params.status);
+  if (params?.grading_date) searchParams.set("grading_date", params.grading_date);
+  if (params?.grading_date_from) searchParams.set("grading_date_from", params.grading_date_from);
+  if (params?.grading_date_to) searchParams.set("grading_date_to", params.grading_date_to);
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<GradingSession>>(
+    `/api/gradings/sessions/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getGradingCandidates(params?: {
+  session?: number;
+  student_wksa_id?: string;
+}): Promise<PaginatedResponse<GradingCandidate>> {
+  const searchParams = new URLSearchParams();
+  if (params?.session !== undefined) searchParams.set("session", String(params.session));
+  if (params?.student_wksa_id) searchParams.set("student_wksa_id", params.student_wksa_id);
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<GradingCandidate>>(
+    `/api/gradings/candidates/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getCandidateAssessments(params?: {
+  session?: number;
+  candidate?: number;
+  status?: string;
+}): Promise<PaginatedResponse<CandidateAssessment>> {
+  const searchParams = new URLSearchParams();
+  if (params?.session !== undefined) searchParams.set("session", String(params.session));
+  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
+  if (params?.status) searchParams.set("status", params.status);
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<CandidateAssessment>>(
+    `/api/gradings/assessments/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getAuditEvents(params?: {
+  limit?: number;
+  offset?: number;
+  action?: string;
+  entity_type?: string;
+}): Promise<PaginatedResponse<AuditEvent>> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+  if (params?.action) searchParams.set("action", params.action);
+  if (params?.entity_type) searchParams.set("entity_type", params.entity_type);
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<AuditEvent>>(
+    `/api/audit-events/${query ? `?${query}` : ""}`,
+  );
 }

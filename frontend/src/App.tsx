@@ -17,6 +17,7 @@ import {
 import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
 import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";
+import { OverviewScreen } from "./OverviewScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -270,19 +271,7 @@ function NavigationRail({ user }: { user: AuthUser }) {
 }
 
 function OverviewPage() {
-  return (
-    <section aria-labelledby="overview-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="overview-heading">Overview</h1>
-          <p className="section-subtitle">Operational ledger and grading progress</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Operational overview and live grading activity.</p>
-      </div>
-    </section>
-  );
+  return <OverviewScreen />;
 }
 
 function StudentsPage() {

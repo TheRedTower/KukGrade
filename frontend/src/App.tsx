@@ -1,4 +1,5 @@
 import { FormEvent, ReactNode, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./App.css";
@@ -211,23 +212,45 @@ function LoginRoute() {
   return <LoginPage />;
 }
 
+// A fresh client per mount, not a module-level singleton: the app only ever
+// mounts once in production, but each test renders its own <App /> and must
+// not inherit another test's cached session query.
+function createQueryClient(): QueryClient {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        // A dropped connection or a 403 is meaningful the moment it happens
+        // (see isAnonymousResponse in auth.tsx) - retrying in the background
+        // would delay that answer and, in tests, call the fetch mock more
+        // times than the test set up responses for.
+        retry: false,
+        refetchOnWindowFocus: false,
+      },
+    },
+  });
+}
+
 function App() {
+  const [queryClient] = useState(createQueryClient);
+
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<LoginRoute />} path="/login" />
-          <Route
-            element={
-              <RequireAuth>
-                <ApplicationShell />
-              </RequireAuth>
-            }
-            path="*"
-          />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<LoginRoute />} path="/login" />
+            <Route
+              element={
+                <RequireAuth>
+                  <ApplicationShell />
+                </RequireAuth>
+              }
+              path="*"
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

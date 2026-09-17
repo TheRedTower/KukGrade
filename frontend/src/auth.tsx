@@ -1,12 +1,5 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   ApiError,
@@ -30,6 +23,8 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const CURRENT_USER_QUERY_KEY = ["currentUser"] as const;
 
 /**
  * Only a genuine "you are not signed in" answer from the server counts as
@@ -56,68 +51,66 @@ function describeAuthFailure(error: unknown): string {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("loading");
-  const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let isCurrent = true;
+  const currentUserQuery = useQuery({
+    queryKey: CURRENT_USER_QUERY_KEY,
+    queryFn: getCurrentUser,
+  });
 
-    async function loadUser() {
-      try {
-        const currentUser = await getCurrentUser();
-        if (!isCurrent) {
-          return;
-        }
-        setUser(currentUser);
-        setStatus("authenticated");
-      } catch (caught) {
-        if (!isCurrent) {
-          return;
-        }
-        setUser(null);
-        if (isAnonymousResponse(caught)) {
-          setStatus("anonymous");
-          return;
-        }
-        setStatus("error");
-        setError(describeAuthFailure(caught));
-      }
-    }
+  const loginMutation = useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      loginUser(email, password),
+    onSuccess: (authenticatedUser) => {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
+    },
+  });
 
-    void loadUser();
+  // The cache is only cleared once the server has actually ended the
+  // session (onSuccess) - clearing it after a failed request would show a
+  // signed-out UI while the session cookie was still valid.
+  const logoutMutation = useMutation({
+    mutationFn: logoutUser,
+    onSuccess: () => {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+    },
+  });
 
-    return () => {
-      isCurrent = false;
-    };
-  }, [attempt]);
+  const user = currentUserQuery.data ?? null;
 
-  // Resets to loading here rather than in the effect: the initial state is
-  // already "loading", and setting state synchronously inside an effect body
-  // triggers cascading renders.
+  // Fetching covers both the initial load and a retry, so both read as
+  // "loading" without a separate attempt counter. A query in flight always
+  // takes priority over its previous result or error.
+  let status: AuthStatus;
+  if (currentUserQuery.isFetching) {
+    status = "loading";
+  } else if (currentUserQuery.isError) {
+    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
+  } else if (user === null) {
+    // A successful fetch that resolved to no user - true after logout.
+    status = "anonymous";
+  } else {
+    status = "authenticated";
+  }
+
+  const error =
+    status === "error" ? describeAuthFailure(currentUserQuery.error) : null;
+
+  const refetchCurrentUser = currentUserQuery.refetch;
   const retry = useCallback(() => {
-    setStatus("loading");
-    setError(null);
-    setAttempt((previous) => previous + 1);
-  }, []);
+    void refetchCurrentUser();
+  }, [refetchCurrentUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const authenticatedUser = await loginUser(email, password);
-    setUser(authenticatedUser);
-    setError(null);
-    setStatus("authenticated");
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await loginMutation.mutateAsync({ email, password });
+    },
+    [loginMutation],
+  );
 
-  // Local state is cleared only once the server has actually ended the
-  // session. Clearing it after a failed request would show a signed-out UI
-  // while the session cookie was still valid.
   const logout = useCallback(async () => {
-    await logoutUser();
-    setUser(null);
-    setError(null);
-    setStatus("anonymous");
-  }, []);
+    await logoutMutation.mutateAsync();
+  }, [logoutMutation]);
 
   const value = useMemo(
     () => ({ user, status, error, login, logout, retry }),

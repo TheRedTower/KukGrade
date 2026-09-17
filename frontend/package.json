@@ -12,6 +12,7 @@
     "generate:types": "openapi-typescript ../backend/schema.yml -o src/api/schema.ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.103.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^7.18.4"

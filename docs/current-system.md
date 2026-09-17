@@ -4,7 +4,7 @@ Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
 Verified by running the tooling, not by reading the code: 468 backend tests and
-16 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
+17 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
 
@@ -131,6 +131,17 @@ are all clean, and CI enforces every one of them on each push.
   login form distinguishes wrong credentials, CSRF failure, throttling, a
   server error, and a dropped connection - it does not tell a rate-limited
   user their password is wrong.
+- **Frontend API types are generated**, not hand-written: `npm run
+  generate:types` runs `openapi-typescript` against `backend/schema.yml` into
+  `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases
+  onto it rather than separately maintained types - see the 2026-09-14
+  decision log entry. CI regenerates the file and fails the build if it
+  differs from what is committed, so a serializer change nobody mirrors is
+  caught there rather than surfacing as a frontend type error later. The
+  error envelope has no schema entry to generate from - `custom_exception_handler`
+  builds it outside DRF's serializer-driven response path, so `FieldErrors`/
+  `ApiErrorBody` stay hand-written until error responses are declared
+  explicitly per view.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every

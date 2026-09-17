@@ -1,31 +1,21 @@
+import type { components } from "./api/schema";
+
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
-export type HealthResponse = {
-  service: "kukgrade-backend";
-  status: "ok";
-};
+// Generated from backend/schema.yml (`npm run generate:types`) rather than
+// hand-maintained, so these cannot silently drift from the serializers - see
+// the 2026-09-14 decision log entry. Regenerate after any serializer change.
+export type HealthResponse = components["schemas"]["HealthResponse"];
+export type AuthUser = components["schemas"]["User"];
+export type UserRole = components["schemas"]["RoleEnum"];
 
-export type UserRole = "instructor" | "administrator";
-
-export type AuthUser = {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  role: UserRole;
-  role_display: string;
-  /**
-   * Computed server-side from the permissions that gate these actions, so
-   * they cannot disagree with what the API will allow. Use them to hide
-   * affordances only - the server is the enforcement boundary.
-   */
-  can_make_final_grading_decision: boolean;
-  can_promote_student: boolean;
-  can_override_locked_session: boolean;
-  is_staff: boolean;
-  is_superuser: boolean;
-};
+/**
+ * The error envelope itself has no generated equivalent: `custom_exception_handler`
+ * builds it outside DRF's serializer-driven response path, so drf-spectacular
+ * documents only the 2xx responses in backend/schema.yml - there is no 4xx
+ * schema to generate this from. Hand-written until the views declare their
+ * error responses explicitly (`@extend_schema(responses=...)`).
+ */
 
 /**
  * Per-field validation messages, mirroring the serializer's shape. Values are

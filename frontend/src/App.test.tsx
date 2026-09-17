@@ -431,3 +431,161 @@ describe("Login theme toggle", () => {
     );
   });
 });
+
+describe("Navigation rail and role-gated routes", () => {
+  const masterInstructorUser = {
+    ...authUser,
+    can_make_final_grading_decision: true,
+  };
+
+  const adminUser = {
+    ...authUser,
+    id: "9e1c44b3-d8f6-4c1a-a4d1-4cb8e788df22",
+    email: "admin@example.com",
+    first_name: "Alex",
+    last_name: "Admin",
+    full_name: "Alex Admin",
+    role: "administrator" as const,
+    role_display: "Administrator",
+    can_promote_student: true,
+    can_override_locked_session: true,
+    is_staff: true,
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders base navigation links for a standard instructor and hides privileged links", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+
+    expect(screen.getByRole("link", { name: "Overview" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Students" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Gradings" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Syllabus" })).toBeVisible();
+
+    expect(screen.queryByRole("link", { name: "Audit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+  });
+
+  it("navigates between sections when navigation links are clicked", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Overview" });
+
+    await user.click(screen.getByRole("link", { name: "Students" }));
+    expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+    expect(window.location.pathname).toBe("/students");
+
+    await user.click(screen.getByRole("link", { name: "Gradings" }));
+    expect(await screen.findByRole("heading", { name: "Gradings" })).toBeVisible();
+    expect(window.location.pathname).toBe("/gradings");
+
+    await user.click(screen.getByRole("link", { name: "Syllabus" }));
+    expect(await screen.findByRole("heading", { name: "Syllabus" })).toBeVisible();
+    expect(window.location.pathname).toBe("/syllabus");
+
+    await user.click(screen.getByRole("link", { name: "Overview" }));
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("redirects an unauthorised instructor attempting direct URL access to /audit", async () => {
+    window.history.replaceState({}, "", "/audit");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/");
+    });
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+  });
+
+  it("redirects an unauthorised instructor attempting direct URL access to /users", async () => {
+    window.history.replaceState({}, "", "/users");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/");
+    });
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+  });
+
+  it("redirects an Authorised Master attempting direct URL access to /users", async () => {
+    window.history.replaceState({}, "", "/users");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, masterInstructorUser)),
+    );
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/");
+    });
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+  });
+
+  it("grants Audit access and displays the Audit link for an Authorised Master", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, masterInstructorUser)),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    expect(screen.getByRole("link", { name: "Audit" })).toBeVisible();
+    expect(screen.queryByRole("link", { name: "Users" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "Audit" }));
+    expect(await screen.findByRole("heading", { name: "Audit" })).toBeVisible();
+    expect(window.location.pathname).toBe("/audit");
+  });
+
+  it("grants full navigation and route access for an Administrator", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse(200, adminUser)),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Alex Admin");
+    expect(screen.getByRole("link", { name: "Audit" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Users" })).toBeVisible();
+
+    await user.click(screen.getByRole("link", { name: "Users" }));
+    expect(await screen.findByRole("heading", { name: "Users" })).toBeVisible();
+    expect(window.location.pathname).toBe("/users");
+
+    await user.click(screen.getByRole("link", { name: "Audit" }));
+    expect(await screen.findByRole("heading", { name: "Audit" })).toBeVisible();
+    expect(window.location.pathname).toBe("/audit");
+  });
+});

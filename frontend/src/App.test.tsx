@@ -2273,3 +2273,234 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     expect(await screen.findByText("Cancelled Test Grading")).toBeVisible();
   });
 });
+
+// Create Grading Session Screen (/gradings/new)
+describe("Create Grading Session Screen (/gradings/new)", () => {
+  const adminUser = {
+    id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    email: "admin@example.com",
+    first_name: "Alex",
+    last_name: "Admin",
+    full_name: "Alex Admin",
+    role: "administrator" as const,
+    role_display: "Administrator",
+    can_make_final_grading_decision: true,
+    can_promote_student: true,
+    can_override_locked_session: true,
+    must_change_password: false,
+    is_staff: true,
+    is_superuser: true,
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/gradings/new");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders create grading session form with breadcrumbs, inputs, and preview card", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
+    expect(screen.getByText("Set the details, then add candidates.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Gradings" })).toBeVisible();
+    expect(screen.getByLabelText(/session title/i)).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Grading day" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Grading month" })).toBeVisible();
+    expect(screen.getByRole("combobox", { name: "Grading year" })).toBeVisible();
+    expect(screen.getByLabelText(/location/i)).toBeVisible();
+    expect(screen.getByLabelText(/staff notes/i)).toBeVisible();
+    expect(screen.getByText("0/500")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Session preview" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Create draft session" })).toBeVisible();
+  });
+
+  it("updates session preview card live as the user enters title, date, and location", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Create grading session" });
+
+    // Initial placeholder state
+    const previewTable = screen.getByRole("table", { name: "Session preview" });
+    expect(within(previewTable).getByRole("cell", { name: "Session title" })).toBeVisible();
+
+    // Type title
+    await user.type(screen.getByLabelText(/session title/i), "Winter Grading");
+    expect(within(previewTable).getByRole("cell", { name: "Winter Grading" })).toBeVisible();
+
+    // Select date: 12 December 2026
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading day" }), "12");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "12");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2026");
+
+    expect(within(previewTable).getByText("Saturday 12 December 2026")).toBeVisible();
+
+    // Type location
+    await user.type(screen.getByLabelText(/location/i), "Colchester Dojang");
+    expect(within(previewTable).getByText("Colchester Dojang")).toBeVisible();
+
+    // Check notes counter
+    await user.type(screen.getByLabelText(/staff notes/i), "Bring extra forms");
+    expect(screen.getByText("17/500")).toBeVisible();
+  });
+
+  it("blocks submission and shows client validation errors when required fields are empty", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Create grading session" });
+
+    // Click submit without filling required fields
+    await user.click(screen.getByRole("button", { name: "Create draft session" }));
+
+    expect(await screen.findByText("Session title is required.")).toBeVisible();
+    expect(await screen.findByText("Grading date is required.")).toBeVisible();
+
+    // Ensure no POST request was made to /api/gradings/sessions/
+    const sessionCalls = fetchMock.mock.calls.filter(([url]) => url.includes("/api/gradings/sessions/"));
+    expect(sessionCalls).toHaveLength(0);
+  });
+
+  it("successfully creates a grading session and navigates to /gradings", async () => {
+    const createdSession = {
+      id: 99,
+      title: "Spring Grading 2027",
+      grading_date: "2027-03-20",
+      status: "DRAFT",
+      status_display: "Draft",
+      location: "Colchester Central Dojang",
+      notes: "High rank candidates expected",
+      cancellation_reason: "",
+      created_by: adminUser.id,
+      created_by_email: adminUser.email,
+      created_at: "2026-09-17T22:00:00Z",
+      updated_at: "2026-09-17T22:00:00Z",
+    };
+
+    let postBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
+        postBody = JSON.parse(init.body as string);
+        return jsonResponse(201, createdSession);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [createdSession] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Create grading session" });
+
+    await user.type(screen.getByLabelText(/session title/i), "Spring Grading 2027");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading day" }), "20");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "03");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2027");
+    await user.type(screen.getByLabelText(/location/i), "Colchester Central Dojang");
+    await user.type(screen.getByLabelText(/staff notes/i), "High rank candidates expected");
+
+    await user.click(screen.getByRole("button", { name: "Create draft session" }));
+
+    await waitFor(() => {
+      expect(postBody).toEqual({
+        title: "Spring Grading 2027",
+        grading_date: "2027-03-20",
+        location: "Colchester Central Dojang",
+        notes: "High rank candidates expected",
+      });
+    });
+
+    // Navigates back to /gradings
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/gradings");
+    });
+  });
+
+  it("navigates back to /gradings when Cancel or the breadcrumb link is clicked", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Create grading session" });
+
+    // Click Cancel
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(window.location.pathname).toBe("/gradings");
+  });
+
+  it("surfaces server validation error messages on submission failure", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/") && init?.method === "POST") {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Invalid input.",
+            fields: {
+              title: ["A grading session with this title already exists."],
+            },
+          },
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Create grading session" });
+
+    await user.type(screen.getByLabelText(/session title/i), "Duplicate Title");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading day" }), "15");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "05");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2027");
+
+    await user.click(screen.getByRole("button", { name: "Create draft session" }));
+
+    expect(await screen.findByText("A grading session with this title already exists.")).toBeVisible();
+  });
+});
+

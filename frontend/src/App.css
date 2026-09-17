@@ -3340,3 +3340,305 @@ h2 {
   background: var(--btn-primary-bg) !important;
   filter: brightness(1.07);
 }
+
+/* ==========================================================================
+   Create Grading Session Screen (/gradings/new) - SCR-016
+   ========================================================================== */
+
+.cgs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0.5rem 3rem;
+}
+
+/* ── Breadcrumbs ─────────────────────────────────────────────────────────── */
+
+.cgs-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin-bottom: -0.5rem;
+}
+
+.cgs-breadcrumb-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 120ms ease;
+}
+
+.cgs-breadcrumb-link:hover {
+  color: var(--color-text);
+}
+
+.cgs-breadcrumb-sep {
+  color: var(--color-border-strong);
+  user-select: none;
+}
+
+.cgs-breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.cgs-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.cgs-page-title {
+  font-size: 1.95rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.cgs-page-subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Alert Banner ────────────────────────────────────────────────────────── */
+
+.cgs-alert-banner {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+  padding: 0.85rem 1.15rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cgs-alert-banner {
+  background: #2a1215;
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* ── Grid Layout ─────────────────────────────────────────────────────────── */
+
+.cgs-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 460px) 1fr;
+  gap: 2.75rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .cgs-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+/* ── Form Panel ──────────────────────────────────────────────────────────── */
+
+.cgs-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.cgs-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.cgs-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cgs-required-star {
+  color: #dc2626;
+  margin-left: 0.15rem;
+}
+
+[data-theme="dark"] .cgs-required-star {
+  color: #f87171;
+}
+
+.cgs-optional-text {
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  margin-left: 0.2rem;
+}
+
+.cgs-text-input,
+.cgs-textarea,
+.cgs-select {
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  box-sizing: border-box;
+}
+
+.cgs-text-input:focus,
+.cgs-textarea:focus,
+.cgs-select:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(242, 167, 27, 0.2);
+}
+
+.cgs-input-error {
+  border-color: #dc2626 !important;
+}
+
+[data-theme="dark"] .cgs-input-error {
+  border-color: #f87171 !important;
+}
+
+.cgs-field-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  margin: 0.15rem 0 0;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .cgs-field-error {
+  color: #f87171;
+}
+
+/* Date 3-select row */
+.cgs-date-row {
+  display: grid;
+  grid-template-columns: 85px 1fr 100px;
+  gap: 0.5rem;
+}
+
+.cgs-select {
+  min-height: 42px;
+  cursor: pointer;
+}
+
+.cgs-textarea {
+  resize: vertical;
+  min-height: 100px;
+  line-height: 1.45;
+}
+
+.cgs-char-counter {
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+
+.cgs-char-near-limit {
+  color: #d97706;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .cgs-char-near-limit {
+  color: #fbbf24;
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+.cgs-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.cgs-cancel-btn {
+  min-height: 44px;
+  padding: 0 1.25rem;
+}
+
+/* ── Preview Column ──────────────────────────────────────────────────────── */
+
+.cgs-preview-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.75rem 1.85rem;
+}
+
+.cgs-preview-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 0.35rem 0;
+}
+
+.cgs-preview-subtitle {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1.35rem 0;
+  line-height: 1.45;
+}
+
+.cgs-preview-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+}
+
+.cgs-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.cgs-preview-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cgs-preview-table td {
+  padding: 0.95rem 1rem;
+  color: var(--color-text);
+  vertical-align: middle;
+  border-bottom: none;
+}
+
+.cgs-preview-title-cell {
+  font-weight: 600;
+}
+
+.cgs-preview-placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.cgs-preview-th-num,
+.cgs-preview-candidates-cell {
+  text-align: right;
+}
+

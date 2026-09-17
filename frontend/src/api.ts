@@ -201,6 +201,23 @@ export async function getGradingSessions(params?: {
   );
 }
 
+export interface CreateGradingSessionPayload {
+  title: string;
+  grading_date: string;
+  status?: GradingSessionStatus;
+  location?: string;
+  notes?: string;
+}
+
+export async function createGradingSession(
+  payload: CreateGradingSessionPayload,
+): Promise<GradingSession> {
+  return apiRequest<GradingSession>("/api/gradings/sessions/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function getGradingCandidates(params?: {
   session?: number;
   student_wksa_id?: string;

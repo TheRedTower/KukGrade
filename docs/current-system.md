@@ -137,6 +137,15 @@ are all clean, and CI enforces every one of them on each push.
   loading and connection-error states render in place, on whatever path was
   requested, rather than redirecting - a dropped connection is not evidence
   the viewer is signed out.
+- **Server state is TanStack Query**, replacing a hand-rolled effect and
+  attempt-counter in `auth.tsx` - see the 2026-09-14 decision log entry.
+  The session bootstrap is a `useQuery` on `GET /api/auth/me/`; login and
+  logout are mutations that write straight into that query's cache on
+  success, rather than each keeping its own copy of "am I signed in" state.
+  Retries are off by default (`retry: false`): a 401/403 is a meaningful
+  answer the instant it arrives, not a transient failure to paper over, and
+  each `<App />` mount gets its own `QueryClient` rather than a module-level
+  singleton, so one screen's cached session can never leak into another's.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases

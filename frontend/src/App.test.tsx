@@ -1316,6 +1316,20 @@ describe("Students registry screen (/students)", () => {
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
       }
+      if (url.match(/\/api\/students\/\d+\/rank-history\//)) {
+        return jsonResponse(200, {
+          student: 1,
+          student_display_name: "Bruce Wayne (UK-1001)",
+          student_wksa_id: "UK-1001",
+          current_rank: 1,
+          current_rank_code: "W",
+          current_rank_name: "White Belt",
+          promotions: [],
+        });
+      }
+      if (url.match(/\/api\/students\/\d+\//)) {
+        return jsonResponse(200, testStudents[0]);
+      }
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testStudents });
       }
@@ -1671,5 +1685,346 @@ describe("Add student screen (/students/new)", () => {
     expect(window.location.pathname).toBe("/students");
   });
 });
+
+describe("Student detail screen (/students/:id)", () => {
+  const testRanks = [
+    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 3, code: "Y", name: "Yellow Belt", order: 3, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+  ];
+
+  const testStudent = {
+    id: 10,
+    wksa_id: "UK-5001",
+    first_name: "Alex",
+    last_name: "Carter",
+    date_of_birth: "2012-04-24",
+    current_rank: 2,
+    current_rank_code: "YS",
+    current_rank_name: "Yellow Stripe",
+    status: "ACTIVE",
+    status_display: "Active",
+    can_be_graded: true,
+    created_at: "2021-01-08T10:00:00Z",
+    updated_at: "2021-01-08T10:00:00Z",
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/students/10");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders student profile with personal details, age band, readiness, and empty history", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: [],
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, testStudent);
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    // Header & identity
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+    expect(screen.getByText("UK-5001")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Edit student" })).toBeVisible();
+
+    // Breadcrumb
+    expect(screen.getByRole("button", { name: "Students" })).toBeVisible();
+    expect(screen.getByText("Alex Carter", { selector: ".breadcrumb-current" })).toBeVisible();
+
+    // Student details card
+    expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
+    expect(screen.getByText("24 April 2012")).toBeVisible();
+    expect(screen.getByText("13 – 17")).toBeVisible();
+    expect(screen.getByText("08 January 2021")).toBeVisible();
+
+    // Grading readiness card
+    expect(screen.getByRole("heading", { name: "Grading readiness" })).toBeVisible();
+    expect(screen.getByText("Yellow Belt")).toBeVisible();
+    expect(screen.getByText("Eligible for registration")).toBeVisible();
+
+    // Record status card
+    expect(screen.getByRole("heading", { name: "Record status" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Change status" })).toBeVisible();
+
+    // Empty grading history
+    expect(screen.getByText("No grading history recorded")).toBeVisible();
+  });
+
+  it("renders populated grading history table and timeline with past promotions", async () => {
+    const testPromotions = [
+      {
+        id: 101,
+        from_rank: 1,
+        from_rank_code: "W",
+        from_rank_name: "White Belt",
+        to_rank: 2,
+        to_rank_code: "YS",
+        to_rank_name: "Yellow Stripe",
+        session: 5,
+        session_title: "Winter Grading",
+        grading_date: "2025-12-12",
+        outcome: 12,
+        outcome_status: "CONFIRMED",
+        final_outcome: "PASS",
+        promoted_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+        promoted_by_email: "master@example.com",
+        promoted_by_name: "Master Tan",
+        promoted_at: "2025-12-12T14:30:00Z",
+        effective_date: "2025-12-12",
+        notes: "Excellent forms and techniques.",
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: testPromotions,
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, testStudent);
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+
+    // Table rows
+    const table = await screen.findByRole("table", { name: "Grading history" });
+    const tableScope = within(table);
+
+    expect(tableScope.getByText("Winter Grading")).toBeVisible();
+    expect(tableScope.getByText("12 Dec 2025")).toBeVisible();
+    expect(tableScope.getByText("White Belt")).toBeVisible();
+    expect(tableScope.getByText("Passed")).toBeVisible();
+    expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
+
+    // Rank history timeline
+    expect(screen.getByText("Promoted at Winter Grading")).toBeVisible();
+    expect(screen.getByText("Joined Kuk Sool Won")).toBeVisible();
+  });
+
+  it("changes student status via status modal and triggers PATCH request", async () => {
+    let patchPayload: unknown = null;
+    let currentStatus = "ACTIVE";
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: [],
+        });
+      }
+      if (url.includes("/api/students/10/") && options?.method === "PATCH") {
+        patchPayload = JSON.parse(options.body as string);
+        currentStatus = (patchPayload as { status: string }).status;
+        return jsonResponse(200, {
+          ...testStudent,
+          status: currentStatus,
+          status_display: currentStatus === "INACTIVE" ? "Inactive" : "Active",
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, {
+          ...testStudent,
+          status: currentStatus,
+          status_display: currentStatus === "INACTIVE" ? "Inactive" : "Active",
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+
+    // Open change status modal
+    const changeStatusBtn = screen.getByRole("button", { name: "Change status" });
+    await user.click(changeStatusBtn);
+
+    expect(await screen.findByRole("heading", { name: "Change student status" })).toBeVisible();
+
+    // Select Inactive option
+    const inactiveRadio = screen.getByLabelText(/Inactive/i);
+    await user.click(inactiveRadio);
+
+    // Save status
+    const updateBtn = screen.getByRole("button", { name: "Update status" });
+    await user.click(updateBtn);
+
+    // Check patch payload
+    await waitFor(() => {
+      expect(patchPayload).toEqual({ status: "INACTIVE" });
+    });
+
+    // Modal closed
+    expect(screen.queryByRole("heading", { name: "Change student status" })).not.toBeInTheDocument();
+  });
+
+  it("edits student details via edit student modal", async () => {
+    let patchPayload: unknown = null;
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: [],
+        });
+      }
+      if (url.includes("/api/students/10/") && options?.method === "PATCH") {
+        patchPayload = JSON.parse(options.body as string);
+        return jsonResponse(200, {
+          ...testStudent,
+          ...(patchPayload as object),
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, testStudent);
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+
+    // Open edit student modal
+    const editBtn = screen.getByRole("button", { name: "Edit student" });
+    await user.click(editBtn);
+
+    expect(await screen.findByRole("heading", { name: "Edit student record" })).toBeVisible();
+
+    // Verify WKSA ID is disabled
+    const wksaInput = screen.getByLabelText("WKSA ID") as HTMLInputElement;
+    expect(wksaInput).toBeDisabled();
+
+    // Change first name
+    const firstNameInput = screen.getByLabelText(/First name/i);
+    await user.clear(firstNameInput);
+    await user.type(firstNameInput, "Alexander");
+
+    // Submit edit
+    const saveBtn = screen.getByRole("button", { name: "Save changes" });
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      expect(patchPayload).toEqual({
+        first_name: "Alexander",
+        last_name: "Carter",
+        date_of_birth: "2012-04-24",
+      });
+    });
+
+    expect(screen.queryByRole("heading", { name: "Edit student record" })).not.toBeInTheDocument();
+  });
+
+  it("navigates back to /students when clicking breadcrumb", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: [],
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, testStudent);
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [testStudent] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+
+    const breadcrumbBtn = screen.getByRole("button", { name: "Students" });
+    await user.click(breadcrumbBtn);
+
+    expect(window.location.pathname).toBe("/students");
+  });
+});
+
 
 

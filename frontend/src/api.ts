@@ -297,3 +297,61 @@ export async function createStudent(
   });
 }
 
+export type PromotionRankHistory = {
+  id: number;
+  from_rank: number;
+  from_rank_code: string;
+  from_rank_name: string;
+  to_rank: number;
+  to_rank_code: string;
+  to_rank_name: string;
+  session: number | null;
+  session_title: string;
+  grading_date: string;
+  outcome: number | null;
+  outcome_status: string;
+  final_outcome: string;
+  promoted_by: string | null;
+  promoted_by_email: string;
+  promoted_by_name: string;
+  promoted_at: string;
+  effective_date: string;
+  notes: string;
+};
+
+export type StudentRankHistory = {
+  student: number;
+  student_display_name: string;
+  student_wksa_id: string;
+  current_rank: number;
+  current_rank_code: string;
+  current_rank_name: string;
+  promotions: PromotionRankHistory[];
+};
+
+export async function getStudentRankHistory(id: number): Promise<StudentRankHistory> {
+  return apiRequest<StudentRankHistory>(`/api/students/${id}/rank-history/`);
+}
+
+export type UpdateStudentPayload = {
+  first_name?: string;
+  last_name?: string;
+  date_of_birth?: string;
+  current_rank?: number;
+  status?: StudentStatus;
+};
+
+export async function updateStudent(
+  id: number,
+  payload: UpdateStudentPayload,
+): Promise<StudentDetail> {
+  return apiRequest<StudentDetail>(`/api/students/${id}/`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+

@@ -2228,5 +2228,526 @@ h2 {
   transform: none;
 }
 
+/* ==========================================================================
+   Student Detail & History Screen (SCR-004, FDR-009, FDR-010, FDR-011)
+   ========================================================================== */
+
+.student-detail-view {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+
+/* Detail Header */
+.detail-header-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.detail-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.student-detail-name {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.detail-wksa-id {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin: 0.25rem 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-edit-student {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 0.55rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  min-height: 44px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-edit-student:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Two-Column Layout Grid */
+.student-detail-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 64rem) {
+  .student-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-left-column,
+.detail-right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* Cards */
+.detail-section-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 2px 8px rgb(21 19 15 / 2.5%);
+}
+
+.detail-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* Key-Value Pair Grid */
+.detail-kv-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 0;
+}
+
+.detail-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.detail-kv-row:last-child {
+  border-bottom: none;
+}
+
+.detail-kv-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.detail-kv-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.cell-rank-highlight {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.privacy-badge-inline {
+  color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Outcome badges */
+.outcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.outcome-passed {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.session-title-cell {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.detail-empty-box {
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.detail-empty-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 0.35rem;
+}
+
+.detail-empty-desc {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Rank Timeline Track */
+.rank-timeline-track {
+  position: relative;
+  padding-left: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin-top: 0.5rem;
+}
+
+.rank-timeline-track::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.timeline-node-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.timeline-indicator {
+  position: absolute;
+  left: -2rem;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 3px solid var(--color-border-strong);
+  z-index: 1;
+}
+
+.timeline-indicator.indicator-active {
+  border-color: var(--btn-primary-border);
+  background: var(--btn-primary-bg);
+  box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.25);
+}
+
+.timeline-indicator.indicator-base {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+}
+
+.timeline-date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.timeline-rank-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.timeline-subtext {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+/* Grading Readiness Card */
+.readiness-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.readiness-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.readiness-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.readiness-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.readiness-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.readiness-eligible {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.readiness-inactive {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.readiness-left {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.readiness-guidance {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  margin: 0;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+/* Record Status Card */
+.record-status-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.record-status-badge-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.record-status-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.record-status-policy-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.record-status-policy-note p {
+  margin: 0;
+}
+
+.btn-change-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  min-height: 44px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-change-status:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+}
+
+.modal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  max-width: 34rem;
+  width: 100%;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  animation: modalFadeIn 160ms ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.modal-close-btn:hover {
+  color: var(--color-text);
+}
+
+.modal-body {
+  padding: 1.5rem 1.75rem;
+}
+
+.modal-lead-text {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  margin: 0 0 1.25rem;
+}
+
+.status-radio-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.status-radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  background: var(--color-surface);
+}
+
+.status-radio-card:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+}
+
+.status-radio-card.selected {
+  border-color: var(--color-accent);
+  background: var(--color-surface-sunken);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.status-radio-card input[type="radio"] {
+  margin-top: 0.2rem;
+  cursor: pointer;
+}
+
+.status-radio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.status-radio-desc {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1.25rem 1.75rem;
+  background: var(--color-surface-sunken);
+  border-top: 1px solid var(--color-border);
+}
+
+
 
 

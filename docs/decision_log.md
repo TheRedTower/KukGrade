@@ -18,6 +18,39 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-16 - No self-service account creation: Google SSO rejected, no registration page
+
+Status: Accepted
+
+Decision:
+KukGrade will not offer Google SSO, nor any other form of self-service
+account registration. Every account is created by an administrator through
+the existing Users API (`POST /api/users/`) or Django admin - there is no
+path for a person to create their own account, with or without a
+third-party identity provider.
+
+Context:
+Raised while planning self-service account settings: "can we have a Google
+SSO as part of the app as well." Research confirmed the two answers that
+would have shaped it combine into a serious hole: staff use personal Gmail
+addresses (no controlled Workspace domain), and the desired behaviour was
+auto-create-on-first-sign-in. Together, anyone holding any Gmail account
+could self-provision real access to student and grading records with no
+administrator involved. KukGrade holds data on minors; that is unacceptable
+regardless of how convenient it would be for staff onboarding. The same
+reasoning rules out an open self-registration page, asked about separately
+on 2026-09-17: it is the identical failure shape (an outsider grants
+themselves access) behind a different login screen.
+
+Consequences:
+No SSO provider integration, no registration route, no "sign up" link
+anywhere in the frontend. An administrator remains the only path to a new
+account. Do not silently reconsider either without re-surfacing this exact
+reasoning - if a future request revisits Google SSO or self-registration,
+re-read this entry first and re-confirm the Workspace-domain and
+auto-create-on-sign-in answers have actually changed, not just that asking
+again feels convenient.
+
 ### 2026-09-16 - Audit log is administrator-or-Master, not every instructor
 
 Status: Accepted

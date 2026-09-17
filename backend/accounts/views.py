@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from django.contrib.auth import login, logout
 from django.db.models import Q, QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
+from rest_framework.authentication import BaseAuthentication
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -28,7 +31,7 @@ from accounts.serializers import (
 
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
-    authentication_classes: list[type] = []
+    authentication_classes: Sequence[type[BaseAuthentication]] = ()
     permission_classes = [AllowAny]
     # The one view in the API that opts into ScopedRateThrottle - unlimited
     # password attempts is the risk this closes.
@@ -95,7 +98,7 @@ class UserViewSet(
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet,
+    GenericViewSet[User],
 ):
     """The administrator-facing users API.
 

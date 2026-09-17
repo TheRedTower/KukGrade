@@ -79,7 +79,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     must_change_password = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
-    objects = UserManager()
+    objects: ClassVar[UserManager] = UserManager()
 
     EMAIL_FIELD: ClassVar[str] = "email"
     USERNAME_FIELD: ClassVar[str] = "email"

@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
+import "./theme.css";
 import "./App.css";
 import { ApiError } from "./api";
 import { AuthProvider, useAuth } from "./auth";

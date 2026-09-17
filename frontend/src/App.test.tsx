@@ -2176,6 +2176,47 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     ).toBeVisible();
   });
 
+  it("renders both Create grading buttons with coherent primary styling in empty state for admin", async () => {
+    const adminUser = {
+      ...authUser,
+      role: "administrator" as const,
+      role_display: "Administrator",
+      is_staff: true,
+      is_superuser: true,
+    };
+    const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", emptyAdminFetch);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Gradings" });
+    await screen.findByText("No grading sessions found. Create a new grading session to get started.");
+
+    const createButtons = await screen.findAllByRole("button", { name: /create grading/i });
+    expect(createButtons).toHaveLength(2);
+
+    const [headerBtn, emptyStateBtn] = createButtons;
+    expect(headerBtn).toHaveAttribute("id", "create-grading-btn");
+    expect(emptyStateBtn).toHaveAttribute("id", "gs-create-first-btn");
+
+    // Both buttons share identical coherent primary styling classes
+    expect(headerBtn.className).toBe(emptyStateBtn.className);
+    expect(emptyStateBtn.className).toContain("gs-create-btn");
+    expect(emptyStateBtn.className).toContain("btn-primary");
+  });
+
   it("filters sessions by status dropdown and shows reset option on mismatch", async () => {
     const cancelledSession = {
       id: 4,

@@ -2789,6 +2789,7 @@ h2 {
   margin: 0;
 }
 
+.btn-primary,
 .gs-create-btn {
   display: flex;
   align-items: center;
@@ -2806,6 +2807,7 @@ h2 {
   white-space: nowrap;
 }
 
+.btn-primary:hover:not(:disabled),
 .gs-create-btn:hover:not(:disabled) {
   filter: brightness(1.07);
 }
@@ -3135,16 +3137,16 @@ h2 {
   flex-shrink: 0;
 }
 
-/* Draft – neutral slate */
+/* Draft – cool indigo-slate (clearly distinct from Open/Locked) */
 .gs-status-draft {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  border-color: var(--color-border);
+  background: #e8eaf6;
+  color: #3730a3;
+  border-color: #a5b4fc;
 }
 [data-theme="dark"] .gs-status-draft {
-  background: #2a2a2a;
-  color: #a0a0a0;
-  border-color: #404040;
+  background: #1e1b4b;
+  color: #a5b4fc;
+  border-color: #3730a3;
 }
 
 /* Open – emerald green */
@@ -3159,16 +3161,16 @@ h2 {
   border-color: #166534;
 }
 
-/* Locked – amber / gold */
+/* Locked – amber */
 .gs-status-locked {
-  background: #fef9c3;
-  color: #854d0e;
-  border-color: #fde047;
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
 }
 [data-theme="dark"] .gs-status-locked {
-  background: #1c1500;
-  color: #e8a838;
-  border-color: #78450d;
+  background: #1c1200;
+  color: #fbbf24;
+  border-color: #78350f;
 }
 
 /* Completed – teal */
@@ -3183,7 +3185,7 @@ h2 {
   border-color: #0f5c4a;
 }
 
-/* Cancelled – red */
+/* Cancelled – rose-red */
 .gs-status-cancelled {
   background: #fee2e2;
   color: #991b1b;
@@ -3218,12 +3220,35 @@ h2 {
   border-color: var(--color-border-strong);
 }
 
-[data-theme="dark"] .btn-ghost-sm {
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 1.1rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border-strong);
+}
+
+[data-theme="dark"] .btn-ghost-sm,
+[data-theme="dark"] .btn-ghost {
   border-color: #3a3a3a;
   color: #d4d4d4;
 }
 
-[data-theme="dark"] .btn-ghost-sm:hover {
+[data-theme="dark"] .btn-ghost-sm:hover,
+[data-theme="dark"] .btn-ghost:hover:not(:disabled) {
   background: #2a2a2a;
   border-color: #555;
 }

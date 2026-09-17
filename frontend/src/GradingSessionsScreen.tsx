@@ -442,7 +442,7 @@ export function GradingSessionsScreen() {
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
                 {canCreateGrading && (
-                  <button className="btn-primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
+                  <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
                     <PlusIcon /> Create grading
                   </button>
                 )}

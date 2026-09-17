@@ -1422,3 +1422,254 @@ describe("Students registry screen (/students)", () => {
   });
 });
 
+describe("Add student screen (/students/new)", () => {
+  const testRanks = [
+    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+  ];
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/students/new");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders the add student form with breadcrumbs, inputs, ranks, and privacy notice", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    // Header & breadcrumbs
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+    expect(screen.getByText("Create a staff-only student record")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Students" })).toBeVisible();
+    expect(screen.getByText("Add student", { selector: ".breadcrumb-current" })).toBeVisible();
+
+    // Section 1: Identity
+    expect(screen.getByRole("heading", { name: "Identity" })).toBeVisible();
+    expect(screen.getByLabelText(/First name/i)).toBeVisible();
+    expect(screen.getByLabelText(/Last name/i)).toBeVisible();
+    expect(screen.getByLabelText(/WKSA ID/i)).toBeVisible();
+    expect(screen.getByText("This identifier cannot be changed after the record is created.")).toBeVisible();
+
+    // Section 2: Grading details
+    expect(screen.getByRole("heading", { name: "Grading details" })).toBeVisible();
+    expect(screen.getByLabelText(/Date of birth/i)).toBeVisible();
+    expect(screen.getByText("Date of birth is visible only on the individual student record.")).toBeVisible();
+    expect(screen.getByLabelText(/Current rank/i)).toBeVisible();
+
+    // Ranks populated
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "White Belt" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Yellow Stripe" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Blue Belt" })).toBeInTheDocument();
+    });
+
+    // Status defaults to Active
+    const statusSelect = screen.getByRole("combobox", { name: /^Status/i }) as HTMLSelectElement;
+    expect(statusSelect.value).toBe("ACTIVE");
+
+    // Action buttons
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Create student" })).toBeVisible();
+  });
+
+  it("blocks submission and shows client-side validation errors when required fields are empty", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+
+    // Submit empty form
+    const submitBtn = screen.getByRole("button", { name: "Create student" });
+    await user.click(submitBtn);
+
+    // Validation messages
+    expect(await screen.findByText("First name is required.")).toBeVisible();
+    expect(screen.getByText("Last name is required.")).toBeVisible();
+    expect(screen.getByText("WKSA ID is required.")).toBeVisible();
+    expect(screen.getByText("Date of birth is required.")).toBeVisible();
+
+    // Ensure no POST request was dispatched
+    const postCalls = fetchMock.mock.calls.filter(([url, options]) =>
+      url.includes("/api/students/") && (options as RequestInit)?.method === "POST"
+    );
+    expect(postCalls.length).toBe(0);
+  });
+
+  it("successfully creates a student and navigates to the student detail page", async () => {
+    let createdPayload: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/") && options?.method === "POST") {
+        createdPayload = JSON.parse(options.body as string);
+        return jsonResponse(201, {
+          id: 42,
+          wksa_id: "UK-9999",
+          first_name: "Alex",
+          last_name: "Carter",
+          date_of_birth: "2005-04-12",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          status: "ACTIVE",
+          status_display: "Active",
+          attendance_count: 0,
+          eligible_for_grading: false,
+          created_at: "2026-09-17T12:00:00Z",
+          updated_at: "2026-09-17T12:00:00Z",
+        });
+      }
+      if (url.includes("/api/students/42")) {
+        return jsonResponse(200, {
+          id: 42,
+          wksa_id: "UK-9999",
+          first_name: "Alex",
+          last_name: "Carter",
+          date_of_birth: "2005-04-12",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          status: "ACTIVE",
+          status_display: "Active",
+          attendance_count: 0,
+          eligible_for_grading: false,
+          created_at: "2026-09-17T12:00:00Z",
+          updated_at: "2026-09-17T12:00:00Z",
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+
+    // Fill form
+    await user.type(screen.getByLabelText(/First name/i), "Alex");
+    await user.type(screen.getByLabelText(/Last name/i), "Carter");
+    await user.type(screen.getByLabelText(/WKSA ID/i), "UK-9999");
+    await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
+
+    // Select Yellow Stripe (id 2)
+    await user.selectOptions(screen.getByLabelText(/Current rank/i), "2");
+
+    // Submit
+    await user.click(screen.getByRole("button", { name: "Create student" }));
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/students/42");
+    });
+
+    // Check payload passed to backend
+    expect(createdPayload).toEqual({
+      first_name: "Alex",
+      last_name: "Carter",
+      wksa_id: "UK-9999",
+      date_of_birth: "2005-04-12",
+      current_rank: 2,
+      status: "ACTIVE",
+    });
+  });
+
+  it("surfaces server validation errors (e.g. duplicate WKSA ID)", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/") && options?.method === "POST") {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Invalid input.",
+            fields: {
+              wksa_id: ["A student with this WKSA ID already exists."],
+            },
+          },
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+
+    await user.type(screen.getByLabelText(/First name/i), "Alex");
+    await user.type(screen.getByLabelText(/Last name/i), "Carter");
+    await user.type(screen.getByLabelText(/WKSA ID/i), "DUPLICATE-ID");
+    await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
+
+    await user.click(screen.getByRole("button", { name: "Create student" }));
+
+    expect(await screen.findByText("A student with this WKSA ID already exists.")).toBeVisible();
+    expect(window.location.pathname).toBe("/students/new");
+  });
+
+  it("navigates back to /students when Cancel or breadcrumb is clicked", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+
+    // Click Cancel button
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    await user.click(cancelBtn);
+
+    expect(window.location.pathname).toBe("/students");
+  });
+});
+
+

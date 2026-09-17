@@ -276,3 +276,24 @@ export async function getStudent(id: number): Promise<StudentDetail> {
   return apiRequest<StudentDetail>(`/api/students/${id}/`);
 }
 
+export type CreateStudentPayload = {
+  first_name: string;
+  last_name: string;
+  wksa_id: string;
+  date_of_birth: string;
+  current_rank: number;
+  status?: StudentStatus;
+};
+
+export async function createStudent(
+  payload: CreateStudentPayload,
+): Promise<StudentDetail> {
+  return apiRequest<StudentDetail>("/api/students/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+

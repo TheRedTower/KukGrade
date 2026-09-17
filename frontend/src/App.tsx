@@ -19,6 +19,7 @@ import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";
 import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
+import { AddStudentScreen } from "./AddStudentScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -297,19 +298,7 @@ function StudentDetailPage() {
 }
 
 function AddStudentPage() {
-  return (
-    <section aria-labelledby="add-student-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="add-student-heading">Add Student</h1>
-          <p className="section-subtitle">Register a new student</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>New student registration form.</p>
-      </div>
-    </section>
-  );
+  return <AddStudentScreen />;
 }
 
 function GradingsPage() {

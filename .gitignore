@@ -33,3 +33,8 @@ htmlcov/
 # Editor and OS files
 .idea/
 .vscode/
+
+# Local test runs and scrape artifacts
+.playwright-cli/
+output/
+tmp/

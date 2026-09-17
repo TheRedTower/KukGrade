@@ -106,10 +106,20 @@ describe("App authentication", () => {
   });
 
   it("logs in with a CSRF-protected session request", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(authRequiredResponse())
-      .mockResolvedValueOnce(jsonResponse(200, authUser));
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -124,7 +134,7 @@ describe("App authentication", () => {
       expect(screen.getByText("Casey Instructor")).toBeVisible();
     });
 
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/auth/login/",
       expect.objectContaining({
         body: JSON.stringify({
@@ -135,8 +145,11 @@ describe("App authentication", () => {
         method: "POST",
       }),
     );
-    const loginHeaders = (fetchMock.mock.calls[1][1] as RequestInit)
-      .headers as Headers;
+    const loginCall = fetchMock.mock.calls.find(([url]) =>
+      url.includes("/api/auth/login/"),
+    );
+    expect(loginCall).toBeDefined();
+    const loginHeaders = (loginCall![1] as RequestInit).headers as Headers;
     expect(loginHeaders.get("X-CSRFToken")).toBe("test-csrf-token");
     expect(window.location.pathname).toBe("/");
   });
@@ -202,10 +215,20 @@ describe("App authentication", () => {
   });
 
   it("logs out and returns to the login route", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(200, authUser))
-      .mockResolvedValueOnce(emptyResponse(204));
+    let signedIn = true;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedIn = false;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -221,7 +244,7 @@ describe("App authentication", () => {
       expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     });
 
-    expect(fetchMock).toHaveBeenLastCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/auth/logout/",
       expect.objectContaining({
         credentials: "include",
@@ -327,10 +350,18 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("keeps the viewer signed in when sign-out fails", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(200, authUser))
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        throw new TypeError("Failed to fetch");
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -371,11 +402,24 @@ describe("First-time login copy", () => {
   });
 
   it("says 'Welcome back' once this browser has signed in before", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(authRequiredResponse())
-      .mockResolvedValueOnce(jsonResponse(200, authUser))
-      .mockResolvedValueOnce(emptyResponse(204));
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedIn = false;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -874,5 +918,312 @@ describe("Mandatory password change", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+});
+
+describe("Overview screen (Operational Ledger)", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders authentic empty states when no active sessions or events exist", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/audit-events/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(screen.getByText(/TRADITION BUILDS PEOPLE/i)).toBeInTheDocument();
+    expect(screen.getByText(/PEOPLE BUILD TOMORROW/i)).toBeInTheDocument();
+
+    // Now card empty state
+    expect(screen.getByText("No active grading session")).toBeVisible();
+    expect(screen.getByText("No grading session in progress on the mat.")).toBeVisible();
+
+    // Needs attention card empty state
+    expect(screen.getByText("All clear")).toBeVisible();
+    expect(
+      screen.getByText("No candidate assessments currently requiring review."),
+    ).toBeVisible();
+
+    // Upcoming card empty state
+    expect(screen.getByText("No upcoming gradings")).toBeVisible();
+    expect(
+      screen.getByText("No future grading sessions are currently scheduled."),
+    ).toBeVisible();
+
+    // Recent activity empty state
+    expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
+  });
+
+  it("renders active session, attention items, upcoming grading, and recent ledger activity", async () => {
+    const openSession = {
+      id: 101,
+      title: "Spring Grading 2026",
+      grading_date: "2026-05-15",
+      status: "OPEN",
+      status_display: "Open",
+      location: "Colchester Dojang",
+      created_by: authUser.id,
+      created_by_email: authUser.email,
+      created_at: "2026-05-01T09:00:00Z",
+      updated_at: "2026-05-15T09:00:00Z",
+    };
+
+    const upcomingSession = {
+      id: 102,
+      title: "Summer Grading 2026",
+      grading_date: "2099-08-20",
+      status: "DRAFT",
+      status_display: "Draft",
+      location: "Ipswich Central",
+      created_by: authUser.id,
+      created_by_email: authUser.email,
+      created_at: "2026-05-01T09:00:00Z",
+      updated_at: "2026-05-01T09:00:00Z",
+    };
+
+    const candidates = [
+      {
+        id: 201,
+        session: 101,
+        session_title: "Spring Grading 2026",
+        student: 301,
+        student_display_name: "Student One",
+        student_wksa_id: "UK12345",
+        testing_for_rank: 2,
+        testing_for_rank_code: "YS",
+        testing_for_rank_name: "Yellow Stripe",
+        age_band: "ADULT",
+        age_band_display: "18+",
+        status: "REGISTERED",
+        status_display: "Registered",
+        created_at: "2026-05-10T10:00:00Z",
+        updated_at: "2026-05-10T10:00:00Z",
+      },
+      {
+        id: 202,
+        session: 101,
+        session_title: "Spring Grading 2026",
+        student: 302,
+        student_display_name: "Student Two",
+        student_wksa_id: "UK12346",
+        testing_for_rank: 3,
+        testing_for_rank_code: "Y",
+        testing_for_rank_name: "Yellow Belt",
+        age_band: "ADULT",
+        age_band_display: "18+",
+        status: "REGISTERED",
+        status_display: "Registered",
+        created_at: "2026-05-10T10:00:00Z",
+        updated_at: "2026-05-10T10:00:00Z",
+      },
+    ];
+
+    const assessments = [
+      {
+        id: 401,
+        candidate: 201,
+        candidate_student_name: "Student One",
+        candidate_student_wksa_id: "UK12345",
+        testing_for_rank_code: "YS",
+        testing_for_rank_name: "Yellow Stripe",
+        age_band: "ADULT",
+        age_band_display: "18+",
+        status: "COMPLETED",
+        status_display: "Completed",
+        generated_by: authUser.id,
+        generated_by_email: authUser.email,
+        generated_at: "2026-05-15T09:30:00Z",
+        started_at: "2026-05-15T10:00:00Z",
+        completed_at: "2026-05-15T11:00:00Z",
+        item_counts: { total: 10, completed: 10 },
+        created_at: "2026-05-15T09:30:00Z",
+        updated_at: "2026-05-15T11:00:00Z",
+      },
+      {
+        id: 402,
+        candidate: 202,
+        candidate_student_name: "Student Two",
+        candidate_student_wksa_id: "UK12346",
+        testing_for_rank_code: "Y",
+        testing_for_rank_name: "Yellow Belt",
+        age_band: "ADULT",
+        age_band_display: "18+",
+        status: "IN_PROGRESS",
+        status_display: "In Progress",
+        generated_by: authUser.id,
+        generated_by_email: authUser.email,
+        generated_at: "2026-05-15T09:30:00Z",
+        started_at: "2026-05-15T10:30:00Z",
+        completed_at: null,
+        item_counts: { total: 12, completed: 5 },
+        created_at: "2026-05-15T09:30:00Z",
+        updated_at: "2026-05-15T10:30:00Z",
+      },
+    ];
+
+    const auditEvents = [
+      {
+        id: 501,
+        occurred_at: new Date().toISOString(),
+        action: "candidate_assessment.completed",
+        action_display: "Assessment Completed",
+        entity_type: "CandidateAssessment",
+        entity_id: "401",
+        actor: authUser.id,
+        actor_email: authUser.email,
+        actor_name: "Casey Instructor",
+        summary: "Assessment complete (ready for review)",
+        metadata: {},
+      },
+      {
+        id: 502,
+        occurred_at: new Date().toISOString(),
+        action: "candidate_assessment.started",
+        action_display: "Assessment Started",
+        entity_type: "CandidateAssessment",
+        entity_id: "402",
+        actor: authUser.id,
+        actor_email: authUser.email,
+        actor_name: "Casey Instructor",
+        summary: "Assessment started on the mat",
+        metadata: {},
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, { ...authUser, role: "administrator" });
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, {
+          count: 2,
+          next: null,
+          previous: null,
+          results: [openSession, upcomingSession],
+        });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, {
+          count: 2,
+          next: null,
+          previous: null,
+          results: candidates,
+        });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, {
+          count: 2,
+          next: null,
+          previous: null,
+          results: assessments,
+        });
+      }
+      if (url.includes("/api/audit-events/")) {
+        return jsonResponse(200, {
+          count: 2,
+          next: null,
+          previous: null,
+          results: auditEvents,
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    // Now card
+    expect(await screen.findByRole("heading", { name: "Spring Grading 2026" })).toBeVisible();
+    expect(screen.getByText("Colchester Dojang")).toBeVisible();
+    expect(await screen.findByText("1 / 2")).toBeVisible(); // 1 of 2 completed
+    expect(screen.getByText("2")).toBeVisible(); // candidates count
+    expect(screen.getByRole("button", { name: /Open session/i })).toBeVisible();
+
+    // Needs attention card
+    expect(await screen.findByText("Student One")).toBeVisible();
+    expect(screen.getByText("Assessment complete · Awaiting your review")).toBeVisible();
+    expect(screen.getByText("Student Two")).toBeVisible();
+    expect(screen.getByText("Assessment in progress · Scoring pending")).toBeVisible();
+
+    // Upcoming card
+    expect(screen.getByText("Summer Grading 2026")).toBeVisible();
+    expect(screen.getByText("Ipswich Central")).toBeVisible();
+
+    // Recent activity table
+    expect(await screen.findByText("Assessment complete (ready for review)")).toBeVisible();
+    expect(screen.getByText("Assessment started on the mat")).toBeVisible();
+    expect(screen.getByRole("button", { name: /View all activity/i })).toBeVisible();
+  });
+
+  it("navigates to gradings and audit when action links are clicked", async () => {
+    const openSession = {
+      id: 101,
+      title: "Spring Grading 2026",
+      grading_date: "2026-05-15",
+      status: "OPEN",
+      status_display: "Open",
+      location: "Colchester Dojang",
+      created_by: authUser.id,
+      created_by_email: authUser.email,
+      created_at: "2026-05-01T09:00:00Z",
+      updated_at: "2026-05-15T09:00:00Z",
+    };
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, { ...authUser, role: "administrator" });
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [openSession] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/audit-events/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    // Click "Open session →"
+    const openSessionButton = await screen.findByRole("button", { name: /Open session/i });
+    await user.click(openSessionButton);
+    expect(window.location.pathname).toBe("/gradings");
+
+    // Navigate back to overview
+    window.history.replaceState({}, "", "/");
+    await user.click(screen.getByRole("link", { name: "Overview" }));
+
+    // Click "View all activity →"
+    const viewAllButton = await screen.findByRole("button", { name: /View all activity/i });
+    await user.click(viewAllButton);
+    expect(window.location.pathname).toBe("/audit");
   });
 });

@@ -1,11 +1,19 @@
 import { FormEvent, ReactNode, useState, type CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
-import { ApiError } from "./api";
+import { ApiError, type AuthUser } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
+import {
+  AuditIcon,
+  GradingsIcon,
+  OverviewIcon,
+  StudentsIcon,
+  SyllabusIcon,
+  UsersIcon,
+} from "./NavIcons";
 import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
 import { useTheme, type ThemePreference } from "./useTheme";
 
@@ -187,6 +195,193 @@ function ConnectionErrorPage() {
   );
 }
 
+function NavigationRail({ user }: { user: AuthUser }) {
+  const canViewAudit =
+    user.role === "administrator" || user.can_make_final_grading_decision;
+  const canViewUsers = user.role === "administrator";
+
+  return (
+    <aside aria-label="Navigation rail" className="nav-rail">
+      <div className="nav-brand">
+        <p className="nav-wordmark">
+          Kuk<span className="nav-wordmark-accent">Grade</span>
+        </p>
+        <p className="nav-brand-tagline">People &middot; Progress &middot; Purpose</p>
+      </div>
+
+      <nav aria-label="Main navigation" className="nav-links">
+        <NavLink
+          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          end
+          to="/"
+        >
+          <OverviewIcon />
+          <span>Overview</span>
+        </NavLink>
+        <NavLink
+          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          to="/students"
+        >
+          <StudentsIcon />
+          <span>Students</span>
+        </NavLink>
+        <NavLink
+          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          to="/gradings"
+        >
+          <GradingsIcon />
+          <span>Gradings</span>
+        </NavLink>
+        <NavLink
+          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+          to="/syllabus"
+        >
+          <SyllabusIcon />
+          <span>Syllabus</span>
+        </NavLink>
+        {canViewAudit ? (
+          <NavLink
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+            to="/audit"
+          >
+            <AuditIcon />
+            <span>Audit</span>
+          </NavLink>
+        ) : null}
+        {canViewUsers ? (
+          <NavLink
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+            to="/users"
+          >
+            <UsersIcon />
+            <span>Users</span>
+          </NavLink>
+        ) : null}
+      </nav>
+
+      <div className="nav-rail-footer">
+        <p className="nav-rail-motto">A stronger generation through discipline</p>
+        <p className="nav-rail-tag">Staff only</p>
+      </div>
+    </aside>
+  );
+}
+
+function OverviewPage() {
+  return (
+    <section aria-labelledby="overview-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="overview-heading">Overview</h1>
+          <p className="section-subtitle">Operational ledger and grading progress</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Operational overview and live grading activity.</p>
+      </div>
+    </section>
+  );
+}
+
+function StudentsPage() {
+  return (
+    <section aria-labelledby="students-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="students-heading">Students</h1>
+          <p className="section-subtitle">Student roster and rank records</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Student directory and progress tracking.</p>
+      </div>
+    </section>
+  );
+}
+
+function GradingsPage() {
+  return (
+    <section aria-labelledby="gradings-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="gradings-heading">Gradings</h1>
+          <p className="section-subtitle">Grading sessions and candidate assessments</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Grading sessions, candidate rosters, and assessment workspaces.</p>
+      </div>
+    </section>
+  );
+}
+
+function SyllabusPage() {
+  return (
+    <section aria-labelledby="syllabus-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="syllabus-heading">Syllabus</h1>
+          <p className="section-subtitle">Curriculum and rank requirements</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Syllabus chapters, techniques, and forms reference.</p>
+      </div>
+    </section>
+  );
+}
+
+function AuditPage() {
+  return (
+    <section aria-labelledby="audit-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="audit-heading">Audit</h1>
+          <p className="section-subtitle">System audit log and sensitive action history</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Append-only audit trail for administrative and Master review.</p>
+      </div>
+    </section>
+  );
+}
+
+function UsersPage() {
+  return (
+    <section aria-labelledby="users-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="users-heading">Users</h1>
+          <p className="section-subtitle">Staff accounts and administrative authorities</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>Staff account provisioning and permission management.</p>
+      </div>
+    </section>
+  );
+}
+
+function RequireAuditAccess({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (
+    !user ||
+    (user.role !== "administrator" && !user.can_make_final_grading_decision)
+  ) {
+    return <Navigate replace to="/" />;
+  }
+  return children;
+}
+
+function RequireAdminAccess({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user || user.role !== "administrator") {
+    return <Navigate replace to="/" />;
+  }
+  return children;
+}
+
 function ApplicationShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -213,35 +408,58 @@ function ApplicationShell() {
   }
 
   return (
-    <main className="app-shell">
-      <header className="top-bar">
-        <div>
-          <p className="eyebrow">Internal grading management</p>
-          <h1>KukGrade</h1>
-        </div>
-        <div className="user-summary">
-          <span>{user.full_name}</span>
-          <span>{user.role_display}</span>
-          <button
-            className="secondary-button"
-            disabled={isLoggingOut}
-            onClick={handleLogout}
-            type="button"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
-      <section className="workspace" aria-labelledby="workspace-title">
-        <h2 id="workspace-title">Application</h2>
+    <div className="app-layout">
+      <NavigationRail user={user} />
+      <div className="app-main">
+        <header className="top-bar">
+          <div className="location-summary">
+            <span className="location-name">Kuk Sool Won Colchester</span>
+          </div>
+          <div className="top-bar-controls">
+            <span aria-label="System status: Online" className="connectivity-badge">
+              <span aria-hidden="true" className="status-dot" />
+              Online
+            </span>
+            <ThemeToggle />
+            <div className="user-summary">
+              <span className="user-name">{user.full_name}</span>
+              <span className="user-role">{user.role_display}</span>
+              <button
+                className="secondary-button"
+                disabled={isLoggingOut}
+                onClick={handleLogout}
+                type="button"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+        </header>
+
         {logoutError ? (
-          <p className="form-error" role="alert">
-            {logoutError}
-          </p>
+          <div className="workspace-alert" role="alert">
+            <p className="form-error">{logoutError}</p>
+          </div>
         ) : null}
-        <p>Welcome back.</p>
-      </section>
-    </main>
+
+        <main className="workspace">
+          <Outlet />
+        </main>
+
+        <footer className="app-footer">
+          <span className="footer-brand">
+            Kuk<span className="nav-wordmark-accent">Grade</span>
+          </span>
+          <span aria-hidden="true" className="footer-separator">
+            &middot;
+          </span>
+          <span className="footer-tagline">
+            Trusted by instructors. Built for what matters.
+          </span>
+          <span className="footer-version">Version 1.0.0</span>
+        </footer>
+      </div>
+    </div>
   );
 }
 
@@ -270,7 +488,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (user === null) {
-    return <Navigate to="/login" replace />;
+    return <Navigate replace to="/login" />;
   }
 
   return children;
@@ -288,7 +506,7 @@ function LoginRoute() {
   }
 
   if (user !== null) {
-    return <Navigate to="/" replace />;
+    return <Navigate replace to="/" />;
   }
 
   return <LoginPage />;
@@ -327,8 +545,30 @@ function App() {
                   <ApplicationShell />
                 </RequireAuth>
               }
-              path="*"
-            />
+            >
+              <Route element={<OverviewPage />} index />
+              <Route element={<Navigate replace to="/" />} path="overview" />
+              <Route element={<StudentsPage />} path="students" />
+              <Route element={<GradingsPage />} path="gradings" />
+              <Route element={<SyllabusPage />} path="syllabus" />
+              <Route
+                element={
+                  <RequireAuditAccess>
+                    <AuditPage />
+                  </RequireAuditAccess>
+                }
+                path="audit"
+              />
+              <Route
+                element={
+                  <RequireAdminAccess>
+                    <UsersPage />
+                  </RequireAdminAccess>
+                }
+                path="users"
+              />
+              <Route element={<Navigate replace to="/" />} path="*" />
+            </Route>
           </Routes>
         </BrowserRouter>
       </AuthProvider>

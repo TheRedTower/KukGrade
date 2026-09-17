@@ -181,12 +181,16 @@ export async function changePassword(
 }
 
 export async function getGradingSessions(params?: {
+  page?: number;
+  page_size?: number;
   status?: string;
   grading_date?: string;
   grading_date_from?: string;
   grading_date_to?: string;
 }): Promise<PaginatedResponse<GradingSession>> {
   const searchParams = new URLSearchParams();
+  if (params?.page !== undefined) searchParams.set("page", String(params.page));
+  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
   if (params?.status) searchParams.set("status", params.status);
   if (params?.grading_date) searchParams.set("grading_date", params.grading_date);
   if (params?.grading_date_from) searchParams.set("grading_date_from", params.grading_date_from);

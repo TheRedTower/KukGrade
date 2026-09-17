@@ -22,6 +22,7 @@ import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
 import { AddStudentScreen } from "./AddStudentScreen";
 import { StudentDetailScreen } from "./StudentDetailScreen";
+import { GradingSessionsScreen } from "./GradingSessionsScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -292,19 +293,7 @@ function AddStudentPage() {
 }
 
 function GradingsPage() {
-  return (
-    <section aria-labelledby="gradings-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="gradings-heading">Gradings</h1>
-          <p className="section-subtitle">Grading sessions and candidate assessments</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Grading sessions, candidate rosters, and assessment workspaces.</p>
-      </div>
-    </section>
-  );
+  return <GradingSessionsScreen />;
 }
 
 function SyllabusPage() {

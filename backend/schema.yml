@@ -2941,6 +2941,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
         is_staff:
           type: boolean
           readOnly: true
@@ -3040,6 +3043,9 @@ components:
           type: boolean
           readOnly: true
         can_override_locked_session:
+          type: boolean
+          readOnly: true
+        must_change_password:
           type: boolean
           readOnly: true
         is_staff:
@@ -3651,6 +3657,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
         is_staff:
           type: boolean
           readOnly: true
@@ -3671,6 +3680,7 @@ components:
       - is_staff
       - is_superuser
       - last_name
+      - must_change_password
       - role
       - role_display
     UserManagement:
@@ -3717,6 +3727,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
         is_staff:
           type: boolean
           readOnly: true
@@ -3743,6 +3756,7 @@ components:
       - id
       - is_staff
       - is_superuser
+      - must_change_password
       - password
       - role_display
   securitySchemes:

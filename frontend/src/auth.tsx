@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
   type AuthUser,
+  changePassword as changePasswordApi,
   getCurrentUser,
   loginUser,
   logoutUser,
@@ -25,6 +26,7 @@ type AuthContextValue = {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   /** Re-run the session check after a transport failure. */
   retry: () => void;
 };
@@ -97,6 +99,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+    }) => changePasswordApi(currentPassword, newPassword),
+    onSuccess: async () => {
+      await currentUserQuery.refetch();
+    },
+  });
+
   const user = currentUserQuery.data ?? null;
 
   useEffect(() => {
@@ -146,9 +161,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await logoutMutation.mutateAsync();
   }, [logoutMutation]);
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      await changePasswordMutation.mutateAsync({ currentPassword, newPassword });
+    },
+    [changePasswordMutation],
+  );
+
   const value = useMemo(
-    () => ({ user, status, error, login, logout, retry }),
-    [error, login, logout, retry, status, user],
+    () => ({ user, status, error, login, logout, changePassword, retry }),
+    [changePassword, error, login, logout, retry, status, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

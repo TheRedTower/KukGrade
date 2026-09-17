@@ -259,6 +259,7 @@ def test_current_user_returns_authenticated_user() -> None:
         "can_make_final_grading_decision": True,
         "can_promote_student": False,
         "can_override_locked_session": False,
+        "must_change_password": False,
         "is_staff": False,
         "is_superuser": False,
     }
@@ -1328,3 +1329,71 @@ def test_admin_is_staff_only_change_is_not_blocked_by_the_service() -> None:
 
     target.refresh_from_db()
     assert target.is_staff is True
+
+
+# ---------------------------------------------------------------------------
+# Forced password change on onboarding / reset
+# ---------------------------------------------------------------------------
+
+
+def test_user_created_via_api_has_must_change_password_flag() -> None:
+    client, _admin = admin_client("onboarding-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="onboarded-staff@example.com",
+        password="kg-InitialSecret123!",
+    )
+    assert created["must_change_password"] is True
+    stored = User.objects.get(pk=created["id"])
+    assert stored.must_change_password is True
+
+
+def test_admin_set_password_forces_must_change_password() -> None:
+    client, _admin = admin_client("reset-pw-admin@example.com")
+    created = create_user_via_api(
+        client,
+        email="reset-forced@example.com",
+        password="kg-InitialSecret123!",
+    )
+    target = User.objects.get(pk=created["id"])
+    target.must_change_password = False
+    target.save(update_fields=["must_change_password"])
+
+    client.post(
+        f"/api/users/{created['id']}/set-password/",
+        {"password": "kg-ResetAdminPass123!"},
+        format="json",
+    )
+
+    target.refresh_from_db()
+    assert target.must_change_password is True
+
+
+def test_user_changing_password_clears_must_change_password() -> None:
+    user = create_user(
+        email="force-change-target@example.com",
+        password="kg-TemporaryPass123!",
+        must_change_password=True,
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    me_resp = client.get("/api/auth/me/")
+    assert me_resp.status_code == 200
+    assert me_resp.json()["must_change_password"] is True
+
+    change_resp = client.post(
+        "/api/auth/change-password/",
+        {
+            "current_password": "kg-TemporaryPass123!",
+            "new_password": "kg-BrandNewSecurePass123!",
+        },
+        format="json",
+    )
+    assert change_resp.status_code == 204
+
+    user.refresh_from_db()
+    assert user.must_change_password is False
+
+    me_after = client.get("/api/auth/me/")
+    assert me_after.json()["must_change_password"] is False

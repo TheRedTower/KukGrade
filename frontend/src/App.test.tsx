@@ -16,6 +16,7 @@ const authUser = {
   can_make_final_grading_decision: false,
   can_promote_student: false,
   can_override_locked_session: false,
+  must_change_password: false,
   is_staff: false,
   is_superuser: false,
 };
@@ -725,5 +726,153 @@ describe("Instructor profile menu and Master capabilities", () => {
 
     await user.click(screen.getByRole("heading", { name: "Overview" }));
     expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
+  });
+});
+
+describe("Mandatory password change", () => {
+  const forcedUser = {
+    ...authUser,
+    must_change_password: true,
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+  });
+
+  it("renders mandatory password change view and blocks navigation when must_change_password is true", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    expect(
+      screen.getByText(/Your account was provisioned with a temporary password/i),
+    ).toBeVisible();
+
+    // Nav rail and main overview should NOT be visible
+    expect(screen.queryByRole("navigation", { name: "Main navigation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
+  });
+
+  it("validates client-side constraints before submitting", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    // Submit with short password
+    await user.type(screen.getByLabelText(/Temporary or current password/i), "temp123!");
+    await user.type(screen.getByLabelText(/^New password/i), "short");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "short");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("Password must be at least 8 characters.")).toBeVisible();
+
+    // Submit with mismatched passwords
+    await user.clear(screen.getByLabelText(/^New password/i));
+    await user.type(screen.getByLabelText(/^New password/i), "ValidPass123!");
+    await user.clear(screen.getByLabelText(/^Confirm new password/i));
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "MismatchPass456!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("New passwords do not match.")).toBeVisible();
+  });
+
+  it("submits change password, refetches user, and unlocks navigation on success", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, forcedUser);
+      }
+      if (url.includes("/api/auth/change-password/")) {
+        const body = JSON.parse(init?.body as string);
+        expect(body.current_password).toBe("temp-secret-123");
+        expect(body.new_password).toBe("NewSecretPass123!");
+        // Update mock so next /api/auth/me/ call returns must_change_password: false
+        fetchMock.mockImplementation(async (nextUrl: string) => {
+          if (nextUrl.includes("/api/auth/me/")) {
+            return jsonResponse(200, { ...forcedUser, must_change_password: false });
+          }
+          return jsonResponse(404, {});
+        });
+        return emptyResponse(204);
+      }
+      return jsonResponse(404, {});
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.type(screen.getByLabelText(/Temporary or current password/i), "temp-secret-123");
+    await user.type(screen.getByLabelText(/^New password/i), "NewSecretPass123!");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "NewSecretPass123!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    // Unlocks app and renders the main Overview heading
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+  });
+
+  it("surfaces API field errors when current password is wrong", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) {
+          return jsonResponse(200, forcedUser);
+        }
+        if (url.includes("/api/auth/change-password/")) {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "Invalid input",
+              fields: {
+                current_password: ["Current password is incorrect."],
+              },
+            },
+          });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.type(screen.getByLabelText(/Temporary or current password/i), "wrong-temp-password");
+    await user.type(screen.getByLabelText(/^New password/i), "ValidNewPass123!");
+    await user.type(screen.getByLabelText(/^Confirm new password/i), "ValidNewPass123!");
+    await user.click(screen.getByRole("button", { name: "Update password and continue" }));
+
+    expect(await screen.findByText("Current password is incorrect.")).toBeVisible();
+  });
+
+  it("allows user to sign out from the mandatory password change view", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, forcedUser);
+      }
+      if (url.includes("/api/auth/logout/")) {
+        return emptyResponse(204);
+      }
+      return jsonResponse(404, {});
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 });

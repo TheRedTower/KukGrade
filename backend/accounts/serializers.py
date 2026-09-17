@@ -49,6 +49,7 @@ class UserSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "must_change_password",
             "is_staff",
             "is_superuser",
         )
@@ -162,6 +163,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "must_change_password",
             "is_staff",
             "is_superuser",
             "date_joined",
@@ -178,6 +180,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "must_change_password",
             "is_staff",
             "is_superuser",
             "date_joined",
@@ -278,7 +281,8 @@ class SetPasswordSerializer(serializers.Serializer):
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
         instance.set_password(validated_data["password"])
-        instance.save(update_fields=["password"])
+        instance.must_change_password = True
+        instance.save(update_fields=["password", "must_change_password"])
         record_password_reset(instance, actor=request.user)
         return instance
 
@@ -322,7 +326,8 @@ class ChangePasswordSerializer(serializers.Serializer):
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
         instance.set_password(validated_data["new_password"])
-        instance.save(update_fields=["password"])
+        instance.must_change_password = False
+        instance.save(update_fields=["password", "must_change_password"])
         record_password_reset(instance, actor=request.user)
         return instance
 

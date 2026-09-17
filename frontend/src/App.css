@@ -868,3 +868,137 @@ h2 {
     flex-wrap: wrap;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Mandatory Password Change View                                             */
+/* -------------------------------------------------------------------------- */
+
+.must-change-password-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: var(--color-surface-sunken);
+}
+
+.must-change-password-header {
+  max-width: 32rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.must-change-password-card {
+  max-width: 32rem;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.85rem;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.security-icon-badge {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: rgba(212, 175, 55, 0.12);
+  color: var(--color-accent, #c5a059);
+  display: grid;
+  place-items: center;
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+}
+
+.must-change-password-card h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.must-change-password-subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0 0 1.25rem 0;
+}
+
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  margin-bottom: 1.75rem;
+  font-size: 0.825rem;
+}
+
+.account-pill-name {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.account-pill-role {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--color-accent, #c5a059);
+}
+
+.must-change-password-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  text-align: left;
+}
+
+.must-change-password-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.form-field-error {
+  color: var(--color-danger, #d93025);
+  font-size: 0.8rem;
+  margin: 0.2rem 0 0 0;
+}
+
+.form-error-banner {
+  background: rgba(217, 48, 37, 0.08);
+  border: 1px solid rgba(217, 48, 37, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: var(--color-danger, #d93025);
+  font-size: 0.85rem;
+}
+
+.must-change-password-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.security-guarantee-note {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 1.75rem;
+  text-align: center;
+}

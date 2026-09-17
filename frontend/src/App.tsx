@@ -16,6 +16,7 @@ import {
 } from "./NavIcons";
 import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
 import { ProfileMenu } from "./ProfileMenu";
+import { MustChangePassword } from "./MustChangePassword";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -483,6 +484,10 @@ function RequireAuth({ children }: { children: ReactNode }) {
 
   if (user === null) {
     return <Navigate replace to="/login" />;
+  }
+
+  if (user.must_change_password) {
+    return <MustChangePassword themeToggle={<ThemeToggle />} />;
   }
 
   return children;

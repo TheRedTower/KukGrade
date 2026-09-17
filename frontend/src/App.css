@@ -42,6 +42,135 @@ button:disabled {
   box-shadow: 0 18px 38px rgb(21 19 15 / 10%);
 }
 
+/* SCR-008 (08-login.png): a permanent ink brand panel beside the sign-in
+   form, rather than the single centered card the other auth states
+   (connection failure, loading) still use - see FRONTEND_DESIGN_REGISTER.md. */
+.login-page {
+  display: grid;
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 3rem;
+  background: var(--color-ink);
+  color: var(--color-text-on-ink);
+  padding: clamp(1.5rem, 4vw, 3rem);
+}
+
+.auth-wordmark {
+  margin: 0 0 0.5rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.auth-wordmark-accent {
+  color: var(--color-gold);
+}
+
+.auth-brand-tagline {
+  margin: 0 0 1.5rem;
+  color: var(--color-text-on-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-brand-values {
+  margin: 0;
+  border-top: 2px solid var(--color-gold);
+  padding-top: 1rem;
+  color: var(--color-text-on-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-brand-footer {
+  border-top: 1px solid var(--color-text-on-ink-muted);
+  padding-top: 1.5rem;
+  color: var(--color-text-on-ink-muted);
+  font-size: 0.9rem;
+}
+
+.auth-brand-footer p {
+  margin: 0;
+}
+
+.login-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  width: min(100%, 26rem);
+  margin: 0 auto;
+  padding: clamp(3rem, 14vh, 6rem) 1.5rem 1.5rem;
+}
+
+.login-subtitle {
+  margin-bottom: 1.5rem;
+  color: var(--color-text-muted);
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 3.75rem;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.4rem;
+  min-height: auto;
+  border: none;
+  background: none;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0.5rem;
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  color: var(--color-text);
+}
+
+.login-help {
+  margin-top: 1.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.login-help strong {
+  color: var(--color-text);
+}
+
+.login-security-note {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 56rem) {
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-brand {
+    display: none;
+  }
+}
+
 .eyebrow {
   margin: 0 0 0.5rem;
   color: var(--color-gold-strong);

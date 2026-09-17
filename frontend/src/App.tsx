@@ -7,11 +7,30 @@ import "./App.css";
 import { ApiError } from "./api";
 import { AuthProvider, useAuth } from "./auth";
 
+function LoginBrandPanel() {
+  return (
+    <aside className="auth-brand">
+      <div>
+        <p className="auth-wordmark">
+          Kuk<span className="auth-wordmark-accent">Grade</span>
+        </p>
+        <p className="auth-brand-tagline">Staff grading management</p>
+        <p className="auth-brand-values">People &middot; Progress &middot; Purpose</p>
+      </div>
+      <div className="auth-brand-footer">
+        <p>Built for instructors.</p>
+        <p>Focused on what matters.</p>
+      </div>
+    </aside>
+  );
+}
+
 function LoginPage() {
   const { login, status } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -46,13 +65,14 @@ function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="login-panel" aria-labelledby="login-title">
-        <p className="eyebrow">KukGrade</p>
-        <h1 id="login-title">Sign in</h1>
+    <main className="login-page">
+      <LoginBrandPanel />
+      <section className="login-content" aria-labelledby="login-title">
+        <h1 id="login-title">Welcome back</h1>
+        <p className="login-subtitle">Sign in to KukGrade</p>
         <form className="login-form" onSubmit={handleSubmit}>
           <label>
-            Email
+            Email address
             <input
               autoComplete="email"
               name="email"
@@ -64,14 +84,24 @@ function LoginPage() {
           </label>
           <label>
             Password
-            <input
-              autoComplete="current-password"
-              name="password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
+            <div className="password-field">
+              <input
+                autoComplete="current-password"
+                name="password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="password-toggle"
+                onClick={() => setShowPassword((previous) => !previous)}
+                type="button"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           {error ? <p className="form-error">{error}</p> : null}
           <button
@@ -82,6 +112,12 @@ function LoginPage() {
             {isSubmitting ? "Signing in" : "Sign in"}
           </button>
         </form>
+        <p className="login-help">
+          Having trouble signing in? <strong>Contact your administrator.</strong>
+        </p>
+        <p className="login-security-note">
+          Authorised staff only. Student and grading information is protected.
+        </p>
       </section>
     </main>
   );

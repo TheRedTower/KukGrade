@@ -81,7 +81,7 @@ describe("App authentication", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Sign in" })).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     });
 
     await waitFor(() => {
@@ -99,8 +99,8 @@ describe("App authentication", () => {
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Sign in" });
-    await user.type(screen.getByLabelText("Email"), "casey@example.com");
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
     await user.type(screen.getByLabelText("Password"), "StrongPass123!");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -147,8 +147,8 @@ describe("App authentication", () => {
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Sign in" });
-    await user.type(screen.getByLabelText("Email"), "casey@example.com");
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -172,8 +172,8 @@ describe("App authentication", () => {
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Sign in" });
-    await user.type(screen.getByLabelText("Email"), "casey@example.com");
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
     await user.type(screen.getByLabelText("Password"), "wrong");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
@@ -199,7 +199,7 @@ describe("App authentication", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Sign in" })).toBeVisible();
+      expect(screen.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     });
 
     expect(fetchMock).toHaveBeenLastCalledWith(
@@ -242,7 +242,7 @@ describe("Connection failures are not sign-outs", () => {
       await screen.findByRole("heading", { name: "Can’t reach KukGrade" }),
     ).toBeVisible();
     expect(
-      screen.queryByRole("heading", { name: "Sign in" }),
+      screen.queryByRole("heading", { name: "Welcome back" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "KukGrade is not responding",
@@ -261,7 +261,7 @@ describe("Connection failures are not sign-outs", () => {
       "KukGrade could not be reached",
     );
     expect(
-      screen.queryByRole("heading", { name: "Sign in" }),
+      screen.queryByRole("heading", { name: "Welcome back" }),
     ).not.toBeInTheDocument();
   });
 
@@ -302,7 +302,7 @@ describe("Connection failures are not sign-outs", () => {
     render(<App />);
 
     expect(
-      await screen.findByRole("heading", { name: "Sign in" }),
+      await screen.findByRole("heading", { name: "Welcome back" }),
     ).toBeVisible();
   });
 

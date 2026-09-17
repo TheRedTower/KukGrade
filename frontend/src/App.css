@@ -1503,3 +1503,423 @@ h2 {
   flex-shrink: 0;
 }
 
+/* ==========================================================================
+   Students Registry View (SCR-003, FDR-003, FDR-007, FDR-008, FDR-009, FDR-010)
+   ========================================================================== */
+
+.students-view {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding-bottom: 3.5rem;
+}
+
+.students-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.students-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.students-title {
+  color: var(--color-text);
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.students-subtitle {
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.btn-add-student {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-accent);
+  color: #0f0f11;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.65rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  box-shadow: 0 2px 8px rgb(197 155 39 / 20%);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.btn-add-student:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.btn-add-student:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Filter Bar */
+.students-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 6px rgb(21 19 15 / 2%);
+  min-height: 52px;
+  flex-wrap: wrap;
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 14rem;
+  color: var(--color-text-muted);
+}
+
+.student-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 0.92rem;
+  color: var(--color-text);
+  outline: none;
+  padding: 0.25rem 0;
+}
+
+.student-search-input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.btn-clear-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.btn-clear-search:hover {
+  color: var(--color-text);
+}
+
+.filter-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--color-border);
+}
+
+@media (max-width: 48rem) {
+  .filter-divider {
+    display: none;
+  }
+}
+
+.filter-select-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.filter-select {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.filter-select:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.results-count-container {
+  margin-left: auto;
+}
+
+.results-count-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+/* Table Card */
+.students-table-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgb(21 19 15 / 3%);
+  overflow: hidden;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.students-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.students-data-table th {
+  padding: 0.85rem 1.25rem;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.students-data-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.92rem;
+  vertical-align: middle;
+}
+
+.student-table-row {
+  transition: background 120ms ease;
+}
+
+.student-table-row:hover {
+  background: var(--color-surface-sunken);
+}
+
+.student-full-name {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.wksa-id-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.cell-rank-name {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.cell-next-action {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+/* Status Badges */
+.student-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-active {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.status-inactive {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.status-left {
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Actions */
+.btn-view-student {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-view-student:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-surface-sunken);
+}
+
+.action-arrow {
+  transition: transform 140ms ease;
+}
+
+.btn-view-student:hover .action-arrow {
+  transform: translateX(2px);
+}
+
+/* Table Pagination */
+.table-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.25rem;
+  background: var(--color-surface);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pagination-range-text {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-pagination {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.btn-pagination:hover:not(:disabled):not(.active) {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.btn-pagination.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #0f0f11;
+}
+
+.btn-pagination:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pagination-ellipsis {
+  padding: 0 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+/* Empty States */
+.table-state-box {
+  padding: 4rem 1.5rem;
+  text-align: center;
+}
+
+.loading-state-text {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.empty-state-title {
+  color: var(--color-text);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+}
+
+.empty-state-description {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  margin: 0 auto 1.5rem;
+  max-width: 26rem;
+}
+
+.btn-clear-filters,
+.btn-add-first-student {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
+  color: #0f0f11;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.6rem 1.25rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: opacity 140ms ease;
+}
+
+.btn-clear-filters:hover,
+.btn-add-first-student:hover {
+  opacity: 0.92;
+}
+
+

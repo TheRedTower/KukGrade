@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -1227,3 +1227,198 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(window.location.pathname).toBe("/audit");
   });
 });
+
+describe("Students registry screen (/students)", () => {
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/students");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders authentic empty state when no students exist in database", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+    expect(screen.getByText("Manage student records and grading history")).toBeVisible();
+    expect(await screen.findByText("No students registered yet")).toBeVisible();
+    expect(
+      screen.getByText("Get started by registering your first student record in the registry."),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
+  });
+
+  it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
+    const testRanks = [
+      { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+      { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    ];
+
+    const testStudents = [
+      {
+        id: 1,
+        wksa_id: "UK-1001",
+        first_name: "Bruce",
+        last_name: "Wayne",
+        current_rank: 1,
+        current_rank_code: "W",
+        current_rank_name: "White Belt",
+        status: "ACTIVE",
+        status_display: "Active",
+      },
+      {
+        id: 2,
+        wksa_id: "UK-1002",
+        first_name: "Clark",
+        last_name: "Kent",
+        current_rank: 2,
+        current_rank_code: "YS",
+        current_rank_name: "Yellow Stripe",
+        status: "INACTIVE",
+        status_display: "Inactive",
+      },
+      {
+        id: 3,
+        wksa_id: "UK-1003",
+        first_name: "Diana",
+        last_name: "Prince",
+        current_rank: 5,
+        current_rank_code: "B",
+        current_rank_name: "Blue Belt",
+        status: "LEFT",
+        status_display: "Left",
+      },
+    ];
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testStudents });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    // Header & counters
+    expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+    expect(await screen.findByText("3 students")).toBeVisible();
+
+    // Table rows
+    const table = await screen.findByRole("table", { name: "Students directory" });
+    const tableScope = within(table);
+
+    expect(tableScope.getByText("Bruce Wayne")).toBeVisible();
+    expect(tableScope.getByText("UK-1001")).toBeVisible();
+    expect(tableScope.getByText("White Belt")).toBeVisible();
+    expect(tableScope.getByText("Active")).toBeVisible();
+    expect(tableScope.getByText("Prepare for next grading")).toBeVisible();
+
+    expect(tableScope.getByText("Clark Kent")).toBeVisible();
+    expect(tableScope.getByText("UK-1002")).toBeVisible();
+    expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
+    expect(tableScope.getByText("Inactive")).toBeVisible();
+    expect(tableScope.getByText("Follow up required")).toBeVisible();
+
+    expect(tableScope.getByText("Diana Prince")).toBeVisible();
+    expect(tableScope.getByText("UK-1003")).toBeVisible();
+    expect(tableScope.getByText("Blue Belt")).toBeVisible();
+    expect(tableScope.getByText("Left")).toBeVisible();
+    expect(tableScope.getByText("No further action")).toBeVisible();
+
+    // Privacy verification: Date of birth must NOT be rendered in table
+    expect(screen.queryByText(/199[0-9]|200[0-9]/)).not.toBeInTheDocument();
+
+    // Navigate to student profile via "View student →"
+    const viewBruceButton = tableScope.getByRole("button", { name: /View record for Bruce Wayne/i });
+    await user.click(viewBruceButton);
+    expect(window.location.pathname).toBe("/students/1");
+  });
+
+  it("handles filter changes and clears filters back to initial state", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true }],
+        });
+      }
+      if (url.includes("/api/students/")) {
+        // Return empty when filtered
+        if (url.includes("search=Nonexistent")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{
+            id: 1,
+            wksa_id: "UK-1001",
+            first_name: "Bruce",
+            last_name: "Wayne",
+            current_rank: 1,
+            current_rank_code: "W",
+            current_rank_name: "White Belt",
+            status: "ACTIVE",
+            status_display: "Active",
+          }],
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("Bruce Wayne")).toBeVisible();
+
+    // Search input
+    const searchInput = screen.getByPlaceholderText("Search name or WKSA ID");
+    await user.type(searchInput, "Nonexistent");
+
+    // Filter empty state renders
+    expect(await screen.findByText("No matching students found")).toBeVisible();
+    expect(screen.getByText("No records match your active search and filter criteria.")).toBeVisible();
+
+    // Click "Clear all filters"
+    const clearButton = screen.getByRole("button", { name: /Clear all filters/i });
+    await user.click(clearButton);
+
+    expect(searchInput).toHaveValue("");
+    expect(await screen.findByText("Bruce Wayne")).toBeVisible();
+  });
+});
+

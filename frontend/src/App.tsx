@@ -15,6 +15,7 @@ import {
   UsersIcon,
 } from "./NavIcons";
 import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
+import { ProfileMenu } from "./ProfileMenu";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -420,19 +421,12 @@ function ApplicationShell() {
               <span aria-hidden="true" className="status-dot" />
               Online
             </span>
-            <ThemeToggle />
-            <div className="user-summary">
-              <span className="user-name">{user.full_name}</span>
-              <span className="user-role">{user.role_display}</span>
-              <button
-                className="secondary-button"
-                disabled={isLoggingOut}
-                onClick={handleLogout}
-                type="button"
-              >
-                Sign out
-              </button>
-            </div>
+            <ProfileMenu
+              isLoggingOut={isLoggingOut}
+              onLogout={handleLogout}
+              themeToggle={<ThemeToggle />}
+              user={user}
+            />
           </div>
         </header>
 

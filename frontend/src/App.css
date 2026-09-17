@@ -523,6 +523,253 @@ h2 {
   letter-spacing: 0.04em;
 }
 
+/* Profile Menu - FDR-022, FDR-023, SCR-014 */
+.profile-menu-container {
+  position: relative;
+}
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text);
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  transition: background-color 150ms ease;
+}
+
+.profile-trigger:hover {
+  background: var(--color-surface-sunken);
+}
+
+.profile-trigger:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+}
+
+.profile-trigger-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.profile-trigger-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.chevron-icon {
+  color: var(--color-text-muted);
+  transition: transform 200ms ease;
+}
+
+.chevron-icon.open {
+  transform: rotate(180deg);
+}
+
+.profile-trigger-role {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.avatar-circle {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--color-rail);
+  border: 1px solid var(--color-rail-border);
+  color: var(--color-text-on-ink);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.avatar-circle.large {
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.1rem;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 21rem;
+  max-width: calc(100vw - 2rem);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 16px 36px rgb(21 19 15 / 16%);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  z-index: 100;
+}
+
+.profile-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1rem;
+}
+
+.profile-dropdown-user {
+  overflow: hidden;
+  text-align: left;
+}
+
+.profile-dropdown-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-dropdown-email {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-dropdown-role {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profile-dropdown-section {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.85rem;
+}
+
+.profile-dropdown-section-title {
+  margin: 0 0 0.65rem;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.capabilities-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.capability-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.capability-item-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.capability-icon.granted {
+  color: var(--color-success);
+}
+
+.capability-icon.not-granted {
+  color: var(--color-text-muted);
+}
+
+.capability-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.capability-badge.granted {
+  color: var(--color-success);
+}
+
+.capability-badge.not-granted {
+  color: var(--color-text-muted);
+}
+
+.capabilities-note {
+  margin: 0.65rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.profile-appearance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.appearance-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.profile-dropdown-footer {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-sign-out-button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--color-danger);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.6rem 0.5rem;
+  text-align: left;
+  transition: background-color 150ms ease;
+}
+
+.profile-sign-out-button:hover:not(:disabled) {
+  background: var(--color-danger-surface);
+}
+
+.profile-sign-out-button:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+}
+
 .workspace {
   flex: 1;
   padding: 2rem clamp(1rem, 3vw, 2.5rem);

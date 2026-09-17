@@ -1,11 +1,48 @@
-import { FormEvent, ReactNode, useState } from "react";
+import { FormEvent, ReactNode, useState, type CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
 import { ApiError } from "./api";
-import { AuthProvider, useAuth } from "./auth";
+import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
+import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
+import { useTheme, type ThemePreference } from "./useTheme";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
+  { value: "light", label: "Light", icon: <SunIcon /> },
+  { value: "system", label: "System", icon: <MonitorIcon /> },
+  { value: "dark", label: "Dark", icon: <MoonIcon /> },
+];
+
+function ThemeToggle() {
+  const { preference, setTheme } = useTheme();
+  const activeIndex = THEME_OPTIONS.findIndex((option) => option.value === preference);
+
+  return (
+    <div aria-label="Theme" className="theme-toggle" role="group">
+      <div
+        className="theme-toggle-track"
+        style={{ "--theme-toggle-active-index": String(activeIndex) } as CSSProperties}
+      >
+        <div aria-hidden className="theme-toggle-thumb" />
+        {THEME_OPTIONS.map((option) => (
+          <button
+            aria-pressed={preference === option.value}
+            className="theme-toggle-option"
+            key={option.value}
+            onClick={() => setTheme(option.value)}
+            title={option.label}
+            type="button"
+          >
+            {option.icon}
+            <span className="visually-hidden">{option.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function LoginBrandPanel() {
   return (
@@ -33,6 +70,9 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Read once per mount rather than kept in state: this browser's history
+  // does not change while the login form is on screen.
+  const [isReturningVisitor] = useState(hasSignedInBefore);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,58 +107,63 @@ function LoginPage() {
   return (
     <main className="login-page">
       <LoginBrandPanel />
-      <section className="login-content" aria-labelledby="login-title">
-        <h1 id="login-title">Welcome back</h1>
-        <p className="login-subtitle">Sign in to KukGrade</p>
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label>
-            Email address
-            <input
-              autoComplete="email"
-              name="email"
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              type="email"
-              value={email}
-            />
-          </label>
-          <label>
-            Password
-            <div className="password-field">
+      <div className="login-column">
+        <div className="theme-toggle-bar">
+          <ThemeToggle />
+        </div>
+        <section className="login-content" aria-labelledby="login-title">
+          <h1 id="login-title">{isReturningVisitor ? "Welcome back" : "Sign in"}</h1>
+          <p className="login-subtitle">Sign in to KukGrade</p>
+          <form className="login-form" onSubmit={handleSubmit}>
+            <label>
+              Email address
               <input
-                autoComplete="current-password"
-                name="password"
-                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="email"
+                name="email"
+                onChange={(event) => setEmail(event.target.value)}
                 required
-                type={showPassword ? "text" : "password"}
-                value={password}
+                type="email"
+                value={email}
               />
-              <button
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                className="password-toggle"
-                onClick={() => setShowPassword((previous) => !previous)}
-                type="button"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
-            </div>
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <button
-            className="primary-button"
-            disabled={status === "loading" || isSubmitting}
-            type="submit"
-          >
-            {isSubmitting ? "Signing in" : "Sign in"}
-          </button>
-        </form>
-        <p className="login-help">
-          Having trouble signing in? <strong>Contact your administrator.</strong>
-        </p>
-        <p className="login-security-note">
-          Authorised staff only. Student and grading information is protected.
-        </p>
-      </section>
+            </label>
+            <label>
+              Password
+              <div className="password-field">
+                <input
+                  autoComplete="current-password"
+                  name="password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  required
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                />
+                <button
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="password-toggle"
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  type="button"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+            </label>
+            {error ? <p className="form-error">{error}</p> : null}
+            <button
+              className="primary-button"
+              disabled={status === "loading" || isSubmitting}
+              type="submit"
+            >
+              {isSubmitting ? "Signing in" : "Sign in"}
+            </button>
+          </form>
+          <p className="login-help">
+            Having trouble signing in? <strong>Contact your administrator.</strong>
+          </p>
+          <p className="login-security-note">
+            Authorised staff only. Student and grading information is protected.
+          </p>
+        </section>
+      </div>
     </main>
   );
 }

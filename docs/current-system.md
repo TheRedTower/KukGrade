@@ -4,7 +4,7 @@ Describes the implementation on `dev` as verified on 2026-09-15. This document
 takes precedence over older planning documents for what exists now.
 
 Verified by running the tooling, not by reading the code: 468 backend tests and
-17 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
+21 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
 `makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
 are all clean, and CI enforces every one of them on each push.
 
@@ -151,14 +151,12 @@ are all clean, and CI enforces every one of them on each push.
   `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
   FDR-001 through FDR-004 and FDR-012. Every component reads colour through a
   token, never a literal hex value. Dark mode follows `prefers-color-scheme`
-  automatically today, built from layered charcoal surfaces rather than an
-  inversion of the light palette (no pure-black panels, no neon); the
-  `[data-theme="light"/"dark"]` attribute selectors are already wired for the
-  explicit Light/Dark/System toggle planned for the Settings page (not yet
-  built) to set without a token rewrite. The existing login and application
-  shell now render through these tokens; the two-panel login layout and
-  ink navigation rail from the concept screens are separate, not-yet-started
-  steps.
+  by default; an explicit Light/Dark/System choice, when made, sets
+  `[data-theme]` on `<html>` instead, applied before first paint by an inline
+  script in `index.html` so a stored choice never flashes the system default
+  first. The existing login and application shell now render through these
+  tokens; the ink navigation rail from the concept screens is separate,
+  not-yet-started work.
 - **Login matches the SCR-008 concept screen**: a permanent two-panel layout
   (ink brand panel, form panel) rather than a single centered card - the
   other auth states (loading, connection failure) keep the old centered
@@ -166,6 +164,15 @@ are all clean, and CI enforces every one of them on each push.
   panel hides below 56rem width; the form remains fully usable at phone
   width. Password has a show/hide toggle. Verified visually in light, dark
   and phone-width via local Playwright screenshots against the dev server.
+- **Theme toggle**: an animated three-way Light/System/Dark control
+  (`frontend/src/useTheme.ts`) on the login screen, persisted to
+  `localStorage` (`kukgrade-theme`) and reusable by the future Settings page
+  without a token rewrite. "System" (the default) tracks
+  `prefers-color-scheme` live, including a change to the OS setting while the
+  page is open. Login also says "Welcome back" only once this browser has
+  ever seen a signed-in session (`kukgrade-has-signed-in` in `localStorage`,
+  set on first successful authentication) - "Sign in" otherwise, since
+  "Welcome back" implies a return visit that has not actually happened yet.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases

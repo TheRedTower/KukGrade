@@ -1,33 +1,13 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./App.css";
 import { ApiError } from "./api";
 import { AuthProvider, useAuth } from "./auth";
 
-function navigate(path: string) {
-  window.history.pushState({}, "", path);
-  window.dispatchEvent(new PopStateEvent("popstate"));
-}
-
-function usePathname(): string {
-  const [path, setPath] = useState(window.location.pathname);
-
-  useEffect(() => {
-    function handleLocationChange() {
-      setPath(window.location.pathname);
-    }
-
-    window.addEventListener("popstate", handleLocationChange);
-    return () => {
-      window.removeEventListener("popstate", handleLocationChange);
-    };
-  }, []);
-
-  return path;
-}
-
 function LoginPage() {
   const { login, status } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -126,6 +106,7 @@ function ConnectionErrorPage() {
 
 function ApplicationShell() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -181,30 +162,24 @@ function ApplicationShell() {
   );
 }
 
-function AuthenticatedRoutes() {
-  const { status, user } = useAuth();
-  const path = usePathname();
+function LoadingPage() {
+  return (
+    <main className="auth-page">
+      <p className="loading-state">Loading KukGrade</p>
+    </main>
+  );
+}
 
-  useEffect(() => {
-    // "error" means the session is unknown, not that the viewer is signed
-    // out, so it must not redirect to the login route.
-    if (status === "loading" || status === "error") {
-      return;
-    }
-    if (user === null && path !== "/login") {
-      navigate("/login");
-    }
-    if (user !== null && path === "/login") {
-      navigate("/");
-    }
-  }, [path, status, user]);
+/**
+ * Gates a route on a signed-in session. "error" means the session is
+ * unknown, not that the viewer is signed out, so it must not redirect to the
+ * login route - it renders in place, on whatever path was requested.
+ */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { status, user } = useAuth();
 
   if (status === "loading") {
-    return (
-      <main className="auth-page">
-        <p className="loading-state">Loading KukGrade</p>
-      </main>
-    );
+    return <LoadingPage />;
   }
 
   if (status === "error") {
@@ -212,16 +187,46 @@ function AuthenticatedRoutes() {
   }
 
   if (user === null) {
-    return <LoginPage />;
+    return <Navigate to="/login" replace />;
   }
 
-  return <ApplicationShell />;
+  return children;
+}
+
+function LoginRoute() {
+  const { status, user } = useAuth();
+
+  if (status === "loading") {
+    return <LoadingPage />;
+  }
+
+  if (status === "error") {
+    return <ConnectionErrorPage />;
+  }
+
+  if (user !== null) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <LoginPage />;
 }
 
 function App() {
   return (
     <AuthProvider>
-      <AuthenticatedRoutes />
+      <BrowserRouter>
+        <Routes>
+          <Route element={<LoginRoute />} path="/login" />
+          <Route
+            element={
+              <RequireAuth>
+                <ApplicationShell />
+              </RequireAuth>
+            }
+            path="*"
+          />
+        </Routes>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

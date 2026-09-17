@@ -131,6 +131,12 @@ are all clean, and CI enforces every one of them on each push.
   login form distinguishes wrong credentials, CSRF failure, throttling, a
   server error, and a dropped connection - it does not tell a rate-limited
   user their password is wrong.
+- **Routing is React Router** (`BrowserRouter`), replacing an earlier
+  hand-rolled `pushState`/`popstate` pair - see the 2026-09-14 decision log
+  entry. `RequireAuth` gates every route but `/login` on a signed-in session;
+  loading and connection-error states render in place, on whatever path was
+  requested, rather than redirecting - a dropped connection is not evidence
+  the viewer is signed out.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases

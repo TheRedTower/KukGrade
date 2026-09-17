@@ -159,6 +159,13 @@ are all clean, and CI enforces every one of them on each push.
   shell now render through these tokens; the two-panel login layout and
   ink navigation rail from the concept screens are separate, not-yet-started
   steps.
+- **Login matches the SCR-008 concept screen**: a permanent two-panel layout
+  (ink brand panel, form panel) rather than a single centered card - the
+  other auth states (loading, connection failure) keep the old centered
+  layout, since those screens are still unstarted design work. The brand
+  panel hides below 56rem width; the form remains fully usable at phone
+  width. Password has a show/hide toggle. Verified visually in light, dark
+  and phone-width via local Playwright screenshots against the dev server.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases

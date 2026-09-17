@@ -49,9 +49,14 @@ def create_platform_user(
     last_name: str = "",
     role: str | None = None,
     is_active: bool | None = None,
+    must_change_password: bool = True,
     actor: User | None = None,
 ) -> User:
-    extra: dict[str, Any] = {"first_name": first_name, "last_name": last_name}
+    extra: dict[str, Any] = {
+        "first_name": first_name,
+        "last_name": last_name,
+        "must_change_password": must_change_password,
+    }
     if role is not None:
         extra["role"] = role
     if is_active is not None:

@@ -1359,6 +1359,7 @@ export interface components {
             readonly can_make_final_grading_decision?: boolean;
             readonly can_promote_student?: boolean;
             readonly can_override_locked_session?: boolean;
+            readonly must_change_password?: boolean;
             readonly is_staff?: boolean;
             /**
              * Superuser status
@@ -1414,6 +1415,7 @@ export interface components {
             readonly can_make_final_grading_decision?: boolean;
             readonly can_promote_student?: boolean;
             readonly can_override_locked_session?: boolean;
+            readonly must_change_password?: boolean;
             readonly is_staff?: boolean;
             /**
              * Superuser status
@@ -1631,6 +1633,7 @@ export interface components {
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
             readonly can_override_locked_session: boolean;
+            readonly must_change_password: boolean;
             readonly is_staff: boolean;
             /**
              * Superuser status
@@ -1661,6 +1664,7 @@ export interface components {
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
             readonly can_override_locked_session: boolean;
+            readonly must_change_password: boolean;
             readonly is_staff: boolean;
             /**
              * Superuser status

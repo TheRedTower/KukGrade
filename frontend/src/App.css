@@ -2751,3 +2751,567 @@ h2 {
 
 
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Grading Sessions List Screen (/gradings)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.gs-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.gs-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.gs-page-title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.3rem;
+  color: var(--color-text);
+}
+
+.gs-page-subtitle {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.gs-create-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.25rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  border: 1px solid var(--btn-primary-border, transparent);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  box-shadow: var(--btn-primary-shadow);
+  transition: filter 140ms ease, box-shadow 140ms ease;
+  white-space: nowrap;
+}
+
+.gs-create-btn:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+/* ── Filters ─────────────────────────────────────────────────────────────── */
+
+.gs-filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1.25rem 1.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.gs-filter-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.gs-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.gs-search-input {
+  width: 100%;
+  height: 44px;
+  padding: 0 0.9rem 0 2.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-size: 0.92rem;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.gs-search-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.gs-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 160px;
+}
+
+.gs-filter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gs-filter-select {
+  height: 44px;
+  padding: 0 2.2rem 0 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-size: 0.92rem;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' height='16' stroke='%23888' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' viewBox='0 0 24 24' width='16'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  transition: border-color 140ms ease;
+}
+
+.gs-filter-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+/* ── Current Session Spotlight ───────────────────────────────────────────── */
+
+.gs-current-card {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .gs-current-card {
+  border-color: #4a3d1a;
+  background: #1e1a0f;
+}
+
+.gs-current-tag {
+  background: #f2a71b;
+  color: #14110c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.35rem 1rem;
+}
+
+[data-theme="dark"] .gs-current-tag {
+  background: #e8a838;
+}
+
+.gs-current-body {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem 2rem;
+  flex-wrap: wrap;
+}
+
+.gs-current-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.gs-current-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 0.3rem;
+  color: var(--color-text);
+}
+
+.gs-current-date {
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.25rem;
+}
+
+.gs-current-location {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.gs-current-status-row {
+  margin-top: 0.5rem;
+}
+
+.gs-current-metrics {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.gs-metric-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 1.5rem;
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.gs-metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.gs-metric-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.gs-metric-divider {
+  width: 1px;
+  background: var(--color-border);
+  align-self: stretch;
+  margin: 0.25rem 0;
+}
+
+.gs-current-action {
+  display: flex;
+  align-items: center;
+}
+
+.gs-open-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.4rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--btn-primary-border, transparent);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  box-shadow: var(--btn-primary-shadow);
+  transition: filter 140ms ease;
+  white-space: nowrap;
+}
+
+.gs-open-btn:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+/* ── Table Section ───────────────────────────────────────────────────────── */
+
+.gs-table-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.gs-table-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gs-table-wrapper {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+.gs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  background: var(--color-surface);
+}
+
+.gs-table-th {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  background: var(--color-surface-sunken);
+  white-space: nowrap;
+}
+
+.gs-th-number { text-align: right; }
+.gs-th-action { text-align: right; }
+
+.gs-table-row {
+  transition: background 120ms ease;
+}
+
+.gs-table-row:hover {
+  background: var(--color-surface-sunken);
+}
+
+.gs-table-row + .gs-table-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.gs-table-cell {
+  padding: 0.9rem 1rem;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.gs-cell-title {
+  font-weight: 600;
+  min-width: 130px;
+}
+
+.gs-cell-date {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.gs-cell-location {
+  color: var(--color-text-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gs-cell-candidates {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gs-cell-progress {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.gs-cell-action {
+  text-align: right;
+}
+
+/* ── Status Badges ───────────────────────────────────────────────────────── */
+
+.gs-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.gs-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Draft – neutral slate */
+.gs-status-draft {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+[data-theme="dark"] .gs-status-draft {
+  background: #2a2a2a;
+  color: #a0a0a0;
+  border-color: #404040;
+}
+
+/* Open – emerald green */
+.gs-status-open {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #86efac;
+}
+[data-theme="dark"] .gs-status-open {
+  background: #052e16;
+  color: #4ade80;
+  border-color: #166534;
+}
+
+/* Locked – amber / gold */
+.gs-status-locked {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde047;
+}
+[data-theme="dark"] .gs-status-locked {
+  background: #1c1500;
+  color: #e8a838;
+  border-color: #78450d;
+}
+
+/* Completed – teal */
+.gs-status-completed {
+  background: #ccfbf1;
+  color: #0f5c4a;
+  border-color: #5eead4;
+}
+[data-theme="dark"] .gs-status-completed {
+  background: #012723;
+  color: #2dd4bf;
+  border-color: #0f5c4a;
+}
+
+/* Cancelled – red */
+.gs-status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+[data-theme="dark"] .gs-status-cancelled {
+  background: #2d0707;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
+/* ── View / Open Button ──────────────────────────────────────────────────── */
+
+.btn-ghost-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.btn-ghost-sm:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border-strong);
+}
+
+[data-theme="dark"] .btn-ghost-sm {
+  border-color: #3a3a3a;
+  color: #d4d4d4;
+}
+
+[data-theme="dark"] .btn-ghost-sm:hover {
+  background: #2a2a2a;
+  border-color: #555;
+}
+
+/* ── Loading & Empty States ──────────────────────────────────────────────── */
+
+.gs-loading-state {
+  padding: 3rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+.gs-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 4rem 2rem;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-sunken);
+}
+
+.gs-empty-message {
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+.gs-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+}
+
+.gs-pagination-info {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.gs-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.gs-page-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 0.65rem;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.gs-page-btn:hover:not(:disabled) {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-border-strong);
+}
+
+.gs-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gs-page-active {
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border-color: var(--btn-primary-bg);
+  font-weight: 700;
+}
+
+.gs-page-active:hover {
+  background: var(--btn-primary-bg) !important;
+  filter: brightness(1.07);
+}

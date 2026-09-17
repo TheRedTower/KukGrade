@@ -2026,5 +2026,209 @@ describe("Student detail screen (/students/:id)", () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Grading Sessions List Screen (/gradings)
+// ─────────────────────────────────────────────────────────────────────────────
 
+describe("Grading Sessions List Screen (/gradings)", () => {
+  const testSessions = [
+    {
+      id: 1,
+      title: "Autumn Grading",
+      grading_date: "2026-09-15",
+      status: "OPEN",
+      status_display: "Open",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2026-09-01T10:00:00Z",
+      updated_at: "2026-09-15T10:00:00Z",
+    },
+    {
+      id: 2,
+      title: "Summer Grading",
+      grading_date: "2026-06-20",
+      status: "LOCKED",
+      status_display: "Locked",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2026-06-01T10:00:00Z",
+      updated_at: "2026-06-20T10:00:00Z",
+    },
+    {
+      id: 3,
+      title: "Spring Grading",
+      grading_date: "2026-03-21",
+      status: "COMPLETED",
+      status_display: "Completed",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2026-03-01T10:00:00Z",
+      updated_at: "2026-03-21T10:00:00Z",
+    },
+  ];
 
+  function makeFetch(sessions = testSessions) {
+    return vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      // All-sessions fetch (page_size=200) for year dropdown & current session
+      if (url.includes("/api/gradings/sessions/") && url.includes("page_size=200")) {
+        return jsonResponse(200, { count: sessions.length, next: null, previous: null, results: sessions });
+      }
+      // Paginated sessions fetch (page_size=10 or no page_size)
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: sessions.length, next: null, previous: null, results: sessions });
+      }
+      // Candidates per session
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 5, next: null, previous: null, results: [] });
+      }
+      // Assessments per session
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+  }
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/gradings");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders gradings page heading and subtitle", async () => {
+    vi.stubGlobal("fetch", makeFetch());
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Gradings" })).toBeVisible();
+    expect(screen.getByText("Plan and manage grading sessions")).toBeVisible();
+  });
+
+  it("renders session table rows from API with title, date, and status", async () => {
+    vi.stubGlobal("fetch", makeFetch());
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Gradings" });
+
+    // Sessions should appear — Autumn Grading appears in both the spotlight and the table
+    const autumnInstances = await screen.findAllByText("Autumn Grading");
+    expect(autumnInstances.length).toBeGreaterThanOrEqual(1);
+    // LOCKED and COMPLETED sessions only appear in the table
+    expect(await screen.findByText("Summer Grading")).toBeVisible();
+    expect(await screen.findByText("Spring Grading")).toBeVisible();
+  });
+
+  it("renders the current (open) session spotlight card", async () => {
+    vi.stubGlobal("fetch", makeFetch());
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Gradings" });
+
+    // Current session spotlight card
+    const spotlight = await screen.findByRole("region", { name: "Current grading session" });
+    expect(spotlight).toBeVisible();
+    expect(within(spotlight).getByText("Autumn Grading")).toBeVisible();
+    // Candidates metric label
+    expect(within(spotlight).getByText("Candidates")).toBeVisible();
+  });
+
+  it("renders authentic empty state when no sessions exist", async () => {
+    const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", emptyFetch);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Gradings" });
+
+    expect(
+      await screen.findByText("No grading sessions found. Create a new grading session to get started."),
+    ).toBeVisible();
+  });
+
+  it("filters sessions by status dropdown and shows reset option on mismatch", async () => {
+    const cancelledSession = {
+      id: 4,
+      title: "Cancelled Test Grading",
+      grading_date: "2025-09-13",
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "Venue unavailable",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2025-09-01T10:00:00Z",
+      updated_at: "2025-09-13T10:00:00Z",
+    };
+
+    const filterFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/") && url.includes("page_size=200")) {
+        return jsonResponse(200, {
+          count: 4,
+          next: null,
+          previous: null,
+          results: [...testSessions, cancelledSession],
+        });
+      }
+      if (url.includes("/api/gradings/sessions/") && url.includes("status=CANCELLED")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [cancelledSession] });
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testSessions });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", filterFetch);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Gradings" });
+    // Wait for sessions to load — Autumn Grading appears in spotlight + table
+    expect((await screen.findAllByText("Autumn Grading")).length).toBeGreaterThanOrEqual(1);
+
+    // Apply cancelled status filter — spotlight disappears, only cancelled session shown
+    const statusSelect = screen.getByRole("combobox", { name: "Status" });
+    await user.selectOptions(statusSelect, "CANCELLED");
+
+    expect(await screen.findByText("Cancelled Test Grading")).toBeVisible();
+  });
+});

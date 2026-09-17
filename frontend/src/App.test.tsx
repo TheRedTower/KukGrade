@@ -80,7 +80,9 @@ describe("App authentication", () => {
     });
 
     expect(screen.getByText("Instructor")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    ).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/auth/me/",
       expect.objectContaining({ credentials: "include" }),
@@ -209,6 +211,9 @@ describe("App authentication", () => {
     render(<App />);
 
     await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
@@ -331,6 +336,9 @@ describe("Connection failures are not sign-outs", () => {
     render(<App />);
 
     await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     // The session may still be live, so a signed-out UI would be a lie.
@@ -378,6 +386,9 @@ describe("First-time login copy", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
@@ -587,5 +598,132 @@ describe("Navigation rail and role-gated routes", () => {
     await user.click(screen.getByRole("link", { name: "Audit" }));
     expect(await screen.findByRole("heading", { name: "Audit" })).toBeVisible();
     expect(window.location.pathname).toBe("/audit");
+  });
+});
+
+describe("Instructor profile menu and Master capabilities", () => {
+  const masterUser = {
+    ...authUser,
+    can_make_final_grading_decision: true,
+    can_promote_student: false,
+    can_override_locked_session: false,
+  };
+
+  const adminUser = {
+    ...authUser,
+    id: "9e1c44b3-d8f6-4c1a-a4d1-4cb8e788df22",
+    email: "admin@example.com",
+    first_name: "Alex",
+    last_name: "Admin",
+    full_name: "Alex Admin",
+    role: "administrator" as const,
+    role_display: "Administrator",
+    can_make_final_grading_decision: false,
+    can_promote_student: true,
+    can_override_locked_session: true,
+    is_staff: true,
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("opens the profile menu showing initials, user details, and not-granted capabilities for a standard instructor", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    expect(screen.getByText("CI")).toBeVisible();
+    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
+
+    const menu = screen.getByLabelText("User account menu");
+    expect(menu).toBeVisible();
+    expect(screen.getByText("casey@example.com")).toBeVisible();
+    expect(
+      screen.getByText("Capabilities are independent of your role."),
+    ).toBeVisible();
+
+    const notGrantedBadges = screen.getAllByText("Not granted");
+    expect(notGrantedBadges).toHaveLength(3);
+    expect(screen.queryByText("Granted")).not.toBeInTheDocument();
+  });
+
+  it("displays granted status for Master capabilities held by an Authorised Master", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, masterUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
+
+    expect(screen.getByText("Granted")).toBeVisible();
+    const notGrantedBadges = screen.getAllByText("Not granted");
+    expect(notGrantedBadges).toHaveLength(2);
+  });
+
+  it("displays granted status for student promotion and session override for an Administrator", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, adminUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Alex Admin");
+    expect(screen.getByText("AA")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Alex Admin, Administrator" }),
+    );
+
+    const grantedBadges = screen.getAllByText("Granted");
+    expect(grantedBadges).toHaveLength(2);
+    expect(screen.getByText("Not granted")).toBeVisible();
+  });
+
+  it("closes the profile menu when pressing the Escape key", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
+    expect(screen.getByLabelText("User account menu")).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
+  });
+
+  it("closes the profile menu when clicking outside", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, authUser)));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
+    expect(screen.getByLabelText("User account menu")).toBeVisible();
+
+    await user.click(screen.getByRole("heading", { name: "Overview" }));
+    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
   });
 });

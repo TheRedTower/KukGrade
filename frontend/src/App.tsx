@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode, useState, type CSSProperties } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
@@ -18,6 +18,7 @@ import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
 import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";
 import { OverviewScreen } from "./OverviewScreen";
+import { StudentsScreen } from "./StudentsScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -275,16 +276,37 @@ function OverviewPage() {
 }
 
 function StudentsPage() {
+  return <StudentsScreen />;
+}
+
+function StudentDetailPage() {
+  const { id } = useParams<{ id: string }>();
   return (
-    <section aria-labelledby="students-heading" className="ledger-section">
+    <section aria-labelledby="student-detail-heading" className="ledger-section">
       <div className="section-header">
         <div>
-          <h1 id="students-heading">Students</h1>
-          <p className="section-subtitle">Student roster and rank records</p>
+          <h1 id="student-detail-heading">Student Record</h1>
+          <p className="section-subtitle">Student detail and rank progression history</p>
         </div>
       </div>
       <div className="placeholder-card">
-        <p>Student directory and progress tracking.</p>
+        <p>Student profile and rank timeline for #{id}.</p>
+      </div>
+    </section>
+  );
+}
+
+function AddStudentPage() {
+  return (
+    <section aria-labelledby="add-student-heading" className="ledger-section">
+      <div className="section-header">
+        <div>
+          <h1 id="add-student-heading">Add Student</h1>
+          <p className="section-subtitle">Register a new student</p>
+        </div>
+      </div>
+      <div className="placeholder-card">
+        <p>New student registration form.</p>
       </div>
     </section>
   );
@@ -537,6 +559,8 @@ function App() {
               <Route element={<OverviewPage />} index />
               <Route element={<Navigate replace to="/" />} path="overview" />
               <Route element={<StudentsPage />} path="students" />
+              <Route element={<AddStudentPage />} path="students/new" />
+              <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<GradingsPage />} path="gradings" />
               <Route element={<SyllabusPage />} path="syllabus" />
               <Route

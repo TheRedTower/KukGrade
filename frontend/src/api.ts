@@ -22,6 +22,10 @@ export type GradingCandidate = components["schemas"]["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
+export type StudentListItem = components["schemas"]["StudentList"];
+export type StudentDetail = components["schemas"]["Student"];
+export type StudentStatus = components["schemas"]["StudentStatusEnum"];
+export type Rank = components["schemas"]["Rank"];
 
 /**
  * The error envelope itself has no generated equivalent: `custom_exception_handler`
@@ -237,3 +241,38 @@ export async function getAuditEvents(params?: {
     `/api/audit-events/${query ? `?${query}` : ""}`,
   );
 }
+
+export async function getStudents(params?: {
+  search?: string;
+  status?: string;
+  current_rank_code?: string;
+  page?: number;
+  page_size?: number;
+}): Promise<PaginatedResponse<StudentListItem>> {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.status) searchParams.set("status", params.status);
+  if (params?.current_rank_code) searchParams.set("current_rank_code", params.current_rank_code);
+  if (params?.page !== undefined) searchParams.set("page", String(params.page));
+  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<StudentListItem>>(
+    `/api/students/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getRanks(params?: {
+  page_size?: number;
+}): Promise<PaginatedResponse<Rank>> {
+  const searchParams = new URLSearchParams();
+  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<Rank>>(
+    `/api/ranks/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getStudent(id: number): Promise<StudentDetail> {
+  return apiRequest<StudentDetail>(`/api/students/${id}/`);
+}
+

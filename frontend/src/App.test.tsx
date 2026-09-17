@@ -2504,3 +2504,504 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
   });
 });
 
+describe("Grading Session Workspace Screen (/gradings/:id)", () => {
+  const adminUser = {
+    id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    email: "admin@example.com",
+    first_name: "Alex",
+    last_name: "Admin",
+    full_name: "Alex Admin",
+    role: "administrator" as const,
+    role_display: "Administrator",
+    can_make_final_grading_decision: true,
+    can_promote_student: true,
+    can_override_locked_session: true,
+    must_change_password: false,
+    is_staff: true,
+    is_superuser: true,
+  };
+
+  const testSession = {
+    id: 10,
+    title: "Autumn Grading",
+    grading_date: "2026-09-15",
+    status: "OPEN" as const,
+    status_display: "Open",
+    location: "Colchester Dojang",
+    notes: "Please arrive 15 minutes before the start time.",
+    cancellation_reason: "",
+    created_by: adminUser.id,
+    created_by_email: adminUser.email,
+    created_at: "2026-09-01T10:00:00Z",
+    updated_at: "2026-09-01T10:00:00Z",
+  };
+
+  const testCandidates = [
+    {
+      id: 101,
+      session: 10,
+      session_title: "Autumn Grading",
+      student: 1,
+      student_display_name: "Alex Carter",
+      student_wksa_id: "UK-1001",
+      testing_for_rank: 3,
+      testing_for_rank_code: "Y",
+      testing_for_rank_name: "Yellow",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      status_display: "Registered",
+      notes: "",
+      created_at: "2026-09-01T10:00:00Z",
+      updated_at: "2026-09-01T10:00:00Z",
+    },
+    {
+      id: 102,
+      session: 10,
+      session_title: "Autumn Grading",
+      student: 2,
+      student_display_name: "Brooke Ellis",
+      student_wksa_id: "UK-1002",
+      testing_for_rank: 6,
+      testing_for_rank_code: "RS",
+      testing_for_rank_name: "Red stripe",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      status_display: "Registered",
+      notes: "",
+      created_at: "2026-09-01T10:00:00Z",
+      updated_at: "2026-09-01T10:00:00Z",
+    },
+    {
+      id: 103,
+      session: 10,
+      session_title: "Autumn Grading",
+      student: 3,
+      student_display_name: "Casey Nguyen",
+      student_wksa_id: "UK-1003",
+      testing_for_rank: 7,
+      testing_for_rank_code: "R",
+      testing_for_rank_name: "Red",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "REGISTERED" as const,
+      status_display: "Registered",
+      notes: "",
+      created_at: "2026-09-01T10:00:00Z",
+      updated_at: "2026-09-01T10:00:00Z",
+    },
+  ];
+
+  const testAssessments = [
+    {
+      id: 201,
+      candidate: 101,
+      candidate_student_name: "Alex Carter",
+      candidate_student_wksa_id: "UK-1001",
+      testing_for_rank_code: "Y",
+      testing_for_rank_name: "Yellow",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "IN_PROGRESS" as const,
+      status_display: "In progress",
+      generated_by: adminUser.id,
+      generated_by_email: adminUser.email,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: "2026-09-15T09:10:00Z",
+      completed_at: null,
+      notes: "",
+      item_counts: { total: 10, required: 10, met: 5, not_met: 0, not_assessed: 5 },
+      created_at: "2026-09-15T09:00:00Z",
+      updated_at: "2026-09-15T09:10:00Z",
+    },
+    {
+      id: 202,
+      candidate: 102,
+      candidate_student_name: "Brooke Ellis",
+      candidate_student_wksa_id: "UK-1002",
+      testing_for_rank_code: "RS",
+      testing_for_rank_name: "Red stripe",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "COMPLETED" as const,
+      status_display: "Completed",
+      generated_by: adminUser.id,
+      generated_by_email: adminUser.email,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: "2026-09-15T09:10:00Z",
+      completed_at: "2026-09-15T10:00:00Z",
+      notes: "",
+      item_counts: { total: 12, required: 12, met: 12, not_met: 0, not_assessed: 0 },
+      created_at: "2026-09-15T09:00:00Z",
+      updated_at: "2026-09-15T10:00:00Z",
+    },
+    {
+      id: 203,
+      candidate: 103,
+      candidate_student_name: "Casey Nguyen",
+      candidate_student_wksa_id: "UK-1003",
+      testing_for_rank_code: "R",
+      testing_for_rank_name: "Red",
+      age_band: "ADULT",
+      age_band_display: "18+",
+      status: "NOT_STARTED" as const,
+      status_display: "Not started",
+      generated_by: adminUser.id,
+      generated_by_email: adminUser.email,
+      generated_at: "2026-09-15T09:00:00Z",
+      started_at: null,
+      completed_at: null,
+      notes: "",
+      item_counts: { total: 14, required: 14, met: 0, not_met: 0, not_assessed: 14 },
+      created_at: "2026-09-15T09:00:00Z",
+      updated_at: "2026-09-15T09:00:00Z",
+    },
+  ];
+
+  const testOutcomes = [
+    {
+      id: 302,
+      candidate: 102,
+      assessment: 202,
+      assessment_status: "COMPLETED",
+      student: 2,
+      student_display_name: "Brooke Ellis",
+      student_wksa_id: "UK-1002",
+      session: 10,
+      session_title: "Autumn Grading",
+      testing_for_rank: 6,
+      testing_for_rank_code: "RS",
+      testing_for_rank_name: "Red stripe",
+      status: "PROPOSED" as const,
+      status_display: "Proposed",
+      proposed_outcome: "PASS" as const,
+      proposed_outcome_display: "Pass",
+      proposed_by: adminUser.id,
+      proposed_by_email: adminUser.email,
+      proposed_by_name: "Alex Admin",
+      proposed_at: "2026-09-15T10:05:00Z",
+      proposal_notes: "Strong stances throughout.",
+      final_outcome: null,
+      final_outcome_display: "",
+      decided_by: null,
+      decided_by_email: "",
+      decided_by_name: "",
+      decided_at: null,
+      decision_notes: "",
+      conditional_requirements: "",
+      created_at: "2026-09-15T10:05:00Z",
+      updated_at: "2026-09-15T10:05:00Z",
+    },
+  ];
+
+  const testStudentsList = [
+    {
+      id: 1,
+      wksa_id: "UK-1001",
+      first_name: "Alex",
+      last_name: "Carter",
+      current_rank: 2,
+      current_rank_code: "YS",
+      current_rank_name: "Yellow stripe",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+    },
+    {
+      id: 2,
+      wksa_id: "UK-1002",
+      first_name: "Brooke",
+      last_name: "Ellis",
+      current_rank: 5,
+      current_rank_code: "B",
+      current_rank_name: "Blue",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+    },
+    {
+      id: 3,
+      wksa_id: "UK-1003",
+      first_name: "Casey",
+      last_name: "Nguyen",
+      current_rank: 6,
+      current_rank_code: "RS",
+      current_rank_name: "Red stripe",
+      status: "ACTIVE" as const,
+      status_display: "Active",
+    },
+  ];
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/gradings/10");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  function setupStandardMock(sessionOverrides = {}) {
+    return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        const patchData = JSON.parse(init.body as string);
+        return jsonResponse(200, { ...testSession, ...sessionOverrides, ...patchData });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, { ...testSession, ...sessionOverrides });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: testOutcomes.length, next: null, previous: null, results: testOutcomes });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      }
+      return jsonResponse(404, {});
+    });
+  }
+
+  it("renders session header, breadcrumbs, status pill, and lifecycle stepper track", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Autumn Grading" })).toBeVisible();
+    expect(screen.getByText("Colchester Dojang")).toBeVisible();
+    expect(screen.getByText("Open", { selector: ".gsd-status-pill" })).toBeVisible();
+
+    // Stepper track
+    expect(screen.getByText("Draft", { selector: ".gsd-step-label" })).toBeVisible();
+    expect(screen.getByText("Locked", { selector: ".gsd-step-label" })).toBeVisible();
+    expect(screen.getByText("Completed", { selector: ".gsd-step-label" })).toBeVisible();
+
+    // Action buttons in header
+    expect(screen.getByTestId("gsd-actions-btn")).toBeVisible();
+    expect(screen.getByTestId("gsd-add-candidate-btn")).toBeVisible();
+  });
+
+  it("renders candidate roster table with authentic student ranks, assessment and outcome badges", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Heading and count chip
+    expect(screen.getByRole("heading", { name: "Candidates" })).toBeVisible();
+    expect(screen.getByText("3 candidates")).toBeVisible();
+
+    // Candidate 1: Alex Carter
+    const row1 = await screen.findByTestId("candidate-row-101");
+    expect(within(row1).getByText("Alex Carter")).toBeVisible();
+    expect(within(row1).getByText("WKSA: UK-1001")).toBeVisible();
+    expect(within(row1).getByText("Yellow stripe")).toBeVisible();
+    expect(within(row1).getByText("Yellow")).toBeVisible();
+    expect(within(row1).getByText("In progress")).toBeVisible();
+    expect(within(row1).getByText("Continue assessment →")).toBeVisible();
+
+    // Candidate 2: Brooke Ellis
+    const row2 = screen.getByTestId("candidate-row-102");
+    expect(within(row2).getByText("Brooke Ellis")).toBeVisible();
+    expect(within(row2).getByText("Blue")).toBeVisible();
+    expect(within(row2).getByText("Red stripe")).toBeVisible();
+    expect(within(row2).getByText("Completed")).toBeVisible();
+    expect(within(row2).getByText("Proposed: Pass")).toBeVisible();
+    expect(within(row2).getByText("Review decision →")).toBeVisible();
+
+    // Candidate 3: Casey Nguyen
+    const row3 = screen.getByTestId("candidate-row-103");
+    expect(within(row3).getByText("Casey Nguyen")).toBeVisible();
+    expect(within(row3).getByText("Red stripe")).toBeVisible();
+    expect(within(row3).getByText("Red")).toBeVisible();
+    expect(within(row3).getByText("Not started")).toBeVisible();
+    expect(within(row3).getByText("Start assessment →")).toBeVisible();
+  });
+
+  it("surfaces operational alert banner when candidates await final decision and triggers filter on Review", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Alert banner
+    expect(screen.getByText("1 candidate awaiting final decision")).toBeVisible();
+    const reviewBtn = screen.getByTestId("gsd-review-decisions-btn");
+    expect(reviewBtn).toBeVisible();
+
+    // Click Review -> filters by Completed assessment
+    await user.click(reviewBtn);
+
+    const statusSelect = screen.getByTestId("gsd-status-filter") as HTMLSelectElement;
+    expect(statusSelect.value).toBe("COMPLETED");
+
+    // Only Brooke Ellis has completed assessment
+    const table = screen.getByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
+    expect(within(table).queryByText("Alex Carter")).not.toBeInTheDocument();
+    expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
+  });
+
+  it("filters candidate roster in real-time by search query", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    const searchInput = screen.getByTestId("gsd-candidate-search");
+    await user.type(searchInput, "Alex");
+
+    const table = screen.getByTestId("gsd-candidates-table");
+    expect(within(table).getByText("Alex Carter")).toBeVisible();
+    expect(within(table).queryByText("Brooke Ellis")).not.toBeInTheDocument();
+    expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
+  });
+
+  it("allows instructors to view and edit session notes with authentic PATCH call", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          notes: "Updated session notes with important instructions.",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Existing notes displayed
+    expect(screen.getByText("Please arrive 15 minutes before the start time.")).toBeVisible();
+
+    // Click Edit notes
+    await user.click(screen.getByTestId("gsd-edit-notes-btn"));
+
+    const textarea = screen.getByTestId("gsd-notes-textarea");
+    await user.clear(textarea);
+    await user.type(textarea, "Updated session notes with important instructions.");
+
+    await user.click(screen.getByTestId("gsd-save-notes-btn"));
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({ notes: "Updated session notes with important instructions." });
+    });
+
+    // Notes updated on screen
+    expect(await screen.findByText("Updated session notes with important instructions.")).toBeVisible();
+  });
+
+  it("handles session transition to LOCKED via Session actions dropdown", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          status: "LOCKED",
+          status_display: "Locked",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // Click "Lock session"
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+
+    // Confirm dialog
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({ status: "LOCKED" });
+    });
+
+    expect(await screen.findByText("Locked", { selector: ".gsd-status-pill" })).toBeVisible();
+  });
+
+  it("renders clean zero-candidate empty state when session has no registered candidates", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    expect(screen.getByTestId("gsd-empty-roster")).toBeVisible();
+    expect(screen.getByText("No candidates registered in this grading session yet.")).toBeVisible();
+  });
+});
+

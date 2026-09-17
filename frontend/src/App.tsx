@@ -24,6 +24,7 @@ import { AddStudentScreen } from "./AddStudentScreen";
 import { StudentDetailScreen } from "./StudentDetailScreen";
 import { GradingSessionsScreen } from "./GradingSessionsScreen";
 import { CreateGradingSessionScreen } from "./CreateGradingSessionScreen";
+import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -301,6 +302,10 @@ function CreateGradingSessionPage() {
   return <CreateGradingSessionScreen />;
 }
 
+function GradingSessionDetailPage() {
+  return <GradingSessionDetailScreen />;
+}
+
 function SyllabusPage() {
   return (
     <section aria-labelledby="syllabus-heading" className="ledger-section">
@@ -535,6 +540,7 @@ function App() {
               <Route element={<AddStudentPage />} path="students/new" />
               <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<CreateGradingSessionPage />} path="gradings/new" />
+              <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
               <Route element={<GradingsPage />} path="gradings" />
               <Route element={<SyllabusPage />} path="syllabus" />
               <Route

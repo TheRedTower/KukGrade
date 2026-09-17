@@ -21,6 +21,9 @@ export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEn
 export type GradingCandidate = components["schemas"]["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
+export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
+export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
+export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
@@ -218,6 +221,28 @@ export async function createGradingSession(
   });
 }
 
+export async function getGradingSession(
+  id: number | string,
+): Promise<GradingSession> {
+  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`);
+}
+
+export async function updateGradingSession(
+  id: number | string,
+  payload: Partial<CreateGradingSessionPayload> & { cancellation_reason?: string },
+): Promise<GradingSession> {
+  return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteGradingSession(id: number | string): Promise<void> {
+  await apiRequest<void>(`/api/gradings/sessions/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function getGradingCandidates(params?: {
   session?: number;
   student_wksa_id?: string;
@@ -229,6 +254,16 @@ export async function getGradingCandidates(params?: {
   return apiRequest<PaginatedResponse<GradingCandidate>>(
     `/api/gradings/candidates/${query ? `?${query}` : ""}`,
   );
+}
+
+export async function updateGradingCandidate(
+  id: number,
+  payload: Partial<GradingCandidate>,
+): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function getCandidateAssessments(params?: {
@@ -243,6 +278,19 @@ export async function getCandidateAssessments(params?: {
   const query = searchParams.toString();
   return apiRequest<PaginatedResponse<CandidateAssessment>>(
     `/api/gradings/assessments/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getCandidateOutcomes(params?: {
+  session?: number;
+  candidate?: number;
+}): Promise<PaginatedResponse<CandidateOutcome>> {
+  const searchParams = new URLSearchParams();
+  if (params?.session !== undefined) searchParams.set("session", String(params.session));
+  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<CandidateOutcome>>(
+    `/api/gradings/outcomes/${query ? `?${query}` : ""}`,
   );
 }
 

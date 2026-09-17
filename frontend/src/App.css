@@ -3642,3 +3642,959 @@ h2 {
   text-align: right;
 }
 
+/* ==========================================================================
+   Grading Session Detail / Roster Screen (.gsd-*)
+   ========================================================================== */
+
+.gsd-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 0.5rem 3rem;
+}
+
+/* ── Breadcrumbs ─────────────────────────────────────────────────────────── */
+
+.gsd-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin-bottom: -0.5rem;
+}
+
+.gsd-breadcrumb-link {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 120ms ease;
+}
+
+.gsd-breadcrumb-link:hover {
+  color: var(--color-text);
+}
+
+.gsd-breadcrumb-sep {
+  color: var(--color-border-strong);
+  user-select: none;
+}
+
+.gsd-breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+
+.gsd-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+}
+
+.gsd-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.gsd-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+}
+
+.gsd-title {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gsd-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.gsd-meta-sep {
+  color: var(--color-border-strong);
+}
+
+/* ── Status Pills ────────────────────────────────────────────────────────── */
+
+.gsd-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.gsd-status-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.gsd-status-open {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.gsd-status-draft {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.gsd-status-locked {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.gsd-status-completed {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.gsd-status-cancelled {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+[data-theme="dark"] .gsd-status-open {
+  background: rgba(5, 150, 105, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(5, 150, 105, 0.4);
+}
+
+[data-theme="dark"] .gsd-status-locked {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+[data-theme="dark"] .gsd-status-completed {
+  background: rgba(22, 163, 74, 0.2);
+  color: #86efac;
+  border-color: rgba(22, 163, 74, 0.4);
+}
+
+[data-theme="dark"] .gsd-status-cancelled {
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+/* ── Header Actions & Dropdown ───────────────────────────────────────────── */
+
+.gsd-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gsd-dropdown-wrap {
+  position: relative;
+}
+
+.gsd-actions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1rem;
+  font-weight: 600;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  min-height: 44px;
+}
+
+.gsd-actions-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.gsd-chevron-down {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.gsd-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 0.35rem 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.gsd-dropdown-item {
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 1rem;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease;
+  text-decoration: none;
+  display: block;
+}
+
+.gsd-dropdown-item:hover {
+  background: var(--color-surface-hover);
+}
+
+.gsd-danger-text {
+  color: #dc2626 !important;
+}
+
+/* ── Lifecycle Progression Track ─────────────────────────────────────────── */
+
+.gsd-lifecycle-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem 2rem;
+}
+
+.gsd-lifecycle-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  gap: 0.75rem;
+}
+
+.gsd-lifecycle-step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.gsd-step-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 800;
+  border: 2px solid var(--color-border-strong);
+  color: transparent;
+  transition: all 150ms ease;
+}
+
+.gsd-step-completed .gsd-step-circle {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+}
+
+.gsd-step-current .gsd-step-circle {
+  background: #059669;
+  border-color: #059669;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.25);
+}
+
+.gsd-step-upcoming .gsd-step-circle {
+  background: transparent;
+  border-color: var(--color-border-strong);
+}
+
+.gsd-step-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.gsd-step-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.gsd-step-subtext {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.gsd-lifecycle-line {
+  flex: 1;
+  height: 2px;
+  background: var(--color-border);
+  transition: background 150ms ease;
+}
+
+.gsd-line-completed {
+  background: #059669;
+}
+
+/* ── Operational Action Banner ───────────────────────────────────────────── */
+
+.gsd-action-banner {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+[data-theme="dark"] .gsd-action-banner {
+  background: rgba(217, 119, 6, 0.15);
+  border-color: rgba(217, 119, 6, 0.35);
+}
+
+.gsd-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gsd-banner-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.gsd-banner-text {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #92400e;
+}
+
+[data-theme="dark"] .gsd-banner-text {
+  color: #fcd34d;
+}
+
+.gsd-banner-btn {
+  border: 1px solid #d97706;
+  color: #92400e;
+  background: transparent;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .gsd-banner-btn {
+  color: #fcd34d;
+  border-color: #f59e0b;
+}
+
+.gsd-banner-btn:hover {
+  background: rgba(217, 119, 6, 0.15);
+}
+
+/* ── Candidates Roster Section ───────────────────────────────────────────── */
+
+.gsd-candidates-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.gsd-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.gsd-section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gsd-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.gsd-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gsd-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  font-size: 0.85rem;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.gsd-search-input {
+  width: 240px;
+  padding: 0.5rem 0.75rem 0.5rem 2.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  min-height: 40px;
+}
+
+.gsd-search-input:focus {
+  outline: none;
+  border-color: var(--btn-primary-bg, #d97706);
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.gsd-filter-wrap {
+  position: relative;
+}
+
+.gsd-filter-select {
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.88rem;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.gsd-filter-select:focus {
+  outline: none;
+  border-color: var(--btn-primary-bg, #d97706);
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.gsd-count-chip {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* ── Candidate Table ─────────────────────────────────────────────────────── */
+
+.gsd-table-wrapper {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.gsd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.gsd-table th {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.gsd-table td {
+  padding: 0.95rem 1rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.gsd-table-row:last-child td {
+  border-bottom: none;
+}
+
+.gsd-table-row:hover {
+  background: var(--color-surface-hover);
+}
+
+.gsd-cell-candidate {
+  font-weight: 600;
+}
+
+.gsd-candidate-name {
+  display: block;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.gsd-candidate-wksa {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+
+.gsd-cell-rank {
+  white-space: nowrap;
+}
+
+.gsd-rank-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gsd-rank-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.gsd-rank-stripes {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.gsd-stripe-bar {
+  width: 3.5px;
+  height: 13px;
+  border-radius: 1px;
+  background: var(--rank-color, #eab308);
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+
+.gsd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gsd-badge-icon {
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.gsd-badge-not-started {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.gsd-badge-in-progress {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.gsd-badge-completed {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.gsd-badge-proposed-pass {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+.gsd-badge-proposed-conditional {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.gsd-badge-proposed-fail {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.gsd-badge-final-pass {
+  background: #059669;
+  color: #ffffff;
+}
+
+.gsd-badge-final-conditional {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
+.gsd-badge-final-fail {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.gsd-badge-neutral {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+[data-theme="dark"] .gsd-badge-in-progress {
+  background: rgba(29, 78, 216, 0.2);
+  color: #93c5fd;
+  border-color: rgba(29, 78, 216, 0.4);
+}
+
+[data-theme="dark"] .gsd-badge-completed,
+[data-theme="dark"] .gsd-badge-proposed-pass {
+  background: rgba(4, 120, 87, 0.2);
+  color: #6ee7b7;
+  border-color: rgba(4, 120, 87, 0.4);
+}
+
+[data-theme="dark"] .gsd-badge-proposed-conditional {
+  background: rgba(180, 83, 9, 0.2);
+  color: #fcd34d;
+  border-color: rgba(180, 83, 9, 0.4);
+}
+
+[data-theme="dark"] .gsd-badge-proposed-fail {
+  background: rgba(185, 28, 28, 0.2);
+  color: #fca5a5;
+  border-color: rgba(185, 28, 28, 0.4);
+}
+
+/* ── Row Action Button ───────────────────────────────────────────────────── */
+
+.gsd-row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 44px;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.gsd-row-action-btn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+/* ── Empty states ────────────────────────────────────────────────────────── */
+
+.gsd-empty-roster,
+.gsd-empty-search {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.gsd-empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gsd-empty-sub {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  margin: 0 0 1rem;
+}
+
+/* ── Session Notes Section ───────────────────────────────────────────────── */
+
+.gsd-notes-section {
+  margin-top: 0.5rem;
+}
+
+.gsd-notes-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gsd-notes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.gsd-notes-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gsd-notes-sub {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0.25rem 0 0;
+}
+
+.gsd-edit-notes-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: var(--color-surface);
+  color: var(--color-text);
+  min-height: 44px;
+}
+
+.gsd-edit-notes-btn:hover {
+  background: var(--color-surface-hover);
+}
+
+.gsd-notes-text {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.gsd-notes-empty {
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0;
+}
+
+.gsd-notes-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.gsd-notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.gsd-notes-textarea:focus {
+  outline: none;
+  border-color: var(--btn-primary-bg, #d97706);
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+}
+
+.gsd-notes-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* ── Error Banner ────────────────────────────────────────────────────────── */
+
+.gsd-error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+[data-theme="dark"] .gsd-error-banner {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fca5a5;
+}
+
+.gsd-error-dismiss-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────────── */
+
+.gsd-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.gsd-modal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.75rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gsd-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.gsd-modal-message {
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.gsd-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.gsd-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.gsd-modal-textarea {
+  width: 100%;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.gsd-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.gsd-modal-btn-danger {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+}
+
+.gsd-modal-btn-danger:hover {
+  background: #b91c1c !important;
+}
+
+/* ── Loading and Error States ────────────────────────────────────────────── */
+
+.gsd-loading-state,
+.gsd-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.gsd-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--btn-primary-bg, #d97706);
+  border-radius: 50%;
+  animation: gsd-spin 0.8s linear infinite;
+}
+
+@keyframes gsd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+

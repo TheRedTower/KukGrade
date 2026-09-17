@@ -108,6 +108,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Regenerated from backend/schema.yml (both checked out from the same
+      # commit) rather than hand-maintained - see the 2026-09-14 decision log
+      # entry. A serializer change that nobody mirrors here fails the build
+      # instead of silently drifting from the API.
+      - name: Generate API types from schema
+        run: npm run generate:types
+
+      - name: Generated types are current
+        run: git diff --exit-code -- src/api/schema.ts
+
       - name: Lint
         run: npm run lint
 

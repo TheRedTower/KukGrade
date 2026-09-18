@@ -62,7 +62,7 @@ class GradingSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingSessionQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
+    objects = GradingSessionQuerySet.as_manager()  # type: ignore[assignment]
 
     class Meta:
         ordering = ["-grading_date", "created_at"]
@@ -217,7 +217,7 @@ class GradingCandidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingCandidateQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
+    objects = GradingCandidateQuerySet.as_manager()  # type: ignore[assignment]
 
     class Meta:
         ordering = [
@@ -534,7 +534,7 @@ class CandidateOutcome(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = CandidateOutcomeQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
+    objects = CandidateOutcomeQuerySet.as_manager()  # type: ignore[assignment]
 
     class Meta:
         ordering = [
@@ -1053,7 +1053,7 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PromotionManager()  # pyright: ignore[reportAssignmentType]
+    objects = PromotionManager()  # type: ignore[assignment]
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]

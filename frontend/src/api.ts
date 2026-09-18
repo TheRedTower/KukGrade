@@ -60,6 +60,8 @@ export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
+export type SyllabusRequirement = components["schemas"]["SyllabusRequirement"];
+export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
 
 /**
  * The error envelope itself has no generated equivalent: `custom_exception_handler`
@@ -487,6 +489,21 @@ export async function getRanks(params?: {
   const query = searchParams.toString();
   return apiRequest<PaginatedResponse<Rank>>(
     `/api/ranks/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getSyllabusRequirements(params?: {
+  rank_code?: string;
+  age_band?: string;
+  page_size?: number;
+}): Promise<PaginatedResponse<SyllabusRequirement>> {
+  const searchParams = new URLSearchParams();
+  if (params?.rank_code) searchParams.set("rank_code", params.rank_code);
+  if (params?.age_band) searchParams.set("age_band", params.age_band);
+  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<SyllabusRequirement>>(
+    `/api/syllabus/requirements/${query ? `?${query}` : ""}`,
   );
 }
 

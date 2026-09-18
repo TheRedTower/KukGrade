@@ -3051,6 +3051,65 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(await screen.findByText("Locked", { selector: ".gsd-status-pill" })).toBeVisible();
   });
 
+  it("handles session transition to CANCELLED via Session actions dropdown with cancellation reason", async () => {
+    let patchBody: unknown = null;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        patchBody = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testSession,
+          status: "CANCELLED",
+          status_display: "Cancelled",
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // Click "Cancel session"
+    await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
+
+    // Confirm dialog
+    expect(screen.getByText("Cancel Grading Session")).toBeVisible();
+    const reasonInput = screen.getByLabelText("Cancellation reason (optional)");
+    expect(reasonInput).toBeInTheDocument();
+    expect(reasonInput).toHaveClass("gsd-modal-textarea");
+
+    await user.type(reasonInput, "Hall booking unavailable due to maintenance.");
+    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+
+    await waitFor(() => {
+      expect(patchBody).toEqual({
+        status: "CANCELLED",
+        cancellation_reason: "Hall booking unavailable due to maintenance.",
+      });
+    });
+
+    expect(await screen.findByText("Cancelled", { selector: ".gsd-status-pill" })).toBeVisible();
+  });
+
   it("renders clean zero-candidate empty state when session has no registered candidates", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);

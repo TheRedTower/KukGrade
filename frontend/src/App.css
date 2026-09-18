@@ -4713,7 +4713,8 @@ h2 {
   margin: 0;
 }
 
-.gsd-modal-field {
+.gsd-modal-field,
+.gsd-cancel-reason-field {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -4725,7 +4726,9 @@ h2 {
   color: var(--color-text);
 }
 
-.gsd-modal-textarea {
+.gsd-modal-textarea,
+.gsd-textarea,
+.gsd-modal-card textarea {
   width: 100%;
   padding: 0.65rem;
   border: 1px solid var(--color-border);
@@ -4736,6 +4739,14 @@ h2 {
   font-size: 0.88rem;
   resize: vertical;
   box-sizing: border-box;
+}
+
+.gsd-modal-textarea:focus,
+.gsd-textarea:focus,
+.gsd-modal-card textarea:focus {
+  outline: none;
+  border-color: var(--btn-primary-bg, #d97706);
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
 .gsd-modal-actions {
@@ -7610,6 +7621,674 @@ h2 {
   }
 }
 
+/* ==========================================================================
+   SCR-009: Syllabus Rank Chapter Reference Screen (.syl-*)
+   ========================================================================== */
 
+.syl-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
+}
 
+.syl-header {
+  margin-bottom: 1.5rem;
+}
 
+.syl-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-sm);
+}
+
+.syl-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 180px;
+  flex: 1;
+}
+
+.syl-filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.syl-select {
+  padding: 0.55rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  height: 42px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.syl-select:focus {
+  border-color: var(--color-gold-strong, #b45309);
+  box-shadow: 0 0 0 3px var(--color-focus-ring, rgba(180, 83, 9, 0.2));
+  outline: none;
+}
+
+/* Belt Rail Track */
+.syl-belt-rail-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.syl-nav-arrow {
+  width: 36px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.syl-nav-arrow:hover {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
+  border-color: var(--color-border-strong);
+}
+
+.syl-belt-track {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+  padding: 4px 2px;
+  flex: 1;
+}
+
+.syl-belt-track::-webkit-scrollbar {
+  display: none;
+}
+
+.syl-belt-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  min-height: 42px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.syl-belt-btn:hover {
+  border-color: var(--color-gold-muted, #d97706);
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+}
+
+.syl-belt-btn-active {
+  border-color: var(--color-gold-strong, #b45309);
+  background: rgba(245, 158, 11, 0.08);
+  box-shadow: 0 0 0 1px var(--color-gold-strong, #b45309), 0 2px 6px rgba(180, 83, 9, 0.12);
+  color: var(--color-text);
+}
+
+.syl-belt-label {
+  line-height: 1;
+}
+
+/* Belt Swatches */
+.syl-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 22px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  position: relative;
+  vertical-align: middle;
+}
+
+.syl-swatch-white {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+.syl-swatch-yellow-stripe {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+.syl-swatch-yellow-stripe .syl-swatch-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #eab308;
+}
+
+.syl-swatch-yellow {
+  background: #eab308;
+  border: 1px solid #ca8a04;
+}
+
+.syl-swatch-blue-stripe {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+}
+.syl-swatch-blue-stripe .syl-swatch-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #ffffff;
+}
+
+.syl-swatch-blue {
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
+}
+
+.syl-swatch-red-stripe {
+  background: #dc2626;
+  border: 1px solid #b91c1c;
+}
+.syl-swatch-red-stripe .syl-swatch-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #ffffff;
+}
+
+.syl-swatch-red {
+  background: #dc2626;
+  border: 1px solid #b91c1c;
+}
+
+.syl-swatch-brown-stripe {
+  background: #78350f;
+  border: 1px solid #57260a;
+}
+.syl-swatch-brown-stripe .syl-swatch-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #ffffff;
+}
+
+.syl-swatch-brown {
+  background: #78350f;
+  border: 1px solid #57260a;
+}
+
+.syl-swatch-black-stripe {
+  background: #78350f;
+  border: 1px solid #57260a;
+}
+.syl-swatch-black-stripe .syl-swatch-stripe {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #0f172a;
+}
+
+.syl-swatch-dahn-bo {
+  background: #0f172a;
+  border: 1px solid #020617;
+}
+.syl-swatch-dahn-bo .syl-swatch-stripe-gold {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  height: 6px;
+  background: #f59e0b;
+}
+
+.syl-swatch-black {
+  background: #0f172a;
+  border: 1px solid #020617;
+}
+
+/* Rank Content Section */
+.syl-rank-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.syl-rank-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1.25rem;
+}
+
+.syl-rank-title {
+  font-size: 1.95rem;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.syl-rank-subtitle {
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  font-weight: 500;
+}
+
+.syl-next-rank-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-primary-link, #2563eb);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 0.4rem 0.65rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.syl-next-rank-btn:hover {
+  text-decoration: underline;
+  background: rgba(37, 99, 235, 0.06);
+}
+
+/* Section Blocks */
+.syl-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.syl-section-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.syl-section-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.syl-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Core Grading Areas Grid */
+.syl-core-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.85rem;
+}
+
+.syl-core-card {
+  padding: 1.15rem 0.85rem;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.syl-core-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.syl-core-korean {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.syl-core-english {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.75;
+  margin-top: 0.1rem;
+}
+
+/* Syllabus Requirements Table */
+.syl-table-wrapper {
+  overflow-x: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.syl-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.925rem;
+}
+
+.syl-table th {
+  padding: 0.85rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.02));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.syl-table td {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.syl-table tr:last-child td {
+  border-bottom: none;
+}
+
+.syl-cell-category {
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.syl-cell-curriculum {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.syl-item-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--color-text);
+}
+
+.syl-item-korean {
+  font-size: 0.825rem;
+  color: var(--color-text-muted);
+}
+
+.syl-item-notes {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin-top: 0.2rem;
+}
+
+.syl-cell-range {
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.syl-badge-required {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.syl-badge-optional {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.syl-loading-state,
+.syl-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.syl-spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-gold-strong, #b45309);
+  border-radius: 50%;
+  animation: sylSpin 0.8s linear infinite;
+}
+
+@keyframes sylSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Footer Reference */
+.syl-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2.5rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.syl-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.syl-footer-brand strong {
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.syl-footer-divider {
+  color: var(--color-border-strong);
+}
+
+.syl-footer-reference {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Dark Mode Parity */
+[data-theme="dark"] .syl-belt-btn-active {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
+}
+
+[data-theme="dark"] .syl-next-rank-btn {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .syl-next-rank-btn:hover {
+  background: rgba(96, 165, 250, 0.12);
+}
+
+[data-theme="dark"] .syl-badge-required {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+[data-theme="dark"] .syl-core-card {
+  background: #221e18;
+  border-color: #332d24;
+}
+
+[data-theme="dark"] .syl-table th {
+  background: #1c1915;
+}
+
+[data-theme="dark"] .syl-filter-bar {
+  background: #221e18;
+  border-color: #332d24;
+}
+
+[data-theme="dark"] .syl-select {
+  background: #181512;
+  border-color: #38332d;
+  color: #f3efe6;
+}
+
+[data-theme="dark"] .syl-belt-btn {
+  background: #221e18;
+  border-color: #332d24;
+  color: #f3efe6;
+}
+
+[data-theme="dark"] .syl-nav-arrow {
+  background: #221e18;
+  border-color: #332d24;
+  color: #f3efe6;
+}
+
+[data-theme="dark"] .syl-table-wrapper {
+  background: #221e18;
+  border-color: #332d24;
+}
+
+[data-theme="dark"] .syl-loading-state,
+[data-theme="dark"] .syl-empty-state {
+  background: #221e18;
+  border-color: #332d24;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .syl-belt-btn-active {
+    background: rgba(245, 158, 11, 0.16);
+    border-color: #fbbf24;
+    box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
+  }
+
+  :root:not([data-theme="light"]) .syl-next-rank-btn {
+    color: #60a5fa;
+  }
+
+  :root:not([data-theme="light"]) .syl-next-rank-btn:hover {
+    background: rgba(96, 165, 250, 0.12);
+  }
+
+  :root:not([data-theme="light"]) .syl-badge-required {
+    background: rgba(34, 197, 94, 0.2);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.4);
+  }
+
+  :root:not([data-theme="light"]) .syl-core-card {
+    background: #221e18;
+    border-color: #332d24;
+  }
+
+  :root:not([data-theme="light"]) .syl-table th {
+    background: #1c1915;
+  }
+
+  :root:not([data-theme="light"]) .syl-filter-bar {
+    background: #221e18;
+    border-color: #332d24;
+  }
+
+  :root:not([data-theme="light"]) .syl-select {
+    background: #181512;
+    border-color: #38332d;
+    color: #f3efe6;
+  }
+
+  :root:not([data-theme="light"]) .syl-belt-btn {
+    background: #221e18;
+    border-color: #332d24;
+    color: #f3efe6;
+  }
+
+  :root:not([data-theme="light"]) .syl-nav-arrow {
+    background: #221e18;
+    border-color: #332d24;
+    color: #f3efe6;
+  }
+
+  :root:not([data-theme="light"]) .syl-table-wrapper {
+    background: #221e18;
+    border-color: #332d24;
+  }
+
+  :root:not([data-theme="light"]) .syl-loading-state,
+  :root:not([data-theme="light"]) .syl-empty-state {
+    background: #221e18;
+    border-color: #332d24;
+  }
+}

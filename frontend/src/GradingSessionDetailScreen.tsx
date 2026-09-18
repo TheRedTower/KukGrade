@@ -1003,13 +1003,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             <p className="gsd-modal-message">{confirmModal.message}</p>
 
             {confirmModal.actionType === "CANCEL" && (
-              <div className="gsd-cancel-reason-field">
+              <div className="gsd-modal-field gsd-cancel-reason-field">
                 <label htmlFor="cancellation-reason" className="gsd-field-label">
                   Cancellation reason (optional)
                 </label>
                 <textarea
                   id="cancellation-reason"
-                  className="gsd-textarea"
+                  className="gsd-modal-textarea gsd-textarea"
                   rows={3}
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}

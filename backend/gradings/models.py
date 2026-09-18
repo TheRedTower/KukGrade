@@ -62,7 +62,7 @@ class GradingSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingSessionQuerySet.as_manager()
+    objects = GradingSessionQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         ordering = ["-grading_date", "created_at"]
@@ -159,6 +159,8 @@ class GradingCandidate(models.Model):
         testing_for_rank_id: int
         withdrawn_by_id: int | None
         assessment: CandidateAssessment
+        outcome: CandidateOutcome
+        promotion: Promotion
 
     # Set only by withdraw_locked_candidate(), which checks authority first.
     _allow_locked_withdrawal: bool = False
@@ -215,7 +217,7 @@ class GradingCandidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingCandidateQuerySet.as_manager()
+    objects = GradingCandidateQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         ordering = [
@@ -361,6 +363,7 @@ class CandidateAssessment(models.Model):
     if TYPE_CHECKING:
         candidate_id: int
         assessed_by_id: int | None
+        outcome: CandidateOutcome
         items: models.Manager[CandidateAssessmentItem]
 
     class Status(models.TextChoices):
@@ -465,7 +468,10 @@ class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
 class CandidateOutcome(models.Model):
     if TYPE_CHECKING:
         candidate_id: int
-        decided_by_id: int
+        assessment_id: int
+        proposed_by_id: int | None
+        decided_by_id: int | None
+        promotion: Promotion
 
     _allow_status_transition: bool = False
 
@@ -528,7 +534,7 @@ class CandidateOutcome(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = CandidateOutcomeQuerySet.as_manager()
+    objects = CandidateOutcomeQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         ordering = [
@@ -982,7 +988,7 @@ class CandidateAssessmentItem(models.Model):
         return f"{self.start_number}-{self.end_number}"
 
 
-class PromotionQuerySet(models.QuerySet):
+class PromotionQuerySet(models.QuerySet["Promotion"]):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError(
             {"promotion": ["Promotion records are immutable and cannot be deleted."]},
@@ -997,7 +1003,7 @@ class PromotionQuerySet(models.QuerySet):
         )
 
 
-class PromotionManager(models.Manager):
+class PromotionManager(models.Manager["Promotion"]):
     def get_queryset(self) -> PromotionQuerySet:
         return PromotionQuerySet(self.model, using=self._db)
 
@@ -1047,7 +1053,7 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PromotionManager()
+    objects = PromotionManager()  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]

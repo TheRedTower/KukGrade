@@ -87,7 +87,7 @@ class AuditEvent(models.Model):
     # {"before": {...}, "after": {...}} for a revision; {} otherwise.
     metadata = models.JSONField(default=dict, blank=True)
 
-    objects = AuditEventQuerySet.as_manager()
+    objects = AuditEventQuerySet.as_manager()  # pyright: ignore[reportAssignmentType]
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]

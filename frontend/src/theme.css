@@ -60,6 +60,10 @@
   --color-danger: #b42318;
   --color-danger-surface: #fff1ef;
 
+  --color-scrollbar-track: #eae4d7;
+  --color-scrollbar-thumb: #9e9381;
+  --color-scrollbar-thumb-hover: #6e6352;
+
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
@@ -107,6 +111,10 @@
     --color-warning-surface: #3a2e17;
     --color-danger: #e5584b;
     --color-danger-surface: #3a1f1b;
+
+    --color-scrollbar-track: #181511;
+    --color-scrollbar-thumb: #786650;
+    --color-scrollbar-thumb-hover: #d6900e;
   }
 }
 
@@ -148,6 +156,10 @@
   --color-warning-surface: #3a2e17;
   --color-danger: #e5584b;
   --color-danger-surface: #3a1f1b;
+
+  --color-scrollbar-track: #181511;
+  --color-scrollbar-thumb: #786650;
+  --color-scrollbar-thumb-hover: #d6900e;
 }
 
 body {

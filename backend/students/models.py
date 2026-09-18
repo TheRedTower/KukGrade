@@ -16,6 +16,7 @@ class Student(models.Model):
 
         promotions: models.Manager[Promotion]
         current_rank_id: int
+
     class Status(models.TextChoices):
         # A temporary break - injury, exams, travel - which blocks nothing.
         # Missing a grading never sets this: only a person does, deliberately.
@@ -108,4 +109,4 @@ class Student(models.Model):
     def age_band_display(self) -> str:
         from syllabus.models import AgeBand
 
-        return str(AgeBand(self.age_band).label)
+        return AgeBand(self.age_band).label

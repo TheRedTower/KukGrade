@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -22,6 +22,10 @@ class GradingSessionQuerySet(models.QuerySet["GradingSession"]):
 
 
 class GradingSession(models.Model):
+    if TYPE_CHECKING:
+        created_by_id: int
+        candidates: models.Manager[GradingCandidate]
+
     # Set only by GradingSessionAdminForm.clean(), after it has already
     # validated the transition itself. Without this, ModelForm._post_clean()
     # calls full_clean() with the new status already on the instance, which
@@ -149,6 +153,13 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
 
 
 class GradingCandidate(models.Model):
+    if TYPE_CHECKING:
+        session_id: int
+        student_id: int
+        testing_for_rank_id: int
+        withdrawn_by_id: int | None
+        assessment: CandidateAssessment
+
     # Set only by withdraw_locked_candidate(), which checks authority first.
     _allow_locked_withdrawal: bool = False
 
@@ -347,6 +358,11 @@ class GradingCandidate(models.Model):
 
 
 class CandidateAssessment(models.Model):
+    if TYPE_CHECKING:
+        candidate_id: int
+        assessed_by_id: int | None
+        items: models.Manager[CandidateAssessmentItem]
+
     class Status(models.TextChoices):
         NOT_STARTED = "NOT_STARTED", "Not started"
         IN_PROGRESS = "IN_PROGRESS", "In progress"
@@ -447,6 +463,10 @@ class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
 
 
 class CandidateOutcome(models.Model):
+    if TYPE_CHECKING:
+        candidate_id: int
+        decided_by_id: int
+
     _allow_status_transition: bool = False
 
     class Outcome(models.TextChoices):
@@ -737,6 +757,10 @@ class CandidateOutcome(models.Model):
 
 
 class CandidateAssessmentItem(models.Model):
+    if TYPE_CHECKING:
+        assessment_id: int
+        syllabus_item_id: int
+
     class Result(models.TextChoices):
         NOT_ASSESSED = "NOT_ASSESSED", "Not assessed"
         MET = "MET", "Met"
@@ -979,6 +1003,14 @@ class PromotionManager(models.Manager):
 
 
 class Promotion(models.Model):
+    if TYPE_CHECKING:
+        student_id: int
+        outcome_id: int
+        grading_candidate_id: int
+        from_rank_id: int
+        to_rank_id: int
+        promoted_by_id: int
+
     student = models.ForeignKey(
         "students.Student",
         on_delete=models.PROTECT,

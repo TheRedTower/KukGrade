@@ -1084,7 +1084,7 @@ def test_admin_created_session_is_persisted_and_audited() -> None:
     request = admin_request("admin-session-operator@example.com")
 
     model_admin.save_model(
-        request, obj, cast(ModelForm, SimpleNamespace(changed_data=[])), False
+        request, obj, cast("ModelForm[Any]", SimpleNamespace(changed_data=[])), False
     )
 
     assert obj.pk is not None
@@ -1103,7 +1103,7 @@ def test_admin_session_save_uses_transition_service_for_status_changes() -> None
     candidate(session=session)
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
     session.status = GradingSession.Status.LOCKED
-    form = cast(ModelForm, SimpleNamespace(changed_data=["status"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status"]))
 
     with pytest.raises(ValidationError):
         model_admin.save_model(
@@ -1123,7 +1123,7 @@ def test_admin_session_save_handles_valid_status_and_field_change_atomically() -
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
     session.status = GradingSession.Status.LOCKED
     session.location = "Main hall"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
 
     model_admin.save_model(
         admin_request("session-admin-valid-mixed@example.com"),
@@ -1143,7 +1143,7 @@ def test_admin_session_save_rolls_back_field_change_when_transition_fails() -> N
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
     session.status = GradingSession.Status.LOCKED
     session.location = "Should roll back"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
 
     with pytest.raises(ValidationError):
         model_admin.save_model(
@@ -1166,7 +1166,7 @@ def test_admin_session_save_rolls_back_field_change_when_assessment_not_started(
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
     session.status = GradingSession.Status.LOCKED
     session.location = "Should roll back"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["status", "location"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status", "location"]))
 
     with pytest.raises(ValidationError) as exc_info:
         model_admin.save_model(
@@ -1187,7 +1187,7 @@ def test_admin_assessment_status_change_is_attributed_to_the_admin_user() -> Non
     generated = assessment(candidate=candidate(session=session))
     model_admin = CandidateAssessmentAdmin(CandidateAssessment, admin.site)
     generated.status = CandidateAssessment.Status.IN_PROGRESS
-    form = cast(ModelForm, SimpleNamespace(changed_data=["status"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["status"]))
     admin_user = user("assessment-admin-actor@example.com")
     request = cast(HttpRequest, RequestFactory().post("/admin/"))
     request.user = admin_user
@@ -1260,7 +1260,7 @@ def test_admin_created_candidate_is_persisted_and_audited() -> None:
     model_admin.save_model(
         request,
         obj,
-        cast(ModelForm, SimpleNamespace(changed_data=[])),
+        cast("ModelForm[Any]", SimpleNamespace(changed_data=[])),
         False,
     )
 
@@ -1277,7 +1277,7 @@ def test_admin_candidate_update_is_audited() -> None:
     built = candidate(notes="Before")
     model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
     built.notes = "After"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["notes"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"]))
     admin_user = user("admin-candidate-updater@example.com")
     request = cast(HttpRequest, RequestFactory().post("/admin/"))
     request.user = admin_user
@@ -3210,7 +3210,7 @@ def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> 
     model_admin = CandidateOutcomeAdmin(CandidateOutcome, admin.site)
     request = admin_request("outcome-admin@example.com")
     outcome.decision_notes = "Unsafe admin edit"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["decision_notes"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["decision_notes"]))
 
     assert model_admin.has_add_permission(request) is False
     assert model_admin.has_delete_permission(request, outcome) is False
@@ -3939,7 +3939,7 @@ def test_promotion_admin_is_read_only_and_has_no_bulk_actions() -> None:
     model_admin = PromotionAdmin(Promotion, admin.site)
     request = admin_request("promotion-admin-request@example.com")
     promotion.notes = "Unsafe admin edit"
-    form = cast(ModelForm, SimpleNamespace(changed_data=["notes"]))
+    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"]))
 
     assert model_admin.has_add_permission(request) is False
     assert model_admin.has_delete_permission(request, promotion) is False
@@ -4427,7 +4427,7 @@ def test_admin_can_cancel_a_locked_session_with_a_reason() -> None:
     session.status = GradingSession.Status.CANCELLED
     session.cancellation_reason = "Venue lost power; grading abandoned."
     form = cast(
-        ModelForm,
+        "ModelForm[Any]",
         SimpleNamespace(changed_data=["status", "cancellation_reason"]),
     )
     request = cast(HttpRequest, RequestFactory().post("/admin/"))

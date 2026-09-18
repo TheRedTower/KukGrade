@@ -78,7 +78,7 @@ class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
     promotions = PromotionRankHistorySerializer(many=True, read_only=True)
 
     def get_student(self, obj: StudentRankTimeline) -> int:
-        return int(obj["student"].pk)
+        return obj["student"].pk
 
     def get_student_display_name(self, obj: StudentRankTimeline) -> str:
         return str(obj["student"])
@@ -87,7 +87,7 @@ class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
         return obj["student"].wksa_id
 
     def get_current_rank(self, obj: StudentRankTimeline) -> int:
-        return int(obj["current_rank"].pk)
+        return obj["current_rank"].pk
 
     def get_current_rank_code(self, obj: StudentRankTimeline) -> str:
         return obj["current_rank"].code

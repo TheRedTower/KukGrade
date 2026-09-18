@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -8,6 +8,9 @@ from django.db.models import F, Q
 
 
 class AgeBand(models.TextChoices):
+    if TYPE_CHECKING:
+        label: str
+
     AGE_8_AND_UNDER = "AGE_8_AND_UNDER", "8 and under"
     AGE_9_TO_12 = "AGE_9_TO_12", "9-12"
     AGE_13_TO_17 = "AGE_13_TO_17", "13-17"

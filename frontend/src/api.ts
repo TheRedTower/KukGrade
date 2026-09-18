@@ -345,6 +345,7 @@ export async function getStudents(params?: {
   search?: string;
   status?: string;
   current_rank_code?: string;
+  age_band?: string;
   page?: number;
   page_size?: number;
 }): Promise<PaginatedResponse<StudentListItem>> {
@@ -352,6 +353,7 @@ export async function getStudents(params?: {
   if (params?.search) searchParams.set("search", params.search);
   if (params?.status) searchParams.set("status", params.status);
   if (params?.current_rank_code) searchParams.set("current_rank_code", params.current_rank_code);
+  if (params?.age_band) searchParams.set("age_band", params.age_band);
   if (params?.page !== undefined) searchParams.set("page", String(params.page));
   if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
   const query = searchParams.toString();

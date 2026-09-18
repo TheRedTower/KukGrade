@@ -111,6 +111,8 @@ class StudentListSerializer(serializers.ModelSerializer):
         source="current_rank.name", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    age_band = serializers.CharField(read_only=True)
+    age_band_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = Student
@@ -124,6 +126,8 @@ class StudentListSerializer(serializers.ModelSerializer):
             "current_rank_name",
             "status",
             "status_display",
+            "age_band",
+            "age_band_display",
         )
         read_only_fields = fields
 
@@ -144,6 +148,8 @@ class StudentSerializer(serializers.ModelSerializer):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
+    age_band = serializers.CharField(read_only=True)
+    age_band_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = Student
@@ -159,6 +165,8 @@ class StudentSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "can_be_graded",
+            "age_band",
+            "age_band_display",
             "created_at",
             "updated_at",
         )
@@ -168,6 +176,8 @@ class StudentSerializer(serializers.ModelSerializer):
             "current_rank_name",
             "status_display",
             "can_be_graded",
+            "age_band",
+            "age_band_display",
             "created_at",
             "updated_at",
         )

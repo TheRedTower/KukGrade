@@ -1,6 +1,7 @@
-from __future__ import annotations
+from datetime import date
 
 from django.db.models import Q, QuerySet
+from django.utils import timezone
 from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -15,6 +16,14 @@ from students.serializers import (
     StudentRankHistorySerializer,
     StudentSerializer,
 )
+from syllabus.models import AgeBand
+
+
+def _safe_date(year: int, month: int, day: int) -> date:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return date(year, 2, 28)
 
 
 class StudentViewSet(
@@ -60,6 +69,30 @@ class StudentViewSet(
         if status_filter in Student.Status.values:
             queryset = queryset.filter(status=status_filter)
         elif status_filter:
+            queryset = queryset.none()
+
+        age_band = self.request.query_params.get("age_band")
+        if age_band in AgeBand.values:
+            today = timezone.localdate()
+            if age_band == AgeBand.AGE_8_AND_UNDER:
+                cutoff = _safe_date(today.year - 9, today.month, today.day)
+                queryset = queryset.filter(date_of_birth__gt=cutoff)
+            elif age_band == AgeBand.AGE_9_TO_12:
+                lower = _safe_date(today.year - 13, today.month, today.day)
+                upper = _safe_date(today.year - 9, today.month, today.day)
+                queryset = queryset.filter(
+                    date_of_birth__gt=lower, date_of_birth__lte=upper
+                )
+            elif age_band == AgeBand.AGE_13_TO_17:
+                lower = _safe_date(today.year - 18, today.month, today.day)
+                upper = _safe_date(today.year - 13, today.month, today.day)
+                queryset = queryset.filter(
+                    date_of_birth__gt=lower, date_of_birth__lte=upper
+                )
+            elif age_band == AgeBand.AGE_18_AND_OVER:
+                cutoff = _safe_date(today.year - 18, today.month, today.day)
+                queryset = queryset.filter(date_of_birth__lte=cutoff)
+        elif age_band:
             queryset = queryset.none()
 
         current_rank_code = self.request.query_params.get("current_rank_code")

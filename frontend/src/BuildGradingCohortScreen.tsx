@@ -209,17 +209,30 @@ export function BuildGradingCohortScreen() {
       if (statusFilter === "ACTIVE" && s.status !== "ACTIVE") return false;
       if (statusFilter === "INACTIVE" && s.status !== "INACTIVE") return false;
 
-      // Age group filter (if applicable / mock age tag)
+      // Age group filter
       if (ageFilter !== "ALL") {
-        // Since StudentListItem does not expose DOB for privacy, age filter allows matching
-        // if user hasn't selected a restrictive filter or by default
+        const matchesCanonical = s.age_band === ageFilter;
+        const matchesShort =
+          (ageFilter === "8_UNDER" && s.age_band === "AGE_8_AND_UNDER") ||
+          (ageFilter === "9_12" && s.age_band === "AGE_9_TO_12") ||
+          (ageFilter === "13_17" && s.age_band === "AGE_13_TO_17") ||
+          (ageFilter === "18_PLUS" && s.age_band === "AGE_18_AND_OVER");
+        const matchesDisplay =
+          (ageFilter === "8 and under" && s.age_band === "AGE_8_AND_UNDER") ||
+          (ageFilter === "9-12" && s.age_band === "AGE_9_TO_12") ||
+          (ageFilter === "13-17" && s.age_band === "AGE_13_TO_17") ||
+          (ageFilter === "18+" && s.age_band === "AGE_18_AND_OVER");
+
+        if (!matchesCanonical && !matchesShort && !matchesDisplay) {
+          return false;
+        }
       }
 
       return true;
     });
   }, [eligibleStudents, search, rankFilter, statusFilter, ageFilter]);
 
-  // Group eligible students by their current rank
+  // Group filtered eligible students by their current rank
   const rankGroups = useMemo(() => {
     const groups: {
       rank: Rank;
@@ -227,11 +240,13 @@ export function BuildGradingCohortScreen() {
       students: StudentListItem[];
       activeCount: number;
       inactiveCount: number;
+      kidsCount: number;
+      adultsCount: number;
     }[] = [];
 
-    // Group eligible students by current_rank
+    // Group filtered eligible students by current_rank
     const studentsByRank = new Map<number, StudentListItem[]>();
-    for (const s of eligibleStudents) {
+    for (const s of filteredEligibleStudents) {
       const list = studentsByRank.get(s.current_rank) || [];
       list.push(s);
       studentsByRank.set(s.current_rank, list);
@@ -244,18 +259,26 @@ export function BuildGradingCohortScreen() {
         const dest = nextRankMap.get(r.id) || null;
         const activeCount = students.filter((s) => s.status === "ACTIVE").length;
         const inactiveCount = students.filter((s) => s.status === "INACTIVE").length;
+        const kidsCount = students.filter(
+          (s) => s.age_band === "AGE_8_AND_UNDER" || s.age_band === "AGE_9_TO_12"
+        ).length;
+        const adultsCount = students.filter(
+          (s) => s.age_band === "AGE_13_TO_17" || s.age_band === "AGE_18_AND_OVER"
+        ).length;
         groups.push({
           rank: r,
           destinationRank: dest,
           students,
           activeCount,
           inactiveCount,
+          kidsCount,
+          adultsCount,
         });
       }
     }
 
     return groups;
-  }, [ranks, eligibleStudents, nextRankMap]);
+  }, [ranks, filteredEligibleStudents, nextRankMap]);
 
   // Cohort breakdown by rank group for the right-hand panel
   const cohortBreakdown = useMemo(() => {
@@ -311,6 +334,21 @@ export function BuildGradingCohortScreen() {
   // Remove whole rank group from cohort
   const handleRemoveRankGroup = (rankId: number) => {
     setCohort((prev) => prev.filter((item) => item.student.current_rank !== rankId));
+  };
+
+  // Add individual student to cohort
+  const handleAddStudentToCohort = (student: StudentListItem) => {
+    setCohort((prev) => {
+      if (prev.some((c) => c.student.id === student.id)) return prev;
+      return [
+        ...prev,
+        {
+          student,
+          currentRank: rankMap.get(student.current_rank) || null,
+          destinationRank: nextRankMap.get(student.current_rank) || null,
+        },
+      ];
+    });
   };
 
   // Add all currently filtered eligible students to cohort
@@ -799,12 +837,13 @@ export function BuildGradingCohortScreen() {
                   className="bgc-select"
                   value={ageFilter}
                   onChange={(e) => setAgeFilter(e.target.value)}
+                  data-testid="bgc-age-filter"
                 >
                   <option value="ALL">All ages</option>
-                  <option value="8_UNDER">8 and under</option>
-                  <option value="9_12">9-12</option>
-                  <option value="13_17">13-17</option>
-                  <option value="18_PLUS">18+</option>
+                  <option value="AGE_8_AND_UNDER">8 and under</option>
+                  <option value="AGE_9_TO_12">9-12</option>
+                  <option value="AGE_13_TO_17">13-17</option>
+                  <option value="AGE_18_AND_OVER">18+</option>
                 </select>
               </div>
 
@@ -850,6 +889,102 @@ export function BuildGradingCohortScreen() {
                 </button>
               </div>
             </div>
+
+            {/* Filtered matching student records table */}
+            <div className="bgc-table-wrap bgc-matching-table-wrap" data-testid="bgc-filtered-students-table">
+              {filteredEligibleStudents.length === 0 ? (
+                <div className="bgc-empty-filtered" data-testid="bgc-empty-filtered">
+                  No eligible students match the selected filters.
+                </div>
+              ) : (
+                <table className="bgc-table" aria-label="Matching eligible students">
+                  <thead>
+                    <tr>
+                      <th scope="col">Student</th>
+                      <th scope="col">WKSA ID</th>
+                      <th scope="col">Current rank</th>
+                      <th scope="col">Destination rank</th>
+                      <th scope="col">Age band</th>
+                      <th scope="col">Status</th>
+                      <th scope="col" className="bgc-th-action">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEligibleStudents.map((s) => {
+                      const isAdded = cohortStudentIdSet.has(s.id);
+                      const currentRankObj = rankMap.get(s.current_rank);
+                      const destRankObj = nextRankMap.get(s.current_rank);
+
+                      return (
+                        <tr key={s.id} data-testid={`bgc-student-row-${s.id}`}>
+                          <td className="bgc-td-student">
+                            <Link
+                              to={`/students/${s.id}`}
+                              className="bgc-student-name-link"
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {s.first_name} {s.last_name}
+                            </Link>
+                          </td>
+                          <td className="bgc-td-wksa">{s.wksa_id || "—"}</td>
+                          <td className="bgc-td-rank">
+                            <div className="bgc-rank-cell">
+                              <RankVisual rankName={s.current_rank_name || currentRankObj?.name || ""} />
+                              <span className="bgc-rank-label">
+                                {s.current_rank_name || currentRankObj?.name || "—"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="bgc-td-rank">
+                            {destRankObj ? (
+                              <div className="bgc-rank-cell">
+                                <RankVisual rankName={destRankObj.name} />
+                                <span className="bgc-rank-label">{destRankObj.name}</span>
+                              </div>
+                            ) : (
+                              <span className="bgc-highest-rank">Highest rank</span>
+                            )}
+                          </td>
+                          <td className="bgc-td-ageband">
+                            <span className="bgc-ageband-badge">
+                              {s.age_band_display || s.age_band || "—"}
+                            </span>
+                          </td>
+                          <td className="bgc-td-status">
+                            <span className={`bgc-status-badge bgc-status-${s.status.toLowerCase()}`}>
+                              {s.status_display || s.status}
+                            </span>
+                          </td>
+                          <td className="bgc-td-action">
+                            {isAdded ? (
+                              <button
+                                type="button"
+                                className="btn-ghost bgc-student-added-btn"
+                                onClick={() => handleRemoveStudentFromCohort(s.id)}
+                                title="Click to remove student from cohort"
+                                data-testid={`bgc-student-added-${s.id}`}
+                              >
+                                Added ✓
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="btn-primary gs-create-btn bgc-add-student-btn"
+                                onClick={() => handleAddStudentToCohort(s)}
+                                data-testid={`bgc-add-student-${s.id}`}
+                              >
+                                + Add
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </section>
 
           {/* Section 2: Add whole rank groups */}
@@ -877,7 +1012,9 @@ export function BuildGradingCohortScreen() {
                   {rankGroups.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="bgc-empty-td">
-                        No eligible students found to register.
+                        {filteredEligibleStudents.length === 0
+                          ? "No eligible students match the selected filters."
+                          : "No eligible students found to register."}
                       </td>
                     </tr>
                   ) : (
@@ -908,8 +1045,7 @@ export function BuildGradingCohortScreen() {
                           </td>
                           <td className="bgc-td-agemix">
                             <span className="bgc-agemix-badge">
-                              Kids {group.students.length > 2 ? Math.ceil(group.students.length / 2) : group.students.length} | Adults{" "}
-                              {group.students.length > 2 ? Math.floor(group.students.length / 2) : 0}
+                              Kids {group.kidsCount} | Adults {group.adultsCount}
                             </span>
                           </td>
                           <td className="bgc-td-eligible">
@@ -933,6 +1069,7 @@ export function BuildGradingCohortScreen() {
                                 className="btn-ghost bgc-group-added-btn"
                                 onClick={() => handleRemoveRankGroup(group.rank.id)}
                                 title="Click to remove group"
+                                data-testid={`bgc-group-added-${group.rank.id}`}
                               >
                                 Added ✓
                               </button>
@@ -951,7 +1088,7 @@ export function BuildGradingCohortScreen() {
                       );
                     })
                   )}
-                </tbody>
+                  </tbody>
               </table>
             </div>
           </section>

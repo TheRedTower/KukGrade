@@ -1387,6 +1387,8 @@ export interface components {
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display?: string;
             readonly can_be_graded?: boolean;
+            readonly age_band?: string;
+            readonly age_band_display?: string;
             /** Format: date-time */
             readonly created_at?: string;
             /** Format: date-time */
@@ -1536,6 +1538,8 @@ export interface components {
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            readonly age_band: string;
+            readonly age_band_display: string;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -1558,6 +1562,8 @@ export interface components {
             readonly current_rank_name: string;
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
+            readonly age_band: string;
+            readonly age_band_display: string;
         };
         StudentRankHistory: {
             readonly student: number;

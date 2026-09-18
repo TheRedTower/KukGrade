@@ -3140,6 +3140,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "ACTIVE",
       status_display: "Active",
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 102,
@@ -3151,6 +3153,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "INACTIVE",
       status_display: "Inactive",
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 103,
@@ -3162,6 +3166,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
       status_display: "Active",
+      age_band: "AGE_13_TO_17",
+      age_band_display: "13-17",
     },
     {
       id: 104,
@@ -3173,6 +3179,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "White",
       status: "LEFT",
       status_display: "Left",
+      age_band: "AGE_8_AND_UNDER",
+      age_band_display: "8 and under",
     },
     {
       id: 105,
@@ -3184,6 +3192,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
       status_display: "Active",
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
   ];
 
@@ -3317,8 +3327,85 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(registerBtn).toHaveTextContent("Register 2 candidates");
     expect(registerBtn).toBeEnabled();
 
-    // Left table White group button should now show "Added ✓"
-    expect(screen.getByText("Added ✓")).toBeVisible();
+    // Left table White group button and individual student rows should now show "Added ✓"
+    expect(screen.getByTestId("bgc-group-added-1")).toHaveTextContent("Added ✓");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
+    expect(screen.getByTestId("bgc-student-added-102")).toHaveTextContent("Added ✓");
+  });
+
+  it("renders matching eligible students table with details and individual add/remove buttons", async () => {
+    vi.stubGlobal("fetch", setupCohortMock());
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+
+    // Matching students table is visible with all 3 eligible students
+    expect(screen.getByTestId("bgc-filtered-students-table")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-101")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-102")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-103")).toBeVisible();
+
+    // Alice Smith details
+    const aliceRow = screen.getByTestId("bgc-student-row-101");
+    expect(aliceRow).toHaveTextContent("Alice Smith");
+    expect(aliceRow).toHaveTextContent("KG-0101");
+    expect(aliceRow).toHaveTextContent("White");
+    expect(aliceRow).toHaveTextContent("Yellow stripe");
+    expect(aliceRow).toHaveTextContent("18+");
+    expect(aliceRow).toHaveTextContent("Active");
+
+    // Click individual "+ Add" button for Alice
+    await user.click(screen.getByTestId("bgc-add-student-101"));
+
+    // Right tray updates to 1 candidate selected
+    expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("1 candidate selected");
+    expect(screen.getByTestId("bgc-student-added-101")).toHaveTextContent("Added ✓");
+
+    // Click "Added ✓" on Alice to remove her
+    await user.click(screen.getByTestId("bgc-student-added-101"));
+    expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("0 candidates selected");
+    expect(screen.getByTestId("bgc-add-student-101")).toHaveTextContent("+ Add");
+  });
+
+  it("filters eligible students by age group and updates matching student records and rank groups", async () => {
+    vi.stubGlobal("fetch", setupCohortMock());
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+
+    const ageSelect = screen.getByTestId("bgc-age-filter");
+
+    // Filter to "8 and under" (AGE_8_AND_UNDER) - no active/eligible students match
+    await user.selectOptions(ageSelect, "AGE_8_AND_UNDER");
+
+    expect(screen.getByText("0 students match")).toBeVisible();
+    expect(screen.getByTestId("bgc-empty-filtered")).toHaveTextContent(
+      "No eligible students match the selected filters.",
+    );
+    expect(screen.getByText("No eligible students match the selected filters.", { selector: ".bgc-empty-td" })).toBeVisible();
+
+    // Filter to "13-17" (AGE_13_TO_17) - Charlie Brown (103) matches
+    await user.selectOptions(ageSelect, "AGE_13_TO_17");
+
+    expect(screen.getByText("1 student matches")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-103")).toHaveTextContent("Charlie Brown");
+    expect(screen.queryByTestId("bgc-student-row-101")).not.toBeInTheDocument();
+
+    // Section 2 rank groups reflect the filtered student (Yellow stripe, Kids 0 | Adults 1)
+    expect(screen.getByTestId("bgc-add-group-2")).toBeVisible();
+    expect(screen.queryByTestId("bgc-add-group-1")).not.toBeInTheDocument();
+    expect(screen.getByText("Kids 0 | Adults 1")).toBeVisible();
+
+    // Filter back to "All ages"
+    await user.selectOptions(ageSelect, "ALL");
+    expect(screen.getByText("3 students match")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-101")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-102")).toBeVisible();
+    expect(screen.getByTestId("bgc-student-row-103")).toBeVisible();
   });
 
   it("filters eligible students and adds filtered students to cohort", async () => {
@@ -3361,8 +3448,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
 
     // Modal opens
     expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
-    expect(screen.getByText("Alice Smith")).toBeVisible();
-    expect(screen.getByText("Bob Jones")).toBeVisible();
+    expect(screen.getByText("Alice Smith", { selector: ".bgc-modal-student-name" })).toBeVisible();
+    expect(screen.getByText("Bob Jones", { selector: ".bgc-modal-student-name" })).toBeVisible();
 
     // Remove Bob Jones (student 102)
     await user.click(screen.getByTestId("bgc-remove-student-102"));

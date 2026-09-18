@@ -2993,6 +2993,12 @@ components:
         can_be_graded:
           type: boolean
           readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3365,6 +3371,12 @@ components:
         can_be_graded:
           type: boolean
           readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3374,6 +3386,8 @@ components:
           format: date-time
           readOnly: true
       required:
+      - age_band
+      - age_band_display
       - can_be_graded
       - created_at
       - current_rank
@@ -3423,7 +3437,15 @@ components:
         status_display:
           type: string
           readOnly: true
+        age_band:
+          type: string
+          readOnly: true
+        age_band_display:
+          type: string
+          readOnly: true
       required:
+      - age_band
+      - age_band_display
       - current_rank
       - current_rank_code
       - current_rank_name

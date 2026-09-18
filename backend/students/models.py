@@ -91,3 +91,16 @@ class Student(models.Model):
     def can_be_graded(self) -> bool:
         """Whether this student may be registered as a grading candidate."""
         return self.status != Student.Status.LEFT
+
+    @property
+    def age_band(self) -> str:
+        """The canonical age band relative to today."""
+        from gradings.services import resolve_age_band
+
+        return resolve_age_band(self.date_of_birth, timezone.localdate())
+
+    @property
+    def age_band_display(self) -> str:
+        from syllabus.models import AgeBand
+
+        return AgeBand(self.age_band).label

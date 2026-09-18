@@ -995,14 +995,18 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 type="button"
                 className={`btn-primary ${
                   confirmModal.actionType === "DELETE" || confirmModal.actionType === "CANCEL"
-                    ? "gsd-modal-btn-danger"
+                    ? "btn-danger gsd-modal-btn-danger"
                     : ""
                 }`}
                 onClick={handleConfirmModalAction}
                 disabled={updateSessionMutation.isPending || deleteSessionMutation.isPending}
                 data-testid="gsd-modal-confirm-btn"
               >
-                Confirm
+                {confirmModal.actionType === "DELETE"
+                  ? deleteSessionMutation.isPending
+                    ? "Deleting…"
+                    : "Delete session"
+                  : "Confirm"}
               </button>
               <button
                 type="button"

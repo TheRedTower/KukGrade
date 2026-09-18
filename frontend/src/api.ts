@@ -21,6 +21,8 @@ export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEn
 export type GradingCandidate = components["schemas"]["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
+export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
+export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
@@ -309,6 +311,61 @@ export async function getCandidateAssessments(params?: {
   return apiRequest<PaginatedResponse<CandidateAssessment>>(
     `/api/gradings/assessments/${query ? `?${query}` : ""}`,
   );
+}
+
+export async function getCandidateAssessment(id: number): Promise<CandidateAssessment> {
+  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`);
+}
+
+export async function updateCandidateAssessment(
+  id: number,
+  data: {
+    status?: CandidateAssessmentStatus;
+    notes?: string;
+  },
+): Promise<CandidateAssessment> {
+  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getCandidateAssessmentItems(params?: {
+  assessment?: number;
+  candidate?: number;
+  session?: number;
+  category?: string;
+  result?: string;
+  required?: boolean;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<CandidateAssessmentItem>> {
+  const searchParams = new URLSearchParams();
+  if (params?.assessment !== undefined) searchParams.set("assessment", String(params.assessment));
+  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
+  if (params?.session !== undefined) searchParams.set("session", String(params.session));
+  if (params?.category) searchParams.set("category", params.category);
+  if (params?.result) searchParams.set("result", params.result);
+  if (params?.required !== undefined) searchParams.set("required", String(params.required));
+  if (params?.limit !== undefined) searchParams.set("limit", String(params.limit));
+  if (params?.offset !== undefined) searchParams.set("offset", String(params.offset));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
+    `/api/gradings/assessment-items/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function updateCandidateAssessmentItem(
+  id: number,
+  data: {
+    result?: CandidateAssessmentItemResult;
+    assessor_notes?: string;
+  },
+): Promise<CandidateAssessmentItem> {
+  return apiRequest<CandidateAssessmentItem>(`/api/gradings/assessment-items/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function getCandidateOutcomes(params?: {

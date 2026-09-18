@@ -3156,24 +3156,25 @@ h2 {
 }
 
 .gs-delete-row-btn {
-  color: #dc2626;
-  border-color: transparent;
+  color: #dc2626 !important;
+  border-color: rgba(220, 38, 38, 0.3) !important;
 }
 
 .gs-delete-row-btn:hover {
-  background: rgba(220, 38, 38, 0.08);
-  color: #b91c1c;
-  border-color: rgba(220, 38, 38, 0.2);
+  background: rgba(220, 38, 38, 0.08) !important;
+  color: #b91c1c !important;
+  border-color: rgba(220, 38, 38, 0.5) !important;
 }
 
 [data-theme="dark"] .gs-delete-row-btn {
-  color: #f87171;
+  color: #f87171 !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
 }
 
 [data-theme="dark"] .gs-delete-row-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
 }
 
 /* ── Status Badges ───────────────────────────────────────────────────────── */
@@ -3316,6 +3317,111 @@ h2 {
 [data-theme="dark"] .btn-ghost:hover:not(:disabled) {
   background: #2a2a2a;
   border-color: #555;
+}
+
+/* ── Danger Buttons ──────────────────────────────────────────────────────── */
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0 1.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #dc2626 !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3);
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+  filter: brightness(1.06);
+  box-shadow: 0 2px 6px rgba(185, 28, 28, 0.4);
+  text-decoration: none;
+}
+
+.btn-danger:active:not(:disabled) {
+  background: #991b1b !important;
+  border-color: #991b1b !important;
+  color: #ffffff !important;
+}
+
+.btn-danger:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+  box-shadow: none;
+}
+
+.btn-danger-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 36px;
+  padding: 0 0.85rem;
+  font-weight: 600;
+  font-size: 0.82rem;
+  border-radius: 7px;
+  border: 1px solid #dc2626 !important;
+  background: #dc2626 !important;
+  color: #ffffff !important;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.btn-danger-sm:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+}
+
+.btn-danger-sm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .btn-danger {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .btn-danger:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.5);
+}
+
+[data-theme="dark"] .btn-danger-sm {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-danger-sm:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 /* ── Loading & Empty States ──────────────────────────────────────────────── */
@@ -3942,6 +4048,20 @@ h2 {
 
 .gsd-danger-text {
   color: #dc2626 !important;
+}
+
+.gsd-dropdown-item.gsd-danger-text:hover {
+  background: rgba(220, 38, 38, 0.1) !important;
+  color: #b91c1c !important;
+}
+
+[data-theme="dark"] .gsd-danger-text {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .gsd-dropdown-item.gsd-danger-text:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
 }
 
 /* ── Lifecycle Progression Track ─────────────────────────────────────────── */
@@ -4628,10 +4748,27 @@ h2 {
 .gsd-modal-btn-danger {
   background: #dc2626 !important;
   border-color: #dc2626 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3) !important;
 }
 
-.gsd-modal-btn-danger:hover {
+.gsd-modal-btn-danger:hover:not(:disabled) {
   background: #b91c1c !important;
+  border-color: #b91c1c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .gsd-modal-btn-danger {
+  background: #dc2626 !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .gsd-modal-btn-danger:hover:not(:disabled) {
+  background: #b91c1c !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
 }
 
 /* ── Loading and Error States ────────────────────────────────────────────── */
@@ -5217,6 +5354,11 @@ h2 {
   color: #dc2626;
 }
 
+[data-theme="dark"] .bgc-btn-remove-group:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+}
+
 .bgc-tray-empty-td {
   text-align: center;
   padding: 2rem 1rem !important;
@@ -5427,6 +5569,15 @@ h2 {
   background: rgba(220, 38, 38, 0.1) !important;
 }
 
+[data-theme="dark"] .bgc-btn-remove-individual {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .bgc-btn-remove-individual:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+}
+
 /* ── EXCEPTION RESOLVER (SCR-018) ───────────────────────────────────────── */
 
 .bgc-resolver-summary-bar {
@@ -5555,6 +5706,15 @@ h2 {
   background: rgba(220, 38, 38, 0.1) !important;
 }
 
+[data-theme="dark"] .bgc-btn-remove {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .bgc-btn-remove:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+}
+
 /* ── Collapsible Successful Registrations ───────────────────────────────── */
 
 .bgc-successful-section {
@@ -5671,6 +5831,960 @@ h2 {
   font-size: 0.76rem;
   color: var(--color-text-muted);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCR-019 & SCR-020: Candidate Assessment Workspace & Completion Review
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.caw-page {
+  padding: 1.5rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.caw-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.caw-breadcrumbs a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.caw-breadcrumbs a:hover {
+  color: var(--color-gold-strong);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--color-border);
+  user-select: none;
+}
+
+.breadcrumb-current {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+/* ── Header Banner ───────────────────────────────────────────────────────── */
+
+.caw-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.caw-candidate-name {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.caw-candidate-wksa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.caw-wksa-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.caw-rank-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.caw-rank-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.caw-rank-tag-dest {
+  border-color: var(--color-gold);
+  background: rgba(242, 167, 27, 0.08);
+}
+
+.caw-rank-arrow {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.caw-age-pill {
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-weight: 500;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.caw-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.caw-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.caw-status-not-started {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.caw-status-in_progress {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.caw-status-completed {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+  border: 1px solid rgba(30, 125, 75, 0.25);
+}
+
+/* Rank Visual indicators */
+.caw-rank-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.caw-rank-stripes {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.caw-stripe-bar {
+  display: block;
+  height: 3px;
+  background-color: var(--rank-color, #94a3b8);
+  border-radius: 1px;
+}
+
+/* Complete Assessment CTA in Header */
+.caw-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.caw-complete-action-btn {
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 0.75rem 1.35rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+  min-height: 48px;
+}
+
+.caw-complete-ready {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-border);
+  color: var(--btn-primary-text);
+  box-shadow: var(--btn-primary-shadow);
+  cursor: pointer;
+}
+
+.caw-complete-ready:hover {
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-border);
+}
+
+.caw-review-btn {
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+}
+
+/* ── Progress Ledger Banner ──────────────────────────────────────────────── */
+
+.caw-progress-ledger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.25rem;
+  border-radius: 8px;
+  background: var(--color-warning-surface);
+  border: 1px solid rgba(185, 118, 10, 0.2);
+}
+
+.caw-progress-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.caw-progress-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-warning);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.caw-progress-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+}
+
+.caw-chip-met {
+  background: rgba(30, 125, 75, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(30, 125, 75, 0.25);
+}
+
+.caw-chip-not-met {
+  background: rgba(180, 35, 24, 0.15);
+  color: var(--color-danger);
+  border: 1px solid rgba(180, 35, 24, 0.25);
+}
+
+.caw-chip-not-assessed {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Not Started Prompt Banner ───────────────────────────────────────────── */
+
+.caw-not-started-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.caw-not-started-content h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+.caw-not-started-content p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Dual-Pane Layout (FDR-032) ──────────────────────────────────────────── */
+
+.caw-dual-pane {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .caw-dual-pane {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Left Category Sub-Rail ──────────────────────────────────────────────── */
+
+.caw-category-rail {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.caw-category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.caw-category-tab {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.9rem;
+  text-align: left;
+  transition: all 0.15s ease;
+  min-height: 48px;
+}
+
+.caw-category-tab:hover {
+  background: var(--color-surface-sunken);
+}
+
+.caw-tab-active {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 1px var(--color-gold);
+  font-weight: 600;
+}
+
+.caw-tab-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.caw-tab-korean {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  font-weight: normal;
+}
+
+.caw-tab-done-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(30, 125, 75, 0.12);
+  color: var(--color-success);
+}
+
+.caw-tab-remaining-badge {
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Right Assessment Items Panel ────────────────────────────────────────── */
+
+.caw-items-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.caw-category-heading-wrap {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-category-heading {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.caw-category-track {
+  font-size: 0.9rem;
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.caw-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+/* ── Item Card & 3-State Segmented Control (FDR-033) ─────────────────────── */
+
+.caw-item-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.15rem 1.35rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.caw-item-card:hover {
+  border-color: var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.caw-item-not-met {
+  border-left: 4px solid var(--color-danger);
+}
+
+.caw-item-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-item-info {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.caw-item-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-item-seq {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+}
+
+.caw-item-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+.caw-item-korean {
+  font-size: 0.92rem;
+  color: var(--color-text-muted);
+}
+
+.caw-required-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+  border: 1px solid rgba(185, 118, 10, 0.25);
+}
+
+.caw-optional-badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.caw-item-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.caw-item-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.caw-assessor-tag {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.caw-note-preview-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-danger);
+  font-style: italic;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.caw-note-preview-btn:hover {
+  text-decoration: underline;
+}
+
+.caw-add-note-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.caw-add-note-btn:hover {
+  color: var(--color-gold-strong);
+  text-decoration: underline;
+}
+
+.caw-inline-note-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.caw-inline-note-input {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.caw-save-note-btn {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.82rem;
+}
+
+/* ── 3-State Segmented Touch Control (FDR-033: min 48px touch targets) ── */
+
+.caw-segmented-control {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  padding: 3px;
+  gap: 3px;
+}
+
+.caw-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  min-height: 48px;
+  min-width: 80px;
+  padding: 0.5rem 0.95rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+}
+
+.caw-seg-btn:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.caw-seg-not-assessed.caw-seg-active {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.caw-seg-met.caw-seg-active {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(30, 125, 75, 0.3);
+}
+
+.caw-seg-not-met.caw-seg-active {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(180, 35, 24, 0.3);
+}
+
+/* ── SCR-020: Completion Review Workspace ────────────────────────────────── */
+
+.caw-review-header {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-candidate-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.caw-candidate-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.caw-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .caw-review-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.caw-review-left-card,
+.caw-review-right-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.caw-review-left-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.caw-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-card-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.caw-title-warning {
+  color: var(--color-danger);
+}
+
+.caw-rollup-chips {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-chip-total {
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.caw-category-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.caw-table-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.caw-category-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.caw-category-table th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-category-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.caw-korean-sub {
+  font-weight: normal;
+  color: var(--color-text-muted);
+}
+
+.caw-pct-flag {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.caw-pct-clean {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.caw-check-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+}
+
+/* Right Column Review Sections */
+
+.caw-not-met-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.caw-clean-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.caw-not-met-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.caw-not-met-item {
+  padding: 0.85rem 1rem;
+  border-radius: 6px;
+  background: var(--color-danger-surface);
+  border: 1px solid rgba(180, 35, 24, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.caw-not-met-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-not-met-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+
+.caw-not-met-cat {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.caw-not-met-notes {
+  margin: 0;
+  font-size: 0.86rem;
+  font-style: italic;
+  color: var(--color-danger);
+}
+
+.caw-not-met-assessor {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* General Notes Section */
+.caw-notes-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.caw-notes-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  resize: vertical;
+}
+
+.caw-notes-textarea:focus {
+  outline: none;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+
+/* Confirm Box */
+.caw-confirm-box {
+  background: var(--color-warning-surface);
+  border: 1px solid rgba(185, 118, 10, 0.25);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.caw-confirm-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.caw-warning-icon {
+  font-size: 1.1rem;
+}
+
+.caw-confirm-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.caw-complete-btn {
+  min-height: 48px;
+  padding: 0.75rem 1.5rem;
+}
+
+/* Loading & Error states */
+.caw-loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 1rem;
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+}
+
+.caw-error-banner,
+.caw-action-error {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background: var(--color-danger-surface);
+  border: 1px solid rgba(180, 35, 24, 0.25);
+  color: var(--color-danger);
+  font-size: 0.9rem;
+}
+
+.caw-action-error p {
+  margin: 0;
+}
+
 
 
 

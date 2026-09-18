@@ -26,6 +26,7 @@ import { GradingSessionsScreen } from "./GradingSessionsScreen";
 import { CreateGradingSessionScreen } from "./CreateGradingSessionScreen";
 import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
+import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -311,6 +312,10 @@ function BuildGradingCohortPage() {
   return <BuildGradingCohortScreen />;
 }
 
+function CandidateAssessmentPage() {
+  return <CandidateAssessmentScreen />;
+}
+
 function SyllabusPage() {
   return (
     <section aria-labelledby="syllabus-heading" className="ledger-section">
@@ -546,6 +551,7 @@ function App() {
               <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<CreateGradingSessionPage />} path="gradings/new" />
               <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
+              <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />
               <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
               <Route element={<GradingsPage />} path="gradings" />
               <Route element={<SyllabusPage />} path="syllabus" />

@@ -4,7 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
-import type { GradingCandidate, GradingSession, Rank, StudentListItem } from "./api";
+import type {
+  CandidateAssessment,
+  CandidateAssessmentItem,
+  CandidateAssessmentItemResult,
+  GradingCandidate,
+  GradingSession,
+  Rank,
+  StudentListItem,
+} from "./api";
 
 const authUser = {
   id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
@@ -574,7 +582,7 @@ describe("Navigation rail and role-gated routes", () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
-    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
   });
 
   it("redirects an unauthorised instructor attempting direct URL access to /users", async () => {
@@ -587,7 +595,7 @@ describe("Navigation rail and role-gated routes", () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
-    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
   });
 
   it("redirects an Authorised Master attempting direct URL access to /users", async () => {
@@ -3717,6 +3725,500 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Finish and view session button navigates back
     await user.click(screen.getByTestId("bgc-finish-view-session-btn"));
     expect(window.location.pathname).toBe("/gradings/10");
+  });
+});
+
+// Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)
+describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessments/:candidateId)", () => {
+  const mockSession: GradingSession = {
+    id: 10,
+    title: "Autumn Grading",
+    grading_date: "2026-10-15",
+    location: "Main Dojang",
+    status: "OPEN",
+    status_display: "Open",
+    notes: "",
+    cancellation_reason: "",
+    created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    created_by_email: "casey@example.com",
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:00:00Z",
+  };
+
+  const mockCandidate: GradingCandidate = {
+    id: 101,
+    session: 10,
+    session_title: "Autumn Grading",
+    student: 1,
+    student_display_name: "Alex Carter",
+    student_wksa_id: "KG-0264",
+    testing_for_rank: 2,
+    testing_for_rank_code: "YELLOW",
+    testing_for_rank_name: "Yellow",
+    age_band: "AGE_9_TO_12",
+    age_band_display: "Junior (9–12)",
+    status: "REGISTERED",
+    status_display: "Registered",
+    notes: "",
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:00:00Z",
+  };
+
+  const mockStudent: StudentListItem = {
+    id: 1,
+    first_name: "Alex",
+    last_name: "Carter",
+    wksa_id: "KG-0264",
+    current_rank: 1,
+    current_rank_code: "YELLOW_STRIPE",
+    current_rank_name: "Yellow stripe belt",
+    age_band: "AGE_9_TO_12",
+    age_band_display: "Junior (9–12)",
+    status: "ACTIVE",
+    status_display: "Active",
+  };
+
+  const mockAssessment: CandidateAssessment = {
+    id: 501,
+    candidate: 101,
+    candidate_student_name: "Alex Carter",
+    candidate_student_wksa_id: "KG-0264",
+    testing_for_rank_code: "YELLOW",
+    testing_for_rank_name: "Yellow",
+    age_band: "AGE_9_TO_12",
+    age_band_display: "Junior (9–12)",
+    status: "IN_PROGRESS",
+    status_display: "In progress",
+    generated_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    generated_by_email: "casey@example.com",
+    generated_at: "2026-09-18T10:00:00Z",
+    started_at: "2026-09-18T10:05:00Z",
+    completed_at: null,
+    notes: "",
+    item_counts: { total: 3, required: 3, met: 1, not_met: 1, not_assessed: 1 },
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:05:00Z",
+  };
+
+  const mockItem1: CandidateAssessmentItem = {
+    id: 1001,
+    assessment: 501,
+    source_requirement: 1,
+    source_item: 1,
+    source_rank: 2,
+    source_age_band: "AGE_9_TO_12",
+    item_code: "ETIQUETTE_01",
+    item_name: "Etiquette & Bowing",
+    korean_name: "예의",
+    category: "ETIQUETTE",
+    category_display: "Etiquette",
+    requirement_sequence: 1,
+    required: true,
+    start_number: null,
+    end_number: null,
+    display_range: "",
+    requirement_notes: "Proper bow, respect for flags and instructors",
+    result: "MET",
+    result_display: "Met",
+    assessor: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    assessor_email: "casey@example.com",
+    assessed_at: "2026-09-18T10:10:00Z",
+    assessor_notes: "",
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:10:00Z",
+  };
+
+  const mockItem2: CandidateAssessmentItem = {
+    id: 1002,
+    assessment: 501,
+    source_requirement: 2,
+    source_item: 2,
+    source_rank: 2,
+    source_age_band: "AGE_9_TO_12",
+    item_code: "KICKING_01",
+    item_name: "Ap Cha Gi (Front Kick)",
+    korean_name: "앞차기",
+    category: "KICKING",
+    category_display: "Kicking",
+    requirement_sequence: 2,
+    required: true,
+    start_number: null,
+    end_number: null,
+    display_range: "",
+    requirement_notes: "Full chamber, ball of foot contact",
+    result: "NOT_MET",
+    result_display: "Not Met",
+    assessor: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+    assessor_email: "casey@example.com",
+    assessed_at: "2026-09-18T10:15:00Z",
+    assessor_notes: "Guard dropped on turn",
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:15:00Z",
+  };
+
+  const mockItem3: CandidateAssessmentItem = {
+    id: 1003,
+    assessment: 501,
+    source_requirement: 3,
+    source_item: 3,
+    source_rank: 2,
+    source_age_band: "AGE_9_TO_12",
+    item_code: "KICKING_02",
+    item_name: "Yup Cha Gi (Side Kick)",
+    korean_name: "옆차기",
+    category: "KICKING",
+    category_display: "Kicking",
+    requirement_sequence: 3,
+    required: true,
+    start_number: null,
+    end_number: null,
+    display_range: "",
+    requirement_notes: "Pivot on base foot, blade of foot strike",
+    result: "NOT_ASSESSED",
+    result_display: "Not Assessed",
+    assessor: null,
+    assessor_email: "",
+    assessed_at: null,
+    assessor_notes: "",
+    created_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:00:00Z",
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/gradings/10/assessments/101");
+    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.setItem("kukgrade-has-signed-in", "true");
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("renders candidate assessment workspace with dual-pane layout, sub-rail, and items", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, mockSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    // Candidate header
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+    expect(screen.getByText("KG-0264")).toBeVisible();
+    expect(screen.getByText("Junior (9–12)")).toBeVisible();
+    expect(screen.getByText("In progress")).toBeVisible();
+
+    // Progress ledger
+    expect(screen.getByText("2 / 3")).toBeVisible();
+    expect(screen.getByText(/Required items assessed \(67%\)/)).toBeVisible();
+    expect(screen.getByText("1 Met")).toBeVisible();
+    expect(screen.getByText("1 Not Met")).toBeVisible();
+    expect(screen.getByText("1 Not Assessed")).toBeVisible();
+
+    // Category rail has Etiquette and Kicking
+    expect(screen.getByTestId("caw-cat-tab-ETIQUETTE")).toBeVisible();
+    expect(screen.getByTestId("caw-cat-tab-KICKING")).toBeVisible();
+
+    // "Complete assessment" button is disabled because 1 required item remains
+    const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
+    expect(completeBtn).toBeDisabled();
+    expect(completeBtn).toHaveTextContent("Complete assessment (1 required remaining)");
+  });
+
+  it("updates item evaluation via segmented controls with immediate auto-save", async () => {
+    let patchedItemId: number | null = null;
+    let patchedBody: Record<string, unknown> | null = null;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, mockSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/1003/") && init?.method === "PATCH") {
+        patchedItemId = 1003;
+        patchedBody = JSON.parse(String(init?.body));
+        return jsonResponse(200, {
+          ...mockItem3,
+          result: (patchedBody?.result as CandidateAssessmentItemResult) ?? "MET",
+          assessor: authUser.id,
+          assessor_email: authUser.email,
+          assessed_at: "2026-09-18T10:20:00Z",
+        });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // Item 1003 (Yup Cha Gi) is currently NOT_ASSESSED. Click "Met"
+    const metBtn = screen.getByTestId("btn-met-1003");
+    await user.click(metBtn);
+
+    // Verify PATCH was made
+    expect(patchedItemId).toBe(1003);
+    expect(patchedBody).toEqual({ result: "MET" });
+  });
+
+  it("switches categories via the left sub-rail", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // Click "Etiquette" category tab
+    const etiquetteTab = screen.getByTestId("caw-cat-tab-ETIQUETTE");
+    await user.click(etiquetteTab);
+
+    // Etiquette item is displayed
+    expect(screen.getByText("Etiquette & Bowing")).toBeVisible();
+    // Kicking items are not displayed when filtered to Etiquette
+    expect(screen.queryByText("Ap Cha Gi (Front Kick)")).not.toBeInTheDocument();
+
+    // Click "Kicking" category tab
+    const kickingTab = screen.getByTestId("caw-cat-tab-KICKING");
+    await user.click(kickingTab);
+
+    // Kicking items are displayed
+    expect(screen.getByText("Ap Cha Gi (Front Kick)")).toBeVisible();
+    expect(screen.getByText("Yup Cha Gi (Side Kick)")).toBeVisible();
+  });
+
+  it("transitions to Completion Review (SCR-020) and confirms completion", async () => {
+    // Assessment with all 3 items assessed (2 Met, 1 Not Met, 0 Not Assessed)
+    const completedItemsAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
+    };
+    const allAssessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+
+    let completedPayload: Record<string, unknown> | null = null;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/501/") && init?.method === "PATCH") {
+        completedPayload = JSON.parse(String(init?.body));
+        return jsonResponse(200, {
+          ...completedItemsAssessment,
+          status: "COMPLETED",
+          status_display: "Completed",
+          notes: (completedPayload?.notes as string) ?? "",
+          completed_at: "2026-09-18T10:30:00Z",
+        });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [completedItemsAssessment],
+        });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, allAssessedItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // "Complete assessment" is ready and enabled
+    const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
+    expect(completeBtn).toBeEnabled();
+    expect(completeBtn).toHaveTextContent("Complete assessment →");
+
+    // Click to enter review mode
+    await user.click(completeBtn);
+
+    // Review mode renders (SCR-020)
+    expect(await screen.findByRole("heading", { name: "Review & Complete Assessment" })).toBeVisible();
+    expect(screen.getByText("Evaluation Rollup")).toBeVisible();
+    expect(screen.getByText("Category Breakdown")).toBeVisible();
+    expect(screen.getByText("Attention: 1 Item Not Met")).toBeVisible();
+    expect(screen.getByTestId("flagged-item-1002")).toBeVisible();
+    expect(screen.getByText('"Guard dropped on turn"')).toBeVisible();
+
+    // Enter general assessment notes
+    const notesInput = screen.getByLabelText("General Assessment Notes");
+    await user.type(notesInput, "Strong etiquette and balance, focus on guard discipline during spinning kicks.");
+
+    // Click "Confirm & complete assessment"
+    const confirmBtn = screen.getByTestId("confirm-complete-assessment-btn");
+    await user.click(confirmBtn);
+
+    // Verify completion payload
+    await waitFor(() => {
+      expect(completedPayload).toEqual({
+        status: "COMPLETED",
+        notes: "Strong etiquette and balance, focus on guard discipline during spinning kicks.",
+      });
+    });
+
+    // Navigates back to session roster
+    expect(window.location.pathname).toBe("/gradings/10");
+  });
+
+  it("handles NOT_STARTED assessment by offering start button", async () => {
+    const notStartedAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      status: "NOT_STARTED",
+      status_display: "Not started",
+      started_at: null,
+      item_counts: { total: 3, required: 3, met: 0, not_met: 0, not_assessed: 3 },
+    };
+
+    let startPayload: Record<string, unknown> | null = null;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/501/") && init?.method === "PATCH") {
+        startPayload = JSON.parse(String(init?.body));
+        return jsonResponse(200, {
+          ...notStartedAssessment,
+          status: "IN_PROGRESS",
+          status_display: "In progress",
+          started_at: "2026-09-18T10:15:00Z",
+        });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [notStartedAssessment],
+        });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [
+            { ...mockItem1, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
+            { ...mockItem2, result: "NOT_ASSESSED", assessor: null, assessor_email: "", assessed_at: null },
+            mockItem3,
+          ],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    // Prompt banner is displayed
+    expect(await screen.findByTestId("caw-not-started-banner")).toBeVisible();
+    expect(screen.getByText("Assessment Ready To Begin")).toBeVisible();
+
+    // Start assessment button
+    const startBtn = screen.getByTestId("start-assessment-btn");
+    await user.click(startBtn);
+
+    expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
 });
 

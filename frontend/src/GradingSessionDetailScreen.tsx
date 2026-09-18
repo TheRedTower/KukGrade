@@ -547,6 +547,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         </div>
 
         <div className="gsd-header-actions">
+          {(session.status === "LOCKED" || session.status === "COMPLETED") && (
+            <Link
+              to={`/gradings/${session.id}/promotions`}
+              className="btn btn-secondary gsd-promotion-ledger-btn"
+              data-testid="gsd-promotion-ledger-btn"
+            >
+              Promotion ledger →
+            </Link>
+          )}
+
           {/* Actions Dropdown */}
           <div className="gsd-dropdown-wrap" ref={actionsMenuRef}>
             <button
@@ -614,6 +624,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                 {session.status === "LOCKED" && (
                   <>
+                    <Link
+                      to={`/gradings/${session.id}/promotions`}
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      Promotion ledger
+                    </Link>
                     <button
                       type="button"
                       role="menuitem"
@@ -841,8 +859,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   } else if (assessmentStatus === "COMPLETED") {
                     if (outcomeStatus === "FINALISED") {
-                      nextActionLabel = "View record →";
-                      isDecisionDrawerTrigger = true;
+                      if (item.outcome?.final_outcome === "PASS") {
+                        nextActionLabel = "Promotion ledger →";
+                        nextActionUrl = `/gradings/${session.id}/promotions`;
+                      } else {
+                        nextActionLabel = "View record →";
+                        isDecisionDrawerTrigger = true;
+                      }
                     } else if (outcomeStatus === "PROPOSED") {
                       if (currentUser?.can_make_final_grading_decision) {
                         nextActionLabel = "Review decision →";

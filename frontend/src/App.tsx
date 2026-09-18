@@ -28,6 +28,7 @@ import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
 import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
+import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -313,6 +314,10 @@ function BuildGradingCohortPage() {
   return <BuildGradingCohortScreen />;
 }
 
+function PromotionLedgerPage() {
+  return <PromotionLedgerScreen />;
+}
+
 function CandidateAssessmentPage() {
   return <CandidateAssessmentScreen />;
 }
@@ -540,6 +545,7 @@ function App() {
               <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<CreateGradingSessionPage />} path="gradings/new" />
               <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
+              <Route element={<PromotionLedgerPage />} path="gradings/:id/promotions" />
               <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />
               <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
               <Route element={<GradingsPage />} path="gradings" />

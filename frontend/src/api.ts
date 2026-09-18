@@ -443,6 +443,23 @@ export async function getCandidateAssessmentSummary(
   );
 }
 
+export async function finaliseCandidateOutcome(
+  outcomeId: number,
+  data: {
+    final_outcome: "PASS" | "CONDITIONAL" | "FAIL";
+    decision_notes?: string;
+    conditional_requirements?: string;
+  },
+): Promise<CandidateOutcome> {
+  return apiRequest<CandidateOutcome>(
+    `/api/gradings/outcomes/${outcomeId}/finalise/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+  );
+}
+
 export async function getAuditEvents(params?: {
   limit?: number;
   offset?: number;

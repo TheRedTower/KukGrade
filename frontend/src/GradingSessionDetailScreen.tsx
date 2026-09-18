@@ -18,6 +18,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
+import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 
 function formatSessionDate(dateStr: string): string {
   try {
@@ -194,6 +195,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Drawer state for SCR-021 Instructor Outcome Proposal
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
+  // Drawer state for SCR-022 Master Final Decision
+  const [decisionDrawerItem, setDecisionDrawerItem] = useState<EnrichedCandidate | null>(null);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -831,6 +834,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   let nextActionLabel = "Start assessment →";
                   let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   let isProposalDrawerTrigger = false;
+                  let isDecisionDrawerTrigger = false;
 
                   if (assessmentStatus === "IN_PROGRESS") {
                     nextActionLabel = "Continue assessment →";
@@ -838,11 +842,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   } else if (assessmentStatus === "COMPLETED") {
                     if (outcomeStatus === "FINALISED") {
                       nextActionLabel = "View record →";
-                      nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
+                      isDecisionDrawerTrigger = true;
                     } else if (outcomeStatus === "PROPOSED") {
                       if (currentUser?.can_make_final_grading_decision) {
                         nextActionLabel = "Review decision →";
-                        nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
+                        isDecisionDrawerTrigger = true;
                       } else {
                         nextActionLabel = "Review proposal →";
                         isProposalDrawerTrigger = true;
@@ -890,6 +894,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                             className="btn-ghost gsd-row-action-btn"
                             onClick={() => setProposalDrawerItem(item)}
                             data-testid={`propose-outcome-btn-${candidateId}`}
+                          >
+                            {nextActionLabel}
+                          </button>
+                        ) : isDecisionDrawerTrigger ? (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn"
+                            onClick={() => setDecisionDrawerItem(item)}
+                            data-testid={`review-decision-btn-${candidateId}`}
                           >
                             {nextActionLabel}
                           </button>
@@ -1065,6 +1078,27 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
             queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
             setProposalDrawerItem(null);
+          }}
+        />
+      )}
+
+      {/* ── Master Final Decision Drawer (SCR-022) ────────────────────────── */}
+      {decisionDrawerItem && session && (
+        <MasterFinalDecisionDrawer
+          key={decisionDrawerItem.candidate.id}
+          candidate={decisionDrawerItem.candidate}
+          assessment={decisionDrawerItem.assessment}
+          outcome={decisionDrawerItem.outcome}
+          currentRankName={decisionDrawerItem.currentRankName}
+          targetRankName={decisionDrawerItem.targetRankName}
+          sessionStatus={session.status}
+          isOpen={true}
+          onClose={() => setDecisionDrawerItem(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
+            setDecisionDrawerItem(null);
           }}
         />
       )}

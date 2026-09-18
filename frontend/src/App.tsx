@@ -27,6 +27,7 @@ import { CreateGradingSessionScreen } from "./CreateGradingSessionScreen";
 import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
 import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
+import { SyllabusScreen } from "./SyllabusScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -317,19 +318,7 @@ function CandidateAssessmentPage() {
 }
 
 function SyllabusPage() {
-  return (
-    <section aria-labelledby="syllabus-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="syllabus-heading">Syllabus</h1>
-          <p className="section-subtitle">Curriculum and rank requirements</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Syllabus chapters, techniques, and forms reference.</p>
-      </div>
-    </section>
-  );
+  return <SyllabusScreen />;
 }
 
 function AuditPage() {

@@ -16,6 +16,8 @@ import {
   updateGradingSession,
   deleteGradingSession,
 } from "./api";
+import { useAuth } from "./auth";
+import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 
 function formatSessionDate(dateStr: string): string {
   try {
@@ -33,7 +35,7 @@ function formatSessionDate(dateStr: string): string {
   }
 }
 
-function RankVisual({ rankName }: { rankName: string }) {
+export function RankVisual({ rankName }: { rankName: string }) {
   const isStripe = rankName.toLowerCase().includes("stripe");
   const lower = rankName.toLowerCase();
 
@@ -188,6 +190,10 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const queryClient = useQueryClient();
 
   const sessionId = id ? parseInt(id, 10) : NaN;
+  const { user: currentUser } = useAuth();
+
+  // Drawer state for SCR-021 Instructor Outcome Proposal
+  const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -824,20 +830,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                   let nextActionLabel = "Start assessment →";
                   let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
+                  let isProposalDrawerTrigger = false;
 
                   if (assessmentStatus === "IN_PROGRESS") {
                     nextActionLabel = "Continue assessment →";
                     nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   } else if (assessmentStatus === "COMPLETED") {
-                    if (outcomeStatus === "PROPOSED") {
-                      nextActionLabel = "Review decision →";
-                      nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
-                    } else if (outcomeStatus === "FINALISED") {
+                    if (outcomeStatus === "FINALISED") {
                       nextActionLabel = "View record →";
                       nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
+                    } else if (outcomeStatus === "PROPOSED") {
+                      if (currentUser?.can_make_final_grading_decision) {
+                        nextActionLabel = "Review decision →";
+                        nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
+                      } else {
+                        nextActionLabel = "Review proposal →";
+                        isProposalDrawerTrigger = true;
+                      }
                     } else {
-                      nextActionLabel = "Review decision →";
-                      nextActionUrl = `/gradings/${session.id}/outcomes/${candidateId}`;
+                      nextActionLabel = "Propose outcome →";
+                      isProposalDrawerTrigger = true;
                     }
                   }
 
@@ -872,12 +884,23 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         <OutcomeBadge outcome={item.outcome} />
                       </td>
                       <td className="gsd-cell-action">
-                        <Link
-                          to={nextActionUrl}
-                          className="btn-ghost gsd-row-action-btn"
-                        >
-                          {nextActionLabel}
-                        </Link>
+                        {isProposalDrawerTrigger ? (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn"
+                            onClick={() => setProposalDrawerItem(item)}
+                            data-testid={`propose-outcome-btn-${candidateId}`}
+                          >
+                            {nextActionLabel}
+                          </button>
+                        ) : (
+                          <Link
+                            to={nextActionUrl}
+                            className="btn-ghost gsd-row-action-btn"
+                          >
+                            {nextActionLabel}
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   );
@@ -962,30 +985,35 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {confirmModal && (
         <div
-          className="gsd-modal-backdrop"
+          className="gsd-modal-backdrop gsd-modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => setConfirmModal(null)}
+          aria-labelledby="gsd-confirm-modal-title"
+          data-testid="gsd-confirm-modal"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setConfirmModal(null);
+            }
+          }}
         >
-          <div
-            className="gsd-modal-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="gsd-modal-title">{confirmModal.title}</h3>
+          <div className="gsd-modal-card">
+            <h2 id="gsd-confirm-modal-title" className="gsd-modal-title">
+              {confirmModal.title}
+            </h2>
             <p className="gsd-modal-message">{confirmModal.message}</p>
 
             {confirmModal.actionType === "CANCEL" && (
-              <div className="gsd-modal-field">
-                <label htmlFor="gsd-cancel-reason" className="gsd-field-label">
+              <div className="gsd-cancel-reason-field">
+                <label htmlFor="cancellation-reason" className="gsd-field-label">
                   Cancellation reason (optional)
                 </label>
                 <textarea
-                  id="gsd-cancel-reason"
-                  className="gsd-modal-textarea"
+                  id="cancellation-reason"
+                  className="gsd-textarea"
+                  rows={3}
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
-                  placeholder="Explain why this session is being cancelled..."
-                  rows={3}
+                  placeholder="Explain why the session is being cancelled…"
                 />
               </div>
             )}
@@ -994,8 +1022,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               <button
                 type="button"
                 className={`btn-primary ${
-                  confirmModal.actionType === "DELETE" || confirmModal.actionType === "CANCEL"
-                    ? "btn-danger gsd-modal-btn-danger"
+                  confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE"
+                    ? "gsd-modal-btn-danger"
                     : ""
                 }`}
                 onClick={handleConfirmModalAction}
@@ -1019,6 +1047,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Instructor Outcome Proposal Drawer (SCR-021) ────────────────────── */}
+      {proposalDrawerItem && session && (
+        <OutcomeProposalDrawer
+          key={proposalDrawerItem.candidate.id}
+          candidate={proposalDrawerItem.candidate}
+          assessment={proposalDrawerItem.assessment}
+          existingOutcome={proposalDrawerItem.outcome}
+          currentRankName={proposalDrawerItem.currentRankName}
+          targetRankName={proposalDrawerItem.targetRankName}
+          isOpen={true}
+          onClose={() => setProposalDrawerItem(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
+            queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
+            setProposalDrawerItem(null);
+          }}
+        />
       )}
     </div>
   );

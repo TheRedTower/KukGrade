@@ -26,6 +26,35 @@ export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
+export type OverallAssessmentSummary = {
+  total: number;
+  required: number;
+  met: number;
+  not_met: number;
+  not_assessed: number;
+  required_met: number;
+  required_not_met: number;
+  required_not_assessed: number;
+  all_required_assessed: boolean;
+  all_required_met: boolean;
+};
+export type CategoryAssessmentSummary = {
+  category: string;
+  total: number;
+  required: number;
+  met: number;
+  not_met: number;
+  not_assessed: number;
+  required_met: number;
+  required_not_met: number;
+  required_not_assessed: number;
+  all_required_assessed: boolean;
+  all_required_met: boolean;
+};
+export type CandidateAssessmentSummary = {
+  overall: OverallAssessmentSummary;
+  categories: CategoryAssessmentSummary[];
+};
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
@@ -378,6 +407,37 @@ export async function getCandidateOutcomes(params?: {
   const query = searchParams.toString();
   return apiRequest<PaginatedResponse<CandidateOutcome>>(
     `/api/gradings/outcomes/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getCandidateOutcome(id: number): Promise<CandidateOutcome> {
+  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${id}/`);
+}
+
+export async function createCandidateOutcome(candidateId: number): Promise<CandidateOutcome> {
+  return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/create-outcome/`, {
+    method: "POST",
+  });
+}
+
+export async function proposeCandidateOutcome(
+  outcomeId: number,
+  data: {
+    proposed_outcome: CandidateOutcomeOutcome;
+    proposal_notes?: string;
+  },
+): Promise<CandidateOutcome> {
+  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/propose/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getCandidateAssessmentSummary(
+  outcomeId: number,
+): Promise<CandidateAssessmentSummary> {
+  return apiRequest<CandidateAssessmentSummary>(
+    `/api/gradings/outcomes/${outcomeId}/summary/`,
   );
 }
 

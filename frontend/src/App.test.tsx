@@ -3197,6 +3197,190 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     );
     expect(deleteCalls.length).toBe(1);
   });
+
+  it("opens SCR-021 Instructor Outcome Proposal Drawer, displays candidate context and assessment stats, and submits proposal", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, {
+          ...adminUser,
+          role: "INSTRUCTOR",
+          can_make_final_grading_decision: false,
+        });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, testSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, {
+          count: testCandidates.length,
+          next: null,
+          previous: null,
+          results: testCandidates,
+        });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, {
+          count: testAssessments.length,
+          next: null,
+          previous: null,
+          results: testAssessments,
+        });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 24,
+          next: null,
+          previous: null,
+          results: Array.from({ length: 24 }, (_, i) => ({
+            id: 1000 + i,
+            item_code: `ITEM-${i}`,
+            category: "TECHNIQUE",
+            required: true,
+            result: "MET",
+            requirement_sequence: i,
+          })),
+        });
+      }
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        return jsonResponse(201, {
+          ...testOutcomes[0],
+          id: 401,
+          status: "DRAFT",
+          proposed_outcome: null,
+          proposal_notes: "",
+        });
+      }
+      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+        const body = JSON.parse(init.body as string);
+        return jsonResponse(200, {
+          ...testOutcomes[0],
+          id: 401,
+          status: "PROPOSED",
+          proposed_outcome: body.proposed_outcome,
+          proposal_notes: body.proposal_notes || "",
+        });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: testStudentsList.length,
+          next: null,
+          previous: null,
+          results: testStudentsList,
+        });
+      }
+      return jsonResponse(404, {});
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Candidate 102 (Brooke Ellis) has COMPLETED assessment but no outcome -> shows "Propose outcome →"
+    const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
+    expect(proposeBtn).toBeVisible();
+    expect(proposeBtn).toHaveTextContent("Propose outcome →");
+
+    // Click "Propose outcome →" to open drawer
+    await user.click(proposeBtn);
+
+    // Verify drawer is opened
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    expect(drawer).toBeVisible();
+
+    // Verify candidate context banner
+    expect(within(drawer).getByText("Brooke Ellis")).toBeVisible();
+    expect(within(drawer).getByText("WKSA: UK-1002")).toBeVisible();
+    expect(within(drawer).getByText("Blue")).toBeVisible();
+    expect(within(drawer).getByText("Red stripe")).toBeVisible();
+
+    // Verify assessment completion summary
+    expect(await within(drawer).findByText("Assessment complete")).toBeVisible();
+    expect(within(drawer).getByText(/24 of 24 Required items met \(100%\)/)).toBeVisible();
+    expect(within(drawer).getByText("0 Not Met")).toBeVisible();
+
+    // Verify 3-option proposed outcome selector cards
+    expect(within(drawer).getByTestId("outcome-option-pass")).toBeVisible();
+    expect(within(drawer).getByTestId("outcome-option-conditional")).toBeVisible();
+    expect(within(drawer).getByTestId("outcome-option-fail")).toBeVisible();
+
+    // Switch selection to CONDITIONAL
+    await user.click(within(drawer).getByTestId("outcome-option-conditional"));
+    const conditionalCard = within(drawer).getByTestId("outcome-option-conditional");
+    expect(conditionalCard).toHaveClass("is-selected");
+
+    // Enter proposal notes
+    const notesTextarea = within(drawer).getByTestId("opd-notes-textarea");
+    await user.type(notesTextarea, "Recommend re-testing form 3 within 2 weeks.");
+
+    // Verify informational callout
+    expect(within(drawer).getByTestId("opd-callout-info")).toBeVisible();
+    expect(within(drawer).getByText("Master review required")).toBeVisible();
+
+    // Submit proposal
+    const submitBtn = within(drawer).getByTestId("opd-submit-btn");
+    await user.click(submitBtn);
+
+    // Verify create-outcome and propose endpoints were called
+    await waitFor(() => {
+      const proposeCall = fetchMock.mock.calls.find(([url, init]) =>
+        url.includes("/propose/") && init?.method === "PATCH",
+      );
+      expect(proposeCall).toBeDefined();
+      const body = JSON.parse(proposeCall![1]!.body as string);
+      expect(body.proposed_outcome).toBe("CONDITIONAL");
+      expect(body.proposal_notes).toContain("Recommend re-testing form 3");
+    });
+
+    // Drawer closes on success
+    await waitFor(() => {
+      expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+    });
+  });
+
+  it("dismisses SCR-021 Outcome Proposal Drawer on Cancel button and Escape key", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open drawer for candidate 102
+    const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
+    await user.click(proposeBtn);
+
+    expect(await screen.findByTestId("outcome-proposal-drawer")).toBeVisible();
+
+    // Dismiss via Cancel button
+    const cancelBtn = screen.getByTestId("opd-cancel-btn");
+    await user.click(cancelBtn);
+
+    expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+
+    // Open drawer again and dismiss via Escape key
+    await user.click(proposeBtn);
+    expect(await screen.findByTestId("outcome-proposal-drawer")).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

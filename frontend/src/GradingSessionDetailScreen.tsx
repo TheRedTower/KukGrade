@@ -350,6 +350,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     ).length;
   }, [enrichedCandidates]);
 
+  // Check if any assessment work has been started (for delete eligibility)
+  const hasAssessmentWork = useMemo(() => {
+    const assessments = assessmentsQuery.data?.results ?? [];
+    return assessments.some((a) => a.status !== "NOT_STARTED");
+  }, [assessmentsQuery.data]);
+
   // Filter candidates by search and status
   const filteredCandidates = useMemo(() => {
     return enrichedCandidates.filter((item) => {
@@ -638,14 +644,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 )}
 
                 {session.status === "CANCELLED" && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="gsd-dropdown-item"
-                    onClick={() => handleActionClick("OPEN")}
-                  >
-                    Re-open session
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => handleActionClick("OPEN")}
+                    >
+                      Re-open session
+                    </button>
+                    {!hasAssessmentWork && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item gsd-danger-text"
+                        onClick={() => handleActionClick("DELETE")}
+                      >
+                        Delete session
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             )}

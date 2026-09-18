@@ -12,7 +12,7 @@ from students.models import Student
 from students.services import create_student, update_student
 
 
-class PromotionRankHistorySerializer(serializers.ModelSerializer):
+class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
     from_rank_code = serializers.CharField(source="from_rank.code", read_only=True)
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     to_rank_code = serializers.CharField(source="to_rank.code", read_only=True)
@@ -68,7 +68,7 @@ class PromotionRankHistorySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class StudentRankHistorySerializer(serializers.Serializer):
+class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
     student = serializers.SerializerMethodField()
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.SerializerMethodField()
@@ -78,7 +78,7 @@ class StudentRankHistorySerializer(serializers.Serializer):
     promotions = PromotionRankHistorySerializer(many=True, read_only=True)
 
     def get_student(self, obj: StudentRankTimeline) -> int:
-        return obj["student"].id
+        return int(obj["student"].pk)
 
     def get_student_display_name(self, obj: StudentRankTimeline) -> str:
         return str(obj["student"])
@@ -87,7 +87,7 @@ class StudentRankHistorySerializer(serializers.Serializer):
         return obj["student"].wksa_id
 
     def get_current_rank(self, obj: StudentRankTimeline) -> int:
-        return obj["current_rank"].id
+        return int(obj["current_rank"].pk)
 
     def get_current_rank_code(self, obj: StudentRankTimeline) -> str:
         return obj["current_rank"].code
@@ -96,7 +96,7 @@ class StudentRankHistorySerializer(serializers.Serializer):
         return obj["current_rank"].name
 
 
-class StudentListSerializer(serializers.ModelSerializer):
+class StudentListSerializer(serializers.ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
     Date of birth is the most sensitive field held, on people who may be
@@ -132,7 +132,7 @@ class StudentListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class StudentSerializer(serializers.ModelSerializer):
+class StudentSerializer(serializers.ModelSerializer[Student]):
     """Detail, create and update. wksa_id is writable only on create.
 
     One serializer rather than three: create and update share every field

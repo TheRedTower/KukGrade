@@ -3148,6 +3148,34 @@ h2 {
   text-align: right;
 }
 
+.gs-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.gs-delete-row-btn {
+  color: #dc2626;
+  border-color: transparent;
+}
+
+.gs-delete-row-btn:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+[data-theme="dark"] .gs-delete-row-btn {
+  color: #f87171;
+}
+
+[data-theme="dark"] .gs-delete-row-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
 /* ── Status Badges ───────────────────────────────────────────────────────── */
 
 .gs-status-badge {

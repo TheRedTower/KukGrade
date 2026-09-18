@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type GradingSession,
   type GradingSessionStatus,
+  ApiError,
+  deleteGradingSession,
   getGradingSessions,
   getGradingCandidates,
   getCandidateAssessments,
@@ -162,9 +164,18 @@ interface SessionRowProps {
   candidateCount: number | null;
   assessmentsComplete: number | null;
   onView: () => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
 }
 
-function SessionRow({ session, candidateCount, assessmentsComplete, onView }: SessionRowProps) {
+function SessionRow({
+  session,
+  candidateCount,
+  assessmentsComplete,
+  onView,
+  canDelete = false,
+  onDelete,
+}: SessionRowProps) {
   const statusTyped = session.status as GradingSessionStatus;
   const isOpen = statusTyped === "OPEN";
   const isDraft = statusTyped === "DRAFT";
@@ -185,9 +196,21 @@ function SessionRow({ session, candidateCount, assessmentsComplete, onView }: Se
         <SessionStatusBadge status={statusTyped} />
       </td>
       <td className="gs-table-cell gs-cell-action">
-        <button className="btn-ghost-sm gs-view-btn" onClick={onView} type="button">
-          {isOpen ? "Open grading" : "View grading"} <ArrowRightIcon />
-        </button>
+        <div className="gs-row-actions">
+          <button className="btn-ghost-sm gs-view-btn" onClick={onView} type="button">
+            {isOpen ? "Open grading" : "View grading"} <ArrowRightIcon />
+          </button>
+          {canDelete && onDelete && (
+            <button
+              className="btn-ghost-sm gs-delete-row-btn"
+              onClick={onDelete}
+              type="button"
+              aria-label={`Delete session ${session.title}`}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -198,11 +221,42 @@ function SessionRow({ session, candidateCount, assessmentsComplete, onView }: Se
 export function GradingSessionsScreen() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
+
+  const [deleteConfirmSession, setDeleteConfirmSession] = useState<GradingSession | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: (id: number) => deleteGradingSession(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["gradingSessionsAll"] });
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      setDeleteConfirmSession(null);
+      setDeleteError(null);
+    },
+    onError: (err) => {
+      setDeleteError(err instanceof ApiError ? err.message : "Failed to delete session.");
+    },
+  });
+
+  useEffect(() => {
+    if (!deleteConfirmSession) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDeleteConfirmSession(null);
+        setDeleteError(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteConfirmSession]);
+
+  const userCanDelete = user?.role === "administrator" || user?.role === "instructor" || user?.is_superuser === true;
 
   // All sessions (large page to populate year dropdown & find current session)
   const allSessionsQuery = useQuery({
@@ -419,15 +473,25 @@ export function GradingSessionsScreen() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSessions.map((session) => (
-                      <SessionRow
-                        assessmentsComplete={assessmentCounts[session.id] ?? null}
-                        candidateCount={candidateCounts[session.id] ?? null}
-                        key={session.id}
-                        onView={() => navigate(`/gradings/${session.id}`)}
-                        session={session}
-                      />
-                    ))}
+                    {filteredSessions.map((session) => {
+                      const completeCount = assessmentCounts[session.id] ?? 0;
+                      const isEligibleStatus = session.status === "CANCELLED" || session.status === "DRAFT";
+                      const canDelete = Boolean(userCanDelete && isEligibleStatus && completeCount === 0);
+                      return (
+                        <SessionRow
+                          assessmentsComplete={assessmentCounts[session.id] ?? null}
+                          candidateCount={candidateCounts[session.id] ?? null}
+                          key={session.id}
+                          onView={() => navigate(`/gradings/${session.id}`)}
+                          canDelete={canDelete}
+                          onDelete={() => {
+                            setDeleteError(null);
+                            setDeleteConfirmSession(session);
+                          }}
+                          session={session}
+                        />
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -479,6 +543,55 @@ export function GradingSessionsScreen() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Delete Confirmation Modal */}
+      {deleteConfirmSession && (
+        <div
+          className="gsd-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-session-modal-title"
+          onClick={() => {
+            if (!deleteSessionMutation.isPending) {
+              setDeleteConfirmSession(null);
+              setDeleteError(null);
+            }
+          }}
+        >
+          <div className="gsd-modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3 id="delete-session-modal-title" className="gsd-modal-title">Delete Grading Session</h3>
+            <p className="gsd-modal-message">
+              Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
+            </p>
+            {deleteError && (
+              <div className="alert-banner alert-banner-error" role="alert" style={{ marginBottom: "1rem" }}>
+                <span>{deleteError}</span>
+              </div>
+            )}
+            <div className="gsd-modal-actions">
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  setDeleteConfirmSession(null);
+                  setDeleteError(null);
+                }}
+                disabled={deleteSessionMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
+                disabled={deleteSessionMutation.isPending}
+              >
+                {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );

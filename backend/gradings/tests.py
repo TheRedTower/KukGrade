@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 from datetime import date
 from types import SimpleNamespace
 from typing import Any, cast
@@ -78,13 +79,17 @@ def rank(code: str) -> Rank:
     return Rank.objects.get(code=code)
 
 
+_creator_counter = itertools.count()
+
+
 def grading_session(**overrides: object) -> GradingSession:
     status = cast(str, overrides.pop("status", GradingSession.Status.DRAFT))
     data: dict[str, object] = {
         "title": "March 2027 Colchester Grading",
         "grading_date": date(2027, 3, 20),
-        "created_by": user(f"creator-{GradingSession.objects.count()}@example.com"),
     }
+    if "created_by" not in overrides:
+        data["created_by"] = user(f"creator-{next(_creator_counter)}@example.com")
     data.update(overrides)
     session = GradingSession.objects.create(**data)
     if status != GradingSession.Status.DRAFT:
@@ -837,6 +842,56 @@ def test_session_api_delete_rules_work() -> None:
     assert client.delete(f"/api/gradings/sessions/{completed.id}/").status_code == 400
     assert client.delete(f"/api/gradings/sessions/{draft.id}/").status_code == 204
     assert client.delete(f"/api/gradings/sessions/{cancelled.id}/").status_code == 204
+
+
+def test_delete_cancelled_session_rules() -> None:
+    u1 = user("creator-del-1@example.com")
+    u2 = user("creator-del-2@example.com")
+    u3 = user("creator-del-3@example.com")
+    client = auth_client("delete-cancelled-test@example.com")
+
+    # 1. Cancelled session with no candidates deletes cleanly
+    empty_cancelled = grading_session(
+        status=GradingSession.Status.CANCELLED,
+        created_by=u1,
+    )
+    resp = client.delete(f"/api/gradings/sessions/{empty_cancelled.id}/")
+    assert resp.status_code == 204
+    assert not GradingSession.objects.filter(id=empty_cancelled.id).exists()
+    assert AuditEvent.objects.filter(
+        action=AuditAction.SESSION_DELETED,
+        entity_id=str(empty_cancelled.id),
+    ).exists()
+
+    # 2. Cancelled session with NOT_STARTED candidate assessment deletes cleanly
+    session_with_unstarted = grading_session(
+        status=GradingSession.Status.OPEN,
+        created_by=u2,
+    )
+    cand1 = candidate(session=session_with_unstarted)
+    assessment(candidate=cand1, status=CandidateAssessment.Status.NOT_STARTED)
+    GradingSession.objects.filter(pk=session_with_unstarted.pk).update(
+        status=GradingSession.Status.CANCELLED
+    )
+    resp2 = client.delete(f"/api/gradings/sessions/{session_with_unstarted.id}/")
+    assert resp2.status_code == 204
+    assert not GradingSession.objects.filter(id=session_with_unstarted.id).exists()
+
+    # 3. Cancelled session with candidate whose assessment has started cannot be deleted
+    session_with_started = grading_session(
+        status=GradingSession.Status.OPEN,
+        created_by=u3,
+    )
+    cand2 = candidate(session=session_with_started)
+    ass2 = assessment(candidate=cand2)
+    start_assessment(ass2)
+    GradingSession.objects.filter(pk=session_with_started.pk).update(
+        status=GradingSession.Status.CANCELLED
+    )
+    resp3 = client.delete(f"/api/gradings/sessions/{session_with_started.id}/")
+    assert resp3.status_code == 400
+    assert "assessment work has already been recorded" in str(resp3.data)
+    assert GradingSession.objects.filter(id=session_with_started.id).exists()
 
 
 def test_direct_session_save_rejects_status_changes_and_allows_other_edits() -> None:

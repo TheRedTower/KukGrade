@@ -31,7 +31,7 @@ class StudentViewSet(
     mixins.RetrieveModelMixin,
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
-    GenericViewSet,
+    GenericViewSet[Student],
 ):
     # No delete: every relationship to a student is PROTECT, and history is
     # retained by decision. No PUT: partial_update covers every real edit

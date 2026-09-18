@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -11,6 +11,11 @@ from ranks.models import Rank
 
 
 class Student(models.Model):
+    if TYPE_CHECKING:
+        from gradings.models import Promotion
+
+        promotions: models.Manager[Promotion]
+        current_rank_id: int
     class Status(models.TextChoices):
         # A temporary break - injury, exams, travel - which blocks nothing.
         # Missing a grading never sets this: only a person does, deliberately.
@@ -103,4 +108,4 @@ class Student(models.Model):
     def age_band_display(self) -> str:
         from syllabus.models import AgeBand
 
-        return AgeBand(self.age_band).label
+        return str(AgeBand(self.age_band).label)

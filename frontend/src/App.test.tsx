@@ -2273,6 +2273,72 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     expect(await screen.findByText("Cancelled Test Grading")).toBeVisible();
   });
+
+  it("allows deleting a cancelled session with no starts from the sessions list", async () => {
+    const cancelledSession = {
+      id: 4,
+      title: "Cancelled Empty Grading",
+      grading_date: "2025-09-13",
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "Venue unavailable",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2025-09-01T10:00:00Z",
+      updated_at: "2025-09-13T10:00:00Z",
+    };
+
+    const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/api/gradings/sessions/") && url.includes("page_size=200")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [cancelledSession],
+        });
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [cancelledSession] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", deleteFetch);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("Cancelled Empty Grading")).toBeVisible();
+
+    const deleteBtn = screen.getByRole("button", { name: "Delete session Cancelled Empty Grading" });
+    expect(deleteBtn).toBeVisible();
+    await user.click(deleteBtn);
+
+    // Modal appears
+    expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
+    expect(screen.getByText(/Are you sure you want to permanently delete/)).toBeVisible();
+
+    // Confirm delete in modal
+    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    await user.click(confirmBtn);
+
+    // Verify DELETE fetch call
+    const deleteCalls = deleteFetch.mock.calls.filter(([url, init]) =>
+      url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE"
+    );
+    expect(deleteCalls.length).toBe(1);
+  });
 });
 
 // Create Grading Session Screen (/gradings/new)
@@ -3061,6 +3127,67 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+  });
+
+  it("allows deleting a cancelled session with no starts from the session actions menu", async () => {
+    const fetchMock = setupStandardMock({
+      status: "CANCELLED",
+      status_display: "Cancelled",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    const notStartedAssessments = testAssessments.map((a) => ({
+      ...a,
+      status: "NOT_STARTED" as const,
+    }));
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, { ...testSession, status: "CANCELLED", status_display: "Cancelled" });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: notStartedAssessments.length, next: null, previous: null, results: notStartedAssessments });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      }
+      return jsonResponse(404, {});
+    });
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    // Open actions menu
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // "Delete session" should be visible
+    const deleteMenuItem = screen.getByRole("menuitem", { name: "Delete session" });
+    expect(deleteMenuItem).toBeVisible();
+    await user.click(deleteMenuItem);
+
+    // Modal appears
+    expect(await screen.findByText("Delete Grading Session")).toBeVisible();
+
+    // Confirm delete
+    const modalConfirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    await user.click(modalConfirmBtn);
+
+    // Verify DELETE call was sent
+    const deleteCalls = fetchMock.mock.calls.filter(([url, init]) =>
+      url.includes("/api/gradings/sessions/10/") && init?.method === "DELETE"
+    );
+    expect(deleteCalls.length).toBe(1);
   });
 });
 

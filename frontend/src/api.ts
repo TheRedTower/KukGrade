@@ -26,6 +26,7 @@ export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
+export type Promotion = components["schemas"]["Promotion"];
 export type OverallAssessmentSummary = {
   total: number;
   required: number;
@@ -605,5 +606,50 @@ export async function updateStudent(
     body: JSON.stringify(payload),
   });
 }
+
+export async function getPromotions(params?: {
+  session?: number;
+  student?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<PaginatedResponse<Promotion>> {
+  const query = new URLSearchParams();
+  if (params?.session !== undefined) query.set("session", String(params.session));
+  if (params?.student !== undefined) query.set("student", String(params.student));
+  if (params?.limit !== undefined) query.set("limit", String(params.limit));
+  if (params?.offset !== undefined) query.set("offset", String(params.offset));
+  const qs = query.toString();
+  return apiRequest<PaginatedResponse<Promotion>>(
+    `/api/gradings/promotions/${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function promoteCandidateOutcome(
+  outcomeId: number,
+  data?: { notes?: string },
+): Promise<Promotion> {
+  return apiRequest<Promotion>(`/api/gradings/outcomes/${outcomeId}/promote/`, {
+    method: "POST",
+    body: JSON.stringify(data || {}),
+  });
+}
+
+export type BulkPromoteResponse = {
+  promoted: Promotion[];
+  errors: { index?: number; outcome_id?: number; detail?: unknown }[];
+};
+
+export async function bulkPromoteCandidateOutcomes(
+  data: { outcomes: number[] },
+): Promise<BulkPromoteResponse> {
+  return apiRequest<BulkPromoteResponse>(
+    `/api/gradings/outcomes/bulk-promote/`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    },
+  );
+}
+
 
 

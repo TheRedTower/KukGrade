@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -195,6 +195,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Actions dropdown & modal state
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -205,6 +206,49 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     actionType: "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN";
   } | null>(null);
   const [cancellationReason, setCancellationReason] = useState("");
+
+  // Close actions dropdown on outside click or Escape key
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        actionsMenuRef.current &&
+        !actionsMenuRef.current.contains(event.target as Node)
+      ) {
+        setActionsMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setActionsMenuOpen(false);
+      }
+    }
+
+    if (actionsMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [actionsMenuOpen]);
+
+  // Close confirm modal on Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setConfirmModal(null);
+      }
+    }
+
+    if (confirmModal) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [confirmModal]);
 
   // 1. Fetch session details
   const sessionQuery = useQuery({
@@ -489,7 +533,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
         <div className="gsd-header-actions">
           {/* Actions Dropdown */}
-          <div className="gsd-dropdown-wrap">
+          <div className="gsd-dropdown-wrap" ref={actionsMenuRef}>
             <button
               type="button"
               className="btn-ghost gsd-actions-btn"
@@ -899,8 +943,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {confirmModal && (
-        <div className="gsd-modal-backdrop" role="dialog" aria-modal="true">
-          <div className="gsd-modal-card">
+        <div
+          className="gsd-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setConfirmModal(null)}
+        >
+          <div
+            className="gsd-modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="gsd-modal-title">{confirmModal.title}</h3>
             <p className="gsd-modal-message">{confirmModal.message}</p>
 

@@ -266,6 +266,36 @@ export async function updateGradingCandidate(
   });
 }
 
+export interface BulkCandidateRegistrationPayload {
+  session: number;
+  candidates: {
+    student: number;
+    testing_for_rank?: number;
+    notes?: string;
+  }[];
+  generate_assessments?: boolean;
+}
+
+export interface BulkCandidateRegistrationResponse {
+  created: {
+    candidate: GradingCandidate;
+    assessment: CandidateAssessment | null;
+  }[];
+  errors: Record<string, string[]>;
+}
+
+export async function bulkRegisterCandidates(
+  payload: BulkCandidateRegistrationPayload,
+): Promise<BulkCandidateRegistrationResponse> {
+  return apiRequest<BulkCandidateRegistrationResponse>(
+    "/api/gradings/candidates/bulk-register/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
 export async function getCandidateAssessments(params?: {
   session?: number;
   candidate?: number;

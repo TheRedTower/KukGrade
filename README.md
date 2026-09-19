@@ -17,9 +17,10 @@ assessment snapshots, candidate outcomes, promotion and rank history, user
 management, and audit logging. The frontend implements the main instructor
 workflow: overview, student records, syllabus browsing, grading-session and
 cohort management, assessment preparation and marking, outcome decisions, and
-promotion. The Audit and Users routes are permission-gated placeholders; user
-detail/management, a full audit browser, offline/PWA support, and production
-deployment remain to be built.
+promotion. The Audit route provides a paginated, filterable event browser with
+event detail for administrators and the designated Master. The Users route is
+still an administrator-only placeholder; user detail/management, offline/PWA
+support, and production deployment remain to be built.
 
 This is a summary. **`docs/current-system.md` is the authoritative,
 continuously-verified description of what exists on `dev` right now** - it
@@ -132,7 +133,7 @@ where they disagree with the above: `docs/product-requirements.md`,
 
 - No production secrets, real student data, or production exports.
 - No certificates, payments, notifications, or correction/reopening workflow.
-- No completed Audit or Users management screens yet.
+- No completed administrator Users management screens yet.
 - No offline/PWA support yet; the frontend is online-first.
 - No background worker until there is a confirmed asynchronous workload.
 - No production Docker image or deployment setup yet.

@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import cast
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from accounts.models import User
@@ -63,6 +63,17 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
                 queryset = queryset.filter(actor_id=uuid.UUID(actor))
             except ValueError:
                 return queryset.none()
+
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(summary__icontains=search)
+                | Q(entity_type__icontains=search)
+                | Q(entity_id__icontains=search)
+                | Q(actor__email__icontains=search)
+                | Q(actor__first_name__icontains=search)
+                | Q(actor__last_name__icontains=search)
+            )
 
         occurred_from_value = self.request.query_params.get("occurred_from")
         occurred_from = parse_date_filter(occurred_from_value)

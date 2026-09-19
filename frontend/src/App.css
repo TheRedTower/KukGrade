@@ -483,6 +483,7 @@ h2 {
 .app-main {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
   background: var(--color-page-bg);
 }
@@ -9993,4 +9994,3 @@ h2 {
     color: #f3efe6;
   }
 }
-

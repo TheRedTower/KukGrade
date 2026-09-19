@@ -294,6 +294,26 @@ def test_the_log_is_filterable_so_marking_does_not_drown_decisions() -> None:
     assert all(r["entity_type"] == "CandidateOutcome" for r in by_entity["results"])
 
 
+def test_the_log_searches_summary_entity_and_actor() -> None:
+    actor = master("searchable-master@example.com")
+    event = record(
+        AuditAction.SESSION_CREATED,
+        actor,
+        "Winter grading opened for Colchester.",
+        actor=actor,
+    )
+    client = APIClient()
+    client.force_authenticate(user=actor)
+
+    by_summary = client.get("/api/audit-events/?search=Colchester").json()
+    by_entity = client.get(f"/api/audit-events/?search={actor.pk}").json()
+    by_actor = client.get("/api/audit-events/?search=searchable-master").json()
+
+    assert [row["id"] for row in by_summary["results"]] == [event.pk]
+    assert [row["id"] for row in by_entity["results"]] == [event.pk]
+    assert [row["id"] for row in by_actor["results"]] == [event.pk]
+
+
 def test_the_log_is_read_only_over_http() -> None:
     client = APIClient()
     client.force_authenticate(user=master("audit-readonly@example.com"))

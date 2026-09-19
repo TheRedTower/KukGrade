@@ -2226,6 +2226,26 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     expect(emptyStateBtn.className).toContain("btn-primary");
   });
 
+  it("allows an instructor to create a grading session", async () => {
+    const emptyFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", emptyFetch);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const createButtons = await screen.findAllByRole("button", { name: /create grading/i });
+    await user.click(createButtons[0]);
+
+    expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
+    expect(window.location.pathname).toBe("/gradings/new");
+  });
+
   it("filters sessions by status dropdown and shows reset option on mismatch", async () => {
     const cancelledSession = {
       id: 4,
@@ -2376,6 +2396,27 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("renders the creation form for an instructor", async () => {
+    const instructorUser = {
+      ...adminUser,
+      email: "instructor@example.com",
+      role: "instructor" as const,
+      role_display: "Instructor",
+      is_staff: false,
+      is_superuser: false,
+    };
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Create draft session" })).toBeEnabled();
   });
 
   it("renders create grading session form with breadcrumbs, inputs, and preview card", async () => {
@@ -2817,9 +2858,24 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
-  function setupStandardMock(sessionOverrides = {}) {
+  function setupStandardMock(
+    sessionOverrides = {},
+    assessments = testAssessments,
+  ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (
+        url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
+        init?.method === "POST"
+      ) {
+        return jsonResponse(200, { created: [], errors: {} });
+      }
+      if (
+        url.includes("/api/gradings/assessments/bulk-start/") &&
+        init?.method === "POST"
+      ) {
+        return jsonResponse(200, { started: [testAssessments[2]], errors: {} });
+      }
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         const patchData = JSON.parse(init.body as string);
         return jsonResponse(200, { ...testSession, ...sessionOverrides, ...patchData });
@@ -2831,7 +2887,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       }
       if (url.includes("/api/gradings/assessments/")) {
-        return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+        return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
       }
       if (url.includes("/api/gradings/outcomes/")) {
         return jsonResponse(200, { count: testOutcomes.length, next: null, previous: null, results: testOutcomes });
@@ -2900,6 +2956,56 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row3).getByText("Red")).toBeVisible();
     expect(within(row3).getByText("Not started")).toBeVisible();
     expect(within(row3).getByText("Start assessment →")).toBeVisible();
+  });
+
+  it("starts all prepared assessments as an explicit bulk action", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const startButton = await screen.findByRole("button", {
+      name: "Start all prepared (1)",
+    });
+    await user.click(startButton);
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(([url, init]) =>
+        String(url).includes("/api/gradings/assessments/bulk-start/") &&
+        (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(request).toBeDefined();
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        assessments: [203],
+      });
+    });
+    expect(await screen.findByText("1 assessment started.")).toBeVisible();
+  });
+
+  it("offers bulk preparation when registered candidates have no snapshot", async () => {
+    const fetchMock = setupStandardMock({}, testAssessments.slice(0, 2));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("Not prepared")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Prepare all (1)" }),
+    );
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(([url, init]) =>
+        String(url).includes(
+          "/api/gradings/candidates/bulk-generate-assessments/",
+        ) && (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(request).toBeDefined();
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        candidates: [103],
+      });
+    });
   });
 
   it("surfaces operational alert banner when candidates await final decision and triggers filter on Review", async () => {
@@ -4463,6 +4569,72 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
+
+  it("prepares a missing assessment snapshot before offering start", async () => {
+    const draftSession = {
+      ...mockSession,
+      status: "DRAFT" as const,
+      status_display: "Draft",
+    };
+    const generatedAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      status: "NOT_STARTED",
+      status_display: "Not started",
+      started_at: null,
+    };
+    let generationRequested = false;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, draftSession);
+      if (
+        url.includes("/api/gradings/candidates/101/generate-assessment/") &&
+        init?.method === "POST"
+      ) {
+        generationRequested = true;
+        return jsonResponse(201, generatedAssessment);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [mockCandidate],
+        });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [mockStudent],
+        });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByTestId("caw-missing-assessment-banner")).toBeVisible();
+    expect(screen.queryByTestId("caw-not-started-banner")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("generate-assessment-btn"));
+
+    await waitFor(() => expect(generationRequested).toBe(true));
+    expect(await screen.findByTestId("caw-not-started-banner")).toBeVisible();
+  });
 });
-
-

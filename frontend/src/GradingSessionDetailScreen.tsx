@@ -8,11 +8,13 @@ import {
   GradingCandidate,
   GradingSession,
   StudentListItem,
+  bulkGenerateCandidateAssessments,
+  bulkStartCandidateAssessments,
+  getAllCandidateAssessments,
+  getAllCandidateOutcomes,
+  getAllGradingCandidates,
+  getAllStudents,
   getGradingSession,
-  getGradingCandidates,
-  getCandidateAssessments,
-  getCandidateOutcomes,
-  getStudents,
   updateGradingSession,
   deleteGradingSession,
 } from "./api";
@@ -70,6 +72,15 @@ export function RankVisual({ rankName }: { rankName: string }) {
 }
 
 function AssessmentBadge({ assessment }: { assessment?: CandidateAssessment }) {
+  if (!assessment) {
+    return (
+      <span className="gsd-badge gsd-badge-neutral">
+        <span className="gsd-badge-icon" aria-hidden="true">—</span>
+        Not prepared
+      </span>
+    );
+  }
+
   const status = assessment?.status;
 
   if (status === "COMPLETED") {
@@ -208,6 +219,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
     open: boolean;
     title: string;
@@ -269,28 +281,28 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // 2. Fetch candidates for this session
   const candidatesQuery = useQuery({
     queryKey: ["gradingCandidates", sessionId],
-    queryFn: () => getGradingCandidates({ session: sessionId }),
+    queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 
   // 3. Fetch candidate assessments for this session
   const assessmentsQuery = useQuery({
     queryKey: ["candidateAssessments", sessionId],
-    queryFn: () => getCandidateAssessments({ session: sessionId }),
+    queryFn: () => getAllCandidateAssessments({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 
   // 4. Fetch candidate outcomes for this session
   const outcomesQuery = useQuery({
     queryKey: ["candidateOutcomes", sessionId],
-    queryFn: () => getCandidateOutcomes({ session: sessionId }),
+    queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 
   // 5. Fetch students list to cross-reference current ranks
   const studentsQuery = useQuery({
     queryKey: ["studentsReferenceList"],
-    queryFn: () => getStudents({ page_size: 100 }),
+    queryFn: () => getAllStudents(),
     staleTime: 60_000,
   });
 
@@ -321,6 +333,45 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
     onError: (err: unknown) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to delete session.");
+    },
+  });
+
+  const refreshCandidateWork = () => {
+    void queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+    void queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
+  };
+
+  const bulkPrepareMutation = useMutation({
+    mutationFn: (candidateIds: number[]) => bulkGenerateCandidateAssessments(candidateIds),
+    onSuccess: ({ created, errors }) => {
+      refreshCandidateWork();
+      const failed = Object.keys(errors).length;
+      setActionMessage(
+        `${created.length} assessment${created.length === 1 ? "" : "s"} prepared${
+          failed ? `; ${failed} could not be prepared` : ""
+        }.`,
+      );
+      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
+    },
+    onError: (err: unknown) => {
+      setActionError(err instanceof ApiError ? err.message : "Failed to prepare assessments.");
+    },
+  });
+
+  const bulkStartMutation = useMutation({
+    mutationFn: (assessmentIds: number[]) => bulkStartCandidateAssessments(assessmentIds),
+    onSuccess: ({ started, errors }) => {
+      refreshCandidateWork();
+      const failed = Object.keys(errors).length;
+      setActionMessage(
+        `${started.length} assessment${started.length === 1 ? "" : "s"} started${
+          failed ? `; ${failed} could not be started` : ""
+        }.`,
+      );
+      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
+    },
+    onError: (err: unknown) => {
+      setActionError(err instanceof ApiError ? err.message : "Failed to start assessments.");
     },
   });
 
@@ -383,6 +434,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       return matchesSearch && matchesStatus;
     });
   }, [enrichedCandidates, search, statusFilter]);
+
+  const unpreparedCandidateIds = enrichedCandidates
+    .filter((item) => item.candidate.status !== "WITHDRAWN" && !item.assessment)
+    .map((item) => item.candidate.id);
+  const preparedAssessmentIds = enrichedCandidates
+    .filter(
+      (item) =>
+        item.candidate.status !== "WITHDRAWN" && item.assessment?.status === "NOT_STARTED",
+    )
+    .map((item) => item.assessment!.id);
 
   // Lifecycle stage statuses
   const lifecycle = useMemo(() => {
@@ -525,6 +586,19 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             aria-label="Dismiss error"
           >
             ✕
+          </button>
+        </div>
+      )}
+      {actionMessage && (
+        <div className="gsd-action-banner" role="status">
+          <span>{actionMessage}</span>
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => setActionMessage(null)}
+            aria-label="Dismiss status message"
+          >
+            Dismiss
           </button>
         </div>
       )}
@@ -768,6 +842,31 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           </h2>
 
           <div className="gsd-controls-row">
+            {(session.status === "DRAFT" || session.status === "OPEN") &&
+              unpreparedCandidateIds.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => bulkPrepareMutation.mutate(unpreparedCandidateIds)}
+                  disabled={bulkPrepareMutation.isPending}
+                >
+                  {bulkPrepareMutation.isPending
+                    ? "Preparing…"
+                    : `Prepare all (${unpreparedCandidateIds.length})`}
+                </button>
+              )}
+            {session.status === "OPEN" && preparedAssessmentIds.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => bulkStartMutation.mutate(preparedAssessmentIds)}
+                disabled={bulkStartMutation.isPending}
+              >
+                {bulkStartMutation.isPending
+                  ? "Starting…"
+                  : `Start all prepared (${preparedAssessmentIds.length})`}
+              </button>
+            )}
             {/* Search Input */}
             <div className="gsd-search-wrap">
               <span className="gsd-search-icon" aria-hidden="true">🔍</span>
@@ -849,7 +948,9 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   const assessmentStatus = item.assessment?.status;
                   const outcomeStatus = item.outcome?.status;
 
-                  let nextActionLabel = "Start assessment →";
+                  let nextActionLabel = assessmentStatus
+                    ? "Start assessment →"
+                    : "Prepare assessment →";
                   let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   let isProposalDrawerTrigger = false;
                   let isDecisionDrawerTrigger = false;

@@ -7,10 +7,10 @@ import {
   type CandidateAssessment,
   type GradingCandidate,
   type GradingSession,
+  getAllCandidateAssessments,
+  getAllGradingCandidates,
+  getAllGradingSessions,
   getAuditEvents,
-  getCandidateAssessments,
-  getGradingCandidates,
-  getGradingSessions,
 } from "./api";
 import { useAuth } from "./auth";
 
@@ -258,7 +258,7 @@ export function OverviewScreen() {
   // 1. Fetch grading sessions
   const sessionsQuery = useQuery({
     queryKey: ["gradingSessions"],
-    queryFn: () => getGradingSessions(),
+    queryFn: () => getAllGradingSessions(),
   });
 
   const sessions = useMemo<GradingSession[]>(() => {
@@ -290,21 +290,21 @@ export function OverviewScreen() {
   // 2. Fetch candidates for open session
   const candidatesQuery = useQuery({
     queryKey: ["gradingCandidates", openSession?.id],
-    queryFn: () => getGradingCandidates({ session: openSession!.id }),
+    queryFn: () => getAllGradingCandidates({ session: openSession!.id }),
     enabled: !!openSession,
   });
 
   // 3. Fetch assessments for open session
   const assessmentsQuery = useQuery({
     queryKey: ["candidateAssessments", openSession?.id],
-    queryFn: () => getCandidateAssessments({ session: openSession!.id }),
+    queryFn: () => getAllCandidateAssessments({ session: openSession!.id }),
     enabled: !!openSession,
   });
 
   // 4. Fetch recent audit events
   const auditQuery = useQuery({
     queryKey: ["recentAuditEvents"],
-    queryFn: () => getAuditEvents({ limit: 6 }),
+    queryFn: () => getAuditEvents({ page_size: 6 }),
     enabled: canViewAudit,
     retry: false,
   });

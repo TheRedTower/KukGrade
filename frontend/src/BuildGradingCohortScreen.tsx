@@ -9,10 +9,10 @@ import {
   Rank,
   StudentListItem,
   bulkRegisterCandidates,
-  getGradingCandidates,
+  getAllGradingCandidates,
+  getAllStudents,
   getGradingSession,
   getRanks,
-  getStudents,
 } from "./api";
 
 function formatSessionDate(dateStr: string): string {
@@ -138,12 +138,12 @@ export function BuildGradingCohortScreen() {
 
   const studentsQuery = useQuery({
     queryKey: ["students", "all-eligible"],
-    queryFn: () => getStudents({ page_size: 200 }),
+    queryFn: () => getAllStudents(),
   });
 
   const candidatesQuery = useQuery({
     queryKey: ["gradingCandidates", sessionId],
-    queryFn: () => getGradingCandidates({ session: sessionId }),
+    queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 

@@ -7,6 +7,7 @@ import {
   type GradingSessionStatus,
   ApiError,
   deleteGradingSession,
+  getAllGradingSessions,
   getGradingSessions,
   getGradingCandidates,
   getCandidateAssessments,
@@ -261,7 +262,7 @@ export function GradingSessionsScreen() {
   // All sessions (large page to populate year dropdown & find current session)
   const allSessionsQuery = useQuery({
     queryKey: ["gradingSessionsAll"],
-    queryFn: () => getGradingSessions({ page_size: 200 }),
+    queryFn: () => getAllGradingSessions(),
   });
 
   const allSessions: GradingSession[] = useMemo(
@@ -312,10 +313,22 @@ export function GradingSessionsScreen() {
 
   // Paginated sessions filtered by status on the server
   const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
+  const selectedYear = yearFilter !== "ALL" ? Number(yearFilter) : undefined;
+  const gradingDateFrom = selectedYear ? `${selectedYear}-01-01` : undefined;
+  const gradingDateTo = selectedYear ? `${selectedYear}-12-31` : undefined;
+  const serverSearch = searchText.trim() || undefined;
 
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", page, serverStatus],
-    queryFn: () => getGradingSessions({ page, page_size: PAGE_SIZE, status: serverStatus }),
+    queryKey: ["gradingSessions", page, serverStatus, selectedYear, serverSearch],
+    queryFn: () =>
+      getGradingSessions({
+        page,
+        page_size: PAGE_SIZE,
+        status: serverStatus,
+        search: serverSearch,
+        grading_date_from: gradingDateFrom,
+        grading_date_to: gradingDateTo,
+      }),
   });
 
   const sessions: GradingSession[] = useMemo(
@@ -325,20 +338,7 @@ export function GradingSessionsScreen() {
   const totalCount = sessionsQuery.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  // Client-side year filter + text search
-  const filteredSessions = useMemo(() => {
-    let list = sessions;
-    if (yearFilter !== "ALL") {
-      list = list.filter((s) => yearFromIso(s.grading_date) === parseInt(yearFilter, 10));
-    }
-    if (searchText.trim()) {
-      const q = searchText.trim().toLowerCase();
-      list = list.filter(
-        (s) => s.title.toLowerCase().includes(q) || (s.location ?? "").toLowerCase().includes(q),
-      );
-    }
-    return list;
-  }, [sessions, yearFilter, searchText]);
+  const filteredSessions = sessions;
 
   const sessionIdsOnPage = filteredSessions.map((s) => s.id);
 
@@ -384,7 +384,10 @@ export function GradingSessionsScreen() {
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
   const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
-  const canCreateGrading = user?.role === "administrator" || user?.is_superuser === true;
+  const canCreateGrading =
+    user?.role === "instructor" ||
+    user?.role === "administrator" ||
+    user?.is_superuser === true;
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";

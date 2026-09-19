@@ -14,8 +14,12 @@ Students do not directly access the application.
 The backend is complete for the core grading domain: authentication and
 permissions, students, ranks, syllabus, grading sessions and candidates,
 assessment snapshots, candidate outcomes, promotion and rank history, user
-management, and audit logging. The frontend is an authentication shell only -
-no grading screens exist yet; building them is the next phase of work.
+management, and audit logging. The frontend implements the main instructor
+workflow: overview, student records, syllabus browsing, grading-session and
+cohort management, assessment preparation and marking, outcome decisions, and
+promotion. The Audit and Users routes are permission-gated placeholders; user
+detail/management, a full audit browser, offline/PWA support, and production
+deployment remain to be built.
 
 This is a summary. **`docs/current-system.md` is the authoritative,
 continuously-verified description of what exists on `dev` right now** - it
@@ -27,7 +31,7 @@ precedence over this file and over any planning document if they disagree.
 Repository layout:
 
 - `backend/` - Django and Django REST Framework API.
-- `frontend/` - React, TypeScript, and Vite application shell.
+- `frontend/` - React, TypeScript, and Vite application.
 - `docs/` - planning, architecture, domain, and decision documentation.
 - `compose.yaml` - local PostgreSQL service for development.
 
@@ -128,6 +132,7 @@ where they disagree with the above: `docs/product-requirements.md`,
 
 - No production secrets, real student data, or production exports.
 - No certificates, payments, notifications, or correction/reopening workflow.
-- No frontend grading screens yet - the frontend is an authentication shell.
+- No completed Audit or Users management screens yet.
+- No offline/PWA support yet; the frontend is online-first.
 - No background worker until there is a confirmed asynchronous workload.
 - No production Docker image or deployment setup yet.

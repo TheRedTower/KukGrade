@@ -1,9 +1,13 @@
 # KukGrade Frontend Design Register
 
-Status: concept design, not implementation  
-Selected direction: Operational Ledger  
-Design pass: shared shell and core management screens  
-Assessment workspace: intentionally reserved for a separate design pass
+Status: accepted design register with implementation tracking
+
+Selected direction: Operational Ledger
+
+Design pass: shared shell, management, assessment and promotion screens
+
+Implementation truth remains `docs/current-system.md`; a screen being selected
+here does not by itself mean it has shipped.
 
 ## Design decisions
 
@@ -100,17 +104,25 @@ Assessment workspace: intentionally reserved for a separate design pass
 - Verify contrast, focus states, zoom behaviour and reduced motion in both themes.
 - Do not treat image-generated spacing or text as exact implementation measurements.
 
-## Remaining shared-screen design work
+## Implementation coverage (2026-09-19)
 
-- Login, connection failure, session expiry and permission-denied states.
-- Student create, edit and status-change forms.
-- Grading create/edit flows and session-transition confirmations.
-- Syllabus requirement detail and non-selected curriculum/age states.
+- Implemented: login and application shell, Overview, Students list/detail/add,
+  Gradings list/create/detail, cohort builder and exception handling, Syllabus,
+  assessment workspace/completion, outcome proposal, final decision, promotion
+  ledger, profile/password controls, themes, and session transitions.
+- Placeholder only: Audit event list and administrator Users list.
+- Not implemented: administrator user detail/authority/password flows, installed
+  PWA/offline shell, and update-ready notification.
+- Partial cleanup remains: full keyboard/focus/contrast verification, component
+  stylesheet boundaries, elimination of remaining literal colours, and full
+  light/dark/mobile parity.
+
+## Remaining shared-screen work
+
 - Audit event list and detail.
 - User administration, password reset and Master-authority controls.
 - PWA update, cached-shell, reconnection and honest offline states. Installation is browser/OS-owned with no KukGrade prompt.
-- Tablet and essential mobile responsive layouts.
-- Component states, loading treatments, contextual alerts and motion storyboards. A persistent notification centre is deferred.
+- Finish accessibility review, tablet/mobile coverage, component states and motion storyboards. A persistent notification centre is deferred.
 - Full light/dark parity for every accepted screen.
 
 ## Bulk-workflow backend boundary
@@ -124,15 +136,12 @@ Verified on `dev` at `4c009f6` on 2026-09-16. Earlier focused bulk-operation tes
 - Implemented transaction policy: rows are independent. Responses contain successful records plus an `errors` map keyed by submitted row index.
 - Not implemented: a server preflight endpoint. The UI can preview its submitted cohort from loaded data, then must reconcile and clearly display the authoritative partial-result response.
 
-## Separate assessment design pass
+## Assessment implementation notes
 
-- Candidate assessment header and immutable syllabus context.
-- Category navigation and required/optional completion state.
-- `NOT_ASSESSED`, `MET` and `NOT_MET` item interaction.
-- Comments and positive observations.
-- Save, failure, retry and future offline-sync behaviour.
-- Bulk start status, preflight exclusions and late-candidate handling.
-- Assessment completion review.
-- Draft and proposed outcomes: Pass, Fail and Conditional.
-- Authorised Master final decision and locked-session override behaviour.
-- Promotion confirmation and historical record state.
+- Candidate assessment, completion review, outcome proposal, final decision and
+  promotion flows are implemented.
+- Bulk prepare and explicit bulk start are implemented in session detail;
+  backend partial failures are reported. A dedicated retry-failed-only control
+  remains future refinement.
+- Offline save/synchronisation, locked-session withdrawal UI, and dedicated
+  no-show attendance selection remain unimplemented frontend work.

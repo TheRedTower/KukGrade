@@ -87,7 +87,7 @@ class AuditEvent(models.Model):
     # {"before": {...}, "after": {...}} for a revision; {} otherwise.
     metadata = models.JSONField(default=dict, blank=True)
 
-    objects = AuditEventQuerySet.as_manager()  # type: ignore[assignment]
+    objects = AuditEventQuerySet.as_manager()
 
     class Meta:
         ordering = ["-occurred_at", "-pk"]

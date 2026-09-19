@@ -4,7 +4,7 @@ import uuid
 from typing import cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
@@ -86,6 +86,12 @@ class GradingSessionViewSet(ModelViewSet):
             queryset = queryset.filter(status=status_filter)
         elif status_filter:
             queryset = queryset.none()
+
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(location__icontains=search)
+            )
 
         grading_date_value = self.request.query_params.get("grading_date")
         grading_date = parse_date_filter(grading_date_value)

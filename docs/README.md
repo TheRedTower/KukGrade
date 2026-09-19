@@ -1,9 +1,9 @@
 # Documentation Index
 
 This directory contains both current-state documentation and older planning
-inputs. Treat `current-system.md`, `product-requirements.md`, accepted
-non-superseded entries in `decision_log.md`, and `audits/remediation-status.md`
-as the primary sources before implementation.
+inputs. Treat `current-system.md` as the current-state authority. Use accepted,
+non-superseded entries in `decision_log.md` for decisions and the requirements
+documents for intended scope, not as proof that something is implemented.
 
 ## Primary Documents
 
@@ -16,18 +16,20 @@ as the primary sources before implementation.
 - `permissions.md` - roles, backend permission enforcement, privacy rules, and audit requirements.
 - `testing-strategy.md` - expected backend, frontend, permission, audit, and contract testing coverage.
 - `development-workflow.md` - repository workflow, sequencing, definition of done, and unresolved engineering choices.
-- `audits/remediation-status.md` - repository audit findings, stage order, and
-  remediation status.
+- `audits/2026-09-13-independent-repository-audit.md` and
+  `audits/2026-09-15-post-completion-audit.md` - dated audit snapshots; verify
+  their findings against current code before acting.
 
 ## Supporting Planning Inputs
 
-- `action_plan.md` - earlier sequenced implementation plan, now updated with
-  current foundation status.
+- `action_plan.md` - current high-level implementation sequence.
 - `api_contract.md` - mixed implemented and target REST API surface; check
   section labels before treating an endpoint as real.
 - `data_model.md` - target/legacy detailed data model notes, not the current
   schema.
-- `decision_log.md` - decisions that must be confirmed before implementation work proceeds.
+- `decision_log.md` - accepted decisions and their reasoning.
+- `audits/remediation-status.md` - historical H/M/L register superseded by the
+  KG-numbered audits; retained for traceability.
 - `grading_app_planning.md` - earlier product direction and phased
   implementation notes, retained as legacy planning context.
 
@@ -39,4 +41,4 @@ Before each meaningful implementation step, confirm the relevant unresolved
 decisions, keep the change small, and update the decision log when a choice
 affects structure, dependencies, data shape, user workflows, or long-term
 maintainability. During audit remediation, follow the stage boundaries in
-`audits/remediation-status.md`.
+the current code and the relevant dated audit evidence.

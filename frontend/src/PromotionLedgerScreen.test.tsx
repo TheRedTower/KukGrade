@@ -51,9 +51,9 @@ vi.mock("./api", async () => {
   return {
     ...actual,
     getGradingSession: (...args: unknown[]) => mockGetGradingSession(...args),
-    getGradingCandidates: (...args: unknown[]) => mockGetGradingCandidates(...args),
-    getCandidateOutcomes: (...args: unknown[]) => mockGetCandidateOutcomes(...args),
-    getPromotions: (...args: unknown[]) => mockGetPromotions(...args),
+    getAllGradingCandidates: (...args: unknown[]) => mockGetGradingCandidates(...args),
+    getAllCandidateOutcomes: (...args: unknown[]) => mockGetCandidateOutcomes(...args),
+    getAllPromotions: (...args: unknown[]) => mockGetPromotions(...args),
     getRanks: (...args: unknown[]) => mockGetRanks(...args),
     promoteCandidateOutcome: (...args: unknown[]) => mockPromoteCandidateOutcome(...args),
     bulkPromoteCandidateOutcomes: (...args: unknown[]) => mockBulkPromoteCandidateOutcomes(...args),

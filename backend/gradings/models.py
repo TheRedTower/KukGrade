@@ -62,7 +62,7 @@ class GradingSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingSessionQuerySet.as_manager()  # type: ignore[assignment]
+    objects = GradingSessionQuerySet.as_manager()
 
     class Meta:
         ordering = ["-grading_date", "created_at"]
@@ -217,7 +217,7 @@ class GradingCandidate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = GradingCandidateQuerySet.as_manager()  # type: ignore[assignment]
+    objects = GradingCandidateQuerySet.as_manager()
 
     class Meta:
         ordering = [
@@ -534,7 +534,7 @@ class CandidateOutcome(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = CandidateOutcomeQuerySet.as_manager()  # type: ignore[assignment]
+    objects = CandidateOutcomeQuerySet.as_manager()
 
     class Meta:
         ordering = [
@@ -1053,7 +1053,7 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PromotionManager()  # type: ignore[assignment]
+    objects = PromotionManager()
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]

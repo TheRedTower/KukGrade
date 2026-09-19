@@ -29,6 +29,7 @@ import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
 import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
+import { AuditScreen } from "./AuditScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -326,22 +327,6 @@ function SyllabusPage() {
   return <SyllabusScreen />;
 }
 
-function AuditPage() {
-  return (
-    <section aria-labelledby="audit-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="audit-heading">Audit</h1>
-          <p className="section-subtitle">System audit log and sensitive action history</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Append-only audit trail for administrative and Master review.</p>
-      </div>
-    </section>
-  );
-}
-
 function UsersPage() {
   return (
     <section aria-labelledby="users-heading" className="ledger-section">
@@ -553,7 +538,7 @@ function App() {
               <Route
                 element={
                   <RequireAuditAccess>
-                    <AuditPage />
+                    <AuditScreen />
                   </RequireAuditAccess>
                 }
                 path="audit"

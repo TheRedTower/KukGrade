@@ -67,7 +67,7 @@ here does not by itself mean it has shipped.
 | SCR-007 | Add student | Light | `07-add-student.png` | First concept |
 | SCR-008 | Staff login | Light | `08-login.png` | First concept; unsupported persistent-login control removed |
 | SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Selected syllabus concept |
-| SCR-010 | Audit event list | Light | `10-audit-log.png` | First concept; visible only to administrators and the designated Master |
+| SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible only to administrators and the designated Master |
 | SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Administrator-only concept |
 | SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Administrator-only concept |
 | SCR-013 | Installed PWA offline shell | Light | `13-pwa-offline-shell.png` | First-release degraded state; no offline writes |
@@ -104,13 +104,14 @@ here does not by itself mean it has shipped.
 - Verify contrast, focus states, zoom behaviour and reduced motion in both themes.
 - Do not treat image-generated spacing or text as exact implementation measurements.
 
-## Implementation coverage (2026-09-19)
+## Implementation coverage (2026-09-20)
 
 - Implemented: login and application shell, Overview, Students list/detail/add,
   Gradings list/create/detail, cohort builder and exception handling, Syllabus,
   assessment workspace/completion, outcome proposal, final decision, promotion
-  ledger, profile/password controls, themes, and session transitions.
-- Placeholder only: Audit event list and administrator Users list.
+  ledger, Audit event browser/detail, profile/password controls, themes, and
+  session transitions.
+- Placeholder only: administrator Users list.
 - Not implemented: administrator user detail/authority/password flows, installed
   PWA/offline shell, and update-ready notification.
 - Partial cleanup remains: full keyboard/focus/contrast verification, component
@@ -119,7 +120,6 @@ here does not by itself mean it has shipped.
 
 ## Remaining shared-screen work
 
-- Audit event list and detail.
 - User administration, password reset and Master-authority controls.
 - PWA update, cached-shell, reconnection and honest offline states. Installation is browser/OS-owned with no KukGrade prompt.
 - Finish accessibility review, tablet/mobile coverage, component states and motion storyboards. A persistent notification centre is deferred.

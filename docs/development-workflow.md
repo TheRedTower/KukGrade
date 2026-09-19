@@ -4,9 +4,9 @@
 
 KukGrade has a runnable Django/DRF backend and React/TypeScript frontend for the
 core grading workflow, local PostgreSQL Compose, CI, generated API types,
-permissions, audit logging, promotion, and rank history. Audit and Users
-frontend routes are still placeholders. Production deployment and offline/PWA
-support are not implemented.
+permissions, audit logging, promotion, and rank history. The Audit browser is
+implemented; the administrator Users route is still a placeholder. Production
+deployment and offline/PWA support are not implemented.
 
 Dated audit documents are snapshots. Verify their findings against the current
 branch before treating them as work. Do not scaffold a worker until a real
@@ -27,7 +27,8 @@ asynchronous workload is accepted.
 ## Implementation Sequence
 
 1. Keep the core workflow green and contracts/documentation aligned.
-2. Replace the Audit placeholder with a paginated, filterable event browser.
+2. Keep the implemented paginated, filterable Audit event browser aligned with
+   its append-only backend contract.
 3. Replace the Users placeholder with administrator account, role, authority,
    and password-reset flows.
 4. Complete accessibility review and split the shared frontend stylesheet by

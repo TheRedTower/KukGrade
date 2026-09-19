@@ -57,6 +57,7 @@ export type CandidateAssessmentSummary = {
   categories: CategoryAssessmentSummary[];
 };
 export type AuditEvent = components["schemas"]["AuditEvent"];
+export type AuditAction = components["schemas"]["ActionEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
@@ -595,14 +596,24 @@ export async function finaliseCandidateOutcome(
 export async function getAuditEvents(params?: {
   page?: number;
   page_size?: number;
-  action?: string;
+  action?: AuditAction;
   entity_type?: string;
+  entity_id?: string;
+  actor?: string;
+  occurred_from?: string;
+  occurred_to?: string;
+  search?: string;
 }): Promise<PaginatedResponse<AuditEvent>> {
   const searchParams = new URLSearchParams();
   if (params?.page !== undefined) searchParams.set("page", String(params.page));
   if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
   if (params?.action) searchParams.set("action", params.action);
   if (params?.entity_type) searchParams.set("entity_type", params.entity_type);
+  if (params?.entity_id) searchParams.set("entity_id", params.entity_id);
+  if (params?.actor) searchParams.set("actor", params.actor);
+  if (params?.occurred_from) searchParams.set("occurred_from", params.occurred_from);
+  if (params?.occurred_to) searchParams.set("occurred_to", params.occurred_to);
+  if (params?.search) searchParams.set("search", params.search);
   const query = searchParams.toString();
   return apiRequest<PaginatedResponse<AuditEvent>>(
     `/api/audit-events/${query ? `?${query}` : ""}`,

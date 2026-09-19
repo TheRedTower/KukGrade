@@ -179,6 +179,36 @@ describe("API pagination", () => {
     expect(String(fetchMock.mock.calls[0][0])).toContain("page_size=6");
   });
 
+  it("serialises audit browsing filters", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(200, { count: 0, next: null, previous: null, results: [] }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getAuditEvents({
+      page: 2,
+      action: "OUTCOME_FINALISED",
+      entity_type: "CandidateOutcome",
+      entity_id: "103",
+      actor: "master-id",
+      occurred_from: "2026-09-01",
+      occurred_to: "2026-09-30",
+      search: "Carlos Rivera",
+    });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      page: "2",
+      action: "OUTCOME_FINALISED",
+      entity_type: "CandidateOutcome",
+      entity_id: "103",
+      actor: "master-id",
+      occurred_from: "2026-09-01",
+      occurred_to: "2026-09-30",
+      search: "Carlos Rivera",
+    });
+  });
+
   it("uses page pagination when collecting assessment items", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse(200, { count: 0, next: null, previous: null, results: [] }),

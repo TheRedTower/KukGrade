@@ -588,10 +588,9 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 ## 13. Audit
 
-Status: implemented, read-only. Permission `audit.view_auditevent`, granted
-to **both** role groups - any signed-in user can read most of the log. This
-is not a new exposure for grading events: an instructor can already read
-every proposal and decision note through the outcomes API.
+Status: implemented, read-only. Access is restricted to administrators and
+holders of Master final-decision authority by `CanViewAuditLog`. Ordinary
+instructors are refused. No role group carries `audit.view_auditevent`.
 
 **Exception: user-management events are administrator-only.** `USER_CREATED`,
 `USER_UPDATED` and `USER_AUTHORITY_CHANGED` are additionally filtered to
@@ -623,10 +622,10 @@ Filters:
 - `actor`
 - `occurred_from`
 - `occurred_to`
+- `search` (summary, entity type/id, or actor name/email)
 
-**Written by admin too.** Django admin - the only usable interface until
-Phase 3 ships grading screens - routes its writes through the same service
-functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
+**Written by admin too.** Django admin routes its writes through the same
+service functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
 `StudentAdmin`, `UserAdmin`), so a session, candidate, student or user
 created or edited through admin is audited and attributed to whoever is
 signed in, exactly as if it had gone through the API.

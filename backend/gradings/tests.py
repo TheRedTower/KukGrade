@@ -692,6 +692,22 @@ def test_session_api_filters_work() -> None:
     assert [item["id"] for item in results(response)] == [draft.id]
 
 
+def test_session_api_searches_title_and_location() -> None:
+    title_match = grading_session(title="Spring Black Belt Grading")
+    location_match = grading_session(
+        title="Junior Grading",
+        location="Colchester Central Dojang",
+    )
+    grading_session(title="Unrelated", location="Ipswich")
+    client = auth_client("session-search@example.com")
+
+    title_response = client.get("/api/gradings/sessions/?search=black%20belt")
+    location_response = client.get("/api/gradings/sessions/?search=colchester")
+
+    assert [item["id"] for item in results(title_response)] == [title_match.id]
+    assert [item["id"] for item in results(location_response)] == [location_match.id]
+
+
 def test_session_api_malformed_or_reversed_date_filters_return_empty_list() -> None:
     grading_session(title="Filtered", grading_date=date(2027, 4, 1))
     client = auth_client("session-filter-invalid@example.com")

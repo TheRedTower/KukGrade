@@ -6,9 +6,10 @@ import {
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
   GradingCandidate,
+  generateCandidateAssessment,
+  getAllGradingCandidates,
   getCandidateAssessments,
-  getCandidateAssessmentItems,
-  getGradingCandidates,
+  getAllCandidateAssessmentItems,
   getGradingSession,
   getStudents,
   updateCandidateAssessment,
@@ -100,7 +101,7 @@ export function CandidateAssessmentScreen() {
   // 2. Fetch candidate info
   const candidatesQuery = useQuery({
     queryKey: ["gradingCandidates", numSessionId],
-    queryFn: () => getGradingCandidates({ session: numSessionId! }),
+    queryFn: () => getAllGradingCandidates({ session: numSessionId! }),
     enabled: numSessionId !== undefined && !isNaN(numSessionId),
   });
 
@@ -140,7 +141,7 @@ export function CandidateAssessmentScreen() {
   // 5. Fetch all items for this assessment
   const itemsQuery = useQuery({
     queryKey: ["candidateAssessmentItems", assessment?.id],
-    queryFn: () => getCandidateAssessmentItems({ assessment: assessment!.id, limit: 250 }),
+    queryFn: () => getAllCandidateAssessmentItems({ assessment: assessment!.id }),
     enabled: !!assessment?.id,
   });
 
@@ -236,6 +237,26 @@ export function CandidateAssessmentScreen() {
   }, [items]);
 
   // 8. Mutations
+  const generateAssessmentMutation = useMutation({
+    mutationFn: () => {
+      if (!candidate) throw new Error("Candidate not found");
+      return generateCandidateAssessment(candidate.id);
+    },
+    onSuccess: (generated) => {
+      setActionError(null);
+      queryClient.setQueryData(["candidateAssessment", numCandidateId], generated);
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        setActionError(err.message);
+      } else {
+        setActionError("Failed to prepare the assessment form.");
+      }
+    },
+  });
+
   // Start assessment mutation
   const startAssessmentMutation = useMutation({
     mutationFn: () => {
@@ -373,7 +394,8 @@ export function CandidateAssessmentScreen() {
 
   const session = sessionQuery.data;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
-  const isAssessmentNotStarted = !assessment || assessment.status === "NOT_STARTED";
+  const isAssessmentMissing = assessment === null;
+  const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
 
   // Filter items for the active category
@@ -674,7 +696,32 @@ export function CandidateAssessmentScreen() {
         </div>
       </div>
 
-      {/* If Not Started, Prompt To Start Assessment */}
+      {isAssessmentMissing && (
+        <div className="caw-not-started-banner" data-testid="caw-missing-assessment-banner">
+          <div className="caw-not-started-content">
+            <h3>Prepare Assessment Form</h3>
+            <p>
+              Generate the candidate&rsquo;s immutable syllabus snapshot before starting
+              assessment.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => generateAssessmentMutation.mutate()}
+            disabled={generateAssessmentMutation.isPending || session.status !== "DRAFT"}
+            data-testid="generate-assessment-btn"
+          >
+            {generateAssessmentMutation.isPending
+              ? "Preparing..."
+              : session.status !== "DRAFT"
+              ? "Session must be Draft to prepare"
+              : "Prepare assessment form"}
+          </button>
+        </div>
+      )}
+
+      {/* A generated snapshot is started separately once the session is open. */}
       {isAssessmentNotStarted && (
         <div className="caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">

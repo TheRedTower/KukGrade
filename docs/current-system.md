@@ -1,12 +1,12 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-15. This document
+Describes the implementation on `dev` as verified on 2026-09-19. This document
 takes precedence over older planning documents for what exists now.
 
-Verified by running the tooling, not by reading the code: 468 backend tests and
-21 frontend tests pass from a fresh database, Ruff, `mypy --strict`,
-`makemigrations --check` and `manage.py check --deploy --fail-level WARNING`
-are all clean, and CI enforces every one of them on each push.
+Verified on 2026-09-19 with 473 backend tests and 125 frontend tests passing.
+Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
+ESLint, TypeScript, production build, generated API types, and `npm audit` are
+clean. CI enforces the same categories on each push and pull request.
 
 ## Implemented
 
@@ -126,7 +126,8 @@ are all clean, and CI enforces every one of them on each push.
   (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
   designated Master, never an administrator; administrators hold every
   other capability, including the other two sensitive permissions.
-- Frontend: login, logout, current-user bootstrap, and a four-state auth model
+- **Frontend authentication and shell**: login, logout, current-user bootstrap,
+  responsive navigation, profile/password controls, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The
   login form distinguishes wrong credentials, CSRF failure, throttling, a
   server error, and a dropped connection - it does not tell a rate-limited
@@ -146,17 +147,27 @@ are all clean, and CI enforces every one of them on each push.
   answer the instant it arrives, not a transient failure to paper over, and
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
+- **Implemented frontend workflows**: operational overview, student list,
+  student creation and detail/edit, syllabus catalogue, grading-session list,
+  create/detail/lifecycle controls, cohort registration, assessment snapshot
+  preparation, item-level marking, outcome proposal and final decision, and
+  the promotion ledger. Session detail offers explicit bulk-first controls to
+  prepare every missing assessment and then start every prepared assessment;
+  individual assessment actions remain available for exceptions.
+- **Frontend list correctness**: workflow views collect every API page when
+  they need a complete cohort or reference set. User-facing Students and
+  Gradings lists use server-side pagination; grading-session status, year, and
+  title/location search are applied by the API rather than to one page in the
+  browser.
 - **Design tokens for the "Quiet Command" visual direction** live in
   `frontend/src/theme.css` as CSS custom properties (`--color-*`,
   `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
-  FDR-001 through FDR-004 and FDR-012. Every component reads colour through a
-  token, never a literal hex value. Dark mode follows `prefers-color-scheme`
-  by default; an explicit Light/Dark/System choice, when made, sets
+  FDR-001 through FDR-004 and FDR-012. Most application styling uses the
+  tokens, but legacy literal colours and the large shared `App.css` remain a
+  cleanup item. Dark mode follows `prefers-color-scheme` by default; an
+  explicit Light/Dark/System choice sets
   `[data-theme]` on `<html>` instead, applied before first paint by an inline
-  script in `index.html` so a stored choice never flashes the system default
-  first. The existing login and application shell now render through these
-  tokens; the ink navigation rail from the concept screens is separate,
-  not-yet-started work.
+  script in `index.html` so a stored choice does not flash the system default.
 - **Login matches the SCR-008 concept screen**: a permanent two-panel layout
   (ink brand panel, form panel) rather than a single centered card - the
   other auth states (loading, connection failure) keep the old centered
@@ -212,7 +223,11 @@ are all clean, and CI enforces every one of them on each push.
 
 ## Not Implemented
 
-- **Any grading screen.** The frontend is the authentication shell only.
+- **Audit browser and user management UI.** Both routes exist and are
+  permission-gated, but currently render placeholder cards. The backend APIs
+  are implemented.
+- User detail/authority/password administration screens.
+- Offline/PWA storage and synchronisation; the frontend is online-first.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.
 - Deployment, production image, backups.

@@ -8,10 +8,10 @@ import {
   type Promotion,
   type Rank,
   bulkPromoteCandidateOutcomes,
-  getCandidateOutcomes,
-  getGradingCandidates,
+  getAllCandidateOutcomes,
+  getAllGradingCandidates,
+  getAllPromotions,
   getGradingSession,
-  getPromotions,
   getRanks,
   promoteCandidateOutcome,
 } from "./api";
@@ -71,19 +71,19 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   const { data: candidatesData, isLoading: isLoadingCandidates } = useQuery({
     queryKey: ["gradingCandidates", sessionId],
-    queryFn: () => getGradingCandidates({ session: sessionId }),
+    queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
   const { data: outcomesData, isLoading: isLoadingOutcomes } = useQuery({
     queryKey: ["candidateOutcomes", sessionId],
-    queryFn: () => getCandidateOutcomes({ session: sessionId }),
+    queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
   const { data: promotionsData, isLoading: isLoadingPromotions } = useQuery({
     queryKey: ["promotions", sessionId],
-    queryFn: () => getPromotions({ session: sessionId, limit: 100 }),
+    queryFn: () => getAllPromotions({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 

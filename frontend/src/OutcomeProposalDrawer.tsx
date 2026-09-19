@@ -5,7 +5,7 @@ import {
   CandidateOutcome,
   CandidateOutcomeOutcome,
   GradingCandidate,
-  getCandidateAssessmentItems,
+  getAllCandidateAssessmentItems,
   createCandidateOutcome,
   proposeCandidateOutcome,
 } from "./api";
@@ -69,10 +69,7 @@ export function OutcomeProposalDrawer({
   const { data: assessmentItemsData, isLoading: isLoadingItems } = useQuery({
     queryKey: ["candidateAssessmentItems", assessment?.id],
     queryFn: () =>
-      getCandidateAssessmentItems({
-        assessment: assessment?.id,
-        limit: 200,
-      }),
+      getAllCandidateAssessmentItems({ assessment: assessment?.id }),
     enabled: isOpen && !!assessment?.id,
     staleTime: 10_000,
   });

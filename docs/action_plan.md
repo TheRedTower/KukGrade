@@ -4,25 +4,23 @@ This plan translates the existing project documents into a controlled implementa
 
 ## Current status
 
-- Phase 0 documentation exists for product direction, data model, and API contract.
-- `backend/` and `frontend/` contain runnable application foundations.
-- Local PostgreSQL is configured through Docker Compose.
-- Health checks and backend/frontend tests exist.
-- Authentication and session/CSRF foundations are implemented.
-- Student, rank, syllabus, grading session, assessment snapshot, and candidate
-  outcome foundations are implemented.
-- Explicit syllabus versioning, least-privilege role enforcement, audit events,
-  promotion/rank history on `dev`, student API/UI, grading frontend workflows,
-  CI, production hardening, and worker implementation remain pending.
+- The Django/DRF backend implements the core grading domain, permissions,
+  append-only audit events, user administration APIs, and promotion/rank
+  history.
+- The React frontend implements the main instructor workflow from student and
+  session setup through assessment, final decision, and promotion.
+- CI, generated OpenAPI types, local PostgreSQL Compose, and backend/frontend
+  verification are in place.
+- The next frontend slice is the real Audit browser, followed by administrator
+  Users screens. The current routes are access-controlled placeholders.
+- Production images/deployment/backups and offline/PWA behaviour are not
+  implemented. Explicit syllabus versioning remains deferred by decision.
 
 ## Phase 0 - Confirm Foundations
 
-1. Confirm the initial product scope for V1.
-2. Confirm the development workflow and repository layout before scaffolding code.
-3. Confirm backend identity strategy: Django default user vs custom email-first user model.
-4. Confirm frontend styling approach: plain CSS, Tailwind, component library, or a constrained design system.
-5. Confirm local development strategy: native processes, Docker Compose, or both.
-6. Confirm database strategy for local development and tests.
+Completed. The accepted stack, boundaries, identity model, local database, and
+constrained CSS-token design direction are recorded in the decision log and
+current-system documentation.
 
 ## Phase 1 - Repository Scaffold
 
@@ -35,46 +33,37 @@ This plan translates the existing project documents into a controlled implementa
 
 ## Phase 2 - Core Domain Skeleton
 
-1. Implement organisation, branch, role, rank, and student models. Partially
-   done: custom user, role field, rank catalogue, and initial student model
-   exist; organisation, branch, explicit active/inactive/left status, and
-   production role policy remain pending.
-2. Add serializers, viewsets, permissions, and admin configuration for those
-   models. Partially done for auth, ranks, syllabus, and grading foundations;
-   student API and least-privilege action rules remain pending.
-3. Add frontend routes for login shell, dashboard shell, students list, and
-   student detail. Login/protected shell exists; real routing and student
-   screens remain pending.
-4. Add focused tests for model constraints and API permissions. Existing tests
-   are extensive for implemented foundations; role/action permission coverage
-   remains pending.
+Completed for the accepted V1 scope. Organisation/branch entities are not part
+of the current implementation; do not infer that they are required from older
+planning documents without a new decision.
 
 ## Phase 3 - Syllabus and Grading Workflow
 
-1. Implement syllabus versions, categories, criteria, and rank pathways.
-   Current implementation has syllabus items and requirements only; explicit
-   versioning and publication remain pending.
-2. Implement grading sessions, candidates, examiner assignments, assessments,
-   scores, and final decisions. Grading sessions, candidates, assessment
-   snapshots, item-level met/not-met results, outcome proposals, and final
-   decisions exist; examiner assignments, scoring beyond met/not-met, and
-   hardened integrity boundaries remain pending.
-3. Build examiner-facing scoring flows and head-instructor decision flows in
-   small increments. Backend foundations exist; frontend workflows remain
-   pending.
-4. Add audit events around final decisions, overrides, and rank-changing
-   actions. Pending.
+1. Core grading workflow, immutable syllabus snapshots, category/item results,
+   outcome decisions, promotion, and audit events: implemented.
+2. Instructor frontend workflow: implemented, including bulk cohort
+   registration, assessment preparation/start, marking, decisions, and
+   promotion.
+3. Build the Audit event browser and administrator Users UI against the
+   existing APIs.
+4. Finish frontend accessibility and CSS modularisation without changing the
+   accepted workflow.
+5. Explicit syllabus version publication remains deferred; historical
+   reproducibility is provided by immutable assessment snapshots.
 
 ## Phase 4 - Reporting and Operational Maturity
 
-1. Add basic outcome and rank-distribution reports.
-2. Add promotion records and simple certificate metadata.
-3. Defer full certificate rendering, eligibility automation, notifications, and worker infrastructure until the V1 workflow is stable.
+1. Complete production image, deployment, backup/restore, monitoring, and
+   readiness work before describing the application as production-ready.
+2. Decide whether offline operation is required before adding a PWA, IndexedDB,
+   or synchronisation/outbox architecture.
+3. Add reports/exports only from an accepted reporting specification.
+4. Defer certificates, notifications, and worker infrastructure until a real
+   accepted workload requires them.
 
 ## Decision rule
 
 Every implementation slice should have a clear acceptance check before it starts. If a slice needs a structural choice, record the choice in `decision_log.md` first.
 
-During the audit cleanup programme, `docs/audits/remediation-status.md` defines
-the required stage order. Do not start new product features until the relevant
-remediation gate is complete.
+Dated audit files are evidence snapshots, not live task lists. Re-verify a
+finding against the current branch before implementing it.

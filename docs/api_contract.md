@@ -214,7 +214,7 @@ payment workflows.
 
 | Method | Endpoint                              | Description                                      |
 |-------|----------------------------------------|--------------------------------------------------|
-| GET   | /api/gradings/sessions/                | List grading sessions                            |
+| GET   | /api/gradings/sessions/                | List grading sessions; filters `status`, `grading_date_from`, `grading_date_to`, `search` (title/location) |
 | POST  | /api/gradings/sessions/                | Create a grading session                         |
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
 | PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |

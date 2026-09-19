@@ -156,14 +156,19 @@ export function CreateGradingSessionScreen() {
     }
   }
 
-  const canCreateGrading = user?.role === "administrator" || user?.is_superuser === true || user?.is_staff === true;
+  const canCreateGrading =
+    user?.role === "instructor" ||
+    user?.role === "administrator" ||
+    user?.is_superuser === true;
 
   if (user && !canCreateGrading) {
     return (
       <section aria-labelledby="unauth-heading" className="cgs-page">
         <div className="cgs-page-header">
           <h1 id="unauth-heading" className="cgs-page-title">Access Restricted</h1>
-          <p className="cgs-page-subtitle">Only administrators can create grading sessions.</p>
+          <p className="cgs-page-subtitle">
+            Your account does not have permission to create grading sessions.
+          </p>
         </div>
         <button className="btn-ghost" onClick={() => navigate("/gradings")} type="button">
           Return to Gradings

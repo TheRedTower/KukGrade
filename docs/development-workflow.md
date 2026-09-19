@@ -2,16 +2,15 @@
 
 ## Current Stage
 
-KukGrade has a runnable Django/DRF backend, React/TypeScript frontend, local
-PostgreSQL foundation, authentication/session foundation, and implemented
-student, rank, syllabus, grading session, assessment snapshot, and candidate
-outcome foundations.
+KukGrade has a runnable Django/DRF backend and React/TypeScript frontend for the
+core grading workflow, local PostgreSQL Compose, CI, generated API types,
+permissions, audit logging, promotion, and rank history. Audit and Users
+frontend routes are still placeholders. Production deployment and offline/PWA
+support are not implemented.
 
-The repository is in an audit remediation phase. Do not start unrelated product
-features until the relevant remediation stages in
-`docs/audits/remediation-status.md` are complete. Do not scaffold a worker,
-audit subsystem, CI, production Docker images, or broad new workflows until the
-relevant decisions are confirmed.
+Dated audit documents are snapshots. Verify their findings against the current
+branch before treating them as work. Do not scaffold a worker until a real
+asynchronous workload is accepted.
 
 ## Confirmed Working Rules
 
@@ -25,23 +24,20 @@ relevant decisions are confirmed.
 - Use anonymised or synthetic data during development.
 - Do not commit secrets, credentials, production exports, or real student data.
 
-## Proposed Implementation Sequence
+## Implementation Sequence
 
-1. Confirm unresolved foundation decisions in `docs/decision_log.md`.
-2. Scaffold the Django and DRF backend in `backend/`. Done.
-3. Add PostgreSQL-backed local configuration. Done.
-4. Add the first backend tests and minimal startup verification. Done.
-5. Scaffold the React and TypeScript frontend in `frontend/`. Done.
-6. Add frontend API client conventions and first tests. Done.
-7. Implement identity and permissions foundations. Done for authentication and reusable role permissions; audit remains pending.
-8. Implement student records. Initial `Student` model is done; student API/UI remains pending.
-9. Implement ranks and syllabus versioning. Rank catalogue is done; explicit
-   syllabus versioning is pending.
-10. Implement grading sessions, draft assessments, final decisions, and
-    confirmed historical rank-change behavior. Grading sessions, assessment
-    snapshots, and final decisions are done; promotion/rank history is not
-    merged on `dev` and must be re-audited before acceptance.
-11. Add reporting, certificates, imports, notifications, and worker tasks only after the core workflow is stable.
+1. Keep the core workflow green and contracts/documentation aligned.
+2. Replace the Audit placeholder with a paginated, filterable event browser.
+3. Replace the Users placeholder with administrator account, role, authority,
+   and password-reset flows.
+4. Complete accessibility review and split the shared frontend stylesheet by
+   stable feature boundary.
+5. Define and implement production deployment, backup/restore, readiness, and
+   monitoring.
+6. Decide offline requirements before implementing any PWA/synchronisation
+   architecture.
+7. Add reports, exports, certificates, notifications, or worker tasks only
+   after their product scope is accepted.
 
 ## Documentation Workflow
 
@@ -77,7 +73,7 @@ uv run python manage.py check
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts ranks students syllabus gradings
+uv run mypy kukgrade health accounts audit ranks students syllabus gradings
 uv run python manage.py runserver 0.0.0.0:8000
 ```
 
@@ -113,16 +109,13 @@ The local Compose database binds PostgreSQL to `127.0.0.1` only and stores data
 under `.local/postgres/`, which is ignored by Git. Use `.env` for local
 overrides and keep production database credentials out of this repository.
 
-Future documentation should define exact commands for:
-
-- CI.
-- production Docker build and run.
+Future documentation must define exact production image, deployment, backup,
+restore, readiness, and rollback commands before production use.
 
 ## Unresolved Decisions
 
-- Frontend styling approach.
-- CI provider and required checks.
 - Docker image layout and deployment target.
-- V1 role/action permission matrix.
-- Syllabus version publication and selection policy.
-- Audit retention and visibility policy.
+- Backup/restore ownership and retention.
+- Whether offline grading is required and, if so, its conflict policy.
+- Syllabus version publication and selection policy (currently deferred).
+- Reporting/export scope and retention.

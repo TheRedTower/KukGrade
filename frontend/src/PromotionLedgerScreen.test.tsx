@@ -686,13 +686,16 @@ describe("PromotionLedgerScreen", () => {
       expect(screen.getByTestId("promote-candidate-btn-101")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId("promote-candidate-btn-101"));
+    const promoteButton = screen.getByTestId("promote-candidate-btn-101");
+    await user.click(promoteButton);
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(mockPromoteCandidateOutcome).not.toHaveBeenCalled();
+    expect(promoteButton).toHaveFocus();
   });
 
   it("opens pinned batch preview tray, displays eligible candidates, and executes bulk promotion", async () => {

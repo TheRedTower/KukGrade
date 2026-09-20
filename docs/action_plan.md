@@ -14,8 +14,9 @@ This plan translates the existing project documents into a controlled implementa
 - The Audit browser and administrator Users account-management flow are
   implemented. Dedicated attendance/no-show selection and the authorised
   locked-session withdrawal flow are also implemented. Accessibility work has
-  started with focus management for the outcome proposal and final-decision
-  drawers; the remaining frontend work is the wider accessibility pass and CSS
+  started with shared focus management across grading decisions, cohort
+  exceptions, student editing, and individual promotion confirmation; the
+  remaining frontend work is the wider accessibility pass and CSS
   modularisation.
 - Production images/deployment/backups and offline/PWA behaviour are not
   implemented. Explicit syllabus versioning remains deferred by decision.

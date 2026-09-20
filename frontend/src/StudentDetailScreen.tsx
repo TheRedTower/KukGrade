@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -12,6 +12,7 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 
 function LockIcon() {
   return (
@@ -126,6 +127,16 @@ export function StudentDetailScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({});
   const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
+  const statusDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: isStatusModalOpen,
+    onClose: () => setIsStatusModalOpen(false),
+    canClose: !isSavingStatus,
+  });
+  const editDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: isEditModalOpen,
+    onClose: () => setIsEditModalOpen(false),
+    canClose: !isSavingEdit,
+  });
 
   // 1. Fetch Student Detail
   const studentQuery = useQuery({
@@ -164,18 +175,6 @@ export function StudentDetailScreen() {
       .sort((a, b) => a.order - b.order);
     return higherRanks.length > 0 ? higherRanks[0] : null;
   }, [student, ranks]);
-
-  // Handle Close Modals on Escape
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setIsStatusModalOpen(false);
-        setIsEditModalOpen(false);
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
 
   async function handleSaveStatus(e: FormEvent) {
     e.preventDefault();
@@ -551,12 +550,20 @@ export function StudentDetailScreen() {
 
       {/* Change Status Modal */}
       {isStatusModalOpen && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setIsStatusModalOpen(false)}>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!isSavingStatus) setIsStatusModalOpen(false);
+          }}
+        >
           <div
+            ref={statusDialogRef}
             className="modal-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-status-title"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -568,6 +575,7 @@ export function StudentDetailScreen() {
                 className="modal-close-btn"
                 aria-label="Close dialog"
                 onClick={() => setIsStatusModalOpen(false)}
+                disabled={isSavingStatus}
               >
                 ✕
               </button>
@@ -593,6 +601,7 @@ export function StudentDetailScreen() {
                       value="ACTIVE"
                       checked={selectedStatus === "ACTIVE"}
                       onChange={() => setSelectedStatus("ACTIVE")}
+                      data-dialog-autofocus={selectedStatus === "ACTIVE" ? true : undefined}
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
@@ -614,6 +623,7 @@ export function StudentDetailScreen() {
                       value="INACTIVE"
                       checked={selectedStatus === "INACTIVE"}
                       onChange={() => setSelectedStatus("INACTIVE")}
+                      data-dialog-autofocus={selectedStatus === "INACTIVE" ? true : undefined}
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
@@ -635,6 +645,7 @@ export function StudentDetailScreen() {
                       value="LEFT"
                       checked={selectedStatus === "LEFT"}
                       onChange={() => setSelectedStatus("LEFT")}
+                      data-dialog-autofocus={selectedStatus === "LEFT" ? true : undefined}
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
@@ -675,12 +686,20 @@ export function StudentDetailScreen() {
 
       {/* Edit Student Details Modal */}
       {isEditModalOpen && (
-        <div className="modal-backdrop" role="presentation" onClick={() => setIsEditModalOpen(false)}>
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!isSavingEdit) setIsEditModalOpen(false);
+          }}
+        >
           <div
+            ref={editDialogRef}
             className="modal-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-student-title"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
@@ -692,6 +711,7 @@ export function StudentDetailScreen() {
                 className="modal-close-btn"
                 aria-label="Close dialog"
                 onClick={() => setIsEditModalOpen(false)}
+                disabled={isSavingEdit}
               >
                 ✕
               </button>
@@ -734,6 +754,7 @@ export function StudentDetailScreen() {
                       onChange={(e) => setEditFirstName(e.target.value)}
                       disabled={isSavingEdit}
                       aria-required="true"
+                      data-dialog-autofocus
                     />
                     {getEditFieldError("first_name") && (
                       <p className="form-field-error">{getEditFieldError("first_name")}</p>

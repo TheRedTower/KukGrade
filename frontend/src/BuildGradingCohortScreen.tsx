@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +14,7 @@ import {
   getGradingSession,
   getRanks,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 
 function formatSessionDate(dateStr: string): string {
   try {
@@ -99,21 +100,10 @@ export function BuildGradingCohortScreen() {
 
   // Exceptions modal state
   const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false);
-
-  // Close exceptions modal on Escape key
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setExceptionsModalOpen(false);
-      }
-    }
-    if (exceptionsModalOpen) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [exceptionsModalOpen]);
+  const exceptionsDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: exceptionsModalOpen,
+    onClose: () => setExceptionsModalOpen(false),
+  });
 
   // Submitting and registration results state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1233,13 +1223,16 @@ export function BuildGradingCohortScreen() {
       {exceptionsModalOpen && (
         <div
           className="gsd-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="bgc-modal-title"
+          role="presentation"
           onClick={() => setExceptionsModalOpen(false)}
         >
           <div
+            ref={exceptionsDialogRef}
             className="gsd-modal-card bgc-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bgc-modal-title"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="gsd-modal-header">
@@ -1295,6 +1288,7 @@ export function BuildGradingCohortScreen() {
                 className="btn-primary gs-create-btn"
                 onClick={() => setExceptionsModalOpen(false)}
                 data-testid="bgc-modal-done-btn"
+                data-dialog-autofocus
               >
                 Done
               </button>

@@ -68,9 +68,11 @@ clean. CI enforces the same categories on each push and pull request.
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
-- Outcome proposal and final-decision drawers move focus to their primary
-  decision control, trap keyboard focus while open, restore focus to the
-  launcher when closed, and retain the page-scroll lock during the interaction.
+- Outcome proposal and final-decision drawers, cohort-exception review, student
+  status/edit dialogs, and single-student promotion confirmation move focus to
+  their primary or safest control, trap keyboard focus while open, restore
+  focus to the launcher when closed, and retain the page-scroll lock during the
+  interaction.
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a

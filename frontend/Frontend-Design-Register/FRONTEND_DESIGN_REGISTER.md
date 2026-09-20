@@ -68,8 +68,8 @@ here does not by itself mean it has shipped.
 | SCR-008 | Staff login | Light | `08-login.png` | First concept; unsupported persistent-login control removed |
 | SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Selected syllabus concept |
 | SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible only to administrators and the designated Master |
-| SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Administrator-only concept |
-| SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Administrator-only concept |
+| SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Implemented; administrator only |
+| SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Implemented; administrator only |
 | SCR-013 | Installed PWA offline shell | Light | `13-pwa-offline-shell.png` | First-release degraded state; no offline writes |
 | SCR-014 | Instructor self-profile menu | Light | `14-instructor-profile-menu.png` | Selected; contains no installation action |
 | SCR-015 | PWA update-ready notification | Light | `15-pwa-update-ready.png` | First concept; update is deferrable and never forced |
@@ -109,18 +109,16 @@ here does not by itself mean it has shipped.
 - Implemented: login and application shell, Overview, Students list/detail/add,
   Gradings list/create/detail, cohort builder and exception handling, Syllabus,
   assessment workspace/completion, outcome proposal, final decision, promotion
-  ledger, Audit event browser/detail, profile/password controls, themes, and
-  session transitions.
-- Placeholder only: administrator Users list.
-- Not implemented: administrator user detail/authority/password flows, installed
-  PWA/offline shell, and update-ready notification.
+  ledger, Audit event browser/detail, administrator Users list/detail/create,
+  role/status/authority/password management, profile/password controls, themes,
+  and session transitions.
+- Not implemented: installed PWA/offline shell and update-ready notification.
 - Partial cleanup remains: full keyboard/focus/contrast verification, component
   stylesheet boundaries, elimination of remaining literal colours, and full
   light/dark/mobile parity.
 
 ## Remaining shared-screen work
 
-- User administration, password reset and Master-authority controls.
 - PWA update, cached-shell, reconnection and honest offline states. Installation is browser/OS-owned with no KukGrade prompt.
 - Finish accessibility review, tablet/mobile coverage, component states and motion storyboards. A persistent notification centre is deferred.
 - Full light/dark parity for every accepted screen.

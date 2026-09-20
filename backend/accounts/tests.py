@@ -743,6 +743,7 @@ def test_administrators_can_list_and_retrieve() -> None:
 
     assert any(row["email"] == "list-target@example.com" for row in listing["results"])
     assert detail["email"] == "list-target@example.com"
+    assert "last_login" in detail
 
 
 def test_weak_password_is_rejected_with_a_field_error() -> None:
@@ -1204,11 +1205,20 @@ def test_search_and_role_filters_work() -> None:
 
     by_search = client.get("/api/users/?search=kim").json()
     by_role = client.get(f"/api/users/?role={User.Role.ADMINISTRATOR}").json()
+    inactive_target = User.objects.get(email="alex.kim@example.com")
+    inactive_target.is_active = False
+    inactive_target.save(update_fields=["is_active"])
+    by_active = client.get("/api/users/?is_active=true").json()
+    by_inactive = client.get("/api/users/?is_active=false").json()
+    unknown_active = client.get("/api/users/?is_active=sometimes").json()
     unknown_role = client.get("/api/users/?role=nonsense").json()
 
     assert {r["email"] for r in by_search["results"]} == {"alex.kim@example.com"}
     assert "blair.diaz@example.com" in {r["email"] for r in by_role["results"]}
     assert "alex.kim@example.com" not in {r["email"] for r in by_role["results"]}
+    assert "alex.kim@example.com" not in {r["email"] for r in by_active["results"]}
+    assert {r["email"] for r in by_inactive["results"]} == {"alex.kim@example.com"}
+    assert unknown_active["count"] == 0
     assert unknown_role["count"] == 0
 
 

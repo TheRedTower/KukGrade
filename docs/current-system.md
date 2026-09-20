@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-20. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-20 with 474 backend tests and 130 frontend tests passing.
+Verified on 2026-09-20 with 474 backend tests and 140 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -153,7 +153,10 @@ clean. CI enforces the same categories on each push and pull request.
   preparation, item-level marking, outcome proposal and final decision, and
   the promotion ledger. The access-controlled Audit route provides server-side
   action, entity, date and keyword filtering, pagination, and complete event
-  detail without any mutation control. Session detail offers explicit
+  detail without any mutation control. The administrator-only Users workspace
+  provides account creation, server-side search/role/status filters, account
+  detail updates, the three independent authority controls, password reset,
+  and user-specific audit history. Session detail offers explicit
   bulk-first controls to prepare every missing assessment and then start every
   prepared assessment; individual assessment actions remain available for
   exceptions.
@@ -226,9 +229,6 @@ clean. CI enforces the same categories on each push and pull request.
 
 ## Not Implemented
 
-- **User management UI**, including account detail, role/authority changes,
-  and password administration. The administrator-only route exists but
-  currently renders a placeholder card; the backend API is implemented.
 - Offline/PWA storage and synchronisation; the frontend is online-first.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.

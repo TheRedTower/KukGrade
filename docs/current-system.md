@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-20. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-20 with 474 backend tests and 145 frontend tests passing.
+Verified on 2026-09-20 with 474 backend tests and 147 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -68,6 +68,9 @@ clean. CI enforces the same categories on each push and pull request.
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
+- Outcome proposal and final-decision drawers move focus to their primary
+  decision control, trap keyboard focus while open, restore focus to the
+  launcher when closed, and retain the page-scroll lock during the interaction.
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a

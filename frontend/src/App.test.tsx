@@ -3670,7 +3670,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
     await user.click(proposeBtn);
 
-    expect(await screen.findByTestId("outcome-proposal-drawer")).toBeVisible();
+    const reopenedDrawer = await screen.findByTestId("outcome-proposal-drawer");
+    expect(reopenedDrawer).toBeVisible();
+    expect(
+      reopenedDrawer.querySelector<HTMLInputElement>('input[value="PASS"]'),
+    ).toHaveFocus();
 
     // Dismiss via Cancel button
     const cancelBtn = screen.getByTestId("opd-cancel-btn");
@@ -3684,6 +3688,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+    expect(proposeBtn).toHaveFocus();
   });
 });
 

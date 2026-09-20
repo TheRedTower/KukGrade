@@ -459,6 +459,8 @@ describe("MasterFinalDecisionDrawer (SCR-022)", () => {
       />,
     );
 
+    expect(screen.getByRole("radio", { name: /Pass/i })).toHaveFocus();
+
     const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
     await user.click(cancelBtn);
     expect(onClose).toHaveBeenCalledTimes(1);

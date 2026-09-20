@@ -2371,6 +2371,124 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     );
     expect(deleteCalls.length).toBe(1);
   });
+
+  it("traps focus in the delete confirmation dialog, defaults to Cancel, and restores focus to the launcher on Escape", async () => {
+    const cancelledSession = {
+      id: 4,
+      title: "Cancelled Empty Grading",
+      grading_date: "2025-09-13",
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "Venue unavailable",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2025-09-01T10:00:00Z",
+      updated_at: "2025-09-13T10:00:00Z",
+    };
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [cancelledSession] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete session Cancelled Empty Grading" });
+    await user.click(deleteBtn);
+
+    expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    const confirmBtn = screen.getByRole("button", { name: "Delete" });
+    expect(cancelBtn).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(confirmBtn).toHaveFocus();
+
+    await user.tab();
+    expect(cancelBtn).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("heading", { name: "Delete Grading Session" })).not.toBeInTheDocument();
+    expect(deleteBtn).toHaveFocus();
+  });
+
+  it("keeps the delete confirmation dialog open and ignores Escape while deletion is pending", async () => {
+    const cancelledSession = {
+      id: 4,
+      title: "Cancelled Empty Grading",
+      grading_date: "2025-09-13",
+      status: "CANCELLED",
+      status_display: "Cancelled",
+      location: "Colchester Dojang",
+      notes: "",
+      cancellation_reason: "Venue unavailable",
+      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
+      created_by_email: "master@example.com",
+      created_at: "2025-09-01T10:00:00Z",
+      updated_at: "2025-09-13T10:00:00Z",
+    };
+
+    let resolveDelete: (() => void) | undefined;
+    const deletePending = new Promise<void>((resolve) => {
+      resolveDelete = resolve;
+    });
+
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/4/") && init?.method === "DELETE") {
+        await deletePending;
+        return new Response(null, { status: 204 });
+      }
+      if (url.includes("/api/gradings/sessions/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [cancelledSession] });
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const deleteBtn = await screen.findByRole("button", { name: "Delete session Cancelled Empty Grading" });
+    await user.click(deleteBtn);
+    expect(await screen.findByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+    expect(await screen.findByRole("button", { name: "Deleting…" })).toBeDisabled();
+
+    // Escape and backdrop clicks are ignored while the deletion is in flight.
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
+
+    const backdrop = document.querySelector(".gsd-modal-backdrop");
+    expect(backdrop).toBeInTheDocument();
+    await user.click(backdrop!);
+    expect(screen.getByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
+
+    resolveDelete?.();
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Delete Grading Session" })).not.toBeInTheDocument();
+    });
+  });
 });
 
 // Create Grading Session Screen (/gradings/new)
@@ -3443,6 +3561,88 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+  });
+
+  it("traps focus in the lifecycle confirmation modal, defaults to Cancel, and restores focus to the launcher on Escape", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    const lockMenuItem = screen.getByRole("menuitem", { name: "Lock session" });
+    await user.click(lockMenuItem);
+
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+    const cancelBtn = screen.getByRole("button", { name: "Cancel" });
+    const confirmBtn = screen.getByTestId("gsd-modal-confirm-btn");
+    expect(cancelBtn).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(confirmBtn).toHaveFocus();
+
+    await user.tab();
+    expect(cancelBtn).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+    expect(screen.getByTestId("gsd-actions-btn")).toHaveFocus();
+  });
+
+  it("keeps the lifecycle confirmation modal open and ignores Escape while the transition is pending", async () => {
+    let resolvePatch: (() => void) | undefined;
+    const patchPending = new Promise<void>((resolve) => {
+      resolvePatch = resolve;
+    });
+
+    const fetchMock = setupStandardMock();
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
+        await patchPending;
+        return jsonResponse(200, { ...testSession, status: "LOCKED", status_display: "Locked" });
+      }
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/gradings/outcomes/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Lock session" }));
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    await user.click(screen.getByTestId("gsd-modal-confirm-btn"));
+    expect(await screen.findByTestId("gsd-modal-confirm-btn")).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    const backdrop = document.querySelector(".gsd-modal-backdrop");
+    expect(backdrop).toBeInTheDocument();
+    await user.click(backdrop!);
+    expect(screen.getByText("Lock Grading Session")).toBeVisible();
+
+    resolvePatch?.();
+    await waitFor(() => {
+      expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
+    });
   });
 
   it("allows deleting a cancelled session with no starts from the session actions menu", async () => {

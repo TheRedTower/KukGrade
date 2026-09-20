@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -13,6 +13,7 @@ import {
   getCandidateAssessments,
 } from "./api";
 import { useAuth } from "./auth";
+import { useDialogFocus } from "./useDialogFocus";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -245,17 +246,16 @@ export function GradingSessionsScreen() {
     },
   });
 
-  useEffect(() => {
-    if (!deleteConfirmSession) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setDeleteConfirmSession(null);
-        setDeleteError(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [deleteConfirmSession]);
+  const closeDeleteConfirm = () => {
+    setDeleteConfirmSession(null);
+    setDeleteError(null);
+  };
+
+  const deleteSessionDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: deleteConfirmSession !== null,
+    onClose: closeDeleteConfirm,
+    canClose: !deleteSessionMutation.isPending,
+  });
 
   const userCanDelete = user?.role === "administrator" || user?.role === "instructor" || user?.is_superuser === true;
 
@@ -552,17 +552,19 @@ export function GradingSessionsScreen() {
       {deleteConfirmSession && (
         <div
           className="gsd-modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-session-modal-title"
           onClick={() => {
-            if (!deleteSessionMutation.isPending) {
-              setDeleteConfirmSession(null);
-              setDeleteError(null);
-            }
+            if (!deleteSessionMutation.isPending) closeDeleteConfirm();
           }}
         >
-          <div className="gsd-modal-card" onClick={(e) => e.stopPropagation()}>
+          <div
+            ref={deleteSessionDialogRef}
+            className="gsd-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-session-modal-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 id="delete-session-modal-title" className="gsd-modal-title">Delete Grading Session</h3>
             <p className="gsd-modal-message">
               Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
@@ -576,11 +578,9 @@ export function GradingSessionsScreen() {
               <button
                 type="button"
                 className="btn-ghost"
-                onClick={() => {
-                  setDeleteConfirmSession(null);
-                  setDeleteError(null);
-                }}
+                onClick={closeDeleteConfirm}
                 disabled={deleteSessionMutation.isPending}
+                data-dialog-autofocus
               >
                 Cancel
               </button>

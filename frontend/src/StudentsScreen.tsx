@@ -10,6 +10,7 @@ import {
   getStudents,
 } from "./api";
 import { useAuth } from "./auth";
+import "./StudentScreens.css";
 
 function SearchIcon() {
   return (

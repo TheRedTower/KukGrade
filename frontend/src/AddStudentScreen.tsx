@@ -10,6 +10,7 @@ import {
   createStudent,
   getRanks,
 } from "./api";
+import "./StudentScreens.css";
 
 function LockIcon() {
   return (

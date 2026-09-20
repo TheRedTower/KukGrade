@@ -13,6 +13,7 @@ import {
   updateStudent,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
+import "./StudentScreens.css";
 
 function LockIcon() {
   return (

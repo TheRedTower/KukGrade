@@ -1820,6 +1820,14 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
         absent_first.id,
         absent_second.id,
     }
+    for item in payload["updated"]:
+        assert item["withdrawal_reason"] == ""
+        assert item["withdrawal_reason_display"] == ""
+        assert item["withdrawal_note"] == ""
+        assert item["withdrawn_by"] is None
+        assert item["withdrawn_by_email"] == ""
+        assert item["withdrawn_by_name"] == ""
+        assert item["withdrawn_at"] is None
     absent_first.refresh_from_db()
     absent_second.refresh_from_db()
     assert absent_first.status == GradingCandidate.Status.WITHDRAWN
@@ -4522,7 +4530,19 @@ def test_withdraw_api_records_the_withdrawal() -> None:
     )
 
     assert response.status_code == 200
-    assert response.json()["status"] == GradingCandidate.Status.WITHDRAWN
+    payload = response.json()
+    assert payload["status"] == GradingCandidate.Status.WITHDRAWN
+    assert (
+        payload["student_display_name"]
+        == (f"{built.student.first_name} {built.student.last_name}").strip()
+    )
+    assert payload["withdrawal_reason"] == GradingCandidate.WithdrawalReason.ABSENT
+    assert payload["withdrawal_reason_display"] == "Did not attend"
+    assert payload["withdrawal_note"] == "Did not arrive."
+    assert payload["withdrawn_by"] == str(master_user.id)
+    assert payload["withdrawn_by_email"] == master_user.email
+    assert payload["withdrawn_by_name"] == master_user.get_full_name()
+    assert payload["withdrawn_at"] is not None
     built.refresh_from_db()
     assert built.withdrawn_by == master_user
 

@@ -5,6 +5,7 @@ from typing import cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import MethodNotAllowed
@@ -161,6 +162,7 @@ class GradingCandidateViewSet(ModelViewSet):
                 "session",
                 "student",
                 "testing_for_rank",
+                "withdrawn_by",
             )
             .all()
             .order_by(
@@ -313,6 +315,10 @@ class GradingCandidateViewSet(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        request=LockedCandidateWithdrawalSerializer,
+        responses=GradingCandidateSerializer,
+    )
     @action(
         detail=True,
         methods=["post"],

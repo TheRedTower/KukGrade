@@ -964,6 +964,15 @@ export interface components {
             status?: components["schemas"]["GradingCandidateStatusEnum"];
             readonly status_display: string;
             notes?: string;
+            readonly withdrawal_reason: string;
+            readonly withdrawal_reason_display: string;
+            readonly withdrawal_note: string;
+            /** Format: uuid */
+            readonly withdrawn_by: string | null;
+            readonly withdrawn_by_email: string;
+            readonly withdrawn_by_name: string;
+            /** Format: date-time */
+            readonly withdrawn_at: string | null;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -1007,6 +1016,10 @@ export interface components {
         HealthResponse: {
             service: string;
             status: string;
+        };
+        LockedCandidateWithdrawal: {
+            withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
+            withdrawal_note?: string;
         };
         Login: {
             /** Format: email */
@@ -1313,6 +1326,15 @@ export interface components {
             status?: components["schemas"]["GradingCandidateStatusEnum"];
             readonly status_display?: string;
             notes?: string;
+            readonly withdrawal_reason?: string;
+            readonly withdrawal_reason_display?: string;
+            readonly withdrawal_note?: string;
+            /** Format: uuid */
+            readonly withdrawn_by?: string | null;
+            readonly withdrawn_by_email?: string;
+            readonly withdrawn_by_name?: string;
+            /** Format: date-time */
+            readonly withdrawn_at?: string | null;
             /** Format: date-time */
             readonly created_at?: string;
             /** Format: date-time */
@@ -1706,6 +1728,14 @@ export interface components {
             readonly last_login: string | null;
             password: string;
         };
+        /**
+         * @description * `INJURY` - Injured during grading
+         *     * `WITHDREW` - Withdrew voluntarily
+         *     * `ABSENT` - Did not attend
+         *     * `ADMIN_ERROR` - Registered in error
+         * @enum {string}
+         */
+        WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "ADMIN_ERROR";
     };
     responses: never;
     parameters: never;
@@ -2261,9 +2291,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["LockedCandidateWithdrawal"];
+                "application/x-www-form-urlencoded": components["schemas"]["LockedCandidateWithdrawal"];
+                "multipart/form-data": components["schemas"]["LockedCandidateWithdrawal"];
             };
         };
         responses: {

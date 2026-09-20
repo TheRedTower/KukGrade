@@ -362,6 +362,12 @@ Candidate fields:
 - `status`: `REGISTERED`, `WITHDRAWN`, or `COMPLETED`; defaults to
   `REGISTERED`.
 - `notes`: optional notes.
+- Locked-session withdrawal metadata is read-only on ordinary candidate
+  responses: `withdrawal_reason`, `withdrawal_reason_display`,
+  `withdrawal_note`, `withdrawn_by`, `withdrawn_by_email`,
+  `withdrawn_by_name`, and `withdrawn_at`. These fields are populated only by
+  the dedicated withdrawal action; routine draft/open no-show withdrawal has
+  blank/null attribution metadata.
 
 Candidate filters:
 

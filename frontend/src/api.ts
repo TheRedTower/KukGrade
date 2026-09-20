@@ -19,7 +19,17 @@ export type PaginatedResponse<T> = {
 
 export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
-export type GradingCandidate = components["schemas"]["GradingCandidate"];
+type GeneratedGradingCandidate = components["schemas"]["GradingCandidate"];
+type WithdrawalMetadataKey =
+  | "withdrawal_reason"
+  | "withdrawal_reason_display"
+  | "withdrawal_note"
+  | "withdrawn_by"
+  | "withdrawn_by_email"
+  | "withdrawn_by_name"
+  | "withdrawn_at";
+export type GradingCandidate = Omit<GeneratedGradingCandidate, WithdrawalMetadataKey> &
+  Partial<Pick<GeneratedGradingCandidate, WithdrawalMetadataKey>>;
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
@@ -491,6 +501,22 @@ export async function bulkUpdateCandidateStatus(
     method: "POST",
     body: JSON.stringify({ candidates: candidateIds, status }),
   });
+}
+
+export type LockedCandidateWithdrawal =
+  components["schemas"]["LockedCandidateWithdrawal"];
+
+export async function withdrawLockedCandidate(
+  candidateId: number,
+  payload: LockedCandidateWithdrawal,
+): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(
+    `/api/gradings/candidates/${candidateId}/withdraw/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export type CandidateAssessmentListParams = {

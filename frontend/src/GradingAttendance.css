@@ -1,0 +1,185 @@
+.attendance-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 62%);
+  backdrop-filter: blur(3px);
+}
+
+.attendance-dialog {
+  width: min(100%, 36rem);
+  max-height: min(44rem, calc(100vh - 2rem));
+  overflow: auto;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.attendance-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.attendance-dialog-header p {
+  margin: 0 0 0.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.attendance-dialog-header h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.35rem;
+}
+
+.attendance-dialog-copy {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  line-height: 1.55;
+}
+
+.attendance-candidate-list {
+  display: grid;
+  gap: 0.5rem;
+  max-height: 20rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+}
+
+.attendance-candidate-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-sunken);
+  cursor: pointer;
+}
+
+.attendance-candidate-option:has(input:checked) {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
+}
+
+.attendance-candidate-option input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-accent);
+}
+
+.attendance-candidate-option span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.attendance-candidate-option strong {
+  color: var(--color-text);
+}
+
+.attendance-candidate-option small,
+.attendance-field small {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.attendance-dialog-summary {
+  margin-top: 0.75rem;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.attendance-field {
+  display: grid;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.attendance-field select,
+.attendance-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.attendance-field textarea {
+  resize: vertical;
+}
+
+.attendance-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.attendance-danger-button {
+  background: var(--color-danger, #b42318);
+  border-color: var(--color-danger, #b42318);
+}
+
+.attendance-dialog-error {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid #fda29b;
+  border-radius: 0.5rem;
+  background: #fef3f2;
+  color: #912018;
+}
+
+.gsd-withdrawal-record {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.gsd-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.gsd-withdraw-button {
+  color: var(--color-danger, #b42318);
+}
+
+@media (max-width: 600px) {
+  .attendance-dialog {
+    padding: 1.1rem;
+  }
+
+  .attendance-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .attendance-dialog-actions button {
+    width: 100%;
+  }
+}

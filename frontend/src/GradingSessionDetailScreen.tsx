@@ -806,7 +806,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {!hasAssessmentWork && (
+                    {(!hasAssessmentWork || currentUser?.role === "administrator") && (
                       <button
                         type="button"
                         role="menuitem"

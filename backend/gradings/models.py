@@ -9,6 +9,9 @@ from django.db.models import F, Q
 
 from syllabus.models import AgeBand, SyllabusItem
 
+if TYPE_CHECKING:
+    from accounts.models import User
+
 
 class GradingSessionQuerySet(models.QuerySet["GradingSession"]):
     def delete(self) -> tuple[int, dict[str, int]]:
@@ -105,10 +108,15 @@ class GradingSession(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
-    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+    def delete(
+        self,
+        *args: Any,
+        actor: User | None = None,
+        **kwargs: Any,
+    ) -> tuple[int, dict[str, int]]:
         from gradings.services import validate_session_can_be_deleted
 
-        validate_session_can_be_deleted(self)
+        validate_session_can_be_deleted(self, actor=actor)
         return super().delete(*args, **kwargs)
 
     def clean(self) -> None:

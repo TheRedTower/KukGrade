@@ -4702,6 +4702,52 @@ def test_cancelled_session_with_recorded_marking_cannot_be_deleted() -> None:
     assert GradingCandidate.objects.filter(pk=built.pk).exists()
 
 
+def test_cancelled_session_with_recorded_marking_deletable_by_administrator() -> None:
+    # Administrators can override the guard deliberately - the audit event
+    # recorded by delete_grading_session is the trail in that case.
+    session, built = locked_session_with_unfinished_candidate()
+    transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("cancel-then-admin-delete@example.com"),
+        reason="Abandoned mid-grading.",
+    )
+    session.refresh_from_db()
+    admin = user(
+        "override-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    session.delete(actor=admin)
+
+    assert not GradingSession.objects.filter(pk=session.pk).exists()
+    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
+
+
+def test_api_admin_can_delete_cancelled_session_with_recorded_marking() -> None:
+    session, _built = locked_session_with_unfinished_candidate()
+    transition_grading_session(
+        session,
+        GradingSession.Status.CANCELLED,
+        actor=override_master("cancel-then-api-admin-delete@example.com"),
+        reason="Abandoned mid-grading.",
+    )
+    session.refresh_from_db()
+
+    client = APIClient()
+    client.force_authenticate(
+        user=user("api-override-admin@example.com", role=User.Role.ADMINISTRATOR),
+    )
+    resp = client.delete(f"/api/gradings/sessions/{session.id}/")
+
+    assert resp.status_code == 204
+    assert not GradingSession.objects.filter(pk=session.pk).exists()
+    assert AuditEvent.objects.filter(
+        action=AuditAction.SESSION_DELETED,
+        entity_id=str(session.id),
+    ).exists()
+
+
 def test_cancelled_session_without_marking_is_still_deletable() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
     candidate(session=session)

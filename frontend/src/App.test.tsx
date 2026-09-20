@@ -3506,6 +3506,42 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(deleteCalls.length).toBe(1);
   });
 
+  it("allows an administrator to delete a cancelled session with recorded assessment work", async () => {
+    const fetchMock = setupStandardMock({
+      status: "CANCELLED",
+      status_display: "Cancelled",
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // testAssessments includes an IN_PROGRESS entry, so this is the guarded
+    // case - only an administrator should see the option.
+    expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+  });
+
+  it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
+    const instructorUser = { ...authUser, is_superuser: false };
+    const fetchMock = setupStandardMock(
+      { status: "CANCELLED", status_display: "Cancelled" },
+      testAssessments,
+      instructorUser,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
+  });
+
   it("opens SCR-021 Instructor Outcome Proposal Drawer, displays candidate context and assessment stats, and submits proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {

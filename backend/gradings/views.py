@@ -126,9 +126,10 @@ class GradingSessionViewSet(ModelViewSet):
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
+        actor = cast(User, request.user)
         try:
-            validate_session_can_be_deleted(instance)
-            delete_grading_session(instance, actor=cast(User, request.user))
+            validate_session_can_be_deleted(instance, actor=actor)
+            delete_grading_session(instance, actor=actor)
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -455,7 +455,10 @@ def validate_session_accepts_candidates(session: GradingSession) -> None:
         )
 
 
-def validate_session_can_be_deleted(session: GradingSession) -> None:
+def validate_session_can_be_deleted(
+    session: GradingSession,
+    actor: User | None = None,
+) -> None:
     if session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.CANCELLED,
@@ -465,7 +468,11 @@ def validate_session_can_be_deleted(session: GradingSession) -> None:
         )
     # A cancelled session can have come from OPEN, so it may hold assessments
     # people actually sat. Deleting it cascades that work away silently, and
-    # there is no audit trail to reconstruct it from. Cancel, do not erase.
+    # there is no audit trail to reconstruct it from. Cancel, do not erase -
+    # unless an administrator is doing it deliberately, in which case the
+    # audit event recorded by delete_grading_session is the trail.
+    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+        return
     if (
         session.candidates.exclude(
             assessment__status=CandidateAssessment.Status.NOT_STARTED,
@@ -1264,7 +1271,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
             ],
         },
     )
-    session.delete()
+    session.delete(actor=actor)
 
 
 @transaction.atomic

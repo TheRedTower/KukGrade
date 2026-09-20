@@ -80,7 +80,8 @@ clean. CI enforces the same categories on each push and pull request.
 - **Deletion rules are model-level**, holding from `Model.delete()`,
   `QuerySet.delete()`, related managers, the shell and Django admin. Bulk
   deletes are all-or-nothing. Cancelled sessions holding recorded marking
-  cannot be deleted at all.
+  cannot be deleted by an instructor; an administrator can delete them
+  deliberately, with the `SESSION_DELETED` audit event as the trail.
 - **Database-level integrity**: a composite foreign key stops an outcome being
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are

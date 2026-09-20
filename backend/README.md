@@ -155,8 +155,12 @@ registration, so adding a group and starting their assessments is one
 request. The response lists what succeeded and an `errors` map keyed by row
 index for what did not - see `../docs/api_contract.md` for the exact shape.
 
-Deletion is state-gated: sessions can be deleted only while draft or cancelled;
-candidates can be deleted only while their parent session is draft or open.
+Deletion is state-gated: sessions can be deleted only while draft or
+cancelled, and a cancelled session holding recorded assessment work (any
+candidate past `NOT_STARTED`) refuses deletion unless the actor is an
+administrator, who can override it deliberately - the `SESSION_DELETED`
+audit event is the trail. Candidates can be deleted only while their parent
+session is draft or open.
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is draft or open.
 `created_by`, candidate `student`, and candidate `testing_for_rank` use

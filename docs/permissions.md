@@ -29,6 +29,12 @@ membership and is never consulted when authorising a request.
 | Manage users and roles | No | Yes | via group |
 | **Read the audit log** | No | **Yes** | **Yes** |
 
+"Grading sessions: full CRUD" has one asymmetry: deleting a cancelled
+session that holds recorded assessment work (any candidate past
+`NOT_STARTED`) is refused for an instructor but allowed for an
+administrator, who can override it deliberately (2026-09-20, see
+`decision_log.md`) - the `SESSION_DELETED` audit event is the trail.
+
 "Master" is not a group. `gradings.can_make_final_grading_decision`,
 `gradings.can_promote_student` and `gradings.can_override_locked_session` are
 granted per user, independently of role, so

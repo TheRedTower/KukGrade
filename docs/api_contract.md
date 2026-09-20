@@ -220,7 +220,7 @@ payment workflows.
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
 | PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |
 | PATCH | /api/gradings/sessions/{id}/           | Update a grading session                         |
-| DELETE| /api/gradings/sessions/{id}/           | Delete only when status is DRAFT or CANCELLED    |
+| DELETE| /api/gradings/sessions/{id}/           | Delete only when status is DRAFT or CANCELLED; a cancelled session with recorded assessment work requires an administrator |
 | GET   | /api/gradings/candidates/              | List grading candidates                          |
 | POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |

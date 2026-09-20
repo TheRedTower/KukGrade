@@ -18,6 +18,39 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-20 - Administrators can delete a cancelled session with recorded assessment work
+
+Status: Accepted
+
+Decision:
+`validate_session_can_be_deleted` still refuses to delete a cancelled
+session that holds recorded assessment work (any candidate past
+`NOT_STARTED`) for an instructor, but an administrator can now delete it
+deliberately. The DRAFT/CANCELLED status requirement is unchanged for
+everyone - no other status becomes deletable.
+
+Context:
+Raised directly: "as an admin i should be able to have delete gradings
+authority even on sessions that are cancelled." The existing guard blocked
+this for every role, added so a cancelled session's assessment work
+couldn't be cascaded away with no audit trail to reconstruct it from.
+Clarified that the intended change is role-based and automatic for the
+Administrator role, not a new per-user grant in `SENSITIVE_PERMISSIONS` -
+this is a broader authority than the existing three sensitive permissions,
+in keeping with administrators already holding every grading capability
+instructors do, plus user administration.
+
+Consequences:
+`validate_session_can_be_deleted`, `GradingSession.delete()`, and
+`delete_grading_session()` take an optional `actor`; when the actor's role
+is Administrator, the assessment-work guard is skipped and the
+`SESSION_DELETED` audit event (which already records status and cascaded
+candidate IDs) is the trail. `GradingSessionQuerySet.delete()` (bulk/ORM
+delete with no request context) keeps the guard unconditionally - the
+override only applies where an acting user is known. The frontend delete
+menu item on a cancelled session now also shows for an administrator even
+when assessment work exists.
+
 ### 2026-09-16 - No self-service account creation: Google SSO rejected, no registration page
 
 Status: Accepted

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   CandidateAssessment,
@@ -10,6 +10,7 @@ import {
   proposeCandidateOutcome,
 } from "./api";
 import { RankVisual } from "./GradingSessionDetailScreen";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface OutcomeProposalDrawerProps {
   candidate: GradingCandidate;
@@ -43,27 +44,11 @@ export function OutcomeProposalDrawer({
 
   const titleId = useId();
   const notesId = useId();
-
-
-  // Handle escape key and body overflow lock
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen, onClose]);
+  const dialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen,
+    onClose,
+    canClose: !isSubmitting,
+  });
 
   // Fetch assessment items to calculate completion and met/not-met stats
   const { data: assessmentItemsData, isLoading: isLoadingItems } = useQuery({
@@ -132,10 +117,12 @@ export function OutcomeProposalDrawer({
       }}
     >
       <div
+        ref={dialogRef}
         className="opd-drawer"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         data-testid="outcome-proposal-drawer"
       >
         {/* ── Drawer Header / Candidate Context Banner ───────────────────────── */}
@@ -248,6 +235,7 @@ export function OutcomeProposalDrawer({
                     checked={selectedOutcome === "PASS"}
                     onChange={() => setSelectedOutcome("PASS")}
                     className="opd-radio-input"
+                    data-dialog-autofocus
                   />
                   <div className="opd-outcome-card-header">
                     <span className="opd-outcome-title">
@@ -288,7 +276,7 @@ export function OutcomeProposalDrawer({
                   </p>
                 </label>
 
-                {/* 3. FAIL / DEFER */}
+                {/* 3. FAIL */}
                 <label
                   className={`opd-outcome-card opd-outcome-fail ${
                     selectedOutcome === "FAIL" ? "is-selected" : ""
@@ -306,9 +294,9 @@ export function OutcomeProposalDrawer({
                   <div className="opd-outcome-card-header">
                     <span className="opd-outcome-title">
                       <span className="opd-outcome-indicator" aria-hidden="true" />
-                      Fail / Defer
+                      Fail
                     </span>
-                    <span className="opd-outcome-badge opd-badge-fail">Defer</span>
+                    <span className="opd-outcome-badge opd-badge-fail">Do not promote</span>
                   </div>
                   <p className="opd-outcome-desc">
                     Did not meet required standard. Recommend remaining at current rank and re-grading at a future session.
@@ -328,7 +316,7 @@ export function OutcomeProposalDrawer({
                 className="opd-textarea"
                 value={proposalNotes}
                 onChange={(e) => setProposalNotes(e.target.value)}
-                placeholder="Detail technical observations, strengths, specific items needing re-testing (if conditional), or rationale for deferral..."
+                placeholder="Detail technical observations, strengths, specific items needing re-testing (if conditional), or rationale for the proposed outcome..."
                 data-testid="opd-notes-textarea"
               />
               <span className="opd-field-hint">

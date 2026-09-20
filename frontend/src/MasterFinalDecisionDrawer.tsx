@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   type CandidateAssessment,
@@ -9,6 +9,7 @@ import {
   getCandidateAssessmentSummary,
 } from "./api";
 import { useAuth } from "./auth";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface MasterFinalDecisionDrawerProps {
   candidate: GradingCandidate;
@@ -102,6 +103,11 @@ export function MasterFinalDecisionDrawer({
   const titleId = useId();
   const notesId = useId();
   const condId = useId();
+  const dialogRef = useDialogFocus<HTMLElement>({
+    isOpen,
+    onClose,
+    canClose: !isSubmitting,
+  });
 
   const [prevOutcomeId, setPrevOutcomeId] = useState<number | null>(outcome?.id ?? null);
 
@@ -117,26 +123,6 @@ export function MasterFinalDecisionDrawer({
     setConditionalRequirements(outcome.conditional_requirements || "");
     setSubmitError(null);
   }
-
-  // Handle escape key and body overflow lock
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && !isSubmitting) {
-        onClose();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [isOpen, isSubmitting, onClose]);
 
   // Fetch assessment summary
   const { data: summary, isLoading: isLoadingSummary } = useQuery({
@@ -215,10 +201,12 @@ export function MasterFinalDecisionDrawer({
       role="presentation"
     >
       <section
+        ref={dialogRef}
         className="mfd-drawer"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
       >
         {/* Drawer Header */}
         <header className="mfd-header">
@@ -410,6 +398,7 @@ export function MasterFinalDecisionDrawer({
                     }`}
                     onClick={() => canMakeDecision && setSelectedOutcome("PASS")}
                     disabled={!canMakeDecision}
+                    data-dialog-autofocus
                   >
                     <span className="mfd-opt-icon" aria-hidden="true">✓</span>
                     <span className="mfd-opt-label">Pass</span>

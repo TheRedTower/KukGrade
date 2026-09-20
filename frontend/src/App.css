@@ -7155,6 +7155,11 @@ h2 {
   background: var(--color-surface-sunken);
 }
 
+.opd-outcome-card:focus-within {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 [data-theme="dark"] .opd-outcome-card {
   background: #221e18;
   border-color: #38332d;
@@ -8699,6 +8704,11 @@ h2 {
 .mfd-ratification-btn:hover:not(:disabled) {
   border-color: var(--color-border-strong);
   background: var(--color-surface-hover, rgba(0, 0, 0, 0.02));
+}
+
+.mfd-ratification-btn:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 .mfd-opt-icon {

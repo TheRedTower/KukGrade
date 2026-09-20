@@ -23,6 +23,9 @@ documents for intended scope, not as proof that something is implemented.
 ## Supporting Planning Inputs
 
 - `action_plan.md` - current high-level implementation sequence.
+- `frontend-next-steps-handoff.md` - current implementation handoff for the
+  remaining frontend accessibility, stylesheet modularisation, test
+  modularisation, validation, and delivery work.
 - `api_contract.md` - mixed implemented and target REST API surface; check
   section labels before treating an endpoint as real.
 - `data_model.md` - target/legacy detailed data model notes, not the current

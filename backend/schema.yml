@@ -571,13 +571,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/LockedCandidateWithdrawal'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/LockedCandidateWithdrawal'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/LockedCandidateWithdrawal'
         required: true
       security:
       - cookieAuth: []
@@ -2133,6 +2133,31 @@ components:
           readOnly: true
         notes:
           type: string
+        withdrawal_reason:
+          type: string
+          readOnly: true
+        withdrawal_reason_display:
+          type: string
+          readOnly: true
+        withdrawal_note:
+          type: string
+          readOnly: true
+        withdrawn_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        withdrawn_by_email:
+          type: string
+          readOnly: true
+        withdrawn_by_name:
+          type: string
+          readOnly: true
+        withdrawn_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -2156,6 +2181,13 @@ components:
       - testing_for_rank_code
       - testing_for_rank_name
       - updated_at
+      - withdrawal_note
+      - withdrawal_reason
+      - withdrawal_reason_display
+      - withdrawn_at
+      - withdrawn_by
+      - withdrawn_by_email
+      - withdrawn_by_name
     GradingCandidateStatusEnum:
       enum:
       - REGISTERED
@@ -2239,6 +2271,15 @@ components:
       required:
       - service
       - status
+    LockedCandidateWithdrawal:
+      type: object
+      properties:
+        withdrawal_reason:
+          $ref: '#/components/schemas/WithdrawalReasonEnum'
+        withdrawal_note:
+          type: string
+      required:
+      - withdrawal_reason
     Login:
       type: object
       properties:
@@ -2845,6 +2886,31 @@ components:
           readOnly: true
         notes:
           type: string
+        withdrawal_reason:
+          type: string
+          readOnly: true
+        withdrawal_reason_display:
+          type: string
+          readOnly: true
+        withdrawal_note:
+          type: string
+          readOnly: true
+        withdrawn_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        withdrawn_by_email:
+          type: string
+          readOnly: true
+        withdrawn_by_name:
+          type: string
+          readOnly: true
+        withdrawn_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -3816,6 +3882,18 @@ components:
       - must_change_password
       - password
       - role_display
+    WithdrawalReasonEnum:
+      enum:
+      - INJURY
+      - WITHDREW
+      - ABSENT
+      - ADMIN_ERROR
+      type: string
+      description: |-
+        * `INJURY` - Injured during grading
+        * `WITHDREW` - Withdrew voluntarily
+        * `ABSENT` - Did not attend
+        * `ADMIN_ERROR` - Registered in error
   securitySchemes:
     cookieAuth:
       type: apiKey

@@ -12,9 +12,9 @@ This plan translates the existing project documents into a controlled implementa
 - CI, generated OpenAPI types, local PostgreSQL Compose, and backend/frontend
   verification are in place.
 - The Audit browser and administrator Users account-management flow are
-  implemented. Remaining frontend work includes the locked-session withdrawal
-  and dedicated attendance/no-show controls, followed by accessibility and CSS
-  modularisation.
+  implemented. Dedicated attendance/no-show selection and the authorised
+  locked-session withdrawal flow are also implemented. The next frontend work
+  is accessibility verification and CSS modularisation.
 - Production images/deployment/backups and offline/PWA behaviour are not
   implemented. Explicit syllabus versioning remains deferred by decision.
 

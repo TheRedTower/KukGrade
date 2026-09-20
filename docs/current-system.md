@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-20. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-20 with 474 backend tests and 140 frontend tests passing.
+Verified on 2026-09-20 with 474 backend tests and 145 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -158,8 +158,10 @@ clean. CI enforces the same categories on each push and pull request.
   detail updates, the three independent authority controls, password reset,
   and user-specific audit history. Session detail offers explicit
   bulk-first controls to prepare every missing assessment and then start every
-  prepared assessment; individual assessment actions remain available for
-  exceptions.
+  prepared assessment, bulk selection of candidates who did not attend before
+  locking, and reasoned locked-session withdrawal only for a user with override
+  authority. Individual assessment actions remain available for exceptions,
+  and withdrawn records retain their reason, note, actor and timestamp.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

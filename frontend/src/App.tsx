@@ -31,7 +31,6 @@ import { AddStudentScreen } from "./AddStudentScreen";
 import { StudentDetailScreen } from "./StudentDetailScreen";
 import { GradingSessionsScreen } from "./GradingSessionsScreen";
 import { CreateGradingSessionScreen } from "./CreateGradingSessionScreen";
-import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
 import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
 import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
@@ -44,6 +43,11 @@ const UsersScreen = lazy(() =>
 );
 const UserDetailScreen = lazy(() =>
   import("./UserDetailScreen").then((module) => ({ default: module.UserDetailScreen })),
+);
+const GradingSessionDetailScreen = lazy(() =>
+  import("./GradingSessionDetailScreen").then((module) => ({
+    default: module.GradingSessionDetailScreen,
+  })),
 );
 
 function UserManagementFallback(): React.ReactElement {
@@ -326,7 +330,11 @@ function CreateGradingSessionPage() {
 }
 
 function GradingSessionDetailPage() {
-  return <GradingSessionDetailScreen />;
+  return (
+    <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
+      <GradingSessionDetailScreen />
+    </Suspense>
+  );
 }
 
 function BuildGradingCohortPage() {

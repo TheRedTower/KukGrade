@@ -31,13 +31,15 @@ asynchronous workload is accepted.
    its append-only backend contract.
 3. Keep the implemented administrator account, role, authority, and
    password-reset flows aligned with the Users API.
-4. Complete accessibility review and split the shared frontend stylesheet by
+4. Keep bulk no-show confirmation and authorised locked-session withdrawal
+   aligned with the candidate APIs and recorded withdrawal metadata.
+5. Complete accessibility review and split the shared frontend stylesheet by
    stable feature boundary.
-5. Define and implement production deployment, backup/restore, readiness, and
+6. Define and implement production deployment, backup/restore, readiness, and
    monitoring.
-6. Decide offline requirements before implementing any PWA/synchronisation
+7. Decide offline requirements before implementing any PWA/synchronisation
    architecture.
-7. Add reports, exports, certificates, notifications, or worker tasks only
+8. Add reports, exports, certificates, notifications, or worker tasks only
    after their product scope is accepted.
 
 ## Documentation Workflow

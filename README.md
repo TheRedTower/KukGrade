@@ -17,7 +17,9 @@ assessment snapshots, candidate outcomes, promotion and rank history, user
 management, and audit logging. The frontend implements the main instructor
 workflow: overview, student records, syllabus browsing, grading-session and
 cohort management, assessment preparation and marking, outcome decisions, and
-promotion. The Audit route provides a paginated, filterable event browser with
+promotion. Session detail includes bulk no-show confirmation before locking and
+reasoned, authority-gated candidate withdrawal after locking. The Audit route
+provides a paginated, filterable event browser with
 event detail for administrators and the designated Master. The Users route is
 an administrator-only staff-account workspace for creation, account updates,
 role/status management, Master authority, and password resets. Offline/PWA

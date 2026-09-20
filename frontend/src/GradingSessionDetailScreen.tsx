@@ -10,6 +10,7 @@ import {
   StudentListItem,
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
+  bulkUpdateCandidateStatus,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
@@ -17,8 +18,14 @@ import {
   getGradingSession,
   updateGradingSession,
   deleteGradingSession,
+  withdrawLockedCandidate,
 } from "./api";
 import { useAuth } from "./auth";
+import {
+  LockedWithdrawalDialog,
+  NoShowDialog,
+  type AttendanceCandidate,
+} from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 
@@ -208,6 +215,9 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
   // Drawer state for SCR-022 Master Final Decision
   const [decisionDrawerItem, setDecisionDrawerItem] = useState<EnrichedCandidate | null>(null);
+  const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
+  const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
+  const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -339,6 +349,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const refreshCandidateWork = () => {
     void queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
     void queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
+    void queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
   };
 
   const bulkPrepareMutation = useMutation({
@@ -372,6 +383,44 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
     onError: (err: unknown) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to start assessments.");
+    },
+  });
+
+  const attendanceMutation = useMutation({
+    mutationFn: (candidateIds: number[]) =>
+      bulkUpdateCandidateStatus(candidateIds, "WITHDRAWN"),
+    onSuccess: ({ updated, errors }) => {
+      refreshCandidateWork();
+      setAttendanceDialogOpen(false);
+      const failed = Object.keys(errors).length;
+      setActionMessage(
+        `${updated.length} candidate${updated.length === 1 ? "" : "s"} marked as no-show${
+          failed ? `; ${failed} could not be updated` : ""
+        }.`,
+      );
+      setActionError(failed ? Object.values(errors).flat().join(" ") : null);
+    },
+    onError: (err: unknown) => {
+      setActionError(err instanceof ApiError ? err.message : "Failed to confirm attendance.");
+    },
+  });
+
+  const withdrawalMutation = useMutation({
+    mutationFn: ({ candidateId, payload }: {
+      candidateId: number;
+      payload: Parameters<typeof withdrawLockedCandidate>[1];
+    }) => withdrawLockedCandidate(candidateId, payload),
+    onSuccess: (updated) => {
+      refreshCandidateWork();
+      setWithdrawalCandidate(null);
+      setWithdrawalError(null);
+      setActionError(null);
+      setActionMessage(`${updated.student_display_name} was withdrawn from the locked session.`);
+    },
+    onError: (err: unknown) => {
+      setWithdrawalError(
+        err instanceof ApiError ? err.message : "Failed to withdraw the candidate.",
+      );
     },
   });
 
@@ -427,9 +476,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       const aStatus = item.assessment?.status || "NOT_STARTED";
       const matchesStatus =
         statusFilter === "ALL" ||
-        (statusFilter === "NOT_STARTED" && aStatus === "NOT_STARTED") ||
-        (statusFilter === "IN_PROGRESS" && aStatus === "IN_PROGRESS") ||
-        (statusFilter === "COMPLETED" && aStatus === "COMPLETED");
+        (statusFilter === "WITHDRAWN" && item.candidate.status === "WITHDRAWN") ||
+        (item.candidate.status !== "WITHDRAWN" &&
+          ((statusFilter === "NOT_STARTED" && aStatus === "NOT_STARTED") ||
+            (statusFilter === "IN_PROGRESS" && aStatus === "IN_PROGRESS") ||
+            (statusFilter === "COMPLETED" && aStatus === "COMPLETED")));
 
       return matchesSearch && matchesStatus;
     });
@@ -444,6 +495,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         item.candidate.status !== "WITHDRAWN" && item.assessment?.status === "NOT_STARTED",
     )
     .map((item) => item.assessment!.id);
+  const attendanceCandidates: AttendanceCandidate[] = enrichedCandidates
+    .filter((item) => item.candidate.status === "REGISTERED")
+    .map((item) => ({
+      id: item.candidate.id,
+      name: item.candidate.student_display_name,
+      wksaId: item.candidate.student_wksa_id,
+    }));
 
   // Lifecycle stage statuses
   const lifecycle = useMemo(() => {
@@ -714,22 +772,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       Complete session
                     </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => handleActionClick("OPEN")}
-                    >
-                      Re-open session
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item gsd-danger-text"
-                      onClick={() => handleActionClick("CANCEL")}
-                    >
-                      Cancel session
-                    </button>
+                    {currentUser?.can_override_locked_session && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item gsd-danger-text"
+                        onClick={() => handleActionClick("CANCEL")}
+                      >
+                        Cancel session
+                      </button>
+                    )}
                   </>
                 )}
 
@@ -746,14 +798,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                 {session.status === "CANCELLED" && (
                   <>
-                    <button
-                      type="button"
+                    <Link
+                      to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
                       role="menuitem"
                       className="gsd-dropdown-item"
-                      onClick={() => handleActionClick("OPEN")}
+                      onClick={() => setActionsMenuOpen(false)}
                     >
-                      Re-open session
-                    </button>
+                      View audit events
+                    </Link>
                     {!hasAssessmentWork && (
                       <button
                         type="button"
@@ -771,13 +823,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           </div>
 
           {/* Add candidate button */}
-          <Link
-            to={`/gradings/${session.id}/register`}
-            className="btn-primary gs-create-btn"
-            data-testid="gsd-add-candidate-btn"
-          >
-            Add candidate <span aria-hidden="true">→</span>
-          </Link>
+          {(session.status === "DRAFT" || session.status === "OPEN") && (
+            <Link
+              to={`/gradings/${session.id}/register`}
+              className="btn-primary gs-create-btn"
+              data-testid="gsd-add-candidate-btn"
+            >
+              Add candidate <span aria-hidden="true">→</span>
+            </Link>
+          )}
         </div>
       </header>
 
@@ -843,6 +897,19 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
           <div className="gsd-controls-row">
             {(session.status === "DRAFT" || session.status === "OPEN") &&
+              attendanceCandidates.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setActionError(null);
+                    setAttendanceDialogOpen(true);
+                  }}
+                >
+                  Confirm attendance
+                </button>
+              )}
+            {(session.status === "DRAFT" || session.status === "OPEN") &&
               unpreparedCandidateIds.length > 0 && (
                 <button
                   type="button"
@@ -894,6 +961,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 <option value="NOT_STARTED">Not started</option>
                 <option value="IN_PROGRESS">In progress</option>
                 <option value="COMPLETED">Completed</option>
+                <option value="WITHDRAWN">Withdrawn</option>
               </select>
             </div>
 
@@ -947,6 +1015,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   const candidateId = item.candidate.id;
                   const assessmentStatus = item.assessment?.status;
                   const outcomeStatus = item.outcome?.status;
+                  const isWithdrawn = item.candidate.status === "WITHDRAWN";
+                  const canWithdrawLocked =
+                    session.status === "LOCKED" &&
+                    Boolean(currentUser?.can_override_locked_session) &&
+                    !isWithdrawn &&
+                    outcomeStatus !== "FINALISED";
+                  const lockedAssessmentUnavailable =
+                    session.status === "LOCKED" &&
+                    (!assessmentStatus || assessmentStatus === "NOT_STARTED");
 
                   let nextActionLabel = assessmentStatus
                     ? "Start assessment →"
@@ -1006,38 +1083,77 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         </div>
                       </td>
                       <td className="gsd-cell-assessment">
-                        <AssessmentBadge assessment={item.assessment} />
+                        {isWithdrawn ? (
+                          <>
+                            <span className="gsd-badge gsd-badge-neutral">
+                              <span className="gsd-badge-icon" aria-hidden="true">—</span>
+                              Withdrawn
+                            </span>
+                            <span className="gsd-withdrawal-record">
+                              {item.candidate.withdrawal_reason_display && (
+                                <span>{item.candidate.withdrawal_reason_display}</span>
+                              )}
+                              {item.candidate.withdrawal_note && (
+                                <span>{item.candidate.withdrawal_note}</span>
+                              )}
+                            </span>
+                          </>
+                        ) : (
+                          <AssessmentBadge assessment={item.assessment} />
+                        )}
                       </td>
                       <td className="gsd-cell-outcome">
-                        <OutcomeBadge outcome={item.outcome} />
+                        {isWithdrawn ? (
+                          <span className="gsd-badge gsd-badge-neutral">No outcome</span>
+                        ) : (
+                          <OutcomeBadge outcome={item.outcome} />
+                        )}
                       </td>
                       <td className="gsd-cell-action">
-                        {isProposalDrawerTrigger ? (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn"
-                            onClick={() => setProposalDrawerItem(item)}
-                            data-testid={`propose-outcome-btn-${candidateId}`}
-                          >
-                            {nextActionLabel}
-                          </button>
-                        ) : isDecisionDrawerTrigger ? (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn"
-                            onClick={() => setDecisionDrawerItem(item)}
-                            data-testid={`review-decision-btn-${candidateId}`}
-                          >
-                            {nextActionLabel}
-                          </button>
-                        ) : (
-                          <Link
-                            to={nextActionUrl}
-                            className="btn-ghost gsd-row-action-btn"
-                          >
-                            {nextActionLabel}
-                          </Link>
-                        )}
+                        <div className="gsd-row-actions">
+                          {isWithdrawn ? (
+                            <span className="gsd-withdrawal-record">No further action</span>
+                          ) : lockedAssessmentUnavailable ? (
+                            <span className="gsd-withdrawal-record">Assessment was not started</span>
+                          ) : isProposalDrawerTrigger ? (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn"
+                              onClick={() => setProposalDrawerItem(item)}
+                              data-testid={`propose-outcome-btn-${candidateId}`}
+                            >
+                              {nextActionLabel}
+                            </button>
+                          ) : isDecisionDrawerTrigger ? (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn"
+                              onClick={() => setDecisionDrawerItem(item)}
+                              data-testid={`review-decision-btn-${candidateId}`}
+                            >
+                              {nextActionLabel}
+                            </button>
+                          ) : (
+                            <Link
+                              to={nextActionUrl}
+                              className="btn-ghost gsd-row-action-btn"
+                            >
+                              {nextActionLabel}
+                            </Link>
+                          )}
+                          {canWithdrawLocked && (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                              onClick={() => {
+                                setWithdrawalError(null);
+                                setWithdrawalCandidate(item);
+                              }}
+                            >
+                              Withdraw candidate
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1184,6 +1300,41 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             </div>
           </div>
         </div>
+      )}
+
+      {attendanceDialogOpen && (
+        <NoShowDialog
+          candidates={attendanceCandidates}
+          pending={attendanceMutation.isPending}
+          error={actionError}
+          onClose={() => {
+            setAttendanceDialogOpen(false);
+            setActionError(null);
+          }}
+          onConfirm={(candidateIds) => attendanceMutation.mutate(candidateIds)}
+        />
+      )}
+
+      {withdrawalCandidate && (
+        <LockedWithdrawalDialog
+          candidate={{
+            id: withdrawalCandidate.candidate.id,
+            name: withdrawalCandidate.candidate.student_display_name,
+            wksaId: withdrawalCandidate.candidate.student_wksa_id,
+          }}
+          pending={withdrawalMutation.isPending}
+          error={withdrawalError}
+          onClose={() => {
+            setWithdrawalCandidate(null);
+            setWithdrawalError(null);
+          }}
+          onConfirm={(payload) =>
+            withdrawalMutation.mutate({
+              candidateId: withdrawalCandidate.candidate.id,
+              payload,
+            })
+          }
+        />
       )}
 
       {/* ── Instructor Outcome Proposal Drawer (SCR-021) ────────────────────── */}

@@ -135,8 +135,9 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         source="get_age_band_display", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    withdrawal_reason = serializers.CharField(read_only=True)
     session_title = serializers.CharField(source="session.title", read_only=True)
-    student_display_name = serializers.CharField(source="student", read_only=True)
+    student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
     testing_for_rank_code = serializers.CharField(
         source="testing_for_rank.code",
@@ -146,6 +147,22 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         source="testing_for_rank.name",
         read_only=True,
     )
+
+    withdrawal_reason_display = serializers.CharField(
+        source="get_withdrawal_reason_display",
+        read_only=True,
+    )
+    withdrawn_by_email = serializers.SerializerMethodField()
+    withdrawn_by_name = serializers.SerializerMethodField()
+
+    def get_student_display_name(self, instance: GradingCandidate) -> str:
+        return f"{instance.student.first_name} {instance.student.last_name}".strip()
+
+    def get_withdrawn_by_email(self, instance: GradingCandidate) -> str:
+        return instance.withdrawn_by.email if instance.withdrawn_by else ""
+
+    def get_withdrawn_by_name(self, instance: GradingCandidate) -> str:
+        return instance.withdrawn_by.get_full_name() if instance.withdrawn_by else ""
 
     class Meta:
         model = GradingCandidate
@@ -164,6 +181,13 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "status",
             "status_display",
             "notes",
+            "withdrawal_reason",
+            "withdrawal_reason_display",
+            "withdrawal_note",
+            "withdrawn_by",
+            "withdrawn_by_email",
+            "withdrawn_by_name",
+            "withdrawn_at",
             "created_at",
             "updated_at",
         )
@@ -177,6 +201,13 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "age_band",
             "age_band_display",
             "status_display",
+            "withdrawal_reason",
+            "withdrawal_reason_display",
+            "withdrawal_note",
+            "withdrawn_by",
+            "withdrawn_by_email",
+            "withdrawn_by_name",
+            "withdrawn_at",
             "created_at",
             "updated_at",
         )

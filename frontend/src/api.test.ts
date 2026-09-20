@@ -4,6 +4,7 @@ import {
   ApiError,
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
+  bulkUpdateCandidateStatus,
   createManagedUser,
   getAllCandidateAssessmentItems,
   getAllGradingCandidates,
@@ -14,6 +15,7 @@ import {
   resetManagedUserPassword,
   updateManagedUser,
   updateManagedUserAuthority,
+  withdrawLockedCandidate,
 } from "./api";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -311,6 +313,37 @@ describe("bulk grading operations", () => {
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
       body: JSON.stringify({ assessments: [21, 22] }),
+    });
+  });
+
+  it("marks selected no-shows and submits reasoned locked withdrawal", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(200, { updated: [], errors: {} }))
+      .mockResolvedValueOnce(jsonResponse(200, { id: 22, status: "WITHDRAWN" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await bulkUpdateCandidateStatus([21, 22], "WITHDRAWN");
+    await withdrawLockedCandidate(22, {
+      withdrawal_reason: "INJURY",
+      withdrawal_note: "Unable to continue safely.",
+    });
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      "/api/gradings/candidates/bulk-update-status/",
+    );
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ candidates: [21, 22], status: "WITHDRAWN" }),
+    });
+    expect(String(fetchMock.mock.calls[1][0])).toContain(
+      "/api/gradings/candidates/22/withdraw/",
+    );
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({
+        withdrawal_reason: "INJURY",
+        withdrawal_note: "Unable to continue safely.",
+      }),
     });
   });
 });

@@ -2861,9 +2861,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   function setupStandardMock(
     sessionOverrides = {},
     assessments = testAssessments,
+    authenticatedUser = adminUser,
+    candidates: GradingCandidate[] = testCandidates,
   ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
       if (
         url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
         init?.method === "POST"
@@ -2876,6 +2878,37 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       ) {
         return jsonResponse(200, { started: [testAssessments[2]], errors: {} });
       }
+      if (
+        url.includes("/api/gradings/candidates/bulk-update-status/") &&
+        init?.method === "POST"
+      ) {
+        const body = JSON.parse(init.body as string) as { candidates: number[] };
+        return jsonResponse(200, {
+          updated: candidates
+            .filter((candidate) => body.candidates.includes(candidate.id))
+            .map((candidate) => ({ ...candidate, status: "WITHDRAWN", status_display: "Withdrawn" })),
+          errors: {},
+        });
+      }
+      if (
+        url.match(/\/api\/gradings\/candidates\/\d+\/withdraw\/$/) &&
+        init?.method === "POST"
+      ) {
+        const candidateId = Number(url.match(/candidates\/(\d+)\//)?.[1]);
+        const candidate = candidates.find((item) => item.id === candidateId);
+        return jsonResponse(200, {
+          ...candidate,
+          status: "WITHDRAWN",
+          status_display: "Withdrawn",
+          withdrawal_reason: "INJURY",
+          withdrawal_reason_display: "Injured during grading",
+          withdrawal_note: "Unable to continue safely.",
+          withdrawn_by: authenticatedUser.id,
+          withdrawn_by_email: authenticatedUser.email,
+          withdrawn_by_name: authenticatedUser.full_name,
+          withdrawn_at: "2026-09-20T11:00:00Z",
+        });
+      }
       if (url.includes("/api/gradings/sessions/10/") && init?.method === "PATCH") {
         const patchData = JSON.parse(init.body as string);
         return jsonResponse(200, { ...testSession, ...sessionOverrides, ...patchData });
@@ -2884,7 +2917,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { ...testSession, ...sessionOverrides });
       }
       if (url.includes("/api/gradings/candidates/")) {
-        return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+        return jsonResponse(200, { count: candidates.length, next: null, previous: null, results: candidates });
       }
       if (url.includes("/api/gradings/assessments/")) {
         return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
@@ -3006,6 +3039,112 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         candidates: [103],
       });
     });
+  });
+
+  it("confirms attendance by marking only selected no-shows", async () => {
+    const fetchMock = setupStandardMock();
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: "Confirm attendance" }));
+    const dialog = screen.getByRole("dialog", { name: "Confirm attendance" });
+    await user.click(within(dialog).getByRole("checkbox", { name: /Alex Carter/ }));
+    await user.click(within(dialog).getByRole("checkbox", { name: /Casey Nguyen/ }));
+    await user.click(within(dialog).getByRole("button", { name: "Mark selected as no-show" }));
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(([url, init]) =>
+        String(url).includes("/api/gradings/candidates/bulk-update-status/") &&
+        (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        candidates: [101, 103],
+        status: "WITHDRAWN",
+      });
+    });
+    expect(await screen.findByText("2 candidates marked as no-show.")).toBeVisible();
+  });
+
+  it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
+    const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
+    await user.selectOptions(within(dialog).getByLabelText("Reason"), "INJURY");
+    await user.type(
+      within(dialog).getByLabelText(/Additional note/),
+      "Unable to continue safely.",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Withdraw candidate" }));
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls.find(([url, init]) =>
+        String(url).includes("/api/gradings/candidates/101/withdraw/") &&
+        (init as RequestInit | undefined)?.method === "POST",
+      );
+      expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
+        withdrawal_reason: "INJURY",
+        withdrawal_note: "Unable to continue safely.",
+      });
+    });
+    expect(
+      await screen.findByText("Alex Carter was withdrawn from the locked session."),
+    ).toBeVisible();
+  });
+
+  it("does not expose locked withdrawal without override authority", async () => {
+    const fetchMock = setupStandardMock(
+      { status: "LOCKED", status_display: "Locked" },
+      testAssessments,
+      { ...adminUser, can_override_locked_session: false },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    expect(screen.queryByRole("button", { name: "Withdraw candidate" })).not.toBeInTheDocument();
+  });
+
+  it("shows the recorded reason for a withdrawn candidate without further actions", async () => {
+    const withdrawnCandidates = [
+      {
+        ...testCandidates[0],
+        status: "WITHDRAWN" as const,
+        status_display: "Withdrawn",
+        withdrawal_reason: "INJURY" as const,
+        withdrawal_reason_display: "Injured during grading",
+        withdrawal_note: "Unable to continue safely.",
+        withdrawn_by: adminUser.id,
+        withdrawn_by_email: adminUser.email,
+        withdrawn_by_name: adminUser.full_name,
+        withdrawn_at: "2026-09-20T11:00:00Z",
+      },
+      ...testCandidates.slice(1),
+    ];
+    const fetchMock = setupStandardMock(
+      { status: "LOCKED", status_display: "Locked" },
+      testAssessments,
+      adminUser,
+      withdrawnCandidates,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    expect(within(row).getByText("Withdrawn")).toBeVisible();
+    expect(within(row).getByText("Injured during grading")).toBeVisible();
+    expect(within(row).getByText("Unable to continue safely.")).toBeVisible();
+    expect(within(row).getByText("No further action")).toBeVisible();
+    expect(within(row).queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("surfaces operational alert banner when candidates await final decision and triggers filter on Review", async () => {

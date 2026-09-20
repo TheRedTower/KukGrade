@@ -111,7 +111,8 @@ here does not by itself mean it has shipped.
   assessment workspace/completion, outcome proposal, final decision, promotion
   ledger, Audit event browser/detail, administrator Users list/detail/create,
   role/status/authority/password management, profile/password controls, themes,
-  and session transitions.
+  session transitions, bulk no-show confirmation, and reasoned authorised
+  locked-session withdrawal.
 - Not implemented: installed PWA/offline shell and update-ready notification.
 - Partial cleanup remains: full keyboard/focus/contrast verification, component
   stylesheet boundaries, elimination of remaining literal colours, and full
@@ -141,5 +142,6 @@ Verified on `dev` at `4c009f6` on 2026-09-16. Earlier focused bulk-operation tes
 - Bulk prepare and explicit bulk start are implemented in session detail;
   backend partial failures are reported. A dedicated retry-failed-only control
   remains future refinement.
-- Offline save/synchronisation, locked-session withdrawal UI, and dedicated
-  no-show attendance selection remain unimplemented frontend work.
+- Bulk no-show attendance selection and locked-session withdrawal are
+  implemented in session detail. Offline save/synchronisation remains
+  unimplemented frontend work.

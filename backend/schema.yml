@@ -1529,13 +1529,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserAuthority'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserAuthority'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserAuthority'
       security:
       - cookieAuth: []
       responses:
@@ -1569,23 +1569,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/SetPassword'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/SetPassword'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/SetPassword'
         required: true
       security:
       - cookieAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserManagement'
-          description: ''
+        '204':
+          description: No response body
 components:
   schemas:
     ActionEnum:
@@ -3007,6 +3003,20 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedUserAuthority:
+      type: object
+      description: |-
+        PATCH /api/users/{id}/authority/.
+
+        Same three keys /api/auth/me/ returns, so the concept is spelled one way
+        throughout rather than the read shape and the write shape drifting.
+      properties:
+        can_make_final_grading_decision:
+          type: boolean
+        can_promote_student:
+          type: boolean
+        can_override_locked_session:
+          type: boolean
     PatchedUserManagement:
       type: object
       description: |-
@@ -3067,6 +3077,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         password:
           type: string
           writeOnly: true
@@ -3331,6 +3346,20 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
+    SetPassword:
+      type: object
+      description: |-
+        POST /api/users/{id}/set-password/.
+
+        A separate action rather than a writable field on UserManagementSerializer,
+        so a plain PATCH to a user's other details can never carry a password
+        change as a side effect.
+      properties:
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - password
     Student:
       type: object
       description: |-
@@ -3765,6 +3794,11 @@ components:
           type: string
           format: date-time
           readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         password:
           type: string
           writeOnly: true
@@ -3778,6 +3812,7 @@ components:
       - id
       - is_staff
       - is_superuser
+      - last_login
       - must_change_password
       - password
       - role_display

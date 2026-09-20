@@ -8,6 +8,7 @@ const DEFAULT_API_BASE_URL = "http://localhost:8000";
 export type HealthResponse = components["schemas"]["HealthResponse"];
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
+export type ManagedUser = Omit<components["schemas"]["UserManagement"], "password">;
 
 export type PaginatedResponse<T> = {
   count: number;
@@ -233,6 +234,89 @@ export async function changePassword(
       current_password: currentPassword,
       new_password: newPassword,
     }),
+  });
+}
+
+export async function getManagedUsers(params?: {
+  search?: string;
+  role?: UserRole;
+  is_active?: boolean;
+  page?: number;
+  page_size?: number;
+}): Promise<PaginatedResponse<ManagedUser>> {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.set("search", params.search);
+  if (params?.role) searchParams.set("role", params.role);
+  if (params?.is_active !== undefined) {
+    searchParams.set("is_active", String(params.is_active));
+  }
+  if (params?.page !== undefined) searchParams.set("page", String(params.page));
+  if (params?.page_size !== undefined) {
+    searchParams.set("page_size", String(params.page_size));
+  }
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<ManagedUser>>(
+    `/api/users/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getManagedUser(id: string): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>(`/api/users/${id}/`);
+}
+
+export type CreateManagedUserPayload = {
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  role?: UserRole;
+  is_active?: boolean;
+};
+
+export async function createManagedUser(
+  data: CreateManagedUserPayload,
+): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>("/api/users/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateManagedUser(
+  id: string,
+  data: Partial<
+    Pick<ManagedUser, "email" | "first_name" | "last_name" | "role" | "is_active">
+  >,
+): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>(`/api/users/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export type UserAuthorityPayload = {
+  can_make_final_grading_decision?: boolean;
+  can_promote_student?: boolean;
+  can_override_locked_session?: boolean;
+};
+
+export async function updateManagedUserAuthority(
+  id: string,
+  data: UserAuthorityPayload,
+): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>(`/api/users/${id}/authority/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetManagedUserPassword(
+  id: string,
+  password: string,
+): Promise<void> {
+  await apiRequest<void>(`/api/users/${id}/set-password/`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
   });
 }
 

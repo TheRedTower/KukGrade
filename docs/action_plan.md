@@ -11,9 +11,10 @@ This plan translates the existing project documents into a controlled implementa
   session setup through assessment, final decision, and promotion.
 - CI, generated OpenAPI types, local PostgreSQL Compose, and backend/frontend
   verification are in place.
-- The Audit browser is implemented. The next frontend slice is the
-  administrator Users list and account-management flow; its route remains an
-  access-controlled placeholder.
+- The Audit browser and administrator Users account-management flow are
+  implemented. Remaining frontend work includes the locked-session withdrawal
+  and dedicated attendance/no-show controls, followed by accessibility and CSS
+  modularisation.
 - Production images/deployment/backups and offline/PWA behaviour are not
   implemented. Explicit syllabus versioning remains deferred by decision.
 
@@ -45,8 +46,8 @@ planning documents without a new decision.
 2. Instructor frontend workflow: implemented, including bulk cohort
    registration, assessment preparation/start, marking, decisions, and
    promotion.
-3. Audit event browser: implemented. Build the administrator Users UI against
-   the existing API.
+3. Audit event browser and administrator Users UI: implemented against the
+   existing APIs.
 4. Finish frontend accessibility and CSS modularisation without changing the
    accepted workflow.
 5. Explicit syllabus version publication remains deferred; historical

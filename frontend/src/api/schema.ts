@@ -1395,6 +1395,17 @@ export interface components {
             readonly updated_at?: string;
         };
         /**
+         * @description PATCH /api/users/{id}/authority/.
+         *
+         *     Same three keys /api/auth/me/ returns, so the concept is spelled one way
+         *     throughout rather than the read shape and the write shape drifting.
+         */
+        PatchedUserAuthority: {
+            can_make_final_grading_decision?: boolean;
+            can_promote_student?: boolean;
+            can_override_locked_session?: boolean;
+        };
+        /**
          * @description List, retrieve, create and update for the administrator-facing API.
          *
          *     Deliberately separate from UserSerializer, which is a fixed read-only
@@ -1426,6 +1437,8 @@ export interface components {
             readonly is_superuser?: boolean;
             /** Format: date-time */
             readonly date_joined?: string;
+            /** Format: date-time */
+            readonly last_login?: string | null;
             password?: string;
         };
         Promotion: {
@@ -1518,6 +1531,16 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "instructor" | "administrator";
+        /**
+         * @description POST /api/users/{id}/set-password/.
+         *
+         *     A separate action rather than a writable field on UserManagementSerializer,
+         *     so a plain PATCH to a user's other details can never carry a password
+         *     change as a side effect.
+         */
+        SetPassword: {
+            password: string;
+        };
         /**
          * @description Detail, create and update. wksa_id is writable only on create.
          *
@@ -1679,6 +1702,8 @@ export interface components {
             readonly is_superuser: boolean;
             /** Format: date-time */
             readonly date_joined: string;
+            /** Format: date-time */
+            readonly last_login: string | null;
             password: string;
         };
     };
@@ -3115,9 +3140,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedUserManagement"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserManagement"];
-                "multipart/form-data": components["schemas"]["PatchedUserManagement"];
+                "application/json": components["schemas"]["PatchedUserAuthority"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserAuthority"];
+                "multipart/form-data": components["schemas"]["PatchedUserAuthority"];
             };
         };
         responses: {
@@ -3143,19 +3168,18 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserManagement"];
-                "application/x-www-form-urlencoded": components["schemas"]["UserManagement"];
-                "multipart/form-data": components["schemas"]["UserManagement"];
+                "application/json": components["schemas"]["SetPassword"];
+                "application/x-www-form-urlencoded": components["schemas"]["SetPassword"];
+                "multipart/form-data": components["schemas"]["SetPassword"];
             };
         };
         responses: {
-            200: {
+            /** @description No response body */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["UserManagement"];
-                };
+                content?: never;
             };
         };
     };

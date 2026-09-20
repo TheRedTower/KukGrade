@@ -4,11 +4,16 @@ import {
   ApiError,
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
+  createManagedUser,
   getAllCandidateAssessmentItems,
   getAllGradingCandidates,
   getAuditEvents,
   getCurrentUser,
+  getManagedUsers,
   loginUser,
+  resetManagedUserPassword,
+  updateManagedUser,
+  updateManagedUserAuthority,
 } from "./api";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -222,6 +227,55 @@ describe("API pagination", () => {
     expect(url).toContain("page=1");
     expect(url).toContain("page_size=200");
     expect(url).not.toContain("limit=");
+  });
+});
+
+describe("user management API", () => {
+  it("serialises list filters and account-management writes", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(200, { count: 0, next: null, previous: null, results: [] }))
+      .mockResolvedValueOnce(jsonResponse(201, { id: "new-user" }))
+      .mockResolvedValueOnce(jsonResponse(200, { id: "target" }))
+      .mockResolvedValueOnce(jsonResponse(200, { id: "target" }))
+      .mockResolvedValueOnce({ ok: true, status: 204 } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    await getManagedUsers({
+      search: "kim",
+      role: "instructor",
+      is_active: false,
+      page: 2,
+      page_size: 10,
+    });
+    await createManagedUser({
+      email: "new@example.com",
+      password: "Temporary-Password-2026!",
+      role: "instructor",
+    });
+    await updateManagedUser("target", { first_name: "Updated", is_active: false });
+    await updateManagedUserAuthority("target", { can_promote_student: true });
+    await resetManagedUserPassword("target", "Replacement-Password-2026!");
+
+    const listUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
+    expect(Object.fromEntries(listUrl.searchParams)).toEqual({
+      search: "kim",
+      role: "instructor",
+      is_active: "false",
+      page: "2",
+      page_size: "10",
+    });
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "PATCH" });
+    expect(String(fetchMock.mock.calls[3][0])).toContain("/target/authority/");
+    expect(fetchMock.mock.calls[3][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ can_promote_student: true }),
+    });
+    expect(String(fetchMock.mock.calls[4][0])).toContain("/target/set-password/");
+    expect(fetchMock.mock.calls[4][1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ password: "Replacement-Password-2026!" }),
+    });
   });
 });
 

@@ -129,6 +129,12 @@ class UserViewSet(
         elif role_filter:
             queryset = queryset.none()
 
+        active_filter = self.request.query_params.get("is_active")
+        if active_filter in {"true", "false"}:
+            queryset = queryset.filter(is_active=active_filter == "true")
+        elif active_filter:
+            queryset = queryset.none()
+
         search = self.request.query_params.get("search")
         if search:
             queryset = queryset.filter(
@@ -139,6 +145,10 @@ class UserViewSet(
 
         return queryset
 
+    @extend_schema(
+        request=UserAuthoritySerializer,
+        responses=UserManagementSerializer,
+    )
     @action(detail=True, methods=["patch"])
     def authority(
         self,
@@ -159,6 +169,7 @@ class UserViewSet(
             UserManagementSerializer(updated, context={"request": request}).data,
         )
 
+    @extend_schema(request=SetPasswordSerializer, responses={204: None})
     @action(detail=True, methods=["post"], url_path="set-password")
     def set_password(
         self,

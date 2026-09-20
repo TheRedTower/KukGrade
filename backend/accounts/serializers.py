@@ -167,6 +167,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
             "date_joined",
+            "last_login",
             "password",
         )
         # is_staff and is_superuser are never writable through this API:
@@ -184,6 +185,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "is_staff",
             "is_superuser",
             "date_joined",
+            "last_login",
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

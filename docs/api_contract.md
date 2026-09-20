@@ -89,7 +89,7 @@ Administrator group.
 
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
-| GET    | /api/users/                  | List users; filters `role`, `search`          |
+| GET    | /api/users/                  | List users; filters `role`, `is_active`, `search` |
 | POST   | /api/users/                  | Create a user; requires `password`, validated against Django's password validators |
 | GET    | /api/users/{id}/             | Retrieve a user                               |
 | PATCH  | /api/users/{id}/             | Update user details (not `password` - see below) |
@@ -101,8 +101,9 @@ Administrator group.
 out Django admin access. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
-resource. No self-service password change or invite flow - both need email,
-which this system does not have.
+resource. Responses include read-only `date_joined` and nullable `last_login`
+timestamps. There is no invite flow; account creation uses a temporary
+password and marks it for mandatory change at first sign-in.
 
 ## 3. Organisation and Branches
 

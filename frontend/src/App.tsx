@@ -1,4 +1,11 @@
-import { FormEvent, ReactNode, useState, type CSSProperties } from "react";
+import {
+  FormEvent,
+  lazy,
+  ReactNode,
+  Suspense,
+  useState,
+  type CSSProperties,
+} from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
@@ -31,6 +38,17 @@ import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { AuditScreen } from "./AuditScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
+
+const UsersScreen = lazy(() =>
+  import("./UsersScreen").then((module) => ({ default: module.UsersScreen })),
+);
+const UserDetailScreen = lazy(() =>
+  import("./UserDetailScreen").then((module) => ({ default: module.UserDetailScreen })),
+);
+
+function UserManagementFallback(): React.ReactElement {
+  return <div className="loading-state" role="status">Loading user management…</div>;
+}
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
   { value: "light", label: "Light", icon: <SunIcon /> },
@@ -327,22 +345,6 @@ function SyllabusPage() {
   return <SyllabusScreen />;
 }
 
-function UsersPage() {
-  return (
-    <section aria-labelledby="users-heading" className="ledger-section">
-      <div className="section-header">
-        <div>
-          <h1 id="users-heading">Users</h1>
-          <p className="section-subtitle">Staff accounts and administrative authorities</p>
-        </div>
-      </div>
-      <div className="placeholder-card">
-        <p>Staff account provisioning and permission management.</p>
-      </div>
-    </section>
-  );
-}
-
 function RequireAuditAccess({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   if (
@@ -546,10 +548,22 @@ function App() {
               <Route
                 element={
                   <RequireAdminAccess>
-                    <UsersPage />
+                    <Suspense fallback={<UserManagementFallback />}>
+                      <UsersScreen />
+                    </Suspense>
                   </RequireAdminAccess>
                 }
                 path="users"
+              />
+              <Route
+                element={
+                  <RequireAdminAccess>
+                    <Suspense fallback={<UserManagementFallback />}>
+                      <UserDetailScreen />
+                    </Suspense>
+                  </RequireAdminAccess>
+                }
+                path="users/:id"
               />
               <Route element={<Navigate replace to="/" />} path="*" />
             </Route>

@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-20. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-20 with 474 backend tests and 147 frontend tests passing.
+Verified on 2026-09-20 with 476 backend tests and 155 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -69,10 +69,39 @@ clean. CI enforces the same categories on each push and pull request.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
 - Outcome proposal and final-decision drawers, cohort-exception review, student
-  status/edit dialogs, and single-student promotion confirmation move focus to
-  their primary or safest control, trap keyboard focus while open, restore
-  focus to the launcher when closed, and retain the page-scroll lock during the
-  interaction.
+  status/edit dialogs, single-student promotion confirmation, grading-session
+  deletion confirmation, and grading-session lifecycle confirmation
+  (open/lock/complete/cancel/delete) move focus to their primary or safest
+  control, trap keyboard focus while open, restore focus to the launcher when
+  closed, and retain the page-scroll lock during the interaction. The lifecycle
+  modal's opener is a dropdown item that unmounts in the same render as the
+  modal mounting; focus is moved onto the still-mounted dropdown trigger first
+  so restoration lands there rather than on `document.body`. Not yet migrated
+  to the same `useDialogFocus` contract: the audit event detail dialog, the
+  attendance/withdrawal dialogs, and the user-management create/password-reset
+  dialogs - each has its own working but separately-implemented Tab-trap.
+- **Accessibility pass (2026-09-20)**: every implemented route carries a
+  landmark (`<section aria-labelledby>`/`aria-label`); the four that didn't
+  (grading-session detail, cohort builder, promotion ledger, candidate
+  assessment) were fixed. Loading states use `role="status"`; field-level
+  validation errors use `role="alert"` and are wired to their input via
+  `aria-describedby` (AddStudentScreen, the student edit modal, and both
+  user-management dialogs); the candidate-assessment progress ledger is
+  `aria-live="polite"`. `UsersScreen`'s table now has `scope="col"` headers
+  like every other table in the app. A global `prefers-reduced-motion: reduce`
+  override was added (`theme.css`) - previously only one component respected
+  it, leaving ~10 modal/drawer/spinner animations unguarded. Fixed four
+  `grid-template-columns` rules missing `minmax(0, …)` (Overview, Create
+  Grading Session, Student Detail, Build Cohort) and two non-reflowing table/
+  button patterns (Promotion Ledger), which caused page-level horizontal
+  overflow at narrow widths; verified page-level overflow is now zero across
+  every route in light/dark at 1280px and 390px, and at the 640px viewport
+  WCAG 1.4.10 treats as equivalent to 200% zoom on a 1280px display. Icon-only
+  buttons, input/radio-group labelling, and colour-alone status indicators
+  were audited app-wide with no violations found. Not yet done: per-element
+  contrast measurement (checked visually, not measured), and migrating the
+  still-separately-implemented dialogs (audit event detail, attendance/
+  withdrawal, user-management create/password-reset) onto `useDialogFocus`.
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a

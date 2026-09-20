@@ -166,3 +166,19 @@ body {
   background: var(--color-page-bg);
   color: var(--color-text);
 }
+
+/* A user who set this means motion itself can cause them harm (vestibular
+   disorders, migraines), not just "prefers less". Collapse every animation
+   and transition to a single frame rather than trying to keep only the
+   "important" ones - a loading spinner is still visible, just static
+   instead of spinning, which is enough to convey "in progress". */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -192,7 +192,7 @@ function LoginPage() {
                 </button>
               </div>
             </label>
-            {error ? <p className="form-error">{error}</p> : null}
+            {error ? <p className="form-error" role="alert">{error}</p> : null}
             <button
               className="primary-button"
               disabled={status === "loading" || isSubmitting}

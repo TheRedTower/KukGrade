@@ -1906,6 +1906,7 @@ describe("Student detail screen (/students/:id)", () => {
     await user.click(changeStatusBtn);
 
     expect(await screen.findByRole("heading", { name: "Change student status" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: /^Active/i })).toHaveFocus();
 
     // Select Inactive option
     const inactiveRadio = screen.getByLabelText(/Inactive/i);
@@ -1922,6 +1923,7 @@ describe("Student detail screen (/students/:id)", () => {
 
     // Modal closed
     expect(screen.queryByRole("heading", { name: "Change student status" })).not.toBeInTheDocument();
+    expect(changeStatusBtn).toHaveFocus();
   });
 
   it("edits student details via edit student modal", async () => {
@@ -1969,6 +1971,7 @@ describe("Student detail screen (/students/:id)", () => {
     await user.click(editBtn);
 
     expect(await screen.findByRole("heading", { name: "Edit student record" })).toBeVisible();
+    expect(screen.getByLabelText(/First name/i)).toHaveFocus();
 
     // Verify WKSA ID is disabled
     const wksaInput = screen.getByLabelText("WKSA ID") as HTMLInputElement;
@@ -1992,6 +1995,7 @@ describe("Student detail screen (/students/:id)", () => {
     });
 
     expect(screen.queryByRole("heading", { name: "Edit student record" })).not.toBeInTheDocument();
+    expect(editBtn).toHaveFocus();
   });
 
   it("navigates back to /students when clicking breadcrumb", async () => {
@@ -4072,10 +4076,12 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("2 candidates selected");
 
     // Click "Review exceptions →"
-    await user.click(screen.getByTestId("bgc-review-exceptions-btn"));
+    const reviewExceptionsButton = screen.getByTestId("bgc-review-exceptions-btn");
+    await user.click(reviewExceptionsButton);
 
     // Modal opens
     expect(screen.getByRole("heading", { name: "Review cohort candidates (2)" })).toBeVisible();
+    expect(screen.getByTestId("bgc-modal-done-btn")).toHaveFocus();
     expect(screen.getByText("Alice Smith", { selector: ".bgc-modal-student-name" })).toBeVisible();
     expect(screen.getByText("Bob Jones", { selector: ".bgc-modal-student-name" })).toBeVisible();
 
@@ -4088,6 +4094,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Cohort count drops to 1
     expect(screen.getByTestId("bgc-cohort-count")).toHaveTextContent("1 candidate selected");
     expect(screen.getByTestId("bgc-register-candidates-btn")).toHaveTextContent("Register 1 candidate");
+    expect(reviewExceptionsButton).toHaveFocus();
   });
 
   it("successfully submits bulk candidate registration and navigates to session detail", async () => {

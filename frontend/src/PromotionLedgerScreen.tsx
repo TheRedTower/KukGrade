@@ -17,6 +17,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { BeltSwatch } from "./SyllabusScreen";
+import { useDialogFocus } from "./useDialogFocus";
 
 function formatSessionDate(dateStr?: string | null): string {
   if (!dateStr) return "—";
@@ -184,6 +185,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
         message: err.message || "Failed to promote candidate.",
       });
     },
+  });
+  const singlePromotionDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: singlePromoteCandidate !== null,
+    onClose: () => setSinglePromoteCandidate(null),
+    canClose: !singlePromoteMutation.isPending,
   });
 
   // Bulk promote mutation
@@ -609,10 +615,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
           }}
         >
           <div
+            ref={singlePromotionDialogRef}
             className="pl-modal-card"
             role="dialog"
             aria-modal="true"
             aria-labelledby="single-promote-title"
+            tabIndex={-1}
           >
             <header className="pl-modal-header">
               <h2 id="single-promote-title" className="pl-modal-title">
@@ -666,6 +674,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 className="btn btn-ghost"
                 onClick={() => setSinglePromoteCandidate(null)}
                 disabled={singlePromoteMutation.isPending}
+                data-dialog-autofocus
               >
                 Cancel
               </button>

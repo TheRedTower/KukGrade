@@ -1539,6 +1539,13 @@ describe("Add student screen (/students/new)", () => {
     expect(screen.getByText("WKSA ID is required.")).toBeVisible();
     expect(screen.getByText("Date of birth is required.")).toBeVisible();
 
+    // Errors are announced to assistive tech and associated with their field
+    const firstNameError = screen.getByText("First name is required.");
+    expect(firstNameError).toHaveAttribute("role", "alert");
+    const firstNameInput = screen.getByLabelText(/First name/i);
+    expect(firstNameInput).toHaveAttribute("aria-describedby", firstNameError.id);
+    expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
+
     // Ensure no POST request was dispatched
     const postCalls = fetchMock.mock.calls.filter(([url, options]) =>
       url.includes("/api/students/") && (options as RequestInit)?.method === "POST"
@@ -1996,6 +2003,49 @@ describe("Student detail screen (/students/:id)", () => {
 
     expect(screen.queryByRole("heading", { name: "Edit student record" })).not.toBeInTheDocument();
     expect(editBtn).toHaveFocus();
+  });
+
+  it("announces edit-student field errors and associates them with their input", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/10/rank-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          current_rank: 2,
+          current_rank_code: "YS",
+          current_rank_name: "Yellow Stripe",
+          promotions: [],
+        });
+      }
+      if (url.includes("/api/students/10/")) {
+        return jsonResponse(200, testStudent);
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Edit student" }));
+    expect(await screen.findByRole("heading", { name: "Edit student record" })).toBeVisible();
+
+    const firstNameInput = screen.getByLabelText(/First name/i);
+    await user.clear(firstNameInput);
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    const fieldError = await screen.findByText("First name is required.");
+    expect(fieldError).toHaveAttribute("role", "alert");
+    expect(firstNameInput).toHaveAttribute("aria-describedby", fieldError.id);
+    expect(firstNameInput).toHaveAttribute("aria-invalid", "true");
   });
 
   it("navigates back to /students when clicking breadcrumb", async () => {
@@ -4674,6 +4724,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.getByText("1 Met")).toBeVisible();
     expect(screen.getByText("1 Not Met")).toBeVisible();
     expect(screen.getByText("1 Not Assessed")).toBeVisible();
+    expect(screen.getByText(/Required items assessed/).closest('[role="status"]')).not.toBeNull();
 
     // Category rail has Etiquette and Kicking
     expect(screen.getByTestId("caw-cat-tab-ETIQUETTE")).toBeVisible();

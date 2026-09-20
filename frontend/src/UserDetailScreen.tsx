@@ -73,8 +73,21 @@ function AccountForm({
         <label><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
         <label className="users-form-wide">
           <span>Email address</span>
-          <input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          {error?.messagesFor("email").map((message) => <small className="users-field-error" key={message}>{message}</small>)}
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={(error?.messagesFor("email").length ?? 0) > 0}
+            aria-describedby={(error?.messagesFor("email").length ?? 0) > 0 ? "account-email-error" : undefined}
+          />
+          {(error?.messagesFor("email").length ?? 0) > 0 && (
+            <span id="account-email-error" role="alert">
+              {error?.messagesFor("email").map((message, index) => (
+                <small className="users-field-error" key={index}>{message}</small>
+              ))}
+            </span>
+          )}
         </label>
         <label>
           <span>Role</span>
@@ -264,9 +277,27 @@ function PasswordResetDialog({
             tabIndex={-1}
             aria-hidden="true"
           />
-          <label><span>Temporary password</span><input autoFocus required type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+          <label>
+            <span>Temporary password</span>
+            <input
+              autoFocus
+              required
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={(error?.messagesFor("password").length ?? 0) > 0}
+              aria-describedby={(error?.messagesFor("password").length ?? 0) > 0 ? "reset-password-error" : undefined}
+            />
+          </label>
           <label><span>Confirm password</span><input required type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
-          {error?.messagesFor("password").map((message) => <small className="users-field-error" key={message}>{message}</small>)}
+          {(error?.messagesFor("password").length ?? 0) > 0 && (
+            <span id="reset-password-error" role="alert">
+              {error?.messagesFor("password").map((message, index) => (
+                <small className="users-field-error" key={index}>{message}</small>
+              ))}
+            </span>
+          )}
           {(clientError || error) && <div className="users-error" role="alert">{clientError || error?.message}</div>}
           <div className="users-dialog-actions">
             <button type="button" className="users-secondary-button" onClick={onClose}>Cancel</button>
@@ -364,7 +395,7 @@ export function UserDetailScreen(): React.ReactElement {
           <section>
             <h2>Recent administrative activity</h2>
             {activityQuery.isLoading ? (
-              <p>Loading activity…</p>
+              <p role="status">Loading activity…</p>
             ) : activityQuery.data?.results.length ? (
               <ul className="user-activity-list">
                 {activityQuery.data.results.map((event) => (

@@ -244,7 +244,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     isLoadingSession || isLoadingCandidates || isLoadingOutcomes || isLoadingPromotions;
 
   return (
-    <div className="pl-container" data-testid="promotion-ledger-screen">
+    <section aria-labelledby="pl-title" className="pl-container" data-testid="promotion-ledger-screen">
       {/* Breadcrumb & Navigation */}
       <nav className="pl-breadcrumb" aria-label="Breadcrumb">
         <Link to="/gradings" className="pl-breadcrumb-link">
@@ -267,7 +267,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {/* Screen Header */}
       <header className="pl-header">
         <div className="pl-header-main">
-          <h1 className="pl-title">
+          <h1 className="pl-title" id="pl-title">
             {session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
           </h1>
           <p className="pl-subtitle">
@@ -360,7 +360,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {/* Candidates Promotion Ledger Table */}
       <div className="pl-table-container">
         {isLoading ? (
-          <div className="pl-loading-state">Loading candidate promotion ledger…</div>
+          <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
         ) : rows.length === 0 ? (
           <div className="pl-empty-state">
             <p>No candidates registered in this grading session.</p>
@@ -697,6 +697,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

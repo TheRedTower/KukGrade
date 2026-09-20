@@ -6,7 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UsersScreen } from "./UsersScreen";
-import type { ManagedUser } from "./api";
+import { ApiError, type ManagedUser } from "./api";
 
 const mockGetManagedUsers = vi.fn();
 const mockCreateManagedUser = vi.fn();
@@ -74,6 +74,10 @@ describe("UsersScreen", () => {
     const row = screen.getByRole("row", { name: /Riley Khan/ });
     expect(within(row).getByText("Active")).toBeInTheDocument();
     expect(screen.getByText(/14 Sept 2026/)).toBeInTheDocument();
+
+    for (const header of screen.getAllByRole("columnheader")) {
+      expect(header).toHaveAttribute("scope", "col");
+    }
   });
 
   it("applies server-side search, role, status, and pagination", async () => {
@@ -138,6 +142,30 @@ describe("UsersScreen", () => {
       }));
     });
     expect(await screen.findByRole("heading", { name: "User detail reached" })).toBeInTheDocument();
+  });
+
+  it("announces a server-side email validation error and associates it with the email field", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockRejectedValue(
+      new ApiError("Validation failed.", 400, "validation_error", {
+        email: ["A user with that email already exists."],
+      }),
+    );
+    renderScreen();
+    await screen.findByText("Riley Khan");
+
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    const emailInput = within(dialog).getByLabelText("Email address");
+    await user.type(emailInput, "riley.khan@example.com");
+    await user.type(within(dialog).getByLabelText("Temporary password"), "Temporary-Password-2026!");
+    await user.type(within(dialog).getByLabelText("Confirm password"), "Temporary-Password-2026!");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    const fieldError = await screen.findByText("A user with that email already exists.");
+    expect(fieldError.closest("[role='alert']")).not.toBeNull();
+    expect(emailInput).toHaveAttribute("aria-invalid", "true");
+    expect(emailInput).toHaveAttribute("aria-describedby", "cud-email-error");
   });
 
   it("opens the selected user for management", async () => {

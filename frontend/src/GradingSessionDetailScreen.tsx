@@ -527,36 +527,36 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // Loading & Error states
   if (isNaN(sessionId)) {
     return (
-      <div className="gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-invalid-id-heading" className="gsd-page" data-testid="gsd-page">
         <div className="gsd-error-state">
-          <h2>Invalid Grading Session ID</h2>
+          <h2 id="gsd-invalid-id-heading">Invalid Grading Session ID</h2>
           <p>Please return to the sessions list.</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (sessionQuery.isLoading) {
     return (
-      <div className="gsd-page" data-testid="gsd-page">
-        <div className="gsd-loading-state">
+      <section aria-label="Grading session" className="gsd-page" data-testid="gsd-page">
+        <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
           <p>Loading grading session...</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (sessionQuery.isError || !session) {
     return (
-      <div className="gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-error-heading" className="gsd-page" data-testid="gsd-page">
         <div className="gsd-error-state">
-          <h2>Failed to load grading session</h2>
+          <h2 id="gsd-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -625,7 +625,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   };
 
   return (
-    <div className="gsd-page" data-testid="gsd-page">
+    <section aria-labelledby="gsd-title" className="gsd-page" data-testid="gsd-page">
       {/* ── Breadcrumbs ─────────────────────────────────────────────────── */}
       <nav className="gsd-breadcrumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="gsd-breadcrumb-link">Gradings</Link>
@@ -665,7 +665,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       <header className="gsd-header">
         <div className="gsd-header-left">
           <div className="gsd-title-row">
-            <h1 className="gsd-title">{session.title}</h1>
+            <h1 className="gsd-title" id="gsd-title">{session.title}</h1>
             <span className={`gsd-status-pill gsd-status-${session.status?.toLowerCase()}`}>
               <span className="gsd-status-indicator" aria-hidden="true" />
               {session.status_display || session.status}
@@ -1383,6 +1383,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           }}
         />
       )}
-    </div>
+    </section>
   );
 }

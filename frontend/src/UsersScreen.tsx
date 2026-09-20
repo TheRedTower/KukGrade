@@ -127,10 +127,21 @@ function CreateUserDialog({
             </label>
             <label className="users-form-wide">
               <span>Email address</span>
-              <input required type="email" name="email" autoComplete="off" />
-              {apiError?.messagesFor("email").map((message) => (
-                <small className="users-field-error" key={message}>{message}</small>
-              ))}
+              <input
+                required
+                type="email"
+                name="email"
+                autoComplete="off"
+                aria-invalid={(apiError?.messagesFor("email").length ?? 0) > 0}
+                aria-describedby={(apiError?.messagesFor("email").length ?? 0) > 0 ? "cud-email-error" : undefined}
+              />
+              {(apiError?.messagesFor("email").length ?? 0) > 0 && (
+                <span id="cud-email-error" role="alert">
+                  {apiError?.messagesFor("email").map((message, index) => (
+                    <small className="users-field-error" key={index}>{message}</small>
+                  ))}
+                </span>
+              )}
             </label>
             <label className="users-form-wide">
               <span>Role</span>
@@ -141,10 +152,21 @@ function CreateUserDialog({
             </label>
             <label>
               <span>Temporary password</span>
-              <input required type="password" name="password" autoComplete="new-password" />
-              {apiError?.messagesFor("password").map((message) => (
-                <small className="users-field-error" key={message}>{message}</small>
-              ))}
+              <input
+                required
+                type="password"
+                name="password"
+                autoComplete="new-password"
+                aria-invalid={(apiError?.messagesFor("password").length ?? 0) > 0}
+                aria-describedby={(apiError?.messagesFor("password").length ?? 0) > 0 ? "cud-password-error" : undefined}
+              />
+              {(apiError?.messagesFor("password").length ?? 0) > 0 && (
+                <span id="cud-password-error" role="alert">
+                  {apiError?.messagesFor("password").map((message, index) => (
+                    <small className="users-field-error" key={index}>{message}</small>
+                  ))}
+                </span>
+              )}
             </label>
             <label>
               <span>Confirm password</span>
@@ -304,7 +326,7 @@ export function UsersScreen(): React.ReactElement {
             <div className="users-table-scroll">
               <table className="users-table">
                 <caption className="visually-hidden">Staff user accounts</caption>
-                <thead><tr><th>User</th><th>Role</th><th>Master authority</th><th>Status</th><th>Last active</th><th><span className="visually-hidden">Action</span></th></tr></thead>
+                <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Master authority</th><th scope="col">Status</th><th scope="col">Last active</th><th scope="col"><span className="visually-hidden">Action</span></th></tr></thead>
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id}>

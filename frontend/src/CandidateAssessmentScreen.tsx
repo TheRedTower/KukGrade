@@ -369,26 +369,26 @@ export function CandidateAssessmentScreen() {
     (assessment && itemsQuery.isLoading)
   ) {
     return (
-      <div className="caw-page" data-testid="caw-loading">
-        <div className="caw-loading-state">
+      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-loading">
+        <div className="caw-loading-state" role="status">
           <span className="status-dot status-dot-pulse" aria-hidden="true" />
           <p>Loading candidate assessment workspace...</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   // Not found or error state
   if (!sessionQuery.data || !candidate) {
     return (
-      <div className="caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
           <Link to={`/gradings/${sessionId}`} className="btn-secondary">
             ← Return to session roster
           </Link>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -407,7 +407,7 @@ export function CandidateAssessmentScreen() {
     const notMetItems = items.filter((item) => item.result === "NOT_MET");
 
     return (
-      <div className="caw-page" data-testid="caw-review-workspace">
+      <section aria-labelledby="caw-review-title" className="caw-page" data-testid="caw-review-workspace">
         {/* Top Breadcrumb Header */}
         <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
           <Link to="/gradings">Gradings</Link>
@@ -419,7 +419,7 @@ export function CandidateAssessmentScreen() {
 
         <header className="caw-review-header">
           <div>
-            <h1 className="caw-candidate-title">Review &amp; Complete Assessment</h1>
+            <h1 className="caw-candidate-title" id="caw-review-title">Review &amp; Complete Assessment</h1>
             <div className="caw-candidate-sub">
               <span className="caw-candidate-name">{candidate.student_display_name}</span>
               {candidate.student_wksa_id && (
@@ -589,13 +589,13 @@ export function CandidateAssessmentScreen() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
     );
   }
 
   // Render SCR-019: Mat-side Scoring Workspace
   return (
-    <div className="caw-page" data-testid="caw-workspace">
+    <section aria-labelledby="caw-title" className="caw-page" data-testid="caw-workspace">
       {/* Top Breadcrumbs */}
       <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
         <Link to="/gradings">Gradings</Link>
@@ -608,7 +608,7 @@ export function CandidateAssessmentScreen() {
       {/* Header Banner */}
       <header className="caw-header">
         <div className="caw-header-left">
-          <h1 className="caw-candidate-name">{candidate.student_display_name}</h1>
+          <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
           {candidate.student_wksa_id && (
             <span className="caw-candidate-wksa">
               <span className="caw-wksa-label">WKSA ID</span>
@@ -674,7 +674,7 @@ export function CandidateAssessmentScreen() {
       )}
 
       {/* Required Items Assessed Progress Ledger */}
-      <div className="caw-progress-ledger">
+      <div className="caw-progress-ledger" role="status" aria-live="polite">
         <div className="caw-progress-main">
           <span className="caw-progress-icon" aria-hidden="true">
             {stats.remainingRequired === 0 ? "✓" : "!"}
@@ -820,7 +820,7 @@ export function CandidateAssessmentScreen() {
           )}
         </main>
       </div>
-    </div>
+    </section>
   );
 }
 

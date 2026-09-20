@@ -315,7 +315,7 @@ export function StudentsScreen() {
       {/* Data Table / Empty State Container */}
       <div className="students-table-card">
         {studentsQuery.isLoading ? (
-          <div className="table-state-box">
+          <div className="table-state-box" role="status">
             <p className="loading-state-text">Loading student records...</p>
           </div>
         ) : students.length === 0 ? (

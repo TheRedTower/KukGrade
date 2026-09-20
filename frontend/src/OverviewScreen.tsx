@@ -616,7 +616,7 @@ export function OverviewScreen() {
             </table>
           </div>
         ) : (
-          <div className="activity-empty-state">
+          <div className="activity-empty-state" role="status">
             <p>
               {isInitialLoading
                 ? "Loading activity ledger..."

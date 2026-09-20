@@ -486,36 +486,36 @@ export function BuildGradingCohortScreen() {
   // Loading and error states for session
   if (isNaN(sessionId)) {
     return (
-      <div className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-invalid-id-heading" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
-          <h2>Invalid Grading Session ID</h2>
+          <h2 id="bgc-invalid-id-heading">Invalid Grading Session ID</h2>
           <p>Please return to the grading sessions list.</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (sessionQuery.isLoading) {
     return (
-      <div className="bgc-page" data-testid="bgc-page">
-        <div className="gsd-loading-state">
+      <section aria-label="Grading session cohort workspace" className="bgc-page" data-testid="bgc-page">
+        <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
           <p>Loading grading session cohort workspace...</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (sessionQuery.isError || !session) {
     return (
-      <div className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-error-heading" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
-          <h2>Failed to load grading session</h2>
+          <h2 id="bgc-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
-      </div>
+      </section>
     );
   }
 
@@ -528,7 +528,7 @@ export function BuildGradingCohortScreen() {
     const retryableCount = flaggedItems.filter((i) => !i.isAlreadyRegistered).length;
 
     return (
-      <div className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-resolver-title" className="bgc-page" data-testid="bgc-page">
         {/* Breadcrumbs */}
         <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
           <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
@@ -540,7 +540,7 @@ export function BuildGradingCohortScreen() {
 
         {/* Header */}
         <header className="bgc-header">
-          <h1 className="bgc-title">Resolve flagged candidates</h1>
+          <h1 className="bgc-title" id="bgc-resolver-title">Resolve flagged candidates</h1>
           <div className="bgc-resolver-summary-bar">
             <span className="bgc-summary-pill bgc-summary-success">
               <span className="bgc-summary-icon" aria-hidden="true">✓</span>
@@ -718,7 +718,7 @@ export function BuildGradingCohortScreen() {
             <span className="bgc-retry-helper-text">Only resolved candidates will be retried.</span>
           </div>
         </footer>
-      </div>
+      </section>
     );
   }
 
@@ -726,7 +726,7 @@ export function BuildGradingCohortScreen() {
   // VIEW: Cohort Builder Workspace (SCR-017 / FDR-030)
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="bgc-page" data-testid="bgc-page">
+    <section aria-labelledby="bgc-title" className="bgc-page" data-testid="bgc-page">
       {/* Breadcrumbs */}
       <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
@@ -738,7 +738,7 @@ export function BuildGradingCohortScreen() {
 
       {/* Header */}
       <header className="bgc-header">
-        <h1 className="bgc-title">Build grading cohort</h1>
+        <h1 className="bgc-title" id="bgc-title">Build grading cohort</h1>
         <p className="bgc-subtitle">Add whole groups, then review any exceptions.</p>
       </header>
 
@@ -1296,6 +1296,6 @@ export function BuildGradingCohortScreen() {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

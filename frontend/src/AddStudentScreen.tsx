@@ -193,9 +193,10 @@ export function AddStudentScreen() {
                 disabled={isSubmitting}
                 aria-required="true"
                 aria-invalid={!!getFieldError("first_name")}
+                aria-describedby={getFieldError("first_name") ? "first-name-error" : undefined}
               />
               {getFieldError("first_name") && (
-                <p className="form-field-error">{getFieldError("first_name")}</p>
+                <p className="form-field-error" id="first-name-error" role="alert">{getFieldError("first_name")}</p>
               )}
             </div>
 
@@ -213,9 +214,10 @@ export function AddStudentScreen() {
                 disabled={isSubmitting}
                 aria-required="true"
                 aria-invalid={!!getFieldError("last_name")}
+                aria-describedby={getFieldError("last_name") ? "last-name-error" : undefined}
               />
               {getFieldError("last_name") && (
-                <p className="form-field-error">{getFieldError("last_name")}</p>
+                <p className="form-field-error" id="last-name-error" role="alert">{getFieldError("last_name")}</p>
               )}
             </div>
           </div>
@@ -234,9 +236,10 @@ export function AddStudentScreen() {
               disabled={isSubmitting}
               aria-required="true"
               aria-invalid={!!getFieldError("wksa_id")}
+              aria-describedby={getFieldError("wksa_id") ? "wksa-id-error" : undefined}
             />
             {getFieldError("wksa_id") ? (
-              <p className="form-field-error">{getFieldError("wksa_id")}</p>
+              <p className="form-field-error" id="wksa-id-error" role="alert">{getFieldError("wksa_id")}</p>
             ) : (
               <p className="form-field-help">
                 This identifier cannot be changed after the record is created.
@@ -264,9 +267,10 @@ export function AddStudentScreen() {
                 disabled={isSubmitting}
                 aria-required="true"
                 aria-invalid={!!getFieldError("date_of_birth")}
+                aria-describedby={getFieldError("date_of_birth") ? "dob-error" : undefined}
               />
               {getFieldError("date_of_birth") ? (
-                <p className="form-field-error">{getFieldError("date_of_birth")}</p>
+                <p className="form-field-error" id="dob-error" role="alert">{getFieldError("date_of_birth")}</p>
               ) : (
                 <div className="privacy-badge-line">
                   <LockIcon />
@@ -286,6 +290,8 @@ export function AddStudentScreen() {
                 onChange={(e) => setCurrentRank(Number(e.target.value))}
                 disabled={isSubmitting || ranksQuery.isLoading}
                 aria-required="true"
+                aria-invalid={!!getFieldError("current_rank")}
+                aria-describedby={getFieldError("current_rank") ? "current-rank-error" : undefined}
               >
                 {ranks.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -294,7 +300,7 @@ export function AddStudentScreen() {
                 ))}
               </select>
               {getFieldError("current_rank") && (
-                <p className="form-field-error">{getFieldError("current_rank")}</p>
+                <p className="form-field-error" id="current-rank-error" role="alert">{getFieldError("current_rank")}</p>
               )}
             </div>
 

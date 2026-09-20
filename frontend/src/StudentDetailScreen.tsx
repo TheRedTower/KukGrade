@@ -265,7 +265,7 @@ export function StudentDetailScreen() {
   if (studentQuery.isLoading) {
     return (
       <section aria-labelledby="student-loading-title" className="student-detail-view">
-        <div className="table-state-box">
+        <div className="table-state-box" role="status">
           <p id="student-loading-title" className="loading-state-text">
             Loading student record...
           </p>
@@ -754,10 +754,12 @@ export function StudentDetailScreen() {
                       onChange={(e) => setEditFirstName(e.target.value)}
                       disabled={isSavingEdit}
                       aria-required="true"
+                      aria-invalid={!!getEditFieldError("first_name")}
+                      aria-describedby={getEditFieldError("first_name") ? "edit-first-name-error" : undefined}
                       data-dialog-autofocus
                     />
                     {getEditFieldError("first_name") && (
-                      <p className="form-field-error">{getEditFieldError("first_name")}</p>
+                      <p className="form-field-error" id="edit-first-name-error" role="alert">{getEditFieldError("first_name")}</p>
                     )}
                   </div>
 
@@ -773,9 +775,11 @@ export function StudentDetailScreen() {
                       onChange={(e) => setEditLastName(e.target.value)}
                       disabled={isSavingEdit}
                       aria-required="true"
+                      aria-invalid={!!getEditFieldError("last_name")}
+                      aria-describedby={getEditFieldError("last_name") ? "edit-last-name-error" : undefined}
                     />
                     {getEditFieldError("last_name") && (
-                      <p className="form-field-error">{getEditFieldError("last_name")}</p>
+                      <p className="form-field-error" id="edit-last-name-error" role="alert">{getEditFieldError("last_name")}</p>
                     )}
                   </div>
                 </div>
@@ -793,9 +797,11 @@ export function StudentDetailScreen() {
                     onChange={(e) => setEditDob(e.target.value)}
                     disabled={isSavingEdit}
                     aria-required="true"
+                    aria-invalid={!!getEditFieldError("date_of_birth")}
+                    aria-describedby={getEditFieldError("date_of_birth") ? "edit-dob-error" : undefined}
                   />
                   {getEditFieldError("date_of_birth") && (
-                    <p className="form-field-error">{getEditFieldError("date_of_birth")}</p>
+                    <p className="form-field-error" id="edit-dob-error" role="alert">{getEditFieldError("date_of_birth")}</p>
                   )}
                 </div>
               </div>

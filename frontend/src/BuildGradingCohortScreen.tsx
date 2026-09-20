@@ -1241,7 +1241,7 @@ export function BuildGradingCohortScreen() {
               </h2>
               <button
                 type="button"
-                className="gsd-modal-close-btn"
+                className="modal-close-btn"
                 onClick={() => setExceptionsModalOpen(false)}
                 aria-label="Close modal"
               >

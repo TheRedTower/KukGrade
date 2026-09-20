@@ -2865,7 +2865,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   function setupStandardMock(
     sessionOverrides = {},
     assessments = testAssessments,
-    authenticatedUser = adminUser,
+    authenticatedUser: typeof adminUser | (Omit<typeof adminUser, "role"> & { role: string }) = adminUser,
     candidates: GradingCandidate[] = testCandidates,
   ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -3525,7 +3525,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
-    const instructorUser = { ...authUser, is_superuser: false };
+    const instructorUser = { ...authUser, role: "instructor" as const, is_superuser: false };
     const fetchMock = setupStandardMock(
       { status: "CANCELLED", status_display: "Cancelled" },
       testAssessments,

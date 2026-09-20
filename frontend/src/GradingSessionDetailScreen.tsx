@@ -28,6 +28,7 @@ import {
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
+import { useDialogFocus } from "./useDialogFocus";
 
 function formatSessionDate(dateStr: string): string {
   try {
@@ -226,6 +227,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // Actions dropdown & modal state
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const actionsButtonRef = useRef<HTMLButtonElement>(null);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesInput, setNotesInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -264,22 +266,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [actionsMenuOpen]);
-
-  // Close confirm modal on Escape key
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setConfirmModal(null);
-      }
-    }
-
-    if (confirmModal) {
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [confirmModal]);
 
   // 1. Fetch session details
   const sessionQuery = useQuery({
@@ -344,6 +330,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     onError: (err: unknown) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to delete session.");
     },
+  });
+
+  const isConfirmModalMutationPending =
+    updateSessionMutation.isPending || deleteSessionMutation.isPending;
+
+  const confirmModalDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: confirmModal !== null,
+    onClose: () => setConfirmModal(null),
+    canClose: !isConfirmModalMutationPending,
   });
 
   const refreshCandidateWork = () => {
@@ -568,6 +563,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const handleActionClick = (actionType: "LOCK" | "COMPLETE" | "CANCEL" | "DELETE" | "OPEN") => {
     setActionsMenuOpen(false);
     setActionError(null);
+    // The dropdown (and the menu item just clicked) unmounts in the same
+    // render as the confirm modal mounting, so useDialogFocus would capture
+    // document.body as "previously focused" unless focus is moved onto the
+    // still-mounted trigger button before that happens.
+    actionsButtonRef.current?.focus();
 
     if (actionType === "DELETE") {
       setConfirmModal({
@@ -692,6 +692,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {/* Actions Dropdown */}
           <div className="gsd-dropdown-wrap" ref={actionsMenuRef}>
             <button
+              ref={actionsButtonRef}
               type="button"
               className="btn-ghost gsd-actions-btn"
               onClick={() => setActionsMenuOpen((prev) => !prev)}
@@ -1239,17 +1240,21 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {confirmModal && (
         <div
           className="gsd-modal-backdrop gsd-modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="gsd-confirm-modal-title"
-          data-testid="gsd-confirm-modal"
           onClick={(e) => {
-            if (e.target === e.currentTarget) {
+            if (e.target === e.currentTarget && !isConfirmModalMutationPending) {
               setConfirmModal(null);
             }
           }}
         >
-          <div className="gsd-modal-card">
+          <div
+            ref={confirmModalDialogRef}
+            className="gsd-modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gsd-confirm-modal-title"
+            tabIndex={-1}
+            data-testid="gsd-confirm-modal"
+          >
             <h2 id="gsd-confirm-modal-title" className="gsd-modal-title">
               {confirmModal.title}
             </h2>
@@ -1280,7 +1285,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     : ""
                 }`}
                 onClick={handleConfirmModalAction}
-                disabled={updateSessionMutation.isPending || deleteSessionMutation.isPending}
+                disabled={isConfirmModalMutationPending}
                 data-testid="gsd-modal-confirm-btn"
               >
                 {confirmModal.actionType === "DELETE"
@@ -1293,7 +1298,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 type="button"
                 className="btn-ghost"
                 onClick={() => setConfirmModal(null)}
-                disabled={updateSessionMutation.isPending || deleteSessionMutation.isPending}
+                disabled={isConfirmModalMutationPending}
+                data-dialog-autofocus
               >
                 Cancel
               </button>

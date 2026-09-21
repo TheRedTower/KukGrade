@@ -8,6 +8,7 @@ import {
   type FieldErrors,
   createGradingSession,
 } from "./api";
+import "./GradingSessions.css";
 
 const MONTHS = [
   { value: "01", label: "January" },

@@ -13,6 +13,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
+import "./OverviewScreen.css";
 
 function CalendarIcon() {
   return (

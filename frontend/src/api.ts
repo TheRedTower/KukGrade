@@ -155,7 +155,14 @@ async function apiRequest<T>(
   const method = init.method?.toUpperCase() ?? "GET";
   const headers = new Headers(init.headers);
 
-  if (!headers.has("Content-Type") && init.body !== undefined) {
+  // A FormData body (file upload) must keep the browser's own multipart
+  // boundary in Content-Type - setting it to application/json here would
+  // silently break every multipart upload.
+  if (
+    !headers.has("Content-Type") &&
+    init.body !== undefined &&
+    !(init.body instanceof FormData)
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -966,4 +973,129 @@ export async function bulkPromoteCandidateOutcomes(
       body: JSON.stringify(data),
     },
   );
+}
+
+/**
+ * Hand-written rather than generated: /api/data-imports/ is new backend
+ * surface and `backend/schema.yml` has not been regenerated to include it
+ * yet. Reconcile with generated types once it has (see the 2026-09-14
+ * decision log entry on generated API types).
+ */
+export type DataImportKind = "STUDENT_ROSTER" | "LEGACY_GRADINGS";
+export type DataImportStatus =
+  | "UPLOADED"
+  | "NEEDS_REVIEW"
+  | "READY"
+  | "COMMITTED"
+  | "PARTIAL"
+  | "CANCELLED"
+  | "FAILED"
+  | "EXPIRED";
+
+export type DataImportBatch = {
+  id: number;
+  kind: DataImportKind;
+  kind_display: string;
+  status: DataImportStatus;
+  original_filename: string;
+  sha256: string;
+  file_size: number;
+  uploaded_by_email: string;
+  uploaded_at: string;
+  committed_by_email: string | null;
+  committed_at: string | null;
+  cancelled_at: string | null;
+  summary_json: Record<string, unknown>;
+  configuration_json: Record<string, unknown>;
+  error_summary: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateDataImportBatchResponse = DataImportBatch & {
+  already_imported_warning: boolean;
+  detected_headers: string[];
+  suggested_mapping: Record<string, string>;
+};
+
+export async function createDataImportBatch(
+  file: File,
+  kind: DataImportKind = "STUDENT_ROSTER",
+): Promise<CreateDataImportBatchResponse> {
+  const formData = new FormData();
+  formData.append("kind", kind);
+  formData.append("file", file);
+  return apiRequest<CreateDataImportBatchResponse>("/api/data-imports/batches/", {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export type StudentImportRowOutcome = "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+
+export type StudentImportRowResult = {
+  row_number: number;
+  outcome: StudentImportRowOutcome;
+  wksa_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth_display: string;
+  current_rank_text: string;
+  current_rank_code: string | null;
+  status: string;
+  issues: string[];
+  existing_student_id: number | null;
+  existing_student_display: string | null;
+};
+
+export type StudentImportPreview = {
+  total: number;
+  ready: number;
+  review_required: number;
+  skip_existing: number;
+  rows: StudentImportRowResult[];
+};
+
+export type StudentImportRowCorrection = Partial<
+  Record<
+    "wksa_id" | "first_name" | "last_name" | "date_of_birth" | "current_rank" | "status",
+    string
+  >
+>;
+
+export type StudentImportRequestPayload = {
+  column_mapping: Record<string, string>;
+  corrections?: Record<string, StudentImportRowCorrection>;
+};
+
+export async function previewStudentImport(
+  batchId: number,
+  payload: StudentImportRequestPayload,
+): Promise<StudentImportPreview> {
+  return apiRequest<StudentImportPreview>(
+    `/api/data-imports/batches/${batchId}/preview/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function commitStudentImport(
+  batchId: number,
+  payload: StudentImportRequestPayload,
+): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(
+    `/api/data-imports/batches/${batchId}/commit/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function cancelDataImportBatch(batchId: number): Promise<void> {
+  return apiRequest<void>(`/api/data-imports/batches/${batchId}/cancel/`, {
+    method: "POST",
+  });
 }

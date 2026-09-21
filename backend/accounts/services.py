@@ -197,6 +197,7 @@ def delete_platform_user(target: User, actor: User) -> User:
             {"user": ["The deleted-user placeholder account cannot be deleted."]},
         )
 
+    from data_imports.models import ImportBatch
     from gradings.models import (
         CandidateAssessment,
         CandidateAssessmentItem,
@@ -235,6 +236,15 @@ def delete_platform_user(target: User, actor: User) -> User:
             AuditEvent.objects.filter(actor=target),
             actor=placeholder,
         ),
+        "import_batches_uploaded": ImportBatch.objects.filter(
+            uploaded_by=target,
+        ).update(uploaded_by=placeholder),
+        "import_batches_committed": ImportBatch.objects.filter(
+            committed_by=target,
+        ).update(committed_by=placeholder),
+        "import_batches_cancelled": ImportBatch.objects.filter(
+            cancelled_by=target,
+        ).update(cancelled_by=placeholder),
     }
 
     record(

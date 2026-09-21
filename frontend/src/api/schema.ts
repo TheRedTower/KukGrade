@@ -102,6 +102,122 @@ export interface paths {
         patch: operations["auth_me_partial_update"];
         trace?: never;
     };
+    "/api/data-imports/batches/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_list"];
+        put?: never;
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        post: operations["data_imports_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/cancel/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        post: operations["data_imports_batches_cancel_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/commit/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        post: operations["data_imports_batches_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/preview/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        post: operations["data_imports_batches_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/assessment-items/": {
         parameters: {
             query?: never;
@@ -847,9 +963,11 @@ export interface components {
          *     * `USER_UPDATED` - User updated
          *     * `USER_AUTHORITY_CHANGED` - User authority changed
          *     * `USER_DELETED` - User deleted
+         *     * `IMPORT_BATCH_COMMITTED` - Import batch committed
+         *     * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED";
         /**
          * @description * `AGE_8_AND_UNDER` - 8 and under
          *     * `AGE_9_TO_12` - 9-12
@@ -1109,6 +1227,51 @@ export interface components {
             service: string;
             status: string;
         };
+        ImportBatch: {
+            readonly id: number;
+            readonly kind: components["schemas"]["KindEnum"];
+            readonly kind_display: string;
+            readonly status: components["schemas"]["ImportBatchStatusEnum"];
+            readonly status_display: string;
+            readonly original_filename: string;
+            readonly sha256: string;
+            readonly file_size: number;
+            /** Format: email */
+            readonly uploaded_by_email: string;
+            /** Format: date-time */
+            readonly uploaded_at: string;
+            /** Format: email */
+            readonly committed_by_email: string | null;
+            /** Format: date-time */
+            readonly committed_at: string | null;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            readonly summary_json: unknown;
+            readonly configuration_json: unknown;
+            readonly error_summary: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /**
+         * @description * `UPLOADED` - Uploaded
+         *     * `NEEDS_REVIEW` - Needs review
+         *     * `READY` - Ready
+         *     * `COMMITTED` - Committed
+         *     * `PARTIAL` - Partially committed
+         *     * `CANCELLED` - Cancelled
+         *     * `FAILED` - Failed
+         *     * `EXPIRED` - Expired
+         * @enum {string}
+         */
+        ImportBatchStatusEnum: "UPLOADED" | "NEEDS_REVIEW" | "READY" | "COMMITTED" | "PARTIAL" | "CANCELLED" | "FAILED" | "EXPIRED";
+        /**
+         * @description * `STUDENT_ROSTER` - Student roster
+         *     * `LEGACY_GRADINGS` - Legacy grading records
+         * @enum {string}
+         */
+        KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
         LockedCandidateWithdrawal: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
             withdrawal_note?: string;
@@ -1224,6 +1387,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
+        };
+        PaginatedImportBatchList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ImportBatch"][];
         };
         PaginatedPromotionList: {
             /** @example 123 */
@@ -2010,6 +2188,161 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    data_imports_batches_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportBatchList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportBatch"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
+                "application/json": components["schemas"]["ImportBatch"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_cancel_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportBatch"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
+                "application/json": components["schemas"]["ImportBatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_commit_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportBatch"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
+                "application/json": components["schemas"]["ImportBatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_preview_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportBatch"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
+                "application/json": components["schemas"]["ImportBatch"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };

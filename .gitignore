@@ -14,6 +14,7 @@ venv/
 db.sqlite3
 media/
 staticfiles/
+backend/var/
 
 # Node
 node_modules/

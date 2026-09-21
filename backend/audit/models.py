@@ -49,6 +49,9 @@ class AuditAction(models.TextChoices):
     USER_AUTHORITY_CHANGED = "USER_AUTHORITY_CHANGED", "User authority changed"
     USER_DELETED = "USER_DELETED", "User deleted"
 
+    IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import batch committed"
+    IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import batch cancelled"
+
 
 # Logistics - who runs the roster - is an administrator concern, the same
 # boundary the Users API itself draws. An instructor cannot open

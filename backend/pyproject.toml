@@ -10,6 +10,7 @@ dependencies = [
     "djangorestframework>=3.16,<4.0",
     "drf-spectacular>=0.30.0",
     "psycopg[binary]>=3.2,<4.0",
+    "tablib[xlsx]>=3.10.0",
 ]
 
 [dependency-groups]
@@ -37,6 +38,7 @@ testpaths = [
     "students",
     "syllabus",
     "gradings",
+    "data_imports",
 ]
 
 [tool.ruff]
@@ -53,6 +55,18 @@ plugins = ["mypy_django_plugin.main"]
 strict = true
 warn_unreachable = true
 disallow_any_generics = false
+
+# No published type stubs.
+[[tool.mypy.overrides]]
+module = "tablib.*"
+ignore_missing_imports = true
+
+# Generated code: regenerating a migration after a model change would just
+# undo any hand-added type: ignore, so migrations are excluded from strict
+# checking rather than hand-maintained (django-stubs' own convention).
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
+ignore_errors = true
 
 [tool.django-stubs]
 # Points at the test settings module because the real one fails closed: it

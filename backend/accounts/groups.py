@@ -72,12 +72,26 @@ _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "delete_promotion"),
 )
 
+# Bulk data import (student rosters, and later legacy grading workbooks).
+# Administrator-only by decision - see the Definitive Implementation Spec's
+# Decision 1 and docs/decision_log.md. "can_commit_import" is a custom
+# permission (ImportBatch.Meta.permissions) rather than the auto-generated
+# "change_importbatch", so upload/preview can be separated from the
+# irreversible act of actually creating students.
+_DATA_IMPORT_PERMISSIONS: tuple[tuple[str, str], ...] = (
+    ("data_imports", "view_importbatch"),
+    ("data_imports", "add_importbatch"),
+    ("data_imports", "change_importbatch"),
+    ("data_imports", "can_commit_import"),
+)
+
 GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
     INSTRUCTOR_GROUP: _KUK_SOOL_PERMISSIONS,
     ADMINISTRATOR_GROUP: (
         _KUK_SOOL_PERMISSIONS
         + _USER_ADMINISTRATION_PERMISSIONS
         + _DATA_CLEANUP_PERMISSIONS
+        + _DATA_IMPORT_PERMISSIONS
     ),
 }
 

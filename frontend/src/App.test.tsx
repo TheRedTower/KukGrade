@@ -611,7 +611,7 @@ describe("Navigation rail and role-gated routes", () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe("/");
     });
-    expect(screen.getByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
   });
 
   it("grants Audit access and displays the Audit link for an Authorised Master", async () => {

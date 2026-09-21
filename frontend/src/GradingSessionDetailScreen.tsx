@@ -29,6 +29,7 @@ import {
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 import { useDialogFocus } from "./useDialogFocus";
+import "./GradingSessions.css";
 
 function formatSessionDate(dateStr: string): string {
   try {

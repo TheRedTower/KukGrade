@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { RankVisual } from "./GradingSessionDetailScreen";
 import { useDialogFocus } from "./useDialogFocus";
+import "./OutcomeDrawers.css";
 
 export interface OutcomeProposalDrawerProps {
   candidate: GradingCandidate;

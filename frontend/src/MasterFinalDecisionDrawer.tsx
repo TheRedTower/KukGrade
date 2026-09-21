@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
+import "./OutcomeDrawers.css";
 
 export interface MasterFinalDecisionDrawerProps {
   candidate: GradingCandidate;

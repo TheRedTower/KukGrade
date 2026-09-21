@@ -10,23 +10,31 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib.auth.models import Permission
-from django.db import transaction
+from django.db import models, transaction
 
 from accounts.models import User
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
+    GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
-from audit.models import AuditAction
+from audit.models import AuditAction, AuditEvent
 from audit.recording import record
 
+# Kept in sync by hand with the literal in
+# accounts/migrations/0005_seed_deleted_user_placeholder.py - migrations must
+# not import application code, since it is free to change shape after a
+# migration is written and frozen.
+DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
+
 # Named once, so /api/auth/me/, the users API's authority sub-resource, and
-# this module cannot each spell "the three sensitive permissions" differently.
+# this module cannot each spell "the sensitive permissions" differently.
 AUTHORITY_PERMISSIONS: dict[str, str] = {
     "can_make_final_grading_decision": FINAL_GRADING_DECISION_PERMISSION,
     "can_promote_student": PROMOTE_STUDENT_PERMISSION,
     "can_override_locked_session": OVERRIDE_LOCKED_SESSION_PERMISSION,
+    "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
 }
 
 
@@ -144,6 +152,101 @@ def update_platform_user(
         metadata={"before": before, "after": after},
     )
     return user
+
+
+def get_deleted_user_placeholder() -> User:
+    return User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
+
+
+@transaction.atomic
+def delete_platform_user(target: User, actor: User) -> User:
+    """Hard-delete a user account, for corruption or test-data cleanup only.
+
+    Every attribution foreign key to User in this codebase is PROTECT
+    specifically so that deleting a user can never erase who did something
+    (see the comments on `audit.AuditEvent.actor` and
+    `gradings.CandidateAssessmentItem.assessor`). Deleting the row outright
+    would violate that, so every reference is reassigned to the "Deleted
+    User" placeholder account first (seeded by
+    accounts/migrations/0005_seed_deleted_user_placeholder.py) - the history
+    stays intact and attributable to "a since-deleted account", just not to
+    this specific person's row any more, which then has nothing left
+    pointing at it and can actually be removed.
+
+    Audit events, promotions, and finalised outcomes all refuse ordinary
+    bulk updates - `AuditEventQuerySet.update()` and `PromotionQuerySet.
+    update()` unconditionally raise, and `CandidateOutcomeQuerySet.update()`
+    raises whenever a finalised outcome is in scope, by design, to keep
+    those rows append-only/immutable against ordinary code paths. That
+    protects against rewriting what happened; it was never meant to block
+    this one narrow, admin-only case of moving whose account a historical
+    `actor`/`promoted_by`/`proposed_by`/`decided_by` reference resolves to.
+    `models.QuerySet.update` - the real, unbound base implementation - is
+    therefore called directly for those models, bypassing the
+    instance-level override on purpose. Every other field on the affected
+    rows is untouched.
+    """
+    from django.core.exceptions import ValidationError
+
+    if target.pk == actor.pk:
+        raise ValidationError({"user": ["You cannot delete your own account."]})
+
+    placeholder = get_deleted_user_placeholder()
+    if target.pk == placeholder.pk:
+        raise ValidationError(
+            {"user": ["The deleted-user placeholder account cannot be deleted."]},
+        )
+
+    from gradings.models import (
+        CandidateAssessment,
+        CandidateAssessmentItem,
+        CandidateOutcome,
+        GradingCandidate,
+        GradingSession,
+        Promotion,
+    )
+
+    reassigned = {
+        "grading_sessions_created": GradingSession.objects.filter(
+            created_by=target,
+        ).update(created_by=placeholder),
+        "grading_candidates_withdrawn": GradingCandidate.objects.filter(
+            withdrawn_by=target,
+        ).update(withdrawn_by=placeholder),
+        "assessments_generated": CandidateAssessment.objects.filter(
+            generated_by=target,
+        ).update(generated_by=placeholder),
+        "outcomes_proposed": models.QuerySet.update(
+            CandidateOutcome.objects.filter(proposed_by=target),
+            proposed_by=placeholder,
+        ),
+        "outcomes_decided": models.QuerySet.update(
+            CandidateOutcome.objects.filter(decided_by=target),
+            decided_by=placeholder,
+        ),
+        "assessment_items_assessed": CandidateAssessmentItem.objects.filter(
+            assessor=target,
+        ).update(assessor=placeholder),
+        "promotions_recorded": models.QuerySet.update(
+            Promotion.objects.filter(promoted_by=target),
+            promoted_by=placeholder,
+        ),
+        "audit_events_actored": models.QuerySet.update(
+            AuditEvent.objects.filter(actor=target),
+            actor=placeholder,
+        ),
+    }
+
+    record(
+        AuditAction.USER_DELETED,
+        target,
+        f"User account {target.email} deleted; historical attribution "
+        "reassigned to the placeholder account.",
+        actor=actor,
+        metadata={"role": target.role, "reassigned": reassigned},
+    )
+    target.delete()
+    return placeholder
 
 
 def validate_authority_change(

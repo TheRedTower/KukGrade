@@ -55,6 +55,7 @@ from gradings.services import (
     candidate_assessment_summary,
     create_candidate_outcome,
     delete_candidate,
+    delete_candidate_assessment,
     delete_grading_session,
     generate_candidate_assessment,
     validate_candidate_can_be_deleted,
@@ -368,12 +369,13 @@ class CandidateAssessmentViewSet(
 ):
     serializer_class = CandidateAssessmentSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "post", "head", "options"]
+    http_method_names = ["get", "patch", "post", "delete", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessment",),
         "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
         "bulk_start": ("gradings.change_candidateassessment",),
+        "destroy": ("gradings.delete_candidateassessment",),
     }
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
@@ -421,6 +423,14 @@ class CandidateAssessmentViewSet(
             queryset = queryset.none()
 
         return queryset
+
+    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
+        instance = self.get_object()
+        try:
+            delete_candidate_assessment(instance, cast(User, request.user))
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"], url_path="bulk-start")
     def bulk_start(

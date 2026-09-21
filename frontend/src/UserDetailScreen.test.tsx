@@ -43,6 +43,7 @@ const managedUser: ManagedUser = {
   can_make_final_grading_decision: false,
   can_promote_student: false,
   can_override_locked_session: true,
+  can_view_grading_audit_log: false,
   must_change_password: false,
   is_staff: false,
   is_superuser: false,
@@ -77,6 +78,7 @@ describe("UserDetailScreen", () => {
       can_make_final_grading_decision: false,
       can_promote_student: true,
       can_override_locked_session: true,
+      can_view_grading_audit_log: false,
       must_change_password: false,
       is_staff: false,
       is_superuser: false,
@@ -153,6 +155,7 @@ describe("UserDetailScreen", () => {
         can_make_final_grading_decision: false,
         can_promote_student: true,
         can_override_locked_session: true,
+        can_view_grading_audit_log: false,
       });
     });
     expect(await screen.findByText("Master authority saved.")).toBeInTheDocument();

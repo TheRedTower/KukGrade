@@ -11,6 +11,7 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
+    GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
@@ -35,6 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
     can_make_final_grading_decision = serializers.SerializerMethodField()
     can_promote_student = serializers.SerializerMethodField()
     can_override_locked_session = serializers.SerializerMethodField()
+    can_view_grading_audit_log = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -49,6 +51,7 @@ class UserSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "can_view_grading_audit_log",
             "must_change_password",
             "is_staff",
             "is_superuser",
@@ -68,6 +71,9 @@ class UserSerializer(serializers.ModelSerializer):
         # locked-session-exit work. Found while building the users API,
         # which reuses this exact shape - fixed here rather than propagated.
         return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
+
+    def get_can_view_grading_audit_log(self, obj: User) -> bool:
+        return obj.has_perm(GRADING_AUDIT_LOG_PERMISSION)
 
 
 class SelfProfileSerializer(UserSerializer):
@@ -140,6 +146,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
     can_make_final_grading_decision = serializers.SerializerMethodField()
     can_promote_student = serializers.SerializerMethodField()
     can_override_locked_session = serializers.SerializerMethodField()
+    can_view_grading_audit_log = serializers.SerializerMethodField()
     # write_only and required at the class level, for create. Removed
     # entirely on update in __init__, below, rather than merely marked
     # optional: password changes go through the dedicated set-password
@@ -163,6 +170,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "can_view_grading_audit_log",
             "must_change_password",
             "is_staff",
             "is_superuser",
@@ -181,6 +189,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "can_make_final_grading_decision",
             "can_promote_student",
             "can_override_locked_session",
+            "can_view_grading_audit_log",
             "must_change_password",
             "is_staff",
             "is_superuser",
@@ -201,6 +210,9 @@ class UserManagementSerializer(serializers.ModelSerializer):
 
     def get_can_override_locked_session(self, obj: User) -> bool:
         return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
+
+    def get_can_view_grading_audit_log(self, obj: User) -> bool:
+        return obj.has_perm(GRADING_AUDIT_LOG_PERMISSION)
 
     def validate_password(self, value: str) -> str:
         # This only ever runs on create - update() has no password field, see
@@ -237,13 +249,14 @@ class UserManagementSerializer(serializers.ModelSerializer):
 class UserAuthoritySerializer(serializers.Serializer):
     """PATCH /api/users/{id}/authority/.
 
-    Same three keys /api/auth/me/ returns, so the concept is spelled one way
+    Same keys /api/auth/me/ returns, so the concept is spelled one way
     throughout rather than the read shape and the write shape drifting.
     """
 
     can_make_final_grading_decision = serializers.BooleanField(required=False)
     can_promote_student = serializers.BooleanField(required=False)
     can_override_locked_session = serializers.BooleanField(required=False)
+    can_view_grading_audit_log = serializers.BooleanField(required=False)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]

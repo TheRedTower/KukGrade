@@ -61,9 +61,24 @@ _USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("accounts", "delete_user"),
 )
 
+# Hard-delete of grading records, for corruption or test-data cleanup only.
+# Deliberately narrower than _KUK_SOOL_PERMISSIONS, which both groups share:
+# an instructor can create and correct grading data, but only an
+# administrator can make it disappear. See gradings.services for the
+# cascade/attribution handling this gates.
+_DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
+    ("gradings", "delete_candidateassessment"),
+    ("gradings", "delete_candidateoutcome"),
+    ("gradings", "delete_promotion"),
+)
+
 GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
     INSTRUCTOR_GROUP: _KUK_SOOL_PERMISSIONS,
-    ADMINISTRATOR_GROUP: _KUK_SOOL_PERMISSIONS + _USER_ADMINISTRATION_PERMISSIONS,
+    ADMINISTRATOR_GROUP: (
+        _KUK_SOOL_PERMISSIONS
+        + _USER_ADMINISTRATION_PERMISSIONS
+        + _DATA_CLEANUP_PERMISSIONS
+    ),
 }
 
 # Deliberately in no group. These are granted per user, so that an instructor
@@ -72,6 +87,7 @@ SENSITIVE_PERMISSIONS: tuple[str, ...] = (
     "gradings.can_make_final_grading_decision",
     "gradings.can_promote_student",
     "gradings.can_override_locked_session",
+    "gradings.can_view_grading_audit_log",
 )
 
 

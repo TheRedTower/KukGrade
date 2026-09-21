@@ -564,6 +564,10 @@ class CandidateOutcome(models.Model):
                 "can_make_final_grading_decision",
                 "Can make final grading decision",
             ),
+            (
+                "can_view_grading_audit_log",
+                "Can view grading and syllabus audit events",
+            ),
         ]
         constraints = [
             models.CheckConstraint(

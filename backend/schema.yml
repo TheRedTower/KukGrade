@@ -312,6 +312,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/CandidateAssessment'
           description: ''
+    delete:
+      operationId: gradings_assessments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/gradings/assessments/bulk-start/:
     post:
       operationId: gradings_assessments_bulk_start_create
@@ -1371,16 +1387,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/SyllabusRequirement'
           description: ''
+  /api/syllabus/requirements/effective/:
+    get:
+      operationId: syllabus_requirements_effective_list
+      description: |-
+        Cumulative Technique/Form requirements examinable through a rank.
+
+        FDR-041 / SCR-025: the plain list above only ever returns rows
+        attached directly to one rank, which cannot express that a later
+        rank's mapping for the same item extends or restates an earlier
+        one. This mode does - see `syllabus.services.
+        effective_syllabus_requirements` for the accumulation policy.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEffectiveSyllabusRequirementList'
+          description: ''
   /api/users/:
     get:
       operationId: users_list
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       parameters:
       - name: page
         required: false
@@ -1410,10 +1465,14 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       tags:
       - users
       requestBody:
@@ -1443,10 +1502,14 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       parameters:
       - in: path
         name: id
@@ -1471,10 +1534,14 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       parameters:
       - in: path
         name: id
@@ -1505,16 +1572,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserManagement'
           description: ''
+    delete:
+      operationId: users_destroy
+      description: |-
+        The administrator-facing users API.
+
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/users/{id}/authority/:
     patch:
       operationId: users_authority_partial_update
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       parameters:
       - in: path
         name: id
@@ -1551,10 +1650,14 @@ paths:
       description: |-
         The administrator-facing users API.
 
-        No delete: every attribution foreign key in this codebase is PROTECT,
-        so a user who has graded, proposed, decided or promoted anyone cannot be
-        removed. Deactivate via is_active instead. No PUT: partial_update covers
-        every real edit.
+        Deactivate via is_active for routine offboarding - that is reversible
+        and keeps every attribution intact with no extra work. destroy() is a
+        genuine hard delete, gated to accounts.delete_user (Administrator group
+        only), for corruption or test-data cleanup: see
+        accounts.services.delete_platform_user for how it keeps every PROTECT
+        attribution foreign key satisfied by reassigning history to a
+        placeholder account rather than erasing it. No PUT: partial_update
+        covers every real edit.
       parameters:
       - in: path
         name: id
@@ -1596,6 +1699,7 @@ components:
       - ASSESSMENT_GENERATED
       - ASSESSMENT_STARTED
       - ASSESSMENT_COMPLETED
+      - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
       - OUTCOME_CREATED
       - OUTCOME_PROPOSED
@@ -1607,6 +1711,7 @@ components:
       - USER_CREATED
       - USER_UPDATED
       - USER_AUTHORITY_CHANGED
+      - USER_DELETED
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
@@ -1619,6 +1724,7 @@ components:
         * `ASSESSMENT_GENERATED` - Assessment generated
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_COMPLETED` - Assessment completed
+        * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
         * `OUTCOME_CREATED` - Outcome created
         * `OUTCOME_PROPOSED` - Outcome proposed
@@ -1630,6 +1736,7 @@ components:
         * `USER_CREATED` - User created
         * `USER_UPDATED` - User updated
         * `USER_AUTHORITY_CHANGED` - User authority changed
+        * `USER_DELETED` - User deleted
     AgeBandEnum:
       enum:
       - AGE_8_AND_UNDER
@@ -2093,6 +2200,89 @@ components:
       required:
       - current_password
       - new_password
+    EffectiveSyllabusRequirement:
+      type: object
+      description: |-
+        One cumulative Technique/Form row for a selected rank and age band.
+
+        Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
+        the effective (latest applicable) `SyllabusRequirement` row, so most
+        fields are simple dotted lookups into it, same shape as
+        `SyllabusRequirementSerializer` where they overlap. `introduced_rank`,
+        `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
+        requires the backend to derive.
+      properties:
+        item_code:
+          type: string
+          readOnly: true
+        item_name:
+          type: string
+          readOnly: true
+        item_korean_name:
+          type: string
+          readOnly: true
+        category:
+          type: string
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+        required:
+          type: boolean
+          readOnly: true
+        sequence:
+          type: integer
+          readOnly: true
+        start_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        end_number:
+          type: integer
+          readOnly: true
+          nullable: true
+        display_range:
+          type: string
+          readOnly: true
+        notation:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+          readOnly: true
+        introduced_rank_code:
+          type: string
+          readOnly: true
+        introduced_rank_name:
+          type: string
+          readOnly: true
+        effective_since_rank_code:
+          type: string
+          readOnly: true
+        effective_since_rank_name:
+          type: string
+          readOnly: true
+        is_new_at_rank:
+          type: boolean
+          readOnly: true
+      required:
+      - category
+      - category_display
+      - display_range
+      - effective_since_rank_code
+      - effective_since_rank_name
+      - end_number
+      - introduced_rank_code
+      - introduced_rank_name
+      - is_new_at_rank
+      - item_code
+      - item_korean_name
+      - item_name
+      - notation
+      - notes
+      - required
+      - sequence
+      - start_number
     GradingCandidate:
       type: object
       properties:
@@ -2388,6 +2578,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CandidateOutcome'
+    PaginatedEffectiveSyllabusRequirementList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/EffectiveSyllabusRequirement'
     PaginatedGradingCandidateList:
       type: object
       required:
@@ -3003,6 +3216,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        can_view_grading_audit_log:
+          type: boolean
+          readOnly: true
         must_change_password:
           type: boolean
           readOnly: true
@@ -3074,7 +3290,7 @@ components:
       description: |-
         PATCH /api/users/{id}/authority/.
 
-        Same three keys /api/auth/me/ returns, so the concept is spelled one way
+        Same keys /api/auth/me/ returns, so the concept is spelled one way
         throughout rather than the read shape and the write shape drifting.
       properties:
         can_make_final_grading_decision:
@@ -3082,6 +3298,8 @@ components:
         can_promote_student:
           type: boolean
         can_override_locked_session:
+          type: boolean
+        can_view_grading_audit_log:
           type: boolean
     PatchedUserManagement:
       type: object
@@ -3125,6 +3343,9 @@ components:
           type: boolean
           readOnly: true
         can_override_locked_session:
+          type: boolean
+          readOnly: true
+        can_view_grading_audit_log:
           type: boolean
           readOnly: true
         must_change_password:
@@ -3774,6 +3995,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        can_view_grading_audit_log:
+          type: boolean
+          readOnly: true
         must_change_password:
           type: boolean
           readOnly: true
@@ -3790,6 +4014,7 @@ components:
       - can_make_final_grading_decision
       - can_override_locked_session
       - can_promote_student
+      - can_view_grading_audit_log
       - email
       - first_name
       - full_name
@@ -3844,6 +4069,9 @@ components:
         can_override_locked_session:
           type: boolean
           readOnly: true
+        can_view_grading_audit_log:
+          type: boolean
+          readOnly: true
         must_change_password:
           type: boolean
           readOnly: true
@@ -3872,6 +4100,7 @@ components:
       - can_make_final_grading_decision
       - can_override_locked_session
       - can_promote_student
+      - can_view_grading_audit_log
       - date_joined
       - email
       - full_name

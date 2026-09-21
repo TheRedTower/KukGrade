@@ -945,3 +945,27 @@
 .caw-action-error p {
   margin: 0;
 }
+
+/* ── Delete assessment (administrator cleanup only) ──────────────────────── */
+
+.caw-danger-btn {
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.caw-danger-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.caw-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}

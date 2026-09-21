@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import cast
 
 from django.contrib.auth import login, logout
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -27,6 +29,8 @@ from accounts.serializers import (
     UserManagementSerializer,
     UserSerializer,
 )
+from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL, delete_platform_user
+from gradings.serializers import raise_drf_validation_error
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -102,13 +106,17 @@ class UserViewSet(
 ):
     """The administrator-facing users API.
 
-    No delete: every attribution foreign key in this codebase is PROTECT,
-    so a user who has graded, proposed, decided or promoted anyone cannot be
-    removed. Deactivate via is_active instead. No PUT: partial_update covers
-    every real edit.
+    Deactivate via is_active for routine offboarding - that is reversible
+    and keeps every attribution intact with no extra work. destroy() is a
+    genuine hard delete, gated to accounts.delete_user (Administrator group
+    only), for corruption or test-data cleanup: see
+    accounts.services.delete_platform_user for how it keeps every PROTECT
+    attribution foreign key satisfied by reassigning history to a
+    placeholder account rather than erasing it. No PUT: partial_update
+    covers every real edit.
     """
 
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [HasRequiredPermissions]
     serializer_class = UserManagementSerializer
     permission_map = {
@@ -116,12 +124,27 @@ class UserViewSet(
         "retrieve": ("accounts.view_user",),
         "create": ("accounts.add_user",),
         "partial_update": ("accounts.change_user",),
+        "destroy": ("accounts.delete_user",),
         "authority": ("accounts.change_user",),
         "set_password": ("accounts.change_user",),
     }
 
+    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
+        instance = self.get_object()
+        try:
+            delete_platform_user(instance, cast(User, request.user))
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     def get_queryset(self) -> QuerySet[User]:
-        queryset = User.objects.all().order_by("email")
+        # The "Deleted User" placeholder (see accounts.services) is internal
+        # bookkeeping, not an account anyone administers - hidden from the
+        # users API entirely so it can never show up in the list, be edited,
+        # or be deleted itself through this endpoint.
+        queryset = User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL).order_by(
+            "email",
+        )
 
         role_filter = self.request.query_params.get("role")
         if role_filter in User.Role.values:

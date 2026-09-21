@@ -45,6 +45,7 @@
 
 .users-primary-button,
 .users-secondary-button,
+.users-danger-button,
 .users-manage-button,
 .users-filters button,
 .users-pagination button,
@@ -70,6 +71,16 @@
   color: var(--btn-primary-hover-text);
 }
 
+.users-danger-button {
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger);
+  color: #ffffff;
+}
+
+.users-danger-button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
 .users-secondary-button,
 .users-manage-button,
 .users-state button,
@@ -88,6 +99,7 @@
 
 .users-primary-button:focus-visible,
 .users-secondary-button:focus-visible,
+.users-danger-button:focus-visible,
 .users-manage-button:focus-visible,
 .users-filters button:focus-visible,
 .users-pagination button:focus-visible,

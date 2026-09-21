@@ -15,6 +15,7 @@ from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.services import effective_syllabus_requirements, normalize_chart_notation
 
 pytestmark = pytest.mark.django_db
 
@@ -340,6 +341,50 @@ def test_syllabus_item_api_get_list_and_detail() -> None:
     assert detail_response.json()["code"] == "KI_BOHN_SOO"
 
 
+def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
+    """Etiquette..Breaking, then Techniques/Forms - not alphabetical.
+
+    FDR-041's core-grading-areas strip relies on this order coming from the
+    API rather than a hardcoded frontend sequence.
+    """
+    client = auth_client()
+
+    response = client.get("/api/syllabus/items/?page_size=100")
+
+    categories = [row["category"] for row in results(response)]
+    core_categories_seen = [
+        category
+        for category in categories
+        if category
+        in {
+            "ETIQUETTE",
+            "FUNDAMENTALS",
+            "HAND_TECHNIQUES",
+            "KICKING",
+            "FALLING",
+            "BREAKING",
+        }
+    ]
+    assert core_categories_seen == [
+        "ETIQUETTE",
+        "FUNDAMENTALS",
+        "HAND_TECHNIQUES",
+        "KICKING",
+        "FALLING",
+        "BREAKING",
+    ]
+    # Techniques and Forms both come after every core area.
+    last_core_index = max(
+        index
+        for index, category in enumerate(categories)
+        if category in core_categories_seen
+    )
+    assert all(
+        category in {"TECHNIQUE_SET", "FORM", "WEAPONS", "OTHER"}
+        for category in categories[last_core_index + 1 :]
+    )
+
+
 def test_syllabus_requirement_api_get_list_and_detail() -> None:
     client = auth_client()
     requirement = SyllabusRequirement.objects.get(
@@ -403,6 +448,164 @@ def test_syllabus_requirement_api_ordering_is_deterministic() -> None:
     assert response.status_code == 200
     sequences = [item["sequence"] for item in results(response)]
     assert sequences == sorted(sequences)
+
+
+# ---------------------------------------------------------------------------
+# Cumulative effective requirements (FDR-041 / SCR-025)
+# ---------------------------------------------------------------------------
+
+
+def test_effective_syllabus_requirement_api_requires_authentication() -> None:
+    response = APIClient().get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=BLUE_STRIPE&age_band={AgeBand.AGE_13_TO_17}",
+    )
+
+    assert response.status_code == 403
+
+
+def test_effective_syllabus_requirement_api_rejects_invalid_parameters() -> None:
+    client = auth_client()
+
+    missing = client.get("/api/syllabus/requirements/effective/")
+    unknown_rank = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=NOT_A_RANK&age_band={AgeBand.AGE_13_TO_17}",
+    )
+    bad_age_band = client.get(
+        "/api/syllabus/requirements/effective/?rank_code=BLUE_STRIPE&age_band=nonsense",
+    )
+
+    assert missing.status_code == 400
+    assert "rank_code" in missing.json()["error"]["fields"]
+    assert "age_band" in missing.json()["error"]["fields"]
+    assert unknown_rank.status_code == 400
+    assert bad_age_band.status_code == 400
+
+
+def test_effective_syllabus_requirement_blue_stripe_regression() -> None:
+    """The exact worked example from FDR-041/SCR-025, against seeded data.
+
+    Blue Stripe, Adult/Youth 13-17: Sohn Ppae Ki is unchanged since Yellow
+    Stripe; Ki Bohn Soo's range was extended at Yellow, so 1-15 (not the
+    earlier 1-5) is the effective row; Sohn Mohk Soo and the second part of
+    Cho Geup Hyung are introduced at Blue Stripe itself.
+    """
+    client = auth_client()
+
+    response = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=BLUE_STRIPE&age_band={AgeBand.AGE_13_TO_17}",
+    )
+
+    assert response.status_code == 200
+    by_name = {row["item_name"]: row for row in results(response)}
+
+    sohn_ppae_ki = by_name["Sohn Ppae Ki"]
+    assert sohn_ppae_ki["display_range"] == "1-5"
+    assert sohn_ppae_ki["introduced_rank_code"] == "YELLOW_STRIPE"
+    assert sohn_ppae_ki["effective_since_rank_code"] == "YELLOW_STRIPE"
+    assert sohn_ppae_ki["is_new_at_rank"] is False
+
+    ki_bohn_soo = by_name["Ki Bohn Soo"]
+    assert ki_bohn_soo["display_range"] == "1-15"
+    assert ki_bohn_soo["introduced_rank_code"] == "YELLOW_STRIPE"
+    assert ki_bohn_soo["effective_since_rank_code"] == "YELLOW"
+    assert ki_bohn_soo["is_new_at_rank"] is False
+
+    sohn_mohk_soo = by_name["Sohn Mohk Soo"]
+    assert sohn_mohk_soo["display_range"] == "1-5"
+    assert sohn_mohk_soo["introduced_rank_code"] == "BLUE_STRIPE"
+    assert sohn_mohk_soo["effective_since_rank_code"] == "BLUE_STRIPE"
+    assert sohn_mohk_soo["is_new_at_rank"] is True
+
+    cho_geup_hyung = by_name["Cho Geup Hyung"]
+    assert cho_geup_hyung["display_range"] == ""
+    assert cho_geup_hyung["notation"] == "Part 1 of 2"
+    assert cho_geup_hyung["introduced_rank_code"] == "BLUE_STRIPE"
+    assert cho_geup_hyung["is_new_at_rank"] is True
+
+    ki_cho_hyung = by_name["Ki Cho Hyung"]
+    assert ki_cho_hyung["notation"] == "1-6"
+    assert ki_cho_hyung["introduced_rank_code"] == "YELLOW_STRIPE"
+    assert ki_cho_hyung["effective_since_rank_code"] == "YELLOW"
+    assert ki_cho_hyung["is_new_at_rank"] is False
+
+
+def test_effective_syllabus_requirement_only_returns_technique_and_form_items() -> None:
+    client = auth_client()
+
+    response = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=WHITE&age_band={AgeBand.AGE_13_TO_17}",
+    )
+
+    assert response.status_code == 200
+    assert {row["category"] for row in results(response)} <= {"TECHNIQUE_SET", "FORM"}
+
+
+def test_effective_syllabus_requirement_is_isolated_by_age_band() -> None:
+    client = auth_client()
+
+    junior = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=YELLOW&age_band={AgeBand.AGE_9_TO_12}",
+    )
+    adult = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=YELLOW&age_band={AgeBand.AGE_18_AND_OVER}",
+    )
+
+    assert junior.status_code == 200
+    assert adult.status_code == 200
+    # Different age bands are seeded independently, so at least the presence
+    # or exact content of items is not required to match row-for-row - this
+    # only proves the parameter actually scopes the query rather than being
+    # ignored.
+    assert results(junior) != results(adult)
+
+
+def test_effective_syllabus_requirement_ordering_is_deterministic() -> None:
+    client = auth_client()
+
+    response = client.get(
+        "/api/syllabus/requirements/effective/"
+        f"?rank_code=BLUE_STRIPE&age_band={AgeBand.AGE_13_TO_17}",
+    )
+
+    assert response.status_code == 200
+    payload = results(response)
+    keys = [(row["category"], row["sequence"], row["item_name"]) for row in payload]
+    assert keys == sorted(keys)
+
+
+def test_effective_syllabus_requirement_domain_function_matches_api() -> None:
+    """Same worked example, called directly against the service function."""
+    rank = Rank.objects.get(code="BLUE_STRIPE")
+
+    rows = effective_syllabus_requirements(rank=rank, age_band=AgeBand.AGE_13_TO_17)
+
+    by_name = {row.requirement.item.name: row for row in rows}
+    assert by_name["Ki Bohn Soo"].requirement.display_range == "1-15"
+    assert by_name["Ki Bohn Soo"].introduced_rank.code == "YELLOW_STRIPE"
+    assert by_name["Ki Bohn Soo"].effective_since_rank.code == "YELLOW"
+    assert by_name["Ki Bohn Soo"].is_new_at_rank is False
+    assert by_name["Sohn Mohk Soo"].is_new_at_rank is True
+
+
+@pytest.mark.parametrize(
+    ("notes", "expected"),
+    [
+        ("Chart notation: (1/2).", "Part 1 of 2"),
+        ("Chart notation: (pt.1).", "Part 1"),
+        ("Chart notation: (1-3).", "1-3"),
+        ("Chart notation: (1 & 2).", "1 & 2"),
+        ("Required for Black Belt Promotion for Age 13-17.", ""),
+        ("", ""),
+    ],
+)
+def test_normalize_chart_notation(notes: str, expected: str) -> None:
+    assert normalize_chart_notation(notes) == expected
 
 
 @pytest.mark.parametrize(

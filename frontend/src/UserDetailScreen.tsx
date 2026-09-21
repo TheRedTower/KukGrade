@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "./auth";
 import {
   ApiError,
+  deleteManagedUser,
   getAuditEvents,
   getManagedUser,
   resetManagedUserPassword,
@@ -14,6 +15,7 @@ import {
   type UserAuthorityPayload,
   type UserRole,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 
 function formatDate(value: string | null, includeTime = false): string {
@@ -129,6 +131,7 @@ function AuthorityForm({
     can_make_final_grading_decision: user.can_make_final_grading_decision,
     can_promote_student: user.can_promote_student,
     can_override_locked_session: user.can_override_locked_session,
+    can_view_grading_audit_log: user.can_view_grading_audit_log,
   });
   const queryClient = useQueryClient();
   const isAdministrator = user.role === "administrator";
@@ -163,6 +166,12 @@ function AuthorityForm({
       key: "can_override_locked_session",
       label: "Override locked sessions",
       description: "Allow this user to make authorised corrections after locking.",
+    },
+    {
+      key: "can_view_grading_audit_log",
+      label: "View grading audit log",
+      description:
+        "Allow this user to see grading, syllabus and assessment audit events (not user management).",
     },
   ];
 
@@ -309,13 +318,95 @@ function PasswordResetDialog({
   );
 }
 
+function DeleteUserDialog({
+  user,
+  onClose,
+}: {
+  user: ManagedUser;
+  onClose: () => void;
+}): React.ReactElement {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: () => deleteManagedUser(user.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      navigate("/users");
+    },
+  });
+  const error = mutation.error instanceof ApiError ? mutation.error : null;
+  const dialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: true,
+    onClose,
+    canClose: !mutation.isPending,
+  });
+
+  return (
+    <div
+      className="users-dialog-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !mutation.isPending) onClose();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        className="users-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-user-title"
+        tabIndex={-1}
+      >
+        <header>
+          <div><p>Irreversible action</p><h2 id="delete-user-title">Delete this account</h2></div>
+          <button
+            type="button"
+            className="users-link-button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
+            Close
+          </button>
+        </header>
+        <p>
+          Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
+          undone. Any grading history attributed to this account is kept and reassigned to a
+          placeholder "Deleted User" account, not erased.
+        </p>
+        {error && <div className="users-error" role="alert">{error.message}</div>}
+        <div className="users-dialog-actions">
+          <button
+            type="button"
+            className="users-secondary-button"
+            onClick={onClose}
+            disabled={mutation.isPending}
+            data-dialog-autofocus
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="users-danger-button"
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? "Deleting…" : "Delete account"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export function UserDetailScreen(): React.ReactElement {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const passwordButtonRef = useRef<HTMLButtonElement>(null);
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
 
   const query = useQuery({
     queryKey: ["managedUser", id],
@@ -350,11 +441,17 @@ export function UserDetailScreen(): React.ReactElement {
     managedUser.can_make_final_grading_decision,
     managedUser.can_promote_student,
     managedUser.can_override_locked_session,
+    managedUser.can_view_grading_audit_log,
   ].join(":");
 
   const closePassword = () => {
     setPasswordOpen(false);
     passwordButtonRef.current?.focus();
+  };
+
+  const closeDelete = () => {
+    setDeleteOpen(false);
+    deleteButtonRef.current?.focus();
   };
 
   return (
@@ -381,6 +478,24 @@ export function UserDetailScreen(): React.ReactElement {
             <p>These permissions are independent of the user's role.</p>
             <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
           </section>
+          {!isSelf && (
+            <section className="user-detail-section">
+              <h2>Danger zone</h2>
+              <p>
+                Permanently delete this account. Grading history stays intact, reassigned to a
+                placeholder account - use this for corruption or test-data cleanup, not routine
+                offboarding (deactivate via account status instead).
+              </p>
+              <button
+                ref={deleteButtonRef}
+                type="button"
+                className="users-danger-button"
+                onClick={() => setDeleteOpen(true)}
+              >
+                Delete account
+              </button>
+            </section>
+          )}
         </main>
         <aside className="user-detail-aside">
           <section>
@@ -411,6 +526,7 @@ export function UserDetailScreen(): React.ReactElement {
       </div>
 
       {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} onSaved={setNotice} />}
+      {deleteOpen && <DeleteUserDialog user={managedUser} onClose={closeDelete} />}
     </section>
   );
 }

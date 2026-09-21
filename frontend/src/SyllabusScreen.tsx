@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
   type AgeBandEnum,
+  type EffectiveSyllabusRequirement,
   type Rank,
-  type SyllabusRequirement,
+  type SyllabusItem,
+  getAllEffectiveSyllabusRequirements,
   getRanks,
-  getSyllabusRequirements,
+  getSyllabusItems,
 } from "./api";
 import "./Syllabus.css";
 
@@ -49,60 +51,18 @@ const AGE_BAND_OPTIONS: AgeBandOption[] = [
   },
 ];
 
-interface CoreGradingArea {
-  id: string;
-  title: string;
-  korean: string;
-  english: string;
-  category: string;
-}
-
-const CORE_GRADING_AREAS: CoreGradingArea[] = [
-  {
-    id: "yea_eue",
-    title: "Yea Eue",
-    korean: "예의",
-    english: "Etiquette",
-    category: "ETIQUETTE",
-  },
-  {
-    id: "ki_cho_jah_ki",
-    title: "Ki Cho Jah Ki",
-    korean: "기초짜기",
-    english: "Fundamentals",
-    category: "FUNDAMENTALS",
-  },
-  {
-    id: "soo_ki",
-    title: "Soo Ki",
-    korean: "수기",
-    english: "Hand techniques",
-    category: "HAND_TECHNIQUES",
-  },
-  {
-    id: "johk_sool",
-    title: "Johk Sool",
-    korean: "족술",
-    english: "Kicking",
-    category: "KICKING",
-  },
-  {
-    id: "nahk_bup",
-    title: "Nahk Bup",
-    korean: "낙법",
-    english: "Falling",
-    category: "FALLING",
-  },
-  {
-    id: "kyuk_pah",
-    title: "Kyuk Pah",
-    korean: "격파",
-    english: "Breaking",
-    category: "BREAKING",
-  },
-];
-
-const CORE_CATEGORIES = new Set(CORE_GRADING_AREAS.map((a) => a.category));
+// Structural, not data: FDR-018 already separates the six universal areas
+// from rank-specific Techniques and Forms. Their names, Korean labels and
+// display order all come from the API (SyllabusItemViewSet); this only says
+// which category codes belong in the compact strip.
+const CORE_CATEGORY_CODES = new Set([
+  "ETIQUETTE",
+  "FUNDAMENTALS",
+  "HAND_TECHNIQUES",
+  "KICKING",
+  "FALLING",
+  "BREAKING",
+]);
 
 export function BeltSwatch({ rankCode, rankName }: { rankCode: string; rankName: string }) {
   const code = rankCode.toUpperCase();
@@ -191,6 +151,92 @@ export function BeltSwatch({ rankCode, rankName }: { rankCode: string; rankName:
   return <span className="syl-swatch syl-swatch-black" aria-hidden="true" />;
 }
 
+function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
+  if (row.is_new_at_rank) {
+    return { isNew: true, text: `New at ${row.effective_since_rank_name}` };
+  }
+  if (row.introduced_rank_code === row.effective_since_rank_code) {
+    return { isNew: false, text: `From ${row.introduced_rank_name}` };
+  }
+  return {
+    isNew: false,
+    text: `From ${row.introduced_rank_name}, extended at ${row.effective_since_rank_name}`,
+  };
+}
+
+function SyllabusLedgerTable({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: EffectiveSyllabusRequirement[];
+}) {
+  if (rows.length === 0) {
+    return (
+      <div className="syl-empty-state">
+        <p>No {title.toLowerCase()} are listed for this rank in the current syllabus.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="syl-table-wrapper">
+      <table className="syl-table" aria-label={`${title} for this rank`}>
+        <thead>
+          <tr>
+            <th scope="col" style={{ width: "40%" }}>
+              Curriculum
+            </th>
+            <th scope="col" style={{ width: "15%" }}>
+              Range
+            </th>
+            <th scope="col" style={{ width: "30%" }}>
+              Provenance
+            </th>
+            <th scope="col" style={{ width: "15%", textAlign: "right" }}>
+              Requirement
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => {
+            const { isNew, text: provenanceText } = provenance(row);
+            const rangeDisplay = row.display_range || row.notation || "—";
+            const noteText =
+              !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
+
+            return (
+              <tr key={row.item_code}>
+                <td className="syl-cell-curriculum">
+                  <div className="syl-item-name">
+                    {row.item_name}
+                    {isNew && <span className="syl-new-badge">NEW</span>}
+                  </div>
+                  {row.item_korean_name && (
+                    <div className="syl-item-korean">{row.item_korean_name}</div>
+                  )}
+                  {noteText && <div className="syl-item-notes">{noteText}</div>}
+                </td>
+                <td className="syl-cell-range">
+                  <span className="syl-range-value">{rangeDisplay}</span>
+                </td>
+                <td className="syl-cell-provenance">{provenanceText}</td>
+                <td className="syl-cell-requirement" style={{ textAlign: "right" }}>
+                  {row.required ? (
+                    <span className="syl-badge-required">Required</span>
+                  ) : (
+                    <span className="syl-badge-optional">Optional</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function SyllabusScreen() {
   const [ranks, setRanks] = useState<Rank[]>([]);
   const [selectedRankCode, setSelectedRankCode] = useState<string>("YELLOW");
@@ -199,9 +245,13 @@ export function SyllabusScreen() {
   const [selectedAgeBand, setSelectedAgeBand] =
     useState<AgeBandEnum>("AGE_9_TO_12");
 
-  const [requirements, setRequirements] = useState<SyllabusRequirement[]>([]);
+  const [coreAreas, setCoreAreas] = useState<SyllabusItem[]>([]);
+  const [effectiveRequirements, setEffectiveRequirements] = useState<
+    EffectiveSyllabusRequirement[]
+  >([]);
   const [isLoadingRanks, setIsLoadingRanks] = useState(true);
-  const [isLoadingReqs, setIsLoadingReqs] = useState(false);
+  const [isLoadingCoreAreas, setIsLoadingCoreAreas] = useState(true);
+  const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const beltTrackRef = useRef<HTMLDivElement>(null);
@@ -243,22 +293,48 @@ export function SyllabusScreen() {
     };
   }, []);
 
-  // Load requirements whenever rank or age band changes
+  // Load the universal core grading areas once - they are not rank-specific.
   useEffect(() => {
     let active = true;
-    async function fetchRequirements() {
+    async function fetchCoreAreas() {
+      try {
+        setIsLoadingCoreAreas(true);
+        const res = await getSyllabusItems({ page_size: 100 });
+        if (!active) return;
+        setCoreAreas((res.results || []).filter((item) => CORE_CATEGORY_CODES.has(item.category)));
+      } catch (err) {
+        if (!active) return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load core grading areas.",
+        );
+      } finally {
+        if (active) {
+          setIsLoadingCoreAreas(false);
+        }
+      }
+    }
+
+    void fetchCoreAreas();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load cumulative effective requirements whenever rank or age band changes
+  useEffect(() => {
+    let active = true;
+    async function fetchEffectiveRequirements() {
       if (!selectedRankCode || !selectedAgeBand) return;
 
       try {
-        setIsLoadingReqs(true);
+        setIsLoadingRequirements(true);
         setError(null);
-        const res = await getSyllabusRequirements({
+        const res = await getAllEffectiveSyllabusRequirements({
           rank_code: selectedRankCode,
           age_band: selectedAgeBand,
-          page_size: 100,
         });
         if (!active) return;
-        setRequirements(res.results || []);
+        setEffectiveRequirements(res.results || []);
       } catch (err) {
         if (!active) return;
         setError(
@@ -268,12 +344,12 @@ export function SyllabusScreen() {
         );
       } finally {
         if (active) {
-          setIsLoadingReqs(false);
+          setIsLoadingRequirements(false);
         }
       }
     }
 
-    void fetchRequirements();
+    void fetchEffectiveRequirements();
     return () => {
       active = false;
     };
@@ -324,18 +400,8 @@ export function SyllabusScreen() {
     (opt) => opt.value === selectedAgeBand,
   );
 
-  // Filter out core 6 areas for the bottom requirements table
-  const tableRequirements = requirements.filter(
-    (req) => !CORE_CATEGORIES.has(req.category),
-  );
-
-  // Group or format table categories
-  function formatCategoryDisplay(category: string, categoryDisplay?: string) {
-    if (category === "TECHNIQUE_SET") return "Techniques";
-    if (category === "FORM") return "Forms";
-    if (category === "WEAPONS") return "Weapons";
-    return categoryDisplay || category;
-  }
+  const techniqueRows = effectiveRequirements.filter((row) => row.category === "TECHNIQUE_SET");
+  const formRows = effectiveRequirements.filter((row) => row.category === "FORM");
 
   return (
     <section aria-labelledby="syllabus-heading" className="ledger-section syl-container">
@@ -459,6 +525,9 @@ export function SyllabusScreen() {
             <p className="syl-rank-subtitle">
               {currentAgeOption?.ageDisplay || "Curriculum requirements"}
             </p>
+            <p className="syl-rank-everything-note">
+              Everything examinable through {selectedRank ? selectedRank.name : selectedRankCode}.
+            </p>
           </div>
 
           {nextRank && (
@@ -485,94 +554,64 @@ export function SyllabusScreen() {
           <div className="syl-section-title-wrap">
             <h3 className="syl-section-title">Core grading areas</h3>
             <p className="syl-section-subtitle">
-              All candidates are assessed in the following six areas.
+              Always assessed · all candidates are assessed in the following six areas.
             </p>
           </div>
 
-          <div className="syl-core-grid">
-            {CORE_GRADING_AREAS.map((area) => (
-              <div key={area.id} className="syl-core-card">
-                <div className="syl-core-name">{area.title}</div>
-                <div className="syl-core-korean">{area.korean}</div>
-                <div className="syl-core-english">{area.english}</div>
-              </div>
-            ))}
-          </div>
+          {isLoadingCoreAreas ? (
+            <div className="syl-loading-state" aria-live="polite">
+              <span className="syl-spinner" aria-hidden="true" />
+              <span>Loading core grading areas…</span>
+            </div>
+          ) : (
+            <div className="syl-core-grid">
+              {coreAreas.map((area) => (
+                <div key={area.id} className="syl-core-card">
+                  <div className="syl-core-name">{area.name}</div>
+                  {area.korean_name && <div className="syl-core-korean">{area.korean_name}</div>}
+                  <div className="syl-core-english">{area.category_display}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Syllabus Requirements Table */}
+        {/* Techniques Ledger */}
         <div className="syl-section-block">
           <div className="syl-section-title-wrap">
-            <h3 className="syl-section-title">Syllabus requirements</h3>
+            <h3 className="syl-section-title">Techniques</h3>
             <p className="syl-section-subtitle">
-              The following curriculum must be taught and demonstrated for this rank.
+              Cumulative through {selectedRank ? selectedRank.name : selectedRankCode}, latest
+              range shown when a technique set was extended at a later rank.
             </p>
           </div>
 
-          {isLoadingReqs ? (
+          {isLoadingRequirements ? (
             <div className="syl-loading-state" aria-live="polite">
               <span className="syl-spinner" aria-hidden="true" />
               <span>Loading curriculum requirements…</span>
             </div>
-          ) : tableRequirements.length > 0 ? (
-            <div className="syl-table-wrapper">
-              <table className="syl-table" aria-label="Syllabus requirements for this rank">
-                <thead>
-                  <tr>
-                    <th scope="col" style={{ width: "22%" }}>
-                      Category
-                    </th>
-                    <th scope="col" style={{ width: "48%" }}>
-                      Curriculum
-                    </th>
-                    <th scope="col" style={{ width: "15%" }}>
-                      Range
-                    </th>
-                    <th scope="col" style={{ width: "15%", textAlign: "right" }}>
-                      Requirement
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableRequirements.map((req) => {
-                    const rangeDisplay =
-                      req.display_range ||
-                      (req.start_number && req.end_number
-                        ? `${req.start_number} – ${req.end_number}`
-                        : "—");
+          ) : (
+            <SyllabusLedgerTable title="Techniques" rows={techniqueRows} />
+          )}
+        </div>
 
-                    return (
-                      <tr key={req.id}>
-                        <td className="syl-cell-category">
-                          <strong>{formatCategoryDisplay(req.category, req.category_display)}</strong>
-                        </td>
-                        <td className="syl-cell-curriculum">
-                          <div className="syl-item-name">{req.item_name}</div>
-                          {req.item_korean_name && (
-                            <div className="syl-item-korean">{req.item_korean_name}</div>
-                          )}
-                          {req.notes && <div className="syl-item-notes">{req.notes}</div>}
-                        </td>
-                        <td className="syl-cell-range">
-                          <span className="syl-range-value">{rangeDisplay}</span>
-                        </td>
-                        <td className="syl-cell-requirement" style={{ textAlign: "right" }}>
-                          {req.required ? (
-                            <span className="syl-badge-required">Required</span>
-                          ) : (
-                            <span className="syl-badge-optional">Optional</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        {/* Forms Ledger */}
+        <div className="syl-section-block">
+          <div className="syl-section-title-wrap">
+            <h3 className="syl-section-title">Forms</h3>
+            <p className="syl-section-subtitle">
+              Cumulative through {selectedRank ? selectedRank.name : selectedRankCode}.
+            </p>
+          </div>
+
+          {isLoadingRequirements ? (
+            <div className="syl-loading-state" aria-live="polite">
+              <span className="syl-spinner" aria-hidden="true" />
+              <span>Loading curriculum requirements…</span>
             </div>
           ) : (
-            <div className="syl-empty-state">
-              <p>No specific technique or form requirements are listed for this rank in the current syllabus.</p>
-            </div>
+            <SyllabusLedgerTable title="Forms" rows={formRows} />
           )}
         </div>
       </div>

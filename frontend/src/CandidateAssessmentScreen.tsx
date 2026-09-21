@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "./auth";
 import {
   ApiError,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
   GradingCandidate,
+  deleteCandidateAssessment,
   generateCandidateAssessment,
   getAllGradingCandidates,
   getCandidateAssessments,
@@ -15,6 +17,7 @@ import {
   updateCandidateAssessment,
   updateCandidateAssessmentItem,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 
 function formatTimeOnly(isoStr: string | null): string {
@@ -79,6 +82,7 @@ export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -91,6 +95,8 @@ export function CandidateAssessmentScreen() {
   const [userNotes, setUserNotes] = useState<string | null>(null);
   // Error state for actions
   const [actionError, setActionError] = useState<string | null>(null);
+  // Delete-assessment confirmation dialog (administrator cleanup only)
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // 1. Fetch grading session
   const sessionQuery = useQuery({
@@ -361,6 +367,24 @@ export function CandidateAssessmentScreen() {
       }
     },
   });
+
+  // Delete assessment mutation (administrator cleanup only - cascades
+  // through any outcome/promotion on the backend)
+  const deleteAssessmentMutation = useMutation({
+    mutationFn: () => {
+      if (!assessment) throw new Error("Assessment not found");
+      return deleteCandidateAssessment(assessment.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      navigate(`/gradings/${numSessionId}`);
+    },
+  });
+  const deleteAssessmentError =
+    deleteAssessmentMutation.error instanceof ApiError
+      ? deleteAssessmentMutation.error.message
+      : null;
 
   // Loading state
   if (
@@ -664,6 +688,16 @@ export function CandidateAssessmentScreen() {
                 : `Complete assessment (${stats.remainingRequired} required remaining)`}
             </button>
           )}
+          {currentUser?.role === "administrator" && assessment && (
+            <button
+              type="button"
+              className="caw-danger-btn"
+              onClick={() => setDeleteOpen(true)}
+              data-testid="caw-delete-assessment-btn"
+            >
+              Delete assessment
+            </button>
+          )}
         </div>
       </header>
 
@@ -821,7 +855,87 @@ export function CandidateAssessmentScreen() {
           )}
         </main>
       </div>
+
+      {deleteOpen && assessment && (
+        <DeleteAssessmentDialog
+          candidateName={candidate.student_display_name}
+          isPending={deleteAssessmentMutation.isPending}
+          error={deleteAssessmentError}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={() => deleteAssessmentMutation.mutate()}
+        />
+      )}
     </section>
+  );
+}
+
+function DeleteAssessmentDialog({
+  candidateName,
+  isPending,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  candidateName: string;
+  isPending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: true,
+    onClose,
+    canClose: !isPending,
+  });
+
+  return (
+    <div
+      className="caw-modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !isPending) onClose();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        className="gsd-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-assessment-title"
+        tabIndex={-1}
+      >
+        <h3 id="delete-assessment-title" className="gsd-modal-title">Delete assessment</h3>
+        <p className="gsd-modal-message">
+          Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
+          or promotion, those are deleted too and the student's rank is reverted. This cannot
+          be undone.
+        </p>
+        {error && (
+          <div className="caw-error-banner" role="alert">
+            <p>{error}</p>
+          </div>
+        )}
+        <div className="gsd-modal-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onClose}
+            disabled={isPending}
+            data-dialog-autofocus
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="caw-danger-btn"
+            onClick={onConfirm}
+            disabled={isPending}
+          >
+            {isPending ? "Deleting…" : "Delete assessment"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

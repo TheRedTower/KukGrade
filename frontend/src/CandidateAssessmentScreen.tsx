@@ -15,6 +15,7 @@ import {
   updateCandidateAssessment,
   updateCandidateAssessmentItem,
 } from "./api";
+import "./CandidateAssessment.css";
 
 function formatTimeOnly(isoStr: string | null): string {
   if (!isoStr) return "";

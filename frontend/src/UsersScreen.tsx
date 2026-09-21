@@ -18,6 +18,7 @@ function authoritySummary(user: ManagedUser): string {
     user.can_make_final_grading_decision ? "Final decisions" : null,
     user.can_promote_student ? "Promotions" : null,
     user.can_override_locked_session ? "Locked-session override" : null,
+    user.can_view_grading_audit_log ? "Audit log" : null,
   ].filter(Boolean);
   return authorities.length ? authorities.join(" · ") : "None";
 }

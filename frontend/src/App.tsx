@@ -234,7 +234,9 @@ function ConnectionErrorPage() {
 
 function NavigationRail({ user }: { user: AuthUser }) {
   const canViewAudit =
-    user.role === "administrator" || user.can_make_final_grading_decision;
+    user.role === "administrator" ||
+    user.can_make_final_grading_decision ||
+    user.can_view_grading_audit_log;
   const canViewUsers = user.role === "administrator";
 
   return (
@@ -357,7 +359,9 @@ function RequireAuditAccess({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   if (
     !user ||
-    (user.role !== "administrator" && !user.can_make_final_grading_decision)
+    (user.role !== "administrator" &&
+      !user.can_make_final_grading_decision &&
+      !user.can_view_grading_audit_log)
   ) {
     return <Navigate replace to="/" />;
   }

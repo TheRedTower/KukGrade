@@ -53,6 +53,7 @@ here does not by itself mean it has shipped.
 | FDR-038 | Use an expansive dual-column slide-over ledger for Authorised Master final decisions. | Approved | Selected from layout directions (synthesising slide-over efficiency with full-ledger depth) on 2026-09-16. Opens wide (~65% width) over the candidate roster to preserve scroll position and cohort context, while internally presenting an assessment criteria ledger with instructor proposal on the left, and Master adjudication cards, conditional requirements input, authority credential seal, and formal decision sealing on the right. |
 | FDR-039 | Use a roster batch and inline promotion ledger for student rank conferral. | Approved | Selected from three layout directions on 2026-09-16. Provides individual row-level promotion triggers ('Promote to [Rank]') alongside a cohort promotion summary bar ('Promote Qualified Cohort') and pinned batch preview tray. Gated strictly by `can_promote_student` permission. Effective date is locked to session grading date. Contracts to row-level promotion with a server-side bulk-promote endpoint targeted for efficient cohort processing. |
 | FDR-040 | Use in-page operational action banners for grading session state transitions. | Approved | Selected from layout directions on 2026-09-16. Instead of heavy multi-step wizards or disconnected drawers, the session roster proactively surfaces an elegant in-page operational banner beneath the title and progression track when stage prerequisites are satisfied (e.g. 'All assessments completed · Ready to lock session'). Clicking the direct action triggers a minimal 2-sentence confirmation dialog, maintaining quiet operational flow and zero modal fatigue. |
+| FDR-041 | Revise the syllabus Rank Chapter into a cumulative Current Knowledge ledger. | Approved | Selected on 2026-09-19 and recorded on 2026-09-21. Keep the existing curriculum, age-band and destination-rank controls and horizontal rank progression. Within the selected rank, show universal core grading areas first, then cumulative Techniques and Forms with effective ranges, provenance and a restrained `NEW AT [RANK]` treatment. The backend, not React, must derive accumulation and provenance. |
 
 ## Concept screen register
 
@@ -66,7 +67,7 @@ here does not by itself mean it has shipped.
 | SCR-006 | Open grading session and candidate roster | Light | `06-grading-session-roster.png` | First concept |
 | SCR-007 | Add student | Light | `07-add-student.png` | First concept |
 | SCR-008 | Staff login | Light | `08-login.png` | First concept; unsupported persistent-login control removed |
-| SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Selected syllabus concept |
+| SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Implemented baseline; superseded by SCR-025 as the next syllabus target |
 | SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible only to administrators and the designated Master |
 | SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Implemented; administrator only |
 | SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Implemented; administrator only |
@@ -82,6 +83,134 @@ here does not by itself mean it has shipped.
 | SCR-022 | Authorised Master final decision slide-over | Light | `22-master-final-decision.png` | Selected hybrid slide-over ledger concept |
 | SCR-023 | Roster batch and inline promotion ledger | Light | `23-student-promotion-flow.png` | Selected batch and inline promotion concept |
 | SCR-024 | Grading session state transition action banner | Light | `24-session-state-transition.png` | Selected in-page operational banner concept |
+| SCR-025 | Revised syllabus current-knowledge ledger | Light | `25-syllabus-current-knowledge-revised.png` | Selected revision; planned, not implemented |
+
+## Revised syllabus layout plan (2026-09-21)
+
+![Selected revised syllabus current-knowledge layout](25-syllabus-current-knowledge-revised.png)
+
+### Purpose and status
+
+SCR-025 is the selected implementation target for the next syllabus revision.
+It replaces SCR-009 as the visual target without erasing SCR-009 as the record
+of the currently implemented Rank Chapter direction. The image is a design
+reference, not proof of implemented behaviour and not a source of exact copy,
+spacing or data.
+
+The revised screen must answer the instructor's operational question: **what is
+this candidate expected to know and demonstrate through the selected rank?** A
+rank's own newly introduced requirements are only part of that answer. Earlier
+requirements remain examinable, and a later range for the same syllabus item
+supersedes its earlier partial range in the effective view.
+
+### Locked information hierarchy
+
+1. Keep the existing application shell and `Syllabus` page heading.
+2. Keep curriculum, age group and `Testing for` visible together.
+3. Keep the horizontal rank progression and authentic belt swatches.
+4. Identify the selected rank and age context, followed by the sentence that
+   the view contains everything examinable through that rank.
+5. Place `Core grading areas · Always assessed` before rank-specific content.
+   Preserve the six areas as a compact, full-width strip rather than six
+   dashboard cards.
+6. Place cumulative rank-specific content below in two grouped ledgers:
+   `Techniques` and `Forms`.
+7. Show the effective range or part for each item, its provenance, and a small
+   gold-outline `NEW AT [RANK]` label only when it is introduced at the
+   selected rank.
+8. Keep syllabus browsing separate from assessment recording. Do not add
+   pass/fail controls, completion checks, comments, assessor actions or student
+   results to this screen.
+
+For the illustrated Blue Stripe example, the expected effective content is:
+
+- Core grading areas: Yea Eue, Ki Cho Jah Ki, Soo Ki, Johk Sool, Nahk Bup and
+  Kyuk Pah.
+- Techniques: Sohn Ppae Ki `1-5` from Yellow Stripe; Ki Bohn Soo `1-15` from
+  Yellow Stripe and extended at Yellow; Sohn Mohk Soo `1-5`, new at Blue
+  Stripe.
+- Forms: Ki Cho Hyung `1-6`, completed at Yellow and carried forward; Cho Geup
+  Hyung `Part 1 of 2`, new at Blue Stripe.
+
+These mappings were checked against the seeded `AGE_13_TO_17` Adult/Youth
+requirements on 2026-09-21. `Part 1 of 2` is presentation wording for the
+seeded `Chart notation: (1/2).` note, so the implementation must define and
+test that display normalisation rather than copy it from the image. The UI
+must render the authoritative API response rather than hard-code these names,
+ranges or rank relationships.
+
+### Required backend contract
+
+The current requirements endpoint filters to rows attached directly to one
+rank. It does not provide a cumulative effective syllabus or provenance, so
+SCR-025 cannot be implemented correctly as a frontend-only regrouping.
+
+Add a backend-owned read contract for an age band and selected rank. It may be
+a dedicated endpoint or an explicitly named mode on the existing requirements
+endpoint, but it must return one effective record per syllabus item with at
+least:
+
+- selected rank and age-band context;
+- item code, display name, Korean name and category;
+- effective numbered range or notes/part wording;
+- required/optional state and display sequence;
+- the rank where the item was introduced;
+- the most recent rank at or before the selection that changed its effective
+  requirement;
+- whether it is new at the selected rank; and
+- enough ordered provenance to explain extensions such as `1-5` becoming
+  `1-15` without returning duplicate effective rows.
+
+Derive the result from rank order, age band and syllabus data in the backend.
+For repeated item mappings, the latest applicable mapping supplies the
+effective requirement while the earliest mapping supplies introduction
+provenance. The policy that requirements carry forward must be encoded and
+tested in the domain/API layer. If a future syllabus needs an exception or a
+requirement that stops carrying forward, extend the domain model explicitly;
+do not add rank-specific exceptions to React.
+
+Core grading areas must also come from backend/domain data. The implementation
+must remove the current React-owned syllabus catalogue used for their names,
+Korean labels and ordering.
+
+### Frontend implementation notes
+
+- Preserve FDR-001 through FDR-004, FDR-007, FDR-008, FDR-012 and FDR-013.
+- Reuse the existing filters, belt rail, rank context and theme tokens. Do not
+  introduce a second syllabus route or a new colour system.
+- Group returned `TECHNIQUE_SET` and `FORM` requirements into the two ledgers.
+  Render universal grading categories in the compact strip above them.
+- Use gold only for the selected rank, focus/interaction and genuinely new
+  material. Carried-forward and extended provenance remains muted neutral text.
+- Keep rows divider-led and touch-safe. Avoid nested cards, dashboard metrics,
+  search, pagination and decorative status indicators.
+- Supply equivalent layered-charcoal dark styling even though SCR-025 records
+  the selected light reference. Dark mode must follow FDR-012 rather than
+  simply invert the image.
+- Preserve loading, empty, permission and request-failure states. A valid
+  empty result must not be presented as a successful cumulative curriculum.
+- Regenerate the OpenAPI schema and frontend types if the API contract changes;
+  do not introduce hand-written response types.
+
+### Verification and acceptance criteria
+
+- Backend tests prove cumulative selection, range supersession, provenance,
+  selected-rank `is_new` behaviour, age-band isolation, ordering, invalid
+  parameters and permission enforcement.
+- A Blue Stripe regression test proves that an earlier partial range and its
+  later extension produce one effective row with the later range.
+- Frontend tests prove that core grading areas render above Techniques and
+  Forms; new and carried-forward items receive the correct text treatment; and
+  changing curriculum, age band or rank requests and renders the new context.
+- Loading, empty, API-error and narrow/tablet layouts are covered.
+- Light, dark, keyboard, focus, contrast and reduced-motion behaviour are
+  checked against the shared design rules.
+- Existing assessment snapshot generation remains backend-owned and
+  historically reproducible. This browsing change must not rewrite or infer
+  past assessment snapshots.
+- No dependencies, migrations or syllabus-data edits are required merely to
+  reproduce the selected layout. Any proposed schema change must first be
+  justified by a real carry-forward exception or another accepted domain need.
 
 ## Preliminary curriculum-source interpretation
 

@@ -74,6 +74,9 @@ export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
 export type SyllabusRequirement = components["schemas"]["SyllabusRequirement"];
+export type SyllabusItem = components["schemas"]["SyllabusItem"];
+export type EffectiveSyllabusRequirement =
+  components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
 
 /**
@@ -292,6 +295,12 @@ export async function createManagedUser(
   });
 }
 
+export async function deleteManagedUser(id: string): Promise<void> {
+  await apiRequest<void>(`/api/users/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function updateManagedUser(
   id: string,
   data: Partial<
@@ -308,6 +317,7 @@ export type UserAuthorityPayload = {
   can_make_final_grading_decision?: boolean;
   can_promote_student?: boolean;
   can_override_locked_session?: boolean;
+  can_view_grading_audit_log?: boolean;
 };
 
 export async function updateManagedUserAuthority(
@@ -567,6 +577,12 @@ export async function updateCandidateAssessment(
   });
 }
 
+export async function deleteCandidateAssessment(id: number): Promise<void> {
+  await apiRequest<void>(`/api/gradings/assessments/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function bulkStartCandidateAssessments(
   assessmentIds: number[],
 ): Promise<{ started: CandidateAssessment[]; errors: BulkOperationErrors }> {
@@ -780,6 +796,41 @@ export async function getSyllabusRequirements(params?: {
   const query = searchParams.toString();
   return apiRequest<PaginatedResponse<SyllabusRequirement>>(
     `/api/syllabus/requirements/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getSyllabusItems(params?: {
+  page_size?: number;
+}): Promise<PaginatedResponse<SyllabusItem>> {
+  const searchParams = new URLSearchParams();
+  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<SyllabusItem>>(
+    `/api/syllabus/items/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getEffectiveSyllabusRequirements(params: {
+  rank_code: string;
+  age_band: string;
+  page?: number;
+  page_size?: number;
+}): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
+  const searchParams = new URLSearchParams();
+  searchParams.set("rank_code", params.rank_code);
+  searchParams.set("age_band", params.age_band);
+  if (params.page !== undefined) searchParams.set("page", String(params.page));
+  searchParams.set("page_size", String(params.page_size ?? 200));
+  return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
+    `/api/syllabus/requirements/effective/?${searchParams.toString()}`,
+  );
+}
+
+export async function getAllEffectiveSyllabusRequirements(
+  params: Omit<Parameters<typeof getEffectiveSyllabusRequirements>[0], "page" | "page_size">,
+): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
+  return collectAllPages((page) =>
+    getEffectiveSyllabusRequirements({ ...params, page, page_size: 200 }),
   );
 }
 

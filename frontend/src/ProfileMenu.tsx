@@ -95,6 +95,10 @@ const CAPABILITIES = [
     key: "can_override_locked_session",
     label: "Override locked sessions",
   },
+  {
+    key: "can_view_grading_audit_log",
+    label: "View grading audit log",
+  },
 ] as const;
 
 function getInitials(user: AuthUser): string {

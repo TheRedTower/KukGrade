@@ -22,6 +22,7 @@ from accounts.models import User
 FINAL_GRADING_DECISION_PERMISSION = "gradings.can_make_final_grading_decision"
 PROMOTE_STUDENT_PERMISSION = "gradings.can_promote_student"
 OVERRIDE_LOCKED_SESSION_PERMISSION = "gradings.can_override_locked_session"
+GRADING_AUDIT_LOG_PERMISSION = "gradings.can_view_grading_audit_log"
 
 
 def _active_user(request: Request) -> User | None:
@@ -112,24 +113,32 @@ class CanViewAuditLog(BasePermission):
     """Logistics access (KG-048) plus Master authority, not every instructor.
 
     Administrators see it as part of running the school; a Master sees it
-    because they are the one who adjudicates the decisions it records. A
-    plain instructor holding neither is refused, even though they can still
-    act on most of what the log describes.
+    because they are the one who adjudicates the decisions it records. An
+    instructor granted `can_view_grading_audit_log` sees it for the same
+    reason on a smaller scale - retrospective accountability for grading and
+    syllabus decisions - without that grant implying anything about user
+    management, which stays behind `accounts.view_user` in the queryset
+    filter (see `audit/views.py`). A plain instructor holding none of the
+    three is refused, even though they can still act on most of what the log
+    describes.
     """
 
-    message = "Audit log access requires administrator or Master authority."
+    message = "Audit log access requires administrator or grading audit authority."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
         if user is None:
             return False
-        return user.role == User.Role.ADMINISTRATOR or user.has_perm(
-            FINAL_GRADING_DECISION_PERMISSION
+        return (
+            user.role == User.Role.ADMINISTRATOR
+            or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
+            or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
         )
 
 
 __all__ = [
     "FINAL_GRADING_DECISION_PERMISSION",
+    "GRADING_AUDIT_LOG_PERMISSION",
     "OVERRIDE_LOCKED_SESSION_PERMISSION",
     "PROMOTE_STUDENT_PERMISSION",
     "CanMakeFinalGradingDecision",

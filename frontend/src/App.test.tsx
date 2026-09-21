@@ -711,7 +711,7 @@ describe("Instructor profile menu and Master capabilities", () => {
     ).toBeVisible();
 
     const notGrantedBadges = screen.getAllByText("Not granted");
-    expect(notGrantedBadges).toHaveLength(3);
+    expect(notGrantedBadges).toHaveLength(4);
     expect(screen.queryByText("Granted")).not.toBeInTheDocument();
   });
 
@@ -728,7 +728,7 @@ describe("Instructor profile menu and Master capabilities", () => {
 
     expect(screen.getByText("Granted")).toBeVisible();
     const notGrantedBadges = screen.getAllByText("Not granted");
-    expect(notGrantedBadges).toHaveLength(2);
+    expect(notGrantedBadges).toHaveLength(3);
   });
 
   it("displays granted status for student promotion and session override for an Administrator", async () => {
@@ -746,7 +746,7 @@ describe("Instructor profile menu and Master capabilities", () => {
 
     const grantedBadges = screen.getAllByText("Granted");
     expect(grantedBadges).toHaveLength(2);
-    expect(screen.getByText("Not granted")).toBeVisible();
+    expect(screen.getAllByText("Not granted")).toHaveLength(2);
   });
 
   it("closes the profile menu when pressing the Escape key", async () => {

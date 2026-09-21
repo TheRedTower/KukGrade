@@ -5,7 +5,7 @@ from datetime import date
 from typing import TypedDict, cast
 
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 
@@ -1444,6 +1444,84 @@ def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> 
         metadata={"status": candidate.status},
     )
     candidate.delete()
+
+
+def validate_assessment_deletion_promotion(
+    promotion: Promotion,
+    student: Student,
+) -> None:
+    if promotion.to_rank_id != student.current_rank_id:
+        raise ValidationError(
+            {
+                "promotion": [
+                    "This promotion is no longer the student's most recent "
+                    "promotion - the student has since been promoted again. "
+                    "Delete that later promotion's assessment first.",
+                ],
+            },
+        )
+
+
+@transaction.atomic
+def delete_candidate_assessment(
+    assessment: CandidateAssessment,
+    actor: User,
+) -> None:
+    """Hard-delete an assessment, for test-data or bad-grading cleanup only.
+
+    Cascades through the assessment's outcome and promotion, if either
+    exists, and reverts the student's rank when a promotion is undone.
+    `CandidateOutcome.delete()` refuses a finalised outcome, and `Promotion`
+    refuses unconditionally at both the instance *and* queryset level
+    (`PromotionQuerySet.delete()`, gradings/models.py) - deliberately, so an
+    ordinary caller cannot casually erase a decision. This is the one
+    sanctioned bypass of both guards, administrator-gated (see
+    accounts.groups._DATA_CLEANUP_PERMISSIONS):
+
+    - `CandidateOutcome.objects.filter(...).delete()` goes through Django's
+      default `QuerySet.delete()`, which never calls a model's overridden
+      instance `delete()`, so the FINALISED guard is simply never reached.
+    - `Promotion` closes exactly that loophole with its own queryset
+      override, so the same trick does not work there. Deleting a promotion
+      here instead calls `models.QuerySet.delete` directly - the real,
+      unbound base implementation - bypassing `PromotionQuerySet.delete()`
+      on purpose rather than by omission.
+    """
+    locked = (
+        CandidateAssessment.objects.select_for_update(of=("self",))
+        .select_related("candidate__student", "candidate__session")
+        .get(pk=assessment.pk)
+    )
+    outcome = getattr(locked, "outcome", None)
+    promotion = getattr(outcome, "promotion", None) if outcome else None
+
+    reverted_rank: dict[str, str] | None = None
+    if promotion is not None:
+        student = locked.candidate.student
+        validate_assessment_deletion_promotion(promotion, student)
+        reverted_rank = {"from": promotion.to_rank.code, "to": promotion.from_rank.code}
+        Student.objects.filter(pk=student.pk).update(current_rank=promotion.from_rank)
+        models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
+
+    if outcome is not None:
+        CandidateOutcome.objects.filter(pk=outcome.pk).delete()
+
+    record(
+        AuditAction.ASSESSMENT_DELETED,
+        locked,
+        (
+            f"Assessment for {locked.candidate.student} in "
+            f"'{locked.candidate.session.title}' deleted while {locked.status}."
+        ),
+        actor=actor,
+        metadata={
+            "status": locked.status,
+            "had_outcome": outcome is not None,
+            "had_promotion": promotion is not None,
+            "reverted_student_rank": reverted_rank,
+        },
+    )
+    locked.delete()
 
 
 def applicable_syllabus_requirements(

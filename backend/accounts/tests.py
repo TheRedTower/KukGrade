@@ -259,6 +259,7 @@ def test_current_user_returns_authenticated_user() -> None:
         "can_make_final_grading_decision": True,
         "can_promote_student": False,
         "can_override_locked_session": False,
+        "can_view_grading_audit_log": False,
         "must_change_password": False,
         "is_staff": False,
         "is_superuser": False,
@@ -896,8 +897,8 @@ def test_patch_cannot_change_the_password() -> None:
     assert target.check_password("kg-Attempted-Change!") is False
 
 
-def test_put_and_delete_are_not_allowed() -> None:
-    client, _admin = admin_client("no-put-delete-admin@example.com")
+def test_put_is_not_allowed() -> None:
+    client, _admin = admin_client("no-put-admin@example.com")
     created = create_user_via_api(client, email="no-method-target@example.com")
 
     put_response = client.put(
@@ -905,11 +906,107 @@ def test_put_and_delete_are_not_allowed() -> None:
         {"first_name": "X"},
         format="json",
     )
-    delete_response = client.delete(f"/api/users/{created['id']}/")
 
     assert put_response.status_code == 405
-    assert delete_response.status_code == 405
     assert User.objects.filter(pk=created["id"]).exists()
+
+
+# ---------------------------------------------------------------------------
+# Hard delete: accounts.delete_user, administrator-gated, placeholder
+# reassignment for PROTECT attribution.
+# ---------------------------------------------------------------------------
+
+
+def test_delete_requires_the_delete_user_permission() -> None:
+    admin_facing, _admin = admin_client("delete-forbidden-admin@example.com")
+    created = create_user_via_api(
+        admin_facing, email="delete-forbidden-target@example.com"
+    )
+    non_admin = User.objects.create_user(email="delete-forbidden-caller@example.com")
+    client = APIClient()
+    client.force_authenticate(user=non_admin)
+
+    response = client.delete(f"/api/users/{created['id']}/")
+
+    assert response.status_code == 403
+    assert User.objects.filter(pk=created["id"]).exists()
+
+
+def test_administrator_can_delete_a_user_with_no_history() -> None:
+    client, _admin = admin_client("delete-clean-admin@example.com")
+    created = create_user_via_api(client, email="delete-clean-target@example.com")
+
+    response = client.delete(f"/api/users/{created['id']}/")
+
+    assert response.status_code == 204
+    assert not User.objects.filter(pk=created["id"]).exists()
+
+
+def test_administrator_cannot_delete_their_own_account() -> None:
+    client, admin = admin_client("delete-self-admin@example.com")
+
+    response = client.delete(f"/api/users/{admin.id}/")
+
+    assert response.status_code == 400
+    assert User.objects.filter(pk=admin.id).exists()
+
+
+def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
+    from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL
+
+    client, _admin = admin_client("placeholder-visibility-admin@example.com")
+
+    list_response = client.get("/api/users/")
+
+    assert DELETED_USER_PLACEHOLDER_EMAIL not in {
+        row["email"] for row in list_response.json()["results"]
+    }
+
+
+def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
+    from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL
+    from gradings.models import GradingSession
+
+    client, admin = admin_client("delete-history-admin@example.com")
+    created = create_user_via_api(client, email="delete-history-target@example.com")
+    target = User.objects.get(pk=created["id"])
+
+    session = GradingSession.objects.create(
+        title="History grading",
+        grading_date="2027-03-20",
+        created_by=target,
+    )
+    actored_event = AuditEvent.objects.create(
+        actor=target,
+        action=AuditAction.STUDENT_CREATED,
+        entity_type="Student",
+        entity_id="1",
+        summary="Some earlier action by the target user.",
+    )
+    events_before = AuditEvent.objects.count()
+
+    response = client.delete(f"/api/users/{created['id']}/")
+
+    assert response.status_code == 204
+    assert not User.objects.filter(pk=created["id"]).exists()
+
+    placeholder = User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
+    session.refresh_from_db()
+    actored_event.refresh_from_db()
+    assert session.created_by == placeholder
+    assert actored_event.actor == placeholder
+
+    deletion_event = AuditEvent.objects.filter(
+        entity_type="User",
+        entity_id=created["id"],
+        action=AuditAction.USER_DELETED,
+    ).get()
+    assert deletion_event.actor == admin
+    assert deletion_event.metadata["reassigned"]["grading_sessions_created"] == 1
+    assert deletion_event.metadata["reassigned"]["audit_events_actored"] == 1
+    # The deletion event itself, plus the reassignment - not one event per
+    # reassigned row.
+    assert AuditEvent.objects.count() == events_before + 1
 
 
 # ---------------------------------------------------------------------------
@@ -977,11 +1074,13 @@ def test_a_combined_authority_change_writes_exactly_one_event() -> None:
         "can_make_final_grading_decision": False,
         "can_promote_student": False,
         "can_override_locked_session": False,
+        "can_view_grading_audit_log": False,
     }
     assert event.metadata["after"] == {
         "can_make_final_grading_decision": True,
         "can_promote_student": False,
         "can_override_locked_session": True,
+        "can_view_grading_audit_log": False,
     }
     assert AuditEvent.objects.count() == before + 1
 

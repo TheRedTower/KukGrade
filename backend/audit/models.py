@@ -31,6 +31,7 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment generated"
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
+    ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
 
     OUTCOME_CREATED = "OUTCOME_CREATED", "Outcome created"
@@ -46,6 +47,7 @@ class AuditAction(models.TextChoices):
     USER_CREATED = "USER_CREATED", "User created"
     USER_UPDATED = "USER_UPDATED", "User updated"
     USER_AUTHORITY_CHANGED = "USER_AUTHORITY_CHANGED", "User authority changed"
+    USER_DELETED = "USER_DELETED", "User deleted"
 
 
 # Logistics - who runs the roster - is an administrator concern, the same
@@ -58,6 +60,7 @@ USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
     AuditAction.USER_CREATED,
     AuditAction.USER_UPDATED,
     AuditAction.USER_AUTHORITY_CHANGED,
+    AuditAction.USER_DELETED,
 )
 
 

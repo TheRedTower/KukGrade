@@ -6,6 +6,7 @@ import {
   getRanks,
   getSyllabusRequirements,
 } from "./api";
+import "./Syllabus.css";
 
 type CurriculumTrack = "JUNIOR_LITTLE_DRAGON" | "ADULT_YOUTH";
 

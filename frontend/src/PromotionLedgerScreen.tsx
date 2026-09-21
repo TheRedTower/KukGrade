@@ -18,6 +18,7 @@ import {
 import { useAuth } from "./auth";
 import { BeltSwatch } from "./SyllabusScreen";
 import { useDialogFocus } from "./useDialogFocus";
+import "./PromotionLedger.css";
 
 function formatSessionDate(dateStr?: string | null): string {
   if (!dateStr) return "—";

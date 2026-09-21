@@ -18,6 +18,77 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-21 - Student roster bulk import (Phase A of the data-import spec)
+
+Status: Accepted
+
+Decision:
+A new `data_imports` app provides administrator-only bulk student-roster
+import from `.xlsx`/`.csv`, ahead of the originally-recommended v1.0.0
+production baseline, so real students can be in the system before a live
+grading session. `ImportBatch` tracks upload -> preview -> commit/cancel
+provenance (safe summary counts only, never raw row content); the source
+file lives in private local `FileSystemStorage` (`STORAGES["import_uploads"]`,
+never a public `MEDIA_URL`) and is deleted on commit/cancel/expiry. Every
+created `Student` goes through the existing `students.services.create_student`
+service unchanged, so full model validation and the normal `STUDENT_CREATED`
+audit event happen identically to a hand-created student - the importer
+never bulk-writes directly. An existing WKSA ID is always skipped, never
+silently updated. Import authority (`data_imports.add_importbatch`,
+`.view_importbatch`, `.change_importbatch`, and a custom `.can_commit_import`)
+is Administrator-group-only, mirroring `_DATA_CLEANUP_PERMISSIONS`.
+
+Five deliberate deviations from the reference spec (`KukGrade_Data_Import_
+Legacy_Migration_Definitive_Implementation_Spec.md`), each with concrete
+evidence/reasoning:
+1. **Tablib directly, not `django-import-export`.** PyPI/changelog evidence
+   at decision time: Tablib 3.10.0 explicitly supports Python 3.14 (and even
+   3.15); `django-import-export` 4.4.1 (latest stable) only classified
+   through 3.13, with no 3.14 support even in its unreleased 5.0 branch -
+   not confirmed compatible with this project's `requires-python = ">=3.14"`
+   pin. The spec's own section 6.2 pre-authorises exactly this fallback.
+   `django-import-export`'s only real value-add, its ORM-write layer, is
+   also the one thing the spec already forbids relying on (section 21).
+2. **No background worker for batch expiry.** No queue infrastructure
+   exists or is being added (correctly out of scope per the spec). A
+   `manage.py expire_stale_import_batches` command run manually/via cron
+   replaces it.
+3. **Private temp storage is local filesystem**, not S3. The anticipated
+   deployment (containerised, Hetzner VPS or similar, persistent storage)
+   is exactly what `FileSystemStorage` needs, provided `IMPORT_UPLOAD_ROOT`
+   is mounted as a persistent volume - the same requirement the database's
+   data directory already has.
+4. **Commit is all-or-nothing in one transaction**, not the spec's
+   `PARTIAL`-status partial-commit bookkeeping (`ImportBatch.Status.PARTIAL`
+   is kept in the enum for forward compatibility but never produced).
+   Simpler to reason about correctly for a school-roster-sized import, and
+   commit already re-validates everything preview checked immediately
+   beforehand.
+5. **Rank resolution is exact-match only** (`Rank.code`/`Rank.name`,
+   case-insensitive), not the historical importer's messier suggestion-and-
+   approval workflow - reserved for the historical-workbook import, where
+   source rank text is actually unreliable.
+
+Context:
+Raised directly: "So for a v1 how far or close are we to that reality
+today" led into a large legacy-import/migration spec being handed over for
+review, with the explicit instruction to implement the student-roster piece
+now (ignoring the spec's own "after v1.0.0" framing) because the school has
+a real grading session on 2026-09-25 and getting the real roster into
+KukGrade beforehand makes the app actually useful for it. The historical
+KSW Colchester grading-workbook migration (`LegacyGradingRecord`, rank
+review, reconciliation, unified grading history) from the same spec is
+deliberately deferred to a later, unhurried pass - it concerns past
+records, not anything Friday's live session depends on.
+
+Consequences:
+A second, larger implementation phase (the historical workbook importer)
+remains to be built against the same `ImportBatch`/`data_imports`
+foundation; `ImportBatch.Kind.LEGACY_GRADINGS` and the `.xlsx`-only
+extension rule for it already exist in the model for that phase to use.
+`ImportBatch.Status.PARTIAL` is unused until/unless a real need for partial
+commits appears.
+
 ### 2026-09-21 - Administrator hard-delete for users and completed assessments, via placeholder reassignment
 
 Status: Accepted

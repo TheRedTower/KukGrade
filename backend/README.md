@@ -381,8 +381,9 @@ routine correction:
 - `DELETE /api/users/{id}/` (`accounts.delete_user`): reassigns every
   attribution foreign key that referenced the user - grading sessions
   created, candidates withdrawn, assessments generated, outcomes
-  proposed/decided, items assessed, promotions recorded, audit events - to a
-  seeded "Deleted User" placeholder account (`accounts/migrations/0005_seed_
+  proposed/decided, items assessed, promotions recorded, audit events,
+  import batches uploaded/committed/cancelled - to a seeded "Deleted User"
+  placeholder account (`accounts/migrations/0005_seed_
   deleted_user_placeholder.py`, excluded from the users API's own queryset)
   rather than nulling or cascading it away, then deletes the row. Refuses
   self-deletion and deleting the placeholder itself. See

@@ -30,6 +30,7 @@ membership and is never consulted when authorising a request.
 | **Delete a user account** | No | **Yes** | via group |
 | **Delete a completed assessment** | No | **Yes** | via group |
 | **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
+| **Bulk-import student roster (upload/preview/commit)** | No | **Yes** | via group |
 
 "Grading sessions: full CRUD" has one asymmetry: deleting a cancelled
 session that holds recorded assessment work (any candidate past
@@ -47,6 +48,15 @@ assessment (`gradings.delete_candidateassessment`,
 `_DATA_CLEANUP_PERMISSIONS` tuple, Administrator group only). Both cascade
 attribution/data to a placeholder account or a reverted rank rather than
 erasing history; see `docs/current-system.md`.
+
+Bulk student-roster import, added 2026-09-21, is likewise Administrator-
+group-only (`data_imports.view_importbatch`, `.add_importbatch`,
+`.change_importbatch`, and a custom `.can_commit_import` - a new
+`_DATA_IMPORT_PERMISSIONS` tuple). `can_commit_import` is deliberately its
+own permission rather than reusing `change_importbatch`, so the irreversible
+act of actually creating students from a reviewed file is a distinct grant
+from merely uploading/previewing one. See `docs/data-import-and-legacy-
+migration.md`.
 
 "Master" is not a group. `gradings.can_make_final_grading_decision`,
 `gradings.can_promote_student`, `gradings.can_override_locked_session` and

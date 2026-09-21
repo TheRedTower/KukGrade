@@ -669,6 +669,33 @@ service functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
 created or edited through admin is audited and attributed to whoever is
 signed in, exactly as if it had gone through the API.
 
+## 14. Data Imports (Admin only)
+
+Status: implemented for student-roster import (2026-09-21). Historical
+grading-workbook migration is designed but not yet implemented - see
+`docs/data-import-and-legacy-migration.md`.
+
+| Method | Endpoint                                        | Description                                      |
+|--------|--------------------------------------------------|---------------------------------------------------|
+| GET    | /api/data-imports/batches/                        | List import batches, newest first                |
+| POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); requires `data_imports.add_importbatch` |
+| GET    | /api/data-imports/batches/{id}/                   | Retrieve one batch                                |
+| POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify every row against `column_mapping`; nothing is committed; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and create every `READY` row's `Student`, all-or-nothing; requires `data_imports.can_commit_import` |
+| POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
+
+`kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
+only, not yet wired to a commit path). `preview`/`commit` share a request
+body: `column_mapping` (target field -> source header, required fields
+`wksa_id`/`first_name`/`last_name`/`date_of_birth`/`current_rank`) and an
+optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`) for
+fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
+response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
+per-row `issues`, and (for `SKIP_EXISTING`) the existing student's identity
+for comparison - the existing record is never modified. No `DELETE` on a
+batch, and no endpoint downloads the raw source file back - it is a
+server-side-only artefact between upload and commit/cancel/expiry.
+
 ---
 
 This contract should be refined during implementation, but it provides comprehensive coverage of the backend endpoints needed for the grading application.

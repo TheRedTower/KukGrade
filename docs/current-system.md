@@ -3,10 +3,18 @@
 Describes the implementation on `dev` as verified on 2026-09-21. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-21 with 491 backend tests and 156 frontend tests passing.
+Verified on 2026-09-21 with 520 backend tests and 160 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
+
+A pre-existing, order-dependent flakiness in 8 backend tests (two "migrate
+from zero" tests and five real-thread concurrency tests, all marked
+`concurrency`) reproduces identically on a clean `dev` checkout with none of
+this session's changes applied, run in the same process as certain other
+tests - confirmed by isolating it in a separate worktree. Not introduced by
+anything on this branch; not fixed here, since it is unrelated to the
+feature being built. Each test passes cleanly in isolation.
 
 ## Implemented
 
@@ -52,6 +60,13 @@ clean. CI enforces the same categories on each push and pull request.
   are matched against. Filters: `status`, `current_rank_code`, `search`
   (name and WKSA ID). No delete: every relationship to a student is PROTECT
   and history is retained by decision.
+- **Bulk student-roster import** (`data_imports` app, 2026-09-21,
+  administrator-only): upload a `.xlsx`/`.csv` roster, preview row-by-row
+  classification (ready/needs review/skip existing), then commit - every
+  created student goes through the ordinary `students.services.create_student`
+  service, so validation and the normal `STUDENT_CREATED` audit event are
+  identical to a hand-created student. An existing WKSA ID is always
+  skipped, never updated. See `docs/data-import-and-legacy-migration.md`.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
 - **Bulk operations**: `bulk-register` registers several candidates against
   one session (optionally generating their assessments in the same request);
@@ -206,10 +221,13 @@ clean. CI enforces the same categories on each push and pull request.
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
 - **Implemented frontend workflows**: operational overview, student list,
-  student creation and detail/edit, the syllabus cumulative current-knowledge
-  ledger (FDR-041/SCR-025), grading-session list, create/detail/lifecycle
-  controls, cohort registration, assessment snapshot preparation, item-level
-  marking, outcome proposal and final decision, and the promotion ledger.
+  student creation and detail/edit, administrator-only bulk student-roster
+  import (upload, column mapping pre-filled from the file's own headers,
+  row-by-row review with inline correction, commit), the syllabus cumulative
+  current-knowledge ledger (FDR-041/SCR-025), grading-session list,
+  create/detail/lifecycle controls, cohort registration, assessment snapshot
+  preparation, item-level marking, outcome proposal and final decision, and
+  the promotion ledger.
   The access-controlled Audit route provides server-side action, entity, date
   and keyword filtering, pagination, and complete event detail without any
   mutation control; reachable by administrators, the designated Master, and

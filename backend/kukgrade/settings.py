@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "syllabus",
     "gradings",
     "audit",
+    "data_imports",
     "drf_spectacular",
 ]
 
@@ -148,6 +149,39 @@ USE_TZ = True
 STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
+
+# Private temp storage for uploaded data-import source files (student
+# rosters, legacy grading workbooks) - never wired to a public MEDIA_URL.
+# Must be a persistent volume in any containerised deployment, the same
+# requirement the database's own data directory already has. Registered as
+# a named STORAGES alias (Django 5.1+) rather than passed to FileField as a
+# concrete FileSystemStorage instance, so migrations serialize the stable
+# string "import_uploads" instead of baking this machine's absolute
+# IMPORT_UPLOAD_ROOT path into a committed migration file.
+IMPORT_UPLOAD_ROOT = Path(
+    os.environ.get(
+        "KUKGRADE_IMPORT_UPLOAD_ROOT",
+        str(BASE_DIR / "var" / "import_uploads"),
+    ),
+)
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+    "import_uploads": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "OPTIONS": {"location": IMPORT_UPLOAD_ROOT, "base_url": None},
+    },
+}
+
+# Explicit ceiling for the data-import feature's spreadsheet uploads
+# (Django's own default is 2.5 MB). Applies request-wide, which is fine -
+# nothing else in the API sends a body anywhere near this size.
+DATA_UPLOAD_MAX_MEMORY_SIZE = env_int("KUKGRADE_UPLOAD_MAX_BYTES", 5 * 1024 * 1024)
+FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
 
 # The browsable API renders an HTML UI over the whole authenticated API,
 # including student names, WKSA IDs and grading notes. Debug only.

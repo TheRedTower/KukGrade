@@ -152,6 +152,204 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
           description: ''
+  /api/data-imports/batches/:
+    get:
+      operationId: data_imports_batches_list
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportBatchList'
+          description: ''
+    post:
+      operationId: data_imports_batches_create
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/:
+    get:
+      operationId: data_imports_batches_retrieve
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/cancel/:
+    post:
+      operationId: data_imports_batches_cancel_create
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/commit/:
+    post:
+      operationId: data_imports_batches_commit_create
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/preview/:
+    post:
+      operationId: data_imports_batches_preview_create
+      description: |-
+        Administrator-only bulk data import (Decision 1 of the import spec).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportBatch'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
   /api/gradings/assessment-items/:
     get:
       operationId: gradings_assessment_items_list
@@ -1712,6 +1910,8 @@ components:
       - USER_UPDATED
       - USER_AUTHORITY_CHANGED
       - USER_DELETED
+      - IMPORT_BATCH_COMMITTED
+      - IMPORT_BATCH_CANCELLED
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
@@ -1737,6 +1937,8 @@ components:
         * `USER_UPDATED` - User updated
         * `USER_AUTHORITY_CHANGED` - User authority changed
         * `USER_DELETED` - User deleted
+        * `IMPORT_BATCH_COMMITTED` - Import batch committed
+        * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
     AgeBandEnum:
       enum:
       - AGE_8_AND_UNDER
@@ -2461,6 +2663,120 @@ components:
       required:
       - service
       - status
+    ImportBatch:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        kind_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportBatchStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        original_filename:
+          type: string
+          readOnly: true
+        sha256:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        uploaded_by_email:
+          type: string
+          format: email
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        committed_by_email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+        committed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        summary_json:
+          readOnly: true
+        configuration_json:
+          readOnly: true
+        error_summary:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - cancelled_at
+      - committed_at
+      - committed_by_email
+      - configuration_json
+      - created_at
+      - error_summary
+      - file_size
+      - id
+      - kind
+      - kind_display
+      - original_filename
+      - sha256
+      - status
+      - status_display
+      - summary_json
+      - updated_at
+      - uploaded_at
+      - uploaded_by_email
+    ImportBatchStatusEnum:
+      enum:
+      - UPLOADED
+      - NEEDS_REVIEW
+      - READY
+      - COMMITTED
+      - PARTIAL
+      - CANCELLED
+      - FAILED
+      - EXPIRED
+      type: string
+      description: |-
+        * `UPLOADED` - Uploaded
+        * `NEEDS_REVIEW` - Needs review
+        * `READY` - Ready
+        * `COMMITTED` - Committed
+        * `PARTIAL` - Partially committed
+        * `CANCELLED` - Cancelled
+        * `FAILED` - Failed
+        * `EXPIRED` - Expired
+    KindEnum:
+      enum:
+      - STUDENT_ROSTER
+      - LEGACY_GRADINGS
+      type: string
+      description: |-
+        * `STUDENT_ROSTER` - Student roster
+        * `LEGACY_GRADINGS` - Legacy grading records
     LockedCandidateWithdrawal:
       type: object
       properties:
@@ -2647,6 +2963,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GradingSession'
+    PaginatedImportBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportBatch'
     PaginatedPromotionList:
       type: object
       required:

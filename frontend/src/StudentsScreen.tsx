@@ -129,6 +129,9 @@ export function StudentsScreen() {
     user?.role === "instructor" ||
     !!user?.is_staff ||
     !!user?.is_superuser;
+  // Bulk import is administrator-only (data_imports permissions) - see
+  // docs/permissions.md.
+  const canImportStudents = user?.role === "administrator";
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useQuery({
@@ -217,17 +220,29 @@ export function StudentsScreen() {
           </h1>
           <p className="students-subtitle">Manage student records and grading history</p>
         </div>
-        {canAddStudent && (
-          <button
-            type="button"
-            className="btn-add-student"
-            onClick={() => navigate("/students/new")}
-            aria-label="Add new student"
-          >
-            <UserPlusIcon />
-            <span>Add student</span>
-          </button>
-        )}
+        <div className="students-header-actions">
+          {canImportStudents && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => navigate("/students/import")}
+              aria-label="Import students from a file"
+            >
+              Import students
+            </button>
+          )}
+          {canAddStudent && (
+            <button
+              type="button"
+              className="btn-add-student"
+              onClick={() => navigate("/students/new")}
+              aria-label="Add new student"
+            >
+              <UserPlusIcon />
+              <span>Add student</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter and Search Bar */}

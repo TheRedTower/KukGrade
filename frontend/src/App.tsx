@@ -49,9 +49,18 @@ const GradingSessionDetailScreen = lazy(() =>
     default: module.GradingSessionDetailScreen,
   })),
 );
+const ImportStudentsScreen = lazy(() =>
+  import("./ImportStudentsScreen").then((module) => ({
+    default: module.ImportStudentsScreen,
+  })),
+);
 
 function UserManagementFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading user management…</div>;
+}
+
+function ImportStudentsFallback(): React.ReactElement {
+  return <div className="loading-state" role="status">Loading import…</div>;
 }
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
@@ -541,6 +550,16 @@ function App() {
               <Route element={<Navigate replace to="/" />} path="overview" />
               <Route element={<StudentsPage />} path="students" />
               <Route element={<AddStudentPage />} path="students/new" />
+              <Route
+                element={
+                  <RequireAdminAccess>
+                    <Suspense fallback={<ImportStudentsFallback />}>
+                      <ImportStudentsScreen />
+                    </Suspense>
+                  </RequireAdminAccess>
+                }
+                path="students/import"
+              />
               <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<CreateGradingSessionPage />} path="gradings/new" />
               <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />

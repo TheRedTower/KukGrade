@@ -94,6 +94,14 @@ Syllabus writes through the API are disabled. Requirement lists support
 GET /api/syllabus/requirements/?rank_code=YELLOW&age_band=AGE_9_TO_12
 ```
 
+That list returns only rows attached directly to the given rank.
+`GET /api/syllabus/requirements/effective/?rank_code=...&age_band=...` (both
+required) instead returns one cumulative row per Technique/Form item
+examinable through that rank - the latest applicable mapping at or before it
+supplies the effective range, the earliest supplies where it was introduced.
+See `syllabus.services.effective_syllabus_requirements` and
+`../docs/api_contract.md`.
+
 The current seed is deterministic reference data from the supplied WKSA Version
 2014 Junior and Adult/Youth Testing Requirement Charts. Numbered ranges live on
 `SyllabusRequirement`; form parts remain concise notes.
@@ -224,8 +232,12 @@ Clients may patch only assessment `status` and `notes`, and assessment-item
 assessment has been explicitly started. The server assigns `assessor` and
 `assessed_at` when an item is marked `MET` or `NOT_MET`; resetting to
 `NOT_ASSESSED` before completion clears those metadata fields. Snapshot and
-source fields are read-only. Ordinary POST and DELETE operations for assessments
-and items are not exposed.
+source fields are read-only. Ordinary POST operations for assessments and
+items are not exposed, and neither is DELETE for items. `DELETE
+/api/gradings/assessments/{id}/` is exposed, but only as an
+Administrator-gated hard-delete for corruption/test-data cleanup - see
+"Hard-delete for admin cleanup" below - not a correction path for ordinary
+use.
 
 Filters:
 
@@ -344,14 +356,50 @@ screens, notifications, and payment workflows are deferred.
 `Promotion` is the v1 rank-history source. It stores from-rank, to-rank, the
 candidate outcome, grading candidate, promoter, effective date, and optional
 notes. Records are immutable after creation and cannot be changed or deleted
-through the model, queryset, API, or admin workflows - `QuerySet.update()` and
-`QuerySet.delete()` both refuse, so the rule holds from the shell too. Once a
-student has promotion history, ordinary student saves cannot directly change
+through any ordinary path - the model, queryset, API, or admin workflows -
+`QuerySet.update()` and `QuerySet.delete()` both refuse, so the rule holds
+from the shell too. The one deliberate exception: an administrator deleting
+a completed assessment (`DELETE /api/gradings/assessments/{id}/`, see "Hard-
+delete for admin cleanup" below) cascades through its promotion if one
+exists, reverting `Student.current_rank` to the promotion's `from_rank`
+first. That path calls `models.QuerySet.delete` directly - the real,
+unbound base implementation - bypassing `PromotionQuerySet.delete()` on
+purpose, at that one call site, not by omission. Once a student has
+promotion history, ordinary student saves cannot directly change
 `current_rank`; use the promotion workflow for progression. Rank history begins
 with promotions recorded by KukGrade and may not include a student's rank
 changes before adoption of the application. Reversing migration
 `gradings.0004_promotion` is a schema rollback only; it does not implement a
 business promotion reversal or rank rollback workflow.
+
+## Hard-delete for admin cleanup
+
+Two genuine hard deletes exist, both gated to Administrator-only Django
+permissions and meant for corruption or test-data cleanup rather than
+routine correction:
+
+- `DELETE /api/users/{id}/` (`accounts.delete_user`): reassigns every
+  attribution foreign key that referenced the user - grading sessions
+  created, candidates withdrawn, assessments generated, outcomes
+  proposed/decided, items assessed, promotions recorded, audit events - to a
+  seeded "Deleted User" placeholder account (`accounts/migrations/0005_seed_
+  deleted_user_placeholder.py`, excluded from the users API's own queryset)
+  rather than nulling or cascading it away, then deletes the row. Refuses
+  self-deletion and deleting the placeholder itself. See
+  `accounts.services.delete_platform_user`.
+- `DELETE /api/gradings/assessments/{id}/`
+  (`gradings.delete_candidateassessment` plus `delete_candidateoutcome`/
+  `delete_promotion`): cascades through the assessment's outcome and
+  promotion if either exists, reverting the student's rank as described
+  above, and refuses when a later promotion has already superseded it. See
+  `gradings.services.delete_candidate_assessment`.
+
+Both reassignments/cascades bypass the immutability guards on `Promotion`, a
+finalised `CandidateOutcome`, and `AuditEvent` deliberately, by calling
+`models.QuerySet.update`/`delete` directly instead of going through the
+overridden instance/queryset methods those models otherwise enforce - the
+one sanctioned way those guards are bypassed anywhere in this codebase,
+documented at each call site. See the 2026-09-21 decision log entry.
 
 Promotion filters:
 

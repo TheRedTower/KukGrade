@@ -89,12 +89,13 @@ Administrator group.
 
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
-| GET    | /api/users/                  | List users; filters `role`, `is_active`, `search` |
+| GET    | /api/users/                  | List users; filters `role`, `is_active`, `search`. Excludes the "Deleted User" placeholder account. |
 | POST   | /api/users/                  | Create a user; requires `password`, validated against Django's password validators |
 | GET    | /api/users/{id}/             | Retrieve a user                               |
 | PATCH  | /api/users/{id}/             | Update user details (not `password` - see below) |
-| PUT, DELETE | /api/users/{id}/         | 405; not exposed (every attribution FK is `PROTECT`; deactivate via `is_active` instead) |
-| PATCH  | /api/users/{id}/authority/    | Grant or revoke the three sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
+| DELETE | /api/users/{id}/             | Hard-delete, gated to `accounts.delete_user` (Administrator group only). Refuses self-deletion. Reassigns every PROTECT attribution (grading sessions created, candidates withdrawn, assessments generated, outcomes proposed/decided, items assessed, promotions recorded, audit events) to a seeded "Deleted User" placeholder account rather than nulling it, then deletes the row. Records `USER_DELETED`. See `accounts.services.delete_platform_user` and the 2026-09-21 decision log entry. |
+| PUT    | /api/users/{id}/             | 405; not exposed (`PATCH` covers every real edit) |
+| PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
 | POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
 
 `is_staff` and `is_superuser` are read-only through this API - it cannot hand
@@ -174,8 +175,9 @@ deferred.
 | PUT    | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
 | PATCH  | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
 | DELETE | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
-| GET    | /api/syllabus/requirements/            | List active requirements                         |
+| GET    | /api/syllabus/requirements/            | List active requirements, attached directly to one rank |
 | GET    | /api/syllabus/requirements/{id}/       | Retrieve a syllabus requirement                  |
+| GET    | /api/syllabus/requirements/effective/  | Cumulative Technique/Form requirements examinable through a rank - see below |
 | POST   | /api/syllabus/requirements/            | 405; API writes deferred                         |
 | PUT    | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
 | PATCH  | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
@@ -192,6 +194,26 @@ maps that item to a target rank and age band, including `required`, `sequence`,
 `start_number`, `end_number`, and concise notes. Numbered technique and weapon
 ranges are stored on the requirement, not encoded into duplicate item records.
 Form sections or parts from the source charts are currently preserved as notes.
+
+### Effective (cumulative) requirements - FDR-041 / SCR-025
+
+`GET /api/syllabus/requirements/effective/?rank_code=...&age_band=...`
+(both required) returns one row per `TECHNIQUE_SET`/`FORM` item examinable
+through the selected rank, not just what that rank's own requirement rows
+list. For an item mapped at more than one rank at or before the selection,
+the highest-order (most recent) mapping supplies the effective range/notes;
+the lowest-order mapping supplies where it was first introduced - see
+`syllabus.services.effective_syllabus_requirements`. Paginated like every
+other list endpoint. Fields beyond the plain-list shape: `notation` (chart
+notation such as `Chart notation: (1/2).` normalised to `Part 1 of 2`),
+`introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
+`effective_since_rank_name`, and `is_new_at_rank` (true when the effective
+row's rank is the selected rank itself). 400 with `rank_code`/`age_band`
+field errors when either is missing or invalid. The six universal core
+grading areas (Etiquette, Fundamentals, Hand techniques, Kicking, Falling,
+Breaking) are not part of this endpoint - they come from
+`/api/syllabus/items/`, ordered to match the WKSA chart's own category
+sequence rather than alphabetically.
 
 ## 7. Eligibility (V2)
 
@@ -406,7 +428,7 @@ snapshot rows.
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
-| DELETE| /api/gradings/assessments/{id}/                       | 405; correction workflow deferred                    |
+| DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
 | GET   | /api/gradings/assessment-items/{id}/                  | Retrieve assessment item snapshot and result         |
 | PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
@@ -417,7 +439,9 @@ Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
 Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
 `IN_PROGRESS -> COMPLETED`; direct `NOT_STARTED -> COMPLETED` is rejected.
 `NOT_STARTED -> IN_PROGRESS` is allowed only while the session is `OPEN`.
-Completed assessments and their items are immutable in this slice.
+Completed assessments and their items are immutable in this slice - the
+`DELETE` above is a distinct, administrator-only hard-delete for cleanup,
+not a correction path.
 
 `POST /api/gradings/assessments/bulk-start/` body:
 
@@ -595,19 +619,27 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 ## 13. Audit
 
-Status: implemented, read-only. Access is restricted to administrators and
-holders of Master final-decision authority by `CanViewAuditLog`. Ordinary
-instructors are refused. No role group carries `audit.view_auditevent`.
+Status: implemented, read-only. Access is restricted by `CanViewAuditLog` to
+administrators, holders of Master final-decision authority, and (since
+2026-09-21) any instructor individually granted the per-user
+`gradings.can_view_grading_audit_log` permission - a fourth sensitive
+permission alongside the three Master ones, granted the same way via
+`PATCH /api/users/{id}/authority/`. An instructor holding none of the three
+is refused. No role group carries `audit.view_auditevent`.
 
 **Exception: user-management events are administrator-only.** `USER_CREATED`,
-`USER_UPDATED` and `USER_AUTHORITY_CHANGED` are additionally filtered to
-callers holding `accounts.view_user` - the same permission that gates
-`/api/users/` itself. An instructor cannot open the Users API at all, so
-reading who was created, edited, or granted Master authority through the
-audit log instead would be the same information through a side door;
-logistics is an administrator concern, matching the boundary drawn
-everywhere else in this API. A direct `GET` on an excluded event's id
-answers 404, the same as any other object outside the caller's queryset.
+`USER_UPDATED`, `USER_AUTHORITY_CHANGED` and `USER_DELETED` are additionally
+filtered to callers holding `accounts.view_user` - the same permission that
+gates `/api/users/` itself. An instructor cannot open the Users API at all,
+so reading who was created, edited, granted Master authority, or deleted
+through the audit log instead would be the same information through a side
+door; logistics is an administrator concern, matching the boundary drawn
+everywhere else in this API. This is also what scopes a
+`can_view_grading_audit_log` holder to grading/syllabus events and away from
+user management - they hold that permission but not `accounts.view_user`, so
+the same filter excludes them automatically with no separate logic. A direct
+`GET` on an excluded event's id answers 404, the same as any other object
+outside the caller's queryset.
 
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|

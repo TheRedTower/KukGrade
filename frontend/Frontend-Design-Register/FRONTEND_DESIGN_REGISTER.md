@@ -67,7 +67,7 @@ here does not by itself mean it has shipped.
 | SCR-006 | Open grading session and candidate roster | Light | `06-grading-session-roster.png` | First concept |
 | SCR-007 | Add student | Light | `07-add-student.png` | First concept |
 | SCR-008 | Staff login | Light | `08-login.png` | First concept; unsupported persistent-login control removed |
-| SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Implemented baseline; superseded by SCR-025 as the next syllabus target |
+| SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Superseded by SCR-025, implemented 2026-09-21 |
 | SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible only to administrators and the designated Master |
 | SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Implemented; administrator only |
 | SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Implemented; administrator only |
@@ -83,7 +83,7 @@ here does not by itself mean it has shipped.
 | SCR-022 | Authorised Master final decision slide-over | Light | `22-master-final-decision.png` | Selected hybrid slide-over ledger concept |
 | SCR-023 | Roster batch and inline promotion ledger | Light | `23-student-promotion-flow.png` | Selected batch and inline promotion concept |
 | SCR-024 | Grading session state transition action banner | Light | `24-session-state-transition.png` | Selected in-page operational banner concept |
-| SCR-025 | Revised syllabus current-knowledge ledger | Light | `25-syllabus-current-knowledge-revised.png` | Selected revision; planned, not implemented |
+| SCR-025 | Revised syllabus current-knowledge ledger | Light | `25-syllabus-current-knowledge-revised.png` | Implemented 2026-09-21 |
 
 ## Revised syllabus layout plan (2026-09-21)
 
@@ -91,11 +91,21 @@ here does not by itself mean it has shipped.
 
 ### Purpose and status
 
-SCR-025 is the selected implementation target for the next syllabus revision.
-It replaces SCR-009 as the visual target without erasing SCR-009 as the record
-of the currently implemented Rank Chapter direction. The image is a design
-reference, not proof of implemented behaviour and not a source of exact copy,
-spacing or data.
+**Implemented 2026-09-21.** SCR-025 replaced SCR-009 as the syllabus screen's
+implementation target - the same route, rebuilt against a new
+`GET /api/syllabus/requirements/effective/` cumulative endpoint
+(`syllabus.services.effective_syllabus_requirements`) rather than the
+single-rank list. Verified against the worked Blue Stripe example below
+using the real seeded data, light/dark, desktop/tablet/mobile. The image
+remains a design reference, not a source of exact copy, spacing or data -
+the implementation renders the authoritative API response.
+
+One deviation from the written spec, per direct feedback during review: the
+`NEW AT [RANK]` label reads just `NEW`. The selected rank is already visible
+via the belt rail and the `Testing for` selector, so repeating it on every
+badge was redundant, and the full rank name wrapped awkwardly in the
+Techniques/Forms table on narrow viewports. The full "new at
+Blue Stripe" phrasing still appears in the adjacent Provenance column.
 
 The revised screen must answer the instructor's operational question: **what is
 this candidate expected to know and demonstrate through the selected rank?** A
@@ -233,15 +243,18 @@ Korean labels and ordering.
 - Verify contrast, focus states, zoom behaviour and reduced motion in both themes.
 - Do not treat image-generated spacing or text as exact implementation measurements.
 
-## Implementation coverage (2026-09-20)
+## Implementation coverage (2026-09-21)
 
 - Implemented: login and application shell, Overview, Students list/detail/add,
-  Gradings list/create/detail, cohort builder and exception handling, Syllabus,
-  assessment workspace/completion, outcome proposal, final decision, promotion
-  ledger, Audit event browser/detail, administrator Users list/detail/create,
-  role/status/authority/password management, profile/password controls, themes,
-  session transitions, bulk no-show confirmation, and reasoned authorised
-  locked-session withdrawal.
+  Gradings list/create/detail, cohort builder and exception handling, the
+  SCR-025 cumulative syllabus ledger, assessment workspace/completion,
+  outcome proposal, final decision, promotion ledger, Audit event
+  browser/detail (administrators, the designated Master, and any instructor
+  granted `can_view_grading_audit_log`), administrator Users
+  list/detail/create/**delete**, role/status/authority(x4)/password
+  management, an administrator-only assessment hard-delete with cascade,
+  profile/password controls, themes, session transitions, bulk no-show
+  confirmation, and reasoned authorised locked-session withdrawal.
 - Not implemented: installed PWA/offline shell and update-ready notification.
 - Partial cleanup remains: full keyboard/focus/contrast verification, component
   stylesheet boundaries, elimination of remaining literal colours, and full

@@ -18,6 +18,92 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-21 - Administrator hard-delete for users and completed assessments, via placeholder reassignment
+
+Status: Accepted
+
+Decision:
+`UserViewSet` and `CandidateAssessmentViewSet` each gain a real `destroy()`,
+gated to Administrator-only permissions (`accounts.delete_user`; a new
+`_DATA_CLEANUP_PERMISSIONS` tuple for `delete_candidateassessment`/
+`delete_candidateoutcome`/`delete_promotion`). Deleting a user reassigns
+every PROTECT attribution foreign key that referenced them (grading
+sessions created, candidates withdrawn, assessments generated, outcomes
+proposed/decided, items assessed, promotions recorded, audit events) to a
+seeded "Deleted User" placeholder account (`accounts/migrations/0005_seed_
+deleted_user_placeholder.py`) rather than nulling or cascading it away.
+Deleting a completed assessment cascades through its outcome and promotion
+if either exists, reverting the student's rank, and refuses when a later
+promotion has already superseded it. Both self-deletion and deleting the
+placeholder itself are refused.
+
+Context:
+Raised directly, alongside three related asks (a grantable audit-log
+permission, scoped audit visibility, and the syllabus redesign - see the
+plan file and the following two decisions/FDR-041): "i would like to be
+able to delete users as an admin," framed explicitly as recovery from
+corruption or bad test data, not routine offboarding (`is_active` already
+covers that). Every attribution foreign key in this codebase is `PROTECT`
+specifically so deleting a user could never erase who did something (see
+the existing comments on `audit.AuditEvent.actor` and
+`gradings.CandidateAssessmentItem.assessor`); a true hard-delete needed to
+keep that promise rather than override it. Reassignment to a placeholder,
+not nulling, was chosen after the first round of answers ("yes, hard
+delete") conflicted with that PROTECT-everywhere philosophy - nulling would
+have erased attribution exactly as the PROTECT choice was written to
+prevent.
+
+Consequences:
+Three rows - `Promotion`, a finalised `CandidateOutcome`, and `AuditEvent` -
+refuse ordinary `QuerySet.update()`/`delete()` as well as `save()`/
+`delete()`, by design, to keep them append-only/immutable against ordinary
+code paths. `delete_platform_user` and `delete_candidate_assessment` call
+`models.QuerySet.update`/`delete` directly - the real, unbound base
+implementations - bypassing those instance-level overrides on purpose at
+one documented call site each. This is the one sanctioned way those guards
+are bypassed in the codebase; any future caller doing the same outside
+these two functions should be treated as a bug, not a precedent. The
+placeholder account is excluded from `UserViewSet`'s queryset entirely, so
+it can never itself be listed, edited or deleted through the API.
+
+### 2026-09-21 - Fourth sensitive permission: grantable grading-audit-log visibility
+
+Status: Accepted
+
+Decision:
+Add `gradings.can_view_grading_audit_log` as a fourth per-user sensitive
+permission, identical in mechanism to the existing three
+(`can_make_final_grading_decision`, `can_promote_student`,
+`can_override_locked_session`): granted via
+`PATCH /api/users/{id}/authority/`, in no group. `CanViewAuditLog` gains a
+third OR-branch for it. No new filtering logic: the existing
+`accounts.view_user` exclusion in `AuditEventViewSet.get_queryset()` already
+scopes a holder to grading/syllabus events and away from user-management
+ones (`USER_CREATED`, `USER_UPDATED`, `USER_AUTHORITY_CHANGED`,
+`USER_DELETED`), since a holder of only this permission won't have
+`accounts.view_user` either.
+
+Context:
+Raised directly, alongside the admin-deletion asks above: "the audit view
+should be an admin only thing for all events, but for events regarding the
+school specifically about gradings etc that should be grantable to the
+instructors." Confirmed via the "does that make sense" follow-up that this
+should reuse the exact boundary already drawn for Masters (everything
+except `USER_MANAGEMENT_ACTIONS`), not a narrower cut - retrospective
+accountability for grading/syllabus/assessment decisions during post-grading
+review, not user-lifecycle visibility.
+
+Consequences:
+A fourth boolean travels everywhere the other three already do:
+`UserSerializer`, `UserManagementSerializer`, `UserAuthoritySerializer`, the
+`AuthorityForm` options list and `ProfileMenu` capability badges on the
+frontend. `RequireAuditAccess` and the nav-rail Audit item check it
+alongside `can_make_final_grading_decision`. Named for the eventual
+"grading groups" workflow this was raised in service of (instructor
+sub-groups rotating through syllabus categories of a cohort, reviewing each
+other's audit trail) - that workflow itself remains unbuilt; only the
+visibility primitive it will depend on exists now.
+
 ### 2026-09-20 - Administrators can delete a cancelled session with recorded assessment work
 
 Status: Accepted

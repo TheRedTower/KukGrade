@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-20. This document
+Describes the implementation on `dev` as verified on 2026-09-21. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-20 with 476 backend tests and 155 frontend tests passing.
+Verified on 2026-09-21 with 491 backend tests and 156 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -35,7 +35,13 @@ clean. CI enforces the same categories on each push and pull request.
 - **One error envelope** for every error, with per-field validation messages
   reachable by the client. Unhandled 500s are enveloped too.
 - Rank catalogue seeded White through PKJN, read-only.
-- Syllabus catalogue for WKSA Version 2014, read-only.
+- Syllabus catalogue for WKSA Version 2014, read-only. Beyond the plain
+  per-rank requirement list, `GET /api/syllabus/requirements/effective/`
+  (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
+  item examinable through a selected rank: the latest applicable mapping at
+  or before that rank supplies the effective range, the earliest supplies
+  where it was introduced. Core grading areas are ordered to match the WKSA
+  chart's own category sequence rather than alphabetically.
 - Student model with `ACTIVE` / `INACTIVE` / `LEFT`. `LEFT` blocks grading
   registration; both non-active states are reversible and keep history.
 - **Students API**: list, retrieve, create, partial update.
@@ -122,13 +128,26 @@ clean. CI enforces the same categories on each push and pull request.
   joined session, student or rank row picked up incidentally through
   `select_related`.
 - **Users API**: list, retrieve, create, partial update, plus two dedicated
-  actions. `PATCH /api/users/{id}/authority/` grants or revokes the three
+  actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
   returns them, and refuses a user changing their own authority.
   `POST /api/users/{id}/set-password/` resets a password, validated by
   Django's configured password validators. `is_staff` and `is_superuser`
-  are never writable through the API. No delete: every attribution
-  foreign key is `PROTECT`.
+  are never writable through the API.
+- **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
+  and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
+  corruption or test-data cleanup rather than routine correction, gated to
+  Administrator-only permissions and refusing self-deletion. Every
+  attribution foreign key stays `PROTECT` in principle - `delete_platform_user`
+  keeps that promise by reassigning every reference (grading sessions,
+  candidates, assessments, outcomes, promotions, audit events) to a seeded
+  "Deleted User" placeholder account rather than nulling or cascading it
+  away, and `delete_candidate_assessment` cascades through the assessment's
+  outcome/promotion (reverting the student's rank) rather than leaving them
+  orphaned, refusing when a later promotion has already superseded it. Both
+  bypass immutability guards on `Promotion`, finalised `CandidateOutcome`
+  and `AuditEvent` deliberately, at one documented call site each, rather
+  than by omission. See the 2026-09-21 decision log entry.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
   stay administrator-only. `POST /api/auth/change-password/` lets a user
@@ -146,14 +165,18 @@ clean. CI enforces the same categories on each push and pull request.
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.
   Immutable from model, queryset, admin and HTTP. **Readable only by
-  administrators and holders of Master (final-decision) authority** - a
-  plain instructor gets 403, in both the API (`CanViewAuditLog`) and Django
+  administrators, holders of Master (final-decision) authority, and (since
+  2026-09-21) any instructor individually granted the fourth sensitive
+  permission, `can_view_grading_audit_log`** - a plain instructor holding
+  none of the three gets 403, in both the API (`CanViewAuditLog`) and Django
   admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`); no
-  group carries the `view_auditevent` permission for this reason. Even for
-  those two, user-management events (`USER_CREATED`, `USER_UPDATED`,
-  `USER_AUTHORITY_CHANGED`) are administrator-only - logistics, same as the
-  Users API itself, so a Master who is not an administrator still cannot
-  see them.
+  group carries the `view_auditevent` permission for this reason. For all
+  three, user-management events (`USER_CREATED`, `USER_UPDATED`,
+  `USER_AUTHORITY_CHANGED`, `USER_DELETED`) are additionally administrator-only
+  - logistics, same as the Users API itself - so a Master or a
+  `can_view_grading_audit_log` holder who is not an administrator still
+  cannot see them; the existing `accounts.view_user` exclusion filter scopes
+  the new permission automatically, with no separate filtering logic needed.
 - **Master authority is administrator-exclusive by design**: granting
   `can_make_final_grading_decision` to an administrator is refused
   (`POST /api/users/{id}/authority/`), and promoting a user who already
@@ -183,15 +206,20 @@ clean. CI enforces the same categories on each push and pull request.
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
 - **Implemented frontend workflows**: operational overview, student list,
-  student creation and detail/edit, syllabus catalogue, grading-session list,
-  create/detail/lifecycle controls, cohort registration, assessment snapshot
-  preparation, item-level marking, outcome proposal and final decision, and
-  the promotion ledger. The access-controlled Audit route provides server-side
-  action, entity, date and keyword filtering, pagination, and complete event
-  detail without any mutation control. The administrator-only Users workspace
-  provides account creation, server-side search/role/status filters, account
-  detail updates, the three independent authority controls, password reset,
-  and user-specific audit history. Session detail offers explicit
+  student creation and detail/edit, the syllabus cumulative current-knowledge
+  ledger (FDR-041/SCR-025), grading-session list, create/detail/lifecycle
+  controls, cohort registration, assessment snapshot preparation, item-level
+  marking, outcome proposal and final decision, and the promotion ledger.
+  The access-controlled Audit route provides server-side action, entity, date
+  and keyword filtering, pagination, and complete event detail without any
+  mutation control; reachable by administrators, the designated Master, and
+  any instructor granted `can_view_grading_audit_log`. The administrator-only
+  Users workspace provides account creation, server-side search/role/status
+  filters, account detail updates, the four independent authority controls,
+  password reset, user-specific audit history, and a destructive account
+  deletion action with a confirmation dialog. A candidate assessment can
+  likewise be hard-deleted by an administrator, cascading through its
+  outcome/promotion with a confirmation dialog. Session detail offers explicit
   bulk-first controls to prepare every missing assessment and then start every
   prepared assessment, bulk selection of candidates who did not attend before
   locking, and reasoned locked-session withdrawal only for a user with override

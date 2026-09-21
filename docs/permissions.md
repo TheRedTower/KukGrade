@@ -27,7 +27,9 @@ membership and is never consulted when authorising a request.
 | **Promote a student** | No | No | **Yes** |
 | **Withdraw from / cancel a locked session** | No | No | **Yes** |
 | Manage users and roles | No | Yes | via group |
-| **Read the audit log** | No | **Yes** | **Yes** |
+| **Delete a user account** | No | **Yes** | via group |
+| **Delete a completed assessment** | No | **Yes** | via group |
+| **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
 
 "Grading sessions: full CRUD" has one asymmetry: deleting a cancelled
 session that holds recorded assessment work (any candidate past
@@ -35,20 +37,37 @@ session that holds recorded assessment work (any candidate past
 administrator, who can override it deliberately (2026-09-20, see
 `decision_log.md`) - the `SESSION_DELETED` audit event is the trail.
 
+Two further Administrator-only capabilities, added 2026-09-21 for
+corruption/test-data cleanup rather than routine correction (see
+`decision_log.md`): hard-deleting a user account
+(`accounts.delete_user`, already part of "Manage users and roles" above but
+newly wired to an actual `DELETE`), and hard-deleting a completed candidate
+assessment (`gradings.delete_candidateassessment`,
+`gradings.delete_candidateoutcome`, `gradings.delete_promotion` - a new
+`_DATA_CLEANUP_PERMISSIONS` tuple, Administrator group only). Both cascade
+attribution/data to a placeholder account or a reverted rank rather than
+erasing history; see `docs/current-system.md`.
+
 "Master" is not a group. `gradings.can_make_final_grading_decision`,
-`gradings.can_promote_student` and `gradings.can_override_locked_session` are
-granted per user, independently of role, so
-authority survives one person being unavailable and never arrives as a side
-effect of a role change. The three are separate: holding one does not confer
-the others.
+`gradings.can_promote_student`, `gradings.can_override_locked_session` and
+(since 2026-09-21) `gradings.can_view_grading_audit_log` are granted per
+user, independently of role, so authority survives one person being
+unavailable and never arrives as a side effect of a role change. The four
+are separate: holding one does not confer the others.
+`can_view_grading_audit_log` is the odd one out in framing - it grants
+audit-log *read* access rather than a grading action - but follows the
+identical mechanism (`accounts.services.AUTHORITY_PERMISSIONS`,
+`accounts.groups.SENSITIVE_PERMISSIONS`) as the other three, so it is listed
+alongside them rather than introducing a second grant mechanism.
 
 Final-decision authority is administrator-exclusive by decision (2026-09-16,
 see `decision_log.md`): granting it to an administrator, or promoting a
 holder to administrator, is refused outright. Exactly one designated Master
-holds it; administrators hold the other two sensitive permissions and every
-other capability instead. The audit log follows the same administrator-or-
-Master line, unlike every other capability above where Master access "via
-group" already covers it - a plain instructor with neither is refused.
+holds it; administrators hold the other three sensitive permissions and
+every other capability instead. The audit log follows the same
+administrator-or-Master-or-grantee line, unlike every other capability above
+where Master access "via group" already covers it - a plain instructor
+holding none of the three is refused.
 
 `manager` was removed from `User.Role` in 2026-09. Nothing used it.
 

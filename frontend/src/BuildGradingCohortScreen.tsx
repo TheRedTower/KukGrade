@@ -15,6 +15,7 @@ import {
   getRanks,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
+import "./BuildGradingCohort.css";
 
 function formatSessionDate(dateStr: string): string {
   try {

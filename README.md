@@ -14,16 +14,20 @@ Students do not directly access the application.
 The backend is complete for the core grading domain: authentication and
 permissions, students, ranks, syllabus, grading sessions and candidates,
 assessment snapshots, candidate outcomes, promotion and rank history, user
-management, and audit logging. The frontend implements the main instructor
-workflow: overview, student records, syllabus browsing, grading-session and
-cohort management, assessment preparation and marking, outcome decisions, and
-promotion. Session detail includes bulk no-show confirmation before locking and
-reasoned, authority-gated candidate withdrawal after locking. The Audit route
-provides a paginated, filterable event browser with
-event detail for administrators and the designated Master. The Users route is
-an administrator-only staff-account workspace for creation, account updates,
-role/status management, Master authority, and password resets. Offline/PWA
-support and production deployment remain to be built.
+management, audit logging, and bulk data import (student roster and
+historical KSW Colchester grading-workbook migration into a separate,
+immutable `LegacyGradingRecord` model). The frontend implements the main
+instructor workflow: overview, student records, syllabus browsing,
+grading-session and cohort management, assessment preparation and marking,
+outcome decisions, and promotion. Session detail includes bulk no-show
+confirmation before locking and reasoned, authority-gated candidate
+withdrawal after locking. The Audit route provides a paginated, filterable
+event browser with event detail for administrators and the designated
+Master. The Users route is an administrator-only staff-account workspace for
+creation, account updates, role/status management, Master authority, and
+password resets. Administrator-only import screens handle student-roster and
+historical-grading uploads, review, and reconciliation. Offline/PWA support
+and production deployment remain to be built.
 
 This is a summary. **`docs/current-system.md` is the authoritative,
 continuously-verified description of what exists on `dev` right now** - it
@@ -94,7 +98,7 @@ cd backend
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts audit ranks students syllabus gradings
+uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports
 ```
 
 Frontend:
@@ -120,6 +124,8 @@ Start here for what is true today:
   rules (sessions, candidates, assessments, outcomes, promotion).
 - `docs/api_contract.md` - the endpoint-by-endpoint API reference, including
   which sections are implemented versus target/deferred.
+- `docs/data-import-and-legacy-migration.md` - bulk student-roster import and
+  historical KSW Colchester grading-workbook migration.
 - `docs/permissions.md` - roles, the Django-permission authority model, and
   sensitive-action authority.
 - `docs/decision_log.md` - dated decisions and their reasoning; the record of

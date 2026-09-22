@@ -3,18 +3,23 @@
 Describes the implementation on `dev` as verified on 2026-09-22. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-22 with 593 backend tests and 169 frontend tests passing.
+Verified on 2026-09-22 with 602 backend tests and 169 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
 
-A pre-existing, order-dependent flakiness in 8 backend tests (two "migrate
-from zero" tests and five real-thread concurrency tests, all marked
-`concurrency`) reproduces identically on a clean `dev` checkout with none of
-this session's changes applied, run in the same process as certain other
-tests - confirmed by isolating it in a separate worktree. Not introduced by
-anything on this branch; not fixed here, since it is unrelated to the
-feature being built. Each test passes cleanly in isolation.
+**Fixed 2026-09-22**: what had been recorded here as harmless "pre-existing,
+order-dependent flakiness" in 8 backend tests was actually a deterministic CI
+regression, introduced by `accounts/migrations/0005_seed_deleted_user_placeholder.py`
+(2026-09-21) and failing on every push since. `accounts/apps.py`'s `post_save`
+receiver on `User` (`_apply_role_group`) ran on every save, including the
+`raw=True` saves pytest-django's `serialized_rollback` issues while replaying
+its snapshot after a transactional test's flush; racing that replay's own
+`Group` rows produced `IntegrityError: duplicate key value violates unique
+constraint "auth_group_name_key"` on the second and later transactional test
+in a session. Fixed by having `_apply_role_group` return early on `raw=True`,
+the guard Django reserves exactly for this. See the 2026-09-22 decision log
+entry.
 
 ## Implemented
 

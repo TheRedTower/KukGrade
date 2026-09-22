@@ -12,6 +12,7 @@ from django.contrib.auth.models import AnonymousUser, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache as django_cache
 from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
 from django.forms import ModelForm
 from django.test import RequestFactory
 from rest_framework.test import APIClient, APIRequestFactory
@@ -519,6 +520,21 @@ def test_changing_role_moves_the_user_between_groups() -> None:
     names = set(user.groups.values_list("name", flat=True))
     assert names == {ADMINISTRATOR_GROUP}
     assert INSTRUCTOR_GROUP not in names
+
+
+def test_raw_save_does_not_trigger_group_assignment() -> None:
+    # Regression test: pytest-django's serialized_rollback restore replays
+    # saved User rows with raw=True. The post_save receiver used to run
+    # anyway, racing that same restore's own Group rows and producing
+    # "duplicate key value violates unique constraint auth_group_name_key"
+    # under the transactional test suite. Django reserves raw=True on
+    # post_save exactly to opt out of side effects like this one.
+    user = create_user("raw-save@example.com", role=User.Role.INSTRUCTOR)
+    user.groups.clear()
+
+    post_save.send(sender=User, instance=user, created=False, raw=True)
+
+    assert list(user.groups.values_list("name", flat=True)) == []
 
 
 def test_only_administrators_manage_users() -> None:

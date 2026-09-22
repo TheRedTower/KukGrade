@@ -18,6 +18,48 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-22 - Fix deterministic CI regression in transactional test teardown (auth_group double-insert)
+
+Status: Accepted
+
+Decision:
+`accounts/apps.py`'s `_apply_role_group` (a `post_save` receiver on `User`)
+now returns early when Django passes `raw=True`, the flag reserved for
+fixture/deserializer saves that place a row verbatim rather than represent a
+real create/update.
+
+Context:
+CI had been failing deterministically on every push since
+`c25ee29`/2026-09-21 (`accounts/migrations/0005_seed_deleted_user_placeholder.py`,
+which seeds a real `User` row via every `migrate`). Root cause, confirmed by
+direct instrumentation against a live PostgreSQL 17 database: `pytest-django`'s
+`serialized_rollback=True` (used by the 8 `transaction=True` tests -
+`gradings/test_concurrency.py`, and the "migrate from zero" tests in
+`syllabus/tests.py` and `gradings/tests.py` - to restore seed data after a
+transactional test's `flush()`) replays its snapshot with `obj.save()`,
+which dispatches `post_save` with `raw=True` but does not suppress it.
+Before this fix, `_apply_role_group` ran anyway on the replayed `User` row,
+calling `Group.objects.get_or_create(...)` mid-replay. Because `accounts`
+precedes `django.contrib.auth` in `INSTALLED_APPS`, the snapshot lists the
+`User` row before the `Group` rows, so on the second and later transactional
+test in a session (the first test's own `flush()` had already emptied the
+table with no sequence reset) the receiver's `get_or_create` inserted a
+`Group` row on a fresh auto-increment pk, and the snapshot's own `Group`
+record - now with a pk nothing matches - fell through to an explicit-pk
+`INSERT` and hit `auth_group_name_key`. Previously misdiagnosed and recorded
+in `docs/current-system.md` as harmless pre-existing test-order flakiness;
+it was neither pre-existing (traced to the 2026-09-21 migration) nor
+order-independent flaky (100% reproducible, same 8 tests, every run).
+
+Consequences:
+`raw: bool = False` was added to `_apply_role_group`'s signature with an
+early return - the idiom Django's own docs recommend for exactly this
+class of receiver. A regression test (`accounts/tests.py::test_raw_save_does_not_trigger_group_assignment`)
+sends `post_save` with `raw=True` directly and asserts no group membership
+change. Full suite: 602 passed, 0 errors, reproduced across two consecutive
+runs. No change needed to the seed migration, `accounts/groups.py`, or the
+`serialized_rollback` usage on the 8 tests, which is correct and necessary.
+
 ### 2026-09-22 - Historical KSW Colchester grading-workbook migration (Phase B of the data-import spec)
 
 Status: Accepted

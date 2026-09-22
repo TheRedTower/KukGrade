@@ -16,7 +16,11 @@ permissions, students, ranks, syllabus, grading sessions and candidates,
 assessment snapshots, candidate outcomes, promotion and rank history, user
 management, audit logging, and bulk data import (student roster and
 historical KSW Colchester grading-workbook migration into a separate,
-immutable `LegacyGradingRecord` model). The frontend implements the main
+immutable `LegacyGradingRecord` model). Administrator-only hard-delete
+tooling (user accounts, completed assessments, students with full cascade,
+and grading sessions in any status) covers corruption/test-data cleanup and
+routine record removal without weakening the audit trail. The frontend
+implements the main
 instructor workflow: overview, student records, syllabus browsing,
 grading-session and cohort management, assessment preparation and marking,
 outcome decisions, and promotion. Session detail includes bulk no-show

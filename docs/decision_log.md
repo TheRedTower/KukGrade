@@ -18,6 +18,46 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-23 - Fix Django admin parity gap for any-status grading session delete
+
+Status: Accepted
+
+Decision:
+`gradings.admin.StateGatedDeleteMixin.has_delete_permission`/`_is_deletable`
+now thread the logged-in admin user into the deletion validator, and
+`GradingSessionAdmin` routes its actual delete (`delete_model`/
+`delete_queryset`) through `gradings.services.delete_grading_session()`
+rather than a bare `obj.delete()`/`queryset.delete()`.
+
+Context:
+Found while documenting the 2026-09-22 any-status session delete: Django
+admin is one of this app's two first-class operational surfaces (see
+`docs/audits/2026-09-15-post-completion-audit.md`'s KG-036 finding), and
+this capability had no parity there at all. `has_delete_permission` called
+`validate_session_can_be_deleted(obj)` with no actor, so the
+`actor.role == ADMINISTRATOR` branch could never engage - Delete stayed
+hidden for `LOCKED`/`COMPLETED` sessions in Django admin even for a real
+administrator, though the identical action worked through the API.
+Confirmed directly: `test_admin_hides_delete_for_a_session_that_cannot_be_deleted`
+already asserted this false-negative using a superuser. Even with
+visibility fixed, the default `delete_model`/`delete_queryset` would have
+called `obj.delete()`/`queryset.delete()` directly, which does not strip
+`Promotion`/`CandidateOutcome` rows first, so deleting a session with
+finalised data through admin would have hit `ProtectedError` instead of
+cascading.
+
+Consequences:
+`validate_candidate_can_be_deleted` gained an unused `actor` parameter
+purely for calling-convention uniformity with `validate_session_can_be_deleted`
+inside the shared mixin; `GradingCandidateAdmin` (candidates have no
+administrator override) is otherwise unaffected. Two existing admin tests
+that asserted the old (buggy) behavior using a superuser were corrected to
+use a non-administrator, which is what they actually meant to test; three
+new tests cover an administrator seeing Delete for every status, bulk
+deleting a mixed-status selection, and `delete_model` on a `LOCKED` session
+with a finalised outcome and promotion cascading correctly with the rank
+reverted and `SESSION_DELETED` recorded. 617 backend tests pass.
+
 ### 2026-09-22 - Administrator-only hard delete for students and any-status grading sessions
 
 Status: Accepted

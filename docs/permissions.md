@@ -29,28 +29,36 @@ membership and is never consulted when authorising a request.
 | Manage users and roles | No | Yes | via group |
 | **Delete a user account** | No | **Yes** | via group |
 | **Delete a completed assessment** | No | **Yes** | via group |
+| **Delete a student (full cascade)** | No | **Yes** | via group |
+| **Delete a grading session in any status** | No | **Yes** | via group |
 | **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
 | **Bulk-import student roster (upload/preview/commit)** | No | **Yes** | via group |
 | **Bulk-import historical grading workbook (upload/preview/commit)** | No | **Yes** | via group |
 | Read imported historical grading records | Yes | Yes | via group |
 | **Reconcile a historical record (link/unlink/resolve rank/void)** | No | **Yes** | via group |
 
-"Grading sessions: full CRUD" has one asymmetry: deleting a cancelled
-session that holds recorded assessment work (any candidate past
-`NOT_STARTED`) is refused for an instructor but allowed for an
-administrator, who can override it deliberately (2026-09-20, see
-`decision_log.md`) - the `SESSION_DELETED` audit event is the trail.
+"Grading sessions: full CRUD" has one asymmetry: an instructor can only
+delete a `DRAFT` or `CANCELLED` session, and even a `CANCELLED` one holding
+recorded assessment work (any candidate past `NOT_STARTED`) is refused for
+them. An administrator can delete a session in **any** status, including
+`LOCKED`/`COMPLETED` sessions holding finalised outcomes and promotions
+(2026-09-20 for the cancelled-with-work case, extended to every status
+2026-09-22 - see `decision_log.md`) - the `SESSION_DELETED` audit event,
+with reverted ranks in its metadata, is the trail.
 
-Two further Administrator-only capabilities, added 2026-09-21 for
-corruption/test-data cleanup rather than routine correction (see
-`decision_log.md`): hard-deleting a user account
+Three further Administrator-only capabilities, added 2026-09-21 through
+2026-09-22 for corruption/test-data cleanup and routine cleanup rather than
+occasional correction (see `decision_log.md`): hard-deleting a user account
 (`accounts.delete_user`, already part of "Manage users and roles" above but
-newly wired to an actual `DELETE`), and hard-deleting a completed candidate
+newly wired to an actual `DELETE`), hard-deleting a completed candidate
 assessment (`gradings.delete_candidateassessment`,
-`gradings.delete_candidateoutcome`, `gradings.delete_promotion` - a new
-`_DATA_CLEANUP_PERMISSIONS` tuple, Administrator group only). Both cascade
+`gradings.delete_candidateoutcome`, `gradings.delete_promotion`), and
+hard-deleting a student (`students.delete_student`) - all in the
+`_DATA_CLEANUP_PERMISSIONS` tuple, Administrator group only. All cascade
 attribution/data to a placeholder account or a reverted rank rather than
-erasing history; see `docs/current-system.md`.
+erasing history it doesn't own; deleting a student unlinks (rather than
+deletes) any `LegacyGradingRecord` linked to them. See
+`docs/current-system.md`.
 
 Bulk student-roster import, added 2026-09-21, is likewise Administrator-
 group-only (`data_imports.view_importbatch`, `.add_importbatch`,

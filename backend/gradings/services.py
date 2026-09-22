@@ -590,7 +590,14 @@ def validate_candidate_assessment_changes(
         )
 
 
-def validate_candidate_can_be_deleted(candidate: GradingCandidate) -> None:
+def validate_candidate_can_be_deleted(
+    candidate: GradingCandidate,
+    actor: User | None = None,  # noqa: ARG001
+) -> None:
+    # actor accepted but unused: candidate deletion has no administrator
+    # override today, unlike validate_session_can_be_deleted. The parameter
+    # exists so gradings.admin.StateGatedDeleteMixin can call every
+    # deletion_validator with the same (obj, actor=...) signature.
     outcome = getattr(candidate, "outcome", None)
     if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
         raise ValidationError(

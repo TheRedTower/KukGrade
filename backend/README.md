@@ -163,12 +163,21 @@ registration, so adding a group and starting their assessments is one
 request. The response lists what succeeded and an `errors` map keyed by row
 index for what did not - see `../docs/api_contract.md` for the exact shape.
 
-Deletion is state-gated: sessions can be deleted only while draft or
-cancelled, and a cancelled session holding recorded assessment work (any
-candidate past `NOT_STARTED`) refuses deletion unless the actor is an
-administrator, who can override it deliberately - the `SESSION_DELETED`
-audit event is the trail. Candidates can be deleted only while their parent
-session is draft or open.
+Deletion is state-gated for an instructor: sessions can be deleted only
+while draft or cancelled, and a cancelled session holding recorded
+assessment work (any candidate past `NOT_STARTED`) refuses deletion
+outright. An administrator can delete a session in **any** status,
+including `LOCKED`/`COMPLETED` sessions holding finalised outcomes and
+promotions (2026-09-20 for the cancelled-with-work case, extended to every
+status 2026-09-22) - `delete_grading_session` pre-flight validates every
+candidate's promotion (all-or-nothing, refusing if a later, different
+session's promotion has already superseded it), reverts each affected
+student's `current_rank`, and strips `Promotion`/`CandidateOutcome` rows
+before the ordinary cascade removes the rest. The `SESSION_DELETED` audit
+event, with `reverted_student_ranks` in its metadata, is the trail. See
+`gradings.services.delete_grading_session` and the 2026-09-22 decision log
+entry. Candidates can be deleted only while their parent session is draft
+or open.
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is draft or open.
 `created_by`, candidate `student`, and candidate `testing_for_rank` use
@@ -178,12 +187,24 @@ Deletion rules are enforced at the model, so they hold from `Model.delete()`,
 `QuerySet.delete()`, a related manager, `manage.py shell` and Django admin -
 not only through the API. A bulk delete is all-or-nothing: if any row in the
 selection is refused, nothing is deleted, so a selection cannot be
-part-applied. Admin hides Delete on a change page when the rule refuses.
+part-applied. Admin hides Delete on a change page when the rule refuses -
+`gradings.admin.StateGatedDeleteMixin` threads the logged-in admin user into
+the deletion validator so an administrator's extra power (any status, not
+just draft/cancelled) is visible there exactly as it is through the API;
+before 2026-09-23 it was not, since the validator was called with no actor
+at all, and `GradingSessionAdmin`'s actual delete (`delete_model`/
+`delete_queryset`) now routes through `delete_grading_session()` rather
+than a bare `obj.delete()`/`queryset.delete()`, so the same
+Promotion/CandidateOutcome cascade the API does happens through Django
+admin too, instead of a `ProtectedError`.
 
-One boundary deliberately remains: deleting a session the rule allows still
-cascades to its candidates and their assessments, because that is what
-deleting a draft or cancelled session means. Immutability and concurrency
-hardening are tracked in `../docs/audits/remediation-status.md`.
+Deleting a session the rule allows always cascades to its candidates and
+their assessments; for an administrator deleting a `LOCKED`/`COMPLETED`
+session this also cascades through finalised outcomes and promotions,
+reverting the affected students' ranks - see "Grading Sessions" above and
+the 2026-09-22/2026-09-23 decision log entries. Immutability and
+concurrency hardening are tracked in
+`../docs/audits/remediation-status.md`.
 
 ## Candidate Assessments
 

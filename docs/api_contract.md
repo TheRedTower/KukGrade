@@ -123,10 +123,8 @@ Status: target/deferred. These API endpoints are not implemented on `dev`.
 
 ## 4. Students
 
-Status: implemented, list/retrieve/create/update. Deferred: `DELETE`
-(every relationship to a student is `PROTECT` and history is retained by
-decision - deactivate via `status` instead), eligibility and recommendation
-endpoints (not part of any accepted design).
+Status: implemented, list/retrieve/create/update/delete. Deferred:
+eligibility and recommendation endpoints (not part of any accepted design).
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
@@ -134,13 +132,23 @@ endpoints (not part of any accepted design).
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
-| PUT, DELETE | /api/students/{id}/                   | 405; not exposed                                 |
+| DELETE | /api/students/{id}/                        | Administrator-only hard delete, cascading through every registration/assessment/outcome/promotion involving the student; unlinks (never deletes) a linked legacy record. Requires `students.delete_student`. |
+| PUT   | /api/students/{id}/                         | 405; not exposed                                 |
 | GET   | /api/students/{id}/rank-history/            | Current rank plus every promotion record         |
 | GET   | /api/students/{id}/grading-history/         | Finalised native outcomes + linked, non-voided legacy records, source-labelled |
 
 The list representation omits `date_of_birth`; the detail representation
 includes it. `wksa_id` is writable on create and read-only afterwards. See
 `docs/current-system.md` for the rationale.
+
+`DELETE` (2026-09-22) is deliberately routine, not a rare erasure path -
+see the 2026-09-22 decision log entry. It differs from most deletions in
+this app in that nothing is preserved for the deleted student's own
+grading records (contrast the assessment hard-delete below, or
+`delete_platform_user`, which reassign attribution to a placeholder
+instead of erasing it) - a linked `LegacyGradingRecord` is the one
+exception, since it is independent evidence of an imported workbook, not
+the student's own record.
 
 `grading-history` (2026-09-22) is deliberately distinct from
 `rank-history`: it combines finalised native `CandidateOutcome`s with
@@ -251,7 +259,7 @@ payment workflows.
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
 | PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |
 | PATCH | /api/gradings/sessions/{id}/           | Update a grading session                         |
-| DELETE| /api/gradings/sessions/{id}/           | Delete only when status is DRAFT or CANCELLED; a cancelled session with recorded assessment work requires an administrator |
+| DELETE| /api/gradings/sessions/{id}/           | Instructor: only DRAFT or CANCELLED, and a CANCELLED session with recorded assessment work is refused. Administrator: any status, including LOCKED/COMPLETED - cascades through finalised outcomes and promotions, reverting affected students' ranks, pre-flight validated all-or-nothing |
 | GET   | /api/gradings/candidates/              | List grading candidates                          |
 | POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |

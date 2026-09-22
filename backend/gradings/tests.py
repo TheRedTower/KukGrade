@@ -4283,8 +4283,13 @@ def test_candidate_delete_rule_holds_through_the_related_manager() -> None:
 
 
 def test_admin_hides_delete_for_a_session_that_cannot_be_deleted() -> None:
+    # A non-administrator: the ordinary DRAFT/CANCELLED-only gate applies,
+    # same as the API. An administrator's extra power is covered by
+    # test_admin_shows_delete_for_any_status_to_an_administrator below -
+    # request.user is threaded into the validator (KG-036-class fix,
+    # 2026-09-23), so this must use a non-admin to still exercise the gate.
     request = RequestFactory().get("/admin/")
-    request.user = User.objects.create_superuser("delete-admin@example.com")
+    request.user = user("delete-instructor@example.com")
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
 
     open_session = grading_session(status=GradingSession.Status.OPEN)
@@ -4296,9 +4301,31 @@ def test_admin_hides_delete_for_a_session_that_cannot_be_deleted() -> None:
     assert model_admin.has_delete_permission(request, None) is True
 
 
+def test_admin_shows_delete_for_any_status_to_an_administrator() -> None:
+    # Regression test: has_delete_permission used to call the validator with
+    # no actor at all, so an administrator's override in
+    # validate_session_can_be_deleted could never engage through Django
+    # admin - Delete stayed hidden for LOCKED/COMPLETED sessions even for a
+    # real administrator, unlike the identical case through the API.
+    request = RequestFactory().get("/admin/")
+    request.user = user(
+        "delete-admin-any-status@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    for status in (
+        GradingSession.Status.OPEN,
+        GradingSession.Status.LOCKED,
+        GradingSession.Status.COMPLETED,
+    ):
+        session = grading_session(status=status)
+        assert model_admin.has_delete_permission(request, session) is True
+
+
 def test_admin_bulk_delete_refuses_the_whole_selection() -> None:
     request = RequestFactory().post("/admin/")
-    request.user = User.objects.create_superuser("bulk-admin@example.com")
+    request.user = user("bulk-instructor@example.com")
     request.session = SessionStore()
     request._messages = FallbackStorage(request)  # type: ignore[attr-defined]
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
@@ -4313,6 +4340,68 @@ def test_admin_bulk_delete_refuses_the_whole_selection() -> None:
 
     assert GradingSession.objects.filter(pk=deletable.pk).exists()
     assert GradingSession.objects.filter(pk=blocked.pk).exists()
+
+
+def test_admin_bulk_delete_by_an_administrator_reaches_any_status() -> None:
+    request = RequestFactory().post("/admin/")
+    request.user = user(
+        "bulk-admin-any-status@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    request.session = SessionStore()
+    request._messages = FallbackStorage(request)  # type: ignore[attr-defined]
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    draft = grading_session(status=GradingSession.Status.DRAFT)
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+
+    model_admin.delete_queryset(
+        request,
+        GradingSession.objects.filter(pk__in=[draft.pk, open_session.pk]),
+    )
+
+    assert not GradingSession.objects.filter(
+        pk__in=[draft.pk, open_session.pk],
+    ).exists()
+
+
+def test_admin_delete_model_on_a_locked_session_cascades_through_the_service() -> None:
+    # Proves delete_model routes through delete_grading_session rather than
+    # a bare obj.delete() - without that, an administrator deleting a
+    # LOCKED/COMPLETED session with a finalised outcome and promotion would
+    # hit ProtectedError (Promotion.outcome/CandidateOutcome.assessment are
+    # both PROTECT) instead of cascading, even with has_delete_permission
+    # now correctly returning True for them.
+    built, _generated = locked_completed_candidate()
+    session = built.session
+    outcome = finalised_outcome(built)
+    promotion = promote_candidate(
+        outcome,
+        promoter("admin-delete-model-cascade@example.com"),
+    )
+    student_row = built.student
+    student_row.refresh_from_db()
+
+    request = RequestFactory().post("/admin/")
+    request.user = user(
+        "delete-model-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+    session_pk = session.pk
+
+    model_admin.delete_model(request, session)
+
+    assert not GradingSession.objects.filter(pk=session_pk).exists()
+    assert not Promotion.objects.filter(pk=promotion.pk).exists()
+    assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+    student_row.refresh_from_db()
+    assert student_row.current_rank == promotion.from_rank
+    assert AuditEvent.objects.filter(
+        entity_type="GradingSession",
+        entity_id=str(session_pk),
+        action=AuditAction.SESSION_DELETED,
+    ).exists()
 
 
 def test_admin_bulk_delete_proceeds_when_every_row_is_deletable() -> None:

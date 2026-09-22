@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-22. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-22 with 614 backend tests and 173 frontend tests passing.
+Verified on 2026-09-23 with 617 backend tests and 173 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -181,6 +181,9 @@ entry.
   student's `current_rank`, and strips `Promotion`/`CandidateOutcome` rows
   before the ordinary cascade removes the rest - the `SESSION_DELETED`
   audit event, with `reverted_student_ranks` in its metadata, is the trail.
+  Django admin has full parity with the API here (2026-09-23 fix): the
+  admin's deletion validator now receives the logged-in user, and its
+  actual delete routes through the same `delete_grading_session()`.
 - **Database-level integrity**: a composite foreign key stops an outcome being
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are

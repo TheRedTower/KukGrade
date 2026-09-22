@@ -20,6 +20,7 @@ from gradings.models import (
 from gradings.services import (
     apply_candidate_update,
     create_grading_session,
+    delete_grading_session,
     register_candidate,
     transition_grading_session,
     update_candidate_assessment,
@@ -95,14 +96,16 @@ class StateGatedDeleteMixin:
             return False
         if obj is None:
             return True
-        try:
-            type(self).deletion_validator(obj)
-        except DjangoValidationError:
-            return False
-        return True
+        # actor threaded through so a validator that grants an administrator
+        # extra power (e.g. validate_session_can_be_deleted) sees the same
+        # acting user the API does, rather than always evaluating as if no
+        # one were logged in. Validators that ignore actor (e.g.
+        # validate_candidate_can_be_deleted) are unaffected.
+        return self._is_deletable(obj, actor=cast(User, request.user))
 
     def delete_queryset(self, request: HttpRequest, queryset: Any) -> None:
-        blocked = [obj for obj in queryset if not self._is_deletable(obj)]
+        actor = cast(User, request.user)
+        blocked = [obj for obj in queryset if not self._is_deletable(obj, actor=actor)]
         if blocked:
             self.message_user(  # type: ignore[attr-defined]
                 request,
@@ -114,11 +117,23 @@ class StateGatedDeleteMixin:
                 level=messages.ERROR,
             )
             return
-        queryset.delete()
+        for obj in queryset:
+            self._perform_delete(request, obj)
 
-    def _is_deletable(self, obj: Any) -> bool:
+    def delete_model(self, request: HttpRequest, obj: Any) -> None:
+        self._perform_delete(request, obj)
+
+    def _perform_delete(self, request: HttpRequest, obj: Any) -> None:
+        # Default: the model's own delete(). GradingSessionAdmin overrides
+        # this to route through delete_grading_session() instead, the same
+        # way save_model() above routes through the service rather than a
+        # bare save() (KG-036) - a raw obj.delete() would neither pass an
+        # actor nor strip Promotion/CandidateOutcome rows first.
+        obj.delete()
+
+    def _is_deletable(self, obj: Any, actor: User | None = None) -> bool:
         try:
-            type(self).deletion_validator(obj)
+            type(self).deletion_validator(obj, actor=actor)
         except DjangoValidationError:
             return False
         return True
@@ -139,6 +154,9 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     search_fields = ("title", "location")
     ordering = ("-grading_date", "created_at")
     list_select_related = ("created_by",)
+
+    def _perform_delete(self, request: HttpRequest, obj: GradingSession) -> None:
+        delete_grading_session(obj, actor=cast(User, request.user))
 
     def save_model(
         self,

@@ -101,12 +101,17 @@ def create_import_batch(
     # Parse-validate before the file is ever persisted, so a malformed
     # upload is rejected immediately rather than discovered at preview time.
     # The headers are also handed back so the frontend can build a mapping
-    # UI without a second round trip.
-    try:
-        dataset = load_tabular_dataset(content=content, filename=filename)
-    except UnsupportedImportFileError as exc:
-        raise DjangoValidationError({"file": [str(exc)]}) from exc
-    detected_headers = [str(header) for header in dataset.headers]
+    # UI without a second round trip. Only STUDENT_ROSTER is a flat table -
+    # LEGACY_GRADINGS workbooks have an "Information" cover sheet plus
+    # per-period sheets, which tablib's single-sheet loader can't parse;
+    # those get their own structural check in parse_ksw_colchester_workbook.
+    detected_headers: list[str] = []
+    if kind == ImportBatch.Kind.STUDENT_ROSTER:
+        try:
+            dataset = load_tabular_dataset(content=content, filename=filename)
+        except UnsupportedImportFileError as exc:
+            raise DjangoValidationError({"file": [str(exc)]}) from exc
+        detected_headers = [str(header) for header in dataset.headers]
 
     digest = hashlib.sha256(content).hexdigest()
     already_imported_warning = ImportBatch.objects.filter(

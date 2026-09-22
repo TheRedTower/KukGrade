@@ -34,11 +34,12 @@ from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 # Excel worksheet titles cannot contain "/" (openpyxl raises ValueError on
 # it - it is one of the characters OOXML itself forbids in a sheet title),
 # so despite the spec's own prose consistently writing cycle sheet names as
-# "06/2025", the real workbook cannot literally be titled that. The real
-# separator is almost certainly "-" or "." (both common stand-ins for "/"
-# in a sheet tab); this accepts either, plus "/" itself in case the spec's
-# example was accurate after all for some other reason.
-_CYCLE_SHEET_PATTERN = re.compile(r"^(0[1-9]|1[0-2])[-./](\d{4})$")
+# "06/2025", the real workbook cannot literally be titled that. Confirmed
+# against a real KSW export: Excel silently drops the "/" rather than
+# substituting "-" or ".", leaving a bare "MMYYYY" sheet title (e.g.
+# "062025"). This accepts that concatenated form, plus "-", "." and "/"
+# themselves in case some other export path preserves a separator.
+_CYCLE_SHEET_PATTERN = re.compile(r"^(0[1-9]|1[0-2])[-./]?(\d{4})$")
 _IGNORED_SHEET_NAMES = {"information"}
 
 # Main-table header cells (order-independent; the header row is found by

@@ -16,8 +16,17 @@ def _apply_role_group(
     sender: Any,
     instance: Any,
     created: bool,
+    raw: bool = False,
     **_kwargs: Any,
 ) -> None:
+    # raw=True means a fixture/deserializer (e.g. pytest-django's
+    # serialized_rollback restore) is placing this row verbatim, not a real
+    # user being created or edited - applying group membership here races
+    # the same restore's own Group rows and corrupts them (auth_group unique
+    # violation under the transactional tests). Skip on raw saves.
+    if raw:
+        return
+
     from accounts.groups import apply_role_group
 
     apply_role_group(instance)

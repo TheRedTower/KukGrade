@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from "react";
+import { Fragment, useMemo, useState, type ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -383,8 +383,8 @@ export function ImportStudentsScreen() {
               </thead>
               <tbody>
                 {reviewRows.map((row) => (
-                  <>
-                    <tr key={row.row_number}>
+                  <Fragment key={row.row_number}>
+                    <tr>
                       <td>{row.row_number}</td>
                       <td>
                         {row.first_name} {row.last_name}
@@ -428,7 +428,7 @@ export function ImportStudentsScreen() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

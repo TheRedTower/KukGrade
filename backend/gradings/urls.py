@@ -8,6 +8,7 @@ from gradings.views import (
     CandidateOutcomeViewSet,
     GradingCandidateViewSet,
     GradingSessionViewSet,
+    LegacyGradingRecordViewSet,
     PromotionViewSet,
 )
 
@@ -37,6 +38,11 @@ router.register(
     "gradings/promotions",
     PromotionViewSet,
     basename="promotion",
+)
+router.register(
+    "gradings/legacy-records",
+    LegacyGradingRecordViewSet,
+    basename="legacy-grading-record",
 )
 
 urlpatterns = router.urls

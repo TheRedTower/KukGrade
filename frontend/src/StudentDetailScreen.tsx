@@ -5,10 +5,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ApiError,
   type FieldErrors,
+  type GradingHistoryItem,
   type Rank,
   type StudentStatus,
   getRanks,
   getStudent,
+  getStudentGradingHistory,
   getStudentRankHistory,
   updateStudent,
 } from "./api";
@@ -83,6 +85,29 @@ function formatDateShort(dateStr: string | null | undefined): string {
   }
 }
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function formatGradingHistoryDate(item: GradingHistoryItem): string {
+  if (item.date_precision === "DAY" && item.date) {
+    return formatDateShort(item.date);
+  }
+  if (item.cycle_year && item.cycle_month) {
+    return `${MONTH_NAMES[item.cycle_month - 1]} ${item.cycle_year}`;
+  }
+  return "—";
+}
+
+function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
+  if (item.attendance_status === "DID_NOT_ATTEND") return "Did not attend";
+  if (item.outcome === "PASS") return "Pass";
+  if (item.outcome === "FAIL") return "Fail";
+  if (item.outcome === "CONDITIONAL") return "Conditional";
+  return "Unresolved";
+}
+
 function calculateAge(dobStr: string | null | undefined): number | null {
   if (!dobStr) return null;
   const dob = new Date(dobStr);
@@ -150,6 +175,13 @@ export function StudentDetailScreen() {
   const rankHistoryQuery = useQuery({
     queryKey: ["studentRankHistory", studentId],
     queryFn: () => getStudentRankHistory(studentId),
+    enabled: !isNaN(studentId) && studentId > 0,
+  });
+
+  // 2b. Fetch unified grading history (native + linked historical records)
+  const gradingHistoryQuery = useQuery({
+    queryKey: ["studentGradingHistory", studentId],
+    queryFn: () => getStudentGradingHistory(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
@@ -298,6 +330,7 @@ export function StudentDetailScreen() {
   }
 
   const promotions = rankHistory?.promotions ?? [];
+  const gradingHistoryItems = gradingHistoryQuery.data?.items ?? [];
   const statusStr = student.status || "ACTIVE";
   const statusDisplay = student.status_display || statusStr;
 
@@ -393,34 +426,60 @@ export function StudentDetailScreen() {
             </dl>
           </div>
 
-          {/* Card 2: Grading history */}
+          {/* Card 2: Grading history - native + linked historical records */}
           <div className="detail-section-card">
             <h2 className="detail-section-title">Grading history</h2>
-            {promotions.length > 0 ? (
+            {gradingHistoryItems.length > 0 ? (
               <div className="table-scroll-wrapper">
                 <table className="students-data-table" aria-label="Grading history">
                   <thead>
                     <tr>
                       <th scope="col">Date</th>
-                      <th scope="col">Session</th>
-                      <th scope="col">Assessed rank</th>
+                      <th scope="col">Source</th>
+                      <th scope="col">Testing for</th>
                       <th scope="col">Outcome</th>
-                      <th scope="col">Promoted to</th>
+                      <th scope="col">Comments</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {promotions.map((p) => (
-                      <tr key={p.id} className="student-table-row">
-                        <td>{formatDateShort(p.grading_date || p.promoted_at)}</td>
-                        <td className="session-title-cell">{p.session_title || "Standard Grading"}</td>
-                        <td>{p.from_rank_name}</td>
+                    {gradingHistoryItems.map((item) => (
+                      <tr key={`${item.source}-${item.record_id}`} className="student-table-row">
+                        <td>{formatGradingHistoryDate(item)}</td>
                         <td>
-                          <span className="outcome-badge outcome-passed">
-                            <CheckIcon />
-                            <span>Passed</span>
+                          <span
+                            className={`grading-history-source-badge ${
+                              item.source === "KUKGRADE"
+                                ? "source-kukgrade"
+                                : "source-historical"
+                            }`}
+                          >
+                            {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
                           </span>
                         </td>
-                        <td className="cell-rank-highlight">{p.to_rank_name}</td>
+                        <td className="cell-rank-highlight">
+                          {item.testing_for_rank_name ||
+                            item.source_testing_for_rank_text ||
+                            "—"}
+                        </td>
+                        <td>
+                          {item.attendance_status === "DID_NOT_ATTEND" ? (
+                            <span className="outcome-badge outcome-dna">
+                              {gradingHistoryOutcomeLabel(item)}
+                            </span>
+                          ) : item.outcome === "PASS" ? (
+                            <span className="outcome-badge outcome-passed">
+                              <CheckIcon />
+                              <span>{gradingHistoryOutcomeLabel(item)}</span>
+                            </span>
+                          ) : (
+                            <span className="outcome-badge outcome-other">
+                              {gradingHistoryOutcomeLabel(item)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="grading-history-comments-cell">
+                          {item.comments || "—"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -465,7 +524,7 @@ export function StudentDetailScreen() {
                       : student.current_rank_name}
                   </div>
                   <div className="timeline-subtext">
-                    Joined Kuk Sool Won
+                    Initial rank recorded in KukGrade
                   </div>
                 </div>
               </div>

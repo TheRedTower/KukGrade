@@ -204,6 +204,7 @@ def delete_platform_user(target: User, actor: User) -> User:
         CandidateOutcome,
         GradingCandidate,
         GradingSession,
+        LegacyGradingRecord,
         Promotion,
     )
 
@@ -245,6 +246,10 @@ def delete_platform_user(target: User, actor: User) -> User:
         "import_batches_cancelled": ImportBatch.objects.filter(
             cancelled_by=target,
         ).update(cancelled_by=placeholder),
+        "legacy_grading_records_voided": models.QuerySet.update(
+            LegacyGradingRecord.objects.filter(voided_by=target),
+            voided_by=placeholder,
+        ),
     }
 
     record(

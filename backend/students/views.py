@@ -9,9 +9,10 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from accounts.permissions import HasRequiredPermissions
-from gradings.services import student_rank_timeline
+from gradings.services import student_rank_timeline, unified_student_grading_history
 from students.models import Student
 from students.serializers import (
+    StudentGradingHistorySerializer,
     StudentListSerializer,
     StudentRankHistorySerializer,
     StudentSerializer,
@@ -49,6 +50,11 @@ class StudentViewSet(
         "create": ("students.add_student",),
         "partial_update": ("students.change_student",),
         "rank_history": ("students.view_student", "gradings.view_promotion"),
+        "grading_history": (
+            "students.view_student",
+            "gradings.view_candidateoutcome",
+            "gradings.view_legacygradingrecord",
+        ),
     }
 
     def get_serializer_class(self) -> type:
@@ -56,6 +62,8 @@ class StudentViewSet(
             return StudentListSerializer
         if self.action == "rank_history":
             return StudentRankHistorySerializer
+        if self.action == "grading_history":
+            return StudentGradingHistorySerializer
         return StudentSerializer
 
     def get_queryset(self) -> QuerySet[Student]:
@@ -118,4 +126,17 @@ class StudentViewSet(
     ) -> Response:
         student = self.get_object()
         serializer = StudentRankHistorySerializer(student_rank_timeline(student))
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="grading-history")
+    def grading_history(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        student = self.get_object()
+        serializer = StudentGradingHistorySerializer(
+            unified_student_grading_history(student),
+        )
         return Response(serializer.data)

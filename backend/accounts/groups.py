@@ -48,6 +48,11 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "add_candidateoutcome"),
     ("gradings", "change_candidateoutcome"),
     ("gradings", "view_promotion"),
+    # Historical grading visibility matches native grading visibility
+    # (Decision 15 of the import spec) - both roles may view imported
+    # legacy records; only an administrator may import/reconcile/void one
+    # (_LEGACY_GRADING_RECONCILIATION_PERMISSIONS below).
+    ("gradings", "view_legacygradingrecord"),
     # Deliberately not "audit", "view_auditevent" here: audit log access is
     # administrator-or-Master (accounts.permissions.CanViewAuditLog), a
     # narrower cut than either role group, so no group grants it at all.
@@ -85,6 +90,14 @@ _DATA_IMPORT_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("data_imports", "can_commit_import"),
 )
 
+# Link/unlink/resolve-rank/void a historical record - Administrator-only
+# (Decision 1/15 of the import spec), distinct from view_legacygradingrecord
+# above so an instructor can read imported history without being able to
+# correct it.
+_LEGACY_GRADING_RECONCILIATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
+    ("gradings", "can_reconcile_imported_history"),
+)
+
 GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
     INSTRUCTOR_GROUP: _KUK_SOOL_PERMISSIONS,
     ADMINISTRATOR_GROUP: (
@@ -92,6 +105,7 @@ GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
         + _USER_ADMINISTRATION_PERMISSIONS
         + _DATA_CLEANUP_PERMISSIONS
         + _DATA_IMPORT_PERMISSIONS
+        + _LEGACY_GRADING_RECONCILIATION_PERMISSIONS
     ),
 }
 

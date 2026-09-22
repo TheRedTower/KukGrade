@@ -61,6 +61,13 @@ disallow_any_generics = false
 module = "tablib.*"
 ignore_missing_imports = true
 
+# No published type stubs. Pulled in transitively via tablib[xlsx]; imported
+# directly here for the KSW workbook adapter's multi-sheet/auxiliary-section
+# scanning, which Tablib's single-table Dataset cannot do.
+[[tool.mypy.overrides]]
+module = "openpyxl.*"
+ignore_missing_imports = true
+
 # Generated code: regenerating a migration after a model change would just
 # undo any hand-added type: ignore, so migrations are excluded from strict
 # checking rather than hand-maintained (django-stubs' own convention).

@@ -98,3 +98,55 @@ class StudentImportPreviewSerializer(serializers.Serializer):
     review_required = serializers.IntegerField()
     skip_existing = serializers.IntegerField()
     rows = StudentImportRowResultSerializer(many=True)
+
+
+class LegacyImportRequestSerializer(serializers.Serializer):
+    """Shared request shape for the historical preview and commit actions.
+
+    Keys are the source rank text exactly as it appeared in the workbook
+    (case-insensitive on the service side); a null/omitted value explicitly
+    means "leave unresolved" - never a block on committing that row
+    (Decision 4/17, unlike the student roster importer's required rank).
+    """
+
+    rank_mappings = serializers.DictField(
+        child=serializers.CharField(allow_null=True, allow_blank=True, required=False),
+        required=False,
+        default=dict,
+    )
+
+
+class RankMappingSuggestionSerializer(serializers.Serializer):
+    source_text = serializers.CharField()
+    suggested_rank_id = serializers.IntegerField(allow_null=True)
+    suggested_rank_code = serializers.CharField(allow_null=True)
+
+
+class CanonicalLegacyRowSerializer(serializers.Serializer):
+    source_sheet = serializers.CharField()
+    source_section = serializers.CharField()
+    source_locator = serializers.CharField()
+    cycle_year = serializers.IntegerField()
+    cycle_month = serializers.IntegerField()
+    record_kind = serializers.CharField()
+    source_name = serializers.CharField()
+    source_current_rank_text = serializers.CharField()
+    source_testing_for_rank_text = serializers.CharField()
+    source_outcome_text = serializers.CharField()
+    outcome = serializers.CharField(allow_null=True)
+    attendance_status = serializers.CharField()
+    comments = serializers.CharField()
+    admin_note = serializers.CharField()
+
+
+class LegacyImportPreviewSerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    grading_result = serializers.IntegerField()
+    auxiliary_note = serializers.IntegerField()
+    did_not_attend = serializers.IntegerField()
+    unresolved_current_rank = serializers.IntegerField()
+    unresolved_testing_for_rank = serializers.IntegerField()
+    unresolved_outcome = serializers.IntegerField()
+    warnings = serializers.ListField(child=serializers.CharField())
+    rank_suggestions = RankMappingSuggestionSerializer(many=True)
+    rows = CanonicalLegacyRowSerializer(many=True)

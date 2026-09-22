@@ -54,6 +54,16 @@ const ImportStudentsScreen = lazy(() =>
     default: module.ImportStudentsScreen,
   })),
 );
+const ImportLegacyGradingsScreen = lazy(() =>
+  import("./ImportLegacyGradingsScreen").then((module) => ({
+    default: module.ImportLegacyGradingsScreen,
+  })),
+);
+const LegacyReconciliationScreen = lazy(() =>
+  import("./LegacyReconciliationScreen").then((module) => ({
+    default: module.LegacyReconciliationScreen,
+  })),
+);
 
 function UserManagementFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading user management…</div>;
@@ -562,6 +572,26 @@ function App() {
               />
               <Route element={<StudentDetailPage />} path="students/:id" />
               <Route element={<CreateGradingSessionPage />} path="gradings/new" />
+              <Route
+                element={
+                  <RequireAdminAccess>
+                    <Suspense fallback={<ImportStudentsFallback />}>
+                      <ImportLegacyGradingsScreen />
+                    </Suspense>
+                  </RequireAdminAccess>
+                }
+                path="gradings/import-legacy"
+              />
+              <Route
+                element={
+                  <RequireAdminAccess>
+                    <Suspense fallback={<ImportStudentsFallback />}>
+                      <LegacyReconciliationScreen />
+                    </Suspense>
+                  </RequireAdminAccess>
+                }
+                path="gradings/legacy-records"
+              />
               <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
               <Route element={<PromotionLedgerPage />} path="gradings/:id/promotions" />
               <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />

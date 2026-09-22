@@ -426,6 +426,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        get: operations["gradings_legacy_records_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        get: operations["gradings_legacy_records_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/link-student/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        post: operations["gradings_legacy_records_link_student_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/resolve-current-rank/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        post: operations["gradings_legacy_records_resolve_current_rank_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/resolve-testing-for-rank/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        post: operations["gradings_legacy_records_resolve_testing_for_rank_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/unlink-student/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        post: operations["gradings_legacy_records_unlink_student_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/{id}/void/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        post: operations["gradings_legacy_records_void_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/outcomes/": {
         parameters: {
             query?: never;
@@ -680,6 +841,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["students_partial_update"];
+        trace?: never;
+    };
+    "/api/students/{id}/grading-history/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["students_grading_history_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/students/{id}/rank-history/": {
@@ -965,9 +1142,13 @@ export interface components {
          *     * `USER_DELETED` - User deleted
          *     * `IMPORT_BATCH_COMMITTED` - Import batch committed
          *     * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
+         *     * `LEGACY_GRADING_LINKED` - Legacy grading record linked
+         *     * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
+         *     * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
+         *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
         /**
          * @description * `AGE_8_AND_UNDER` - 8 and under
          *     * `AGE_9_TO_12` - 9-12
@@ -976,6 +1157,13 @@ export interface components {
          * @enum {string}
          */
         AgeBandEnum: "AGE_8_AND_UNDER" | "AGE_9_TO_12" | "AGE_13_TO_17" | "AGE_18_AND_OVER";
+        /**
+         * @description * `ATTENDED` - Attended
+         *     * `DID_NOT_ATTEND` - Did not attend
+         *     * `UNKNOWN` - Unknown
+         * @enum {string}
+         */
+        AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
         AuditEvent: {
             readonly id: number;
             /** Format: date-time */
@@ -1131,6 +1319,12 @@ export interface components {
             new_password: string;
         };
         /**
+         * @description * `MONTH` - Month
+         *     * `DAY` - Day
+         * @enum {string}
+         */
+        DatePrecisionEnum: "MONTH" | "DAY";
+        /**
          * @description One cumulative Technique/Form row for a selected rank and age band.
          *
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
@@ -1195,6 +1389,22 @@ export interface components {
          * @enum {string}
          */
         GradingCandidateStatusEnum: "REGISTERED" | "WITHDRAWN" | "COMPLETED";
+        GradingHistoryItem: {
+            source: string;
+            record_id: number;
+            /** Format: date */
+            date: string | null;
+            cycle_year: number | null;
+            cycle_month: number | null;
+            date_precision: string;
+            testing_for_rank_code: string | null;
+            testing_for_rank_name: string | null;
+            source_testing_for_rank_text: string;
+            outcome: string | null;
+            attendance_status: string;
+            comments: string;
+            promotion_id: number | null;
+        };
         GradingSession: {
             readonly id: number;
             title: string;
@@ -1272,6 +1482,55 @@ export interface components {
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
+        /**
+         * @description Read-mostly, matching PromotionSerializer's idiom - no ordinary
+         *     update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+         *     the five reconciliation actions below.
+         */
+        LegacyGradingRecord: {
+            readonly id: number;
+            readonly student: number | null;
+            readonly student_display_name: string | null;
+            readonly student_wksa_id: string | null;
+            readonly source_batch: number;
+            readonly record_kind: components["schemas"]["RecordKindEnum"];
+            readonly record_kind_display: string;
+            readonly source_sheet: string;
+            readonly source_section: string;
+            readonly source_locator: string;
+            readonly cycle_year: number;
+            readonly cycle_month: number;
+            /** Format: date */
+            readonly grading_date: string | null;
+            readonly date_precision: components["schemas"]["DatePrecisionEnum"];
+            readonly date_precision_display: string;
+            readonly source_name: string;
+            readonly source_current_rank_text: string;
+            readonly current_rank: number | null;
+            readonly current_rank_code: string | null;
+            readonly source_testing_for_rank_text: string;
+            readonly testing_for_rank: number | null;
+            readonly testing_for_rank_code: string | null;
+            readonly source_outcome_text: string;
+            readonly outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
+            readonly outcome_display: string | null;
+            readonly attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            readonly attendance_status_display: string;
+            readonly comments: string;
+            readonly admin_note: string;
+            readonly is_void: boolean;
+            readonly void_reason: string;
+            /** Format: uuid */
+            readonly voided_by: string | null;
+            /** Format: email */
+            readonly voided_by_email: string | null;
+            /** Format: date-time */
+            readonly voided_at: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
         LockedCandidateWithdrawal: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
             withdrawal_note?: string;
@@ -1402,6 +1661,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["ImportBatch"][];
+        };
+        PaginatedLegacyGradingRecordList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LegacyGradingRecord"][];
         };
         PaginatedPromotionList: {
             /** @example 123 */
@@ -1829,6 +2103,13 @@ export interface components {
          */
         RankCategoryEnum: "COLOURED_BELT" | "BLACK_BELT_CANDIDATE" | "BLACK_BELT";
         /**
+         * @description * `GRADING_RESULT` - Grading result
+         *     * `AUXILIARY_NOTE` - Auxiliary note
+         *     * `DID_NOT_ATTEND` - Did not attend
+         * @enum {string}
+         */
+        RecordKindEnum: "GRADING_RESULT" | "AUXILIARY_NOTE" | "DID_NOT_ATTEND";
+        /**
          * @description * `NOT_ASSESSED` - Not assessed
          *     * `MET` - Met
          *     * `NOT_MET` - Not met
@@ -1877,6 +2158,18 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        /**
+         * @description Combines finalised native outcomes with linked, non-voided legacy
+         *     records (spec section 25) - kept deliberately separate from
+         *     StudentRankHistorySerializer/`/rank-history/`, which remains
+         *     Promotion-only (spec section 26).
+         */
+        StudentGradingHistory: {
+            readonly student: number;
+            readonly student_display_name: string;
+            readonly student_wksa_id: string;
+            items: components["schemas"]["GradingHistoryItem"][];
         };
         /**
          * @description The list representation. Deliberately excludes date of birth.
@@ -2848,6 +3141,192 @@ export interface operations {
             };
         };
     };
+    gradings_legacy_records_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_link_student_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LegacyGradingRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
+                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_resolve_current_rank_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LegacyGradingRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
+                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_resolve_testing_for_rank_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LegacyGradingRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
+                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_unlink_student_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LegacyGradingRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
+                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_void_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LegacyGradingRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
+                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
     gradings_outcomes_list: {
         parameters: {
             query?: {
@@ -3407,6 +3886,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Student"];
+                };
+            };
+        };
+    };
+    students_grading_history_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this student. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentGradingHistory"];
                 };
             };
         };

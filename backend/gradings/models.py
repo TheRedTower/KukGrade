@@ -1172,3 +1172,302 @@ class Promotion(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+class LegacyGradingRecordQuerySet(models.QuerySet["LegacyGradingRecord"]):
+    def delete(self) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {
+                "legacy_grading_record": [
+                    "Legacy grading records cannot be deleted - void instead.",
+                ],
+            },
+        )
+
+    def update(self, **kwargs: Any) -> int:
+        # Every legitimate change goes through gradings.legacy_services on a
+        # single locked instance (so clean()'s source-field immutability
+        # check and the accompanying audit event both run); a bulk
+        # queryset .update() would bypass both silently.
+        raise ValidationError(
+            {
+                "legacy_grading_record": [
+                    "Legacy grading records must be changed through "
+                    "gradings.legacy_services, not updated directly.",
+                ],
+            },
+        )
+
+
+class LegacyGradingRecordManager(models.Manager["LegacyGradingRecord"]):
+    def get_queryset(self) -> LegacyGradingRecordQuerySet:
+        return LegacyGradingRecordQuerySet(self.model, using=self._db)
+
+
+class LegacyRecordKind(models.TextChoices):
+    GRADING_RESULT = "GRADING_RESULT", "Grading result"
+    AUXILIARY_NOTE = "AUXILIARY_NOTE", "Auxiliary note"
+    DID_NOT_ATTEND = "DID_NOT_ATTEND", "Did not attend"
+
+
+class LegacyOutcome(models.TextChoices):
+    PASS = "PASS", "Pass"
+    FAIL = "FAIL", "Fail"
+    CONDITIONAL = "CONDITIONAL", "Conditional"
+
+
+class LegacyAttendance(models.TextChoices):
+    ATTENDED = "ATTENDED", "Attended"
+    DID_NOT_ATTEND = "DID_NOT_ATTEND", "Did not attend"
+    UNKNOWN = "UNKNOWN", "Unknown"
+
+
+class LegacyDatePrecision(models.TextChoices):
+    MONTH = "MONTH", "Month"
+    DAY = "DAY", "Day"
+
+
+class LegacyGradingRecord(models.Model):
+    """One row of imported historical grading evidence - never native.
+
+    A distinct, deliberately weaker evidence model from CandidateAssessment/
+    CandidateOutcome/Promotion: the historical workbook does not contain
+    enough evidence (exact date, syllabus snapshot, item-level judgement,
+    assessor, decision attribution) to honestly recreate those. See the
+    Definitive Implementation Spec sections 4.2/57 for the full rationale.
+
+    Source-text fields (everything except `student`, `current_rank`,
+    `testing_for_rank` and the void fields) are immutable after import -
+    `clean()` below enforces it. Only gradings.legacy_services mutates a row
+    (link/unlink/resolve-rank/void), always through one locked instance
+    save() so the immutability check and an audit event both run; ordinary
+    queryset mutation and physical deletion are blocked outright
+    (LegacyGradingRecordQuerySet above) - void is the only removal path,
+    consistent with "historical records are never physically deleted"
+    (Decision 16 of the spec).
+    """
+
+    if TYPE_CHECKING:
+        student_id: int | None
+        source_batch_id: int
+        current_rank_id: int | None
+        testing_for_rank_id: int | None
+        voided_by_id: int | None
+
+    # Every field that is NOT here is a source fact and is immutable after
+    # creation - see clean() below, which derives the immutable set as
+    # "every model field except these" rather than hand-listing the source
+    # fields a second time.
+    _MUTABLE_FIELD_NAMES: frozenset[str] = frozenset(
+        {
+            "id",
+            "student_id",
+            "current_rank_id",
+            "testing_for_rank_id",
+            "is_void",
+            "void_reason",
+            "voided_by_id",
+            "voided_at",
+            "created_at",
+            "updated_at",
+        },
+    )
+
+    # Nullable, PROTECT: a legacy record may be committed with no known
+    # Student match (Decision 2) but must never silently lose that link once
+    # deleting a user is possible.
+    student = models.ForeignKey(
+        "students.Student",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="legacy_grading_records",
+    )
+    source_batch = models.ForeignKey(
+        "data_imports.ImportBatch",
+        on_delete=models.PROTECT,
+        related_name="legacy_records",
+    )
+    record_kind = models.CharField(max_length=32, choices=LegacyRecordKind.choices)
+
+    source_sheet = models.CharField(max_length=100)
+    source_section = models.CharField(max_length=100, blank=True)
+    source_locator = models.CharField(max_length=100)
+
+    cycle_year = models.PositiveSmallIntegerField()
+    cycle_month = models.PositiveSmallIntegerField()
+    # Never invented beyond what the source states (Decision 14) - MONTH
+    # unless a specific day was genuinely present in the source.
+    grading_date = models.DateField(null=True, blank=True)
+    date_precision = models.CharField(
+        max_length=8,
+        choices=LegacyDatePrecision.choices,
+        default=LegacyDatePrecision.MONTH,
+    )
+
+    source_name = models.CharField(max_length=200)
+
+    source_current_rank_text = models.CharField(max_length=100, blank=True)
+    current_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="legacy_current_rank_records",
+    )
+    source_testing_for_rank_text = models.CharField(max_length=100, blank=True)
+    testing_for_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="legacy_testing_for_rank_records",
+    )
+
+    source_outcome_text = models.CharField(max_length=200, blank=True)
+    # Deterministic Pass/Fail/Conditional mappings only (Decision 16.1) -
+    # never set from free-form/uncertain source text, so unlike
+    # current_rank/testing_for_rank this has no separate admin-resolution
+    # service and is immutable alongside the other source-derived fields.
+    outcome = models.CharField(  # noqa: DJ001
+        max_length=16,
+        choices=LegacyOutcome.choices,
+        null=True,
+        blank=True,
+    )
+    attendance_status = models.CharField(
+        max_length=16,
+        choices=LegacyAttendance.choices,
+        default=LegacyAttendance.UNKNOWN,
+    )
+
+    comments = models.TextField(blank=True)
+    admin_note = models.TextField(blank=True)
+
+    is_void = models.BooleanField(default=False)
+    void_reason = models.TextField(blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="voided_legacy_grading_records",
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LegacyGradingRecordManager()
+
+    class Meta:
+        ordering = ["-cycle_year", "-cycle_month", "source_sheet", "source_locator"]
+        permissions = [
+            (
+                "can_reconcile_imported_history",
+                "Can reconcile imported historical grading records",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["student"], name="legacy_record_student_idx"),
+            models.Index(
+                fields=["cycle_year", "cycle_month"],
+                name="legacy_record_cycle_idx",
+            ),
+            models.Index(
+                fields=["record_kind", "is_void"],
+                name="legacy_record_kind_void_idx",
+            ),
+            models.Index(
+                fields=["outcome", "is_void"],
+                name="legacy_record_outcome_void_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["source_batch", "source_locator"],
+                name="legacy_record_unique_locator_per_batch",
+            ),
+            models.CheckConstraint(
+                condition=~Q(source_sheet=""),
+                name="legacy_record_source_sheet_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=~Q(source_locator=""),
+                name="legacy_record_source_locator_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=~Q(source_name=""),
+                name="legacy_record_source_name_not_blank",
+            ),
+            models.CheckConstraint(
+                condition=Q(is_void=False)
+                | (
+                    Q(is_void=True)
+                    & ~Q(void_reason="")
+                    & Q(voided_by__isnull=False)
+                    & Q(voided_at__isnull=False)
+                ),
+                name="legacy_record_void_fields_complete",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.source_sheet}!{self.source_locator}: {self.source_name}"
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        raise ValidationError(
+            {
+                "legacy_grading_record": [
+                    "Legacy grading records cannot be deleted - void instead.",
+                ],
+            },
+        )
+
+    def clean(self) -> None:
+        super().clean()
+        self.source_sheet = (self.source_sheet or "").strip()
+        self.source_section = (self.source_section or "").strip()
+        self.source_locator = (self.source_locator or "").strip()
+        self.source_name = (self.source_name or "").strip()
+
+        errors: dict[str, list[str]] = {}
+        if not self.source_sheet:
+            errors["source_sheet"] = ["Source sheet is required."]
+        if not self.source_locator:
+            errors["source_locator"] = ["Source locator is required."]
+        if not self.source_name:
+            errors["source_name"] = ["Source name is required."]
+        if self.is_void and not self.void_reason.strip():
+            errors["void_reason"] = ["A reason is required to void a record."]
+
+        if not self._state.adding and self.pk is not None:
+            immutable_field_names = [
+                field.attname
+                for field in self._meta.fields
+                if field.attname not in self._MUTABLE_FIELD_NAMES
+            ]
+            previous = (
+                LegacyGradingRecord.objects.filter(pk=self.pk)
+                .values(*immutable_field_names)
+                .first()
+            )
+            if previous is not None:
+                changed_fields = [
+                    field
+                    for field, value in previous.items()
+                    if getattr(self, field) != value
+                ]
+                if changed_fields:
+                    errors["non_field_errors"] = [
+                        "Source fields are immutable after import: "
+                        + ", ".join(sorted(changed_fields))
+                        + ".",
+                    ]
+
+        if errors:
+            raise ValidationError(errors)

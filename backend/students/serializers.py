@@ -7,7 +7,11 @@ from rest_framework import serializers
 
 from gradings.models import Promotion
 from gradings.serializers import raise_drf_validation_error
-from gradings.services import StudentRankTimeline
+from gradings.services import (
+    GradingHistoryItem,
+    StudentGradingHistory,
+    StudentRankTimeline,
+)
 from students.models import Student
 from students.services import create_student, update_student
 
@@ -94,6 +98,46 @@ class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
 
     def get_current_rank_name(self, obj: StudentRankTimeline) -> str:
         return obj["current_rank"].name
+
+
+class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
+    # "source" collides with Field.source's own type (Callable | str | None)
+    # - same mypy collision as EffectiveSyllabusRequirementSerializer.required
+    # elsewhere in this codebase, not a real conflict at runtime.
+    source = serializers.CharField()  # type: ignore[assignment]
+    record_id = serializers.IntegerField()
+    date = serializers.DateField(allow_null=True)
+    cycle_year = serializers.IntegerField(allow_null=True)
+    cycle_month = serializers.IntegerField(allow_null=True)
+    date_precision = serializers.CharField()
+    testing_for_rank_code = serializers.CharField(allow_null=True)
+    testing_for_rank_name = serializers.CharField(allow_null=True)
+    source_testing_for_rank_text = serializers.CharField()
+    outcome = serializers.CharField(allow_null=True)
+    attendance_status = serializers.CharField()
+    comments = serializers.CharField()
+    promotion_id = serializers.IntegerField(allow_null=True)
+
+
+class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
+    """Combines finalised native outcomes with linked, non-voided legacy
+    records (spec section 25) - kept deliberately separate from
+    StudentRankHistorySerializer/`/rank-history/`, which remains
+    Promotion-only (spec section 26)."""
+
+    student = serializers.SerializerMethodField()
+    student_display_name = serializers.SerializerMethodField()
+    student_wksa_id = serializers.SerializerMethodField()
+    items = GradingHistoryItemSerializer(many=True)
+
+    def get_student(self, obj: StudentGradingHistory) -> int:
+        return obj["student"].pk
+
+    def get_student_display_name(self, obj: StudentGradingHistory) -> str:
+        return str(obj["student"])
+
+    def get_student_wksa_id(self, obj: StudentGradingHistory) -> str:
+        return obj["student"].wksa_id
 
 
 class StudentListSerializer(serializers.ModelSerializer[Student]):

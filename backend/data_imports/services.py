@@ -22,6 +22,11 @@ from django.utils import timezone
 from accounts.models import User
 from audit.models import AuditAction
 from audit.recording import record
+from data_imports.ksw_adapter import (
+    CanonicalLegacyRow,
+    WorkbookStructureError,
+    parse_ksw_colchester_workbook,
+)
 from data_imports.mappings import (
     STUDENT_REQUIRED_TARGET_FIELDS,
     STUDENT_TARGET_FIELDS,
@@ -29,6 +34,8 @@ from data_imports.mappings import (
 )
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
+from gradings.legacy_services import create_legacy_grading_record
+from gradings.models import LegacyRecordKind
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student
@@ -444,14 +451,263 @@ def commit_student_import(
     return locked
 
 
+# --- historical grading workbook preview/commit -----------------------------
+
+
+def _load_legacy_workbook(batch: ImportBatch) -> list[CanonicalLegacyRow]:
+    if not batch.source_file:
+        raise DjangoValidationError(
+            {
+                "batch": [
+                    "This batch's source file is no longer available "
+                    "(already committed, cancelled, or expired).",
+                ],
+            },
+        )
+    with batch.source_file.open("rb") as handle:
+        content = handle.read()
+    try:
+        return parse_ksw_colchester_workbook(content).rows
+    except WorkbookStructureError as exc:
+        raise DjangoValidationError({"batch": [str(exc)]}) from exc
+
+
+@dataclass(frozen=True)
+class RankMappingSuggestion:
+    source_text: str
+    suggested_rank_id: int | None
+    suggested_rank_code: str | None
+
+
+@dataclass(frozen=True)
+class LegacyImportPreview:
+    total: int
+    grading_result: int
+    auxiliary_note: int
+    did_not_attend: int
+    unresolved_current_rank: int
+    unresolved_testing_for_rank: int
+    unresolved_outcome: int
+    warnings: list[str]
+    rank_suggestions: list[RankMappingSuggestion]
+    rows: list[CanonicalLegacyRow]
+
+
+def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
+    """Distinct source rank strings across the whole batch, not per-row -
+    the admin reviews each value once (spec section 17), however many rows
+    share it."""
+    seen_lower: set[str] = set()
+    distinct: list[str] = []
+    for row in rows:
+        for text in (row.source_current_rank_text, row.source_testing_for_rank_text):
+            cleaned = text.strip()
+            if not cleaned or cleaned.lower() in seen_lower:
+                continue
+            seen_lower.add(cleaned.lower())
+            distinct.append(cleaned)
+    return sorted(distinct, key=str.lower)
+
+
+def _normalise_rank_mappings(
+    rank_mappings: dict[str, str | None] | None,
+) -> dict[str, str]:
+    """Lowercased source text -> chosen Rank code. A missing or null value
+    both mean "leave unresolved" - Decision 4/17 is that this never blocks
+    a row, unlike the student roster importer's required rank."""
+    if not rank_mappings:
+        return {}
+    return {
+        text.strip().lower(): code
+        for text, code in rank_mappings.items()
+        if text.strip() and code
+    }
+
+
+def preview_legacy_grading_import(
+    batch: ImportBatch,
+    *,
+    rank_mappings: dict[str, str | None] | None = None,
+) -> LegacyImportPreview:
+    rows = _load_legacy_workbook(batch)
+    normalised_mappings = _normalise_rank_mappings(rank_mappings)
+    codes = set(normalised_mappings.values())
+    ranks_by_code = {
+        r.code: r for r in Rank.objects.filter(code__in=codes, active=True)
+    }
+
+    def resolved(text: str) -> bool:
+        cleaned = text.strip()
+        if not cleaned:
+            return True
+        return normalised_mappings.get(cleaned.lower()) in ranks_by_code
+
+    unresolved_current = sum(
+        1 for row in rows if not resolved(row.source_current_rank_text)
+    )
+    unresolved_testing = sum(
+        1 for row in rows if not resolved(row.source_testing_for_rank_text)
+    )
+    unresolved_outcome = sum(
+        1
+        for row in rows
+        if row.record_kind == LegacyRecordKind.GRADING_RESULT
+        and row.source_outcome_text.strip()
+        and row.outcome is None
+    )
+
+    suggestions = []
+    for text in _distinct_rank_texts(rows):
+        suggested = _resolve_rank(text)
+        suggestions.append(
+            RankMappingSuggestion(
+                source_text=text,
+                suggested_rank_id=suggested.id if suggested else None,
+                suggested_rank_code=suggested.code if suggested else None,
+            ),
+        )
+
+    return LegacyImportPreview(
+        total=len(rows),
+        grading_result=sum(
+            1 for r in rows if r.record_kind == LegacyRecordKind.GRADING_RESULT
+        ),
+        auxiliary_note=sum(
+            1 for r in rows if r.record_kind == LegacyRecordKind.AUXILIARY_NOTE
+        ),
+        did_not_attend=sum(
+            1 for r in rows if r.record_kind == LegacyRecordKind.DID_NOT_ATTEND
+        ),
+        unresolved_current_rank=unresolved_current,
+        unresolved_testing_for_rank=unresolved_testing,
+        unresolved_outcome=unresolved_outcome,
+        warnings=[],
+        rank_suggestions=suggestions,
+        rows=rows,
+    )
+
+
+@transaction.atomic
+def commit_legacy_grading_import(
+    batch: ImportBatch,
+    *,
+    actor: User,
+    rank_mappings: dict[str, str | None] | None = None,
+) -> ImportBatch:
+    locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
+    if locked.status not in ImportBatch.UNCOMMITTED_STATUSES:
+        raise DjangoValidationError(
+            {
+                "batch": [
+                    f"Batch is already {locked.status} and cannot be committed again."
+                ]
+            },
+        )
+
+    # Never trusts a stale frontend preview - re-parses the source file and
+    # re-resolves every rank mapping right now (spec sections 10/20).
+    rows = _load_legacy_workbook(locked)
+    normalised_mappings = _normalise_rank_mappings(rank_mappings)
+    codes = set(normalised_mappings.values())
+    ranks_by_code = {
+        r.code: r for r in Rank.objects.filter(code__in=codes, active=True)
+    }
+
+    def resolve(text: str) -> Rank | None:
+        cleaned = text.strip()
+        if not cleaned:
+            return None
+        return ranks_by_code.get(normalised_mappings.get(cleaned.lower(), ""))
+
+    counts: dict[str, int] = {
+        LegacyRecordKind.GRADING_RESULT: 0,
+        LegacyRecordKind.AUXILIARY_NOTE: 0,
+        LegacyRecordKind.DID_NOT_ATTEND: 0,
+    }
+    unresolved_current = 0
+    unresolved_testing = 0
+
+    for row in rows:
+        current_rank = resolve(row.source_current_rank_text)
+        testing_for_rank = resolve(row.source_testing_for_rank_text)
+        create_legacy_grading_record(
+            source_batch=locked,
+            record_kind=row.record_kind,
+            source_sheet=row.source_sheet,
+            source_section=row.source_section,
+            source_locator=row.source_locator,
+            cycle_year=row.cycle_year,
+            cycle_month=row.cycle_month,
+            source_name=row.source_name,
+            source_current_rank_text=row.source_current_rank_text,
+            current_rank=current_rank,
+            source_testing_for_rank_text=row.source_testing_for_rank_text,
+            testing_for_rank=testing_for_rank,
+            source_outcome_text=row.source_outcome_text,
+            outcome=row.outcome,
+            attendance_status=row.attendance_status,
+            comments=row.comments,
+            admin_note=row.admin_note,
+        )
+        counts[row.record_kind] = counts.get(row.record_kind, 0) + 1
+        if row.source_current_rank_text.strip() and current_rank is None:
+            unresolved_current += 1
+        if row.source_testing_for_rank_text.strip() and testing_for_rank is None:
+            unresolved_testing += 1
+
+    locked.status = ImportBatch.Status.COMMITTED
+    locked.committed_by = actor
+    locked.committed_at = timezone.now()
+    locked.summary_json = {
+        "total": len(rows),
+        "grading_result": counts[LegacyRecordKind.GRADING_RESULT],
+        "auxiliary_note": counts[LegacyRecordKind.AUXILIARY_NOTE],
+        "did_not_attend": counts[LegacyRecordKind.DID_NOT_ATTEND],
+        "unresolved_current_rank": unresolved_current,
+        "unresolved_testing_for_rank": unresolved_testing,
+    }
+    locked.configuration_json = {"rank_mappings": normalised_mappings}
+    delete_batch_file(locked)
+    locked.save(
+        update_fields=[
+            "status",
+            "committed_by",
+            "committed_at",
+            "summary_json",
+            "configuration_json",
+            "source_file",
+            "updated_at",
+        ],
+    )
+
+    record(
+        AuditAction.IMPORT_BATCH_COMMITTED,
+        locked,
+        f"Import batch #{locked.pk} ({locked.kind}) committed: "
+        f"{len(rows)} historical record(s) created.",
+        actor=actor,
+        metadata={
+            "batch_id": locked.pk,
+            "kind": locked.kind,
+            "sha256_prefix": locked.sha256[:12],
+            "record_count": len(rows),
+        },
+    )
+    return locked
+
+
 __all__ = [
     "STUDENT_REQUIRED_TARGET_FIELDS",
     "CreateImportBatchResult",
+    "LegacyImportPreview",
+    "RankMappingSuggestion",
     "StudentImportPreview",
     "StudentImportRowResult",
     "cancel_import_batch",
+    "commit_legacy_grading_import",
     "commit_student_import",
     "create_import_batch",
     "delete_batch_file",
+    "preview_legacy_grading_import",
     "preview_student_import",
 ]

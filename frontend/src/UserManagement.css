@@ -276,9 +276,19 @@
 .users-table tbody tr:last-child td { border-bottom: 0; }
 .users-table tbody tr:hover { background: var(--color-surface-sunken); }
 .users-table td:first-child strong,
-.users-table td:first-child span { display: block; }
+.users-table td:first-child span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .users-table td:first-child span,
 .users-authority-summary { color: var(--color-text-muted); }
+.users-authority-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .users-status {
   display: inline-flex;

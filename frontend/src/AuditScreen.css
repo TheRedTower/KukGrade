@@ -230,7 +230,11 @@
 }
 
 .audit-action { font-weight: 750; }
-.audit-summary { overflow-wrap: anywhere; }
+.audit-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .audit-entity-type { font-weight: 650; }
 .audit-view-button { white-space: nowrap; }
 

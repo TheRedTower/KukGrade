@@ -320,7 +320,9 @@ export function AuditScreen(): React.ReactElement {
                           <time dateTime={event.occurred_at}>{time.time}</time>
                         </td>
                         <td className="audit-action">{event.action_display}</td>
-                        <td className="audit-summary">{event.summary}</td>
+                        <td className="audit-summary" title={event.summary}>
+                          {event.summary}
+                        </td>
                         <td>{actorLabel(event)}</td>
                         <td>
                           <span className="audit-entity-type">

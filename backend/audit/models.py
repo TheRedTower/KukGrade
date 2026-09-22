@@ -52,6 +52,17 @@ class AuditAction(models.TextChoices):
     IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import batch committed"
     IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import batch cancelled"
 
+    LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Legacy grading record linked"
+    LEGACY_GRADING_UNLINKED = (
+        "LEGACY_GRADING_UNLINKED",
+        "Legacy grading record unlinked",
+    )
+    LEGACY_GRADING_RANK_RESOLVED = (
+        "LEGACY_GRADING_RANK_RESOLVED",
+        "Legacy grading record rank resolved",
+    )
+    LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Legacy grading record voided"
+
 
 # Logistics - who runs the roster - is an administrator concern, the same
 # boundary the Users API itself draws. An instructor cannot open

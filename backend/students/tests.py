@@ -390,8 +390,8 @@ def test_a_plain_field_edit_records_student_updated_not_status_changed() -> None
     assert event.action == AuditAction.STUDENT_UPDATED
 
 
-def test_put_and_delete_are_not_allowed() -> None:
-    client = auth_client("no-put-delete@example.com")
+def test_put_is_not_allowed() -> None:
+    client = auth_client("no-put@example.com")
     created = create_via_api(client, wksa_id="NOMETHOD-001")
 
     put_response = client.put(
@@ -399,11 +399,19 @@ def test_put_and_delete_are_not_allowed() -> None:
         {"first_name": "X"},
         format="json",
     )
-    delete_response = client.delete(f"/api/students/{created['id']}/")
 
     assert put_response.status_code == 405
     assert put_response.json()["error"]["code"] == "method_not_allowed"
-    assert delete_response.status_code == 405
+    assert Student.objects.filter(pk=created["id"]).exists()
+
+
+def test_delete_requires_the_students_delete_permission() -> None:
+    client = auth_client("no-delete-permission@example.com")
+    created = create_via_api(client, wksa_id="NODELETE-001")
+
+    delete_response = client.delete(f"/api/students/{created['id']}/")
+
+    assert delete_response.status_code == 403
     assert Student.objects.filter(pk=created["id"]).exists()
 
 

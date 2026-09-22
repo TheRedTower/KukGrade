@@ -18,6 +18,65 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-22 - Administrator-only hard delete for students and any-status grading sessions
+
+Status: Accepted
+
+Decision:
+Two capabilities, both administrator-only, both routine (not just rare
+erasure requests): `DELETE /api/students/{id}/` hard-deletes a student,
+cascading through every grading-session registration, assessment, outcome
+and promotion involving them (a linked `LegacyGradingRecord` is unlinked,
+not deleted); and `validate_session_can_be_deleted`/`delete_grading_session`
+now let an administrator delete a grading session in any status, not just
+`DRAFT`/`CANCELLED`, cascading through finalised outcomes and promotions the
+same way. Deleting a single completed grading (one candidate at a time) via
+`DELETE /api/gradings/assessments/{id}/` already worked for any status and
+needed no change.
+
+Context:
+The 2026-09-14 "Data erasure handled manually" decision assumed real
+erasure requests would be rare enough to handle by hand outside the
+application - `Student`'s PROTECT relationships made deletion impossible
+through the app at all. Raised directly: the owner wants full, routine
+admin control to delete a student or a whole completed grading, not just
+occasional manual cleanup. Every relationship to `Student`
+(`GradingCandidate.student`, `Promotion.student`) is `PROTECT` with no
+automatic cascade; `Promotion.outcome`/`CandidateOutcome.assessment` are
+also `PROTECT`, so a `Promotion` must be deleted before its
+`CandidateOutcome`, which must be deleted before the cascade below it can
+proceed. For session deletion, this reuses and extends the 2026-09-20
+mechanism (an `actor.role == ADMINISTRATOR` runtime check already inside
+`validate_session_can_be_deleted`) rather than adding a new permission -
+`gradings.delete_gradingsession` is already granted to both roles for the
+ordinary draft/cancelled case, so the extra power has to come from the role
+check the same way the cancelled-with-recorded-work override already does.
+
+Consequences:
+`students.services.delete_student` bulk-bypass-deletes `Promotion` and
+`GradingCandidate` rows (`models.QuerySet.delete`, the real unbound base
+implementation, the same sanctioned bypass as `delete_candidate_assessment`
+and `delete_platform_user`), plain-deletes `CandidateOutcome` rows, unlinks
+each `LegacyGradingRecord` via the existing
+`gradings.legacy_services.unlink_legacy_record_from_student`, and records
+one `STUDENT_DELETED` audit event with cascade counts before the row goes.
+No "is this still the student's most recent promotion" check applies here,
+unlike a single assessment's cascade - every promotion the student has is
+removed together, so none can supersede another. `delete_grading_session`
+gained an admin-only block that pre-flight validates every candidate's
+promotion with the existing `validate_assessment_deletion_promotion`
+*before mutating anything* (all-or-nothing: a promotion a later, different
+session has already superseded refuses the whole deletion, leaving
+everything in place) and records `reverted_student_ranks` in the
+`SESSION_DELETED` event's metadata. `students.delete_student` (Django's
+auto-generated permission, previously granted to neither role) joins
+`accounts.groups._DATA_CLEANUP_PERMISSIONS` alongside the existing
+`delete_candidateassessment`/`delete_candidateoutcome`/`delete_promotion`.
+New `AuditAction.STUDENT_DELETED`. Frontend: an admin-gated "Delete
+student" action on the student detail screen, and a "Delete session" menu
+item added to the `LOCKED`/`COMPLETED` dropdowns on the grading-session
+detail screen, both reusing existing confirm-dialog machinery.
+
 ### 2026-09-22 - Fix deterministic CI regression in transactional test teardown (auth_group double-insert)
 
 Status: Accepted

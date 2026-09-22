@@ -1,14 +1,18 @@
 from datetime import date
+from typing import cast
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils import timezone
-from rest_framework import mixins
+from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
+from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
+from gradings.serializers import raise_drf_validation_error
 from gradings.services import student_rank_timeline, unified_student_grading_history
 from students.models import Student
 from students.serializers import (
@@ -17,6 +21,7 @@ from students.serializers import (
     StudentRankHistorySerializer,
     StudentSerializer,
 )
+from students.services import delete_student
 from syllabus.models import AgeBand
 
 
@@ -34,14 +39,16 @@ class StudentViewSet(
     mixins.UpdateModelMixin,
     GenericViewSet[Student],
 ):
-    # No delete: every relationship to a student is PROTECT, and history is
-    # retained by decision. No PUT: partial_update covers every real edit
-    # and a full-replace endpoint has no client that needs it. Excluding
-    # 'put' and 'delete' here, rather than just omitting DestroyModelMixin,
-    # is what actually returns 405 for them - the router still binds them
-    # to any mixin method that exists, and http_method_names is what
-    # dispatch checks before that binding is used.
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    # No PUT: partial_update covers every real edit and a full-replace
+    # endpoint has no client that needs it. Excluding 'put' here, rather
+    # than just omitting an UpdateModelMixin's put support, is what
+    # actually returns 405 for it - the router still binds it to any mixin
+    # method that exists, and http_method_names is what dispatch checks
+    # before that binding is used. DELETE is administrator-only hard
+    # delete (students.services.delete_student), not the plain CRUD
+    # students.delete_student both roles used to lack entirely - see
+    # accounts.groups._DATA_CLEANUP_PERMISSIONS.
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [HasRequiredPermissions]
     serializer_class = StudentSerializer
     permission_map = {
@@ -49,6 +56,7 @@ class StudentViewSet(
         "retrieve": ("students.view_student",),
         "create": ("students.add_student",),
         "partial_update": ("students.change_student",),
+        "destroy": ("students.delete_student",),
         "rank_history": ("students.view_student", "gradings.view_promotion"),
         "grading_history": (
             "students.view_student",
@@ -116,6 +124,14 @@ class StudentViewSet(
             )
 
         return queryset
+
+    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
+        instance = self.get_object()
+        try:
+            delete_student(instance, cast(User, request.user))
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="rank-history")
     def rank_history(

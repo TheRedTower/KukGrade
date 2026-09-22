@@ -8,12 +8,14 @@ import {
   type GradingHistoryItem,
   type Rank,
   type StudentStatus,
+  deleteStudent,
   getRanks,
   getStudent,
   getStudentGradingHistory,
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
 
@@ -134,12 +136,14 @@ export function StudentDetailScreen() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
 
   const studentId = Number(id);
 
   // Modals state
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Status modal state
   const [selectedStatus, setSelectedStatus] = useState<StudentStatus>("ACTIVE");
@@ -153,6 +157,10 @@ export function StudentDetailScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({});
   const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
+
+  // Delete modal state
+  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const statusDialogRef = useDialogFocus<HTMLDivElement>({
     isOpen: isStatusModalOpen,
     onClose: () => setIsStatusModalOpen(false),
@@ -162,6 +170,11 @@ export function StudentDetailScreen() {
     isOpen: isEditModalOpen,
     onClose: () => setIsEditModalOpen(false),
     canClose: !isSavingEdit,
+  });
+  const deleteDialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: isDeleteModalOpen,
+    onClose: () => setIsDeleteModalOpen(false),
+    canClose: !isDeletingStudent,
   });
 
   // 1. Fetch Student Detail
@@ -231,6 +244,29 @@ export function StudentDetailScreen() {
       }
     } finally {
       setIsSavingStatus(false);
+    }
+  }
+
+  async function handleDeleteStudent() {
+    if (!student) return;
+
+    setDeleteError(null);
+    setIsDeletingStudent(true);
+    try {
+      await deleteStudent(student.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["studentsList"] }),
+        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
+      ]);
+      navigate("/students");
+    } catch (err: unknown) {
+      if (err instanceof ApiError) {
+        setDeleteError(err.message || "Failed to delete student.");
+      } else {
+        setDeleteError("A network error occurred. Please try again.");
+      }
+    } finally {
+      setIsDeletingStudent(false);
     }
   }
 
@@ -603,6 +639,19 @@ export function StudentDetailScreen() {
               >
                 Change status
               </button>
+
+              {currentUser?.role === "administrator" && (
+                <button
+                  type="button"
+                  className="btn-danger-sm"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setIsDeleteModalOpen(true);
+                  }}
+                >
+                  Delete student
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -740,6 +789,78 @@ export function StudentDetailScreen() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Student Modal */}
+      {isDeleteModalOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => {
+            if (!isDeletingStudent) setIsDeleteModalOpen(false);
+          }}
+        >
+          <div
+            ref={deleteDialogRef}
+            className="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-student-title"
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2 id="delete-student-title" className="modal-title">
+                Delete student
+              </h2>
+              <button
+                type="button"
+                className="modal-close-btn"
+                aria-label="Close dialog"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingStudent}
+              >
+                ✕
+              </button>
+            </div>
+
+            {deleteError && (
+              <div role="alert" className="form-alert-banner">
+                <p>{deleteError}</p>
+              </div>
+            )}
+
+            <div className="modal-body">
+              <p className="modal-lead-text">
+                Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
+                record? This cannot be undone, and cascades through every grading-session
+                registration, assessment, outcome and promotion involving them - any rank they
+                were promoted to is reverted along with it. A linked historical grading record
+                is unlinked, not deleted, and stays available for reconciliation.
+              </p>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-form-cancel"
+                onClick={() => setIsDeleteModalOpen(false)}
+                disabled={isDeletingStudent}
+                data-dialog-autofocus
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-danger-sm"
+                onClick={handleDeleteStudent}
+                disabled={isDeletingStudent}
+              >
+                {isDeletingStudent ? "Deleting…" : "Delete student"}
+              </button>
+            </div>
           </div>
         </div>
       )}

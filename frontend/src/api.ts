@@ -1099,3 +1099,241 @@ export async function cancelDataImportBatch(batchId: number): Promise<void> {
     method: "POST",
   });
 }
+
+/**
+ * Historical grading-workbook import (LEGACY_GRADINGS kind) and legacy
+ * record reconciliation. Hand-written for the same reason as the student
+ * roster import types above - the backend schema has not been regenerated
+ * to include these endpoints yet.
+ */
+export type LegacyRecordKind = "GRADING_RESULT" | "AUXILIARY_NOTE" | "DID_NOT_ATTEND";
+export type LegacyOutcome = "PASS" | "FAIL" | "CONDITIONAL";
+export type LegacyAttendanceStatus = "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
+export type LegacyDatePrecision = "MONTH" | "DAY";
+
+export type CanonicalLegacyRow = {
+  source_sheet: string;
+  source_section: string;
+  source_locator: string;
+  cycle_year: number;
+  cycle_month: number;
+  record_kind: LegacyRecordKind;
+  source_name: string;
+  source_current_rank_text: string;
+  source_testing_for_rank_text: string;
+  source_outcome_text: string;
+  outcome: LegacyOutcome | null;
+  attendance_status: LegacyAttendanceStatus;
+  comments: string;
+  admin_note: string;
+};
+
+export type RankMappingSuggestion = {
+  source_text: string;
+  suggested_rank_id: number | null;
+  suggested_rank_code: string | null;
+};
+
+export type LegacyImportPreview = {
+  total: number;
+  grading_result: number;
+  auxiliary_note: number;
+  did_not_attend: number;
+  unresolved_current_rank: number;
+  unresolved_testing_for_rank: number;
+  unresolved_outcome: number;
+  warnings: string[];
+  rank_suggestions: RankMappingSuggestion[];
+  rows: CanonicalLegacyRow[];
+};
+
+export type LegacyImportRequestPayload = {
+  rank_mappings: Record<string, string | null>;
+};
+
+export async function previewLegacyGradingImport(
+  batchId: number,
+  payload: LegacyImportRequestPayload,
+): Promise<LegacyImportPreview> {
+  return apiRequest<LegacyImportPreview>(
+    `/api/data-imports/batches/${batchId}/preview/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function commitLegacyGradingImport(
+  batchId: number,
+  payload: LegacyImportRequestPayload,
+): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(
+    `/api/data-imports/batches/${batchId}/commit/`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export type LegacyGradingRecord = {
+  id: number;
+  student: number | null;
+  student_display_name: string | null;
+  student_wksa_id: string | null;
+  source_batch: number;
+  record_kind: LegacyRecordKind;
+  record_kind_display: string;
+  source_sheet: string;
+  source_section: string;
+  source_locator: string;
+  cycle_year: number;
+  cycle_month: number;
+  grading_date: string | null;
+  date_precision: LegacyDatePrecision;
+  date_precision_display: string;
+  source_name: string;
+  source_current_rank_text: string;
+  current_rank: number | null;
+  current_rank_code: string | null;
+  source_testing_for_rank_text: string;
+  testing_for_rank: number | null;
+  testing_for_rank_code: string | null;
+  source_outcome_text: string;
+  outcome: LegacyOutcome | null;
+  outcome_display: string | null;
+  attendance_status: LegacyAttendanceStatus;
+  attendance_status_display: string;
+  comments: string;
+  admin_note: string;
+  is_void: boolean;
+  void_reason: string;
+  voided_by: string | null;
+  voided_by_email: string | null;
+  voided_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getLegacyGradingRecords(params?: {
+  student?: number;
+  linked?: boolean;
+  voided?: boolean;
+  record_kind?: LegacyRecordKind;
+  source_batch?: number;
+  page?: number;
+  page_size?: number;
+}): Promise<PaginatedResponse<LegacyGradingRecord>> {
+  const searchParams = new URLSearchParams();
+  if (params?.student !== undefined) searchParams.set("student", String(params.student));
+  if (params?.linked !== undefined) searchParams.set("linked", String(params.linked));
+  if (params?.voided !== undefined) searchParams.set("voided", String(params.voided));
+  if (params?.record_kind) searchParams.set("record_kind", params.record_kind);
+  if (params?.source_batch !== undefined) {
+    searchParams.set("source_batch", String(params.source_batch));
+  }
+  if (params?.page) searchParams.set("page", String(params.page));
+  if (params?.page_size) searchParams.set("page_size", String(params.page_size));
+  const query = searchParams.toString();
+  return apiRequest<PaginatedResponse<LegacyGradingRecord>>(
+    `/api/gradings/legacy-records/${query ? `?${query}` : ""}`,
+  );
+}
+
+export async function getAllLegacyGradingRecords(
+  params?: Parameters<typeof getLegacyGradingRecords>[0],
+): Promise<PaginatedResponse<LegacyGradingRecord>> {
+  return collectAllPages((page) =>
+    getLegacyGradingRecords({ ...params, page, page_size: 200 }),
+  );
+}
+
+export async function linkLegacyGradingRecord(
+  id: number,
+  studentId: number,
+): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(
+    `/api/gradings/legacy-records/${id}/link-student/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ student: studentId }),
+    },
+  );
+}
+
+export async function unlinkLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(
+    `/api/gradings/legacy-records/${id}/unlink-student/`,
+    { method: "POST" },
+  );
+}
+
+export async function resolveLegacyCurrentRank(
+  id: number,
+  rankId: number | null,
+): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(
+    `/api/gradings/legacy-records/${id}/resolve-current-rank/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ rank: rankId }),
+    },
+  );
+}
+
+export async function resolveLegacyTestingForRank(
+  id: number,
+  rankId: number | null,
+): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(
+    `/api/gradings/legacy-records/${id}/resolve-testing-for-rank/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ rank: rankId }),
+    },
+  );
+}
+
+export async function voidLegacyGradingRecord(
+  id: number,
+  reason: string,
+): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/void/`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export type GradingHistorySource = "KUKGRADE" | "LEGACY";
+
+export type GradingHistoryItem = {
+  source: GradingHistorySource;
+  record_id: number;
+  date: string | null;
+  cycle_year: number | null;
+  cycle_month: number | null;
+  date_precision: LegacyDatePrecision;
+  testing_for_rank_code: string | null;
+  testing_for_rank_name: string | null;
+  source_testing_for_rank_text: string;
+  outcome: LegacyOutcome | null;
+  attendance_status: LegacyAttendanceStatus;
+  comments: string;
+  promotion_id: number | null;
+};
+
+export type StudentGradingHistory = {
+  student: number;
+  student_display_name: string;
+  student_wksa_id: string;
+  items: GradingHistoryItem[];
+};
+
+export async function getStudentGradingHistory(
+  studentId: number,
+): Promise<StudentGradingHistory> {
+  return apiRequest<StudentGradingHistory>(
+    `/api/students/${studentId}/grading-history/`,
+  );
+}

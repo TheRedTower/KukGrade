@@ -1835,6 +1835,30 @@ describe("Student detail screen (/students/:id)", () => {
           promotions: testPromotions,
         });
       }
+      if (url.includes("/api/students/10/grading-history/")) {
+        return jsonResponse(200, {
+          student: 10,
+          student_display_name: "Alex Carter (UK-5001)",
+          student_wksa_id: "UK-5001",
+          items: [
+            {
+              source: "KUKGRADE",
+              record_id: 12,
+              date: "2025-12-12",
+              cycle_year: 2025,
+              cycle_month: 12,
+              date_precision: "DAY",
+              testing_for_rank_code: "YS",
+              testing_for_rank_name: "Yellow Stripe",
+              source_testing_for_rank_text: "",
+              outcome: "PASS",
+              attendance_status: "ATTENDED",
+              comments: "Excellent forms and techniques.",
+              promotion_id: 101,
+            },
+          ],
+        });
+      }
       if (url.includes("/api/students/10/")) {
         return jsonResponse(200, testStudent);
       }
@@ -1850,15 +1874,15 @@ describe("Student detail screen (/students/:id)", () => {
     const table = await screen.findByRole("table", { name: "Grading history" });
     const tableScope = within(table);
 
-    expect(tableScope.getByText("Winter Grading")).toBeVisible();
     expect(tableScope.getByText("12 Dec 2025")).toBeVisible();
-    expect(tableScope.getByText("White Belt")).toBeVisible();
-    expect(tableScope.getByText("Passed")).toBeVisible();
+    expect(tableScope.getByText("KukGrade")).toBeVisible();
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
+    expect(tableScope.getByText("Pass")).toBeVisible();
+    expect(tableScope.getByText("Excellent forms and techniques.")).toBeVisible();
 
     // Rank history timeline
     expect(screen.getByText("Promoted at Winter Grading")).toBeVisible();
-    expect(screen.getByText("Joined Kuk Sool Won")).toBeVisible();
+    expect(screen.getByText("Initial rank recorded in KukGrade")).toBeVisible();
   });
 
   it("changes student status via status modal and triggers PATCH request", async () => {

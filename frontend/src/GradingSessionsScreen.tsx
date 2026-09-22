@@ -389,6 +389,10 @@ export function GradingSessionsScreen() {
     user?.role === "instructor" ||
     user?.role === "administrator" ||
     user?.is_superuser === true;
+  // Historical import/reconciliation is administrator-only (data_imports
+  // and gradings.can_reconcile_imported_history permissions) - see
+  // docs/permissions.md.
+  const canManageLegacyImports = user?.role === "administrator";
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
@@ -402,11 +406,31 @@ export function GradingSessionsScreen() {
           <h1 className="gs-page-title" id="gradings-heading">Gradings</h1>
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
-        {canCreateGrading && (
-          <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
-            <PlusIcon /> Create grading
-          </button>
-        )}
+        <div className="gs-page-header-actions">
+          {canManageLegacyImports && (
+            <>
+              <button
+                className="btn-secondary"
+                onClick={() => navigate("/gradings/legacy-records")}
+                type="button"
+              >
+                Historical records
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => navigate("/gradings/import-legacy")}
+                type="button"
+              >
+                Import historical gradings
+              </button>
+            </>
+          )}
+          {canCreateGrading && (
+            <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
+              <PlusIcon /> Create grading
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ── Filters */}

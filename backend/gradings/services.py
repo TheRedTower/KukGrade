@@ -482,6 +482,16 @@ def validate_session_can_be_deleted(
     session: GradingSession,
     actor: User | None = None,
 ) -> None:
+    # An administrator may delete a session in any status, including
+    # LOCKED/COMPLETED ones holding finalised outcomes and promotions -
+    # delete_grading_session's own cascade (promotion revert, pre-flight
+    # validated all-or-nothing) plus the SESSION_DELETED audit event are the
+    # trail. Consistent with the single-candidate hard-delete path
+    # (delete_candidate_assessment), which already ignores session status
+    # entirely. Extends the 2026-09-20 cancelled-with-recorded-work decision
+    # to every status, not just CANCELLED.
+    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+        return
     if session.status not in {
         GradingSession.Status.DRAFT,
         GradingSession.Status.CANCELLED,
@@ -492,10 +502,7 @@ def validate_session_can_be_deleted(
     # A cancelled session can have come from OPEN, so it may hold assessments
     # people actually sat. Deleting it cascades that work away silently, and
     # there is no audit trail to reconstruct it from. Cancel, do not erase -
-    # unless an administrator is doing it deliberately, in which case the
-    # audit event recorded by delete_grading_session is the trail.
-    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
-        return
+    # unless an administrator is doing it deliberately (handled above).
     if (
         session.candidates.exclude(
             assessment__status=CandidateAssessment.Status.NOT_STARTED,
@@ -1342,6 +1349,46 @@ def create_grading_session(
 
 @transaction.atomic
 def delete_grading_session(session: GradingSession, actor: User | None = None) -> None:
+    # An administrator deleting a LOCKED/COMPLETED session may be erasing
+    # finalised outcomes and promotions - those refuse ordinary delete(), so
+    # they are stripped here first, the same sanctioned bypass
+    # delete_candidate_assessment uses (models.QuerySet.delete, the real
+    # unbound base implementation). Every candidate's promotion is
+    # pre-flight validated with validate_assessment_deletion_promotion
+    # *before* anything is mutated, so a promotion a later, different
+    # session has already superseded refuses the whole deletion rather than
+    # leaving the session half-erased.
+    reverted_student_ranks: list[dict[str, object]] = []
+    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+        candidates = list(
+            session.candidates.select_related(
+                "student",
+                "outcome__promotion__from_rank",
+                "outcome__promotion__to_rank",
+            ),
+        )
+        promotions_to_delete = []
+        for candidate in candidates:
+            outcome = getattr(candidate, "outcome", None)
+            promotion = getattr(outcome, "promotion", None) if outcome else None
+            if promotion is not None:
+                validate_assessment_deletion_promotion(promotion, candidate.student)
+                promotions_to_delete.append((candidate.student, promotion))
+        for student, promotion in promotions_to_delete:
+            reverted_student_ranks.append(
+                {
+                    "student_id": student.pk,
+                    "student_wksa_id": student.wksa_id,
+                    "from": promotion.to_rank.code,
+                    "to": promotion.from_rank.code,
+                },
+            )
+            Student.objects.filter(pk=student.pk).update(
+                current_rank=promotion.from_rank,
+            )
+            models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
+        CandidateOutcome.objects.filter(candidate__session=session).delete()
+
     # Recorded before the row goes, so the event still carries its identity.
     #
     # Deleting a session cascades its candidates away. Recording only the
@@ -1370,6 +1417,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
                 {"id": candidate_id, "student_wksa_id": wksa_id}
                 for candidate_id, wksa_id in cascaded
             ],
+            "reverted_student_ranks": reverted_student_ranks,
         },
     )
     session.delete(actor=actor)

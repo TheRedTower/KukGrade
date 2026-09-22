@@ -21,9 +21,11 @@ if TYPE_CHECKING:  # pragma: no cover
 INSTRUCTOR_GROUP = "Instructor"
 ADMINISTRATOR_GROUP = "Administrator"
 
-# Everything to do with running a grading. Students are never deleted - every
-# relationship to them is PROTECT - so no delete_student here. Ranks and the
-# syllabus are read-only until syllabus versioning lands in Phase 2b.
+# Everything to do with running a grading. Full student deletion is a
+# separate, administrator-only capability (_DATA_CLEANUP_PERMISSIONS below);
+# every relationship to a Student is PROTECT, so it cascades through a
+# service, not this ordinary CRUD grant. Ranks and the syllabus are read-only
+# until syllabus versioning lands in Phase 2b.
 _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("students", "view_student"),
     ("students", "add_student"),
@@ -66,15 +68,16 @@ _USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("accounts", "delete_user"),
 )
 
-# Hard-delete of grading records, for corruption or test-data cleanup only.
-# Deliberately narrower than _KUK_SOOL_PERMISSIONS, which both groups share:
-# an instructor can create and correct grading data, but only an
-# administrator can make it disappear. See gradings.services for the
-# cascade/attribution handling this gates.
+# Hard-delete of grading records and students. Deliberately narrower than
+# _KUK_SOOL_PERMISSIONS, which both groups share: an instructor can create
+# and correct grading data, but only an administrator can make it disappear.
+# See gradings.services / students.services for the cascade/attribution
+# handling this gates.
 _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "delete_candidateassessment"),
     ("gradings", "delete_candidateoutcome"),
     ("gradings", "delete_promotion"),
+    ("students", "delete_student"),
 )
 
 # Bulk data import (student rosters, and later legacy grading workbooks).

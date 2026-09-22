@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from django.db import transaction
+from django.db import models, transaction
 
 from accounts.models import User
 from audit.models import AuditAction
@@ -121,3 +121,77 @@ def update_student(
             metadata={"before": before, "after": after},
         )
     return student
+
+
+@transaction.atomic
+def delete_student(student: Student, actor: User) -> None:
+    """Hard-delete a student, for corruption or test-data cleanup only.
+
+    GradingCandidate.student and Promotion.student are both PROTECT, so
+    nothing cascades automatically - every grading-session registration,
+    assessment, outcome and promotion involving this student is removed
+    explicitly, in dependency order, before the student row itself can go:
+    Promotion (blocks Promotion.outcome, a PROTECT one-to-one) before
+    CandidateOutcome, before GradingCandidate (whose CASCADE then takes
+    CandidateAssessment/CandidateAssessmentItem with it). Promotion and a
+    finalised CandidateOutcome both refuse ordinary bulk delete - the same
+    sanctioned bypass as delete_candidate_assessment
+    (gradings/services.py) is used here: models.QuerySet.delete, the real
+    unbound base implementation, called directly. Unlike a single
+    assessment's cascade, no "is this still the student's most recent
+    promotion" check applies: every promotion this student has is being
+    removed together, so there is no surviving promotion it could still
+    supersede.
+
+    LegacyGradingRecord.student is nullable but PROTECT - it is independent
+    historical evidence of an imported workbook, not the student's own
+    record, so it is unlinked (student set to null) via
+    gradings.legacy_services.unlink_legacy_record_from_student, never
+    deleted.
+    """
+    from gradings.legacy_services import unlink_legacy_record_from_student
+    from gradings.models import (
+        CandidateOutcome,
+        GradingCandidate,
+        LegacyGradingRecord,
+        Promotion,
+    )
+
+    locked = Student.objects.select_for_update().get(pk=student.pk)
+
+    cascaded_candidates = list(
+        GradingCandidate.objects.filter(student=locked).values_list(
+            "id",
+            "session_id",
+            "session__title",
+        ),
+    )
+    promotion_count = models.QuerySet.delete(
+        Promotion.objects.filter(student=locked),
+    )[0]
+    outcome_count = CandidateOutcome.objects.filter(
+        candidate__student=locked,
+    ).delete()[0]
+    models.QuerySet.delete(GradingCandidate.objects.filter(student=locked))
+
+    legacy_records = list(LegacyGradingRecord.objects.filter(student=locked))
+    for legacy_record in legacy_records:
+        unlink_legacy_record_from_student(legacy_record, actor=actor)
+
+    record(
+        AuditAction.STUDENT_DELETED,
+        locked,
+        f"Student {locked} permanently deleted.",
+        actor=actor,
+        metadata={
+            "wksa_id": locked.wksa_id,
+            "cascaded_grading_candidates": [
+                {"id": candidate_id, "session_id": session_id, "session_title": title}
+                for candidate_id, session_id, title in cascaded_candidates
+            ],
+            "cascaded_promotions": promotion_count,
+            "cascaded_outcomes": outcome_count,
+            "legacy_records_unlinked": [record_.pk for record_ in legacy_records],
+        },
+    )
+    locked.delete()

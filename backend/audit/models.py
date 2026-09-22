@@ -43,6 +43,7 @@ class AuditAction(models.TextChoices):
     STUDENT_CREATED = "STUDENT_CREATED", "Student created"
     STUDENT_UPDATED = "STUDENT_UPDATED", "Student updated"
     STUDENT_STATUS_CHANGED = "STUDENT_STATUS_CHANGED", "Student status changed"
+    STUDENT_DELETED = "STUDENT_DELETED", "Student deleted"
 
     USER_CREATED = "USER_CREATED", "User created"
     USER_UPDATED = "USER_UPDATED", "User updated"

@@ -923,6 +923,12 @@ export async function updateStudent(
   });
 }
 
+export async function deleteStudent(id: number): Promise<void> {
+  await apiRequest<void>(`/api/students/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export async function getPromotions(params?: {
   session?: number;
   student?: number;

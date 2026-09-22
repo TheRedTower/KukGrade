@@ -571,10 +571,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     actionsButtonRef.current?.focus();
 
     if (actionType === "DELETE") {
+      const erasesFinalisedData = session.status === "LOCKED" || session.status === "COMPLETED";
       setConfirmModal({
         open: true,
         title: "Delete Grading Session",
-        message: "Are you sure you want to permanently delete this grading session? This action cannot be undone.",
+        message: erasesFinalisedData
+          ? "Are you sure you want to permanently delete this grading session? This erases every finalised outcome and promotion recorded in it, reverting any promoted student's rank. This action cannot be undone."
+          : "Are you sure you want to permanently delete this grading session? This action cannot be undone.",
         actionType: "DELETE",
       });
     } else if (actionType === "CANCEL") {
@@ -784,18 +787,40 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         Cancel session
                       </button>
                     )}
+                    {currentUser?.role === "administrator" && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item gsd-danger-text"
+                        onClick={() => handleActionClick("DELETE")}
+                      >
+                        Delete session
+                      </button>
+                    )}
                   </>
                 )}
 
                 {session.status === "COMPLETED" && (
-                  <Link
-                    to={`/audit?entity_type=GradingSession`}
-                    role="menuitem"
-                    className="gsd-dropdown-item"
-                    onClick={() => setActionsMenuOpen(false)}
-                  >
-                    View audit events
-                  </Link>
+                  <>
+                    <Link
+                      to={`/audit?entity_type=GradingSession`}
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      View audit events
+                    </Link>
+                    {currentUser?.role === "administrator" && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item gsd-danger-text"
+                        onClick={() => handleActionClick("DELETE")}
+                      >
+                        Delete session
+                      </button>
+                    )}
+                  </>
                 )}
 
                 {session.status === "CANCELLED" && (

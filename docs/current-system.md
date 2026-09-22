@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-22. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-22 with 602 backend tests and 169 frontend tests passing.
+Verified on 2026-09-22 with 614 backend tests and 173 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -63,8 +63,16 @@ entry.
   instructor deliberately opened. `wksa_id` is writable on create and
   read-only afterwards, since it is the external identifier grading records
   are matched against. Filters: `status`, `current_rank_code`, `search`
-  (name and WKSA ID). No delete: every relationship to a student is PROTECT
-  and history is retained by decision.
+  (name and WKSA ID). **Hard delete (2026-09-22, administrator-only)**:
+  `DELETE /api/students/{id}/` (`students.services.delete_student`) cascades
+  through every grading-session registration, assessment, outcome and
+  promotion involving the student - every relationship is `PROTECT`, so
+  nothing cascades automatically; the service removes each explicitly, in
+  dependency order, using the same sanctioned bypass as
+  `delete_candidate_assessment`. A linked `LegacyGradingRecord` is unlinked
+  (student set to null), never deleted - it is independent evidence of an
+  imported workbook, not the student's own record. One `STUDENT_DELETED`
+  audit event records the cascade counts before the row goes.
 - **Bulk student-roster import** (`data_imports` app, 2026-09-21,
   administrator-only): upload a `.xlsx`/`.csv` roster, preview row-by-row
   classification (ready/needs review/skip existing), then commit - every
@@ -163,9 +171,16 @@ entry.
   recorded reason, and `LOCKED -> CANCELLED` for an abandoned grading.
 - **Deletion rules are model-level**, holding from `Model.delete()`,
   `QuerySet.delete()`, related managers, the shell and Django admin. Bulk
-  deletes are all-or-nothing. Cancelled sessions holding recorded marking
-  cannot be deleted by an instructor; an administrator can delete them
-  deliberately, with the `SESSION_DELETED` audit event as the trail.
+  deletes are all-or-nothing. A non-draft, non-cancelled session cannot be
+  deleted by an instructor at all. **An administrator may delete a grading
+  session in any status (2026-09-22, extended from cancelled-only)**,
+  including `LOCKED`/`COMPLETED` sessions holding finalised outcomes and
+  promotions: `delete_grading_session` pre-flight validates every
+  candidate's promotion (refusing, all-or-nothing, if a later, different
+  session's promotion has already superseded it), reverts each affected
+  student's `current_rank`, and strips `Promotion`/`CandidateOutcome` rows
+  before the ordinary cascade removes the rest - the `SESSION_DELETED`
+  audit event, with `reverted_student_ranks` in its metadata, is the trail.
 - **Database-level integrity**: a composite foreign key stops an outcome being
   attached to another candidate's assessment; a check constraint ties an item's
   result to its assessor and timestamp. All attribution foreign keys are

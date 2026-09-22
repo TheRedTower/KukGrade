@@ -76,6 +76,7 @@ class OverallAssessmentSummary(TypedDict):
     met: int
     not_met: int
     not_assessed: int
+    required_met: int
     required_not_met: int
     required_not_assessed: int
     all_required_assessed: bool
@@ -1177,6 +1178,7 @@ def candidate_assessment_summary(
         "met": 0,
         "not_met": 0,
         "not_assessed": 0,
+        "required_met": 0,
         "required_not_met": 0,
         "required_not_assessed": 0,
         "all_required_assessed": True,
@@ -1211,6 +1213,7 @@ def candidate_assessment_summary(
             overall["met"] += 1
             if item.required:
                 summary["required_met"] += 1
+                overall["required_met"] += 1
         elif item.result == CandidateAssessmentItem.Result.NOT_MET:
             summary["not_met"] += 1
             overall["not_met"] += 1

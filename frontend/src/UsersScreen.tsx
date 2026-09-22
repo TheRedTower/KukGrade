@@ -331,9 +331,9 @@ export function UsersScreen(): React.ReactElement {
                 <tbody>
                   {users.map((user) => (
                     <tr key={user.id}>
-                      <td><strong>{user.full_name}</strong><span>{user.email}</span></td>
+                      <td><strong title={user.full_name}>{user.full_name}</strong><span title={user.email}>{user.email}</span></td>
                       <td>{user.role_display}</td>
-                      <td className="users-authority-summary">{authoritySummary(user)}</td>
+                      <td className="users-authority-summary" title={authoritySummary(user)}>{authoritySummary(user)}</td>
                       <td><span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>{user.is_active ? "Active" : "Inactive"}</span></td>
                       <td>{lastActive(user.last_login)}</td>
                       <td><button type="button" className="users-manage-button" onClick={() => navigate(`/users/${user.id}`)}>Manage user</button></td>

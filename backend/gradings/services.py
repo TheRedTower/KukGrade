@@ -23,6 +23,7 @@ from gradings.models import (
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    LegacyGradingRecord,
     Promotion,
 )
 from ranks.models import Rank
@@ -104,6 +105,27 @@ class StudentRankTimeline(TypedDict):
     student: Student
     current_rank: Rank
     promotions: list[Promotion]
+
+
+class GradingHistoryItem(TypedDict):
+    source: str  # "KUKGRADE" | "LEGACY"
+    record_id: int
+    date: date | None
+    cycle_year: int | None
+    cycle_month: int | None
+    date_precision: str  # "DAY" | "MONTH"
+    testing_for_rank_code: str | None
+    testing_for_rank_name: str | None
+    source_testing_for_rank_text: str
+    outcome: str | None
+    attendance_status: str
+    comments: str
+    promotion_id: int | None
+
+
+class StudentGradingHistory(TypedDict):
+    student: Student
+    items: list[GradingHistoryItem]
 
 
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
@@ -1059,6 +1081,82 @@ def student_rank_timeline(student: Student) -> StudentRankTimeline:
         "student": timeline_student,
         "current_rank": timeline_student.current_rank,
         "promotions": promotions,
+    }
+
+
+def unified_student_grading_history(student: Student) -> StudentGradingHistory:
+    """Native finalised outcomes + linked, non-voided legacy records,
+    source-labelled and date-precision-explicit (spec section 25).
+
+    Deliberately separate from student_rank_timeline / `/rank-history/`,
+    which stays Promotion-only (spec section 26) - this is a read model for
+    display, not a second claim about rank history. A native item's
+    "current rank at the time" is not tracked as its own field anywhere in
+    the native workflow (only testing_for_rank is), so it is left out here
+    rather than guessed from promotion history.
+    """
+    dated_items: list[tuple[date, GradingHistoryItem]] = []
+
+    finalised_outcomes = CandidateOutcome.objects.filter(
+        candidate__student=student,
+        status=CandidateOutcome.Status.FINALISED,
+    ).select_related("candidate__session", "candidate__testing_for_rank")
+    for outcome in finalised_outcomes:
+        session = outcome.candidate.session
+        promotion = getattr(outcome, "promotion", None)
+        testing_for_rank = outcome.candidate.testing_for_rank
+        native_item: GradingHistoryItem = {
+            "source": "KUKGRADE",
+            "record_id": outcome.pk,
+            "date": session.grading_date,
+            "cycle_year": session.grading_date.year,
+            "cycle_month": session.grading_date.month,
+            "date_precision": "DAY",
+            "testing_for_rank_code": testing_for_rank.code,
+            "testing_for_rank_name": testing_for_rank.name,
+            "source_testing_for_rank_text": "",
+            "outcome": outcome.final_outcome,
+            "attendance_status": "ATTENDED",
+            "comments": outcome.decision_notes,
+            "promotion_id": promotion.pk if promotion else None,
+        }
+        dated_items.append((session.grading_date, native_item))
+
+    legacy_records = LegacyGradingRecord.objects.filter(
+        student=student,
+        is_void=False,
+    ).select_related("testing_for_rank")
+    for legacy in legacy_records:
+        sort_date = legacy.grading_date or date(
+            legacy.cycle_year,
+            legacy.cycle_month,
+            1,
+        )
+        legacy_item: GradingHistoryItem = {
+            "source": "LEGACY",
+            "record_id": legacy.pk,
+            "date": legacy.grading_date,
+            "cycle_year": legacy.cycle_year,
+            "cycle_month": legacy.cycle_month,
+            "date_precision": legacy.date_precision,
+            "testing_for_rank_code": (
+                legacy.testing_for_rank.code if legacy.testing_for_rank else None
+            ),
+            "testing_for_rank_name": (
+                legacy.testing_for_rank.name if legacy.testing_for_rank else None
+            ),
+            "source_testing_for_rank_text": legacy.source_testing_for_rank_text,
+            "outcome": legacy.outcome,
+            "attendance_status": legacy.attendance_status,
+            "comments": legacy.comments,
+            "promotion_id": None,
+        }
+        dated_items.append((sort_date, legacy_item))
+
+    dated_items.sort(key=lambda pair: pair[0], reverse=True)
+    return {
+        "student": student,
+        "items": [item for _sort_date, item in dated_items],
     }
 
 

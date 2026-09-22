@@ -1718,6 +1718,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Student'
           description: ''
+  /api/students/{id}/grading-history/:
+    get:
+      operationId: students_grading_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this student.
+        required: true
+      tags:
+      - students
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StudentGradingHistory'
+          description: ''
   /api/students/{id}/rank-history/:
     get:
       operationId: students_rank_history_retrieve
@@ -2866,6 +2887,57 @@ components:
         * `REGISTERED` - Registered
         * `WITHDRAWN` - Withdrawn
         * `COMPLETED` - Completed
+    GradingHistoryItem:
+      type: object
+      properties:
+        source:
+          type: string
+        record_id:
+          type: integer
+        date:
+          type: string
+          format: date
+          nullable: true
+        cycle_year:
+          type: integer
+          nullable: true
+        cycle_month:
+          type: integer
+          nullable: true
+        date_precision:
+          type: string
+        testing_for_rank_code:
+          type: string
+          nullable: true
+        testing_for_rank_name:
+          type: string
+          nullable: true
+        source_testing_for_rank_text:
+          type: string
+        outcome:
+          type: string
+          nullable: true
+        attendance_status:
+          type: string
+        comments:
+          type: string
+        promotion_id:
+          type: integer
+          nullable: true
+      required:
+      - attendance_status
+      - comments
+      - cycle_month
+      - cycle_year
+      - date
+      - date_precision
+      - outcome
+      - promotion_id
+      - record_id
+      - source
+      - source_testing_for_rank_text
+      - testing_for_rank_code
+      - testing_for_rank_name
     GradingSession:
       type: object
       properties:
@@ -4540,6 +4612,32 @@ components:
       - status_display
       - updated_at
       - wksa_id
+    StudentGradingHistory:
+      type: object
+      description: |-
+        Combines finalised native outcomes with linked, non-voided legacy
+        records (spec section 25) - kept deliberately separate from
+        StudentRankHistorySerializer/`/rank-history/`, which remains
+        Promotion-only (spec section 26).
+      properties:
+        student:
+          type: integer
+          readOnly: true
+        student_display_name:
+          type: string
+          readOnly: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradingHistoryItem'
+      required:
+      - items
+      - student
+      - student_display_name
+      - student_wksa_id
     StudentList:
       type: object
       description: |-

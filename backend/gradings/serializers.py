@@ -7,12 +7,14 @@ from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from accounts.models import User
+from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    LegacyGradingRecord,
     Promotion,
 )
 from gradings.services import (
@@ -807,4 +809,152 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
             raise_drf_validation_error(exc)
 
     def create(self, validated_data: dict[str, Any]) -> GradingCandidate:
+        raise NotImplementedError
+
+
+class LegacyGradingRecordSerializer(serializers.ModelSerializer):
+    """Read-mostly, matching PromotionSerializer's idiom - no ordinary
+    update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+    the five reconciliation actions below."""
+
+    record_kind_display = serializers.CharField(
+        source="get_record_kind_display",
+        read_only=True,
+    )
+    outcome_display = serializers.CharField(
+        source="get_outcome_display",
+        read_only=True,
+        allow_null=True,
+    )
+    attendance_status_display = serializers.CharField(
+        source="get_attendance_status_display",
+        read_only=True,
+    )
+    date_precision_display = serializers.CharField(
+        source="get_date_precision_display",
+        read_only=True,
+    )
+    student_display_name = serializers.CharField(
+        source="student",
+        read_only=True,
+        allow_null=True,
+    )
+    student_wksa_id = serializers.CharField(
+        source="student.wksa_id",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+    current_rank_code = serializers.CharField(
+        source="current_rank.code",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+    testing_for_rank_code = serializers.CharField(
+        source="testing_for_rank.code",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+    voided_by_email = serializers.EmailField(
+        source="voided_by.email",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+
+    class Meta:
+        model = LegacyGradingRecord
+        fields = (
+            "id",
+            "student",
+            "student_display_name",
+            "student_wksa_id",
+            "source_batch",
+            "record_kind",
+            "record_kind_display",
+            "source_sheet",
+            "source_section",
+            "source_locator",
+            "cycle_year",
+            "cycle_month",
+            "grading_date",
+            "date_precision",
+            "date_precision_display",
+            "source_name",
+            "source_current_rank_text",
+            "current_rank",
+            "current_rank_code",
+            "source_testing_for_rank_text",
+            "testing_for_rank",
+            "testing_for_rank_code",
+            "source_outcome_text",
+            "outcome",
+            "outcome_display",
+            "attendance_status",
+            "attendance_status_display",
+            "comments",
+            "admin_note",
+            "is_void",
+            "void_reason",
+            "voided_by",
+            "voided_by_email",
+            "voided_at",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class LinkLegacyRecordSerializer(serializers.Serializer):
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+
+    def update(
+        self,
+        instance: LegacyGradingRecord,
+        validated_data: dict[str, Any],
+    ) -> LegacyGradingRecord:
+        request = self.context["request"]
+        try:
+            return link_legacy_record_to_student(
+                instance,
+                validated_data["student"],
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> LegacyGradingRecord:
+        raise NotImplementedError
+
+
+class ResolveLegacyRankSerializer(serializers.Serializer):
+    """`rank=null` explicitly leaves the mapping unresolved."""
+
+    rank = serializers.PrimaryKeyRelatedField(
+        queryset=Rank.objects.filter(active=True),
+        allow_null=True,
+    )
+
+
+class VoidLegacyRecordSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+
+    def update(
+        self,
+        instance: LegacyGradingRecord,
+        validated_data: dict[str, Any],
+    ) -> LegacyGradingRecord:
+        request = self.context["request"]
+        try:
+            return void_legacy_record(
+                instance,
+                reason=str(validated_data["reason"]),
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+
+    def create(self, validated_data: dict[str, Any]) -> LegacyGradingRecord:
         raise NotImplementedError

@@ -20,12 +20,18 @@ from accounts.permissions import (
     CanPromoteStudent,
     HasRequiredPermissions,
 )
+from gradings.legacy_services import (
+    resolve_legacy_current_rank,
+    resolve_legacy_testing_for_rank,
+    unlink_legacy_record_from_student,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
+    LegacyGradingRecord,
     Promotion,
 )
 from gradings.serializers import (
@@ -42,8 +48,12 @@ from gradings.serializers import (
     CandidatePromotionSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
+    LegacyGradingRecordSerializer,
+    LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
     PromotionSerializer,
+    ResolveLegacyRankSerializer,
+    VoidLegacyRecordSerializer,
     raise_drf_validation_error,
 )
 from gradings.services import (
@@ -842,3 +852,152 @@ class PromotionViewSet(ReadOnlyModelViewSet):
                 queryset = queryset.none()
 
         return queryset
+
+
+class LegacyGradingRecordViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    GenericViewSet,
+):
+    """Historical import records - read for both roles, reconciliation
+    (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+    the import spec). No ordinary create/update/delete: rows are only ever
+    created by data_imports.services.commit_legacy_grading_import, and only
+    ever changed through the five gradings.legacy_services functions."""
+
+    serializer_class = LegacyGradingRecordSerializer
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {
+        "list": ("gradings.view_legacygradingrecord",),
+        "retrieve": ("gradings.view_legacygradingrecord",),
+        "link_student": ("gradings.can_reconcile_imported_history",),
+        "unlink_student": ("gradings.can_reconcile_imported_history",),
+        "resolve_current_rank": ("gradings.can_reconcile_imported_history",),
+        "resolve_testing_for_rank": ("gradings.can_reconcile_imported_history",),
+        "void": ("gradings.can_reconcile_imported_history",),
+    }
+
+    def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
+        queryset = LegacyGradingRecord.objects.select_related(
+            "student",
+            "current_rank",
+            "testing_for_rank",
+            "voided_by",
+            "source_batch",
+        ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
+
+        student = self.request.query_params.get("student")
+        if student and student.isdecimal():
+            queryset = queryset.filter(student_id=int(student))
+        elif student:
+            queryset = queryset.none()
+
+        linked_param = self.request.query_params.get("linked")
+        if linked_param == "true":
+            queryset = queryset.filter(student__isnull=False)
+        elif linked_param == "false":
+            queryset = queryset.filter(student__isnull=True)
+
+        voided_param = self.request.query_params.get("voided")
+        if voided_param == "true":
+            queryset = queryset.filter(is_void=True)
+        elif voided_param == "false":
+            queryset = queryset.filter(is_void=False)
+
+        record_kind = self.request.query_params.get("record_kind")
+        if record_kind:
+            queryset = queryset.filter(record_kind=record_kind)
+
+        batch = self.request.query_params.get("source_batch")
+        if batch and batch.isdecimal():
+            queryset = queryset.filter(source_batch_id=int(batch))
+        elif batch:
+            queryset = queryset.none()
+
+        return queryset
+
+    @action(detail=True, methods=["post"], url_path="link-student")
+    def link_student(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        record_ = self.get_object()
+        serializer = LinkLegacyRecordSerializer(
+            record_,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(LegacyGradingRecordSerializer(updated).data)
+
+    @action(detail=True, methods=["post"], url_path="unlink-student")
+    def unlink_student(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        record_ = self.get_object()
+        try:
+            updated = unlink_legacy_record_from_student(
+                record_,
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(LegacyGradingRecordSerializer(updated).data)
+
+    @action(detail=True, methods=["post"], url_path="resolve-current-rank")
+    def resolve_current_rank(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        record_ = self.get_object()
+        serializer = ResolveLegacyRankSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            updated = resolve_legacy_current_rank(
+                record_,
+                serializer.validated_data["rank"],
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(LegacyGradingRecordSerializer(updated).data)
+
+    @action(detail=True, methods=["post"], url_path="resolve-testing-for-rank")
+    def resolve_testing_for_rank(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        record_ = self.get_object()
+        serializer = ResolveLegacyRankSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            updated = resolve_legacy_testing_for_rank(
+                record_,
+                serializer.validated_data["rank"],
+                actor=cast(User, request.user),
+            )
+        except DjangoValidationError as exc:
+            raise_drf_validation_error(exc)
+        return Response(LegacyGradingRecordSerializer(updated).data)
+
+    @action(detail=True, methods=["post"])
+    def void(self, request: Request, *args: object, **kwargs: object) -> Response:
+        record_ = self.get_object()
+        serializer = VoidLegacyRecordSerializer(
+            record_,
+            data=request.data,
+            context={"request": request},
+        )
+        serializer.is_valid(raise_exception=True)
+        updated = serializer.save()
+        return Response(LegacyGradingRecordSerializer(updated).data)

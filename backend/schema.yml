@@ -880,6 +880,256 @@ paths:
               schema:
                 $ref: '#/components/schemas/GradingCandidate'
           description: ''
+  /api/gradings/legacy-records/:
+    get:
+      operationId: gradings_legacy_records_list
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
+          description: ''
+  /api/gradings/legacy-records/{id}/:
+    get:
+      operationId: gradings_legacy_records_retrieve
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/{id}/link-student/:
+    post:
+      operationId: gradings_legacy_records_link_student_create
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/{id}/resolve-current-rank/:
+    post:
+      operationId: gradings_legacy_records_resolve_current_rank_create
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/{id}/resolve-testing-for-rank/:
+    post:
+      operationId: gradings_legacy_records_resolve_testing_for_rank_create
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/{id}/unlink-student/:
+    post:
+      operationId: gradings_legacy_records_unlink_student_create
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/{id}/void/:
+    post:
+      operationId: gradings_legacy_records_void_create
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
+        the import spec). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LegacyGradingRecord'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
   /api/gradings/outcomes/:
     get:
       operationId: gradings_outcomes_list
@@ -1912,6 +2162,10 @@ components:
       - USER_DELETED
       - IMPORT_BATCH_COMMITTED
       - IMPORT_BATCH_CANCELLED
+      - LEGACY_GRADING_LINKED
+      - LEGACY_GRADING_UNLINKED
+      - LEGACY_GRADING_RANK_RESOLVED
+      - LEGACY_GRADING_VOIDED
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
@@ -1939,6 +2193,10 @@ components:
         * `USER_DELETED` - User deleted
         * `IMPORT_BATCH_COMMITTED` - Import batch committed
         * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
+        * `LEGACY_GRADING_LINKED` - Legacy grading record linked
+        * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
+        * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
+        * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
     AgeBandEnum:
       enum:
       - AGE_8_AND_UNDER
@@ -1951,6 +2209,16 @@ components:
         * `AGE_9_TO_12` - 9-12
         * `AGE_13_TO_17` - 13-17
         * `AGE_18_AND_OVER` - 18+
+    AttendanceStatusEnum:
+      enum:
+      - ATTENDED
+      - DID_NOT_ATTEND
+      - UNKNOWN
+      type: string
+      description: |-
+        * `ATTENDED` - Attended
+        * `DID_NOT_ATTEND` - Did not attend
+        * `UNKNOWN` - Unknown
     AuditEvent:
       type: object
       properties:
@@ -2402,6 +2670,14 @@ components:
       required:
       - current_password
       - new_password
+    DatePrecisionEnum:
+      enum:
+      - MONTH
+      - DAY
+      type: string
+      description: |-
+        * `MONTH` - Month
+        * `DAY` - Day
     EffectiveSyllabusRequirement:
       type: object
       description: |-
@@ -2777,6 +3053,182 @@ components:
       description: |-
         * `STUDENT_ROSTER` - Student roster
         * `LEGACY_GRADINGS` - Legacy grading records
+    LegacyGradingRecord:
+      type: object
+      description: |-
+        Read-mostly, matching PromotionSerializer's idiom - no ordinary
+        update/delete exists (gradings.models.LegacyGradingRecordQuerySet), only
+        the five reconciliation actions below.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        student:
+          type: integer
+          readOnly: true
+          nullable: true
+        student_display_name:
+          type: string
+          readOnly: true
+          nullable: true
+        student_wksa_id:
+          type: string
+          readOnly: true
+          nullable: true
+        source_batch:
+          type: integer
+          readOnly: true
+        record_kind:
+          allOf:
+          - $ref: '#/components/schemas/RecordKindEnum'
+          readOnly: true
+        record_kind_display:
+          type: string
+          readOnly: true
+        source_sheet:
+          type: string
+          readOnly: true
+        source_section:
+          type: string
+          readOnly: true
+        source_locator:
+          type: string
+          readOnly: true
+        cycle_year:
+          type: integer
+          readOnly: true
+        cycle_month:
+          type: integer
+          readOnly: true
+        grading_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        date_precision:
+          allOf:
+          - $ref: '#/components/schemas/DatePrecisionEnum'
+          readOnly: true
+        date_precision_display:
+          type: string
+          readOnly: true
+        source_name:
+          type: string
+          readOnly: true
+        source_current_rank_text:
+          type: string
+          readOnly: true
+        current_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        current_rank_code:
+          type: string
+          readOnly: true
+          nullable: true
+        source_testing_for_rank_text:
+          type: string
+          readOnly: true
+        testing_for_rank:
+          type: integer
+          readOnly: true
+          nullable: true
+        testing_for_rank_code:
+          type: string
+          readOnly: true
+          nullable: true
+        source_outcome_text:
+          type: string
+          readOnly: true
+        outcome:
+          readOnly: true
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        outcome_display:
+          type: string
+          readOnly: true
+          nullable: true
+        attendance_status:
+          allOf:
+          - $ref: '#/components/schemas/AttendanceStatusEnum'
+          readOnly: true
+        attendance_status_display:
+          type: string
+          readOnly: true
+        comments:
+          type: string
+          readOnly: true
+        admin_note:
+          type: string
+          readOnly: true
+        is_void:
+          type: boolean
+          readOnly: true
+        void_reason:
+          type: string
+          readOnly: true
+        voided_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        voided_by_email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+        voided_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - admin_note
+      - attendance_status
+      - attendance_status_display
+      - comments
+      - created_at
+      - current_rank
+      - current_rank_code
+      - cycle_month
+      - cycle_year
+      - date_precision
+      - date_precision_display
+      - grading_date
+      - id
+      - is_void
+      - outcome
+      - outcome_display
+      - record_kind
+      - record_kind_display
+      - source_batch
+      - source_current_rank_text
+      - source_locator
+      - source_name
+      - source_outcome_text
+      - source_section
+      - source_sheet
+      - source_testing_for_rank_text
+      - student
+      - student_display_name
+      - student_wksa_id
+      - testing_for_rank
+      - testing_for_rank_code
+      - updated_at
+      - void_reason
+      - voided_at
+      - voided_by
+      - voided_by_email
     LockedCandidateWithdrawal:
       type: object
       properties:
@@ -2986,6 +3438,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ImportBatch'
+    PaginatedLegacyGradingRecordList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyGradingRecord'
     PaginatedPromotionList:
       type: object
       required:
@@ -3954,6 +4429,16 @@ components:
         * `COLOURED_BELT` - Coloured belt
         * `BLACK_BELT_CANDIDATE` - Black belt candidate
         * `BLACK_BELT` - Black belt
+    RecordKindEnum:
+      enum:
+      - GRADING_RESULT
+      - AUXILIARY_NOTE
+      - DID_NOT_ATTEND
+      type: string
+      description: |-
+        * `GRADING_RESULT` - Grading result
+        * `AUXILIARY_NOTE` - Auxiliary note
+        * `DID_NOT_ATTEND` - Did not attend
     ResultEnum:
       enum:
       - NOT_ASSESSED

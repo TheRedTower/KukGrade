@@ -18,13 +18,17 @@ from data_imports.models import ImportBatch
 from data_imports.serializers import (
     ImportBatchCreateSerializer,
     ImportBatchSerializer,
+    LegacyImportPreviewSerializer,
+    LegacyImportRequestSerializer,
     StudentImportPreviewSerializer,
     StudentImportRequestSerializer,
 )
 from data_imports.services import (
     cancel_import_batch,
+    commit_legacy_grading_import,
     commit_student_import,
     create_import_batch,
+    preview_legacy_grading_import,
     preview_student_import,
 )
 from gradings.serializers import raise_drf_validation_error
@@ -97,6 +101,19 @@ class ImportBatchViewSet(
     @action(detail=True, methods=["post"])
     def preview(self, request: Request, *args: object, **kwargs: object) -> Response:
         batch = self.get_object()
+
+        if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
+            legacy_input = LegacyImportRequestSerializer(data=request.data)
+            legacy_input.is_valid(raise_exception=True)
+            try:
+                legacy_preview = preview_legacy_grading_import(
+                    batch,
+                    rank_mappings=legacy_input.validated_data.get("rank_mappings"),
+                )
+            except DjangoValidationError as exc:
+                raise_drf_validation_error(exc)
+            return Response(LegacyImportPreviewSerializer(legacy_preview).data)
+
         input_serializer = StudentImportRequestSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
         try:
@@ -112,6 +129,24 @@ class ImportBatchViewSet(
     @action(detail=True, methods=["post"])
     def commit(self, request: Request, *args: object, **kwargs: object) -> Response:
         batch = self.get_object()
+
+        if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
+            legacy_input = LegacyImportRequestSerializer(data=request.data)
+            legacy_input.is_valid(raise_exception=True)
+            try:
+                legacy_committed = commit_legacy_grading_import(
+                    batch,
+                    actor=cast(User, request.user),
+                    rank_mappings=legacy_input.validated_data.get("rank_mappings"),
+                )
+            except DjangoValidationError as exc:
+                raise_drf_validation_error(exc)
+            serialized = ImportBatchSerializer(
+                legacy_committed,
+                context={"request": request},
+            )
+            return Response(serialized.data)
+
         input_serializer = StudentImportRequestSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
         try:

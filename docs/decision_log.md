@@ -18,6 +18,80 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-22 - Historical KSW Colchester grading-workbook migration (Phase B of the data-import spec)
+
+Status: Accepted
+
+Decision:
+The remainder of the data-import spec - historical workbook parsing,
+`LegacyGradingRecord`, rank review, identity reconciliation, void/correction,
+and a unified grading-history read model - is implemented on top of the
+Phase A `ImportBatch` foundation (`ImportBatch.Kind.LEGACY_GRADINGS`).
+`LegacyGradingRecord` (`gradings/models.py`) is a deliberately weaker,
+distinct evidence model from the native grading workflow: source text
+(name, rank text, outcome text, comments, cycle info) is immutable after
+import - `clean()` diffs the persisted row and rejects any change to it,
+derived as "every field except the mutable set" rather than a second
+hand-maintained list - and physical deletion is blocked at every layer
+(`Model.delete()`, `QuerySet.delete()`, `QuerySet.update()`); void is the
+only removal path and is itself one-shot (a second void is refused). The
+only mutation path is five service functions
+(`gradings/legacy_services.py`): `create_legacy_grading_record` (called
+once per parsed row from the commit service, no audit event of its own -
+one `IMPORT_BATCH_COMMITTED` event covers the whole batch, matching the
+roster importer) and four explicit corrections -
+`link_legacy_record_to_student`/`unlink_legacy_record_from_student`/
+`resolve_legacy_current_rank`/`resolve_legacy_testing_for_rank`/
+`void_legacy_record` - each auditing itself individually. A rank mapping
+is reviewed once per distinct source-text value across a batch, not per
+row, with an exact-match-only suggestion (never fuzzy, never
+auto-applied); leaving it unresolved never blocks a row from being
+committed, unlike the roster importer's required `Student.current_rank` -
+it is correctable at any time afterwards via the reconciliation API.
+Reading an imported record (`GET /api/gradings/legacy-records/`) matches
+native grading visibility (both roles); the five reconciliation actions
+are Administrator-only (`gradings.can_reconcile_imported_history`). A new
+`GET /api/students/{id}/grading-history/` combines finalised native
+outcomes with linked, non-voided legacy records into one source-labelled,
+newest-first list with an honest date precision (`DAY`/`MONTH`) per item -
+deliberately separate from `/rank-history/`, which is untouched and
+remains `Promotion`-only.
+
+A genuine, previously-unknown finding surfaced during implementation:
+Excel forbids `/` in a worksheet title (openpyxl raises `ValueError` on
+it), so despite the spec's own prose consistently writing cycle sheet
+names as `"06/2025"`, the real workbook cannot literally be titled that.
+The adapter's sheet-name pattern accepts `-` or `.` as the separator too,
+and preserves whatever the real title turns out to be rather than
+normalising it - this is a correction to the spec's own example, not a
+deviation from its intent.
+
+Context:
+Continuation of the 2026-09-21 "Student roster bulk import" entry, which
+deliberately deferred this half past the school's Friday 2026-09-25
+grading session - nothing about it blocks that session, unlike the
+roster importer. Built and merged the following day once the roster half
+was live. The same five spec-vs-implementation deviations recorded in
+that entry (Tablib over `django-import-export`, no background worker,
+local filesystem storage, all-or-nothing commit) apply here too; the
+roster importer's sixth deviation (exact-match-only rank resolution) does
+not apply in the same way here, since this half's rank review is
+explicitly a distinct-value, admin-confirmed workflow by design (Decision
+4 of the source spec), not a simplification of it.
+
+Consequences:
+Every synthetic test fixture (the adapter's own tests, and every workbook
+built for the commit/reconciliation/grading-history tests) is invented
+data - the real KSW Colchester workbook has never been read by this
+implementation and must never enter this repository. The spec's own
+hardening/rehearsal step (section 46) - running the adapter against a
+sanitised copy of the real workbook in a non-production environment,
+comparing per-sheet record counts, and confirming zero native
+`Promotion`/`CandidateOutcome`/current-rank changes resulted - remains
+outstanding before any real production import, and the adapter's
+sheet-structure assumptions (header detection, auxiliary section names)
+should be expected to need adjustment once tested against the real file.
+
 ### 2026-09-21 - Student roster bulk import (Phase A of the data-import spec)
 
 Status: Accepted

@@ -9,6 +9,11 @@ documents for intended scope, not as proof that something is implemented.
 
 - `current-system.md` - exact implemented architecture, endpoints, entities,
   known gaps, and deferred areas for the current `dev` baseline.
+- `data-import-and-legacy-migration.md` - implemented bulk student-roster
+  import and historical KSW Colchester grading-workbook migration: the
+  `ImportBatch` lifecycle, the workbook adapter, rank review,
+  `LegacyGradingRecord` immutability/reconciliation, and the unified
+  grading-history read model.
 - `product-requirements.md` - product goals, users, confirmed requirements, proposed scope, and unresolved product decisions.
 - `architecture.md` - modular monolith architecture, backend/frontend boundaries, data storage, deployment direction, and deferred worker guidance.
 - `domain-model.md` - core domain concepts, proposed entities, grading lifecycle, and historical reproducibility rules.

@@ -136,10 +136,19 @@ endpoints (not part of any accepted design).
 | PATCH | /api/students/{id}/                         | Update student details                          |
 | PUT, DELETE | /api/students/{id}/                   | 405; not exposed                                 |
 | GET   | /api/students/{id}/rank-history/            | Current rank plus every promotion record         |
+| GET   | /api/students/{id}/grading-history/         | Finalised native outcomes + linked, non-voided legacy records, source-labelled |
 
 The list representation omits `date_of_birth`; the detail representation
 includes it. `wksa_id` is writable on create and read-only afterwards. See
 `docs/current-system.md` for the rationale.
+
+`grading-history` (2026-09-22) is deliberately distinct from
+`rank-history`: it combines finalised native `CandidateOutcome`s with
+linked, non-voided `LegacyGradingRecord`s (see section 14a) into one
+newest-first list, each item tagged `"source": "KUKGRADE"` or `"LEGACY"`
+with its own `date_precision` (`"DAY"` or `"MONTH"`). `rank-history` is
+untouched and stays `Promotion`-only - a legacy Pass is never merged into
+it.
 
 ## 5. Ranks and Pathways
 
@@ -671,8 +680,8 @@ signed in, exactly as if it had gone through the API.
 
 ## 14. Data Imports (Admin only)
 
-Status: implemented for student-roster import (2026-09-21). Historical
-grading-workbook migration is designed but not yet implemented - see
+Status: implemented for both batch kinds - student-roster import
+(2026-09-21) and historical grading-workbook migration (2026-09-22). See
 `docs/data-import-and-legacy-migration.md`.
 
 | Method | Endpoint                                        | Description                                      |
@@ -680,21 +689,61 @@ grading-workbook migration is designed but not yet implemented - see
 | GET    | /api/data-imports/batches/                        | List import batches, newest first                |
 | POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); requires `data_imports.add_importbatch` |
 | GET    | /api/data-imports/batches/{id}/                   | Retrieve one batch                                |
-| POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify every row against `column_mapping`; nothing is committed; requires `data_imports.view_importbatch` |
-| POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and create every `READY` row's `Student`, all-or-nothing; requires `data_imports.can_commit_import` |
+| POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify it; nothing is committed; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and commit, all-or-nothing; requires `data_imports.can_commit_import` |
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
 
 `kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
-only, not yet wired to a commit path). `preview`/`commit` share a request
-body: `column_mapping` (target field -> source header, required fields
-`wksa_id`/`first_name`/`last_name`/`date_of_birth`/`current_rank`) and an
-optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`) for
-fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
-response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
-per-row `issues`, and (for `SKIP_EXISTING`) the existing student's identity
-for comparison - the existing record is never modified. No `DELETE` on a
-batch, and no endpoint downloads the raw source file back - it is a
-server-side-only artefact between upload and commit/cancel/expiry.
+only). `preview`/`commit` request/response shape depends on `kind`:
+
+- **`STUDENT_ROSTER`**: request body `column_mapping` (target field ->
+  source header, required fields
+  `wksa_id`/`first_name`/`last_name`/`date_of_birth`/`current_rank`) and an
+  optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`)
+  for fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
+  response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
+  per-row `issues`, and (for `SKIP_EXISTING`) the existing student's
+  identity for comparison - the existing record is never modified.
+- **`LEGACY_GRADINGS`**: request body `rank_mappings`
+  (`{"<source rank text>": "<Rank.code or null>"}`, one entry per *distinct*
+  value across the batch, not per row - `null`/omitted means "leave
+  unresolved" and never blocks a row from committing). Preview response
+  carries `total`/`grading_result`/`auxiliary_note`/`did_not_attend`
+  counts, `unresolved_current_rank`/`unresolved_testing_for_rank`/
+  `unresolved_outcome` counts, `warnings` (e.g. an unrecognised sheet),
+  `rank_suggestions` (`source_text`, `suggested_rank_id`,
+  `suggested_rank_code` - an exact-match suggestion only, never applied
+  automatically), and the full parsed `rows` for display. Commit creates
+  one `LegacyGradingRecord` per row (see 14a) - never a `Student`, a
+  `Promotion`, or a `CandidateOutcome`.
+
+No `DELETE` on a batch, and no endpoint downloads the raw source file back -
+it is a server-side-only artefact between upload and commit/cancel/expiry.
+
+## 14a. Legacy Grading Records
+
+Status: implemented (2026-09-22). Read access matches native grading
+visibility (both roles); the five reconciliation actions are
+Administrator-only (`gradings.can_reconcile_imported_history`).
+
+| Method | Endpoint                                                    | Description                                      |
+|--------|---------------------------------------------------------------|---------------------------------------------------|
+| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `student`, `linked`, `voided`, `record_kind`, `source_batch` |
+| GET    | /api/gradings/legacy-records/{id}/                              | Retrieve one record                               |
+| POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>}`; links to a `Student`    |
+| POST   | /api/gradings/legacy-records/{id}/unlink-student/               | No body; refused if not currently linked          |
+| POST   | /api/gradings/legacy-records/{id}/resolve-current-rank/         | Body `{"rank": <id or null>}`                     |
+| POST   | /api/gradings/legacy-records/{id}/resolve-testing-for-rank/     | Body `{"rank": <id or null>}`                     |
+| POST   | /api/gradings/legacy-records/{id}/void/                        | Body `{"reason": "<text>"}`; reason required, refused if already voided |
+
+No ordinary `POST`/`PATCH`/`DELETE` on this resource - a record is created
+only by an `LEGACY_GRADINGS` batch commit, and every field except
+`student`/`current_rank`/`testing_for_rank`/the void fields is immutable
+after creation (source text is preserved verbatim; a model-level `clean()`
+rejects any other change). Physical deletion is never possible through any
+path - void is the only removal, and it is itself one-shot. Each action
+records its own audit event (`LEGACY_GRADING_LINKED`/`_UNLINKED`/
+`_RANK_RESOLVED`/`_VOIDED`) and never touches the record's source fields.
 
 ---
 

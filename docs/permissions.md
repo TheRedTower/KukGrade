@@ -31,6 +31,9 @@ membership and is never consulted when authorising a request.
 | **Delete a completed assessment** | No | **Yes** | via group |
 | **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
 | **Bulk-import student roster (upload/preview/commit)** | No | **Yes** | via group |
+| **Bulk-import historical grading workbook (upload/preview/commit)** | No | **Yes** | via group |
+| Read imported historical grading records | Yes | Yes | via group |
+| **Reconcile a historical record (link/unlink/resolve rank/void)** | No | **Yes** | via group |
 
 "Grading sessions: full CRUD" has one asymmetry: deleting a cancelled
 session that holds recorded assessment work (any candidate past
@@ -55,8 +58,14 @@ group-only (`data_imports.view_importbatch`, `.add_importbatch`,
 `_DATA_IMPORT_PERMISSIONS` tuple). `can_commit_import` is deliberately its
 own permission rather than reusing `change_importbatch`, so the irreversible
 act of actually creating students from a reviewed file is a distinct grant
-from merely uploading/previewing one. See `docs/data-import-and-legacy-
-migration.md`.
+from merely uploading/previewing one. Historical grading-workbook import,
+added 2026-09-22, reuses the identical `_DATA_IMPORT_PERMISSIONS` for
+upload/preview/commit. Reading an imported historical record
+(`gradings.view_legacygradingrecord`) is in `_KUK_SOOL_PERMISSIONS` and so
+granted to both roles, matching native grading visibility; only
+reconciling one (link/unlink/resolve-rank/void) is gated by a further
+Administrator-only permission, `gradings.can_reconcile_imported_history`.
+See `docs/data-import-and-legacy-migration.md`.
 
 "Master" is not a group. `gradings.can_make_final_grading_decision`,
 `gradings.can_promote_student`, `gradings.can_override_locked_session` and

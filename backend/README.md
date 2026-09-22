@@ -382,12 +382,12 @@ routine correction:
   attribution foreign key that referenced the user - grading sessions
   created, candidates withdrawn, assessments generated, outcomes
   proposed/decided, items assessed, promotions recorded, audit events,
-  import batches uploaded/committed/cancelled - to a seeded "Deleted User"
-  placeholder account (`accounts/migrations/0005_seed_
-  deleted_user_placeholder.py`, excluded from the users API's own queryset)
-  rather than nulling or cascading it away, then deletes the row. Refuses
-  self-deletion and deleting the placeholder itself. See
-  `accounts.services.delete_platform_user`.
+  import batches uploaded/committed/cancelled, legacy grading records
+  voided - to a seeded "Deleted User" placeholder account (`accounts/
+  migrations/0005_seed_deleted_user_placeholder.py`, excluded from the
+  users API's own queryset) rather than nulling or cascading it away, then
+  deletes the row. Refuses self-deletion and deleting the placeholder
+  itself. See `accounts.services.delete_platform_user`.
 - `DELETE /api/gradings/assessments/{id}/`
   (`gradings.delete_candidateassessment` plus `delete_candidateoutcome`/
   `delete_promotion`): cascades through the assessment's outcome and
@@ -413,3 +413,55 @@ Promotion filters:
 - `effective_date_from`
 - `effective_date_to`
 - `promoted_by`
+
+## Data Imports and Legacy Grading Migration
+
+`data_imports` app, Administrator-only. Full detail in
+`docs/data-import-and-legacy-migration.md`; summary here for a backend
+developer working in this code.
+
+One `ImportBatch` lifecycle (`POST/GET /api/data-imports/batches/`,
+`.../preview/`, `.../commit/`, `.../cancel/`) serves two kinds:
+
+- `STUDENT_ROSTER` (`.xlsx`/`.csv`): `data_imports.services.
+  preview_student_import`/`commit_student_import`. Every created `Student`
+  goes through `students.services.create_student` unchanged - no bulk ORM
+  write bypasses it. An existing WKSA ID is always skipped, never updated.
+- `LEGACY_GRADINGS` (`.xlsx` only): `data_imports.ksw_adapter.
+  parse_ksw_colchester_workbook` turns the historical KSW Colchester
+  workbook into canonical rows (never resolves a rank or infers a student
+  link - both are explicit admin-review steps), and `data_imports.services.
+  preview_legacy_grading_import`/`commit_legacy_grading_import` turn those
+  into `gradings.models.LegacyGradingRecord` rows via `gradings.
+  legacy_services.create_legacy_grading_record`. Never creates a native
+  `Promotion`, `CandidateOutcome`, or `Student.current_rank` change - a
+  dedicated test asserts this directly.
+
+Both kinds share `data_imports/services.py`'s upload/cancel/expiry
+machinery: SHA-256-based duplicate-import warnings (never a hard block),
+private local storage (`STORAGES["import_uploads"]`, a callable rather than
+a concrete `FileSystemStorage(location=...)` instance so a migration never
+bakes in one machine's absolute path - see `data_imports/storage.py`),
+deletion of the temp file on commit/cancel/expiry, and `manage.py
+expire_stale_import_batches --hours 24` for abandoned batches (no
+background worker exists in this codebase, by decision).
+
+`LegacyGradingRecord` (`gradings/models.py`) is a second, deliberately
+weaker evidence model, distinct from the native grading workflow. Source
+text is immutable after creation (`clean()` diffs the persisted row and
+rejects any other change, computed as "every field except the mutable
+set" - `student`, `current_rank`, `testing_for_rank`, and the void fields
+- rather than a second hand-maintained list); physical deletion is blocked
+at every layer, mirroring `Promotion`'s own queryset-level guards. The
+only mutation path is `gradings/legacy_services.py`'s five functions
+(create + link/unlink/resolve-current-rank/resolve-testing-for-rank/void),
+each auditing itself; `GET /api/gradings/legacy-records/` plus those five
+actions as `POST .../link-student/` etc. are the reconciliation API,
+gated by `gradings.can_reconcile_imported_history` (read access matches
+native grading visibility - both roles).
+
+`GET /api/students/{id}/grading-history/` (`gradings.services.
+unified_student_grading_history`) combines finalised native outcomes with
+linked, non-voided legacy records into one source-labelled, newest-first
+list. `/api/students/{id}/rank-history/` is untouched and stays
+`Promotion`-only - do not merge legacy data into it.

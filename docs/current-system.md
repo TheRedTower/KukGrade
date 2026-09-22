@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-21. This document
+Describes the implementation on `dev` as verified on 2026-09-22. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-21 with 520 backend tests and 160 frontend tests passing.
+Verified on 2026-09-22 with 593 backend tests and 169 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -67,6 +67,35 @@ feature being built. Each test passes cleanly in isolation.
   service, so validation and the normal `STUDENT_CREATED` audit event are
   identical to a hand-created student. An existing WKSA ID is always
   skipped, never updated. See `docs/data-import-and-legacy-migration.md`.
+- **Historical grading-workbook migration** (2026-09-22, administrator-only):
+  a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW
+  Colchester historical grading workbook (`.xlsx`) into `LegacyGradingRecord`
+  rows - a deliberately weaker, distinct evidence model from the native
+  grading workflow, never a `Promotion`, `CandidateOutcome`, or current-rank
+  change. Source text (name, rank text, outcome text, comments) is preserved
+  verbatim and immutable after import; only `student`, `current_rank`,
+  `testing_for_rank`, and void state are ever correctable afterwards, and
+  only through five explicit service functions
+  (`gradings/legacy_services.py`) - never a bulk queryset write, never a
+  name-to-student match applied automatically. Rank-text review works on
+  distinct values across a batch, not per row, with an exact-match
+  suggestion the administrator must still confirm. `GET
+  /api/gradings/legacy-records/` (both roles) plus five
+  administrator-only reconciliation actions
+  (`link-student`/`unlink-student`/`resolve-current-rank`/
+  `resolve-testing-for-rank`/`void`, gated by
+  `gradings.can_reconcile_imported_history`) let an admin correct a wrong
+  link or an unresolved rank without ever touching the source record. A
+  voided record is excluded from active views but never physically
+  deleted; a second void on the same record is refused. See
+  `docs/data-import-and-legacy-migration.md`.
+- **Unified student grading history**: `GET /api/students/{id}/grading-history/`
+  combines finalised native outcomes with linked, non-voided legacy records
+  into one source-labelled, newest-first timeline (`KUKGRADE`/`LEGACY`),
+  each with its own honest date precision - an exact day for a native
+  grading, a month only for a historical one unless a verified exact date
+  was later added. Deliberately separate from `/rank-history/`, which is
+  untouched and stays `Promotion`-only.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
 - **Bulk operations**: `bulk-register` registers several candidates against
   one session (optionally generating their assessments in the same request);
@@ -227,7 +256,18 @@ feature being built. Each test passes cleanly in isolation.
   current-knowledge ledger (FDR-041/SCR-025), grading-session list,
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
-  the promotion ledger.
+  the promotion ledger. The administrator-only historical-import wizard
+  (upload the workbook, review rank-mapping suggestions per distinct source
+  value - never auto-applied, commit) and the historical-records
+  reconciliation screen (filter by link/void status; link to a student
+  found by name/WKSA-ID search, unlink, resolve either rank, or void with a
+  required reason) sit off the Gradings list header, administrator-only.
+  A student's "Grading history" card shows the unified native-plus-historical
+  timeline with `KukGrade`/`Historical` source badges and Did-Not-Attend
+  rendered distinctly from Fail, rather than being derived from Promotions
+  alone; the adjacent Rank history timeline's base node now reads "Initial
+  rank recorded in KukGrade" instead of implying `student.created_at` is a
+  join date.
   The access-controlled Audit route provides server-side action, entity, date
   and keyword filtering, pagination, and complete event detail without any
   mutation control; reachable by administrators, the designated Master, and

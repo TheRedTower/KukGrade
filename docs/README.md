@@ -36,8 +36,9 @@ documents for intended scope, not as proof that something is implemented.
   contract for assessments, items, outcomes and promotions, what is wrong with
   the current screens, the selection gate over the nine proposed directions in
   `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/`, and
-  the suggested implementation slices. Blocked on the 2026-09-23 open decisions
-  in `decision_log.md`.
+  the suggested implementation slices. Directions were selected on 2026-09-23;
+  one open decision in `decision_log.md`, the assessment summary endpoint,
+  blocks slice 2 only.
 - `api_contract.md` - mixed implemented and target REST API surface; check
   section labels before treating an endpoint as real.
 - `data_model.md` - target/legacy detailed data model notes, not the current

@@ -122,17 +122,17 @@ a:hover{color:#8a5c06}
         </table>
 
         <h2 style="margin: 22px 0 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted);">Assessor notes recorded against requirements</h2>
-        <div style="border-left: 3px solid var(--color-danger); padding: 3px 0 3px 14px; margin-bottom: 9px;">
-          <div style="font-size: 12.5px; font-weight: 600;">Dwi Cha Gi 뒤차기 · not met</div>
-          <p style="margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-text-muted);">“Guard dropped on the turn and no spot before extension.” — M. Reed, 14:27</p>
-        </div>
-        <div style="border-left: 3px solid var(--color-danger); padding: 3px 0 3px 14px;">
-          <div style="font-size: 12.5px; font-weight: 600;">Ki Bohn Soo 기본수 12 · not met</div>
-          <p style="margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-text-muted);">“Lost balance entering technique 12; second attempt incomplete.” — M. Reed, 14:41</p>
-        </div>
+        <p style="margin: 0 0 9px; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.5;">Every note recorded during scoring, whichever way the requirement went. <code style="font-size: 11px;">assessor_notes</code> is the single per-item free-text field, so a note on a met requirement is part of the record too.</p>
+        <sc-for list="{{itemNotes}}" as="n" hint-placeholder-count="3">
+          <div style="{{n.wrapStyle}}">
+            <div style="font-size: 12.5px; font-weight: 600;">{{n.title}} · <span style="{{n.resultStyle}}">{{n.result}}</span></div>
+            <p style="margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--color-text-muted);">“{{n.note}}” — {{n.by}}</p>
+          </div>
+        </sc-for>
 
         <h2 style="margin: 22px 0 7px; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--color-text-muted);">Assessment note</h2>
-        <p style="margin: 0; font-size: 13.5px; line-height: 1.6;">Strong hand technique throughout and good attitude under correction. Both shortfalls are recoverable with two weeks of focused work.</p>
+        <p style="margin: 0 0 7px; font-size: 11.5px; color: var(--color-text-muted); line-height: 1.5;">Editable until the record is sealed. This is the only point at which <code style="font-size: 11px;">CandidateAssessment.notes</code> can be written — it is submitted with the <code style="font-size: 11px;">COMPLETED</code> transition and is immutable afterwards.</p>
+        <textarea aria-label="Assessment note" rows="3" style="width: 100%; border: 1px solid var(--color-gold-strong); border-radius: 6px; padding: 10px 12px; font: inherit; font-size: 13.5px; line-height: 1.6; resize: vertical; background: var(--color-surface-sunken); color: var(--color-text);">Strong hand technique throughout and good attitude under correction. Both shortfalls are recoverable with two weeks of focused work.</textarea>
 
         <div style="margin-top: 26px; padding-top: 16px; border-top: 2px solid var(--color-text); display: flex; gap: 32px;">
           <div style="flex-grow: 1;">
@@ -228,6 +228,20 @@ class Component extends DCLogic {
       { name: 'Sohn Mohk Soo', korean: '손목수', range: '1–5', ok: true }
     ].map(function (t) { return { name: t.name, korean: t.korean, range: t.range, result: t.ok ? 'Met' : 'Not met', resStyle: res(t.ok) }; });
 
+    var noteDefs = [
+      { title: 'Ap Cha Gi 앞차기', ok: true, note: 'Best chamber in the group; held balance through the recovery.', by: 'M. Reed, 14:22' },
+      { title: 'Dwi Cha Gi 뒤차기', ok: false, note: 'Guard dropped on the turn and no spot before extension.', by: 'M. Reed, 14:27' },
+      { title: 'Ki Bohn Soo 기본수 12', ok: false, note: 'Lost balance entering technique 12; second attempt incomplete.', by: 'M. Reed, 14:41' }
+    ];
+    var itemNotes = noteDefs.map(function (n) {
+      return {
+        title: n.title, note: n.note, by: n.by,
+        result: n.ok ? 'met' : 'not met',
+        resultStyle: 'font-weight: 600; color: ' + (n.ok ? 'var(--color-success)' : 'var(--color-danger)') + ';',
+        wrapStyle: 'border-left: 3px solid ' + (n.ok ? 'var(--color-success)' : 'var(--color-danger)') + '; padding: 3px 0 3px 14px; margin-bottom: 9px;'
+      };
+    });
+
     var forms = [
       { name: 'Ki Cho Hyung', korean: '기초형', range: '1–6', ok: true },
       { name: 'Cho Geup Hyung', korean: '초급형', range: 'Part 1 of 2', ok: true }
@@ -240,7 +254,7 @@ class Component extends DCLogic {
       theme: dark ? 'dark' : 'light',
       themeLabel: dark ? 'Light' : 'Dark',
       toggleTheme: function () { self.setState({ dark: !dark }); },
-      core: core, techniques: techniques, forms: forms,
+      core: core, techniques: techniques, forms: forms, itemNotes: itemNotes,
       proofed: proofed,
       toggleProofed: function () { self.setState({ proofed: !proofed }); },
       noticeStyle: 'border-radius: 9px; padding: 14px 16px; border: 1px solid ' + (proofed ? 'var(--color-gold-strong)' : 'var(--color-border)') + '; background: ' + (proofed ? 'var(--color-warning-surface)' : 'var(--color-surface)') + '; color: var(--color-text);',

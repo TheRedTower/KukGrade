@@ -1,6 +1,9 @@
 # Assessment grading overhaul — nine proposed directions (2026-09-23)
 
-Status: **proposed, awaiting selection.** Nothing here is an accepted decision.
+Status: **selected 2026-09-23.** 1A Single Column Run, 2B Certificate Proof and
+3C Cohort Adjudication Board are the accepted directions, recorded as FDR-042 to
+FDR-047 and SCR-026 to SCR-028 in `../FRONTEND_DESIGN_REGISTER.md`. The six
+unselected directions are retained below as the record of what was considered.
 
 This pass revisits the three assessment grading screens shipped on 2026-09-16:
 mat-side scoring (SCR-019), completion review (SCR-020) and the judgement
@@ -8,9 +11,10 @@ drawers (SCR-021/022). It follows the register's established process — several
 competing directions per screen, one selected — but widens it to three
 directions for each of the three screens.
 
-Once a direction is chosen per screen, paste the draft rows in
-[§5](#5-draft-register-entries--paste-once-a-direction-is-chosen) into
-`../FRONTEND_DESIGN_REGISTER.md` and mark SCR-019 through SCR-022 superseded.
+The rows in §5 have been moved into `../FRONTEND_DESIGN_REGISTER.md`, and
+SCR-019, SCR-020 and SCR-022 are marked superseded there. SCR-021's instructor
+proposal drawer is retained under FDR-047, because the selected Master surface
+is a cohort board and does not carry the proposal step.
 
 ## 0. Contents
 
@@ -126,8 +130,10 @@ Read off the implementation, not from taste:
 - A **percentage per category** implies partial credit.
   `CandidateAssessmentItem.Result` is strictly `NOT_ASSESSED | MET | NOT_MET`,
   so the number is a fiction. It is removed from all three directions.
-- Every statistic is recomputed in JS while the server already returns
-  `item_counts` and a full `/api/gradings/outcomes/{id}/summary/` breakdown.
+- Every statistic is recomputed in JS. `item_counts` exists but has no
+  required-split, and the full `/api/gradings/outcomes/{id}/summary/` breakdown
+  is unreachable until a `CandidateOutcome` exists, so the recomputation is
+  currently unavoidable - see decision 5 in §6.
 
 **Judgement layer**
 
@@ -193,10 +199,11 @@ no edit affordance may render against a `FINALISED` outcome.
 All three — light and dark, tablet and phone widths, keyboard focus order,
 visible focus rings, and the reduced-motion guard already in `theme.css`.
 
-## 5. Draft register entries — paste once a direction is chosen
+## 5. Register entries as recorded
 
-Replace `<direction name>` and `<A|B|C>` with the selection. These are drafts;
-they are not approved until a direction is actually chosen.
+These were recorded in `../FRONTEND_DESIGN_REGISTER.md` on 2026-09-23 with the
+selected direction names filled in. Reproduced here for traceability; the
+register is authoritative.
 
 ### Decision rows
 
@@ -221,27 +228,42 @@ they are not approved until a direction is actually chosen.
 SCR-019 → superseded by SCR-026 · SCR-020 → superseded by SCR-027 ·
 SCR-021 and SCR-022 → superseded by SCR-028.
 
-## 6. Open decisions
+## 6. Decisions arising from this pass
 
-Settle these in `docs/decision_log.md` before implementation starts.
+Recorded in `docs/decision_log.md` on 2026-09-23.
 
-1. **Positive observations.** `AGENTS.md` states that assessment data must
-   support positive observations. No such field exists anywhere in the backend
-   — the only free text is `CandidateAssessmentItem.assessor_notes` (one per
-   item) and `CandidateAssessment.notes` (one per assessment). Either add the
-   field (model, migration, service, serializer, tests) or amend `AGENTS.md`.
-   **None of the nine boards fakes it.** This is the one place where the
-   mockups are deliberately narrower than the stated domain rules.
-2. **"Mark remaining met".** N sequential `PATCH`es in the FDR-028 style, or a
-   new `bulk-update-items` endpoint? 1A and 1C are where it would pay off.
-3. **Clearing a result.** 1A gates it behind an inline confirm; 1B and 1C use a
-   single warned action. Pick one and apply it everywhere (FDR-045).
-4. **Keyboard scoring in 1C.** The legend is drawn. Real key handling needs a
-   scoped (not global) handler and a defined focus model before it is promised.
-5. **Where judgement lives.** 3B and 3C are routes, not drawers. Either means
-   the session roster needs a new entry point, and
-   `MasterFinalDecisionDrawer.tsx` and `OutcomeProposalDrawer.tsx` are deleted
-   rather than refactored.
+1. **Positive observations — settled.** `AGENTS.md` required them; the backend
+   has no such field. Settled by amending `AGENTS.md`: `assessor_notes` is the
+   single per-item free-text field and carries both shortfalls and positive
+   observations, and `CandidateAssessment.notes` carries the overall
+   observation. No field added. This has a direct consequence for 2B, below.
+2. **Clearing a result — settled.** Inline confirmation naming the assessor and
+   time it erases (FDR-045), per 1A.
+3. **Bulk item scoring — settled as "do not add".** No selected direction needs
+   a "mark remaining met" affordance.
+4. **Keyboard scoring — dropped.** It was specific to 1C, which was not
+   selected.
+5. **Assessment summary endpoint — open, and the only blocker.** `item_counts`
+   has no required-split and `/outcomes/{id}/summary/` needs an outcome that
+   does not exist during scoring, so the counts the selected screens need are
+   not currently served. Proposal: expose `candidate_assessment_summary` on the
+   assessment resource. Blocks slice 2. See the handoff, §6.
+
+### Consequences of decision 1 for the 2B proof sheet
+
+Because `assessor_notes` now carries positive observations as well as
+shortfalls, the proof sheet must render **every recorded item note** with its
+result and attribution, not only the notes attached to `NOT_MET` items. A note
+on a met requirement would otherwise be written during scoring and then be
+invisible at the last moment it can be read, and absent from the permanent
+record afterwards. Recorded in FDR-043.
+
+The proof sheet must also keep an **editable control for
+`CandidateAssessment.notes` while the record is unsealed**. Completion is the
+only point at which that field can be written — it is submitted with the
+`COMPLETED` transition and is immutable afterwards — and 1A has no
+overall-note control, so rendering it as static prose on 2B would remove the
+only write path in the application. Recorded in FDR-043.
 
 ## 7. Implementation surface, when it comes
 

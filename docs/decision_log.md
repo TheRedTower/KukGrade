@@ -1274,28 +1274,33 @@ These are unresolved and block the assessment grading redesign. See
 
 ### 2026-09-23 - Assessment grading screen directions
 
-Status: Proposed
+Status: Accepted
 
 Decision:
-Select one design direction for each of the three assessment grading screens:
-mat-side scoring (1A Single Column Run, 1B Focus Runner, 1C Ledger Sheet),
-completion review (2A Exception Report, 2B Certificate Proof, 2C Inline Seal
-Strip) and the judgement layer (3A One Drawer Two Stages, 3B Decision Ledger
-Page, 3C Cohort Adjudication Board).
+Rebuild mat-side scoring as 1A Single Column Run, completion review as 2B
+Certificate Proof, and the Authorised Master final decision as 3C Cohort
+Adjudication Board. Selected from nine proposed directions, three per screen.
 
 Context:
-The three screens shipped in a single fast pass on 2026-09-16 and have drifted
+The three screens shipped in a single fast pass on 2026-09-16 and had drifted
 from the accepted visual direction - notably FDR-008, which prefers divider-led
-lists over repeated cards, while every requirement now renders as a card. Nine
-directions were proposed on 2026-09-23.
+lists over repeated cards, while every requirement rendered as a card. The
+completion review also showed a per-category percentage, implying partial
+credit that `CandidateAssessmentItem.Result` does not have.
 
 Consequences:
-Selection supersedes FDR-032, FDR-033, FDR-036, FDR-037 and FDR-038 and retires
-SCR-019 through SCR-022. Draft FDR-042 to FDR-046 and SCR-026 to SCR-028 rows
-are prepared. Directions 3B and 3C are routes rather than drawers, so either
-adds a route, changes the session roster's entry point, and deletes
-`OutcomeProposalDrawer.tsx` and `MasterFinalDecisionDrawer.tsx` rather than
-refactoring them.
+Recorded as FDR-042 to FDR-047 and SCR-026 to SCR-028. Supersedes FDR-032,
+FDR-033, FDR-036 and FDR-038, and retires SCR-019, SCR-020 and SCR-022.
+FDR-037's instructor proposal drawer is retained, not superseded: the selected
+Master surface is a cohort board and does not carry the proposal step, so the
+drawer is restyled to the board's evidence presentation under FDR-047.
+Both 2B and 3C are routes rather than in-page modes, so each adds a route and
+`GradingSessionDetailScreen.tsx` gains new entry points.
+`MasterFinalDecisionDrawer.tsx` is deleted rather than refactored;
+`OutcomeProposalDrawer.tsx` survives.
+Selecting 1A also settles the clearing treatment as an inline confirmation
+(FDR-045), and none of the three selected directions needs a bulk item-scoring
+affordance, so that decision is deferred rather than blocking.
 
 ### 2026-09-23 - Positive observations have no backend field
 
@@ -1324,39 +1329,40 @@ explicitly. This must be settled before the scoring screen is rebuilt.
 
 ### 2026-09-23 - Bulk item scoring
 
-Status: Proposed
+Status: Deferred
 
 Decision:
-Either present a "mark remaining met" affordance as N sequential `PATCH`es with
-progressive, interruptible, partly-failable feedback in the FDR-028 style, or
-add a `bulk-update-items` endpoint.
+Do not add a "mark remaining met" affordance or a `bulk-update-items` endpoint
+in this redesign. Revisit if instructors ask for it once 1A is in use.
 
 Context:
 `/api/gradings/assessment-items/` supports `GET` and `PATCH` on a single item
-only. There is no bulk item endpoint, so any multi-item action is N requests.
-FDR-028 already establishes that bulk operations are presented as independently
-processed rows with an exact success count and inline failures.
+only, so any multi-item action is N sequential requests. None of the three
+directions selected on 2026-09-23 includes the affordance, so nothing in the
+redesign depends on resolving it.
 
 Consequences:
-The client-side option needs no backend work but must never imply atomic
-success. The endpoint option needs a service, view, serializer, contract
-documentation and permission tests, and changes `docs/api_contract.md`.
+If it is revisited, the client-side option needs no backend work but must never
+imply atomic success, per FDR-028. The endpoint option needs a service, view,
+serializer, contract documentation and permission tests, and changes
+`docs/api_contract.md`.
 
 ### 2026-09-23 - Clearing an item result is destructive
 
-Status: Proposed
+Status: Accepted
 
 Decision:
-Choose one treatment for clearing a recorded result - an inline confirmation,
-or a single warned action - and apply it on every surface.
+`Clear` opens an inline confirmation naming the assessor and time it will
+erase. Applies on every surface that can return a scored item to
+`NOT_ASSESSED`.
 
 Context:
-The `candidate_item_assessor_matches_result` constraint requires assessor and
-`assessed_at` to be null when `result` is `NOT_ASSESSED`, so returning a scored
-item to unassessed erases who marked it and when. That attribution cannot be
-restored. The current UI presents `NOT_ASSESSED` as a peer of `MET` and
-`NOT_MET` in a segmented control and gives no warning.
+The `candidate_item_assessor_matches_result` constraint requires `assessor` and
+`assessed_at` to be null when `result` is `NOT_ASSESSED`, so clearing a scored
+item erases who marked it and when, irreversibly. The superseded UI presented
+`NOT_ASSESSED` as a peer of `MET` and `NOT_MET` in a segmented control and gave
+no warning at all.
 
 Consequences:
-Whichever is chosen becomes draft FDR-045 and applies to all three mat-side
-scoring directions.
+Recorded as FDR-045. `NOT_ASSESSED` is no longer a verdict target; it is
+reached only through the confirmed `Clear` action.

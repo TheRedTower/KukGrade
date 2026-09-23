@@ -54,6 +54,12 @@ here does not by itself mean it has shipped.
 | FDR-039 | Use a roster batch and inline promotion ledger for student rank conferral. | Approved | Selected from three layout directions on 2026-09-16. Provides individual row-level promotion triggers ('Promote to [Rank]') alongside a cohort promotion summary bar ('Promote Qualified Cohort') and pinned batch preview tray. Gated strictly by `can_promote_student` permission. Effective date is locked to session grading date. Contracts to row-level promotion with a server-side bulk-promote endpoint targeted for efficient cohort processing. |
 | FDR-040 | Use in-page operational action banners for grading session state transitions. | Approved | Selected from layout directions on 2026-09-16. Instead of heavy multi-step wizards or disconnected drawers, the session roster proactively surfaces an elegant in-page operational banner beneath the title and progression track when stage prerequisites are satisfied (e.g. 'All assessments completed · Ready to lock session'). Clicking the direct action triggers a minimal 2-sentence confirmation dialog, maintaining quiet operational flow and zero modal fatigue. |
 | FDR-041 | Revise the syllabus Rank Chapter into a cumulative Current Knowledge ledger. | Approved | Selected on 2026-09-19 and recorded on 2026-09-21. Keep the existing curriculum, age-band and destination-rank controls and horizontal rank progression. Within the selected rank, show universal core grading areas first, then cumulative Techniques and Forms with effective ranges, provenance and a restrained `NEW AT [RANK]` treatment. The backend, not React, must derive accumulation and provenance. |
+| FDR-042 | Rebuild mat-side scoring as the Single Column Run. | Approved | Selected from three directions on 2026-09-23. Supersedes FDR-032's dual-pane command ledger and FDR-033's three-peer segmented control. No category sub-rail: one continuous scroll in syllabus order with sticky category headers that carry their own progress. Requirement rows are divider-led per FDR-008, not cards. Two verdict targets only; `NOT_ASSESSED` is an undo, not a peer, and becomes a warned `Clear`. Header chrome collapses to one line plus a persistent mat bar carrying the live required count and the completion action. |
+| FDR-043 | Rebuild completion review as the Certificate Proof. | Approved | Selected from three directions on 2026-09-23. Supersedes FDR-036's dual-card ledger. The record renders as the document it becomes - candidate and rank transition, core grading areas, Techniques and Forms ledgers, the recorded not-met notes, the assessment note, and a seal line that stays blank until sealed - so the instructor proofreads rather than fills in a form. Provenance and counts sit in a side column. Per-category percentages are removed entirely. |
+| FDR-044 | Rebuild the Authorised Master final decision as the Cohort Adjudication Board. | Approved | Selected from three directions on 2026-09-23. Supersedes FDR-038's slide-over ledger. A locked session's whole cohort becomes a decision queue: rows carry evidence, the instructor proposal and an inline Pass/Conditional/Fail, with a detail pane for the row in focus. Decisions stage, then write one candidate at a time with per-row failures per FDR-028. FDR-037's instructor proposal drawer is retained but restyled to this screen's language - see FDR-047. |
+| FDR-045 | Clearing an item result is destructive and is confirmed inline. | Approved | The `candidate_item_assessor_matches_result` constraint nulls `assessor` and `assessed_at` when a result returns to `NOT_ASSESSED`, and that attribution cannot be restored. `Clear` therefore opens an inline confirmation naming the assessor and time it will erase, per the selected FDR-042 direction. |
+| FDR-046 | Assessment counts are served, not recomputed in React. | Approved | Use the assessment serializer's `item_counts` and `GET /api/gradings/outcomes/{id}/summary/`. React must not derive met, not-met or required totals from the item list. Percentages are never shown against results: `CandidateAssessmentItem.Result` is `NOT_ASSESSED`/`MET`/`NOT_MET` and carries no partial credit. |
+| FDR-047 | Keep the instructor outcome proposal as a drawer, restyled. | Approved | Consequence of selecting FDR-044. The Cohort Adjudication Board is a Master surface; it does not carry the instructor's proposal step. FDR-037's right slide-over is retained for proposals, but adopts the board's evidence presentation so the instructor sees the same sealed assessment ledger the Master does, which the current implementation does not provide. |
 
 ## Concept screen register
 
@@ -77,13 +83,16 @@ here does not by itself mean it has shipped.
 | SCR-016 | Create grading session with ledger preview | Light | `16-create-grading-session.png` | Selected concept |
 | SCR-017 | Build grading cohort | Light | `17-build-grading-cohort.png` | Selected combined concept |
 | SCR-018 | Resolve flagged cohort candidates | Light | `18-resolve-flagged-candidates.png` | Selected exception-editor concept |
-| SCR-019 | Candidate assessment workspace | Light | `19-candidate-assessment-workspace.png` | Selected dual-pane concept |
-| SCR-020 | Assessment completion review | Light | `20-assessment-completion-review.png` | Selected dual-card concept |
-| SCR-021 | Instructor outcome proposal drawer | Light | `21-instructor-outcome-proposal.png` | Selected slide-over concept |
-| SCR-022 | Authorised Master final decision slide-over | Light | `22-master-final-decision.png` | Selected hybrid slide-over ledger concept |
+| SCR-019 | Candidate assessment workspace | Light | `19-candidate-assessment-workspace.png` | Superseded by SCR-026 on 2026-09-23 |
+| SCR-020 | Assessment completion review | Light | `20-assessment-completion-review.png` | Superseded by SCR-027 on 2026-09-23 |
+| SCR-021 | Instructor outcome proposal drawer | Light | `21-instructor-outcome-proposal.png` | Retained, restyled under FDR-047 |
+| SCR-022 | Authorised Master final decision slide-over | Light | `22-master-final-decision.png` | Superseded by SCR-028 on 2026-09-23 |
 | SCR-023 | Roster batch and inline promotion ledger | Light | `23-student-promotion-flow.png` | Selected batch and inline promotion concept |
 | SCR-024 | Grading session state transition action banner | Light | `24-session-state-transition.png` | Selected in-page operational banner concept |
 | SCR-025 | Revised syllabus current-knowledge ledger | Light | `25-syllabus-current-knowledge-revised.png` | Implemented 2026-09-21 |
+| SCR-026 | Mat-side scoring - Single Column Run | Light | `2026-09-23-assessment-overhaul/boards/Main.dc.html` | Selected concept |
+| SCR-027 | Completion review - Certificate Proof | Light | `2026-09-23-assessment-overhaul/boards/S2B-Certificate-Proof.dc.html` | Selected concept |
+| SCR-028 | Master final decision - Cohort Adjudication Board | Light | `2026-09-23-assessment-overhaul/boards/S3C-Cohort-Adjudication-Board.dc.html` | Selected concept |
 
 ## Revised syllabus layout plan (2026-09-21)
 
@@ -288,25 +297,38 @@ Verified on `dev` at `4c009f6` on 2026-09-16. Earlier focused bulk-operation tes
   implemented in session detail. Offline save/synchronisation remains
   unimplemented frontend work.
 
-## Open design pass: assessment grading overhaul (2026-09-23)
+## Assessment grading overhaul (2026-09-23)
 
-The three assessment grading screens are being revisited. Nine directions -
-three for each of mat-side scoring (SCR-019), completion review (SCR-020) and
-the judgement layer (SCR-021/022) - are proposed in
+Status: **directions selected, implementation not started.**
+
+Nine directions - three for each of mat-side scoring, completion review and the
+judgement layer - were proposed and are kept in
 `2026-09-23-assessment-overhaul/README.md`, with interactive sources under that
-folder's `boards/`.
+folder's `boards/`. The unselected six are retained as the record of what was
+considered and rejected.
 
-Nothing in that pass is accepted. FDR-032, FDR-033, FDR-036, FDR-037 and
-FDR-038 remain the approved decisions, and SCR-019 through SCR-022 remain the
-selected concepts, until a direction is chosen per screen. Draft FDR-042 to
-FDR-046 and SCR-026 to SCR-028 rows are written out in that README ready to be
-moved into the tables above once selection happens.
+Selected on 2026-09-23:
 
-Two findings from that pass apply regardless of which direction is selected,
-and are recorded here so they are not lost:
+| Screen | Selected | Supersedes |
+| --- | --- | --- |
+| Mat-side scoring | 1A Single Column Run (SCR-026, FDR-042) | SCR-019, FDR-032, FDR-033 |
+| Completion review | 2B Certificate Proof (SCR-027, FDR-043) | SCR-020, FDR-036 |
+| Master final decision | 3C Cohort Adjudication Board (SCR-028, FDR-044) | SCR-022, FDR-038 |
 
-- The completion review's per-category percentage implies partial credit that
-  `CandidateAssessmentItem.Result` does not have. It is three-valued.
+FDR-037's instructor proposal drawer is retained rather than superseded,
+because the selected Master surface is a cohort board and does not carry the
+proposal step. It is restyled to that board's evidence presentation under
+FDR-047, so the proposing instructor sees the same sealed assessment ledger the
+Master does.
+
+Two findings from the pass hold independently of the selection:
+
+- The completion review's per-category percentage implied partial credit that
+  `CandidateAssessmentItem.Result` does not have. It is three-valued, and the
+  percentage is removed under FDR-046.
 - `AGENTS.md` requires assessment data to support positive observations, and no
-  such field exists in the backend. This needs a decision in
-  `docs/decision_log.md` before the assessment screens are rebuilt.
+  such field exists in the backend. This is an open decision in
+  `docs/decision_log.md` and must be settled before mat-side scoring is rebuilt.
+
+`docs/assessment-grading-redesign-handoff.md` carries the verified backend
+contract, the implementation slices and the remaining open decisions.

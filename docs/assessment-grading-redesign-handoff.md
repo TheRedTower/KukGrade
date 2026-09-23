@@ -39,24 +39,33 @@ Read the repository `AGENTS.md`, then:
 8. `frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
    — the nine proposed directions.
 
-## 1. Selection gate — read this first
+## 1. Selected directions
 
-**No implementation may start until one direction is selected per screen.**
+Selected and recorded on 2026-09-23. The nine proposed directions are kept in
+the design pass README; the six not chosen remain as the record of what was
+considered.
 
-| Screen | Current | Proposed directions |
-| --- | --- | --- |
-| Mat-side scoring | SCR-019 / FDR-032, FDR-033 | 1A Single Column Run · 1B Focus Runner · 1C Ledger Sheet |
-| Completion review | SCR-020 / FDR-036 | 2A Exception Report · 2B Certificate Proof · 2C Inline Seal Strip |
-| Judgement | SCR-021, SCR-022 / FDR-037, FDR-038 | 3A One Drawer Two Stages · 3B Decision Ledger Page · 3C Cohort Adjudication Board |
+| Screen | Selected | Register | Supersedes |
+| --- | --- | --- | --- |
+| Mat-side scoring | **1A Single Column Run** | SCR-026, FDR-042 | SCR-019, FDR-032, FDR-033 |
+| Completion review | **2B Certificate Proof** | SCR-027, FDR-043 | SCR-020, FDR-036 |
+| Master final decision | **3C Cohort Adjudication Board** | SCR-028, FDR-044 | SCR-022, FDR-038 |
 
-Until selection happens, FDR-032, FDR-033, FDR-036, FDR-037 and FDR-038 remain
-the approved decisions and SCR-019 through SCR-022 remain the selected
-concepts. Draft FDR-042 to FDR-046 and SCR-026 to SCR-028 rows are written out
-in the design pass README, ready to be moved into the register's tables when a
-direction is chosen.
+Two consequences of the selection worth reading before planning any slice:
 
-Record the selection in the register and in `decision_log.md` before writing
-code.
+- **The instructor proposal drawer survives.** 3C is a Master surface: it
+  adjudicates a locked cohort and does not carry the proposal step. FDR-037's
+  right slide-over is therefore retained rather than superseded, restyled under
+  FDR-047 so the proposing instructor sees the same sealed evidence ledger the
+  Master does — which the current implementation does not give them.
+  `MasterFinalDecisionDrawer.tsx` is deleted; `OutcomeProposalDrawer.tsx` is
+  kept and reworked.
+- **Two new routes.** 2B and 3C are both full routes, not in-page modes, so
+  `App.tsx` gains routes and `GradingSessionDetailScreen.tsx` gains entry
+  points. 3C is reached from the session, not from a candidate row.
+
+Selecting 1A also settled the clearing treatment (FDR-045, inline confirmation)
+and made bulk item scoring unnecessary for this redesign — see §6.
 
 ## 2. Verified backend contract
 
@@ -302,51 +311,62 @@ tablet and phone widths, ≥44px targets (FDR-007), text-plus-icon status never
 colour alone (FDR-003), keyboard focus order with visible rings, and the
 reduced-motion guard already in `theme.css`.
 
-## 5. Suggested implementation slices
+## 5. Implementation slices
 
-One commit per slice. Each slice must pass the §7 commands before the next
-begins.
+One commit per slice. Each must pass the §7 commands before the next begins.
 
-1. **Selection and register.** Record the chosen direction per screen. Move the
-   draft FDR-042 to FDR-046 and SCR-026 to SCR-028 rows into
-   `FRONTEND_DESIGN_REGISTER.md`, mark SCR-019 to SCR-022 superseded, and add
-   the decision-log entries. No code.
-2. **Serve the counts (FDR-046).** Replace client-side stat derivation with
-   `item_counts` and `/outcomes/{id}/summary/`. Remove the per-category
-   percentage. Behaviour-preserving apart from the percentage; do it before any
-   layout change so the diff stays readable.
+1. **Selection and register.** *Done, 2026-09-23.* FDR-042 to FDR-047 and
+   SCR-026 to SCR-028 recorded; SCR-019, SCR-020 and SCR-022 superseded;
+   decision-log entries written.
+2. **Serve the counts (FDR-046).** Replace client-side stat derivation in
+   `CandidateAssessmentScreen.tsx` with `item_counts` and
+   `/outcomes/{id}/summary/`, and remove the per-category percentage.
+   Behaviour-preserving apart from the percentage. Do this before any layout
+   change so the diff stays readable. **Does not depend on any open decision.**
 3. **Split the screen.** Extract completion review out of
-   `CandidateAssessmentScreen.tsx` into its own component, still rendering the
-   current design. Pure refactor, tests updated in place.
-4. **Rebuild mat-side scoring** to the selected direction, including the
-   destructive-clear treatment (FDR-045) and per-row assessor attribution.
-5. **Rebuild completion review** to the selected direction.
-6. **Unify the judgement layer** to the selected direction. If 3B or 3C is
-   chosen, this adds a route and deletes both drawer components rather than
-   refactoring them, and `GradingSessionDetailScreen.tsx` needs a new entry
-   point.
-7. **Dark, responsive and accessibility parity pass** across all three.
+   `CandidateAssessmentScreen.tsx`, where it currently lives as the
+   `isReviewMode` render branch, into its own component and route, still
+   rendering the existing design. Pure refactor; tests updated in place. This
+   is the precondition for 2B being a route.
+4. **Rebuild mat-side scoring as 1A.** Divider-led rows in syllabus order,
+   sticky category headers carrying their own progress, two verdict targets
+   plus the confirmed `Clear` (FDR-045), per-row assessor attribution, and the
+   persistent mat bar. **Blocked on open decision 6.1.**
+5. **Rebuild completion review as 2B.** The record as a proof sheet: rank
+   transition, core grading areas, Techniques and Forms ledgers, recorded
+   not-met notes, assessment note, and a seal line blank until sealed.
+   Provenance and counts in a side column — this is where `generated_by`,
+   `generated_at`, `started_at` and `completed_at` finally surface.
+6. **Build the Cohort Adjudication Board as 3C.** New route over a `LOCKED`
+   session. Rows carry evidence, proposal and an inline decision; detail pane
+   for the row in focus; decisions stage, then write one candidate at a time
+   with per-row failures per FDR-028. Delete `MasterFinalDecisionDrawer.tsx`
+   and its test.
+7. **Restyle the proposal drawer (FDR-047).** Give `OutcomeProposalDrawer.tsx`
+   the board's evidence presentation so the instructor sees the sealed
+   assessment ledger before proposing.
+8. **Dark, responsive and accessibility parity pass** across all four surfaces.
 
-## 6. Open decisions that block implementation
+## 6. Open decisions
 
-Mirrored into `decision_log.md` under "Open decisions". Settle 1 before slice
-4, and 2 and 3 before slice 4 is designed.
+Mirrored in `decision_log.md`.
 
-1. **Positive observations.** `AGENTS.md` states assessment data must support
-   positive observations. No such field exists in the backend. Either add
-   `CandidateAssessmentItem.positive_note` (model, migration, service,
-   serializer, permission and validation tests) or amend `AGENTS.md`. None of
-   the nine design boards fakes it — this is the one place where they are
-   deliberately narrower than the stated domain rules.
-2. **"Mark remaining met".** N sequential `PATCH`es presented as a progressive,
-   interruptible, partly-failable action in the FDR-028 style, or a new
-   `bulk-update-items` endpoint.
-3. **Clearing a result.** Inline confirm, or a single warned action. Whichever
-   is chosen applies everywhere (FDR-045).
-4. **Keyboard scoring.** Only relevant if 1C is selected. Needs a scoped — not
-   global — key handler and a defined focus model before it is promised.
-5. **Where judgement lives.** 3B and 3C are routes, not drawers, and change the
-   roster's entry point.
+1. **Positive observations — open, and the only blocker.** `AGENTS.md` states
+   assessment data must support positive observations. No such field exists in
+   the backend; the only free text is `CandidateAssessmentItem.assessor_notes`
+   (one per item) and `CandidateAssessment.notes` (one per assessment). Either
+   add `positive_note` to the item — model, migration, service, serializer, and
+   success, validation and permission tests — or amend `AGENTS.md` to make
+   `assessor_notes` the single per-item free-text field and say so explicitly.
+   **Settle before slice 4**, because it changes the 1A row layout. Slices 2
+   and 3 are unaffected and can proceed now.
+2. **Bulk item scoring — deferred.** No selected direction includes a "mark
+   remaining met" affordance, so nothing depends on it.
+3. **Clearing a result — accepted.** Inline confirmation naming the assessor
+   and time it erases (FDR-045).
+4. **Keyboard scoring — not applicable.** It was specific to 1C, which was not
+   selected.
+5. **Where judgement lives — resolved.** 3C is a route; see §1.
 
 ## 7. Verification
 

@@ -314,6 +314,42 @@ class BulkAssessmentStartSerializer(serializers.Serializer):
     )
 
 
+class AssessmentSummaryCountsSerializer(serializers.Serializer):
+    """Shape of one rollup block in `candidate_assessment_summary`.
+
+    Declared so the schema tells the truth about what the two `summary`
+    endpoints return. Neither of them serializes a model, and without this the
+    generated contract claims the viewset's own `serializer_class`. Read-only:
+    nothing is deserialized through it.
+    """
+
+    total = serializers.IntegerField(read_only=True)
+    # `required` is a real key in the payload, and it collides with
+    # `rest_framework.fields.Field.required`, which is a bool. Renaming the
+    # attribute would rename the response key, so the shadowing is
+    # deliberate and only the type conflict is silenced.
+    required = serializers.IntegerField(read_only=True)  # type: ignore[assignment]
+    met = serializers.IntegerField(read_only=True)
+    not_met = serializers.IntegerField(read_only=True)
+    not_assessed = serializers.IntegerField(read_only=True)
+    required_met = serializers.IntegerField(read_only=True)
+    required_not_met = serializers.IntegerField(read_only=True)
+    required_not_assessed = serializers.IntegerField(read_only=True)
+    all_required_assessed = serializers.BooleanField(read_only=True)
+    all_required_met = serializers.BooleanField(read_only=True)
+
+
+class AssessmentCategorySummarySerializer(AssessmentSummaryCountsSerializer):
+    category = serializers.CharField(read_only=True)
+
+
+class CandidateAssessmentSummarySerializer(serializers.Serializer):
+    """Overall plus per-category rollup for one assessment."""
+
+    overall = AssessmentSummaryCountsSerializer(read_only=True)
+    categories = AssessmentCategorySummarySerializer(many=True, read_only=True)
+
+
 class CandidateAssessmentSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     candidate_student_name = serializers.CharField(

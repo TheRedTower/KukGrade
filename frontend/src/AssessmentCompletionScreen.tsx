@@ -11,7 +11,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError, updateCandidateAssessment } from "./api";
 import { RankVisual } from "./RankVisual";
-import { formatTimeOnly, useCandidateAssessmentData } from "./candidateAssessmentData";
+import {
+  formatTimeOnly,
+  useAssessmentNotesDraft,
+  useCandidateAssessmentData,
+} from "./candidateAssessmentData";
 import "./CandidateAssessment.css";
 
 export function AssessmentCompletionScreen() {
@@ -22,8 +26,10 @@ export function AssessmentCompletionScreen() {
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
 
-  // General assessment notes (user override, or the value already on the server)
-  const [userNotes, setUserNotes] = useState<string | null>(null);
+  // General assessment notes. The draft outlives a trip back to scoring - see
+  // useAssessmentNotesDraft.
+  const { draft: userNotes, setDraft: setUserNotes, clearDraft: clearNotesDraft } =
+    useAssessmentNotesDraft(numCandidateId);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { session, candidate, studentRankName, assessment, items, categoryGroups, stats, isLoading } =
@@ -42,6 +48,7 @@ export function AssessmentCompletionScreen() {
     },
     onSuccess: () => {
       setActionError(null);
+      clearNotesDraft();
       queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });

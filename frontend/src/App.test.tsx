@@ -5010,6 +5010,80 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(window.location.pathname).toBe("/gradings/10");
   });
 
+  // Completion review is a route now, so "Return to scoring" unmounts it. The
+  // in-page review it replaced kept typed notes across that round trip, so the
+  // draft has to outlive the unmount.
+  it("keeps draft assessment notes when returning to scoring and back", async () => {
+    const completedItemsAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
+    };
+    const allAssessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, mockSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, {
+          count: 1,
+          next: null,
+          previous: null,
+          results: [completedItemsAssessment],
+        });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, allAssessedItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+    await user.click(screen.getByTestId("caw-complete-assessment-btn"));
+
+    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
+    await user.type(
+      screen.getByLabelText("General Assessment Notes"),
+      "Guard discipline needs work before the next grading.",
+    );
+
+    // Back to scoring to correct something, then into the review again
+    await user.click(screen.getByRole("link", { name: "Return to scoring" }));
+    await screen.findByRole("heading", { name: "Alex Carter" });
+    await user.click(screen.getByTestId("caw-complete-assessment-btn"));
+
+    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
+    expect(screen.getByLabelText("General Assessment Notes")).toHaveValue(
+      "Guard discipline needs work before the next grading.",
+    );
+  });
+
   it("handles NOT_STARTED assessment by offering start button", async () => {
     const notStartedAssessment: CandidateAssessment = {
       ...mockAssessment,

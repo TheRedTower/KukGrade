@@ -13,8 +13,8 @@
  * assessment `COMPLETED`. See FDR-046 and the 2026-09-23 decision log entry -
  * moving these to a served summary is a separate slice.
  */
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CandidateAssessmentItem,
   GradingCandidate,
@@ -213,4 +213,40 @@ export function useCandidateAssessmentData(
     stats,
     isLoading,
   };
+}
+
+/**
+ * Draft of `CandidateAssessment.notes` while the record is still unsealed.
+ *
+ * Completion review is its own route, so navigating back to scoring to correct
+ * a score unmounts the screen. Holding the draft in component state would
+ * discard whatever the instructor had typed - which the previous in-page
+ * review did not do, because it never unmounted. The draft therefore lives in
+ * the query cache, keyed by candidate, so it survives the round trip and is
+ * cleared once the assessment is sealed.
+ *
+ * `null` means "no draft", so the server value is shown - the same semantics
+ * the previous `userNotes` state had.
+ */
+export function useAssessmentNotesDraft(numCandidateId: number | undefined) {
+  const queryClient = useQueryClient();
+
+  const [draft, setDraftState] = useState<string | null>(
+    () => queryClient.getQueryData<string>(["assessmentNotesDraft", numCandidateId]) ?? null,
+  );
+
+  const setDraft = useCallback(
+    (value: string) => {
+      setDraftState(value);
+      queryClient.setQueryData(["assessmentNotesDraft", numCandidateId], value);
+    },
+    [queryClient, numCandidateId],
+  );
+
+  const clearDraft = useCallback(() => {
+    setDraftState(null);
+    queryClient.removeQueries({ queryKey: ["assessmentNotesDraft", numCandidateId] });
+  }, [queryClient, numCandidateId]);
+
+  return { draft, setDraft, clearDraft };
 }

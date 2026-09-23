@@ -52,6 +52,7 @@ export interface CategoryGroup {
   remainingRequiredCount: number;
   metCount: number;
   notMetCount: number;
+  notAssessedCount: number;
   isDone: boolean;
 }
 
@@ -173,6 +174,7 @@ export function useCandidateAssessmentData(
         remainingRequiredCount: remaining,
         metCount: served?.met ?? 0,
         notMetCount: served?.not_met ?? 0,
+        notAssessedCount: served?.not_assessed ?? 0,
         isDone: served?.all_required_assessed ?? false,
       };
     });
@@ -207,6 +209,11 @@ export function useCandidateAssessmentData(
     assessmentQuery.isLoading ||
     (!!assessment && (itemsQuery.isLoading || summaryQuery.isLoading));
 
+  // The rollup and the item rows are fetched separately, so either can fail on
+  // its own. Without this the screen renders normally with every count at
+  // zero, which reads as a real - and wrong - answer rather than a failure.
+  const hasLoadError = summaryQuery.isError || itemsQuery.isError;
+
   return {
     session: sessionQuery.data,
     candidate,
@@ -216,6 +223,7 @@ export function useCandidateAssessmentData(
     categoryGroups,
     stats,
     isLoading,
+    hasLoadError,
   };
 }
 

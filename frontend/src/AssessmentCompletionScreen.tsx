@@ -32,8 +32,17 @@ export function AssessmentCompletionScreen() {
     useAssessmentNotesDraft(numCandidateId);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const { session, candidate, studentRankName, assessment, items, categoryGroups, stats, isLoading } =
-    useCandidateAssessmentData(numSessionId, numCandidateId);
+  const {
+    session,
+    candidate,
+    studentRankName,
+    assessment,
+    items,
+    categoryGroups,
+    stats,
+    isLoading,
+    hasLoadError,
+  } = useCandidateAssessmentData(numSessionId, numCandidateId);
 
   const generalNotes = userNotes !== null ? userNotes : (assessment?.notes ?? "");
   const scoringPath = `/gradings/${sessionId}/assessments/${candidateId}`;
@@ -69,6 +78,22 @@ export function AssessmentCompletionScreen() {
         <div className="caw-loading-state" role="status">
           <span className="status-dot status-dot-pulse" aria-hidden="true" />
           <p>Loading completion review...</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (hasLoadError) {
+    return (
+      <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-load-error">
+        <div className="caw-error-banner" role="alert">
+          <p>
+            The assessment rollup could not be loaded, so the record cannot be reviewed or
+            sealed right now. Reload to try again.
+          </p>
+          <Link to={scoringPath} className="btn-secondary">
+            ← Return to scoring
+          </Link>
         </div>
       </section>
     );
@@ -207,6 +232,13 @@ export function AssessmentCompletionScreen() {
                     <td className="caw-cat-td-pct">
                       {group.notMetCount > 0 ? (
                         <span className="caw-pct-flag">({group.notMetCount} Not Met)</span>
+                      ) : group.notAssessedCount > 0 ? (
+                        /*
+                          Zero not-met does not mean every requirement was met:
+                          optional items may legitimately be left unassessed, so
+                          saying "All met" here would contradict the item rows.
+                        */
+                        <span className="caw-pct-flag">({group.notAssessedCount} Not Assessed)</span>
                       ) : (
                         <span className="caw-pct-clean">
                           All met <span className="caw-check-icon">✓</span>

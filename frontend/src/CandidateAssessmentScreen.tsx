@@ -42,6 +42,7 @@ export function CandidateAssessmentScreen() {
     categoryGroups,
     stats,
     isLoading,
+    hasLoadError,
   } = useCandidateAssessmentData(numSessionId, numCandidateId);
 
   // Default active category to the first one with remaining items, or the first group
@@ -183,6 +184,22 @@ export function CandidateAssessmentScreen() {
   }
 
   // Not found or error state
+  if (hasLoadError) {
+    return (
+      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-load-error">
+        <div className="caw-error-banner" role="alert">
+          <p>
+            The assessment rollup could not be loaded. Scoring is held back rather than
+            shown against counts that may be wrong. Reload to try again.
+          </p>
+          <Link to={`/gradings/${sessionId}`} className="btn-secondary">
+            ← Return to session roster
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   if (!session || !candidate) {
     return (
       <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-not-found">
@@ -197,6 +214,12 @@ export function CandidateAssessmentScreen() {
   }
 
   const reviewPath = `/gradings/${sessionId}/assessments/${candidateId}/review`;
+  // The rollup is served and only refetched once a score settles, so while an
+  // item PATCH is in flight `stats` still describes the pre-edit assessment.
+  // Clearing a required result would otherwise leave completion enabled, and a
+  // completion request that won the race could seal the assessment before the
+  // clear landed.
+  const canComplete = stats.canComplete && !updateItemMutation.isPending;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
@@ -260,17 +283,21 @@ export function CandidateAssessmentScreen() {
           ) : (
             <button
               type="button"
-              className={`caw-complete-action-btn ${stats.canComplete ? "caw-complete-ready" : ""}`}
-              disabled={!stats.canComplete}
+              className={`caw-complete-action-btn ${canComplete ? "caw-complete-ready" : ""}`}
+              disabled={!canComplete}
               onClick={() => navigate(reviewPath)}
               title={
-                stats.canComplete
+                updateItemMutation.isPending
+                  ? "Saving the last result"
+                  : stats.canComplete
                   ? "Proceed to completion review"
                   : `${stats.remainingRequired} required items remain unassessed`
               }
               data-testid="caw-complete-assessment-btn"
             >
-              {stats.canComplete
+              {updateItemMutation.isPending
+                ? "Saving..."
+                : stats.canComplete
                 ? "Complete assessment →"
                 : `Complete assessment (${stats.remainingRequired} required remaining)`}
             </button>

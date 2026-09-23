@@ -4812,6 +4812,161 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   // The completion review is its own route now, so it is reachable by a typed
   // URL rather than only through the scoring screen's gated button. It has to
   // refuse on its own rather than render an incomplete record.
+  // A category with zero not-met is not necessarily all met: optional items may
+  // legitimately be left unassessed, and saying "All met" would contradict the
+  // item rows on the record about to be sealed.
+  it("reports unassessed optional items rather than calling the category all met", async () => {
+    const completedItemsAssessment: CandidateAssessment = {
+      ...mockAssessment,
+      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
+    };
+    const allAssessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, {
+          overall: {
+            total: 3, required: 2, met: 2, not_met: 0, not_assessed: 1,
+            required_met: 2, required_not_met: 0, required_not_assessed: 0,
+            all_required_assessed: true, all_required_met: true,
+          },
+          categories: [
+            {
+              category: "ETIQUETTE",
+              total: 2, required: 1, met: 1, not_met: 0, not_assessed: 1,
+              required_met: 1, required_not_met: 0, required_not_assessed: 0,
+              all_required_assessed: true, all_required_met: true,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [completedItemsAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null,
+          results: [mockItem1, mockItem2, allAssessedItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
+
+    const row = screen.getByTestId("review-cat-row-ETIQUETTE");
+    expect(row).toHaveTextContent("1 Not Assessed");
+    expect(row).not.toHaveTextContent("All met");
+  });
+
+  // The rollup and the item rows are separate requests. If the rollup fails on
+  // its own the screen must say so, not render every count as zero.
+  it("reports a failed rollup instead of rendering zero counts", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(500, { detail: "Server error" });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByTestId("caw-load-error", {}, { timeout: 5000 })).toBeVisible();
+    expect(screen.queryByTestId("caw-complete-assessment-btn")).toBeNull();
+    expect(screen.queryByText("0 / 0")).toBeNull();
+  });
+
+  // The served rollup is only refetched once a score settles, so mid-PATCH
+  // `stats` still describes the pre-edit assessment. Clearing the last required
+  // result must not leave the completion route reachable in that window.
+  it("locks completion while a score change is still in flight", async () => {
+    const user = userEvent.setup();
+    const scoredItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
+    let resolvePatch: ((value: Response) => void) | undefined;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PATCH") {
+        // Never settles: holds the screen in the in-flight window under test.
+        return new Promise<Response>((resolve) => {
+          resolvePatch = resolve;
+        });
+      }
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor(scoredItems));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: scoredItems,
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
+    expect(completeBtn).toBeEnabled();
+
+    await user.click(screen.getByTestId("btn-not-assessed-1001"));
+
+    await waitFor(() => expect(completeBtn).toBeDisabled());
+    expect(completeBtn).toHaveTextContent("Saving...");
+
+    resolvePatch?.(jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" }) as Response);
+  });
   // FDR-046: the rollup is served, not recounted here. The summary below
   // deliberately disagrees with the items so a client-side recount would give
   // a visibly different answer.

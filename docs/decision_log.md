@@ -1267,3 +1267,96 @@ Consequences:
 `compose.yaml` starts PostgreSQL only. Production image layout and CI remain unresolved.
 
 ## Open decisions
+
+These are unresolved and block the assessment grading redesign. See
+`assessment-grading-redesign-handoff.md` and
+`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`.
+
+### 2026-09-23 - Assessment grading screen directions
+
+Status: Proposed
+
+Decision:
+Select one design direction for each of the three assessment grading screens:
+mat-side scoring (1A Single Column Run, 1B Focus Runner, 1C Ledger Sheet),
+completion review (2A Exception Report, 2B Certificate Proof, 2C Inline Seal
+Strip) and the judgement layer (3A One Drawer Two Stages, 3B Decision Ledger
+Page, 3C Cohort Adjudication Board).
+
+Context:
+The three screens shipped in a single fast pass on 2026-09-16 and have drifted
+from the accepted visual direction - notably FDR-008, which prefers divider-led
+lists over repeated cards, while every requirement now renders as a card. Nine
+directions were proposed on 2026-09-23.
+
+Consequences:
+Selection supersedes FDR-032, FDR-033, FDR-036, FDR-037 and FDR-038 and retires
+SCR-019 through SCR-022. Draft FDR-042 to FDR-046 and SCR-026 to SCR-028 rows
+are prepared. Directions 3B and 3C are routes rather than drawers, so either
+adds a route, changes the session roster's entry point, and deletes
+`OutcomeProposalDrawer.tsx` and `MasterFinalDecisionDrawer.tsx` rather than
+refactoring them.
+
+### 2026-09-23 - Positive observations have no backend field
+
+Status: Proposed
+
+Decision:
+Either add a positive-observation field to `CandidateAssessmentItem`, or amend
+`AGENTS.md` to drop the requirement.
+
+Context:
+`AGENTS.md` states that assessment data must support category-level results,
+item-level met/not-met results, comments, and positive observations. The first
+three exist. The fourth does not: a search of `backend/` finds no praise,
+strength or highlight field. The only free text is
+`CandidateAssessmentItem.assessor_notes`, one per item, and
+`CandidateAssessment.notes`, one per assessment. The 2026-09-23 design pass
+deliberately did not mock a field that does not exist, so this is the one place
+where the proposed screens are narrower than the stated domain rules.
+
+Consequences:
+Adding it requires a model field, migration, service change, serializer change,
+and success, validation and permission tests, plus a place for it in the
+selected mat-side scoring direction. Amending `AGENTS.md` instead makes
+`assessor_notes` the single per-item free-text field and should say so
+explicitly. This must be settled before the scoring screen is rebuilt.
+
+### 2026-09-23 - Bulk item scoring
+
+Status: Proposed
+
+Decision:
+Either present a "mark remaining met" affordance as N sequential `PATCH`es with
+progressive, interruptible, partly-failable feedback in the FDR-028 style, or
+add a `bulk-update-items` endpoint.
+
+Context:
+`/api/gradings/assessment-items/` supports `GET` and `PATCH` on a single item
+only. There is no bulk item endpoint, so any multi-item action is N requests.
+FDR-028 already establishes that bulk operations are presented as independently
+processed rows with an exact success count and inline failures.
+
+Consequences:
+The client-side option needs no backend work but must never imply atomic
+success. The endpoint option needs a service, view, serializer, contract
+documentation and permission tests, and changes `docs/api_contract.md`.
+
+### 2026-09-23 - Clearing an item result is destructive
+
+Status: Proposed
+
+Decision:
+Choose one treatment for clearing a recorded result - an inline confirmation,
+or a single warned action - and apply it on every surface.
+
+Context:
+The `candidate_item_assessor_matches_result` constraint requires assessor and
+`assessed_at` to be null when `result` is `NOT_ASSESSED`, so returning a scored
+item to unassessed erases who marked it and when. That attribution cannot be
+restored. The current UI presents `NOT_ASSESSED` as a peer of `MET` and
+`NOT_MET` in a segmented control and gives no warning.
+
+Consequences:
+Whichever is chosen becomes draft FDR-045 and applies to all three mat-side
+scoring directions.

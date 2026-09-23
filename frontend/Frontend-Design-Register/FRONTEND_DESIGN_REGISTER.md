@@ -326,9 +326,10 @@ Two findings from the pass hold independently of the selection:
 - The completion review's per-category percentage implied partial credit that
   `CandidateAssessmentItem.Result` does not have. It is three-valued, and the
   percentage is removed under FDR-046.
-- `AGENTS.md` requires assessment data to support positive observations, and no
-  such field exists in the backend. This is an open decision in
-  `docs/decision_log.md` and must be settled before mat-side scoring is rebuilt.
+- `AGENTS.md` required assessment data to support positive observations, and no
+  such field existed in the backend. Settled on 2026-09-23 by amending
+  `AGENTS.md`: `assessor_notes` is the single per-item free-text field and
+  records both shortfalls and positive observations. No field was added.
 
 `docs/assessment-grading-redesign-handoff.md` carries the verified backend
 contract, the implementation slices and the remaining open decisions.

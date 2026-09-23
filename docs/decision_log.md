@@ -1302,30 +1302,32 @@ Selecting 1A also settles the clearing treatment as an inline confirmation
 (FDR-045), and none of the three selected directions needs a bulk item-scoring
 affordance, so that decision is deferred rather than blocking.
 
-### 2026-09-23 - Positive observations have no backend field
+### 2026-09-23 - Positive observations recorded in assessor_notes
 
-Status: Proposed
+Status: Accepted
 
 Decision:
-Either add a positive-observation field to `CandidateAssessmentItem`, or amend
-`AGENTS.md` to drop the requirement.
+Amend `AGENTS.md` rather than add a field. `CandidateAssessmentItem.assessor_notes`
+is the single per-item free-text field and records both shortfalls and positive
+observations; `CandidateAssessment.notes` carries the overall observation. No
+separate praise field is added.
 
 Context:
-`AGENTS.md` states that assessment data must support category-level results,
-item-level met/not-met results, comments, and positive observations. The first
-three exist. The fourth does not: a search of `backend/` finds no praise,
-strength or highlight field. The only free text is
-`CandidateAssessmentItem.assessor_notes`, one per item, and
-`CandidateAssessment.notes`, one per assessment. The 2026-09-23 design pass
-deliberately did not mock a field that does not exist, so this is the one place
-where the proposed screens are narrower than the stated domain rules.
+`AGENTS.md` previously required assessment data to support "positive
+observations" as a distinct concern. No such field has ever existed in
+`backend/gradings`, so the rule described an intent rather than the schema. The
+gap surfaced during the 2026-09-23 design pass, which deliberately did not mock
+a field that does not exist. Two free-text fields already exist and are
+unconstrained in what they record. A second per-item textarea would also sit on
+every one of roughly 24 rows in the selected 1A mat-side layout, on a screen
+used during a live grading, where it would realistically go unfilled.
 
 Consequences:
-Adding it requires a model field, migration, service change, serializer change,
-and success, validation and permission tests, plus a place for it in the
-selected mat-side scoring direction. Amending `AGENTS.md` instead makes
-`assessor_notes` the single per-item free-text field and should say so
-explicitly. This must be settled before the scoring screen is rebuilt.
+`AGENTS.md`'s domain rule now states the actual shape: computed category
+results, stored item results, one per-item note field, one per-assessment note
+field. No migration, service or serializer change. Slice 4 of the assessment
+redesign is unblocked. If per-technique praise is wanted later it is a new
+decision with a migration, not an unmet existing requirement.
 
 ### 2026-09-23 - Bulk item scoring
 

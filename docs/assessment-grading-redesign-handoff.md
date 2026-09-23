@@ -331,7 +331,7 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 4. **Rebuild mat-side scoring as 1A.** Divider-led rows in syllabus order,
    sticky category headers carrying their own progress, two verdict targets
    plus the confirmed `Clear` (FDR-045), per-row assessor attribution, and the
-   persistent mat bar. **Blocked on open decision 6.1.**
+   persistent mat bar. No longer blocked; see §6.1.
 5. **Rebuild completion review as 2B.** The record as a proof sheet: rank
    transition, core grading areas, Techniques and Forms ledgers, recorded
    not-met notes, assessment note, and a seal line blank until sealed.
@@ -351,15 +351,11 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 
 Mirrored in `decision_log.md`.
 
-1. **Positive observations — open, and the only blocker.** `AGENTS.md` states
-   assessment data must support positive observations. No such field exists in
-   the backend; the only free text is `CandidateAssessmentItem.assessor_notes`
-   (one per item) and `CandidateAssessment.notes` (one per assessment). Either
-   add `positive_note` to the item — model, migration, service, serializer, and
-   success, validation and permission tests — or amend `AGENTS.md` to make
-   `assessor_notes` the single per-item free-text field and say so explicitly.
-   **Settle before slice 4**, because it changes the 1A row layout. Slices 2
-   and 3 are unaffected and can proceed now.
+1. **Positive observations — resolved.** `AGENTS.md` was amended on 2026-09-23
+   rather than a field added. `CandidateAssessmentItem.assessor_notes` is the
+   single per-item free-text field and records both shortfalls and positive
+   observations; `CandidateAssessment.notes` carries the overall observation.
+   No migration. **No open decision now blocks any slice.**
 2. **Bulk item scoring — deferred.** No selected direction includes a "mark
    remaining met" affordance, so nothing depends on it.
 3. **Clearing a result — accepted.** Inline confirmation naming the assessor

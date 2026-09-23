@@ -287,3 +287,26 @@ Verified on `dev` at `4c009f6` on 2026-09-16. Earlier focused bulk-operation tes
 - Bulk no-show attendance selection and locked-session withdrawal are
   implemented in session detail. Offline save/synchronisation remains
   unimplemented frontend work.
+
+## Open design pass: assessment grading overhaul (2026-09-23)
+
+The three assessment grading screens are being revisited. Nine directions -
+three for each of mat-side scoring (SCR-019), completion review (SCR-020) and
+the judgement layer (SCR-021/022) - are proposed in
+`2026-09-23-assessment-overhaul/README.md`, with interactive sources under that
+folder's `boards/`.
+
+Nothing in that pass is accepted. FDR-032, FDR-033, FDR-036, FDR-037 and
+FDR-038 remain the approved decisions, and SCR-019 through SCR-022 remain the
+selected concepts, until a direction is chosen per screen. Draft FDR-042 to
+FDR-046 and SCR-026 to SCR-028 rows are written out in that README ready to be
+moved into the tables above once selection happens.
+
+Two findings from that pass apply regardless of which direction is selected,
+and are recorded here so they are not lost:
+
+- The completion review's per-category percentage implies partial credit that
+  `CandidateAssessmentItem.Result` does not have. It is three-valued.
+- `AGENTS.md` requires assessment data to support positive observations, and no
+  such field exists in the backend. This needs a decision in
+  `docs/decision_log.md` before the assessment screens are rebuilt.

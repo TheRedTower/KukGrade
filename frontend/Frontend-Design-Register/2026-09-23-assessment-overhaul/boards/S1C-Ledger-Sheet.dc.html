@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Mat-side scoring — Ledger Sheet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:#b87b0a}
+a:hover{color:#8a5c06}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-surface-sunken:#f5f1e8;--color-rail:#15130f;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-gold-strong:#d6900e;--color-success:#1e7d4b;--color-success-surface:#e1f3e7;--color-warning:#b9760a;--color-warning-surface:#fbead0;--color-danger:#b42318;--color-danger-surface:#fff1ef}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-surface-sunken:#1c1914;--color-rail:#241f18;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-gold:#f2a71b;--color-gold-strong:#ffbb3d;--color-success:#33a06b;--color-success-surface:#1d3227;--color-warning:#e8a93b;--color-warning-surface:#3a2e17;--color-danger:#e5584b;--color-danger-surface:#3a1f1b}
+.tk table{border-collapse:collapse;width:100%}
+.tk th,.tk td{text-align:left;vertical-align:middle}
+.tk kbd{font:inherit;font-size:10.5px;font-weight:600;border:1px solid var(--color-border);border-bottom-width:2px;border-radius:4px;padding:1px 6px;background:var(--color-surface);color:var(--color-text)}
+</style>
+</helmet>
+
+<div class="tk" data-theme="{{theme}}" style="width: 1280px; height: 860px; display: flex; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;">
+
+  <nav aria-label="Main" style="width: 176px; flex-shrink: 0; background: var(--color-rail); color: var(--color-on-ink); display: flex; flex-direction: column; padding: 20px 0 16px;">
+    <div style="padding: 0 18px 24px;">
+      <div style="font-size: 20px; font-weight: 700; letter-spacing: -0.02em;">Kuk<span style="color: var(--color-gold);">Grade</span></div>
+      <div style="font-size: 7px; letter-spacing: 0.16em; color: var(--color-on-ink-muted); margin-top: 5px;">PEOPLE · PROGRESS · PURPOSE</div>
+    </div>
+    <a href="#" style="display: flex; align-items: center; gap: 11px; padding: 11px 18px; font-size: 13px; text-decoration: none; color: var(--color-on-ink-muted); border-left: 3px solid transparent;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Overview</a>
+    <a href="#" style="display: flex; align-items: center; gap: 11px; padding: 11px 18px; font-size: 13px; text-decoration: none; color: var(--color-on-ink-muted); border-left: 3px solid transparent;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M17 11.5a2.8 2.8 0 1 0 0-5.6"/><path d="M18 20c0-2.6-1-4.3-2.6-5.2"/></svg>Students</a>
+    <a href="#" aria-current="page" style="display: flex; align-items: center; gap: 11px; padding: 11px 18px; font-size: 13px; font-weight: 600; text-decoration: none; color: var(--color-on-ink); border-left: 3px solid var(--color-gold); background: rgb(242 167 27 / 11%);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="16" height="17" rx="2"/><path d="M9 3.5h6v3H9z"/><path d="M8.5 12h7M8.5 16h4.5"/></svg>Gradings</a>
+    <a href="#" style="display: flex; align-items: center; gap: 11px; padding: 11px 18px; font-size: 13px; text-decoration: none; color: var(--color-on-ink-muted); border-left: 3px solid transparent;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 5.5A2 2 0 0 1 6 4h5v16H6a2 2 0 0 0-2 1.5z"/><path d="M20 5.5A2 2 0 0 0 18 4h-5v16h5a2 2 0 0 1 2 1.5z"/></svg>Syllabus</a>
+    <div style="flex-grow: 1;"></div>
+    <div style="padding: 14px 18px 0; border-top: 1px solid rgb(255 255 255 / 8%); font-size: 8px; letter-spacing: 0.15em; line-height: 1.7; color: var(--color-on-ink-muted);">A STRONGER<br>GENERATION<br>THROUGH DISCIPLINE</div>
+  </nav>
+
+  <div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column;">
+
+    <header style="flex-shrink: 0; background: var(--color-surface); border-bottom: 1px solid var(--color-border); padding: 10px 22px; display: flex; align-items: center; gap: 13px; flex-wrap: wrap;">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.025em;">Alex Carter</h1>
+      <span style="font-size: 11px; color: var(--color-text-muted);">KG-0264</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px;"><span aria-hidden="true" style="width: 7px; height: 16px; border-radius: 2px; background: linear-gradient(180deg,#f2c94c 0 50%,#ffffff 50% 100%); border: 1px solid var(--color-border);"></span>Yellow stripe<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"/></svg><span aria-hidden="true" style="width: 7px; height: 16px; border-radius: 2px; background: #f2c94c; border: 1px solid var(--color-border);"></span>Yellow</span>
+      <span style="font-size: 11.5px; color: var(--color-text-muted); border: 1px solid var(--color-border); border-radius: 11px; padding: 3px 9px;">Junior 9–12</span>
+      <div style="flex-grow: 1;"></div>
+      <div style="display: inline-flex; align-items: center; gap: 9px; font-size: 11.5px; color: var(--color-text-muted);">
+        <span>Keys</span><kbd>↑</kbd><kbd>↓</kbd><span>row</span><kbd>P</kbd><span>met</span><kbd>F</kbd><span>not met</span><kbd>N</kbd><span>note</span>
+      </div>
+      <button type="button" onClick="{{toggleTheme}}" aria-label="Toggle dark mode" style="min-width: 44px; min-height: 36px; border: 1px solid var(--color-border); background: var(--color-surface-sunken); border-radius: 7px; font-size: 11px; color: var(--color-text-muted); padding: 0 12px;">{{themeLabel}}</button>
+    </header>
+
+    <div style="flex-grow: 1; min-height: 0; display: flex;">
+
+      <div style="flex-grow: 1; min-width: 0; overflow-y: auto; background: var(--color-surface);">
+        <table>
+          <caption style="text-align: left; padding: 12px 22px 8px; font-size: 11.5px; color: var(--color-text-muted);">Assessment snapshot · Adult &amp; Youth, Junior 9–12 · frozen 09 Nov 2026 · 24 required, 3 optional</caption>
+          <thead>
+            <tr style="position: sticky; top: 0; z-index: 3; background: var(--color-surface-sunken);">
+              <th scope="col" style="width: 44px; padding: 7px 8px 7px 22px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">#</th>
+              <th scope="col" style="padding: 7px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">Requirement</th>
+              <th scope="col" style="width: 62px; padding: 7px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">No.</th>
+              <th scope="col" style="width: 58px; padding: 7px 4px; text-align: center; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">Met</th>
+              <th scope="col" style="width: 58px; padding: 7px 4px; text-align: center; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">Not</th>
+              <th scope="col" style="width: 250px; padding: 7px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">Assessor note</th>
+              <th scope="col" style="width: 118px; padding: 7px 22px 7px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1.5px solid var(--color-text-muted);">Recorded</th>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="row" hint-placeholder-count="14">
+              <tr style="{{row.trStyle}}">
+                <sc-if value="{{row.isBand}}" hint-placeholder-val="{{false}}">
+                  <th colspan="7" scope="colgroup" style="padding: 9px 22px; background: var(--color-surface-sunken); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); font-size: 12px; font-weight: 600; letter-spacing: 0.02em;">
+                    <span>{{row.name}}</span>
+                    <span style="font-weight: 400; color: var(--color-text-muted);"> · {{row.korean}}</span>
+                    <span style="float: right; font-weight: 400; font-size: 11.5px; color: var(--color-text-muted);">{{row.progress}}</span>
+                  </th>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="{{row.cellSeq}}">{{row.seq}}</td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 8px; border-bottom: 1px solid var(--color-border);">
+                    <span style="font-size: 13.5px; font-weight: 600;">{{row.name}}</span>
+                    <span style="font-size: 12.5px; color: var(--color-text-muted);"> {{row.korean}}</span>
+                    <sc-if value="{{row.optional}}" hint-placeholder-val="{{false}}"><span style="font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-text-muted); border: 1px dashed var(--color-border); border-radius: 3px; padding: 1px 5px; margin-left: 7px;">Optional</span></sc-if>
+                  </td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 8px; border-bottom: 1px solid var(--color-border); font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums;">{{row.range}}</td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 4px; border-bottom: 1px solid var(--color-border); text-align: center;">
+                    <button type="button" onClick="{{row.onMet}}" aria-pressed="{{row.isMet}}" aria-label="{{row.metLabel}}" style="{{row.metStyle}}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true" style="display: block; margin: auto;"><path d="M5 12.5 10 17.5 19 7"/></svg></button>
+                  </td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 4px; border-bottom: 1px solid var(--color-border); text-align: center;">
+                    <button type="button" onClick="{{row.onNotMet}}" aria-pressed="{{row.isNotMet}}" aria-label="{{row.notMetLabel}}" style="{{row.notMetStyle}}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" aria-hidden="true" style="display: block; margin: auto;"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg></button>
+                  </td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 4px 8px; border-bottom: 1px solid var(--color-border);">
+                    <input type="text" aria-label="{{row.noteLabel}}" value="{{row.note}}" placeholder="—" style="width: 100%; min-height: 34px; border: 1px solid transparent; border-radius: 5px; background: transparent; padding: 5px 8px; font: inherit; font-size: 12px; color: var(--color-text);">
+                  </td>
+                </sc-if>
+                <sc-if value="{{row.isItem}}" hint-placeholder-val="{{true}}">
+                  <td style="padding: 8px 22px 8px 8px; border-bottom: 1px solid var(--color-border); font-size: 11px; color: var(--color-text-muted); line-height: 1.4;">{{row.recorded}}</td>
+                </sc-if>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <p style="margin: 0; padding: 14px 22px 20px; font-size: 11px; color: var(--color-text-muted);">Optional requirements may be left unassessed. Clearing a mark also erases the recorded assessor and time.</p>
+      </div>
+
+      <aside aria-label="Assessment rollup" style="width: 268px; flex-shrink: 0; border-left: 1px solid var(--color-border); background: var(--color-surface-sunken); padding: 16px 18px; overflow-y: auto;">
+        <h2 style="margin: 0 0 3px; font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted);">Rollup</h2>
+        <p style="margin: 0 0 14px; font-size: 10.5px; color: var(--color-text-muted); line-height: 1.5;">Served by the assessment endpoint, not recounted in the browser.</p>
+        <div style="display: flex; align-items: baseline; gap: 7px;">
+          <span style="font-size: 30px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums;">{{assessed}}</span>
+          <span style="font-size: 15px; color: var(--color-text-muted);">/ 24</span>
+        </div>
+        <p style="margin: 2px 0 14px; font-size: 11.5px; color: var(--color-text-muted);">required assessed</p>
+        <div style="display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px;">
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.8" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg><span style="color: var(--color-success); font-weight: 600;">{{metCount}}</span><span style="color: var(--color-text-muted);">met</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2.8" aria-hidden="true"><path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"/></svg><span style="color: var(--color-danger); font-weight: 600;">{{notMetCount}}</span><span style="color: var(--color-text-muted);">not met</span></div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12.5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" stroke-width="2.4" aria-hidden="true"><path d="M5 12h14"/></svg><span style="color: var(--color-text-muted); font-weight: 600;">{{remaining}}</span><span style="color: var(--color-text-muted);">still to assess</span></div>
+        </div>
+        <h3 style="margin: 0 0 9px; font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--color-text-muted);">By category</h3>
+        <sc-for list="{{cats}}" as="c" hint-placeholder-count="4">
+          <div style="padding: 7px 0; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 9px;">
+            <span style="flex-grow: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{c.name}}</span>
+            <span aria-hidden="true" style="width: 46px; height: 4px; border-radius: 2px; background: var(--color-border); overflow: hidden;"><span style="{{c.barStyle}}"></span></span>
+            <span style="font-size: 11px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right;">{{c.ratio}}</span>
+          </div>
+        </sc-for>
+      </aside>
+    </div>
+
+    <div style="flex-shrink: 0; background: var(--color-surface); border-top: 1px solid var(--color-border); padding: 11px 22px; display: flex; align-items: center; gap: 16px;">
+      <span style="font-size: 12.5px; color: var(--color-text-muted);">Every mark saves immediately and is written to the audit log.</span>
+      <div style="flex-grow: 1;"></div>
+      <button type="button" style="min-height: 44px; padding: 0 16px; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: 7px; font-size: 13.5px;">Print blank sheet</button>
+      <button type="button" disabled="{{completeDisabled}}" style="{{completeStyle}}">{{completeLabel}}</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.defs = [
+      { band: 'Hand Techniques', korean: '수기 · Soo Ki', items: [
+        { id: 'h1', seq: 1, name: 'Jung Kwon Ji Ru Ki', korean: '정권지르기', range: '1–4', required: true },
+        { id: 'h2', seq: 2, name: 'Sohn Nal Chi Ki', korean: '손날치기', range: '1–2', required: true },
+        { id: 'h3', seq: 3, name: 'Pahl Koop Chi Ki', korean: '팔꿉치기', range: '', required: true }
+      ]},
+      { band: 'Kicking', korean: '족술 · Johk Sool', items: [
+        { id: 'k1', seq: 1, name: 'Ap Cha Gi', korean: '앞차기', range: '1–3', required: true },
+        { id: 'k2', seq: 2, name: 'Yup Cha Gi', korean: '옆차기', range: '1–3', required: true },
+        { id: 'k3', seq: 3, name: 'Dwi Cha Gi', korean: '뒤차기', range: '', required: true },
+        { id: 'k4', seq: 4, name: 'Dol Ryeo Cha Gi', korean: '돌려차기', range: '', required: true }
+      ]},
+      { band: 'Falling', korean: '낙법 · Nahk Bup', items: [
+        { id: 'f1', seq: 1, name: 'Jeon Bang Nakbup', korean: '전방낙법', range: '', required: true },
+        { id: 'f2', seq: 2, name: 'Hu Bang Nakbup', korean: '후방낙법', range: '', required: true },
+        { id: 'f3', seq: 3, name: 'Cheuk Bang Nakbup', korean: '측방낙법', range: '', required: false }
+      ]},
+      { band: 'Techniques', korean: '기본수 · Ki Bohn Soo', items: [
+        { id: 't1', seq: 1, name: 'Ki Bohn Soo', korean: '기본수', range: '1–15', required: true },
+        { id: 't2', seq: 2, name: 'Sohn Ppae Ki', korean: '손빼기', range: '1–5', required: true }
+      ]},
+      { band: 'Forms', korean: '기초형 · Ki Cho Hyung', items: [
+        { id: 'y1', seq: 1, name: 'Ki Cho Hyung', korean: '기초형', range: '1–6', required: true },
+        { id: 'y2', seq: 2, name: 'Cho Geup Hyung', korean: '초급형', range: 'Part 1 of 2', required: false }
+      ]}
+    ];
+    this.state = {
+      dark: null,
+      results: {
+        h1: { r: 'MET', by: 'M. Reed', at: '14:04' },
+        h2: { r: 'MET', by: 'M. Reed', at: '14:06' },
+        h3: { r: 'MET', by: 'M. Reed', at: '14:08' },
+        k1: { r: 'MET', by: 'M. Reed', at: '14:22' },
+        k2: { r: 'MET', by: 'M. Reed', at: '14:24' },
+        k3: { r: 'NOT_MET', by: 'M. Reed', at: '14:27', note: 'Guard dropped on the turn' },
+        t1: { r: 'MET', by: 'L. Tan', at: '14:40' }
+      }
+    };
+  }
+
+  mark(id, r) {
+    var next = {};
+    for (var k in this.state.results) { next[k] = this.state.results[k]; }
+    var prev = next[id] || {};
+    if (prev.r === r) { delete next[id]; }
+    else { next[id] = { r: r, by: 'M. Reed', at: '14:52', note: prev.note }; }
+    this.setState({ results: next });
+  }
+
+  renderVals() {
+    var self = this;
+    var dark = this.state.dark === null ? (this.props.dark ? true : false) : this.state.dark;
+    var R = this.state.results;
+
+    var baseRequired = 11, baseMet = 10, baseNotMet = 1;
+    var assessed = baseRequired, met = baseMet, notMet = baseNotMet;
+    var rows = [], cats = [];
+
+    this.defs.forEach(function (d) {
+      var req = 0, done = 0;
+      d.items.forEach(function (it) {
+        var r = R[it.id] || {};
+        var isMet = r.r === 'MET', isNotMet = r.r === 'NOT_MET';
+        if (it.required) { req++; if (isMet || isNotMet) { done++; assessed++; } }
+        if (isMet) met++;
+        if (isNotMet) notMet++;
+      });
+      var pct = req === 0 ? 100 : Math.round((done / req) * 100);
+      cats.push({
+        name: d.band, ratio: done + '/' + req,
+        barStyle: 'display: block; height: 100%; width: ' + pct + '%; background: ' + (pct === 100 ? 'var(--color-success)' : 'var(--color-gold)') + ';'
+      });
+
+      rows.push({
+        isBand: true, isItem: false, name: d.band, korean: d.korean,
+        progress: done + ' of ' + req + ' required',
+        trStyle: '', seq: '', range: '', note: '', recorded: '', optional: false,
+        isMet: false, isNotMet: false, metStyle: '', notMetStyle: '',
+        metLabel: '', notMetLabel: '', noteLabel: '',
+        onMet: function () {}, onNotMet: function () {}, cellSeq: ''
+      });
+
+      d.items.forEach(function (it) {
+        var r = R[it.id] || {};
+        var isMet = r.r === 'MET', isNotMet = r.r === 'NOT_MET';
+        var cell = 'width: 36px; height: 36px; border-radius: 5px; padding: 0;';
+        rows.push({
+          isBand: false, isItem: true,
+          seq: it.seq, name: it.name, korean: it.korean,
+          range: it.range || '—', optional: !it.required,
+          note: r.note || '',
+          recorded: (isMet || isNotMet) ? (r.by + ' · ' + r.at) : '—',
+          trStyle: isNotMet ? 'background: var(--color-danger-surface);' : '',
+          cellSeq: 'padding: 8px 8px 8px 22px; border-bottom: 1px solid var(--color-border); font-size: 11.5px; color: var(--color-text-muted); font-variant-numeric: tabular-nums;' + (isNotMet ? ' box-shadow: inset 3px 0 0 var(--color-danger);' : ''),
+          isMet: isMet, isNotMet: isNotMet,
+          metLabel: 'Mark ' + it.name + ' met',
+          notMetLabel: 'Mark ' + it.name + ' not met',
+          noteLabel: 'Assessor note for ' + it.name,
+          metStyle: isMet
+            ? cell + ' border: 1.5px solid var(--color-success); background: var(--color-success); color: #ffffff;'
+            : cell + ' border: 1.5px solid var(--color-border); background: var(--color-surface); color: var(--color-border);',
+          notMetStyle: isNotMet
+            ? cell + ' border: 1.5px solid var(--color-danger); background: var(--color-danger); color: #ffffff;'
+            : cell + ' border: 1.5px solid var(--color-border); background: var(--color-surface); color: var(--color-border);',
+          onMet: function () { self.mark(it.id, 'MET'); },
+          onNotMet: function () { self.mark(it.id, 'NOT_MET'); }
+        });
+      });
+    });
+
+    var remaining = 24 - assessed;
+    var completeBase = 'min-height: 44px; padding: 0 18px; border-radius: 7px; font-size: 13.5px; font-weight: 600;';
+
+    return {
+      theme: dark ? 'dark' : 'light',
+      themeLabel: dark ? 'Light' : 'Dark',
+      toggleTheme: function () { self.setState({ dark: !dark }); },
+      rows: rows, cats: cats,
+      assessed: assessed, metCount: met, notMetCount: notMet, remaining: remaining,
+      completeDisabled: remaining > 0,
+      completeLabel: remaining > 0 ? remaining + ' required still unassessed' : 'Review and complete',
+      completeStyle: remaining > 0
+        ? completeBase + ' border: 1px solid var(--color-border); background: var(--color-surface-sunken); color: var(--color-text-muted); cursor: not-allowed;'
+        : completeBase + ' border: 1px solid #d6900e; background: #f2a71b; color: #17140f;'
+    };
+  }
+}
+</script>
+</body>
+</html>

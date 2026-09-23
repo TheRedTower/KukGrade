@@ -18,6 +18,42 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-23 - Expose the assessment summary on the assessment resource
+
+Status: Accepted
+
+Decision:
+Add `GET /api/gradings/assessments/{id}/summary/` returning
+`candidate_assessment_summary(assessment)` - the same service and response
+shape `GET /api/gradings/outcomes/{id}/summary/` already returns.
+
+Context:
+FDR-046 said assessment counts must be served rather than recomputed in React.
+Checking the serializers showed that is not currently possible while an
+assessment is being scored. `CandidateAssessmentSerializer.get_item_counts`
+returns only `total`, `required`, `met`, `not_met` and `not_assessed`, with no
+required-split, so it cannot drive the completion gate: optional items may be
+left unassessed, so `not_assessed > 0` does not mean incomplete. It also
+generates as `{ [key: string]: number }`, so it carries no type safety. The
+full split, and the per-category breakdown, exist only behind
+`/outcomes/{id}/summary/`, which needs a `CandidateOutcome`; that needs session
+`LOCKED` and assessment `COMPLETED`, so it is unreachable during scoring and at
+completion review. The client-side derivation in
+`CandidateAssessmentScreen.tsx` therefore exists because the server does not
+serve what the screen needs, not by oversight.
+
+`candidate_assessment_summary` already takes a `CandidateAssessment` rather
+than an outcome, and `gradings/views.py:714` is a two-line wrapper over it, so
+the addition is a viewset action, contract documentation and permission tests.
+No model, migration or service change.
+
+Consequences:
+Accepted on 2026-09-23. Slice 2 of the assessment redesign gains a backend
+half. `/outcomes/{id}/summary/` becomes a thin convenience over the same
+service rather than the only route to the data. Changes
+`docs/api_contract.md`, and requires the OpenAPI schema and frontend types to
+be regenerated.
+
 ### 2026-09-23 - Assessment grading screen directions
 
 Status: Accepted
@@ -1365,45 +1401,6 @@ Consequences:
 
 ## Open decisions
 
-One entry, and it blocks slice 2 of the assessment grading redesign. See
-`assessment-grading-redesign-handoff.md` and
+None. Every decision arising from the 2026-09-23 assessment grading redesign
+is recorded above. See `assessment-grading-redesign-handoff.md` and
 `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`.
-The directions selection, positive observations, clearing treatment and bulk
-item scoring were all settled on 2026-09-23 and are recorded above.
-
-### 2026-09-23 - Expose the assessment summary on the assessment resource
-
-Status: Proposed
-
-Decision:
-Add `GET /api/gradings/assessments/{id}/summary/` returning
-`candidate_assessment_summary(assessment)` - the same service and response
-shape `GET /api/gradings/outcomes/{id}/summary/` already returns.
-
-Context:
-FDR-046 said assessment counts must be served rather than recomputed in React.
-Checking the serializers showed that is not currently possible while an
-assessment is being scored. `CandidateAssessmentSerializer.get_item_counts`
-returns only `total`, `required`, `met`, `not_met` and `not_assessed`, with no
-required-split, so it cannot drive the completion gate: optional items may be
-left unassessed, so `not_assessed > 0` does not mean incomplete. It also
-generates as `{ [key: string]: number }`, so it carries no type safety. The
-full split, and the per-category breakdown, exist only behind
-`/outcomes/{id}/summary/`, which needs a `CandidateOutcome`; that needs session
-`LOCKED` and assessment `COMPLETED`, so it is unreachable during scoring and at
-completion review. The client-side derivation in
-`CandidateAssessmentScreen.tsx` therefore exists because the server does not
-serve what the screen needs, not by oversight.
-
-`candidate_assessment_summary` already takes a `CandidateAssessment` rather
-than an outcome, and `gradings/views.py:714` is a two-line wrapper over it, so
-the addition is a viewset action, contract documentation and permission tests.
-No model, migration or service change.
-
-Consequences:
-Slice 2 of the assessment redesign gains a backend half and depends on this
-decision. `/outcomes/{id}/summary/` becomes a thin convenience over the same
-service rather than the only route to the data. Changes
-`docs/api_contract.md`, and requires the OpenAPI schema and frontend types to
-be regenerated. If rejected, FDR-046 narrows to removing the per-category
-percentage, and React keeps deriving the counts.

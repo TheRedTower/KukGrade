@@ -339,12 +339,13 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    `CandidateAssessmentScreen.tsx` with that response, and remove the
    per-category percentage. Regenerate the OpenAPI schema and frontend types.
    Behaviour-preserving apart from the percentage. Do this before any layout
-   change so the diff stays readable. **Depends on open decision 6.1.**
-3. **Split the screen.** Extract completion review out of
-   `CandidateAssessmentScreen.tsx`, where it currently lives as the
-   `isReviewMode` render branch, into its own component and route, still
-   rendering the existing design. Pure refactor; tests updated in place. This
-   is the precondition for 2B being a route.
+   change so the diff stays readable. See §6.1 — accepted.
+3. **Split the screen.** *Done, 2026-09-23.* Completion review moved out of
+   `CandidateAssessmentScreen.tsx`'s `isReviewMode` branch into
+   `AssessmentCompletionScreen.tsx` on
+   `gradings/:sessionId/assessments/:candidateId/review`. The five shared
+   queries and derived rollups moved to `candidateAssessmentData.ts`, and
+   `RankVisual` to its own file, so nothing is duplicated. No visual change.
 4. **Rebuild mat-side scoring as 1A.** Divider-led rows in syllabus order,
    sticky category headers carrying their own progress, two verdict targets
    plus the confirmed `Clear` (FDR-045), per-row assessor attribution, and the
@@ -368,17 +369,13 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 
 Mirrored in `decision_log.md`.
 
-1. **Assessment summary endpoint — open, and the only blocker.** The redesign
-   needs per-category and required-split counts while an assessment is being
-   scored. `item_counts` lacks the required-split; `/outcomes/{id}/summary/`
-   has it but needs an outcome that does not exist until the session is
-   `LOCKED`. Proposal: add `GET /api/gradings/assessments/{id}/summary/`
-   returning `candidate_assessment_summary(assessment)` — the same service and
-   response shape the outcome endpoint already returns, reachable at any
-   status. It is an API contract addition, so per `AGENTS.md` it needs a
-   decision and contract/permission tests before slice 2.
-   The alternative is to keep deriving the counts in React and narrow FDR-046
-   to "remove the percentage only".
+1. **Assessment summary endpoint — accepted 2026-09-23.** Add
+   `GET /api/gradings/assessments/{id}/summary/` returning
+   `candidate_assessment_summary(assessment)`, the same service and response
+   shape the outcome endpoint already returns, reachable at any status. A
+   viewset action, contract documentation and permission tests; no model,
+   migration or service change. This is slice 2's backend half.
+   **No open decision now blocks any slice.**
 2. **Positive observations — resolved.** `AGENTS.md` was amended on 2026-09-23
    rather than a field added. `CandidateAssessmentItem.assessor_notes` is the
    single per-item free-text field and records both shortfalls and positive

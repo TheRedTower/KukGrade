@@ -1302,6 +1302,43 @@ Selecting 1A also settles the clearing treatment as an inline confirmation
 (FDR-045), and none of the three selected directions needs a bulk item-scoring
 affordance, so that decision is deferred rather than blocking.
 
+### 2026-09-23 - Expose the assessment summary on the assessment resource
+
+Status: Proposed
+
+Decision:
+Add `GET /api/gradings/assessments/{id}/summary/` returning
+`candidate_assessment_summary(assessment)` - the same service and response
+shape `GET /api/gradings/outcomes/{id}/summary/` already returns.
+
+Context:
+FDR-046 said assessment counts must be served rather than recomputed in React.
+Checking the serializers showed that is not currently possible while an
+assessment is being scored. `CandidateAssessmentSerializer.get_item_counts`
+returns only `total`, `required`, `met`, `not_met` and `not_assessed`, with no
+required-split, so it cannot drive the completion gate: optional items may be
+left unassessed, so `not_assessed > 0` does not mean incomplete. It also
+generates as `{ [key: string]: number }`, so it carries no type safety. The
+full split, and the per-category breakdown, exist only behind
+`/outcomes/{id}/summary/`, which needs a `CandidateOutcome`; that needs session
+`LOCKED` and assessment `COMPLETED`, so it is unreachable during scoring and at
+completion review. The client-side derivation in
+`CandidateAssessmentScreen.tsx` therefore exists because the server does not
+serve what the screen needs, not by oversight.
+
+`candidate_assessment_summary` already takes a `CandidateAssessment` rather
+than an outcome, and `gradings/views.py:714` is a two-line wrapper over it, so
+the addition is a viewset action, contract documentation and permission tests.
+No model, migration or service change.
+
+Consequences:
+Slice 2 of the assessment redesign gains a backend half and depends on this
+decision. `/outcomes/{id}/summary/` becomes a thin convenience over the same
+service rather than the only route to the data. Changes
+`docs/api_contract.md`, and requires the OpenAPI schema and frontend types to
+be regenerated. If rejected, FDR-046 narrows to removing the per-category
+percentage, and React keeps deriving the counts.
+
 ### 2026-09-23 - Positive observations recorded in assessor_notes
 
 Status: Accepted

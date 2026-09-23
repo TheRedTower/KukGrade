@@ -202,14 +202,26 @@ Outcome: `GET /api/gradings/outcomes/` (filters include `proposed_by`,
 
 The redesign should spend these rather than recomputing or omitting them:
 
-- `item_counts` on the assessment serializer (`total`, `required`, `met`,
-  `not_met`, `not_assessed`) — **zero references in the frontend.**
-  `CandidateAssessmentScreen.tsx` recomputes its own stats from the item list.
-- `GET /outcomes/{id}/summary/` — consumed only by
-  `MasterFinalDecisionDrawer.tsx`, and only `categories[].all_required_met` and
-  `overall.required_met`/`overall.required`. Unused at both levels:
-  `required_not_met`, `required_not_assessed`, `all_required_assessed`, `met`,
-  `not_met`, `not_assessed`, `total`. The scoring screen never calls it.
+- `item_counts` on the assessment serializer — **zero references in the
+  frontend**, and it is weaker than it looks. It returns only `total`,
+  `required`, `met`, `not_met` and `not_assessed`, with **no required-split**,
+  and the generated type is `{ [key: string]: number }`. It therefore cannot
+  drive the completion gate or the "N required remaining" counter: optional
+  items may legitimately be left unassessed, so `not_assessed > 0` does not
+  mean incomplete. `CandidateAssessmentScreen.tsx` recomputes its own stats
+  from the item list because the server does not currently serve what the
+  screen needs. See §6.1.
+- `GET /outcomes/{id}/summary/` — carries the full overall and per-category
+  breakdown including `required_met`, `required_not_met`,
+  `required_not_assessed`, `all_required_assessed` and `all_required_met`, but
+  is consumed only by `MasterFinalDecisionDrawer.tsx`, and only
+  `categories[].all_required_met` and `overall.required_met`/`overall.required`.
+  **It is reachable only once a `CandidateOutcome` exists**, which requires
+  session `LOCKED` and assessment `COMPLETED` — so it is unavailable during
+  scoring and at completion review, which is why the scoring screen cannot call
+  it. The underlying service, `candidate_assessment_summary(assessment)`, takes
+  an assessment and works at any status; the outcome view is a two-line wrapper
+  over it (`views.py:714`). See §6.1.
 - `started_at`, `completed_at`, `generated_at` — never rendered.
 - `generated_by` / `generated_by_email` — never rendered.
 - Per-item `assessor_email` and `assessed_at` — rendered only in the not-met
@@ -318,11 +330,16 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 1. **Selection and register.** *Done, 2026-09-23.* FDR-042 to FDR-047 and
    SCR-026 to SCR-028 recorded; SCR-019, SCR-020 and SCR-022 superseded;
    decision-log entries written.
-2. **Serve the counts (FDR-046).** Replace client-side stat derivation in
-   `CandidateAssessmentScreen.tsx` with `item_counts` and
-   `/outcomes/{id}/summary/`, and remove the per-category percentage.
+2. **Serve the counts (FDR-046).** Two parts, backend first.
+   *Backend:* expose the existing `candidate_assessment_summary` service on the
+   assessment resource — `GET /api/gradings/assessments/{id}/summary/`, a
+   two-line action mirroring the outcome one at `views.py:714`, plus contract
+   documentation and permission tests. No model, migration or service change.
+   *Frontend:* replace the client-side stat derivation in
+   `CandidateAssessmentScreen.tsx` with that response, and remove the
+   per-category percentage. Regenerate the OpenAPI schema and frontend types.
    Behaviour-preserving apart from the percentage. Do this before any layout
-   change so the diff stays readable. **Does not depend on any open decision.**
+   change so the diff stays readable. **Depends on open decision 6.1.**
 3. **Split the screen.** Extract completion review out of
    `CandidateAssessmentScreen.tsx`, where it currently lives as the
    `isReviewMode` render branch, into its own component and route, still
@@ -351,18 +368,29 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 
 Mirrored in `decision_log.md`.
 
-1. **Positive observations — resolved.** `AGENTS.md` was amended on 2026-09-23
+1. **Assessment summary endpoint — open, and the only blocker.** The redesign
+   needs per-category and required-split counts while an assessment is being
+   scored. `item_counts` lacks the required-split; `/outcomes/{id}/summary/`
+   has it but needs an outcome that does not exist until the session is
+   `LOCKED`. Proposal: add `GET /api/gradings/assessments/{id}/summary/`
+   returning `candidate_assessment_summary(assessment)` — the same service and
+   response shape the outcome endpoint already returns, reachable at any
+   status. It is an API contract addition, so per `AGENTS.md` it needs a
+   decision and contract/permission tests before slice 2.
+   The alternative is to keep deriving the counts in React and narrow FDR-046
+   to "remove the percentage only".
+2. **Positive observations — resolved.** `AGENTS.md` was amended on 2026-09-23
    rather than a field added. `CandidateAssessmentItem.assessor_notes` is the
    single per-item free-text field and records both shortfalls and positive
    observations; `CandidateAssessment.notes` carries the overall observation.
-   No migration. **No open decision now blocks any slice.**
-2. **Bulk item scoring — deferred.** No selected direction includes a "mark
+   No migration.
+3. **Bulk item scoring — deferred.** No selected direction includes a "mark
    remaining met" affordance, so nothing depends on it.
-3. **Clearing a result — accepted.** Inline confirmation naming the assessor
+4. **Clearing a result — accepted.** Inline confirmation naming the assessor
    and time it erases (FDR-045).
-4. **Keyboard scoring — not applicable.** It was specific to 1C, which was not
+5. **Keyboard scoring — not applicable.** It was specific to 1C, which was not
    selected.
-5. **Where judgement lives — resolved.** 3C is a route; see §1.
+6. **Where judgement lives — resolved.** 3C is a route; see §1.
 
 ## 7. Verification
 

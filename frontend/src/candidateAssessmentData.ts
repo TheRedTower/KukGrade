@@ -6,12 +6,14 @@
  * five resources and derive exactly the same rollups from them, so the queries
  * live here rather than being duplicated across both files.
  *
- * The derived counts are still computed in the browser. That is not a
- * preference: `item_counts` on the assessment serializer carries no
- * required-split, and `/api/gradings/outcomes/{id}/summary/` needs a
- * `CandidateOutcome`, which cannot exist until the session is `LOCKED` and the
- * assessment `COMPLETED`. See FDR-046 and the 2026-09-23 decision log entry -
- * moving these to a served summary is a separate slice.
+ * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
+ * recounting rows here (FDR-046). `item_counts` carries no required-split and
+ * the outcome summary needs a `CandidateOutcome` that cannot exist while an
+ * assessment is being scored, which is why that endpoint was added.
+ *
+ * The client still groups items by category for rendering, because the backend
+ * orders by requirement sequence and category is not an ordering key. It no
+ * longer decides the counts.
  */
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -19,6 +21,7 @@ import {
   CandidateAssessmentItem,
   GradingCandidate,
   getAllGradingCandidates,
+  getAssessmentSummary,
   getCandidateAssessments,
   getAllCandidateAssessmentItems,
   getGradingSession,
@@ -47,6 +50,8 @@ export interface CategoryGroup {
   requiredCount: number;
   requiredAssessedCount: number;
   remainingRequiredCount: number;
+  metCount: number;
+  notMetCount: number;
   isDone: boolean;
 }
 
@@ -114,94 +119,93 @@ export function useCandidateAssessmentData(
     return itemsQuery.data?.results ?? [];
   }, [itemsQuery.data]);
 
-  // Grouped by category. The backend orders items by requirement sequence and
-  // does not order by category, so the grouping is deliberately a client
-  // concern - see the redesign handoff.
+  // 6. Served rollup. Kept on its own key so a single item PATCH can
+  // invalidate it without refetching the whole item list.
+  const summaryQuery = useQuery({
+    queryKey: ["candidateAssessmentSummary", assessment?.id],
+    queryFn: () => getAssessmentSummary(assessment!.id),
+    enabled: !!assessment?.id,
+  });
+
+  const summary = summaryQuery.data;
+
+  // Grouped by category for rendering only. The backend orders items by
+  // requirement sequence and category is not an ordering key, so the grouping
+  // is a client concern - but the counts on each group come from the served
+  // summary, not from recounting these rows (FDR-046).
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     if (items.length === 0) return [];
 
-    const map = new Map<string, CategoryGroup>();
+    const order: string[] = [];
+    const itemsByCategory = new Map<string, CandidateAssessmentItem[]>();
+    const displayByCategory = new Map<string, { display: string; korean?: string }>();
+
     for (const item of items) {
-      const catKey = item.category;
-      if (!map.has(catKey)) {
-        map.set(catKey, {
-          category: catKey,
-          categoryDisplay: item.category_display || catKey,
-          koreanName: item.korean_name,
-          items: [],
-          totalCount: 0,
-          requiredCount: 0,
-          requiredAssessedCount: 0,
-          remainingRequiredCount: 0,
-          isDone: false,
+      if (!itemsByCategory.has(item.category)) {
+        itemsByCategory.set(item.category, []);
+        displayByCategory.set(item.category, {
+          display: item.category_display || item.category,
+          korean: item.korean_name,
         });
+        order.push(item.category);
       }
-      const group = map.get(catKey)!;
-      group.items.push(item);
-      group.totalCount += 1;
-      if (item.required) {
-        group.requiredCount += 1;
-        if (item.result !== "NOT_ASSESSED") {
-          group.requiredAssessedCount += 1;
-        }
-      }
+      itemsByCategory.get(item.category)!.push(item);
     }
 
-    return Array.from(map.values()).map((g) => {
-      const remaining = g.requiredCount - g.requiredAssessedCount;
+    const servedByCategory = new Map(
+      (summary?.categories ?? []).map((category) => [category.category, category]),
+    );
+
+    return order.map((category) => {
+      const served = servedByCategory.get(category);
+      const labels = displayByCategory.get(category)!;
+      const requiredCount = served?.required ?? 0;
+      const remaining = served?.required_not_assessed ?? 0;
+
       return {
-        ...g,
+        category,
+        categoryDisplay: labels.display,
+        koreanName: labels.korean,
+        items: itemsByCategory.get(category)!,
+        totalCount: served?.total ?? 0,
+        requiredCount,
+        requiredAssessedCount: requiredCount - remaining,
         remainingRequiredCount: remaining,
-        isDone: remaining === 0,
+        metCount: served?.met ?? 0,
+        notMetCount: served?.not_met ?? 0,
+        isDone: served?.all_required_assessed ?? false,
       };
     });
-  }, [items]);
+  }, [items, summary]);
 
-  // Overall rollup. Only `required` items gate completion; optional items may
-  // legitimately be left unassessed, which is why `notAssessedCount` alone can
-  // never decide whether the assessment can be completed.
+  // Overall rollup, served. Only `required` items gate completion; optional
+  // items may legitimately be left unassessed, which is why `not_assessed`
+  // alone can never decide whether the assessment can be completed - the
+  // server's `required_not_assessed` and `all_required_assessed` can.
   const stats = useMemo(() => {
-    let totalItems = 0;
-    let requiredItems = 0;
-    let requiredAssessed = 0;
-    let metCount = 0;
-    let notMetCount = 0;
-    let notAssessedCount = 0;
-
-    for (const item of items) {
-      totalItems += 1;
-      if (item.required) {
-        requiredItems += 1;
-        if (item.result !== "NOT_ASSESSED") {
-          requiredAssessed += 1;
-        }
-      }
-      if (item.result === "MET") metCount += 1;
-      else if (item.result === "NOT_MET") notMetCount += 1;
-      else notAssessedCount += 1;
-    }
-
-    const remainingRequired = requiredItems - requiredAssessed;
-    const percent = requiredItems > 0 ? Math.round((requiredAssessed / requiredItems) * 100) : 100;
+    const overall = summary?.overall;
+    const requiredItems = overall?.required ?? 0;
+    const requiredAssessed = requiredItems - (overall?.required_not_assessed ?? 0);
+    const remainingRequired = overall?.required_not_assessed ?? 0;
 
     return {
-      totalItems,
+      totalItems: overall?.total ?? 0,
       requiredItems,
       requiredAssessed,
       remainingRequired,
-      percent,
-      metCount,
-      notMetCount,
-      notAssessedCount,
-      canComplete: remainingRequired === 0 && requiredItems > 0,
+      percent: requiredItems > 0 ? Math.round((requiredAssessed / requiredItems) * 100) : 100,
+      metCount: overall?.met ?? 0,
+      notMetCount: overall?.not_met ?? 0,
+      notAssessedCount: overall?.not_assessed ?? 0,
+      canComplete: (overall?.all_required_assessed ?? false) && requiredItems > 0,
     };
-  }, [items]);
+  }, [summary]);
 
   const isLoading =
     sessionQuery.isLoading ||
     candidatesQuery.isLoading ||
     assessmentQuery.isLoading ||
-    (!!assessment && itemsQuery.isLoading);
+    (!!assessment && (itemsQuery.isLoading || summaryQuery.isLoading));
 
   return {
     session: sessionQuery.data,

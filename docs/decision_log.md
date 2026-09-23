@@ -48,8 +48,16 @@ the addition is a viewset action, contract documentation and permission tests.
 No model, migration or service change.
 
 Consequences:
-Accepted on 2026-09-23. Slice 2 of the assessment redesign gains a backend
-half. `/outcomes/{id}/summary/` becomes a thin convenience over the same
+Accepted and implemented on 2026-09-23. Slice 2 of the assessment redesign
+gained a backend half.
+
+Implementing it surfaced a second defect: neither `summary` action serializes a
+model, so drf-spectacular had been declaring each viewset's own
+`serializer_class` as the response. The outcome endpoint has documented
+`CandidateOutcome` since it was added, which is why the frontend hand-wrote
+`CandidateAssessmentSummary` against `docs/current-system.md`'s
+generated-types rule. Both actions now declare
+`CandidateAssessmentSummarySerializer`, and the frontend types are generated. `/outcomes/{id}/summary/` becomes a thin convenience over the same
 service rather than the only route to the data. Changes
 `docs/api_contract.md`, and requires the OpenAPI schema and frontend types to
 be regenerated.

@@ -145,6 +145,9 @@ export function CandidateAssessmentScreen() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentItems", assessment?.id] });
+      // The rollup is served now, so a scored item has to refetch it or the
+      // mat bar and category badges go stale (FDR-046).
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
     },
   });

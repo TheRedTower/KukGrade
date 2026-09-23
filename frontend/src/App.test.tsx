@@ -65,6 +65,38 @@ afterEach(() => {
   document.documentElement.removeAttribute("data-theme");
 });
 
+
+// Mirrors gradings.services.candidate_assessment_summary so each test's item
+// fixture stays the single source of truth for its own counts.
+function assessmentSummaryFor(items: CandidateAssessmentItem[]) {
+  const block = (subset: CandidateAssessmentItem[]) => {
+    const required = subset.filter((item) => item.required);
+    const requiredNotAssessed = required.filter(
+      (item) => item.result === "NOT_ASSESSED",
+    ).length;
+    const requiredMet = required.filter((item) => item.result === "MET").length;
+    return {
+      total: subset.length,
+      required: required.length,
+      met: subset.filter((item) => item.result === "MET").length,
+      not_met: subset.filter((item) => item.result === "NOT_MET").length,
+      not_assessed: subset.filter((item) => item.result === "NOT_ASSESSED").length,
+      required_met: requiredMet,
+      required_not_met: required.filter((item) => item.result === "NOT_MET").length,
+      required_not_assessed: requiredNotAssessed,
+      all_required_assessed: requiredNotAssessed === 0,
+      all_required_met: requiredMet === required.length,
+    };
+  };
+  const categories = Array.from(new Set(items.map((item) => item.category))).map(
+    (category) => ({
+      category,
+      ...block(items.filter((item) => item.category === category)),
+    }),
+  );
+  return { overall: block(items), categories };
+}
+
 describe("App authentication", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -1139,7 +1171,7 @@ describe("Overview screen (Operational Ledger)", () => {
           results: candidates,
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
           count: 2,
           next: null,
@@ -1208,7 +1240,7 @@ describe("Overview screen (Operational Ledger)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/audit-events/")) {
@@ -2181,7 +2213,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
         return jsonResponse(200, { count: 5, next: null, previous: null, results: [] });
       }
       // Assessments per session
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2247,7 +2279,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2279,7 +2311,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2359,7 +2391,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2415,7 +2447,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2470,7 +2502,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2532,7 +2564,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -2726,7 +2758,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       return jsonResponse(404, {});
@@ -3115,7 +3147,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: candidates.length, next: null, previous: null, results: candidates });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3403,7 +3435,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3457,7 +3489,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3508,7 +3540,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3558,7 +3590,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3683,7 +3715,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3742,7 +3774,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: notStartedAssessments.length, next: null, previous: null, results: notStartedAssessments });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -3837,13 +3869,26 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           results: testCandidates,
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
           count: testAssessments.length,
           next: null,
           previous: null,
           results: testAssessments,
         });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(
+          200,
+          assessmentSummaryFor(
+            Array.from({ length: 24 }, (_, i) => ({
+              id: 1000 + i,
+              category: "TECHNIQUE",
+              required: true,
+              result: "MET",
+            })) as unknown as CandidateAssessmentItem[],
+          ),
+        );
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -3967,7 +4012,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
-      if (url.includes("/api/gradings/assessments/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
       if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
@@ -4205,7 +4251,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
           results: [mockExistingCandidate],
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
       if (url.includes("/api/gradings/outcomes/")) {
@@ -4719,8 +4765,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -4763,6 +4812,73 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   // The completion review is its own route now, so it is reachable by a typed
   // URL rather than only through the scoring screen's gated button. It has to
   // refuse on its own rather than render an incomplete record.
+  // FDR-046: the rollup is served, not recounted here. The summary below
+  // deliberately disagrees with the items so a client-side recount would give
+  // a visibly different answer.
+  it("renders served counts rather than recounting the item rows", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, mockSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, {
+          overall: {
+            total: 9,
+            required: 7,
+            met: 5,
+            not_met: 1,
+            not_assessed: 3,
+            required_met: 5,
+            required_not_met: 1,
+            required_not_assessed: 1,
+            all_required_assessed: false,
+            all_required_met: false,
+          },
+          categories: [],
+        });
+      }
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // Served: 6 of 7 required assessed. Recounting the three rows would say 2 of 3.
+    expect(screen.getByText("6 / 7")).toBeVisible();
+    expect(screen.getByText("5 Met")).toBeVisible();
+    expect(screen.getByText("1 Not Met")).toBeVisible();
+    expect(screen.getByText("3 Not Assessed")).toBeVisible();
+
+    // Completion stays locked on the server's all_required_assessed, not on a
+    // local tally of the rows that happen to be loaded.
+    const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
+    expect(completeBtn).toBeDisabled();
+    expect(completeBtn).toHaveTextContent("Complete assessment (1 required remaining)");
+  });
+
   it("refuses the completion review route while required items remain unassessed", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -4778,8 +4894,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -4824,7 +4943,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
       }
       if (url.includes("/api/gradings/assessment-items/1003/") && init?.method === "PATCH") {
@@ -4837,6 +4956,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           assessor_email: authUser.email,
           assessed_at: "2026-09-18T10:20:00Z",
         });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -4875,8 +4997,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -4949,13 +5074,16 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           completed_at: "2026-09-18T10:30:00Z",
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
           count: 1,
           next: null,
           previous: null,
           results: [completedItemsAssessment],
         });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, allAssessedItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -5040,13 +5168,16 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
           count: 1,
           next: null,
           previous: null,
           results: [completedItemsAssessment],
         });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, allAssessedItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -5114,13 +5245,23 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           started_at: "2026-09-18T10:15:00Z",
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, {
           count: 1,
           next: null,
           previous: null,
           results: [notStartedAssessment],
         });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(
+          200,
+          assessmentSummaryFor([
+            { ...mockItem1, result: "NOT_ASSESSED" },
+            { ...mockItem2, result: "NOT_ASSESSED" },
+            mockItem3,
+          ]),
+        );
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {
@@ -5193,8 +5334,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
           results: [mockStudent],
         });
       }
-      if (url.includes("/api/gradings/assessments/")) {
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
       }
       if (url.includes("/api/gradings/assessment-items/")) {
         return jsonResponse(200, {

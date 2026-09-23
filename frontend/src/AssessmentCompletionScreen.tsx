@@ -183,36 +183,38 @@ export function AssessmentCompletionScreen() {
                 <tr>
                   <th scope="col">Category</th>
                   <th scope="col">Met status</th>
-                  <th scope="col">Percentage</th>
+                  <th scope="col">Outcome</th>
                 </tr>
               </thead>
               <tbody>
-                {categoryGroups.map((group) => {
-                  const metInGroup = group.items.filter((i) => i.result === "MET").length;
-                  const notMetInGroup = group.items.filter((i) => i.result === "NOT_MET").length;
-                  const pct = group.totalCount > 0 ? Math.round((metInGroup / group.totalCount) * 100) : 100;
-
-                  return (
-                    <tr key={group.category} data-testid={`review-cat-row-${group.category}`}>
-                      <td className="caw-cat-td-name">
-                        <strong>{group.categoryDisplay}</strong>
-                        {group.koreanName && (
-                          <span className="caw-korean-sub"> ({group.koreanName})</span>
-                        )}
-                      </td>
-                      <td className="caw-cat-td-status">
-                        {metInGroup}/{group.totalCount} Met
-                      </td>
-                      <td className="caw-cat-td-pct">
-                        {notMetInGroup > 0 ? (
-                          <span className="caw-pct-flag">({notMetInGroup} Not Met)</span>
-                        ) : (
-                          <span className="caw-pct-clean">({pct}%) <span className="caw-check-icon">✓</span></span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {/*
+                  No percentage column. `CandidateAssessmentItem.Result` is
+                  NOT_ASSESSED / MET / NOT_MET with no partial credit, so a
+                  per-category percentage implied a score that does not exist
+                  (FDR-046). Counts come from the served summary.
+                */}
+                {categoryGroups.map((group) => (
+                  <tr key={group.category} data-testid={`review-cat-row-${group.category}`}>
+                    <td className="caw-cat-td-name">
+                      <strong>{group.categoryDisplay}</strong>
+                      {group.koreanName && (
+                        <span className="caw-korean-sub"> ({group.koreanName})</span>
+                      )}
+                    </td>
+                    <td className="caw-cat-td-status">
+                      {group.metCount}/{group.totalCount} Met
+                    </td>
+                    <td className="caw-cat-td-pct">
+                      {group.notMetCount > 0 ? (
+                        <span className="caw-pct-flag">({group.notMetCount} Not Met)</span>
+                      ) : (
+                        <span className="caw-pct-clean">
+                          All met <span className="caw-check-icon">✓</span>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

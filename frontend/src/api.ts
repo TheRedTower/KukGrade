@@ -38,35 +38,14 @@ export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
-export type OverallAssessmentSummary = {
-  total: number;
-  required: number;
-  met: number;
-  not_met: number;
-  not_assessed: number;
-  required_met: number;
-  required_not_met: number;
-  required_not_assessed: number;
-  all_required_assessed: boolean;
-  all_required_met: boolean;
-};
-export type CategoryAssessmentSummary = {
-  category: string;
-  total: number;
-  required: number;
-  met: number;
-  not_met: number;
-  not_assessed: number;
-  required_met: number;
-  required_not_met: number;
-  required_not_assessed: number;
-  all_required_assessed: boolean;
-  all_required_met: boolean;
-};
-export type CandidateAssessmentSummary = {
-  overall: OverallAssessmentSummary;
-  categories: CategoryAssessmentSummary[];
-};
+// Generated from the two `summary` endpoints' declared response - see
+// gradings/serializers.py CandidateAssessmentSummarySerializer. Previously
+// hand-written here because the schema wrongly claimed each viewset's own
+// serializer_class; docs/current-system.md requires generated types.
+export type OverallAssessmentSummary = components["schemas"]["AssessmentSummaryCounts"];
+export type CategoryAssessmentSummary = components["schemas"]["AssessmentCategorySummary"];
+export type CandidateAssessmentSummary = components["schemas"]["CandidateAssessmentSummary"];
+
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type AuditAction = components["schemas"]["ActionEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
@@ -699,6 +678,21 @@ export async function proposeCandidateOutcome(
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+
+/**
+ * Rollup for one assessment, reachable at any assessment status.
+ *
+ * `getCandidateAssessmentSummary` goes via the outcome, which cannot exist
+ * until the session is `LOCKED` and the assessment `COMPLETED`. Scoring and
+ * completion review need the same counts before that point. See FDR-046.
+ */
+export async function getAssessmentSummary(
+  assessmentId: number,
+): Promise<CandidateAssessmentSummary> {
+  return apiRequest<CandidateAssessmentSummary>(
+    `/api/gradings/assessments/${assessmentId}/summary/`,
+  );
 }
 
 export async function getCandidateAssessmentSummary(

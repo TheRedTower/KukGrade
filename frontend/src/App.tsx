@@ -33,6 +33,7 @@ import { GradingSessionsScreen } from "./GradingSessionsScreen";
 import { CreateGradingSessionScreen } from "./CreateGradingSessionScreen";
 import { BuildGradingCohortScreen } from "./BuildGradingCohortScreen";
 import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
+import { AssessmentCompletionScreen } from "./AssessmentCompletionScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { AuditScreen } from "./AuditScreen";
@@ -370,6 +371,10 @@ function CandidateAssessmentPage() {
   return <CandidateAssessmentScreen />;
 }
 
+function AssessmentCompletionPage() {
+  return <AssessmentCompletionScreen />;
+}
+
 function SyllabusPage() {
   return <SyllabusScreen />;
 }
@@ -594,6 +599,7 @@ function App() {
               />
               <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
               <Route element={<PromotionLedgerPage />} path="gradings/:id/promotions" />
+              <Route element={<AssessmentCompletionPage />} path="gradings/:sessionId/assessments/:candidateId/review" />
               <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />
               <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
               <Route element={<GradingsPage />} path="gradings" />

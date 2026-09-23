@@ -4760,6 +4760,52 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(completeBtn).toHaveTextContent("Complete assessment (1 required remaining)");
   });
 
+  // The completion review is its own route now, so it is reachable by a typed
+  // URL rather than only through the scoring screen's gated button. It has to
+  // refuse on its own rather than render an incomplete record.
+  it("refuses the completion review route while required items remain unassessed", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/gradings/sessions/10/")) {
+        return jsonResponse(200, mockSession);
+      }
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3,
+          next: null,
+          previous: null,
+          results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    expect(await screen.findByTestId("caw-review-unavailable")).toBeVisible();
+    expect(screen.getByText(/1 required item remains unassessed/)).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Review & Complete Assessment" })).toBeNull();
+    expect(screen.getByRole("link", { name: /Return to scoring/ })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/101",
+    );
+  });
+
   it("updates item evaluation via segmented controls with immediate auto-save", async () => {
     let patchedItemId: number | null = null;
     let patchedBody: Record<string, unknown> | null = null;

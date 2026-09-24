@@ -19,19 +19,16 @@ import { useAuth } from "./auth";
 import { BeltSwatch } from "./SyllabusScreen";
 import { useDialogFocus } from "./useDialogFocus";
 import "./PromotionLedger.css";
+import { formatApiDate } from "./dates";
 
+/*
+  `grading_date` and `Promotion.effective_date` are both date-only. Parsed as
+  timestamps they were read as UTC midnight, so west of UTC the ledger showed
+  the day before the grading - and `effective_date` is the date a rank change
+  took effect, which is part of the promotion record.
+*/
 function formatSessionDate(dateStr?: string | null): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  return formatApiDate(dateStr, { day: "numeric", month: "short", year: "numeric" });
 }
 
 type PromotionRowItem = {

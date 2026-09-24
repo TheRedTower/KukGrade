@@ -364,6 +364,7 @@ class CandidateAssessmentViewSet(
         "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
         "bulk_start": ("gradings.change_candidateassessment",),
+        "summary": ("gradings.view_candidateassessment",),
         "destroy": ("gradings.delete_candidateassessment",),
     }
 
@@ -410,6 +411,26 @@ class CandidateAssessmentViewSet(
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(responses=CandidateAssessmentSummarySerializer)
+    @action(detail=True, methods=["get"])
+    def summary(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Category and overall rollup for one assessment, at any status.
+
+        The same service and response shape as the outcome endpoint's
+        `summary`, reached by assessment rather than by outcome. A
+        `CandidateOutcome` cannot exist until the session is `LOCKED` and the
+        assessment `COMPLETED`, so the outcome route is unreachable while an
+        assessment is being scored or reviewed - which is exactly when the
+        scoring and completion screens need these counts. See FDR-046.
+        """
+        summary = candidate_assessment_summary(self.get_object())
+        return Response(CandidateAssessmentSummarySerializer(summary).data)
 
     @extend_schema(
         request=BulkAssessmentStartSerializer,

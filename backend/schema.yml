@@ -512,6 +512,36 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/gradings/assessments/{id}/summary/:
+    get:
+      operationId: gradings_assessments_summary_retrieve
+      description: |-
+        Category and overall rollup for one assessment, at any status.
+
+        The same service and response shape as the outcome endpoint's
+        `summary`, reached by assessment rather than by outcome. A
+        `CandidateOutcome` cannot exist until the session is `LOCKED` and the
+        assessment `COMPLETED`, so the outcome route is unreachable while an
+        assessment is being scored or reviewed - which is exactly when the
+        scoring and completion screens need these counts. See FDR-046.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessmentSummary'
+          description: ''
   /api/gradings/assessments/bulk-start/:
     post:
       operationId: gradings_assessments_bulk_start_create
@@ -2220,6 +2250,117 @@ components:
         * `AGE_9_TO_12` - 9-12
         * `AGE_13_TO_17` - 13-17
         * `AGE_18_AND_OVER` - 18+
+    AssessmentCategorySummary:
+      type: object
+      description: |-
+        Shape of one rollup block in `candidate_assessment_summary`.
+
+        Declared so the schema tells the truth about what the two `summary`
+        endpoints return. Neither of them serializes a model, and without this the
+        generated contract claims the viewset's own `serializer_class`. Read-only:
+        nothing is deserialized through it.
+      properties:
+        total:
+          type: integer
+          readOnly: true
+        required:
+          type: integer
+          readOnly: true
+        met:
+          type: integer
+          readOnly: true
+        not_met:
+          type: integer
+          readOnly: true
+        not_assessed:
+          type: integer
+          readOnly: true
+        required_met:
+          type: integer
+          readOnly: true
+        required_not_met:
+          type: integer
+          readOnly: true
+        required_not_assessed:
+          type: integer
+          readOnly: true
+        all_required_assessed:
+          type: boolean
+          readOnly: true
+        all_required_met:
+          type: boolean
+          readOnly: true
+        category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
+          type: string
+          readOnly: true
+      required:
+      - all_required_assessed
+      - all_required_met
+      - category
+      - category_display
+      - met
+      - not_assessed
+      - not_met
+      - required
+      - required_met
+      - required_not_assessed
+      - required_not_met
+      - total
+    AssessmentSummaryCounts:
+      type: object
+      description: |-
+        Shape of one rollup block in `candidate_assessment_summary`.
+
+        Declared so the schema tells the truth about what the two `summary`
+        endpoints return. Neither of them serializes a model, and without this the
+        generated contract claims the viewset's own `serializer_class`. Read-only:
+        nothing is deserialized through it.
+      properties:
+        total:
+          type: integer
+          readOnly: true
+        required:
+          type: integer
+          readOnly: true
+        met:
+          type: integer
+          readOnly: true
+        not_met:
+          type: integer
+          readOnly: true
+        not_assessed:
+          type: integer
+          readOnly: true
+        required_met:
+          type: integer
+          readOnly: true
+        required_not_met:
+          type: integer
+          readOnly: true
+        required_not_assessed:
+          type: integer
+          readOnly: true
+        all_required_assessed:
+          type: boolean
+          readOnly: true
+        all_required_met:
+          type: boolean
+          readOnly: true
+      required:
+      - all_required_assessed
+      - all_required_met
+      - met
+      - not_assessed
+      - not_met
+      - required
+      - required_met
+      - required_not_assessed
+      - required_not_met
+      - total
     AttendanceStatusEnum:
       enum:
       - ATTENDED
@@ -2641,13 +2782,17 @@ components:
         * `COMPLETED` - Completed
     CandidateAssessmentSummary:
       type: object
+      description: Overall plus per-category rollup for one assessment.
       properties:
         overall:
-          $ref: '#/components/schemas/OverallAssessmentSummary'
+          allOf:
+          - $ref: '#/components/schemas/AssessmentSummaryCounts'
+          readOnly: true
         categories:
           type: array
           items:
-            $ref: '#/components/schemas/CategoryAssessmentSummary'
+            $ref: '#/components/schemas/AssessmentCategorySummary'
+          readOnly: true
       required:
       - categories
       - overall
@@ -2872,47 +3017,6 @@ components:
       - source_section
       - source_sheet
       - source_testing_for_rank_text
-    CategoryAssessmentSummary:
-      type: object
-      properties:
-        total:
-          type: integer
-        required:
-          type: integer
-        met:
-          type: integer
-        not_met:
-          type: integer
-        not_assessed:
-          type: integer
-        required_met:
-          type: integer
-        required_not_met:
-          type: integer
-        required_not_assessed:
-          type: integer
-        all_required_assessed:
-          type: boolean
-        all_required_met:
-          type: boolean
-        category:
-          $ref: '#/components/schemas/SyllabusItemCategoryEnum'
-        category_display:
-          type: string
-          readOnly: true
-      required:
-      - all_required_assessed
-      - all_required_met
-      - category
-      - category_display
-      - met
-      - not_assessed
-      - not_met
-      - required
-      - required_met
-      - required_not_assessed
-      - required_not_met
-      - total
     ChangePassword:
       type: object
       description: |-
@@ -3768,40 +3872,6 @@ components:
     NullEnum:
       enum:
       - null
-    OverallAssessmentSummary:
-      type: object
-      properties:
-        total:
-          type: integer
-        required:
-          type: integer
-        met:
-          type: integer
-        not_met:
-          type: integer
-        not_assessed:
-          type: integer
-        required_met:
-          type: integer
-        required_not_met:
-          type: integer
-        required_not_assessed:
-          type: integer
-        all_required_assessed:
-          type: boolean
-        all_required_met:
-          type: boolean
-      required:
-      - all_required_assessed
-      - all_required_met
-      - met
-      - not_assessed
-      - not_met
-      - required
-      - required_met
-      - required_not_assessed
-      - required_not_met
-      - total
     PaginatedAuditEventList:
       type: object
       required:

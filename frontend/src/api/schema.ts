@@ -282,6 +282,32 @@ export interface paths {
         patch: operations["gradings_assessments_partial_update"];
         trace?: never;
     };
+    "/api/gradings/assessments/{id}/summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Category and overall rollup for one assessment, at any status.
+         *
+         *     The same service and response shape as the outcome endpoint's
+         *     `summary`, reached by assessment rather than by outcome. A
+         *     `CandidateOutcome` cannot exist until the session is `LOCKED` and the
+         *     assessment `COMPLETED`, so the outcome route is unreachable while an
+         *     assessment is being scored or reviewed - which is exactly when the
+         *     scoring and completion screens need these counts. See FDR-046.
+         */
+        get: operations["gradings_assessments_summary_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/assessments/bulk-start/": {
         parameters: {
             query?: never;
@@ -1175,6 +1201,48 @@ export interface components {
          */
         AgeBandEnum: "AGE_8_AND_UNDER" | "AGE_9_TO_12" | "AGE_13_TO_17" | "AGE_18_AND_OVER";
         /**
+         * @description Shape of one rollup block in `candidate_assessment_summary`.
+         *
+         *     Declared so the schema tells the truth about what the two `summary`
+         *     endpoints return. Neither of them serializes a model, and without this the
+         *     generated contract claims the viewset's own `serializer_class`. Read-only:
+         *     nothing is deserialized through it.
+         */
+        AssessmentCategorySummary: {
+            readonly total: number;
+            readonly required: number;
+            readonly met: number;
+            readonly not_met: number;
+            readonly not_assessed: number;
+            readonly required_met: number;
+            readonly required_not_met: number;
+            readonly required_not_assessed: number;
+            readonly all_required_assessed: boolean;
+            readonly all_required_met: boolean;
+            readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
+            readonly category_display: string;
+        };
+        /**
+         * @description Shape of one rollup block in `candidate_assessment_summary`.
+         *
+         *     Declared so the schema tells the truth about what the two `summary`
+         *     endpoints return. Neither of them serializes a model, and without this the
+         *     generated contract claims the viewset's own `serializer_class`. Read-only:
+         *     nothing is deserialized through it.
+         */
+        AssessmentSummaryCounts: {
+            readonly total: number;
+            readonly required: number;
+            readonly met: number;
+            readonly not_met: number;
+            readonly not_assessed: number;
+            readonly required_met: number;
+            readonly required_not_met: number;
+            readonly required_not_assessed: number;
+            readonly all_required_assessed: boolean;
+            readonly all_required_met: boolean;
+        };
+        /**
          * @description * `ATTENDED` - Attended
          *     * `DID_NOT_ATTEND` - Did not attend
          *     * `UNKNOWN` - Unknown
@@ -1321,9 +1389,10 @@ export interface components {
          * @enum {string}
          */
         CandidateAssessmentStatusEnum: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+        /** @description Overall plus per-category rollup for one assessment. */
         CandidateAssessmentSummary: {
-            overall: components["schemas"]["OverallAssessmentSummary"];
-            categories: components["schemas"]["CategoryAssessmentSummary"][];
+            readonly overall: components["schemas"]["AssessmentSummaryCounts"];
+            readonly categories: components["schemas"]["AssessmentCategorySummary"][];
         };
         CandidateOutcome: {
             readonly id: number;
@@ -1398,20 +1467,6 @@ export interface components {
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
             comments: string;
             admin_note: string;
-        };
-        CategoryAssessmentSummary: {
-            total: number;
-            required: number;
-            met: number;
-            not_met: number;
-            not_assessed: number;
-            required_met: number;
-            required_not_met: number;
-            required_not_assessed: number;
-            all_required_assessed: boolean;
-            all_required_met: boolean;
-            category: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display: string;
         };
         /**
          * @description POST /api/auth/change-password/.
@@ -1731,18 +1786,6 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
-        OverallAssessmentSummary: {
-            total: number;
-            required: number;
-            met: number;
-            not_met: number;
-            not_assessed: number;
-            required_met: number;
-            required_not_met: number;
-            required_not_assessed: number;
-            all_required_assessed: boolean;
-            all_required_met: boolean;
-        };
         PaginatedAuditEventList: {
             /** @example 123 */
             count: number;
@@ -3072,6 +3115,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateAssessment"];
+                };
+            };
+        };
+    };
+    gradings_assessments_summary_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this candidate assessment. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CandidateAssessmentSummary"];
                 };
             };
         };

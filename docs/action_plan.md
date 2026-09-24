@@ -6,16 +6,19 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-1. **Go live.** Connect the production image to the real Traefik and
+1. **Finish the assessment grading redesign**: slices 6-8 of
+   `assessment-grading-redesign-handoff.md` (the Cohort Adjudication Board,
+   the proposal drawer restyle, and the dark/responsive/accessibility pass).
+2. **Go live.** Connect the production image to the real Traefik and
    PostgreSQL host, then verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).
-2. **Rehearse the historical import** against a sanitised copy of the real
+3. **Rehearse the historical import** against a sanitised copy of the real
    KSW Colchester workbook. Every adapter fixture is synthetic, so expect
    adjustments (`data-import-and-legacy-migration.md`).
-3. **Finish the accessibility pass**: measure per-element contrast in light
+4. **Finish the accessibility pass**: measure per-element contrast in light
    and dark themes (it has only been checked visually), and confirm every
    `outline: none` has a visible focus replacement.
-4. **Split `frontend/src/App.test.tsx`** (about 5,000 lines) into per-screen
+5. **Split `frontend/src/App.test.tsx`** (about 5,000 lines) into per-screen
    test files - a mechanical move that keeps every test name and assertion.
 
 ## Needs a decision first

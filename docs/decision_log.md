@@ -59,6 +59,195 @@ the serializer, the regenerated schema and types, and `api_contract.md`
 together, or CI fails. Supersedes the 2026-06-25 "Documentation truth and
 audit remediation tracker" entry.
 
+### 2026-09-24 - Parse API dates through one shared module, and run the frontend suite in a second timezone
+
+Status: Accepted
+
+Decision:
+All API dates are parsed through `frontend/src/dates.ts`, which detects
+date-only values and splits them into local year/month/day, and keeps normal
+parsing for timestamps. CI runs the frontend suite twice: once as it did, and
+once with `TZ=America/Los_Angeles`.
+
+Context:
+The API returns two shapes. Date-only values (`grading_date`,
+`Promotion.effective_date`, `Student.date_of_birth`,
+`GradingHistoryItem.date`) are read by `new Date()` as UTC midnight, so west of
+UTC they render as the previous day. Timestamps (`created_at`, `promoted_at`,
+`generated_at`, `completed_at`) carry an offset and must keep rendering in the
+reader's own timezone.
+
+The same formatter had been written six times across the app with three
+different parsing strategies. Two were wrong: `PromotionLedgerScreen` showed
+the day before the grading for `grading_date` and `effective_date`, and
+`StudentDetailScreen` did the same for `date_of_birth` and promotion dates.
+`calculateAge` shared the defect, which matters beyond display: age decides the
+age band, and the age band decides which syllabus a candidate is assessed
+against.
+
+The shape is detected from the value rather than chosen by the caller, because
+several formatters receive both kinds - `StudentDetailScreen` formats
+`date_of_birth` and `created_at` through the same function.
+
+The CI change is part of the fix rather than an extra. The runner is UTC, and
+this class of bug is invisible there: with the defect reintroduced, the UTC run
+passes 187/187 while the `America/Los_Angeles` run fails 5. Tests asserting
+these fields gave no protection at all before.
+
+Two tests asserted timestamps in UTC-specific form (`UsersScreen` on
+`last_login`, student detail on `created_at`). Those were test defects, not
+product bugs - a timestamp *should* render differently by timezone - so the
+expected values are now derived from the same formatter rather than hard-coded.
+
+Consequences:
+The suite passes in UTC, America/Los_Angeles, Pacific/Auckland, Asia/Kolkata,
+Pacific/Kiritimati and America/Sao_Paulo. New date formatting goes through
+`dates.ts`; the remaining correct-but-duplicated formatters in
+`GradingSessionsScreen`, `GradingSessionDetailScreen`, `OverviewScreen` and
+`BuildGradingCohortScreen` were left alone rather than churn working code, and
+are candidates for the same consolidation.
+
+### 2026-09-23 - Expose the assessment summary on the assessment resource
+
+Status: Accepted
+
+Decision:
+Add `GET /api/gradings/assessments/{id}/summary/` returning
+`candidate_assessment_summary(assessment)` - the same service and response
+shape `GET /api/gradings/outcomes/{id}/summary/` already returns.
+
+Context:
+FDR-046 said assessment counts must be served rather than recomputed in React.
+Checking the serializers showed that is not currently possible while an
+assessment is being scored. `CandidateAssessmentSerializer.get_item_counts`
+returns only `total`, `required`, `met`, `not_met` and `not_assessed`, with no
+required-split, so it cannot drive the completion gate: optional items may be
+left unassessed, so `not_assessed > 0` does not mean incomplete. It also
+generates as `{ [key: string]: number }`, so it carries no type safety. The
+full split, and the per-category breakdown, exist only behind
+`/outcomes/{id}/summary/`, which needs a `CandidateOutcome`; that needs session
+`LOCKED` and assessment `COMPLETED`, so it is unreachable during scoring and at
+completion review. The client-side derivation in
+`CandidateAssessmentScreen.tsx` therefore exists because the server does not
+serve what the screen needs, not by oversight.
+
+`candidate_assessment_summary` already takes a `CandidateAssessment` rather
+than an outcome, and `gradings/views.py:714` is a two-line wrapper over it, so
+the addition is a viewset action, contract documentation and permission tests.
+No model, migration or service change.
+
+Consequences:
+Accepted and implemented on 2026-09-23. Slice 2 of the assessment redesign
+gained a backend half.
+
+Implementing it surfaced a second defect: neither `summary` action serializes a
+model, so drf-spectacular had been declaring each viewset's own
+`serializer_class` as the response. The outcome endpoint has documented
+`CandidateOutcome` since it was added, which is why the frontend hand-wrote
+`CandidateAssessmentSummary` against `docs/current-system.md`'s
+generated-types rule. Both actions now declare
+`CandidateAssessmentSummarySerializer`, and the frontend types are generated. `/outcomes/{id}/summary/` becomes a thin convenience over the same
+service rather than the only route to the data. Changes
+`docs/api_contract.md`, and requires the OpenAPI schema and frontend types to
+be regenerated.
+
+### 2026-09-23 - Assessment grading screen directions
+
+Status: Accepted
+
+Decision:
+Rebuild mat-side scoring as 1A Single Column Run, completion review as 2B
+Certificate Proof, and the Authorised Master final decision as 3C Cohort
+Adjudication Board. Selected from nine proposed directions, three per screen.
+
+Context:
+The three screens shipped in a single fast pass on 2026-09-16 and had drifted
+from the accepted visual direction - notably FDR-008, which prefers divider-led
+lists over repeated cards, while every requirement rendered as a card. The
+completion review also showed a per-category percentage, implying partial
+credit that `CandidateAssessmentItem.Result` does not have.
+
+Consequences:
+Recorded as FDR-042 to FDR-047 and SCR-026 to SCR-028. Supersedes FDR-032,
+FDR-033, FDR-036 and FDR-038, and retires SCR-019, SCR-020 and SCR-022.
+FDR-037's instructor proposal drawer is retained, not superseded: the selected
+Master surface is a cohort board and does not carry the proposal step, so the
+drawer is restyled to the board's evidence presentation under FDR-047.
+Both 2B and 3C are routes rather than in-page modes, so each adds a route and
+`GradingSessionDetailScreen.tsx` gains new entry points.
+`MasterFinalDecisionDrawer.tsx` is deleted rather than refactored;
+`OutcomeProposalDrawer.tsx` survives.
+Selecting 1A also settles the clearing treatment as an inline confirmation
+(FDR-045), and none of the three selected directions needs a bulk item-scoring
+affordance, so that decision is deferred rather than blocking.
+
+### 2026-09-23 - Positive observations recorded in assessor_notes
+
+Status: Accepted
+
+Decision:
+Amend `AGENTS.md` rather than add a field. `CandidateAssessmentItem.assessor_notes`
+is the single per-item free-text field and records both shortfalls and positive
+observations; `CandidateAssessment.notes` carries the overall observation. No
+separate praise field is added.
+
+Context:
+`AGENTS.md` previously required assessment data to support "positive
+observations" as a distinct concern. No such field has ever existed in
+`backend/gradings`, so the rule described an intent rather than the schema. The
+gap surfaced during the 2026-09-23 design pass, which deliberately did not mock
+a field that does not exist. Two free-text fields already exist and are
+unconstrained in what they record. A second per-item textarea would also sit on
+every one of roughly 24 rows in the selected 1A mat-side layout, on a screen
+used during a live grading, where it would realistically go unfilled.
+
+Consequences:
+`AGENTS.md`'s domain rule now states the actual shape: computed category
+results, stored item results, one per-item note field, one per-assessment note
+field. No migration, service or serializer change. Slice 4 of the assessment
+redesign is unblocked. If per-technique praise is wanted later it is a new
+decision with a migration, not an unmet existing requirement.
+
+### 2026-09-23 - Clearing an item result is destructive
+
+Status: Accepted
+
+Decision:
+`Clear` opens an inline confirmation naming the assessor and time it will
+erase. Applies on every surface that can return a scored item to
+`NOT_ASSESSED`.
+
+Context:
+The `candidate_item_assessor_matches_result` constraint requires `assessor` and
+`assessed_at` to be null when `result` is `NOT_ASSESSED`, so clearing a scored
+item erases who marked it and when, irreversibly. The superseded UI presented
+`NOT_ASSESSED` as a peer of `MET` and `NOT_MET` in a segmented control and gave
+no warning at all.
+
+Consequences:
+Recorded as FDR-045. `NOT_ASSESSED` is no longer a verdict target; it is
+reached only through the confirmed `Clear` action.
+
+### 2026-09-23 - Bulk item scoring
+
+Status: Accepted
+
+Decision:
+Do not add a "mark remaining met" affordance or a `bulk-update-items` endpoint
+in this redesign. Revisit if instructors ask for it once 1A is in use.
+
+Context:
+`/api/gradings/assessment-items/` supports `GET` and `PATCH` on a single item
+only, so any multi-item action is N sequential requests. None of the three
+directions selected on 2026-09-23 includes the affordance, so nothing in the
+redesign depends on resolving it.
+
+Consequences:
+If it is revisited, the client-side option needs no backend work but must never
+imply atomic success, per FDR-028. The endpoint option needs a service, view,
+serializer, contract documentation and permission tests, and changes
+`docs/api_contract.md`.
+
 ### 2026-09-23 - One production app service on existing Traefik and PostgreSQL
 
 Status: Accepted
@@ -1338,3 +1527,7 @@ Consequences:
 `compose.yaml` starts PostgreSQL only. Production image layout and CI remain unresolved.
 
 ## Open decisions
+
+None. Every decision arising from the 2026-09-23 assessment grading redesign
+is recorded above. See `assessment-grading-redesign-handoff.md` and
+`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`.

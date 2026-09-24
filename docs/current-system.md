@@ -3,7 +3,8 @@
 Describes the implementation on `dev` as verified on 2026-09-24. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-24 with 630 backend tests and 180 frontend tests passing.
+Verified on 2026-09-24 with 633 backend tests and 194 frontend tests passing
+(the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
 build, and `npm audit --audit-level=high` are clean. CI enforces the same
@@ -146,8 +147,9 @@ checks on each push and pull request.
   assessment) were fixed. Loading states use `role="status"`; field-level
   validation errors use `role="alert"` and are wired to their input via
   `aria-describedby` (AddStudentScreen, the student edit modal, and both
-  user-management dialogs); the candidate-assessment progress ledger is
-  `aria-live="polite"`. `UsersScreen`'s table now has `scope="col"` headers
+  user-management dialogs); the candidate-assessment live count is
+  `aria-live="polite"` (the progress ledger until 2026-09-24, the mat bar
+  since). `UsersScreen`'s table now has `scope="col"` headers
   like every other table in the app. A global `prefers-reduced-motion: reduce`
   override was added (`theme.css`) - previously only one component respected
   it, leaving ~10 modal/drawer/spinner animations unguarded. Fixed four
@@ -301,6 +303,50 @@ checks on each push and pull request.
   locking, and reasoned locked-session withdrawal only for a user with override
   authority. Individual assessment actions remain available for exceptions,
   and withdrawn records retain their reason, note, actor and timestamp.
+- **Mat-side scoring is the Single Column Run (2026-09-24)**: SCR-026/FDR-042
+  replaced SCR-019's dual-pane workspace. There is no category sub-rail -
+  `CandidateAssessmentScreen` renders every requirement in one scroll in
+  syllabus order, under sticky category headers that carry their own required
+  progress. Requirement rows are divider-led rather than cards (FDR-008), and
+  scoring offers two verdict targets: `NOT_ASSESSED` is an undo, not a peer, so
+  it is a `Clear` that confirms inline and names the assessor and time it
+  erases (FDR-045) - the `candidate_item_assessor_matches_result` constraint
+  nulls both, and they cannot be restored. Assessor attribution renders on
+  every scored row, not only failures; per-item notes are a textarea rather
+  than a single-line input; and the live required count plus the completion
+  action sit in a persistent mat bar. A `COMPLETED` assessment offers no
+  scoring, note or clear affordance.
+- **Completion review is the Certificate Proof (2026-09-24)**: SCR-027/FDR-043
+  replaced SCR-020's dual-card ledger. `AssessmentCompletionScreen` renders the
+  record as the document it becomes - candidate and rank transition, a core
+  grading areas strip, a ledger per non-core category, every recorded
+  `assessor_notes` value with its result and attribution, the assessment note,
+  and a seal line that stays blank until the record is sealed. Provenance
+  (`generated_at`, `generated_by_email`) and the served counts sit in a side
+  column; there are no percentages. Two constraints drive the design: every
+  note renders, not only those on `NOT_MET` items, because `assessor_notes`
+  carries positive observations too; and the assessment note stays editable
+  while unsealed, because completion is the only point at which
+  `CandidateAssessment.notes` can be written and the 1A scoring screen has no
+  overall-note control. Sealing requires an explicit proofread
+  acknowledgement. A sealed record shows its seal and offers no write path.
+  `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
+  `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
+  about which categories are core areas.
+- **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
+  detects date-only values (`grading_date`, `Promotion.effective_date`,
+  `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
+  local year/month/day, while timestamps (`created_at`, `promoted_at`,
+  `generated_at`, `completed_at`) keep normal parsing so they render in the
+  reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
+  UTC date-only values previously rendered as the previous day - in
+  `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
+  is the API's own `age_band_display`, never recomputed in the browser. CI
+  runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
+  the UTC runner cannot observe this class of bug: with the defect
+  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen,
+  including the assessment screens' time and record-date formatters, formats
+  through `formatApiDate`/`formatSessionDate`.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

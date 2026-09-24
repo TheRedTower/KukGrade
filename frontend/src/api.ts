@@ -29,6 +29,8 @@ export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
+export type OverallAssessmentSummary = Schemas["AssessmentSummaryCounts"];
+export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
 export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type AuditAction = components["schemas"]["ActionEnum"];
@@ -635,6 +637,21 @@ export async function proposeCandidateOutcome(
     method: "PATCH",
     body: JSON.stringify(data),
   });
+}
+
+/**
+ * Rollup for one assessment, reachable at any assessment status.
+ *
+ * `getCandidateAssessmentSummary` goes via the outcome, which cannot exist
+ * until the session is `LOCKED` and the assessment `COMPLETED`. Scoring and
+ * completion review need the same counts before that point. See FDR-046.
+ */
+export async function getAssessmentSummary(
+  assessmentId: number,
+): Promise<CandidateAssessmentSummary> {
+  return apiRequest<CandidateAssessmentSummary>(
+    `/api/gradings/assessments/${assessmentId}/summary/`,
+  );
 }
 
 export async function getCandidateAssessmentSummary(

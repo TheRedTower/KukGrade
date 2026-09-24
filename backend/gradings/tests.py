@@ -2553,6 +2553,78 @@ def test_assessment_api_generation_lists_and_filters() -> None:
     assert post_response.status_code == 405
 
 
+def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> None:
+    # The whole point of this endpoint: the outcome route is unreachable here,
+    # because a CandidateOutcome needs a LOCKED session and a COMPLETED
+    # assessment. See FDR-046.
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    generated = assessment(
+        candidate=built,
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    items = list(generated.items.order_by("pk"))
+    assert len(items) >= 2
+    scored_at = timezone.now()
+    assessor = user("assessment-summary-assessor@example.com")
+    items[0].result = CandidateAssessmentItem.Result.MET
+    items[0].assessor = assessor
+    items[0].assessed_at = scored_at
+    items[0].save()
+    items[1].result = CandidateAssessmentItem.Result.NOT_MET
+    items[1].assessor = assessor
+    items[1].assessed_at = scored_at
+    items[1].save()
+
+    client = auth_client("assessment-summary@example.com")
+
+    response = client.get(f"/api/gradings/assessments/{generated.id}/summary/")
+
+    assert response.status_code == 200
+    payload = response.json()
+    # The service's counts, with each category's label added for display.
+    labels = [row.pop("category_display") for row in payload["categories"]]
+    assert payload == candidate_assessment_summary(generated)
+    assert labels == [
+        SyllabusItem.Category(row["category"]).label for row in payload["categories"]
+    ]
+    # The required-split is what item_counts cannot provide.
+    assert payload["overall"]["met"] == 1
+    assert payload["overall"]["not_met"] == 1
+    assert payload["overall"]["required_not_assessed"] == (
+        generated.items.filter(
+            required=True,
+            result=CandidateAssessmentItem.Result.NOT_ASSESSED,
+        ).count()
+    )
+    assert {category["category"] for category in payload["categories"]} == {
+        item.category for item in generated.items.all()
+    }
+
+
+def test_assessment_summary_requires_the_view_permission() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    generated = assessment(candidate=built)
+    client = APIClient()
+
+    response = client.get(f"/api/gradings/assessments/{generated.id}/summary/")
+
+    assert response.status_code == 403
+
+
+def test_assessment_summary_rejects_a_write() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    generated = assessment(candidate=built)
+    client = auth_client("assessment-summary-readonly@example.com")
+
+    response = client.post(
+        f"/api/gradings/assessments/{generated.id}/summary/",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 405
+
+
 def test_assessment_delete_requires_the_cleanup_permission() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     generated = assessment(candidate=built)

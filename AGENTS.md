@@ -38,7 +38,13 @@ image (`docs/deployment.md`) that is not yet deployed to a live host.
   `can_promote_student` and `can_override_locked_session`.
 - An authorised Master makes the final grading decision.
 - Grading outcomes are Pass, Fail, and Conditional.
-- Assessment data must support category-level results, item-level met/not-met results, comments, and positive observations.
+- Assessment data must support category-level results and item-level
+  met/not-met results. Category-level results are computed from item results,
+  never stored. Per-item free text is the single `assessor_notes` field, which
+  records both shortfalls and positive observations; `CandidateAssessment.notes`
+  carries the overall observation for the assessment. There is no separate
+  praise or positive-observation field, and none is planned - see the
+  2026-09-23 decision log entry.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
 - Each grading must retain the exact syllabus it was assessed against.

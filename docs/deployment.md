@@ -1,0 +1,114 @@
+# Single-container production deployment
+
+KukGrade's production Compose project has one service: `app`. Its image
+contains the Django API, React frontend, and collected static files. The
+existing Traefik and PostgreSQL containers remain in their own Compose
+projects. The app joins one external network for Traefik and one for
+PostgreSQL; no KukGrade port is published on the host. Traefik routing uses
+the same `apps_net`, `websecure`, and `cloudflare` conventions as the owner's
+working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
+
+## Host preparation
+
+1. Point `www.kukgrade.co.uk` DNS at the host running Traefik. Confirm that
+   `apps_net`, the `websecure` entrypoint, and the `cloudflare` certificate
+   resolver are present on that host.
+2. Confirm the production PostgreSQL network name with `docker network ls`
+   and the database container's stable alias on that network. The app joins
+   that network separately from `apps_net` so Traefik uses the intended
+   interface.
+3. Create a dedicated PostgreSQL database and non-superuser role for KukGrade.
+   The role must own the application database so Django can run migrations.
+   PostgreSQL's data volume, upgrade and backup policy remain with the
+   existing database deployment.
+4. Copy `.env.production.example` to `.env.production` on the deployment
+   host. Fill in the PostgreSQL network, alias, database, role, password and
+   a fresh `DJANGO_SECRET_KEY`. Set mode
+   `0600` on this file. It is ignored by Git and excluded from Docker builds.
+5. Verify that Traefik overwrites client-supplied `X-Forwarded-Proto` and
+   appends the true remote address to `X-Forwarded-For` before keeping
+   `DJANGO_BEHIND_TLS_PROXY=true` and `DJANGO_NUM_PROXIES=1`.
+
+The app's named volume holds private, temporary roster/workbook uploads across
+container replacement. It is never served by WhiteNoise. The image has a
+read-only root filesystem and runs as UID 10001; a pre-existing replacement
+volume must permit writes by that UID.
+
+The image, port, worker configuration and Traefik labels have chosen defaults
+in the Compose/Docker files. `.env.production` is for the production database,
+secrets, host/CSRF rules and explicit proxy trust; it is not a catalogue of
+optional tuning switches.
+
+## Build and start
+
+Run all commands from the repository root on the deployment host:
+
+```sh
+docker compose --env-file .env.production -f compose.prod.yml config --quiet
+docker compose --env-file .env.production -f compose.prod.yml up -d --build --wait --wait-timeout 300
+```
+
+The second command builds the app image, starts its single service, applies
+pending Django migrations, and waits for `/api/ready/` to report that the app
+and database are available. A failed migration leaves the app unable to serve
+traffic and visible in `docker compose logs app`.
+
+Create the first administrator once, after a successful start:
+
+```sh
+docker compose --env-file .env.production -f compose.prod.yml exec app python manage.py createsuperuser
+```
+
+Routine inspection:
+
+```sh
+docker compose --env-file .env.production -f compose.prod.yml ps
+docker compose --env-file .env.production -f compose.prod.yml logs --tail=100 app
+```
+
+Check `https://www.kukgrade.co.uk/`, a deep link such as
+`/students/42`, `/api/health/`, and `/api/ready/`. Check an authenticated
+write to confirm session cookies and CSRF across the HTTPS proxy. The
+frontend calls `/api/` on the same origin; no production CORS origin or API
+subdomain is needed.
+
+## Updates, backups and recovery
+
+Before updating, take a PostgreSQL backup using the existing database
+container and store it off the host. Record the current Git commit, image
+identity and backup location. Then update the checkout and rerun the two
+build/start commands above. The image rebuilds from locked Python/npm
+dependencies; it does not fetch a moving KukGrade image tag.
+
+If an import batch is pending, back up the `kukgrade_import_uploads` volume
+alongside the database at a consistent point, or complete/expire the batch
+first. Its source file is private but still needed to preview or commit that
+batch after a restore. A database dump alone does not contain those files.
+
+For an on-demand custom-format dump, substitute the actual database container,
+user and database names, and secure the resulting file:
+
+```sh
+docker exec <postgres-container> pg_dump -U <database-user> -d <database-name> -Fc > kukgrade-before-update.dump
+```
+
+This is a manual example, not a scheduled backup system. The host's database
+operator must set backup frequency, encryption, off-host retention and restore
+testing before live student data is entered. A code rollback means building
+the previous known-good commit. If its schema is incompatible with migrations
+already applied, restore the matching pre-update database backup first.
+
+The `expire_stale_import_batches` command is currently manual. Run it from
+the host's scheduler with `docker compose ... exec -T app python manage.py
+expire_stale_import_batches --hours 24` so abandoned personal-data uploads
+are deleted. No worker container is required.
+
+## Boundaries
+
+- One app service and one Django worker are intentional. The login and
+  password-change throttles currently use process-local cache; increasing
+  workers or adding app replicas requires a shared cache first.
+- The Compose file does not install, reconfigure, start or stop the existing
+  Traefik or PostgreSQL containers.
+- Production has not been deployed from this repository until the host-specific
+  names, credentials, DNS, TLS and a restore test are supplied and verified.

@@ -31,7 +31,8 @@ Master. The Users route is an administrator-only staff-account workspace for
 creation, account updates, role/status management, Master authority, and
 password resets. Administrator-only import screens handle student-roster and
 historical-grading uploads, review, and reconciliation. Offline/PWA support
-and production deployment remain to be built.
+and a production deployment target remain to be set up. A single-container
+production image and Compose definition are available; see `docs/deployment.md`.
 
 This is a summary. **`docs/current-system.md` is the authoritative,
 continuously-verified description of what exists on `dev` right now** - it
@@ -46,13 +47,15 @@ Repository layout:
 - `frontend/` - React, TypeScript, and Vite application.
 - `docs/` - planning, architecture, domain, and decision documentation.
 - `compose.yaml` - local PostgreSQL service for development.
+- `compose.prod.yml` - one-service production application definition.
 
 ## Confirmed Direction
 
 - Backend: Django and Django REST Framework.
 - Frontend: React and TypeScript.
 - Database: PostgreSQL.
-- Production deployment: Docker-based (not yet built).
+- Production deployment: one Docker app container behind existing Traefik,
+  using an existing PostgreSQL container; not yet deployed.
 - Architecture: modular monolith, not microservices.
 - Syllabus: data-driven. Historical gradings must reference the exact
   syllabus content used - fulfilled today by copying requirements into
@@ -148,4 +151,4 @@ where they disagree with the above: `docs/product-requirements.md`,
 - No certificates, payments, notifications, or correction/reopening workflow.
 - No offline/PWA support yet; the frontend is online-first.
 - No background worker until there is a confirmed asynchronous workload.
-- No production Docker image or deployment setup yet.
+- No production host connection or verified database restore yet.

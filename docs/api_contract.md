@@ -5,7 +5,7 @@ Status: mixed current and target contract.
 This document started as a broad target REST contract and now contains both
 implemented endpoints and deferred target endpoints. Before building against an
 endpoint, check the section notes and `docs/current-system.md`. Implemented
-current endpoints are authentication, health, users/roles, ranks, syllabus
+current endpoints are authentication, health/readiness, users/roles, ranks, syllabus
 lookup, students, grading sessions, grading candidates, candidate assessments,
 assessment items, candidate outcomes, promotions, and audit events.
 Organisations/branches, eligibility, certificates, and reports are target or
@@ -51,6 +51,13 @@ are enveloped separately: `kukgrade.exceptions.server_error`, wired as
 Django's `handler500`, returns the same `{"error": {...}}` shape with code
 `server_error` and no detail about the cause - that belongs in the logs,
 not the response.
+
+## 0c. Health and readiness
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
+| GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
 
 ## 1. Authentication
 

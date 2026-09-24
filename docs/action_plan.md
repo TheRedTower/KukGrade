@@ -18,8 +18,9 @@ This plan translates the existing project documents into a controlled implementa
   exceptions, student editing, and individual promotion confirmation; the
   remaining frontend work is the wider accessibility pass and CSS
   modularisation.
-- Production images/deployment/backups and offline/PWA behaviour are not
-  implemented. Explicit syllabus versioning remains deferred by decision.
+- A single-container production image and Compose app service are implemented.
+  Host integration, backups/restore, monitoring, and offline/PWA behaviour
+  remain outstanding. Explicit syllabus versioning remains deferred by decision.
 
 ## Phase 0 - Confirm Foundations
 
@@ -58,8 +59,8 @@ planning documents without a new decision.
 
 ## Phase 4 - Reporting and Operational Maturity
 
-1. Complete production image, deployment, backup/restore, monitoring, and
-   readiness work before describing the application as production-ready.
+1. Connect the production app image to the actual Traefik/PostgreSQL host;
+   verify backup/restore and monitoring before describing it as live.
 2. Decide whether offline operation is required before adding a PWA, IndexedDB,
    or synchronisation/outbox architecture.
 3. Add reports/exports only from an accepted reporting specification.

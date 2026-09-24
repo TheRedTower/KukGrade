@@ -135,3 +135,26 @@ jobs:
       # react runtime. Tighten to `--audit-level=high` once KG-020 is cleared.
       - name: Dependency audit
         run: npm audit --audit-level=critical
+
+  container:
+    name: Production image
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate production Compose template
+        run: docker compose --env-file .env.production.example -f compose.prod.yml config --no-env-resolution --quiet
+
+      - name: Build production image
+        run: docker build --target production -t kukgrade:ci .
+
+      - name: Check production settings in image
+        run: >-
+          docker run --rm
+          --entrypoint python
+          -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000
+          -e DJANGO_ALLOWED_HOSTS=www.kukgrade.co.uk
+          kukgrade:ci
+          manage.py check --deploy --fail-level WARNING

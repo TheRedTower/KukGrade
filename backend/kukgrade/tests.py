@@ -36,6 +36,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_SECURE_SSL_REDIRECT",
         "DJANGO_SECURE_HSTS_SECONDS",
         "DJANGO_BEHIND_TLS_PROXY",
+        "DJANGO_NUM_PROXIES",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -94,6 +95,12 @@ def test_production_settings_are_hardened(
     assert not hasattr(settings, "SECURE_PROXY_SSL_HEADER")
     assert settings.SESSION_COOKIE_SECURE is True
     assert settings.CSRF_COOKIE_SECURE is True
+    assert settings.STATIC_URL == "/static/"
+    assert settings.STORAGES["staticfiles"]["BACKEND"] == (
+        "whitenoise.storage.CompressedManifestStaticFilesStorage"
+    )
+    assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
     # Pinned so that deleting either half of the throttle - the class or the
     # rate - is caught here rather than only by the fact that login becomes
     # silently unthrottled. accounts/tests.py proves the throttle actually
@@ -129,6 +136,14 @@ def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(
     assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 
+def test_one_trusted_proxy_can_be_configured_for_traefik(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="1")
+
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 1
+
+
 def test_browsable_api_is_not_exposed_in_production(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -149,6 +164,7 @@ def test_development_keeps_the_browsable_api_and_relaxed_transport(
     assert settings.SECURE_SSL_REDIRECT is False
     assert settings.SECURE_HSTS_SECONDS == 0
     assert settings.SESSION_COOKIE_SECURE is False
+    assert "whitenoise.middleware.WhiteNoiseMiddleware" not in settings.MIDDLEWARE
     assert any(
         "Browsable" in renderer
         for renderer in settings.REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"]

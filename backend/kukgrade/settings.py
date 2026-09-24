@@ -8,6 +8,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_DIST = BASE_DIR / "frontend_dist"
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -83,13 +84,17 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+# Development uses Django's staticfiles handler; only the collected image
+# needs WhiteNoise, immediately after SecurityMiddleware.
+if not DEBUG:
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = "kukgrade.urls"
 
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -146,7 +151,12 @@ TIME_ZONE = "Europe/London"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [FRONTEND_DIST] if FRONTEND_DIST.is_dir() else []
+# Vite already puts a content hash in each production asset name. Keep its
+# original URL in index.html while WhiteNoise applies immutable caching.
+WHITENOISE_IMMUTABLE_FILE_TEST = r"^/static/assets/.+-[A-Za-z0-9_-]{8}\.(?:js|css)$"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
@@ -169,7 +179,7 @@ STORAGES = {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
     "import_uploads": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
@@ -206,6 +216,9 @@ REST_FRAMEWORK = {
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_change": "10/min"},
+    # One trusted Traefik hop in production. Zero ignores untrusted
+    # X-Forwarded-For in native development.
+    "NUM_PROXIES": env_int("DJANGO_NUM_PROXIES", 0),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 

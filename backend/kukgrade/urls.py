@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+
+from kukgrade.views import frontend
 
 # Django looks this up by name on the root URLconf.
 handler500 = "kukgrade.exceptions.server_error"
@@ -18,4 +20,5 @@ urlpatterns = [
     path("api/", include("gradings.urls")),
     path("api/", include("audit.urls")),
     path("api/", include("data_imports.urls")),
+    re_path(r"^(?!(?:api|admin|static)(?:/|$))(?P<path>.*)$", frontend),
 ]

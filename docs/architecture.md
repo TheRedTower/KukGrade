@@ -57,18 +57,18 @@ Frontend screens and routes should be derived from confirmed workflows. Exact UI
 
 ## Deployment Direction
 
-Production should run through Docker images or containers for:
-
-- Django API.
-- React frontend.
-- PostgreSQL as the configured production database.
-- Optional worker only after asynchronous workloads are confirmed.
-
-The current Docker Compose file is local-development-only PostgreSQL. Production image layout remains unresolved.
+The production app image contains the Django API, built React frontend, and
+static files in one container. `compose.prod.yml` defines only that app
+service. It joins the existing Traefik and production PostgreSQL containers
+through separate external Docker networks; those containers are not managed
+by KukGrade's Compose project. `compose.yaml` remains local-development-only
+PostgreSQL. See `docs/deployment.md`. A worker remains deferred until an
+asynchronous workload is accepted.
 
 ## Unresolved Decisions
 
 - Frontend styling approach.
 - Whether audit logging is implemented with custom models only or supported by a package.
 - Whether reports are API-only at first or include frontend screens in V1.
-- Production Docker image layout and deployment target.
+- Production PostgreSQL network name and database alias, host-side validation
+  of the supplied Traefik conventions, and backup ownership.

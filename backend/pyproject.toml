@@ -9,8 +9,10 @@ dependencies = [
     "django-cors-headers>=4.7,<5.0",
     "djangorestframework>=3.16,<4.0",
     "drf-spectacular>=0.30.0",
+    "gunicorn>=26.2,<27.0",
     "psycopg[binary]>=3.2,<4.0",
     "tablib[xlsx]>=3.10.0",
+    "whitenoise[brotli]>=6.12,<7.0",
 ]
 
 [dependency-groups]

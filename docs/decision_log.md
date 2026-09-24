@@ -18,6 +18,36 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-23 - One production app service on existing Traefik and PostgreSQL
+
+Status: Accepted
+
+Decision:
+Build the React frontend and Django API into one production image. Use a
+single-service `compose.prod.yml` connected to the host's existing Traefik
+and production PostgreSQL containers through separate external networks.
+Serve hashed static assets through WhiteNoise and the React SPA through
+Django. Apply migrations at app container start, then `exec` a single
+threaded Gunicorn worker. Keep `compose.yaml` as the local PostgreSQL-only
+development setup.
+
+Context:
+The owner asked for an OpenWebUI-like deployment: one configurable app
+container and one Compose/env pair, with optional infrastructure add-ons
+later, served to instructors at `www.kukgrade.co.uk`. A separate migration
+service would complicate that one-service interface. The accepted 2026-09-15
+login-throttle decision also rules out multiple Django processes until they
+share a cache.
+
+Consequences:
+The image contains no production secret or PostgreSQL data. Traefik uses the
+owner's `apps_net`/`websecure`/`cloudflare` convention; the external PostgreSQL
+network name and database alias are set in `.env.production`. One app restart may
+run an already-applied migration again; Django treats that as a no-op. Before
+an image update, take a database backup because a schema migration can make
+an old image incompatible. Host backup/restore operations and actual Traefik
+integration still need verification before live use. See `docs/deployment.md`.
+
 ### 2026-09-23 - Fix Django admin parity gap for any-status grading session delete
 
 Status: Accepted

@@ -9,6 +9,8 @@ documents for intended scope, not as proof that something is implemented.
 
 - `current-system.md` - exact implemented architecture, endpoints, entities,
   known gaps, and deferred areas for the current `dev` baseline.
+- `deployment.md` - production image, existing Traefik/PostgreSQL connections,
+  startup, update, and recovery procedure.
 - `data-import-and-legacy-migration.md` - implemented bulk student-roster
   import and historical KSW Colchester grading-workbook migration: the
   `ImportBatch` lifecycle, the workbook adapter, rank review,

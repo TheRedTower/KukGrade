@@ -6,7 +6,9 @@ KukGrade has a runnable Django/DRF backend and React/TypeScript frontend for the
 core grading workflow, local PostgreSQL Compose, CI, generated API types,
 permissions, audit logging, promotion, and rank history. The Audit browser is
 implemented, as is the administrator Users account-management workspace.
-Production deployment and offline/PWA support are not implemented.
+The one-service production app image and Compose definition are implemented;
+host integration and backup/restore verification remain. Offline/PWA support
+is not implemented.
 
 Dated audit documents are snapshots. Verify their findings against the current
 branch before treating them as work. Do not scaffold a worker until a real
@@ -35,8 +37,8 @@ asynchronous workload is accepted.
    aligned with the candidate APIs and recorded withdrawal metadata.
 5. Complete accessibility review and split the shared frontend stylesheet by
    stable feature boundary.
-6. Define and implement production deployment, backup/restore, readiness, and
-   monitoring.
+6. Complete host integration, backup/restore validation, and monitoring for
+   the single-container production app.
 7. Decide offline requirements before implementing any PWA/synchronisation
    architecture.
 8. Add reports, exports, certificates, notifications, or worker tasks only
@@ -117,7 +119,8 @@ restore, readiness, and rollback commands before production use.
 
 ## Unresolved Decisions
 
-- Docker image layout and deployment target.
+- Deployment host's PostgreSQL network name and database alias; verify the
+  supplied Traefik `apps_net`/`websecure`/`cloudflare` convention on that host.
 - Backup/restore ownership and retention.
 - Whether offline grading is required and, if so, its conflict policy.
 - Syllabus version publication and selection policy (currently deferred).

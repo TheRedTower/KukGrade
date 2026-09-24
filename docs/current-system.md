@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-22. This document
+Describes the implementation on `dev` as verified on 2026-09-23. This document
 takes precedence over older planning documents for what exists now.
 
-Verified on 2026-09-23 with 617 backend tests and 173 frontend tests passing.
+Verified on 2026-09-23 with 624 backend tests and 173 frontend tests passing.
 Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
 ESLint, TypeScript, production build, generated API types, and `npm audit` are
 clean. CI enforces the same categories on each push and pull request.
@@ -28,6 +28,14 @@ entry.
   Vitest, ESLint.
 - **CI** runs the full verification set on every branch push and pull request.
   Verified to fail on a deliberate error.
+- **Production app packaging (2026-09-23)**: one Docker image builds React
+  with same-origin `/api/` calls, bundles it with Django, and collects static
+  files with WhiteNoise. `compose.prod.yml` defines one app service attached
+  to external Traefik and PostgreSQL networks; it does not create either
+  existing service. The container runs migrations before one threaded
+  Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
+  health; the public `/api/health/` remains a process liveness endpoint.
+  See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and
   secure cookies default on. The one exception is the reverse-proxy header
@@ -378,7 +386,7 @@ entry.
 - Offline/PWA storage and synchronisation; the frontend is online-first.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.
-- Deployment, production image, backups.
+- Production host integration, scheduled backups, and verified restore.
 
 ## Deferred Or Out Of Scope
 

@@ -187,11 +187,14 @@ STORAGES = {
     },
 }
 
-# Explicit ceiling for the data-import feature's spreadsheet uploads
-# (Django's own default is 2.5 MB). Applies request-wide, which is fine -
-# nothing else in the API sends a body anywhere near this size.
-DATA_UPLOAD_MAX_MEMORY_SIZE = env_int("KUKGRADE_UPLOAD_MAX_BYTES", 5 * 1024 * 1024)
-FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
+# The largest spreadsheet the data-import feature accepts, enforced by
+# data_imports.services.create_import_batch. Django's own request limits
+# follow it: an upload that size stays in memory rather than spilling to the
+# container's small /tmp, and a preview/commit request carrying per-row
+# corrections for a file that size is not refused as too large.
+IMPORT_UPLOAD_MAX_BYTES = env_int("KUKGRADE_UPLOAD_MAX_BYTES", 5 * 1024 * 1024)
+DATA_UPLOAD_MAX_MEMORY_SIZE = IMPORT_UPLOAD_MAX_BYTES
+FILE_UPLOAD_MAX_MEMORY_SIZE = IMPORT_UPLOAD_MAX_BYTES
 
 # The browsable API renders an HTML UI over the whole authenticated API,
 # including student names, WKSA IDs and grading notes. Debug only.
@@ -209,7 +212,6 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": _RENDERER_CLASSES,
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "kukgrade.pagination.DefaultPagination",
-    "PAGE_SIZE": 50,
     # Scoped so it only throttles views that opt in with throttle_scope - a
     # view without one is never rate limited by this. LoginView is the only
     # one that sets it today, since unlimited password attempts is the risk
@@ -249,6 +251,10 @@ SPECTACULAR_SETTINGS = {
         "RankCategoryEnum": "ranks.models.Rank.Category",
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
+        "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "StudentImportRowOutcomeEnum": (
+            "data_imports.services.StudentImportRowOutcome"
+        ),
     },
 }
 

@@ -1,8 +1,8 @@
 """Generic tabular parsing (Tablib), never domain interpretation.
 
-See the Definitive Implementation Spec section 5/21: `django-import-export`
-was rejected in favour of Tablib directly (Python 3.14 compatibility - see
-docs/decision_log.md), and even Tablib's job stops at "rows of strings" -
+`django-import-export` was rejected in favour of Tablib directly (Python 3.14
+compatibility - see docs/decision_log.md), and even Tablib's job stops at
+"rows of strings" -
 every row is still validated and written through the normal
 `students.services.create_student` service, never a framework bulk-write
 path.

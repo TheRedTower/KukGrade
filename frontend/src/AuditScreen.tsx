@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -8,6 +8,7 @@ import {
   ApiError,
   getAuditEvents,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 import "./AuditScreen.css";
 
 const PAGE_SIZE = 10;
@@ -106,7 +107,6 @@ export function AuditScreen(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const eventTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
@@ -116,28 +116,6 @@ export function AuditScreen(): React.ReactElement {
   const occurredTo = searchParams.get("occurred_to") ?? "";
   const appliedSearch = searchParams.get("search") ?? "";
 
-  useEffect(() => {
-    if (!selectedEvent) return;
-    closeButtonRef.current?.focus();
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Tab") {
-        event.preventDefault();
-        closeButtonRef.current?.focus();
-        return;
-      }
-      if (event.key === "Escape") {
-        setSelectedEvent(null);
-        eventTriggerRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [selectedEvent]);
 
   const updateFilters = (updates: Record<string, string>, preservePage = false) => {
     const next = new URLSearchParams(searchParams);
@@ -177,10 +155,16 @@ export function AuditScreen(): React.ReactElement {
   const pageNumbers = useMemo(() => visiblePages(page, totalPages), [page, totalPages]);
   const hasFilters = Boolean(action || entityType || occurredFrom || occurredTo || appliedSearch);
 
+  // The trigger is restored explicitly: a clicked button is not focused in
+  // every browser, so the hook's "whatever had focus" may not be it.
   const closeDetails = () => {
     setSelectedEvent(null);
     eventTriggerRef.current?.focus();
   };
+  const detailDialogRef = useDialogFocus<HTMLElement>({
+    isOpen: selectedEvent !== null,
+    onClose: closeDetails,
+  });
 
   return (
     <section aria-labelledby="audit-heading" className="audit-page">
@@ -403,6 +387,8 @@ export function AuditScreen(): React.ReactElement {
           }}
         >
           <section
+            ref={detailDialogRef}
+            tabIndex={-1}
             className="audit-dialog"
             role="dialog"
             aria-modal="true"
@@ -414,7 +400,7 @@ export function AuditScreen(): React.ReactElement {
                 <h2 id="audit-dialog-title">{selectedEvent.action_display}</h2>
               </div>
               <button
-                ref={closeButtonRef}
+                data-dialog-autofocus
                 type="button"
                 className="audit-dialog-close"
                 onClick={closeDetails}

@@ -30,7 +30,7 @@ from accounts.serializers import (
     UserSerializer,
 )
 from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL, delete_platform_user
-from gradings.serializers import raise_drf_validation_error
+from kukgrade.exceptions import raise_drf_validation_error
 
 
 @method_decorator(csrf_protect, name="dispatch")

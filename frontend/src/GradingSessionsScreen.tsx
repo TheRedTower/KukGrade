@@ -14,6 +14,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
+import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -76,11 +77,6 @@ function XCircleIcon() {
 
 const PAGE_SIZE = 10;
 
-function formatDate(iso: string): string {
-  const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-}
-
 function formatDateShort(iso: string): string {
   const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -128,7 +124,7 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
       <div className="gs-current-body">
         <div className="gs-current-info">
           <h2 className="gs-current-title">{session.title}</h2>
-          <p className="gs-current-date">{formatDate(session.grading_date)}</p>
+          <p className="gs-current-date">{formatSessionDate(session.grading_date)}</p>
           {session.location && <p className="gs-current-location">{session.location}</p>}
           <div className="gs-current-status-row">
             <SessionStatusBadge status={session.status as GradingSessionStatus} />

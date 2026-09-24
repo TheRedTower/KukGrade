@@ -31,8 +31,7 @@ class StudentAdmin(admin.ModelAdmin):
         obj: Student | None = None,
     ) -> tuple[str, ...]:
         # wksa_id is the external identifier grading records are matched
-        # against - read-only after creation everywhere else in the system,
-        # but nothing previously stopped admin from changing it.
+        # against - read-only after creation, here as everywhere else.
         if obj is None:
             return ()
         return ("wksa_id",)

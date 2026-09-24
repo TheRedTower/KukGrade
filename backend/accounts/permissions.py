@@ -24,6 +24,30 @@ PROMOTE_STUDENT_PERMISSION = "gradings.can_promote_student"
 OVERRIDE_LOCKED_SESSION_PERMISSION = "gradings.can_override_locked_session"
 GRADING_AUDIT_LOG_PERMISSION = "gradings.can_view_grading_audit_log"
 
+# The per-user authority flags, keyed the way /api/auth/me/ and the users
+# API's authority sub-resource spell them. Deliberately in no role group
+# (see accounts/groups.py): granted per user, so authority survives one
+# person being away and never arrives as a side effect of a role change.
+AUTHORITY_PERMISSIONS: dict[str, str] = {
+    "can_make_final_grading_decision": FINAL_GRADING_DECISION_PERMISSION,
+    "can_promote_student": PROMOTE_STUDENT_PERMISSION,
+    "can_override_locked_session": OVERRIDE_LOCKED_SESSION_PERMISSION,
+    "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
+}
+
+
+def can_view_audit_log(user: User) -> bool:
+    """Administrator, Master authority, or the grantable audit-log permission.
+
+    The one statement of this rule: the API (`CanViewAuditLog`) and Django
+    admin (`audit.admin.AuditEventAdmin`) both ask it.
+    """
+    return user.is_active and (
+        user.role == User.Role.ADMINISTRATOR
+        or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
+        or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
+    )
+
 
 def _active_user(request: Request) -> User | None:
     user = request.user
@@ -127,16 +151,11 @@ class CanViewAuditLog(BasePermission):
 
     def has_permission(self, request: Request, view: APIView) -> bool:
         user = _active_user(request)
-        if user is None:
-            return False
-        return (
-            user.role == User.Role.ADMINISTRATOR
-            or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
-            or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
-        )
+        return user is not None and can_view_audit_log(user)
 
 
 __all__ = [
+    "AUTHORITY_PERMISSIONS",
     "FINAL_GRADING_DECISION_PERMISSION",
     "GRADING_AUDIT_LOG_PERMISSION",
     "OVERRIDE_LOCKED_SESSION_PERMISSION",
@@ -146,4 +165,5 @@ __all__ = [
     "CanPromoteStudent",
     "CanViewAuditLog",
     "HasRequiredPermissions",
+    "can_view_audit_log",
 ]

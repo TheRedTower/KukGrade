@@ -5,13 +5,18 @@ from typing import Any
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from gradings.models import Promotion
-from gradings.serializers import raise_drf_validation_error
+from gradings.models import (
+    CandidateOutcome,
+    LegacyAttendance,
+    LegacyDatePrecision,
+    Promotion,
+)
 from gradings.services import (
     GradingHistoryItem,
     StudentGradingHistory,
     StudentRankTimeline,
 )
+from kukgrade.exceptions import raise_drf_validation_error
 from students.models import Student
 from students.services import create_student, update_student
 
@@ -104,26 +109,31 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     # "source" collides with Field.source's own type (Callable | str | None)
     # - same mypy collision as EffectiveSyllabusRequirementSerializer.required
     # elsewhere in this codebase, not a real conflict at runtime.
-    source = serializers.CharField()  # type: ignore[assignment]
+    source = serializers.ChoiceField(  # type: ignore[assignment]
+        choices=["KUKGRADE", "LEGACY"],
+    )
     record_id = serializers.IntegerField()
     date = serializers.DateField(allow_null=True)
     cycle_year = serializers.IntegerField(allow_null=True)
     cycle_month = serializers.IntegerField(allow_null=True)
-    date_precision = serializers.CharField()
+    date_precision = serializers.ChoiceField(choices=LegacyDatePrecision.choices)
     testing_for_rank_code = serializers.CharField(allow_null=True)
     testing_for_rank_name = serializers.CharField(allow_null=True)
     source_testing_for_rank_text = serializers.CharField()
-    outcome = serializers.CharField(allow_null=True)
-    attendance_status = serializers.CharField()
+    outcome = serializers.ChoiceField(
+        choices=CandidateOutcome.Outcome.choices,
+        allow_null=True,
+    )
+    attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
     comments = serializers.CharField()
     promotion_id = serializers.IntegerField(allow_null=True)
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
     """Combines finalised native outcomes with linked, non-voided legacy
-    records (spec section 25) - kept deliberately separate from
+    records - kept deliberately separate from
     StudentRankHistorySerializer/`/rank-history/`, which remains
-    Promotion-only (spec section 26)."""
+    Promotion-only (import Decision 6)."""
 
     student = serializers.SerializerMethodField()
     student_display_name = serializers.SerializerMethodField()

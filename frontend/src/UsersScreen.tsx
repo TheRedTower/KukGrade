@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import {
   type ManagedUser,
   type UserRole,
 } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 
 const PAGE_SIZE = 10;
@@ -45,30 +46,12 @@ function CreateUserDialog({
 }): React.ReactElement {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [clientError, setClientError] = useState("");
-  const dialogRef = useRef<HTMLElement>(null);
   const mutation = useMutation({ mutationFn: createManagedUser, onSuccess: onCreated });
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), input:not(:disabled), select:not(:disabled)",
-      )];
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useDialogFocus<HTMLElement>({
+    isOpen: true,
+    onClose,
+    canClose: !mutation.isPending,
+  });
 
   const apiError = mutation.error instanceof ApiError ? mutation.error : null;
 
@@ -77,11 +60,12 @@ function CreateUserDialog({
       className="users-dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && !mutation.isPending) onClose();
       }}
     >
       <section
         ref={dialogRef}
+        tabIndex={-1}
         className="users-dialog"
         role="dialog"
         aria-modal="true"
@@ -120,7 +104,7 @@ function CreateUserDialog({
           <div className="users-form-grid">
             <label>
               <span>First name</span>
-              <input autoFocus name="first_name" autoComplete="off" />
+              <input data-dialog-autofocus name="first_name" autoComplete="off" />
             </label>
             <label>
               <span>Last name</span>

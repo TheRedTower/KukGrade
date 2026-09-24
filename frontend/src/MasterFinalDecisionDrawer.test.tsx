@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -76,6 +75,13 @@ const mockCandidate: GradingCandidate = {
   status: "REGISTERED",
   status_display: "Registered",
   notes: "",
+  withdrawal_reason: "",
+  withdrawal_reason_display: "",
+  withdrawal_note: "",
+  withdrawn_by: null,
+  withdrawn_by_email: "",
+  withdrawn_by_name: "",
+  withdrawn_at: null,
   created_at: "2026-09-18T10:00:00Z",
   updated_at: "2026-09-18T10:00:00Z",
 };
@@ -151,7 +157,8 @@ const mockSummary: CandidateAssessmentSummary = {
   },
   categories: [
     {
-      category: "Etiquette & Stances",
+      category: "ETIQUETTE",
+      category_display: "Etiquette",
       total: 4,
       required: 4,
       met: 4,
@@ -164,7 +171,8 @@ const mockSummary: CandidateAssessmentSummary = {
       all_required_met: true,
     },
     {
-      category: "Technique Set",
+      category: "TECHNIQUE_SET",
+      category_display: "Technique set",
       total: 6,
       required: 6,
       met: 6,
@@ -177,7 +185,8 @@ const mockSummary: CandidateAssessmentSummary = {
       all_required_met: true,
     },
     {
-      category: "Form / Hyung",
+      category: "FORM",
+      category_display: "Form",
       total: 4,
       required: 4,
       met: 4,
@@ -243,9 +252,11 @@ describe("MasterFinalDecisionDrawer (SCR-022)", () => {
 
     // Assessment ledger breakdown
     await waitFor(() => {
-      expect(screen.getByText("Etiquette & Stances")).toBeInTheDocument();
-      expect(screen.getByText("Technique Set")).toBeInTheDocument();
-      expect(screen.getByText("Form / Hyung")).toBeInTheDocument();
+      // The backend's label, never the raw category code.
+      expect(screen.getByText("Etiquette")).toBeInTheDocument();
+      expect(screen.getByText("Technique set")).toBeInTheDocument();
+      expect(screen.getByText("Form")).toBeInTheDocument();
+      expect(screen.queryByText("TECHNIQUE_SET")).not.toBeInTheDocument();
       expect(screen.getByText("14 of 14 Met (100%)")).toBeInTheDocument();
     });
 

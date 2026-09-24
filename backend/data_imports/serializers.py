@@ -1,13 +1,24 @@
 from __future__ import annotations
 
+from typing import Any
+
 from rest_framework import serializers
 
 from data_imports.mappings import STUDENT_REQUIRED_TARGET_FIELDS, STUDENT_TARGET_FIELDS
 from data_imports.models import ImportBatch
+from data_imports.services import CreateImportBatchResult, StudentImportRowOutcome
+from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 
 class ImportBatchSerializer(serializers.ModelSerializer):
     kind_display = serializers.CharField(source="get_kind_display", read_only=True)
+    # Declared rather than inferred from JSONField, which would type them as
+    # "anything": summary_json only ever holds safe counts, and
+    # configuration_json the confirmed column or rank mappings.
+    summary_json = serializers.DictField(
+        child=serializers.IntegerField(), read_only=True
+    )
+    configuration_json = serializers.DictField(read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     uploaded_by_email = serializers.EmailField(
         source="uploaded_by.email", read_only=True
@@ -41,6 +52,38 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class ImportBatchCreatedSerializer(ImportBatchSerializer):
+    """The batch, plus one-shot creation-response extras: a duplicate-hash
+    warning and the file's own headers, so the frontend can build its
+    mapping step without a second request. Not persisted batch state."""
+
+    already_imported_warning = serializers.SerializerMethodField()
+    detected_headers = serializers.SerializerMethodField()
+    suggested_mapping = serializers.SerializerMethodField()
+
+    class Meta(ImportBatchSerializer.Meta):
+        fields = [
+            *ImportBatchSerializer.Meta.fields,
+            "already_imported_warning",
+            "detected_headers",
+            "suggested_mapping",
+        ]
+        read_only_fields = fields
+
+    def _creation(self) -> CreateImportBatchResult:
+        creation: CreateImportBatchResult = self.context["creation"]
+        return creation
+
+    def get_already_imported_warning(self, obj: Any) -> bool:
+        return self._creation().already_imported_warning
+
+    def get_detected_headers(self, obj: Any) -> list[str]:
+        return self._creation().detected_headers
+
+    def get_suggested_mapping(self, obj: Any) -> dict[str, str]:
+        return self._creation().suggested_mapping
 
 
 class ImportBatchCreateSerializer(serializers.Serializer):
@@ -79,7 +122,7 @@ class StudentImportRequestSerializer(serializers.Serializer):
 
 class StudentImportRowResultSerializer(serializers.Serializer):
     row_number = serializers.IntegerField()
-    outcome = serializers.CharField()
+    outcome = serializers.ChoiceField(choices=StudentImportRowOutcome.choices)
     wksa_id = serializers.CharField()
     first_name = serializers.CharField()
     last_name = serializers.CharField()
@@ -106,7 +149,7 @@ class LegacyImportRequestSerializer(serializers.Serializer):
     Keys are the source rank text exactly as it appeared in the workbook
     (case-insensitive on the service side); a null/omitted value explicitly
     means "leave unresolved" - never a block on committing that row
-    (Decision 4/17, unlike the student roster importer's required rank).
+    (import Decision 4, unlike the student roster importer's required rank).
     """
 
     rank_mappings = serializers.DictField(
@@ -128,13 +171,13 @@ class CanonicalLegacyRowSerializer(serializers.Serializer):
     source_locator = serializers.CharField()
     cycle_year = serializers.IntegerField()
     cycle_month = serializers.IntegerField()
-    record_kind = serializers.CharField()
+    record_kind = serializers.ChoiceField(choices=LegacyRecordKind.choices)
     source_name = serializers.CharField()
     source_current_rank_text = serializers.CharField()
     source_testing_for_rank_text = serializers.CharField()
     source_outcome_text = serializers.CharField()
-    outcome = serializers.CharField(allow_null=True)
-    attendance_status = serializers.CharField()
+    outcome = serializers.ChoiceField(choices=LegacyOutcome.choices, allow_null=True)
+    attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
     comments = serializers.CharField()
     admin_note = serializers.CharField()
 

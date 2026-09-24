@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
-  ApiError,
+  errorMessage,
   type CreateDataImportBatchResponse,
   type DataImportBatch,
   type StudentImportPreview,
@@ -59,13 +59,6 @@ function downloadStandardTemplate() {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-}
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    return err.nonFieldMessages[0] || err.message || fallback;
-  }
-  return fallback;
 }
 
 export function ImportStudentsScreen() {

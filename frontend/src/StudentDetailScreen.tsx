@@ -110,27 +110,6 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
   return "Unresolved";
 }
 
-function calculateAge(dobStr: string | null | undefined): number | null {
-  if (!dobStr) return null;
-  const dob = new Date(dobStr);
-  if (isNaN(dob.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
-}
-
-function resolveAgeBand(dobStr: string | null | undefined): string {
-  const age = calculateAge(dobStr);
-  if (age === null) return "—";
-  if (age <= 8) return "8 and under";
-  if (age <= 12) return "9 – 12";
-  if (age <= 17) return "13 – 17";
-  return "18+";
-}
 
 export function StudentDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -447,7 +426,7 @@ export function StudentDetailScreen() {
 
               <div className="detail-kv-row">
                 <dt className="detail-kv-label">Age band</dt>
-                <dd className="detail-kv-value">{resolveAgeBand(student.date_of_birth)}</dd>
+                <dd className="detail-kv-value">{student.age_band_display}</dd>
               </div>
 
               <div className="detail-kv-row">

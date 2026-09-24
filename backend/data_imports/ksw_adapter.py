@@ -1,7 +1,7 @@
 """KSW Colchester historical grading workbook -> canonical rows.
 
-Deliberately source-specific (spec section 15): this adapter understands
-one workbook's structure and nothing else. Its only job is:
+Deliberately source-specific: this adapter understands one workbook's
+structure and nothing else. Its only job is:
 
     historical workbook structure -> canonical legacy rows
 
@@ -10,14 +10,11 @@ It never creates domain models itself (that is
 row by a data_imports commit service) and it never resolves a rank or
 links a student - source text is extracted verbatim and normalised fields
 are left unset, because both of those are explicitly admin-review steps
-(Decisions 3 and 4), not parser steps.
+(import Decisions 3 and 4), not parser steps.
 
-"V1" in the class name is deliberate (spec section 15) - this is a
-best-effort implementation against the spec's written description of the
-workbook, built without the real file (which must never enter this
-repository - spec sections 38/40). It is expected to need adjustment during
-the real-workbook rehearsal the spec calls for before any production import
-(section 46), not to be perfectly correct on the first pass.
+Built from a written description of the workbook, without the real file
+(which must never enter this repository). Expect it to need adjustment
+during the real-workbook rehearsal required before any production import.
 """
 
 from __future__ import annotations
@@ -33,7 +30,7 @@ from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 # Excel worksheet titles cannot contain "/" (openpyxl raises ValueError on
 # it - it is one of the characters OOXML itself forbids in a sheet title),
-# so despite the spec's own prose consistently writing cycle sheet names as
+# so although cycle sheet names are conventionally written as
 # "06/2025", the real workbook cannot literally be titled that. Confirmed
 # against a real KSW export: Excel silently drops the "/" rather than
 # substituting "-" or ".", leaving a bare "MMYYYY" sheet title (e.g.
@@ -43,13 +40,13 @@ _CYCLE_SHEET_PATTERN = re.compile(r"^(0[1-9]|1[0-2])[-./]?(\d{4})$")
 _IGNORED_SHEET_NAMES = {"information"}
 
 # Main-table header cells (order-independent; the header row is found by
-# content, not by a hard-coded row number - spec section 15.3).
+# content, not by a hard-coded row number).
 _MAIN_TABLE_COLUMNS = ("name", "current rank", "testing for", "outcome", "comments")
 _MAIN_TABLE_HEADER_MATCH_THRESHOLD = 3
 
-# Normalised (lowercase) -> display text. Sentence case, matching the
-# spec's own section 15.4 examples exactly - not Python's str.title(),
-# which would wrongly capitalise every word ("Current Belt").
+# Normalised (lowercase) -> display text. Sentence case, as the workbook
+# writes them - not Python's str.title(), which would wrongly capitalise
+# every word ("Current Belt").
 _AUXILIARY_SECTION_DISPLAY_NAMES = {
     "unaccounted": "Unaccounted",
     "missing": "Missing",
@@ -108,7 +105,7 @@ def _row_is_blank(cells: tuple[Any, ...]) -> bool:
 
 
 def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
-    """Returns (record_kind, outcome, attendance_status) - spec section 16."""
+    """Returns (record_kind, outcome, attendance_status)."""
     normalised = _normalise(source_outcome_text)
     if not normalised:
         return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.UNKNOWN
@@ -122,14 +119,14 @@ def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
         )
     # N/A, free-form text ("Testing? JKN Adi: No"), or anything else
     # uncertain - preserved verbatim, left unresolved for review rather
-    # than forced into Pass/Fail/Conditional (Decision 5, section 16.4).
+    # than forced into Pass/Fail/Conditional (import Decision 5).
     return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.ATTENDED
 
 
 def _find_header_row(
     rows: list[tuple[Any, ...]],
 ) -> tuple[int, dict[str, int]] | None:
-    """Defensive header detection (spec 15.3) - by content, not position."""
+    """Defensive header detection - by content, not position."""
     for row_index, row in enumerate(rows):
         normalised_cells = [_normalise(cell) for cell in row]
         matches = {
@@ -249,7 +246,7 @@ def _parse_cycle_sheet(
     canonical_rows: list[CanonicalLegacyRow] = []
     current_section: str | None = None
 
-    # Do not stop at the first blank row (spec 15.3) - auxiliary sections
+    # Do not stop at the first blank row - auxiliary sections
     # may follow one further down the same sheet. row_number is the 1-based
     # Excel row number (rows is 0-indexed).
     for row_index in range(header_index + 1, len(rows)):

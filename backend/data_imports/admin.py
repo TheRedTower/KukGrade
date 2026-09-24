@@ -1,4 +1,4 @@
-"""Read-only support/debug surface, not the product workflow (spec section 36).
+"""Read-only support/debug surface, not the product workflow.
 
 No add/change/delete here - the source file holds personal data and the
 batch lifecycle is service-owned (create_import_batch/commit_student_import/

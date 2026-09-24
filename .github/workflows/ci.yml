@@ -76,6 +76,15 @@ jobs:
       - name: Migrations match models
         run: uv run python manage.py makemigrations --check --dry-run
 
+      # The frontend's types are generated from the committed schema, so it
+      # must match the serializers exactly - regenerated and diffed here.
+      - name: OpenAPI schema is current
+        run: |
+          uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn
+          git diff --exit-code -- schema.yml
+        env:
+          DJANGO_SETTINGS_MODULE: kukgrade.settings_test
+
       # Blocking at WARNING since KG-NEXT-004: the deployment check is clean,
       # so any new security warning fails the build rather than scrolling past.
       - name: Deployment checks
@@ -130,11 +139,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Gated at critical while KG-020 is open: there are currently 5 high and
-      # 3 moderate advisories, all in dev/build tooling rather than the shipped
-      # react runtime. Tighten to `--audit-level=high` once KG-020 is cleared.
+      # KG-020's dev/build-tooling advisories are cleared, so the gate is
+      # held at high.
       - name: Dependency audit
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
 
   container:
     name: Production image

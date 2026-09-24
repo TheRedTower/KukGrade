@@ -110,7 +110,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -118,7 +118,7 @@ export interface paths {
         get: operations["data_imports_batches_list"];
         put?: never;
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -138,7 +138,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -162,7 +162,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -184,7 +184,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -206,7 +206,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (Decision 1 of the import spec).
+         * @description Administrator-only bulk data import (import Decision 1).
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -435,8 +435,8 @@ export interface paths {
         };
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -458,8 +458,8 @@ export interface paths {
         };
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -483,8 +483,8 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -506,8 +506,8 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -529,8 +529,8 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -552,8 +552,8 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -575,8 +575,8 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-         *     the import spec). No ordinary create/update/delete: rows are only ever
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
          *     created by data_imports.services.commit_legacy_grading_import, and only
          *     ever changed through the five gradings.legacy_services functions.
          */
@@ -1197,6 +1197,61 @@ export interface components {
             readonly summary: string;
             readonly metadata: unknown;
         };
+        BulkAssessmentGeneration: {
+            candidates: number[];
+        };
+        BulkAssessmentGenerationResult: {
+            errors: {
+                [key: string]: string[];
+            };
+            created: components["schemas"]["CandidateAssessment"][];
+        };
+        BulkAssessmentStart: {
+            assessments: number[];
+        };
+        BulkAssessmentStartResult: {
+            errors: {
+                [key: string]: string[];
+            };
+            started: components["schemas"]["CandidateAssessment"][];
+        };
+        BulkCandidateRegistration: {
+            session: number;
+            candidates: components["schemas"]["BulkCandidateRegistrationItem"][];
+            /** @default false */
+            generate_assessments?: boolean;
+        };
+        BulkCandidateRegistrationItem: {
+            student: number;
+            testing_for_rank?: number;
+            /** @default  */
+            notes?: string;
+        };
+        BulkCandidateRegistrationResult: {
+            errors: {
+                [key: string]: string[];
+            };
+            created: components["schemas"]["RegisteredCandidate"][];
+        };
+        BulkCandidateStatusUpdate: {
+            candidates: number[];
+            status: components["schemas"]["GradingCandidateStatusEnum"];
+        };
+        BulkCandidateStatusUpdateResult: {
+            errors: {
+                [key: string]: string[];
+            };
+            updated: components["schemas"]["GradingCandidate"][];
+        };
+        BulkPromotion: {
+            outcomes: number[];
+        };
+        BulkPromotionResult: {
+            errors: {
+                [key: string]: string[];
+            };
+            promoted: components["schemas"]["Promotion"][];
+        };
         CandidateAssessment: {
             readonly id: number;
             readonly candidate: number;
@@ -1266,6 +1321,10 @@ export interface components {
          * @enum {string}
          */
         CandidateAssessmentStatusEnum: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+        CandidateAssessmentSummary: {
+            overall: components["schemas"]["OverallAssessmentSummary"];
+            categories: components["schemas"]["CategoryAssessmentSummary"][];
+        };
         CandidateOutcome: {
             readonly id: number;
             readonly candidate: number;
@@ -1321,6 +1380,39 @@ export interface components {
          * @enum {string}
          */
         CandidateOutcomeStatusEnum: "DRAFT" | "PROPOSED" | "FINALISED";
+        CandidatePromotion: {
+            notes?: string;
+        };
+        CanonicalLegacyRow: {
+            source_sheet: string;
+            source_section: string;
+            source_locator: string;
+            cycle_year: number;
+            cycle_month: number;
+            record_kind: components["schemas"]["RecordKindEnum"];
+            source_name: string;
+            source_current_rank_text: string;
+            source_testing_for_rank_text: string;
+            source_outcome_text: string;
+            outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
+            attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            comments: string;
+            admin_note: string;
+        };
+        CategoryAssessmentSummary: {
+            total: number;
+            required: number;
+            met: number;
+            not_met: number;
+            not_assessed: number;
+            required_met: number;
+            required_not_met: number;
+            required_not_assessed: number;
+            all_required_assessed: boolean;
+            all_required_met: boolean;
+            category: components["schemas"]["SyllabusItemCategoryEnum"];
+            readonly category_display: string;
+        };
         /**
          * @description POST /api/auth/change-password/.
          *
@@ -1407,18 +1499,18 @@ export interface components {
          */
         GradingCandidateStatusEnum: "REGISTERED" | "WITHDRAWN" | "COMPLETED";
         GradingHistoryItem: {
-            source: string;
+            source: components["schemas"]["SourceEnum"];
             record_id: number;
             /** Format: date */
             date: string | null;
             cycle_year: number | null;
             cycle_month: number | null;
-            date_precision: string;
+            date_precision: components["schemas"]["DatePrecisionEnum"];
             testing_for_rank_code: string | null;
             testing_for_rank_name: string | null;
             source_testing_for_rank_text: string;
-            outcome: string | null;
-            attendance_status: string;
+            outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
+            attendance_status: components["schemas"]["AttendanceStatusEnum"];
             comments: string;
             promotion_id: number | null;
         };
@@ -1473,13 +1565,63 @@ export interface components {
             readonly committed_at: string | null;
             /** Format: date-time */
             readonly cancelled_at: string | null;
-            readonly summary_json: unknown;
-            readonly configuration_json: unknown;
+            readonly summary_json: {
+                [key: string]: number;
+            };
+            readonly configuration_json: {
+                [key: string]: unknown;
+            };
             readonly error_summary: string;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        ImportBatchCreate: {
+            kind: components["schemas"]["KindEnum"];
+            /** Format: uri */
+            file: string;
+        };
+        /**
+         * @description The batch, plus one-shot creation-response extras: a duplicate-hash
+         *     warning and the file's own headers, so the frontend can build its
+         *     mapping step without a second request. Not persisted batch state.
+         */
+        ImportBatchCreated: {
+            readonly id: number;
+            readonly kind: components["schemas"]["KindEnum"];
+            readonly kind_display: string;
+            readonly status: components["schemas"]["ImportBatchStatusEnum"];
+            readonly status_display: string;
+            readonly original_filename: string;
+            readonly sha256: string;
+            readonly file_size: number;
+            /** Format: email */
+            readonly uploaded_by_email: string;
+            /** Format: date-time */
+            readonly uploaded_at: string;
+            /** Format: email */
+            readonly committed_by_email: string | null;
+            /** Format: date-time */
+            readonly committed_at: string | null;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            readonly summary_json: {
+                [key: string]: number;
+            };
+            readonly configuration_json: {
+                [key: string]: unknown;
+            };
+            readonly error_summary: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly already_imported_warning: boolean;
+            readonly detected_headers: string[];
+            readonly suggested_mapping: {
+                [key: string]: string;
+            };
         };
         /**
          * @description * `UPLOADED` - Uploaded
@@ -1493,6 +1635,8 @@ export interface components {
          * @enum {string}
          */
         ImportBatchStatusEnum: "UPLOADED" | "NEEDS_REVIEW" | "READY" | "COMMITTED" | "PARTIAL" | "CANCELLED" | "FAILED" | "EXPIRED";
+        ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
+        ImportRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /**
          * @description * `STUDENT_ROSTER` - Student roster
          *     * `LEGACY_GRADINGS` - Legacy grading records
@@ -1548,6 +1692,34 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        LegacyImportPreview: {
+            total: number;
+            grading_result: number;
+            auxiliary_note: number;
+            did_not_attend: number;
+            unresolved_current_rank: number;
+            unresolved_testing_for_rank: number;
+            unresolved_outcome: number;
+            warnings: string[];
+            rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
+            rows: components["schemas"]["CanonicalLegacyRow"][];
+        };
+        /**
+         * @description Shared request shape for the historical preview and commit actions.
+         *
+         *     Keys are the source rank text exactly as it appeared in the workbook
+         *     (case-insensitive on the service side); a null/omitted value explicitly
+         *     means "leave unresolved" - never a block on committing that row
+         *     (import Decision 4, unlike the student roster importer's required rank).
+         */
+        LegacyImportRequest: {
+            rank_mappings?: {
+                [key: string]: string | null;
+            };
+        };
+        LinkLegacyRecord: {
+            student: number;
+        };
         LockedCandidateWithdrawal: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
             withdrawal_note?: string;
@@ -1559,6 +1731,18 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
+        OverallAssessmentSummary: {
+            total: number;
+            required: number;
+            met: number;
+            not_met: number;
+            not_assessed: number;
+            required_met: number;
+            required_not_met: number;
+            required_not_assessed: number;
+            all_required_assessed: boolean;
+            all_required_met: boolean;
+        };
         PaginatedAuditEventList: {
             /** @example 123 */
             count: number;
@@ -1887,6 +2071,15 @@ export interface components {
             /** Format: date-time */
             readonly updated_at?: string;
         };
+        PatchedCandidateOutcomeFinalise: {
+            final_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+        };
+        PatchedCandidateOutcomeProposal: {
+            proposed_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            proposal_notes?: string;
+        };
         PatchedGradingCandidate: {
             readonly id?: number;
             session?: number;
@@ -2119,6 +2312,11 @@ export interface components {
          * @enum {string}
          */
         RankCategoryEnum: "COLOURED_BELT" | "BLACK_BELT_CANDIDATE" | "BLACK_BELT";
+        RankMappingSuggestion: {
+            source_text: string;
+            suggested_rank_id: number | null;
+            suggested_rank_code: string | null;
+        };
         ReadinessResponse: {
             status: string;
         };
@@ -2129,6 +2327,14 @@ export interface components {
          * @enum {string}
          */
         RecordKindEnum: "GRADING_RESULT" | "AUXILIARY_NOTE" | "DID_NOT_ATTEND";
+        RegisteredCandidate: {
+            candidate: components["schemas"]["GradingCandidate"];
+            assessment: components["schemas"]["CandidateAssessment"] | null;
+        };
+        /** @description `rank=null` explicitly leaves the mapping unresolved. */
+        ResolveLegacyRank: {
+            rank: number | null;
+        };
         /**
          * @description * `NOT_ASSESSED` - Not assessed
          *     * `MET` - Met
@@ -2152,6 +2358,12 @@ export interface components {
         SetPassword: {
             password: string;
         };
+        /**
+         * @description * `KUKGRADE` - KUKGRADE
+         *     * `LEGACY` - LEGACY
+         * @enum {string}
+         */
+        SourceEnum: "KUKGRADE" | "LEGACY";
         /**
          * @description Detail, create and update. wksa_id is writable only on create.
          *
@@ -2181,15 +2393,54 @@ export interface components {
         };
         /**
          * @description Combines finalised native outcomes with linked, non-voided legacy
-         *     records (spec section 25) - kept deliberately separate from
+         *     records - kept deliberately separate from
          *     StudentRankHistorySerializer/`/rank-history/`, which remains
-         *     Promotion-only (spec section 26).
+         *     Promotion-only (import Decision 6).
          */
         StudentGradingHistory: {
             readonly student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
             items: components["schemas"]["GradingHistoryItem"][];
+        };
+        StudentImportPreview: {
+            total: number;
+            ready: number;
+            review_required: number;
+            skip_existing: number;
+            rows: components["schemas"]["StudentImportRowResult"][];
+        };
+        /** @description Shared request shape for the preview and commit actions. */
+        StudentImportRequest: {
+            column_mapping: {
+                [key: string]: string;
+            };
+            corrections?: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+        };
+        /**
+         * @description * `READY` - Ready
+         *     * `REVIEW_REQUIRED` - Needs review
+         *     * `SKIP_EXISTING` - Skip - WKSA ID exists
+         * @enum {string}
+         */
+        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+        StudentImportRowResult: {
+            row_number: number;
+            outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
+            wksa_id: string;
+            first_name: string;
+            last_name: string;
+            date_of_birth_display: string;
+            current_rank_text: string;
+            current_rank_code: string | null;
+            status: string;
+            issues: string[];
+            existing_student_id: number | null;
+            existing_student_display: string | null;
         };
         /**
          * @description The list representation. Deliberately excludes date of birth.
@@ -2330,6 +2581,9 @@ export interface components {
             /** Format: date-time */
             readonly last_login: string | null;
             password: string;
+        };
+        VoidLegacyRecord: {
+            reason: string;
         };
         /**
          * @description * `INJURY` - Injured during grading
@@ -2536,11 +2790,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportBatch"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
-                "application/json": components["schemas"]["ImportBatch"];
+                "multipart/form-data": components["schemas"]["ImportBatchCreate"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatchCreate"];
+                "application/json": components["schemas"]["ImportBatchCreate"];
             };
         };
         responses: {
@@ -2549,7 +2803,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportBatch"];
+                    "application/json": components["schemas"]["ImportBatchCreated"];
                 };
             };
         };
@@ -2586,21 +2840,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "multipart/form-data": components["schemas"]["ImportBatch"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
-                "application/json": components["schemas"]["ImportBatch"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            200: {
+            /** @description No response body */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["ImportBatch"];
-                };
+                content?: never;
             };
         };
     };
@@ -2616,9 +2863,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportBatch"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
-                "application/json": components["schemas"]["ImportBatch"];
+                "multipart/form-data": components["schemas"]["ImportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRequest"];
+                "application/json": components["schemas"]["ImportRequest"];
             };
         };
         responses: {
@@ -2644,9 +2891,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportBatch"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportBatch"];
-                "application/json": components["schemas"]["ImportBatch"];
+                "multipart/form-data": components["schemas"]["ImportRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRequest"];
+                "application/json": components["schemas"]["ImportRequest"];
             };
         };
         responses: {
@@ -2655,7 +2902,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ImportBatch"];
+                    "application/json": components["schemas"]["ImportPreview"];
                 };
             };
         };
@@ -2836,11 +3083,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["CandidateAssessment"];
-                "application/x-www-form-urlencoded": components["schemas"]["CandidateAssessment"];
-                "multipart/form-data": components["schemas"]["CandidateAssessment"];
+                "application/json": components["schemas"]["BulkAssessmentStart"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentStart"];
+                "multipart/form-data": components["schemas"]["BulkAssessmentStart"];
             };
         };
         responses: {
@@ -2849,7 +3096,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CandidateAssessment"];
+                    "application/json": components["schemas"]["BulkAssessmentStartResult"];
                 };
             };
         };
@@ -3012,20 +3259,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["CandidateOutcome"];
                 };
             };
         };
@@ -3040,20 +3281,14 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["CandidateAssessment"];
                 };
             };
         };
@@ -3095,9 +3330,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["BulkAssessmentGeneration"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentGeneration"];
+                "multipart/form-data": components["schemas"]["BulkAssessmentGeneration"];
             };
         };
         responses: {
@@ -3106,7 +3341,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["BulkAssessmentGenerationResult"];
                 };
             };
         };
@@ -3120,9 +3355,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["BulkCandidateRegistration"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateRegistration"];
+                "multipart/form-data": components["schemas"]["BulkCandidateRegistration"];
             };
         };
         responses: {
@@ -3131,7 +3366,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["BulkCandidateRegistrationResult"];
                 };
             };
         };
@@ -3145,9 +3380,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["BulkCandidateStatusUpdate"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateStatusUpdate"];
+                "multipart/form-data": components["schemas"]["BulkCandidateStatusUpdate"];
             };
         };
         responses: {
@@ -3156,7 +3391,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
+                    "application/json": components["schemas"]["BulkCandidateStatusUpdateResult"];
                 };
             };
         };
@@ -3217,11 +3452,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyGradingRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
-                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+                "application/json": components["schemas"]["LinkLegacyRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkLegacyRecord"];
+                "multipart/form-data": components["schemas"]["LinkLegacyRecord"];
             };
         };
         responses: {
@@ -3245,11 +3480,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyGradingRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
-                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+                "application/json": components["schemas"]["ResolveLegacyRank"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRank"];
+                "multipart/form-data": components["schemas"]["ResolveLegacyRank"];
             };
         };
         responses: {
@@ -3273,11 +3508,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyGradingRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
-                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+                "application/json": components["schemas"]["ResolveLegacyRank"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRank"];
+                "multipart/form-data": components["schemas"]["ResolveLegacyRank"];
             };
         };
         responses: {
@@ -3301,13 +3536,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["LegacyGradingRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
-                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -3329,11 +3558,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["LegacyGradingRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LegacyGradingRecord"];
-                "multipart/form-data": components["schemas"]["LegacyGradingRecord"];
+                "application/json": components["schemas"]["VoidLegacyRecord"];
+                "application/x-www-form-urlencoded": components["schemas"]["VoidLegacyRecord"];
+                "multipart/form-data": components["schemas"]["VoidLegacyRecord"];
             };
         };
         responses: {
@@ -3433,9 +3662,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcome"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcome"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcome"];
+                "application/json": components["schemas"]["PatchedCandidateOutcomeFinalise"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeFinalise"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeFinalise"];
             };
         };
         responses: {
@@ -3461,18 +3690,18 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["CandidateOutcome"];
-                "application/x-www-form-urlencoded": components["schemas"]["CandidateOutcome"];
-                "multipart/form-data": components["schemas"]["CandidateOutcome"];
+                "application/json": components["schemas"]["CandidatePromotion"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidatePromotion"];
+                "multipart/form-data": components["schemas"]["CandidatePromotion"];
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
+                    "application/json": components["schemas"]["Promotion"];
                 };
             };
         };
@@ -3489,9 +3718,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcome"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcome"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcome"];
+                "application/json": components["schemas"]["PatchedCandidateOutcomeProposal"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeProposal"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeProposal"];
             };
         };
         responses: {
@@ -3522,7 +3751,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
+                    "application/json": components["schemas"]["CandidateAssessmentSummary"];
                 };
             };
         };
@@ -3534,11 +3763,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": components["schemas"]["CandidateOutcome"];
-                "application/x-www-form-urlencoded": components["schemas"]["CandidateOutcome"];
-                "multipart/form-data": components["schemas"]["CandidateOutcome"];
+                "application/json": components["schemas"]["BulkPromotion"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkPromotion"];
+                "multipart/form-data": components["schemas"]["BulkPromotion"];
             };
         };
         responses: {
@@ -3547,7 +3776,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
+                    "application/json": components["schemas"]["BulkPromotionResult"];
                 };
             };
         };

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import cast
 
 from django.db.models import Q, QuerySet
@@ -8,19 +7,19 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
-from audit.models import USER_MANAGEMENT_ACTIONS, AuditAction, AuditEvent
+from audit.models import AuditAction, AuditEvent
 from audit.serializers import AuditEventSerializer
-from kukgrade.filtering import parse_date_filter
+from kukgrade.filtering import filter_choice, filter_date, filter_exact, filter_uuid
 
 
 class AuditEventViewSet(ReadOnlyModelViewSet):
     """Read-only by construction: the model refuses writes from every path."""
 
     serializer_class = AuditEventSerializer
-    # Gated by CanViewAuditLog (administrator, Master authority, or the
-    # grantable can_view_grading_audit_log permission), not a Django
-    # permission: no group carries a view_auditevent grant, since that would
-    # need to reach some instructors without reaching every instructor.
+    # Gated by CanViewAuditLog (accounts.permissions.can_view_audit_log), not
+    # a Django permission: no group carries a view_auditevent grant, since
+    # that would need to reach some instructors without reaching every
+    # instructor.
     # permission_map is authenticated-is-enough so HasRequiredPermissions
     # still answers a wrong-method request with 405 rather than a misleading
     # 403.
@@ -31,41 +30,38 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
     }
 
     def get_queryset(self) -> QuerySet[AuditEvent]:
-        queryset = AuditEvent.objects.select_related("actor").order_by(
-            "-occurred_at",
-            "-pk",
-        )
-
-        # Logistics is an administrator concern, the same boundary the
-        # Users API itself draws - excluded here rather than in
+        # User-management events are excluded per row rather than through
         # permission_map, since it depends on the row's own action, not the
         # request method. A direct retrieve of an excluded id 404s, same as
         # any other object outside the caller's queryset.
-        if not cast(User, self.request.user).has_perm("accounts.view_user"):
-            queryset = queryset.exclude(action__in=USER_MANAGEMENT_ACTIONS)
+        queryset = (
+            AuditEvent.objects.visible_to(cast(User, self.request.user))
+            .select_related("actor")
+            .order_by("-occurred_at", "-pk")
+        )
 
-        action = self.request.query_params.get("action")
-        if action in AuditAction.values:
-            queryset = queryset.filter(action=action)
-        elif action:
-            return queryset.none()
+        params = self.request.query_params
+        queryset = filter_choice(
+            queryset,
+            params.get("action"),
+            "action",
+            AuditAction.values,
+        )
+        queryset = filter_exact(queryset, params.get("entity_type"), "entity_type")
+        queryset = filter_exact(queryset, params.get("entity_id"), "entity_id")
+        queryset = filter_uuid(queryset, params.get("actor"), "actor_id")
+        queryset = filter_date(
+            queryset,
+            params.get("occurred_from"),
+            "occurred_at__date__gte",
+        )
+        queryset = filter_date(
+            queryset,
+            params.get("occurred_to"),
+            "occurred_at__date__lte",
+        )
 
-        entity_type = self.request.query_params.get("entity_type")
-        if entity_type:
-            queryset = queryset.filter(entity_type=entity_type)
-
-        entity_id = self.request.query_params.get("entity_id")
-        if entity_id:
-            queryset = queryset.filter(entity_id=entity_id)
-
-        actor = self.request.query_params.get("actor")
-        if actor:
-            try:
-                queryset = queryset.filter(actor_id=uuid.UUID(actor))
-            except ValueError:
-                return queryset.none()
-
-        search = self.request.query_params.get("search", "").strip()
+        search = params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
                 Q(summary__icontains=search)
@@ -75,19 +71,4 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
                 | Q(actor__first_name__icontains=search)
                 | Q(actor__last_name__icontains=search)
             )
-
-        occurred_from_value = self.request.query_params.get("occurred_from")
-        occurred_from = parse_date_filter(occurred_from_value)
-        if occurred_from:
-            queryset = queryset.filter(occurred_at__date__gte=occurred_from)
-        elif occurred_from_value:
-            return queryset.none()
-
-        occurred_to_value = self.request.query_params.get("occurred_to")
-        occurred_to = parse_date_filter(occurred_to_value)
-        if occurred_to:
-            queryset = queryset.filter(occurred_at__date__lte=occurred_to)
-        elif occurred_to_value:
-            return queryset.none()
-
         return queryset

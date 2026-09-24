@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, NoReturn, cast
+from typing import Any, cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
@@ -18,6 +18,7 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
+    CategoryAssessmentSummary,
     apply_candidate_update,
     create_grading_session,
     finalise_candidate_outcome,
@@ -31,14 +32,10 @@ from gradings.services import (
     validate_session_transition,
     withdraw_locked_candidate,
 )
+from kukgrade.exceptions import raise_drf_validation_error
 from ranks.models import Rank
 from students.models import Student
-
-
-def raise_drf_validation_error(exc: DjangoValidationError) -> NoReturn:
-    if hasattr(exc, "message_dict"):
-        raise serializers.ValidationError(exc.message_dict) from exc
-    raise serializers.ValidationError(exc.messages) from exc
+from syllabus.models import SyllabusItem
 
 
 class GradingSessionSerializer(serializers.ModelSerializer):
@@ -622,9 +619,6 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
 
-    def create(self, validated_data: dict[str, Any]) -> CandidateOutcome:
-        raise NotImplementedError
-
 
 class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
     final_outcome = serializers.ChoiceField(choices=CandidateOutcome.Outcome.choices)
@@ -657,9 +651,6 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-
-    def create(self, validated_data: dict[str, Any]) -> CandidateOutcome:
-        raise NotImplementedError
 
 
 class PromotionSerializer(serializers.ModelSerializer):
@@ -770,9 +761,6 @@ class CandidatePromotionSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
 
-    def create(self, validated_data: dict[str, Any]) -> Promotion:
-        raise NotImplementedError
-
 
 class BulkPromotionSerializer(serializers.Serializer):
     outcomes = serializers.PrimaryKeyRelatedField(
@@ -780,6 +768,70 @@ class BulkPromotionSerializer(serializers.Serializer):
         many=True,
         allow_empty=False,
     )
+
+
+# The response of every bulk endpoint: what succeeded, under an
+# endpoint-specific key, plus `errors` mapping row index -> that row's
+# messages. A comment rather than a docstring, which drf-spectacular would
+# inherit as each subclass's description.
+class BulkResultSerializer(serializers.Serializer):
+    # Collides with Serializer.errors only in the type stubs: the serializer
+    # metaclass lifts declared fields out of the class namespace.
+    errors = serializers.DictField(  # type: ignore[assignment]
+        child=serializers.ListField(child=serializers.CharField()),
+    )
+
+
+class RegisteredCandidateSerializer(serializers.Serializer):
+    candidate = GradingCandidateSerializer()
+    assessment = CandidateAssessmentSerializer(allow_null=True)
+
+
+class BulkCandidateRegistrationResultSerializer(BulkResultSerializer):
+    created = RegisteredCandidateSerializer(many=True)
+
+
+class BulkAssessmentGenerationResultSerializer(BulkResultSerializer):
+    created = CandidateAssessmentSerializer(many=True)
+
+
+class BulkCandidateStatusUpdateResultSerializer(BulkResultSerializer):
+    updated = GradingCandidateSerializer(many=True)
+
+
+class BulkAssessmentStartResultSerializer(BulkResultSerializer):
+    started = CandidateAssessmentSerializer(many=True)
+
+
+class BulkPromotionResultSerializer(BulkResultSerializer):
+    promoted = PromotionSerializer(many=True)
+
+
+class OverallAssessmentSummarySerializer(serializers.Serializer):
+    total = serializers.IntegerField()
+    # Collides with Field.required only in the type stubs, as above.
+    required = serializers.IntegerField()  # type: ignore[assignment]
+    met = serializers.IntegerField()
+    not_met = serializers.IntegerField()
+    not_assessed = serializers.IntegerField()
+    required_met = serializers.IntegerField()
+    required_not_met = serializers.IntegerField()
+    required_not_assessed = serializers.IntegerField()
+    all_required_assessed = serializers.BooleanField()
+    all_required_met = serializers.BooleanField()
+
+
+class CategoryAssessmentSummarySerializer(OverallAssessmentSummarySerializer):
+    category = serializers.ChoiceField(choices=SyllabusItem.Category.choices)
+    category_display = serializers.SerializerMethodField()
+
+    def get_category_display(self, obj: CategoryAssessmentSummary) -> str:
+        return str(SyllabusItem.Category(obj["category"]).label)
+
+
+class CandidateAssessmentSummarySerializer(serializers.Serializer):
+    overall = OverallAssessmentSummarySerializer()
+    categories = CategoryAssessmentSummarySerializer(many=True)
 
 
 class LockedCandidateWithdrawalSerializer(serializers.Serializer):
@@ -807,9 +859,6 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-
-    def create(self, validated_data: dict[str, Any]) -> GradingCandidate:
-        raise NotImplementedError
 
 
 class LegacyGradingRecordSerializer(serializers.ModelSerializer):
@@ -925,9 +974,6 @@ class LinkLegacyRecordSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
 
-    def create(self, validated_data: dict[str, Any]) -> LegacyGradingRecord:
-        raise NotImplementedError
-
 
 class ResolveLegacyRankSerializer(serializers.Serializer):
     """`rank=null` explicitly leaves the mapping unresolved."""
@@ -955,6 +1001,3 @@ class VoidLegacyRecordSerializer(serializers.Serializer):
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-
-    def create(self, validated_data: dict[str, Any]) -> LegacyGradingRecord:
-        raise NotImplementedError

@@ -2,7 +2,8 @@
 
 ## Confirmed Requirements
 
-- Supported roles are Instructor, Manager, Administrator, and authorised Master.
+- Supported roles are Instructor and Administrator. "Authorised Master" is not
+  a role: it is three per-user permissions (below).
 - Permissions must be enforced by the backend.
 - Frontend hiding or disabling controls is not sufficient.
 - Apply least privilege throughout the API and UI.
@@ -83,9 +84,9 @@ unavailable and never arrives as a side effect of a role change. The four
 are separate: holding one does not confer the others.
 `can_view_grading_audit_log` is the odd one out in framing - it grants
 audit-log *read* access rather than a grading action - but follows the
-identical mechanism (`accounts.services.AUTHORITY_PERMISSIONS`,
-`accounts.groups.SENSITIVE_PERMISSIONS`) as the other three, so it is listed
-alongside them rather than introducing a second grant mechanism.
+identical mechanism (`accounts.permissions.AUTHORITY_PERMISSIONS`) as the
+other three, so it is listed alongside them rather than introducing a second
+grant mechanism.
 
 Final-decision authority is administrator-exclusive by decision (2026-09-16,
 see `decision_log.md`): granting it to an administrator, or promoting a
@@ -94,26 +95,30 @@ holds it; administrators hold the other three sensitive permissions and
 every other capability instead. The audit log follows the same
 administrator-or-Master-or-grantee line, unlike every other capability above
 where Master access "via group" already covers it - a plain instructor
-holding none of the three is refused.
+holding none of the three is refused. The rule is stated once, in
+`accounts.permissions.can_view_audit_log`, and both the API and Django admin
+ask it; `audit.models.AuditEventQuerySet.visible_to` likewise applies the
+administrator-only user-management exclusion for both.
 
-`manager` was removed from `User.Role` in 2026-09. Nothing used it.
-
-Syllabus authoring is granted with syllabus versioning in Phase 2b; the
-catalogue is read-only until then.
+The syllabus catalogue is read-only while syllabus versioning is deferred.
 
 ## Backend Enforcement
 
-The DRF API should enforce:
+- Every endpoint requires authentication except `/api/health/`,
+  `/api/ready/`, and login.
+- Every viewset declares a `permission_map` from action to required Django
+  permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
+  action is denied, so a new endpoint fails closed.
+- Final decisions, promotion, and locked-session withdrawal/cancellation each
+  add a per-user authority check on top, pinned by
+  `accounts/test_permission_matrix.py`.
+- Models refuse illegal states (locked or finalised records, immutable
+  history), so admin, the shell, and bulk querysets cannot bypass the API's
+  rules.
+- Every sensitive write records an audit event in its own transaction.
 
-- authentication for all application endpoints except explicitly public health checks.
-- role-based permissions for create, update, delete, decision, and audit endpoints.
-- object-level permissions for branch-scoped or session-scoped data.
-- immutable or locked states for submitted assessments and finalised decisions.
-- audit creation for sensitive writes.
-- final-decision endpoints restricted to authorised Masters.
-- syllabus-version mutation restricted to confirmed administrative roles and protected by audit logging.
-
-Frontend controls should reflect backend permissions but must not be the enforcement boundary.
+Frontend controls reflect these permissions but are never the enforcement
+boundary.
 
 ## Audit Requirements
 
@@ -135,10 +140,6 @@ Actions requiring audit include syllabus changes, permission changes, final deci
 - Access should be limited to users with a real operational need.
 - Assessment comments, grading outcomes, student status, and audit logs need stricter access than general reference data.
 
-## Unresolved Decisions
+## Open questions
 
-- Exact branch or organisation scoping rules for each role.
-- Whether Manager is a branch-scoped operational role, an organisation-wide role, or both.
-- Whether authorised Master is a role, a permission, or a designation attached to a user.
-- Whether instructors can edit student profiles or only view and assess.
-- Audit retention period and export policy.
+- Audit log retention period and export policy.

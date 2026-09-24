@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
-  ApiError,
+  errorMessage,
   type DataImportBatch,
   type LegacyImportPreview,
   type Rank,
@@ -17,13 +17,6 @@ import "./StudentScreens.css";
 import "./ImportStudents.css";
 
 type Step = "upload" | "review" | "result";
-
-function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) {
-    return err.nonFieldMessages[0] || err.message || fallback;
-  }
-  return fallback;
-}
 
 export function ImportLegacyGradingsScreen() {
   const navigate = useNavigate();

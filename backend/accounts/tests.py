@@ -20,13 +20,10 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.admin import UserAdmin, UserCreationForm
-from accounts.groups import (
-    ADMINISTRATOR_GROUP,
-    INSTRUCTOR_GROUP,
-    SENSITIVE_PERMISSIONS,
-)
+from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
 from accounts.models import User
 from accounts.permissions import (
+    AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
@@ -559,7 +556,7 @@ def test_sensitive_permissions_are_in_no_role_group() -> None:
         create_user("plain-instructor@example.com"),
         create_user("plain-admin@example.com", role=User.Role.ADMINISTRATOR),
     ):
-        for permission in SENSITIVE_PERMISSIONS:
+        for permission in AUTHORITY_PERMISSIONS.values():
             assert user.has_perm(permission) is False
 
 

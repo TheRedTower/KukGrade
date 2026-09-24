@@ -5,7 +5,9 @@ const DEFAULT_API_BASE_URL = "http://localhost:8000";
 // Generated from backend/schema.yml (`npm run generate:types`) rather than
 // hand-maintained, so these cannot silently drift from the serializers - see
 // the 2026-09-14 decision log entry. Regenerate after any serializer change.
-export type HealthResponse = components["schemas"]["HealthResponse"];
+// Every request and response body is declared in the schema; the only
+// hand-written API shapes are the error envelope and the page envelope.
+type Schemas = components["schemas"];
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
 export type ManagedUser = Omit<components["schemas"]["UserManagement"], "password">;
@@ -19,61 +21,21 @@ export type PaginatedResponse<T> = {
 
 export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
-type GeneratedGradingCandidate = components["schemas"]["GradingCandidate"];
-type WithdrawalMetadataKey =
-  | "withdrawal_reason"
-  | "withdrawal_reason_display"
-  | "withdrawal_note"
-  | "withdrawn_by"
-  | "withdrawn_by_email"
-  | "withdrawn_by_name"
-  | "withdrawn_at";
-export type GradingCandidate = Omit<GeneratedGradingCandidate, WithdrawalMetadataKey> &
-  Partial<Pick<GeneratedGradingCandidate, WithdrawalMetadataKey>>;
+export type GradingCandidate = Schemas["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
-export type CandidateOutcomeStatus = components["schemas"]["CandidateOutcomeStatusEnum"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
-export type OverallAssessmentSummary = {
-  total: number;
-  required: number;
-  met: number;
-  not_met: number;
-  not_assessed: number;
-  required_met: number;
-  required_not_met: number;
-  required_not_assessed: number;
-  all_required_assessed: boolean;
-  all_required_met: boolean;
-};
-export type CategoryAssessmentSummary = {
-  category: string;
-  total: number;
-  required: number;
-  met: number;
-  not_met: number;
-  not_assessed: number;
-  required_met: number;
-  required_not_met: number;
-  required_not_assessed: number;
-  all_required_assessed: boolean;
-  all_required_met: boolean;
-};
-export type CandidateAssessmentSummary = {
-  overall: OverallAssessmentSummary;
-  categories: CategoryAssessmentSummary[];
-};
+export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type AuditAction = components["schemas"]["ActionEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
-export type SyllabusRequirement = components["schemas"]["SyllabusRequirement"];
 export type SyllabusItem = components["schemas"]["SyllabusItem"];
 export type EffectiveSyllabusRequirement =
   components["schemas"]["EffectiveSyllabusRequirement"];
@@ -131,6 +93,14 @@ export class ApiError extends Error {
   get nonFieldMessages(): string[] {
     return this.messagesFor("non_field_errors");
   }
+}
+
+/** The best single message for a failed request, or `fallback`. */
+export function errorMessage(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    return err.nonFieldMessages[0] || err.message || fallback;
+  }
+  return fallback;
 }
 
 function apiBaseUrl(): string {
@@ -220,9 +190,6 @@ async function collectAllPages<T>(
   return { count: total, next: null, previous: null, results };
 }
 
-export async function getHealth(): Promise<HealthResponse> {
-  return apiRequest<HealthResponse>("/api/health/");
-}
 
 export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
@@ -450,33 +417,10 @@ export async function getAllGradingCandidates(
   );
 }
 
-export async function updateGradingCandidate(
-  id: number,
-  payload: Partial<GradingCandidate>,
-): Promise<GradingCandidate> {
-  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
-}
 
-export interface BulkCandidateRegistrationPayload {
-  session: number;
-  candidates: {
-    student: number;
-    testing_for_rank?: number;
-    notes?: string;
-  }[];
-  generate_assessments?: boolean;
-}
-
-export interface BulkCandidateRegistrationResponse {
-  created: {
-    candidate: GradingCandidate;
-    assessment: CandidateAssessment | null;
-  }[];
-  errors: Record<string, string[]>;
-}
+export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistration"];
+export type BulkCandidateRegistrationResponse =
+  Schemas["BulkCandidateRegistrationResult"];
 
 export async function bulkRegisterCandidates(
   payload: BulkCandidateRegistrationPayload,
@@ -499,11 +443,9 @@ export async function generateCandidateAssessment(
   );
 }
 
-export type BulkOperationErrors = Record<string, string[]>;
-
 export async function bulkGenerateCandidateAssessments(
   candidateIds: number[],
-): Promise<{ created: CandidateAssessment[]; errors: BulkOperationErrors }> {
+): Promise<Schemas["BulkAssessmentGenerationResult"]> {
   return apiRequest("/api/gradings/candidates/bulk-generate-assessments/", {
     method: "POST",
     body: JSON.stringify({ candidates: candidateIds }),
@@ -513,7 +455,7 @@ export async function bulkGenerateCandidateAssessments(
 export async function bulkUpdateCandidateStatus(
   candidateIds: number[],
   status: GradingCandidate["status"],
-): Promise<{ updated: GradingCandidate[]; errors: BulkOperationErrors }> {
+): Promise<Schemas["BulkCandidateStatusUpdateResult"]> {
   return apiRequest("/api/gradings/candidates/bulk-update-status/", {
     method: "POST",
     body: JSON.stringify({ candidates: candidateIds, status }),
@@ -567,9 +509,6 @@ export async function getAllCandidateAssessments(
   );
 }
 
-export async function getCandidateAssessment(id: number): Promise<CandidateAssessment> {
-  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`);
-}
 
 export async function updateCandidateAssessment(
   id: number,
@@ -592,7 +531,7 @@ export async function deleteCandidateAssessment(id: number): Promise<void> {
 
 export async function bulkStartCandidateAssessments(
   assessmentIds: number[],
-): Promise<{ started: CandidateAssessment[]; errors: BulkOperationErrors }> {
+): Promise<Schemas["BulkAssessmentStartResult"]> {
   return apiRequest("/api/gradings/assessments/bulk-start/", {
     method: "POST",
     body: JSON.stringify({ assessments: assessmentIds }),
@@ -678,9 +617,6 @@ export async function getAllCandidateOutcomes(
   );
 }
 
-export async function getCandidateOutcome(id: number): Promise<CandidateOutcome> {
-  return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${id}/`);
-}
 
 export async function createCandidateOutcome(candidateId: number): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/create-outcome/`, {
@@ -791,20 +727,6 @@ export async function getRanks(params?: {
   );
 }
 
-export async function getSyllabusRequirements(params?: {
-  rank_code?: string;
-  age_band?: string;
-  page_size?: number;
-}): Promise<PaginatedResponse<SyllabusRequirement>> {
-  const searchParams = new URLSearchParams();
-  if (params?.rank_code) searchParams.set("rank_code", params.rank_code);
-  if (params?.age_band) searchParams.set("age_band", params.age_band);
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
-  return apiRequest<PaginatedResponse<SyllabusRequirement>>(
-    `/api/syllabus/requirements/${query ? `?${query}` : ""}`,
-  );
-}
 
 export async function getSyllabusItems(params?: {
   page_size?: number;
@@ -866,37 +788,7 @@ export async function createStudent(
   });
 }
 
-export type PromotionRankHistory = {
-  id: number;
-  from_rank: number;
-  from_rank_code: string;
-  from_rank_name: string;
-  to_rank: number;
-  to_rank_code: string;
-  to_rank_name: string;
-  session: number | null;
-  session_title: string;
-  grading_date: string;
-  outcome: number | null;
-  outcome_status: string;
-  final_outcome: string;
-  promoted_by: string | null;
-  promoted_by_email: string;
-  promoted_by_name: string;
-  promoted_at: string;
-  effective_date: string;
-  notes: string;
-};
-
-export type StudentRankHistory = {
-  student: number;
-  student_display_name: string;
-  student_wksa_id: string;
-  current_rank: number;
-  current_rank_code: string;
-  current_rank_name: string;
-  promotions: PromotionRankHistory[];
-};
+export type StudentRankHistory = Schemas["StudentRankHistory"];
 
 export async function getStudentRankHistory(id: number): Promise<StudentRankHistory> {
   return apiRequest<StudentRankHistory>(`/api/students/${id}/rank-history/`);
@@ -964,10 +856,7 @@ export async function promoteCandidateOutcome(
   });
 }
 
-export type BulkPromoteResponse = {
-  promoted: Promotion[];
-  errors: { index?: number; outcome_id?: number; detail?: unknown }[];
-};
+export type BulkPromoteResponse = Schemas["BulkPromotionResult"];
 
 export async function bulkPromoteCandidateOutcomes(
   data: { outcomes: number[] },
@@ -981,48 +870,9 @@ export async function bulkPromoteCandidateOutcomes(
   );
 }
 
-/**
- * Hand-written rather than generated: /api/data-imports/ is new backend
- * surface and `backend/schema.yml` has not been regenerated to include it
- * yet. Reconcile with generated types once it has (see the 2026-09-14
- * decision log entry on generated API types).
- */
-export type DataImportKind = "STUDENT_ROSTER" | "LEGACY_GRADINGS";
-export type DataImportStatus =
-  | "UPLOADED"
-  | "NEEDS_REVIEW"
-  | "READY"
-  | "COMMITTED"
-  | "PARTIAL"
-  | "CANCELLED"
-  | "FAILED"
-  | "EXPIRED";
-
-export type DataImportBatch = {
-  id: number;
-  kind: DataImportKind;
-  kind_display: string;
-  status: DataImportStatus;
-  original_filename: string;
-  sha256: string;
-  file_size: number;
-  uploaded_by_email: string;
-  uploaded_at: string;
-  committed_by_email: string | null;
-  committed_at: string | null;
-  cancelled_at: string | null;
-  summary_json: Record<string, unknown>;
-  configuration_json: Record<string, unknown>;
-  error_summary: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CreateDataImportBatchResponse = DataImportBatch & {
-  already_imported_warning: boolean;
-  detected_headers: string[];
-  suggested_mapping: Record<string, string>;
-};
+export type DataImportKind = Schemas["KindEnum"];
+export type DataImportBatch = Schemas["ImportBatch"];
+export type CreateDataImportBatchResponse = Schemas["ImportBatchCreated"];
 
 export async function createDataImportBatch(
   file: File,
@@ -1037,42 +887,15 @@ export async function createDataImportBatch(
   });
 }
 
-export type StudentImportRowOutcome = "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
-
-export type StudentImportRowResult = {
-  row_number: number;
-  outcome: StudentImportRowOutcome;
-  wksa_id: string;
-  first_name: string;
-  last_name: string;
-  date_of_birth_display: string;
-  current_rank_text: string;
-  current_rank_code: string | null;
-  status: string;
-  issues: string[];
-  existing_student_id: number | null;
-  existing_student_display: string | null;
-};
-
-export type StudentImportPreview = {
-  total: number;
-  ready: number;
-  review_required: number;
-  skip_existing: number;
-  rows: StudentImportRowResult[];
-};
-
+export type StudentImportRowResult = Schemas["StudentImportRowResult"];
+export type StudentImportPreview = Schemas["StudentImportPreview"];
 export type StudentImportRowCorrection = Partial<
   Record<
     "wksa_id" | "first_name" | "last_name" | "date_of_birth" | "current_rank" | "status",
     string
   >
 >;
-
-export type StudentImportRequestPayload = {
-  column_mapping: Record<string, string>;
-  corrections?: Record<string, StudentImportRowCorrection>;
-};
+export type StudentImportRequestPayload = Schemas["StudentImportRequest"];
 
 export async function previewStudentImport(
   batchId: number,
@@ -1106,56 +929,10 @@ export async function cancelDataImportBatch(batchId: number): Promise<void> {
   });
 }
 
-/**
- * Historical grading-workbook import (LEGACY_GRADINGS kind) and legacy
- * record reconciliation. Hand-written for the same reason as the student
- * roster import types above - the backend schema has not been regenerated
- * to include these endpoints yet.
- */
-export type LegacyRecordKind = "GRADING_RESULT" | "AUXILIARY_NOTE" | "DID_NOT_ATTEND";
-export type LegacyOutcome = "PASS" | "FAIL" | "CONDITIONAL";
-export type LegacyAttendanceStatus = "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
-export type LegacyDatePrecision = "MONTH" | "DAY";
-
-export type CanonicalLegacyRow = {
-  source_sheet: string;
-  source_section: string;
-  source_locator: string;
-  cycle_year: number;
-  cycle_month: number;
-  record_kind: LegacyRecordKind;
-  source_name: string;
-  source_current_rank_text: string;
-  source_testing_for_rank_text: string;
-  source_outcome_text: string;
-  outcome: LegacyOutcome | null;
-  attendance_status: LegacyAttendanceStatus;
-  comments: string;
-  admin_note: string;
-};
-
-export type RankMappingSuggestion = {
-  source_text: string;
-  suggested_rank_id: number | null;
-  suggested_rank_code: string | null;
-};
-
-export type LegacyImportPreview = {
-  total: number;
-  grading_result: number;
-  auxiliary_note: number;
-  did_not_attend: number;
-  unresolved_current_rank: number;
-  unresolved_testing_for_rank: number;
-  unresolved_outcome: number;
-  warnings: string[];
-  rank_suggestions: RankMappingSuggestion[];
-  rows: CanonicalLegacyRow[];
-};
-
-export type LegacyImportRequestPayload = {
-  rank_mappings: Record<string, string | null>;
-};
+export type LegacyRecordKind = Schemas["RecordKindEnum"];
+export type RankMappingSuggestion = Schemas["RankMappingSuggestion"];
+export type LegacyImportPreview = Schemas["LegacyImportPreview"];
+export type LegacyImportRequestPayload = Schemas["LegacyImportRequest"];
 
 export async function previewLegacyGradingImport(
   batchId: number,
@@ -1183,44 +960,7 @@ export async function commitLegacyGradingImport(
   );
 }
 
-export type LegacyGradingRecord = {
-  id: number;
-  student: number | null;
-  student_display_name: string | null;
-  student_wksa_id: string | null;
-  source_batch: number;
-  record_kind: LegacyRecordKind;
-  record_kind_display: string;
-  source_sheet: string;
-  source_section: string;
-  source_locator: string;
-  cycle_year: number;
-  cycle_month: number;
-  grading_date: string | null;
-  date_precision: LegacyDatePrecision;
-  date_precision_display: string;
-  source_name: string;
-  source_current_rank_text: string;
-  current_rank: number | null;
-  current_rank_code: string | null;
-  source_testing_for_rank_text: string;
-  testing_for_rank: number | null;
-  testing_for_rank_code: string | null;
-  source_outcome_text: string;
-  outcome: LegacyOutcome | null;
-  outcome_display: string | null;
-  attendance_status: LegacyAttendanceStatus;
-  attendance_status_display: string;
-  comments: string;
-  admin_note: string;
-  is_void: boolean;
-  void_reason: string;
-  voided_by: string | null;
-  voided_by_email: string | null;
-  voided_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];
 
 export async function getLegacyGradingRecords(params?: {
   student?: number;
@@ -1247,13 +987,6 @@ export async function getLegacyGradingRecords(params?: {
   );
 }
 
-export async function getAllLegacyGradingRecords(
-  params?: Parameters<typeof getLegacyGradingRecords>[0],
-): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  return collectAllPages((page) =>
-    getLegacyGradingRecords({ ...params, page, page_size: 200 }),
-  );
-}
 
 export async function linkLegacyGradingRecord(
   id: number,
@@ -1311,30 +1044,8 @@ export async function voidLegacyGradingRecord(
   });
 }
 
-export type GradingHistorySource = "KUKGRADE" | "LEGACY";
-
-export type GradingHistoryItem = {
-  source: GradingHistorySource;
-  record_id: number;
-  date: string | null;
-  cycle_year: number | null;
-  cycle_month: number | null;
-  date_precision: LegacyDatePrecision;
-  testing_for_rank_code: string | null;
-  testing_for_rank_name: string | null;
-  source_testing_for_rank_text: string;
-  outcome: LegacyOutcome | null;
-  attendance_status: LegacyAttendanceStatus;
-  comments: string;
-  promotion_id: number | null;
-};
-
-export type StudentGradingHistory = {
-  student: number;
-  student_display_name: string;
-  student_wksa_id: string;
-  items: GradingHistoryItem[];
-};
+export type GradingHistoryItem = Schemas["GradingHistoryItem"];
+export type StudentGradingHistory = Schemas["StudentGradingHistory"];
 
 export async function getStudentGradingHistory(
   studentId: number,

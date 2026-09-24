@@ -7,12 +7,8 @@ import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from data_imports.test_legacy_import import legacy_batch
-from gradings.legacy_services import (
-    create_legacy_grading_record,
-    link_legacy_record_to_student,
-)
-from gradings.models import LegacyGradingRecord, LegacyRecordKind
+from data_imports.testing import legacy_batch, legacy_record
+from gradings.legacy_services import link_legacy_record_to_student
 from gradings.tests import rank, student, user
 
 pytestmark = pytest.mark.django_db
@@ -24,22 +20,6 @@ def admin(email: str = "legacy-recon-admin@example.com") -> User:
 
 def instructor(email: str = "legacy-recon-instructor@example.com") -> User:
     return user(email, role=User.Role.INSTRUCTOR)
-
-
-def legacy_record(**overrides: object) -> LegacyGradingRecord:
-    data: dict[str, object] = {
-        "record_kind": LegacyRecordKind.GRADING_RESULT,
-        "source_sheet": "06-2025",
-        "source_locator": "06-2025!R2",
-        "cycle_year": 2025,
-        "cycle_month": 6,
-        "source_name": "A. Example",
-    }
-    data.update(overrides)
-    if "source_batch" not in data:
-        uploader = admin("legacy-recon-uploader@example.com")
-        data["source_batch"] = legacy_batch(uploaded_by=uploader)
-    return create_legacy_grading_record(**data)  # type: ignore[arg-type]
 
 
 def test_instructor_can_list_and_retrieve_legacy_records() -> None:

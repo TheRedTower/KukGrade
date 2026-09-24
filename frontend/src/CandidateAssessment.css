@@ -129,7 +129,7 @@
   background: currentColor;
 }
 
-.caw-status-not-started {
+.caw-status-not_started {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);

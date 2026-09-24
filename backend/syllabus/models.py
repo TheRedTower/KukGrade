@@ -7,6 +7,39 @@ from django.db import models
 from django.db.models import F, Q
 
 
+def numbered_range_errors(
+    start_number: int | None,
+    end_number: int | None,
+) -> dict[str, list[str]]:
+    """Validation for an optional start-end range (e.g. techniques 1-5),
+    shared by a requirement and the assessment snapshot copied from it."""
+    errors: dict[str, list[str]] = {}
+    if (start_number is None) != (end_number is None):
+        message = "Start and end numbers must be provided together."
+        errors["end_number" if start_number is not None else "start_number"] = [
+            message,
+        ]
+    if start_number is not None and start_number < 1:
+        errors["start_number"] = ["Start number must be at least 1."]
+    if (
+        start_number is not None
+        and end_number is not None
+        and end_number < start_number
+    ):
+        errors["end_number"] = [
+            "End number must be greater than or equal to start number.",
+        ]
+    return errors
+
+
+def format_numbered_range(start_number: int | None, end_number: int | None) -> str:
+    if start_number is None or end_number is None:
+        return ""
+    if start_number == end_number:
+        return str(start_number)
+    return f"{start_number}-{end_number}"
+
+
 class AgeBand(models.TextChoices):
     if TYPE_CHECKING:
         label: str
@@ -177,29 +210,7 @@ class SyllabusRequirement(models.Model):
         super().clean()
         self.notes = (self.notes or "").strip()
 
-        errors: dict[str, list[str]] = {}
-        has_start = self.start_number is not None
-        has_end = self.end_number is not None
-
-        if has_start != has_end:
-            message = "Start and end numbers must be provided together."
-            if has_start:
-                errors["end_number"] = [message]
-            else:
-                errors["start_number"] = [message]
-
-        if self.start_number is not None and self.start_number < 1:
-            errors["start_number"] = ["Start number must be at least 1."]
-
-        if (
-            self.start_number is not None
-            and self.end_number is not None
-            and self.end_number < self.start_number
-        ):
-            errors["end_number"] = [
-                "End number must be greater than or equal to start number.",
-            ]
-
+        errors = numbered_range_errors(self.start_number, self.end_number)
         if self.sequence is not None and self.sequence <= 0:
             errors["sequence"] = ["Sequence must be positive."]
 
@@ -207,13 +218,5 @@ class SyllabusRequirement(models.Model):
             raise ValidationError(errors)
 
     @property
-    def has_numbered_range(self) -> bool:
-        return self.start_number is not None and self.end_number is not None
-
-    @property
     def display_range(self) -> str:
-        if not self.has_numbered_range:
-            return ""
-        if self.start_number == self.end_number:
-            return str(self.start_number)
-        return f"{self.start_number}-{self.end_number}"
+        return format_numbered_range(self.start_number, self.end_number)

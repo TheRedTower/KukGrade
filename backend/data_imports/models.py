@@ -1,7 +1,7 @@
 """Provenance for bulk data imports (student rosters, legacy grading history).
 
-Deliberately lightweight: no permanent per-row staging table (see the
-Definitive Implementation Spec, section 10) - a preview is recomputed from
+Deliberately lightweight: no permanent per-row staging table - a preview is
+recomputed from
 `source_file` + `configuration_json` on every request rather than persisted,
 so this model only has to track the batch itself: what was uploaded, by
 whom, and what became of it.

@@ -18,6 +18,47 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-24 - One document per job; every API shape declared in the schema
+
+Status: Accepted
+
+Decision:
+Retire the documents that had become history rather than guidance - the
+completed `backend-completion-spec.md`, the `frontend-next-steps-handoff.md`
+agent handoff, the `HANDOFF.md` tombstone, the superseded
+`audits/remediation-status.md` register, and the legacy planning inputs
+`data_model.md`, `grading_app_planning.md`, `domain-model.md` and
+`syllabus-model.md`. Fold the still-valid parts of `testing-strategy.md` into
+`development-workflow.md`, which now holds the one canonical list of
+verification commands. Give each remaining document one job (see
+`docs/README.md`), and keep `api_contract.md` to implemented endpoints only.
+Summarise the external import specification's sixteen locked decisions in
+`data-import-and-legacy-migration.md` so code comments citing "import
+Decision N" resolve inside the repository.
+
+Declare every custom API action's real request and response with
+`@extend_schema`, serialize the bulk, summary, and import responses through
+those declared serializers, alias every frontend API type to the generated
+schema, and have CI regenerate `backend/schema.yml` and fail if it is stale.
+
+Context:
+A repository-wide review (`audits/2026-09-24-coherence-audit.md`) found the
+same facts stated in three or four documents that had drifted apart - three
+different mypy app lists, `PATCH` versus `POST` for the same endpoint - and
+code citing sections of a specification nobody could open. It also found
+that the 2026-09-14 "generate, never hand-write" decision had quietly
+lapsed: seventeen actions were undeclared, so the published schema described
+the wrong bodies, the frontend hand-wrote their types, and one of those types
+drifted far enough to report a partly failed bulk promotion as a complete
+success. Nothing checked that the committed schema matched the code.
+
+Consequences:
+Deleted documents remain in Git history. The KG-numbered dated audits stay,
+since code and this log cite their findings. An API shape change now updates
+the serializer, the regenerated schema and types, and `api_contract.md`
+together, or CI fails. Supersedes the 2026-06-25 "Documentation truth and
+audit remediation tracker" entry.
+
 ### 2026-09-23 - One production app service on existing Traefik and PostgreSQL
 
 Status: Accepted
@@ -942,7 +983,7 @@ open question Q4 is still unresolved.
 
 ### 2026-06-25 - Documentation truth and audit remediation tracker
 
-Status: Accepted
+Status: Superseded by 2026-09-24 - One document per job; every API shape declared in the schema
 
 Decision:
 Create `docs/current-system.md` as the current implementation source of truth,

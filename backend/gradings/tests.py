@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from datetime import date
+from datetime import date, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -45,6 +45,7 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
+    age_band_birth_date_bounds,
     applicable_syllabus_requirements,
     apply_candidate_update,
     build_candidate,
@@ -392,6 +393,25 @@ def test_completed_and_cancelled_states_are_terminal() -> None:
 )
 def test_age_band_helper(dob: date, grading_date: date, expected: str) -> None:
     assert resolve_age_band(dob, grading_date) == expected
+
+
+@pytest.mark.parametrize("on_date", [date(2028, 2, 29), date(2027, 3, 1)])
+def test_age_band_bounds_agree_with_resolve_age_band(on_date: date) -> None:
+    # The students list filters by these bounds, candidates are banded by
+    # resolve_age_band; both read one table, and must never disagree -
+    # including either side of a 29 February.
+    for offset in range(0, 20 * 366, 3):
+        dob = on_date - timedelta(days=offset)
+        band = resolve_age_band(dob, on_date)
+        for candidate_band in AgeBand.values:
+            born_after, born_on_or_before = age_band_birth_date_bounds(
+                candidate_band,
+                on_date,
+            )
+            inside = (born_after is None or dob > born_after) and (
+                born_on_or_before is None or dob <= born_on_or_before
+            )
+            assert inside is (candidate_band == band), (dob, candidate_band)
 
 
 def test_valid_grading_candidate_can_be_created_with_derived_age_band() -> None:

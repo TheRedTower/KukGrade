@@ -928,10 +928,6 @@
   font-size: 0.88rem;
 }
 
-.session-title-cell {
-  font-weight: 600;
-  color: var(--color-text);
-}
 
 .detail-empty-box {
   padding: 2.5rem 1rem;

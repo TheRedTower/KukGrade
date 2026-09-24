@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import TypedDict, cast
 
@@ -83,18 +83,8 @@ class OverallAssessmentSummary(TypedDict):
     all_required_met: bool
 
 
-class CategoryAssessmentSummary(TypedDict):
+class CategoryAssessmentSummary(OverallAssessmentSummary):
     category: str
-    total: int
-    required: int
-    met: int
-    not_met: int
-    not_assessed: int
-    required_met: int
-    required_not_met: int
-    required_not_assessed: int
-    all_required_assessed: bool
-    all_required_met: bool
 
 
 class CandidateAssessmentSummary(TypedDict):
@@ -129,6 +119,39 @@ class StudentGradingHistory(TypedDict):
     items: list[GradingHistoryItem]
 
 
+# Each age band's inclusive age range - the single statement of the rule,
+# read in both directions below. None means unbounded.
+_AGE_BAND_RANGES: dict[str, tuple[int, int | None]] = {
+    AgeBand.AGE_8_AND_UNDER: (0, 8),
+    AgeBand.AGE_9_TO_12: (9, 12),
+    AgeBand.AGE_13_TO_17: (13, 17),
+    AgeBand.AGE_18_AND_OVER: (18, None),
+}
+
+
+def _each_independently[T, R](
+    rows: Sequence[T],
+    action: Callable[[T], R],
+) -> tuple[list[R], dict[str, list[str]]]:
+    """Apply `action` to every row, each in its own savepoint.
+
+    The shared shape of every bulk endpoint: one row's failure - including an
+    IntegrityError it would otherwise leave poisoning the transaction - never
+    blocks the others. Returns what succeeded plus a map of row index to that
+    row's error messages. `.messages` flattens dict- and list-shaped
+    ValidationErrors alike.
+    """
+    done: list[R] = []
+    errors: dict[str, list[str]] = {}
+    for index, row in enumerate(rows):
+        try:
+            with transaction.atomic():
+                done.append(action(row))
+        except ValidationError as exc:
+            errors[str(index)] = exc.messages
+    return done, errors
+
+
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
     age = on_date.year - date_of_birth.year
     try:
@@ -144,13 +167,29 @@ def resolve_age_band(date_of_birth: date | None, grading_date: date) -> str:
     if date_of_birth is None:
         raise ValidationError({"student": ["Student date of birth is required."]})
     age = calculate_age_on(date_of_birth, grading_date)
-    if age <= 8:
-        return AgeBand.AGE_8_AND_UNDER
-    if age <= 12:
-        return AgeBand.AGE_9_TO_12
-    if age <= 17:
-        return AgeBand.AGE_13_TO_17
-    return AgeBand.AGE_18_AND_OVER
+    for band, (_youngest, oldest) in _AGE_BAND_RANGES.items():
+        if oldest is None or age <= oldest:
+            return band
+    raise AssertionError("_AGE_BAND_RANGES has no open-ended band")
+
+
+def _years_before(on_date: date, years: int) -> date:
+    try:
+        return on_date.replace(year=on_date.year - years)
+    except ValueError:  # 29 February in a non-leap year
+        return on_date.replace(year=on_date.year - years, day=28)
+
+
+def age_band_birth_date_bounds(
+    band: str,
+    on_date: date,
+) -> tuple[date | None, date | None]:
+    """`(born_after, born_on_or_before)` for everyone in `band` on `on_date`,
+    so a queryset can filter by age band without computing each age."""
+    youngest, oldest = _AGE_BAND_RANGES[band]
+    born_after = _years_before(on_date, oldest + 1) if oldest is not None else None
+    born_on_or_before = _years_before(on_date, youngest) if youngest else None
+    return born_after, born_on_or_before
 
 
 def get_next_active_rank(current_rank: Rank) -> Rank | None:
@@ -287,11 +326,11 @@ def validate_grading_session_transition(
 
 
 def validate_locked_session_override_actor(actor: User | None) -> None:
-    if actor is None or not actor.is_active:
-        raise ValidationError(
-            {"actor": ["Locked session override authority is required."]}
-        )
-    if not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION):
+    if (
+        actor is None
+        or not actor.is_active
+        or not actor.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
+    ):
         raise ValidationError(
             {"actor": ["Locked session override authority is required."]}
         )
@@ -521,7 +560,7 @@ def validate_session_can_be_deleted(
 
 
 def validate_candidate_can_be_changed(candidate: GradingCandidate) -> None:
-    if getattr(candidate, "_allow_locked_withdrawal", False):
+    if candidate._allow_locked_withdrawal:
         return
     if candidate.session.status not in {
         GradingSession.Status.DRAFT,
@@ -545,7 +584,7 @@ def validate_candidate_assessment_changes(
     testing_for_rank_changed: bool = False,
     status: str | None = None,
 ) -> None:
-    if getattr(candidate, "_allow_locked_withdrawal", False):
+    if candidate._allow_locked_withdrawal:
         return
     assessment = getattr(candidate, "assessment", None)
     if assessment is None:
@@ -592,11 +631,11 @@ def validate_candidate_assessment_changes(
 
 def validate_candidate_can_be_deleted(
     candidate: GradingCandidate,
-    actor: User | None = None,  # noqa: ARG001
+    actor: User | None = None,
 ) -> None:
     # actor accepted but unused: candidate deletion has no administrator
-    # override today, unlike validate_session_can_be_deleted. The parameter
-    # exists so gradings.admin.StateGatedDeleteMixin can call every
+    # override, unlike validate_session_can_be_deleted. The parameter exists
+    # so gradings.admin.StateGatedDeleteMixin can call every
     # deletion_validator with the same (obj, actor=...) signature.
     outcome = getattr(candidate, "outcome", None)
     if outcome is not None and outcome.status == CandidateOutcome.Status.FINALISED:
@@ -641,10 +680,6 @@ def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
     if outcome.candidate.status != GradingCandidate.Status.COMPLETED:
         raise ValidationError(
             {"candidate": ["Grading candidate must remain completed."]},
-        )
-    if outcome.candidate.status == GradingCandidate.Status.WITHDRAWN:
-        raise ValidationError(
-            {"candidate": ["Withdrawn candidates cannot have outcome decisions."]},
         )
 
 
@@ -877,13 +912,6 @@ def finalise_candidate_outcome(
     return locked_outcome
 
 
-def validate_candidate_outcome_can_be_deleted(outcome: CandidateOutcome) -> None:
-    if outcome.status == CandidateOutcome.Status.FINALISED:
-        raise ValidationError(
-            {"status": ["Finalised candidate outcomes cannot be deleted."]},
-        )
-
-
 def validate_promotion_eligibility(
     *,
     outcome: CandidateOutcome,
@@ -1061,21 +1089,13 @@ def bulk_promote_candidates(
 
     Built for a Master clearing a whole cohort at once: any number of
     finalised PASS outcomes, from one to an entire session, promoted in a
-    single request. Same independent-rows, savepoint-per-row shape as the
-    other bulk endpoints - one outcome that is not eligible (not finalised,
-    not a PASS, already promoted) does not block the rest. Returns the
-    promotions that were created and a map of row index to error messages
-    for the rest.
+    single request. One outcome that is not eligible (not finalised, not a
+    PASS, already promoted) does not block the rest.
     """
-    promoted: list[Promotion] = []
-    errors: dict[str, list[str]] = {}
-    for index, outcome in enumerate(outcomes):
-        try:
-            with transaction.atomic():
-                promoted.append(promote_candidate(outcome, actor=actor))
-        except ValidationError as exc:
-            errors[str(index)] = exc.messages
-    return promoted, errors
+    return _each_independently(
+        outcomes,
+        lambda outcome: promote_candidate(outcome, actor=actor),
+    )
 
 
 def student_rank_timeline(student: Student) -> StudentRankTimeline:
@@ -1101,10 +1121,10 @@ def student_rank_timeline(student: Student) -> StudentRankTimeline:
 
 def unified_student_grading_history(student: Student) -> StudentGradingHistory:
     """Native finalised outcomes + linked, non-voided legacy records,
-    source-labelled and date-precision-explicit (spec section 25).
+    source-labelled and date-precision-explicit.
 
     Deliberately separate from student_rank_timeline / `/rank-history/`,
-    which stays Promotion-only (spec section 26) - this is a read model for
+    which stays Promotion-only (import Decision 6) - this is a read model for
     display, not a second claim about rank history. A native item's
     "current rank at the time" is not tracked as its own field anywhere in
     the native workflow (only testing_for_rank is), so it is left out here
@@ -1175,18 +1195,8 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
     }
 
 
-def candidate_assessment_summary(
-    assessment: CandidateAssessment,
-) -> CandidateAssessmentSummary:
-    items = list(
-        assessment.items.all().order_by("category", "requirement_sequence", "pk"),
-    )
-    category_order = dict(
-        (category, index)
-        for index, (category, _label) in enumerate(SyllabusItem.Category.choices)
-    )
-    category_summaries: dict[str, CategoryAssessmentSummary] = {}
-    overall: OverallAssessmentSummary = {
+def _empty_summary() -> OverallAssessmentSummary:
+    return {
         "total": 0,
         "required": 0,
         "met": 0,
@@ -1199,22 +1209,23 @@ def candidate_assessment_summary(
         "all_required_met": True,
     }
 
+
+def candidate_assessment_summary(
+    assessment: CandidateAssessment,
+) -> CandidateAssessmentSummary:
+    items = list(
+        assessment.items.all().order_by("category", "requirement_sequence", "pk"),
+    )
+    category_order = {
+        category: index for index, category in enumerate(SyllabusItem.Category.values)
+    }
+    category_summaries: dict[str, CategoryAssessmentSummary] = {}
+    overall = _empty_summary()
+
     for item in items:
         summary = category_summaries.setdefault(
             item.category,
-            {
-                "category": item.category,
-                "total": 0,
-                "required": 0,
-                "met": 0,
-                "not_met": 0,
-                "not_assessed": 0,
-                "required_met": 0,
-                "required_not_met": 0,
-                "required_not_assessed": 0,
-                "all_required_assessed": True,
-                "all_required_met": True,
-            },
+            {**_empty_summary(), "category": item.category},
         )
         summary["total"] += 1
         overall["total"] += 1
@@ -1475,8 +1486,7 @@ def bulk_register_candidates(
 
     This is adding candidates one at a time through the single-item endpoint,
     just in one request: a batch of ten students does not fail all ten
-    because one of them was already registered. Each row runs in its own
-    savepoint so one row's IntegrityError cannot poison the rows after it.
+    because one of them was already registered.
 
     A row's `testing_for_rank` is optional: when omitted it resolves to that
     student's own next active rank, so a mixed-belt group (some blue belts,
@@ -1493,46 +1503,34 @@ def bulk_register_candidates(
     `None` unless `generate_assessments` was set - and a map of row index to
     error messages for the rows that failed.
     """
-    created: list[tuple[GradingCandidate, CandidateAssessment | None]] = []
-    errors: dict[str, list[str]] = {}
-    for index, row in enumerate(rows):
-        try:
-            with transaction.atomic():
-                row_student = cast(Student, row["student"])
-                testing_for_rank = cast(Rank | None, row.get("testing_for_rank"))
-                if testing_for_rank is None:
-                    testing_for_rank = get_next_active_rank(row_student.current_rank)
-                    if testing_for_rank is None:
-                        raise ValidationError(
-                            {"testing_for_rank": ["Student has no next active rank."]},
-                        )
-                registered = register_candidate(
-                    session=session,
-                    student=row_student,
-                    testing_for_rank=testing_for_rank,
-                    notes=cast(str, row.get("notes", "")),
-                    actor=actor,
+
+    def register_row(
+        row: Mapping[str, object],
+    ) -> tuple[GradingCandidate, CandidateAssessment | None]:
+        row_student = cast(Student, row["student"])
+        testing_for_rank = cast(Rank | None, row.get("testing_for_rank"))
+        if testing_for_rank is None:
+            testing_for_rank = get_next_active_rank(row_student.current_rank)
+            if testing_for_rank is None:
+                raise ValidationError(
+                    {"testing_for_rank": ["Student has no next active rank."]},
                 )
-                generated_assessment = None
-                if generate_assessments:
-                    if actor is None:
-                        raise ValidationError(
-                            {
-                                "actor": [
-                                    "An actor is required to generate assessments."
-                                ]
-                            },
-                        )
-                    generated_assessment = generate_candidate_assessment(
-                        registered,
-                        actor,
-                    )
-                created.append((registered, generated_assessment))
-        except ValidationError as exc:
-            # `.messages` always flattens to a list of strings regardless of
-            # whether the underlying error is dict- or list-shaped.
-            errors[str(index)] = exc.messages
-    return created, errors
+        registered = register_candidate(
+            session=session,
+            student=row_student,
+            testing_for_rank=testing_for_rank,
+            notes=cast(str, row.get("notes", "")),
+            actor=actor,
+        )
+        if not generate_assessments:
+            return registered, None
+        if actor is None:
+            raise ValidationError(
+                {"actor": ["An actor is required to generate assessments."]},
+            )
+        return registered, generate_candidate_assessment(registered, actor)
+
+    return _each_independently(rows, register_row)
 
 
 def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
@@ -1792,22 +1790,13 @@ def bulk_generate_candidate_assessments(
 ) -> tuple[list[CandidateAssessment], dict[str, list[str]]]:
     """Generate an assessment for every candidate, independently of the others.
 
-    Same independent-rows shape as `bulk_register_candidates`: one
-    candidate's assessment already existing does not block generation for
-    the rest of the batch. Returns the assessments that were created and a
-    map of row index to error messages for the rest.
+    One candidate's assessment already existing does not block generation
+    for the rest of the batch.
     """
-    created: list[CandidateAssessment] = []
-    errors: dict[str, list[str]] = {}
-    for index, candidate in enumerate(candidates):
-        try:
-            with transaction.atomic():
-                created.append(
-                    generate_candidate_assessment(candidate, generated_by),
-                )
-        except ValidationError as exc:
-            errors[str(index)] = exc.messages
-    return created, errors
+    return _each_independently(
+        candidates,
+        lambda candidate: generate_candidate_assessment(candidate, generated_by),
+    )
 
 
 @transaction.atomic
@@ -1822,24 +1811,15 @@ def bulk_update_candidate_status(
     Built for confirming attendance in bulk: tick the candidates who did not
     show up, set WITHDRAWN, and confirm - the rest are left untouched. One
     candidate's session already being locked does not block the others.
-    Returns the candidates that were updated and a map of row index to error
-    messages for the rest.
     """
-    updated: list[GradingCandidate] = []
-    errors: dict[str, list[str]] = {}
-    for index, candidate in enumerate(candidates):
-        try:
-            with transaction.atomic():
-                updated.append(
-                    apply_candidate_update(
-                        candidate,
-                        status=new_status,
-                        actor=actor,
-                    ),
-                )
-        except ValidationError as exc:
-            errors[str(index)] = exc.messages
-    return updated, errors
+    return _each_independently(
+        candidates,
+        lambda candidate: apply_candidate_update(
+            candidate,
+            status=new_status,
+            actor=actor,
+        ),
+    )
 
 
 def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
@@ -1963,31 +1943,19 @@ def bulk_start_candidate_assessments(
     generation, so starting assessments in bulk is always a deliberate
     choice rather than a side effect of adding candidates or generating
     their snapshots. One assessment already started, or its session having
-    since locked, does not block the rest. Same independent-rows,
-    savepoint-per-row shape as the other bulk endpoints.
+    since locked, does not block the rest.
     """
-    started: list[CandidateAssessment] = []
-    errors: dict[str, list[str]] = {}
-    for index, assessment in enumerate(assessments):
-        try:
-            with transaction.atomic():
-                started.append(
-                    update_candidate_assessment(
-                        assessment,
-                        status=CandidateAssessment.Status.IN_PROGRESS,
-                        actor=actor,
-                    ),
-                )
-        except ValidationError as exc:
-            errors[str(index)] = exc.messages
-    return started, errors
+    return _each_independently(
+        assessments,
+        lambda assessment: update_candidate_assessment(
+            assessment,
+            status=CandidateAssessment.Status.IN_PROGRESS,
+            actor=actor,
+        ),
+    )
 
 
-def validate_assessment_item_can_be_changed(
-    item: CandidateAssessmentItem,
-    *,
-    result: str | None,
-) -> None:
+def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
     assessment = item.assessment
     if assessment.status == CandidateAssessment.Status.COMPLETED:
         raise ValidationError({"assessment": ["Completed assessments are immutable."]})
@@ -1998,12 +1966,6 @@ def validate_assessment_item_can_be_changed(
                     "Assessment must be started before item results can be changed.",
                 ],
             },
-        )
-    if assessment.status not in {
-        CandidateAssessment.Status.IN_PROGRESS,
-    }:
-        raise ValidationError(
-            {"assessment": ["Assessment items cannot be changed in this state."]},
         )
     if (
         assessment.candidate.session.status
@@ -2033,10 +1995,10 @@ def update_candidate_assessment_item(
 ) -> CandidateAssessmentItem:
     locked_item = (
         CandidateAssessmentItem.objects.select_for_update(of=("self",))
-        .select_related("assessment__candidate__session", "assessment__candidate")
+        .select_related("assessment__candidate__session")
         .get(pk=item.pk)
     )
-    validate_assessment_item_can_be_changed(locked_item, result=result)
+    validate_assessment_item_can_be_changed(locked_item)
     previous_result = locked_item.result
     previous_notes = locked_item.assessor_notes
 

@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "generate:types": "openapi-typescript ../backend/schema.yml -o src/api/schema.ts"
+    "generate:types": "openapi-typescript ../backend/schema.yml -o src/api/schema.ts --default-non-nullable false"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.103.1",

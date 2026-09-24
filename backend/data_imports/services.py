@@ -2,20 +2,22 @@
 
 Every created `Student` goes through `students.services.create_student` -
 the exact service a hand-created student uses - so full model validation and
-the normal `STUDENT_CREATED` audit event happen identically either way (spec
-section 21: a bulk importer must never bypass the domain-service layer).
+the normal `STUDENT_CREATED` audit event happen identically either way: a
+bulk importer never bypasses the domain-service layer.
 """
 
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
-from django.db import transaction
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -24,6 +26,7 @@ from audit.models import AuditAction
 from audit.recording import record
 from data_imports.ksw_adapter import (
     CanonicalLegacyRow,
+    WorkbookParseResult,
     WorkbookStructureError,
     parse_ksw_colchester_workbook,
 )
@@ -33,23 +36,28 @@ from data_imports.mappings import (
     suggest_column_mapping,
 )
 from data_imports.models import ImportBatch
-from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
+from data_imports.parsers import (
+    UnsupportedImportFileError,
+    file_suffix,
+    load_tabular_dataset,
+)
 from gradings.legacy_services import create_legacy_grading_record
 from gradings.models import LegacyRecordKind
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student
 
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-
 _ALLOWED_EXTENSIONS: dict[str, frozenset[str]] = {
     ImportBatch.Kind.STUDENT_ROSTER: frozenset({"xlsx", "csv"}),
     ImportBatch.Kind.LEGACY_GRADINGS: frozenset({"xlsx"}),
 }
 
-_READY = "READY"
-_REVIEW_REQUIRED = "REVIEW_REQUIRED"
-_SKIP_EXISTING = "SKIP_EXISTING"
+
+class StudentImportRowOutcome(models.TextChoices):
+    READY = "READY", "Ready"
+    REVIEW_REQUIRED = "REVIEW_REQUIRED", "Needs review"
+    SKIP_EXISTING = "SKIP_EXISTING", "Skip - WKSA ID exists"
+
 
 _DATE_FORMATS: tuple[str, ...] = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y")
 
@@ -77,7 +85,7 @@ def create_import_batch(
         raise DjangoValidationError({"kind": [f"Unknown import kind {kind!r}."]})
 
     filename = upload.name or "upload"
-    suffix = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    suffix = file_suffix(filename)
     if suffix not in allowed:
         raise DjangoValidationError(
             {
@@ -89,13 +97,10 @@ def create_import_batch(
         )
 
     content = upload.read()
-    if len(content) > MAX_UPLOAD_BYTES:
+    limit = settings.IMPORT_UPLOAD_MAX_BYTES
+    if len(content) > limit:
         raise DjangoValidationError(
-            {
-                "file": [
-                    f"File exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)} MiB limit."
-                ]
-            },
+            {"file": [f"File exceeds the {limit / (1024 * 1024):g} MiB limit."]},
         )
 
     # Parse-validate before the file is ever persisted, so a malformed
@@ -147,14 +152,77 @@ def delete_batch_file(batch: ImportBatch) -> None:
         batch.source_file.delete(save=False)
 
 
-@transaction.atomic
-def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
+def _lock_uncommitted(batch: ImportBatch, verb: str) -> ImportBatch:
     locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
     if locked.status not in ImportBatch.UNCOMMITTED_STATUSES:
         raise DjangoValidationError(
-            {"batch": [f"Batch is already {locked.status} and cannot be cancelled."]},
+            {"batch": [f"Batch is already {locked.status} and cannot be {verb}."]},
         )
+    return locked
 
+
+def _read_source_file(batch: ImportBatch) -> bytes:
+    if not batch.source_file:
+        raise DjangoValidationError(
+            {
+                "batch": [
+                    "This batch's source file is no longer available "
+                    "(already committed, cancelled, or expired).",
+                ],
+            },
+        )
+    with batch.source_file.open("rb") as handle:
+        content: bytes = handle.read()
+    return content
+
+
+def _mark_committed(
+    locked: ImportBatch,
+    *,
+    actor: User,
+    summary: dict[str, int],
+    configuration: dict[str, Any],
+    record_count: int,
+    what: str,
+) -> ImportBatch:
+    """Close a committed batch: provenance, safe counts, file removed, and
+    one IMPORT_BATCH_COMMITTED event for the whole cascade."""
+    locked.status = ImportBatch.Status.COMMITTED
+    locked.committed_by = actor
+    locked.committed_at = timezone.now()
+    locked.summary_json = summary
+    locked.configuration_json = configuration
+    delete_batch_file(locked)
+    locked.save(
+        update_fields=[
+            "status",
+            "committed_by",
+            "committed_at",
+            "summary_json",
+            "configuration_json",
+            "source_file",
+            "updated_at",
+        ],
+    )
+    record(
+        AuditAction.IMPORT_BATCH_COMMITTED,
+        locked,
+        f"Import batch #{locked.pk} ({locked.kind}) committed: "
+        f"{record_count} {what} created.",
+        actor=actor,
+        metadata={
+            "batch_id": locked.pk,
+            "kind": locked.kind,
+            "sha256_prefix": locked.sha256[:12],
+            "record_count": record_count,
+        },
+    )
+    return locked
+
+
+@transaction.atomic
+def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
+    locked = _lock_uncommitted(batch, "cancelled")
     delete_batch_file(locked)
     locked.status = ImportBatch.Status.CANCELLED
     locked.cancelled_by = actor
@@ -179,17 +247,7 @@ def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
 
 
 def _load_batch_dataset(batch: ImportBatch) -> Any:
-    if not batch.source_file:
-        raise DjangoValidationError(
-            {
-                "batch": [
-                    "This batch's source file is no longer available "
-                    "(already committed, cancelled, or expired).",
-                ],
-            },
-        )
-    with batch.source_file.open("rb") as handle:
-        content = handle.read()
+    content = _read_source_file(batch)
     try:
         return load_tabular_dataset(content=content, filename=batch.original_filename)
     except UnsupportedImportFileError as exc:
@@ -313,11 +371,11 @@ def _classify_student_row(
     existing = Student.objects.filter(wksa_id=wksa_id).first() if wksa_id else None
 
     if existing is not None:
-        outcome = _SKIP_EXISTING
+        outcome = StudentImportRowOutcome.SKIP_EXISTING
     elif issues:
-        outcome = _REVIEW_REQUIRED
+        outcome = StudentImportRowOutcome.REVIEW_REQUIRED
     else:
-        outcome = _READY
+        outcome = StudentImportRowOutcome.READY
 
     return StudentImportRowResult(
         row_number=row_number,
@@ -354,9 +412,13 @@ def preview_student_import(
 
     return StudentImportPreview(
         total=len(rows),
-        ready=sum(1 for row in rows if row.outcome == _READY),
-        review_required=sum(1 for row in rows if row.outcome == _REVIEW_REQUIRED),
-        skip_existing=sum(1 for row in rows if row.outcome == _SKIP_EXISTING),
+        ready=sum(1 for row in rows if row.outcome == StudentImportRowOutcome.READY),
+        review_required=sum(
+            1 for row in rows if row.outcome == StudentImportRowOutcome.REVIEW_REQUIRED
+        ),
+        skip_existing=sum(
+            1 for row in rows if row.outcome == StudentImportRowOutcome.SKIP_EXISTING
+        ),
         rows=rows,
     )
 
@@ -369,24 +431,18 @@ def commit_student_import(
     column_mapping: dict[str, str],
     corrections: dict[str, dict[str, str]] | None = None,
 ) -> ImportBatch:
-    locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
-    if locked.status not in ImportBatch.UNCOMMITTED_STATUSES:
-        raise DjangoValidationError(
-            {
-                "batch": [
-                    f"Batch is already {locked.status} and cannot be committed again."
-                ]
-            },
-        )
+    locked = _lock_uncommitted(batch, "committed again")
 
     # Never trusts a stale frontend preview - re-runs the exact same
-    # validation against the source file right now (spec sections 10/20).
+    # validation against the source file right now.
     preview = preview_student_import(
         locked,
         column_mapping=column_mapping,
         corrections=corrections,
     )
-    ready_rows = [row for row in preview.rows if row.outcome == _READY]
+    ready_rows = [
+        row for row in preview.rows if row.outcome == StudentImportRowOutcome.READY
+    ]
 
     created = 0
     for row in ready_rows:
@@ -417,62 +473,28 @@ def commit_student_import(
         )
         created += 1
 
-    locked.status = ImportBatch.Status.COMMITTED
-    locked.committed_by = actor
-    locked.committed_at = timezone.now()
-    locked.summary_json = {
-        "total": preview.total,
-        "created": created,
-        "skipped_existing": preview.skip_existing,
-        "review_required": preview.review_required,
-    }
-    locked.configuration_json = {"column_mapping": column_mapping}
-    delete_batch_file(locked)
-    locked.save(
-        update_fields=[
-            "status",
-            "committed_by",
-            "committed_at",
-            "summary_json",
-            "configuration_json",
-            "source_file",
-            "updated_at",
-        ],
-    )
-
-    record(
-        AuditAction.IMPORT_BATCH_COMMITTED,
+    return _mark_committed(
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) committed: "
-        f"{created} student(s) created.",
         actor=actor,
-        metadata={
-            "batch_id": locked.pk,
-            "kind": locked.kind,
-            "sha256_prefix": locked.sha256[:12],
-            "record_count": created,
+        summary={
+            "total": preview.total,
+            "created": created,
+            "skipped_existing": preview.skip_existing,
+            "review_required": preview.review_required,
         },
+        configuration={"column_mapping": column_mapping},
+        record_count=created,
+        what="student(s)",
     )
-    return locked
 
 
 # --- historical grading workbook preview/commit -----------------------------
 
 
-def _load_legacy_workbook(batch: ImportBatch) -> list[CanonicalLegacyRow]:
-    if not batch.source_file:
-        raise DjangoValidationError(
-            {
-                "batch": [
-                    "This batch's source file is no longer available "
-                    "(already committed, cancelled, or expired).",
-                ],
-            },
-        )
-    with batch.source_file.open("rb") as handle:
-        content = handle.read()
+def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
+    content = _read_source_file(batch)
     try:
-        return parse_ksw_colchester_workbook(content).rows
+        return parse_ksw_colchester_workbook(content)
     except WorkbookStructureError as exc:
         raise DjangoValidationError({"batch": [str(exc)]}) from exc
 
@@ -500,8 +522,7 @@ class LegacyImportPreview:
 
 def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
     """Distinct source rank strings across the whole batch, not per-row -
-    the admin reviews each value once (spec section 17), however many rows
-    share it."""
+    the admin reviews each value once, however many rows share it."""
     seen_lower: set[str] = set()
     distinct: list[str] = []
     for row in rows:
@@ -518,8 +539,8 @@ def _normalise_rank_mappings(
     rank_mappings: dict[str, str | None] | None,
 ) -> dict[str, str]:
     """Lowercased source text -> chosen Rank code. A missing or null value
-    both mean "leave unresolved" - Decision 4/17 is that this never blocks
-    a row, unlike the student roster importer's required rank."""
+    both mean "leave unresolved" - import Decision 4 is that this never
+    blocks a row, unlike the student roster importer's required rank."""
     if not rank_mappings:
         return {}
     return {
@@ -529,29 +550,44 @@ def _normalise_rank_mappings(
     }
 
 
+def _rank_resolver(
+    normalised_mappings: dict[str, str],
+) -> Callable[[str], Rank | None]:
+    """Source rank text -> the administrator's chosen active Rank, if any."""
+    ranks_by_code = {
+        rank.code: rank
+        for rank in Rank.objects.filter(
+            code__in=set(normalised_mappings.values()),
+            active=True,
+        )
+    }
+
+    def resolve(text: str) -> Rank | None:
+        cleaned = text.strip()
+        if not cleaned:
+            return None
+        return ranks_by_code.get(normalised_mappings.get(cleaned.lower(), ""))
+
+    return resolve
+
+
 def preview_legacy_grading_import(
     batch: ImportBatch,
     *,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> LegacyImportPreview:
-    rows = _load_legacy_workbook(batch)
-    normalised_mappings = _normalise_rank_mappings(rank_mappings)
-    codes = set(normalised_mappings.values())
-    ranks_by_code = {
-        r.code: r for r in Rank.objects.filter(code__in=codes, active=True)
-    }
+    parsed = _load_legacy_workbook(batch)
+    rows = parsed.rows
+    resolve = _rank_resolver(_normalise_rank_mappings(rank_mappings))
 
-    def resolved(text: str) -> bool:
-        cleaned = text.strip()
-        if not cleaned:
-            return True
-        return normalised_mappings.get(cleaned.lower()) in ranks_by_code
+    def unresolved(text: str) -> bool:
+        return bool(text.strip()) and resolve(text) is None
 
     unresolved_current = sum(
-        1 for row in rows if not resolved(row.source_current_rank_text)
+        1 for row in rows if unresolved(row.source_current_rank_text)
     )
     unresolved_testing = sum(
-        1 for row in rows if not resolved(row.source_testing_for_rank_text)
+        1 for row in rows if unresolved(row.source_testing_for_rank_text)
     )
     unresolved_outcome = sum(
         1
@@ -586,7 +622,7 @@ def preview_legacy_grading_import(
         unresolved_current_rank=unresolved_current,
         unresolved_testing_for_rank=unresolved_testing,
         unresolved_outcome=unresolved_outcome,
-        warnings=[],
+        warnings=parsed.warnings,
         rank_suggestions=suggestions,
         rows=rows,
     )
@@ -599,30 +635,13 @@ def commit_legacy_grading_import(
     actor: User,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> ImportBatch:
-    locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
-    if locked.status not in ImportBatch.UNCOMMITTED_STATUSES:
-        raise DjangoValidationError(
-            {
-                "batch": [
-                    f"Batch is already {locked.status} and cannot be committed again."
-                ]
-            },
-        )
+    locked = _lock_uncommitted(batch, "committed again")
 
     # Never trusts a stale frontend preview - re-parses the source file and
-    # re-resolves every rank mapping right now (spec sections 10/20).
-    rows = _load_legacy_workbook(locked)
+    # re-resolves every rank mapping right now.
+    rows = _load_legacy_workbook(locked).rows
     normalised_mappings = _normalise_rank_mappings(rank_mappings)
-    codes = set(normalised_mappings.values())
-    ranks_by_code = {
-        r.code: r for r in Rank.objects.filter(code__in=codes, active=True)
-    }
-
-    def resolve(text: str) -> Rank | None:
-        cleaned = text.strip()
-        if not cleaned:
-            return None
-        return ranks_by_code.get(normalised_mappings.get(cleaned.lower(), ""))
+    resolve = _rank_resolver(normalised_mappings)
 
     counts: dict[str, int] = {
         LegacyRecordKind.GRADING_RESULT: 0,
@@ -660,45 +679,21 @@ def commit_legacy_grading_import(
         if row.source_testing_for_rank_text.strip() and testing_for_rank is None:
             unresolved_testing += 1
 
-    locked.status = ImportBatch.Status.COMMITTED
-    locked.committed_by = actor
-    locked.committed_at = timezone.now()
-    locked.summary_json = {
-        "total": len(rows),
-        "grading_result": counts[LegacyRecordKind.GRADING_RESULT],
-        "auxiliary_note": counts[LegacyRecordKind.AUXILIARY_NOTE],
-        "did_not_attend": counts[LegacyRecordKind.DID_NOT_ATTEND],
-        "unresolved_current_rank": unresolved_current,
-        "unresolved_testing_for_rank": unresolved_testing,
-    }
-    locked.configuration_json = {"rank_mappings": normalised_mappings}
-    delete_batch_file(locked)
-    locked.save(
-        update_fields=[
-            "status",
-            "committed_by",
-            "committed_at",
-            "summary_json",
-            "configuration_json",
-            "source_file",
-            "updated_at",
-        ],
-    )
-
-    record(
-        AuditAction.IMPORT_BATCH_COMMITTED,
+    return _mark_committed(
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) committed: "
-        f"{len(rows)} historical record(s) created.",
         actor=actor,
-        metadata={
-            "batch_id": locked.pk,
-            "kind": locked.kind,
-            "sha256_prefix": locked.sha256[:12],
-            "record_count": len(rows),
+        summary={
+            "total": len(rows),
+            "grading_result": counts[LegacyRecordKind.GRADING_RESULT],
+            "auxiliary_note": counts[LegacyRecordKind.AUXILIARY_NOTE],
+            "did_not_attend": counts[LegacyRecordKind.DID_NOT_ATTEND],
+            "unresolved_current_rank": unresolved_current,
+            "unresolved_testing_for_rank": unresolved_testing,
         },
+        configuration={"rank_mappings": normalised_mappings},
+        record_count=len(rows),
+        what="historical record(s)",
     )
-    return locked
 
 
 __all__ = [
@@ -707,6 +702,7 @@ __all__ = [
     "LegacyImportPreview",
     "RankMappingSuggestion",
     "StudentImportPreview",
+    "StudentImportRowOutcome",
     "StudentImportRowResult",
     "cancel_import_batch",
     "commit_legacy_grading_import",

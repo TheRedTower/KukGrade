@@ -9,11 +9,14 @@ is when the history matters most.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+
+if TYPE_CHECKING:
+    from accounts.models import User
 
 IMMUTABLE_MESSAGE = "Audit events are append-only and cannot be changed or deleted."
 
@@ -66,11 +69,10 @@ class AuditAction(models.TextChoices):
 
 
 # Logistics - who runs the roster - is an administrator concern, the same
-# boundary the Users API itself draws. An instructor cannot open
-# /api/users/ at all; reading who was created, edited, or granted Master
-# authority through the audit log instead would be the same information
-# through a side door. Every other action stays visible to any signed-in
-# user, matching that everyone can already read grading decisions directly.
+# boundary the Users API itself draws. A Master or a holder of
+# can_view_grading_audit_log who cannot open /api/users/ must not read who
+# was created, edited, or granted authority through the audit log instead:
+# the same information through a side door. See AuditEventQuerySet.visible_to.
 USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
     AuditAction.USER_CREATED,
     AuditAction.USER_UPDATED,
@@ -80,6 +82,14 @@ USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
 
 
 class AuditEventQuerySet(models.QuerySet["AuditEvent"]):
+    def visible_to(self, user: User) -> AuditEventQuerySet:
+        """The events `user` may read, once permitted to read the log at all
+        (accounts.permissions.can_view_audit_log). Shared by the API and
+        Django admin so the two cannot disagree."""
+        if user.has_perm("accounts.view_user"):
+            return self
+        return self.exclude(action__in=USER_MANAGEMENT_ACTIONS)
+
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})
 

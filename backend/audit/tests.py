@@ -5,15 +5,23 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+from django.contrib.admin.sites import site as admin_site
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
+from django.http import HttpRequest
+from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from audit.admin import AuditEventAdmin
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
+from audit.testing import (
+    draft_session_with_candidates,
+    locked_completed_candidate_with_outcome,
+)
 from gradings.models import CandidateOutcome, GradingSession
 
 pytestmark = pytest.mark.django_db
@@ -99,8 +107,6 @@ def test_entity_reference_is_stored_as_plain_strings() -> None:
 
 def test_revising_a_proposal_records_what_it_said_before() -> None:
     from gradings.services import propose_candidate_outcome
-
-    from .conftest_helpers import locked_completed_candidate_with_outcome
 
     outcome, first, second = locked_completed_candidate_with_outcome()
 
@@ -191,8 +197,6 @@ def test_a_refused_action_records_nothing() -> None:
 
 
 def test_a_full_grading_writes_the_expected_trail() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     outcome, _first, _second = locked_completed_candidate_with_outcome()
 
     recorded = list(
@@ -215,8 +219,6 @@ def test_a_full_grading_writes_the_expected_trail() -> None:
 
 
 def test_every_event_names_who_did_it() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
 
     unattributed = AuditEvent.objects.filter(actor__isnull=True)
@@ -229,8 +231,6 @@ def test_every_event_names_who_did_it() -> None:
 
 
 def test_plain_instructor_cannot_read_the_log() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(user=user("audit-plain-instructor@example.com"))
@@ -239,8 +239,6 @@ def test_plain_instructor_cannot_read_the_log() -> None:
 
 
 def test_administrator_can_read_the_log() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(
@@ -257,8 +255,6 @@ def test_administrator_can_read_the_log() -> None:
 
 
 def test_master_authority_instructor_can_read_the_log() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(user=master("audit-master-reader@example.com"))
@@ -274,8 +270,6 @@ def test_anonymous_users_cannot_read_the_log() -> None:
 
 
 def test_the_log_is_filterable_so_marking_does_not_drown_decisions() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     outcome, _first, _second = locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(user=master("audit-filter@example.com"))
@@ -323,8 +317,6 @@ def test_the_log_is_read_only_over_http() -> None:
 
 
 def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(user=master("audit-badfilter@example.com"))
@@ -333,8 +325,6 @@ def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> Non
 
 
 def test_deleting_a_session_records_what_was_cascaded_away() -> None:
-    from .conftest_helpers import draft_session_with_candidates
-
     session, candidates = draft_session_with_candidates()
     actor = User.objects.get(email="audit-creator@example.com")
 
@@ -417,8 +407,6 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
 
 
 def test_master_authority_instructor_still_sees_every_other_action_in_the_log() -> None:
-    from .conftest_helpers import locked_completed_candidate_with_outcome
-
     locked_completed_candidate_with_outcome()
     client = APIClient()
     client.force_authenticate(
@@ -433,3 +421,71 @@ def test_master_authority_instructor_still_sees_every_other_action_in_the_log() 
     actions = {row["action"] for row in response.json()["results"]}
     assert AuditAction.SESSION_CREATED in actions
     assert AuditAction.CANDIDATE_REGISTERED in actions
+
+
+# ---------------------------------------------------------------------------
+# The grantable audit-log permission, and API/admin parity
+# ---------------------------------------------------------------------------
+
+
+def audit_log_reader(email: str) -> User:
+    """A plain instructor granted only can_view_grading_audit_log."""
+    return grant(user(email), "can_view_grading_audit_log", "candidateoutcome")
+
+
+def user_created_event() -> AuditEvent:
+    from accounts.services import create_platform_user
+
+    created = create_platform_user(
+        email="audit-parity-target@example.com",
+        password="Str0ng-Passphrase!42",
+        actor=administrator("audit-parity-admin@example.com"),
+    )
+    return AuditEvent.objects.get(
+        action=AuditAction.USER_CREATED,
+        entity_id=str(created.pk),
+    )
+
+
+def admin_view(viewer: User) -> tuple[AuditEventAdmin, HttpRequest]:
+    request = RequestFactory().get("/admin/audit/auditevent/")
+    request.user = viewer
+    return AuditEventAdmin(AuditEvent, admin_site), request
+
+
+def test_granted_instructor_can_read_the_log_but_not_user_management() -> None:
+    locked_completed_candidate_with_outcome()
+    user_event = user_created_event()
+    client = APIClient()
+    client.force_authenticate(user=audit_log_reader("audit-granted@example.com"))
+
+    listing = client.get("/api/audit-events/?page_size=200")
+
+    assert listing.status_code == 200
+    actions = {row["action"] for row in listing.json()["results"]}
+    assert AuditAction.SESSION_CREATED in actions
+    assert AuditAction.USER_CREATED not in actions
+    assert client.get(f"/api/audit-events/{user_event.pk}/").status_code == 404
+
+
+def test_admin_grants_the_log_exactly_as_the_api_does() -> None:
+    cases = [
+        (user("audit-admin-plain@example.com"), False),
+        (audit_log_reader("audit-admin-granted@example.com"), True),
+        (master("audit-admin-master@example.com"), True),
+        (administrator("audit-admin-administrator@example.com"), True),
+    ]
+    for viewer, expected in cases:
+        model_admin, request = admin_view(viewer)
+        assert model_admin.has_module_permission(request) is expected, viewer.email
+        assert model_admin.has_view_permission(request) is expected, viewer.email
+
+
+def test_admin_hides_user_management_events_exactly_as_the_api_does() -> None:
+    user_event = user_created_event()
+
+    master_admin, master_request = admin_view(master("audit-admin-m@example.com"))
+    admin_admin, admin_request = admin_view(administrator("audit-admin-a@example.com"))
+
+    assert user_event not in master_admin.get_queryset(master_request)
+    assert user_event in admin_admin.get_queryset(admin_request)

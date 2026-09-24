@@ -14,9 +14,10 @@ and every 400 degraded to a generic string.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, NoReturn
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404, HttpRequest, JsonResponse
 from rest_framework import exceptions, status
 from rest_framework.response import Response
@@ -88,6 +89,18 @@ def _validation_payload(detail: Any) -> dict[str, Any]:
 
 def _error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
     return {"error": {"code": code, "message": message}}
+
+
+def raise_drf_validation_error(exc: DjangoValidationError) -> NoReturn:
+    """Re-raise a domain-service ValidationError as DRF's, keeping field keys.
+
+    Services raise Django's ValidationError so they stay usable from admin
+    and the shell; views and serializers translate it here so the error
+    envelope above can report it per field.
+    """
+    if hasattr(exc, "message_dict"):
+        raise exceptions.ValidationError(exc.message_dict) from exc
+    raise exceptions.ValidationError(exc.messages) from exc
 
 
 def custom_exception_handler(

@@ -131,7 +131,6 @@ def test_valid_syllabus_requirement_can_be_created() -> None:
     assert requirement.age_band == AgeBand.AGE_9_TO_12
     assert requirement.required is True
     assert requirement.sequence == 100
-    assert requirement.has_numbered_range is True
     assert requirement.display_range == "1-5"
     assert requirement.active is True
 
@@ -231,7 +230,6 @@ def test_null_range_is_allowed_for_non_numbered_requirements() -> None:
         **requirement_kwargs(start_number=None, end_number=None),
     )
 
-    assert requirement.has_numbered_range is False
     assert requirement.display_range == ""
 
 

@@ -9,7 +9,7 @@ import {
   createCandidateOutcome,
   proposeCandidateOutcome,
 } from "./api";
-import { RankVisual } from "./GradingSessionDetailScreen";
+import { RankVisual } from "./RankVisual";
 import { useDialogFocus } from "./useDialogFocus";
 import "./OutcomeDrawers.css";
 
@@ -160,12 +160,12 @@ export function OutcomeProposalDrawer({
 
             <div className="opd-rank-progression" aria-label="Rank progression">
               <div className="opd-rank-chip" title={`Current Rank: ${currentRankName}`}>
-                <RankVisual rankName={currentRankName} />
+                <RankVisual classPrefix="gsd" rankName={currentRankName} />
                 <span>{currentRankName}</span>
               </div>
               <span className="opd-rank-arrow" aria-hidden="true">→</span>
               <div className="opd-rank-chip opd-rank-chip-target" title={`Grading for: ${targetRankName}`}>
-                <RankVisual rankName={targetRankName} />
+                <RankVisual classPrefix="gsd" rankName={targetRankName} />
                 <span>{targetRankName}</span>
               </div>
             </div>

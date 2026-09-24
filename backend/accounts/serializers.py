@@ -10,33 +10,60 @@ from rest_framework import serializers
 
 from accounts.models import User
 from accounts.permissions import (
+    AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
 from accounts.services import (
-    AUTHORITY_PERMISSIONS,
     create_platform_user,
     record_password_reset,
     set_user_authority,
     update_platform_user,
 )
-from gradings.serializers import raise_drf_validation_error
+from kukgrade.exceptions import raise_drf_validation_error
 
 security_logger = logging.getLogger("kukgrade.security")
 
 
-class UserSerializer(serializers.ModelSerializer):
+def _validated_password(value: str, user: User | None) -> str:
+    """Run Django's configured validators, reported as a DRF field error."""
+    try:
+        validate_password(value, user=user)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError(list(exc.messages)) from exc
+    return value
+
+
+class HasPermission(serializers.BooleanField):
+    """Read-only: whether the serialized user holds `permission`.
+
+    Computed from the permission that actually gates the action, so the UI
+    cannot disagree with what the server will allow.
+    """
+
+    def __init__(self, permission: str) -> None:
+        self.permission = permission
+        super().__init__(source="*", read_only=True)
+
+    def to_representation(self, value: Any) -> bool:
+        return bool(value.has_perm(self.permission))
+
+
+# The four per-user authority flags, spelled as AUTHORITY_PERMISSIONS. A
+# comment rather than a docstring: drf-spectacular would otherwise inherit it
+# as the OpenAPI description of every serializer that mixes this in.
+class AuthorityFields(serializers.Serializer):
+    can_make_final_grading_decision = HasPermission(FINAL_GRADING_DECISION_PERMISSION)
+    can_promote_student = HasPermission(PROMOTE_STUDENT_PERMISSION)
+    can_override_locked_session = HasPermission(OVERRIDE_LOCKED_SESSION_PERMISSION)
+    can_view_grading_audit_log = HasPermission(GRADING_AUDIT_LOG_PERMISSION)
+
+
+class UserSerializer(AuthorityFields, serializers.ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
-    # Computed from the permissions that actually gate these actions, so the
-    # UI cannot disagree with what the server will allow. This key was once a
-    # model field that nothing consulted; it now means what it says.
-    can_make_final_grading_decision = serializers.SerializerMethodField()
-    can_promote_student = serializers.SerializerMethodField()
-    can_override_locked_session = serializers.SerializerMethodField()
-    can_view_grading_audit_log = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -57,23 +84,6 @@ class UserSerializer(serializers.ModelSerializer):
             "is_superuser",
         )
         read_only_fields: tuple[str, ...] = fields
-
-    def get_can_make_final_grading_decision(self, obj: User) -> bool:
-        return obj.has_perm(FINAL_GRADING_DECISION_PERMISSION)
-
-    def get_can_promote_student(self, obj: User) -> bool:
-        return obj.has_perm(PROMOTE_STUDENT_PERMISSION)
-
-    def get_can_override_locked_session(self, obj: User) -> bool:
-        # Added after can_make_final_grading_decision / can_promote_student:
-        # this permission did not exist yet when those two were written, and
-        # nothing updated this serializer when it was introduced in the
-        # locked-session-exit work. Found while building the users API,
-        # which reuses this exact shape - fixed here rather than propagated.
-        return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
-
-    def get_can_view_grading_audit_log(self, obj: User) -> bool:
-        return obj.has_perm(GRADING_AUDIT_LOG_PERMISSION)
 
 
 class SelfProfileSerializer(UserSerializer):
@@ -131,7 +141,7 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
-class UserManagementSerializer(serializers.ModelSerializer):
+class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
     Deliberately separate from UserSerializer, which is a fixed read-only
@@ -143,10 +153,6 @@ class UserManagementSerializer(serializers.ModelSerializer):
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
-    can_make_final_grading_decision = serializers.SerializerMethodField()
-    can_promote_student = serializers.SerializerMethodField()
-    can_override_locked_session = serializers.SerializerMethodField()
-    can_view_grading_audit_log = serializers.SerializerMethodField()
     # write_only and required at the class level, for create. Removed
     # entirely on update in __init__, below, rather than merely marked
     # optional: password changes go through the dedicated set-password
@@ -202,18 +208,6 @@ class UserManagementSerializer(serializers.ModelSerializer):
         if self.instance is not None:
             del self.fields["password"]
 
-    def get_can_make_final_grading_decision(self, obj: User) -> bool:
-        return obj.has_perm(FINAL_GRADING_DECISION_PERMISSION)
-
-    def get_can_promote_student(self, obj: User) -> bool:
-        return obj.has_perm(PROMOTE_STUDENT_PERMISSION)
-
-    def get_can_override_locked_session(self, obj: User) -> bool:
-        return obj.has_perm(OVERRIDE_LOCKED_SESSION_PERMISSION)
-
-    def get_can_view_grading_audit_log(self, obj: User) -> bool:
-        return obj.has_perm(GRADING_AUDIT_LOG_PERMISSION)
-
     def validate_password(self, value: str) -> str:
         # This only ever runs on create - update() has no password field, see
         # __init__ above. Without an unsaved User built from the other
@@ -225,11 +219,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
             first_name=self.initial_data.get("first_name", ""),
             last_name=self.initial_data.get("last_name", ""),
         )
-        try:
-            validate_password(value, user=candidate)
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages)) from exc
-        return value
+        return _validated_password(value, candidate)
 
     def create(self, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
@@ -269,9 +259,6 @@ class UserAuthoritySerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
 
-    def create(self, validated_data: dict[str, Any]) -> User:
-        raise NotImplementedError
-
 
 class SetPasswordSerializer(serializers.Serializer):
     """POST /api/users/{id}/set-password/.
@@ -287,11 +274,7 @@ class SetPasswordSerializer(serializers.Serializer):
     )
 
     def validate_password(self, value: str) -> str:
-        try:
-            validate_password(value, user=self.instance)
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages)) from exc
-        return value
+        return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
@@ -300,9 +283,6 @@ class SetPasswordSerializer(serializers.Serializer):
         instance.save(update_fields=["password", "must_change_password"])
         record_password_reset(instance, actor=request.user)
         return instance
-
-    def create(self, validated_data: dict[str, Any]) -> User:
-        raise NotImplementedError
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -332,11 +312,7 @@ class ChangePasswordSerializer(serializers.Serializer):
         return value
 
     def validate_new_password(self, value: str) -> str:
-        try:
-            validate_password(value, user=self.instance)
-        except DjangoValidationError as exc:
-            raise serializers.ValidationError(list(exc.messages)) from exc
-        return value
+        return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
@@ -345,6 +321,3 @@ class ChangePasswordSerializer(serializers.Serializer):
         instance.save(update_fields=["password", "must_change_password"])
         record_password_reset(instance, actor=request.user)
         return instance
-
-    def create(self, validated_data: dict[str, Any]) -> User:
-        raise NotImplementedError

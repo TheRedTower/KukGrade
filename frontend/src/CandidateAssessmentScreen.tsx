@@ -18,6 +18,7 @@ import {
   updateCandidateAssessmentItem,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
+import { RankVisual } from "./RankVisual";
 import "./CandidateAssessment.css";
 
 function formatTimeOnly(isoStr: string | null): string {
@@ -33,38 +34,6 @@ function formatTimeOnly(isoStr: string | null): string {
   }
 }
 
-function RankVisual({ rankName }: { rankName: string }) {
-  const isStripe = rankName.toLowerCase().includes("stripe");
-  const lower = rankName.toLowerCase();
-
-  let color = "#94a3b8"; // default
-  if (lower.includes("yellow")) color = "#eab308";
-  else if (lower.includes("blue")) color = "#2563eb";
-  else if (lower.includes("red")) color = "#dc2626";
-  else if (lower.includes("brown")) color = "#78350f";
-  else if (lower.includes("black") || lower.includes("dahn") || lower.includes("pu sa")) color = "#0f172a";
-
-  if (isStripe) {
-    return (
-      <span
-        className="caw-rank-stripes"
-        style={{ "--rank-color": color } as React.CSSProperties}
-        aria-hidden="true"
-      >
-        <span className="caw-stripe-bar" />
-        <span className="caw-stripe-bar" />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="caw-rank-dot"
-      style={{ backgroundColor: color }}
-      aria-hidden="true"
-    />
-  );
-}
 
 interface CategoryGroup {
   category: string;
@@ -452,12 +421,12 @@ export function CandidateAssessmentScreen() {
               )}
               <div className="caw-rank-pills">
                 <span className="caw-rank-tag">
-                  {studentRankName && <RankVisual rankName={studentRankName} />}
+                  {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
                   <span>{studentRankName || "Current Rank"}</span>
                 </span>
                 <span aria-hidden="true" className="caw-rank-arrow">→</span>
                 <span className="caw-rank-tag caw-rank-tag-dest">
-                  <RankVisual rankName={candidate.testing_for_rank_name} />
+                  <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
                   <span>{candidate.testing_for_rank_name}</span>
                 </span>
                 <span className="caw-age-pill">{candidate.age_band_display}</span>
@@ -642,17 +611,17 @@ export function CandidateAssessmentScreen() {
           )}
           <div className="caw-rank-pills">
             <span className="caw-rank-tag">
-              {studentRankName && <RankVisual rankName={studentRankName} />}
+              {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
               <span>{studentRankName || "Current Rank"}</span>
             </span>
             <span aria-hidden="true" className="caw-rank-arrow">→</span>
             <span className="caw-rank-tag caw-rank-tag-dest">
-              <RankVisual rankName={candidate.testing_for_rank_name} />
+              <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
               <span>{candidate.testing_for_rank_name}</span>
             </span>
             <span className="caw-age-pill">{candidate.age_band_display}</span>
             <span
-              className={`caw-status-pill caw-status-${assessment?.status?.toLowerCase() || "not-started"}`}
+              className={`caw-status-pill caw-status-${(assessment?.status ?? "NOT_STARTED").toLowerCase()}`}
             >
               <span className="caw-status-dot" aria-hidden="true" />
               {assessment?.status_display || "Not started"}

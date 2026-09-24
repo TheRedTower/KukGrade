@@ -1,3 +1,6 @@
+// DOM matchers (toBeInTheDocument, toHaveFocus, ...) for every test file.
+import "@testing-library/jest-dom/vitest";
+
 // This jsdom build does not implement localStorage either (window.localStorage
 // is undefined, not throwing) - both auth.tsx and useTheme.ts already treat a
 // throwing localStorage as "unavailable, fall back gracefully", but a

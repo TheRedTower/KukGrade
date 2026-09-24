@@ -180,6 +180,25 @@ describe("UserDetailScreen", () => {
     expect(await screen.findByText(/Temporary password set/)).toBeInTheDocument();
   });
 
+  it("cannot close the password dialog while the reset is in flight", async () => {
+    const user = userEvent.setup();
+    mockResetManagedUserPassword.mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    await user.click(screen.getByRole("button", { name: "Set new password" }));
+    const dialog = screen.getByRole("dialog", { name: "Set a temporary password" });
+    await user.type(within(dialog).getByLabelText("Temporary password"), "Replacement-Password-2026!");
+    await user.type(within(dialog).getByLabelText("Confirm password"), "Replacement-Password-2026!");
+    await user.click(within(dialog).getByRole("button", { name: "Set password" }));
+
+    await waitFor(() => expect(mockResetManagedUserPassword).toHaveBeenCalled());
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "Set a temporary password" })).toBeInTheDocument();
+  });
+
   it("prevents self-service role, status, and authority changes", async () => {
     currentUser = { ...currentUser, id: "target-user" };
     renderScreen();

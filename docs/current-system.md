@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-24. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-24 with 633 backend tests and 194 frontend tests passing
+Verified on 2026-09-24 with 633 backend tests and 196 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production

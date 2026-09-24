@@ -76,7 +76,7 @@ function CreateUserDialog({
             <p>Administrator action</p>
             <h2 id="create-user-title">Add staff user</h2>
           </div>
-          <button type="button" className="users-link-button" onClick={onClose}>
+          <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>
             Close
           </button>
         </header>
@@ -173,7 +173,7 @@ function CreateUserDialog({
             </div>
           )}
           <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose}>
+            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>
               Cancel
             </button>
             <button type="submit" className="users-primary-button" disabled={mutation.isPending}>

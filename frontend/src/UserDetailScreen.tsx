@@ -248,7 +248,7 @@ function PasswordResetDialog({
       <section ref={dialogRef} tabIndex={-1} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
         <header>
           <div><p>Security action</p><h2 id="reset-password-title">Set a temporary password</h2></div>
-          <button type="button" className="users-link-button" onClick={onClose}>Close</button>
+          <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>Close</button>
         </header>
         <form onSubmit={(event) => {
           event.preventDefault();
@@ -292,7 +292,7 @@ function PasswordResetDialog({
           )}
           {(clientError || error) && <div className="users-error" role="alert">{clientError || error?.message}</div>}
           <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose}>Cancel</button>
+            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
             <button type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : "Set password"}</button>
           </div>
         </form>

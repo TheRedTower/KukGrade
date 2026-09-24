@@ -5209,6 +5209,52 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   // The previous screen showed assessor and time only on not-met rows, so
   // "who marked this, and when" was invisible across most of the record.
+  // Opening the confirmation unmounts the `Clear` button that was focused. If
+  // focus is not moved deliberately it falls back to the document, dropping a
+  // keyboard user out of a destructive prompt they just opened.
+  it("moves focus into the clear confirmation and back out on cancel", async () => {
+    const user = userEvent.setup();
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    await user.click(screen.getByTestId("btn-clear-1001"));
+
+    // Focus lands on the safe action, not on the document.
+    const confirm = screen.getByTestId("caw-clear-confirm-1001");
+    const keep = within(confirm).getByRole("button", { name: "Keep" });
+    await waitFor(() => expect(keep).toHaveFocus());
+
+    // Escape backs out, and focus returns to the control that opened it.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getByTestId("btn-clear-1001")).toHaveFocus());
+  });
   it("renders assessor attribution on met rows, not only on failures", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);

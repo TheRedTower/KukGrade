@@ -17,7 +17,7 @@
  * Counts are served, never recounted here (FDR-046) - see
  * `candidateAssessmentData.ts`.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth";
@@ -616,6 +616,33 @@ function AssessmentItemRow({
   onUpdateNotes: (notes: string) => void;
 }) {
   const [notesValue, setNotesValue] = useState(item.assessor_notes || "");
+  const keepButtonRef = useRef<HTMLButtonElement>(null);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const metButtonRef = useRef<HTMLButtonElement>(null);
+  const wasConfirmingRef = useRef(false);
+
+  /*
+    Opening the confirmation unmounts the `Clear` button that was focused, so
+    without this a keyboard user is dropped back to the document instead of
+    into the destructive prompt. Focus lands on the safe action.
+
+    This is deliberately not `useDialogFocus`: that hook is for modals, and it
+    hides body overflow and traps Tab. This confirmation is inline in a
+    scrolling list and must not do either.
+  */
+  useEffect(() => {
+    if (isConfirmingClear) {
+      keepButtonRef.current?.focus();
+      wasConfirmingRef.current = true;
+      return;
+    }
+    if (wasConfirmingRef.current) {
+      wasConfirmingRef.current = false;
+      // After a cancel the `Clear` button is back. After a confirmed clear the
+      // row has no result, so it is gone and the verdicts take focus instead.
+      (clearButtonRef.current ?? metButtonRef.current)?.focus();
+    }
+  }, [isConfirmingClear]);
 
   const commitNotes = () => {
     if (notesValue !== (item.assessor_notes || "")) {
@@ -676,6 +703,12 @@ function AssessmentItemRow({
             aria-label={`Confirm clearing the result for ${item.item_name}`}
             className="caw-clear-confirm"
             data-testid={`caw-clear-confirm-${item.id}`}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                onCancelClear();
+              }
+            }}
           >
             <p>
               Clearing also erases{" "}
@@ -683,7 +716,7 @@ function AssessmentItemRow({
               be restored.
             </p>
             <div className="caw-clear-confirm-actions">
-              <button type="button" className="btn-secondary" onClick={onCancelClear}>
+              <button type="button" className="btn-secondary" onClick={onCancelClear} ref={keepButtonRef}>
                 Keep
               </button>
               <button
@@ -705,6 +738,7 @@ function AssessmentItemRow({
               onClick={() => onUpdateResult("MET")}
               aria-pressed={item.result === "MET"}
               data-testid={`btn-met-${item.id}`}
+              ref={metButtonRef}
             >
               <CheckIcon />
               Met
@@ -730,7 +764,13 @@ function AssessmentItemRow({
             </button>
             {/* Clearing is only offered once there is a result to clear. */}
             {isScored && (
-              <button type="button" className="caw-row-tool" onClick={onAskClear} data-testid={`btn-clear-${item.id}`}>
+              <button
+                type="button"
+                className="caw-row-tool"
+                onClick={onAskClear}
+                data-testid={`btn-clear-${item.id}`}
+                ref={clearButtonRef}
+              >
                 Clear
               </button>
             )}

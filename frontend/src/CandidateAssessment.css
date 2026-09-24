@@ -928,7 +928,15 @@
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
 
-@media (max-width: 900px) {
+@media (max-width: 56rem) {
+  /*
+    The run stops owning the viewport and flows with the page, so the mat bar
+    can no longer be pinned by the flex column. `position: sticky` would not
+    rescue it: the bar sits after the whole syllabus, and sticky never pulls an
+    element that has not yet been scrolled to into view. It is fixed to the
+    viewport instead, which is safe here because the nav rail becomes a top row
+    at this width rather than a bottom bar.
+  */
   .caw-run {
     height: auto;
   }
@@ -967,9 +975,16 @@
   }
 
   .caw-mat-bar {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
     z-index: 3;
+  }
+
+  /* Clear the fixed bar so the last requirement is never hidden behind it. */
+  .caw-run-scroll {
+    padding-bottom: 7rem;
   }
 
   .caw-mat-track {

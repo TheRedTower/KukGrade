@@ -149,8 +149,9 @@ entry.
   assessment) were fixed. Loading states use `role="status"`; field-level
   validation errors use `role="alert"` and are wired to their input via
   `aria-describedby` (AddStudentScreen, the student edit modal, and both
-  user-management dialogs); the candidate-assessment progress ledger is
-  `aria-live="polite"`. `UsersScreen`'s table now has `scope="col"` headers
+  user-management dialogs); the candidate-assessment live count is
+  `aria-live="polite"` (the progress ledger until 2026-09-24, the mat bar
+  since). `UsersScreen`'s table now has `scope="col"` headers
   like every other table in the app. A global `prefers-reduced-motion: reduce`
   override was added (`theme.css`) - previously only one component respected
   it, leaving ~10 modal/drawer/spinner animations unguarded. Fixed four
@@ -306,6 +307,19 @@ entry.
   locking, and reasoned locked-session withdrawal only for a user with override
   authority. Individual assessment actions remain available for exceptions,
   and withdrawn records retain their reason, note, actor and timestamp.
+- **Mat-side scoring is the Single Column Run (2026-09-24)**: SCR-026/FDR-042
+  replaced SCR-019's dual-pane workspace. There is no category sub-rail -
+  `CandidateAssessmentScreen` renders every requirement in one scroll in
+  syllabus order, under sticky category headers that carry their own required
+  progress. Requirement rows are divider-led rather than cards (FDR-008), and
+  scoring offers two verdict targets: `NOT_ASSESSED` is an undo, not a peer, so
+  it is a `Clear` that confirms inline and names the assessor and time it
+  erases (FDR-045) - the `candidate_item_assessor_matches_result` constraint
+  nulls both, and they cannot be restored. Assessor attribution renders on
+  every scored row, not only failures; per-item notes are a textarea rather
+  than a single-line input; and the live required count plus the completion
+  action sit in a persistent mat bar. A `COMPLETED` assessment offers no
+  scoring, note or clear affordance.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCR-019 & SCR-020: Candidate Assessment Workspace & Completion Review
+   SCR-026 & SCR-020: Mat-side scoring (Single Column Run) & completion review
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .caw-page {
@@ -30,24 +30,6 @@
   text-decoration: underline;
 }
 
-/* ── Header Banner ───────────────────────────────────────────────────────── */
-
-.caw-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.caw-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .caw-candidate-name {
   margin: 0;
   font-size: 1.85rem;
@@ -62,21 +44,6 @@
   gap: 0.4rem;
   font-size: 0.85rem;
   color: var(--color-text-muted);
-}
-
-.caw-wksa-label {
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-}
-
-.caw-rank-pills {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-  margin-top: 0.25rem;
 }
 
 .caw-rank-tag {
@@ -172,14 +139,6 @@
   border-radius: 1px;
 }
 
-/* Complete Assessment CTA in Header */
-
-.caw-header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .caw-complete-action-btn {
   font-size: 0.92rem;
   font-weight: 600;
@@ -210,75 +169,6 @@
   padding: 0.75rem 1.25rem;
 }
 
-/* ── Progress Ledger Banner ──────────────────────────────────────────────── */
-
-.caw-progress-ledger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.25rem;
-  flex-wrap: wrap;
-  padding: 0.85rem 1.25rem;
-  border-radius: 8px;
-  background: var(--color-warning-surface);
-  border: 1px solid rgba(185, 118, 10, 0.2);
-}
-
-.caw-progress-main {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  font-size: 0.95rem;
-  color: var(--color-text);
-}
-
-.caw-progress-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-warning);
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 0.8rem;
-}
-
-.caw-progress-chips {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.caw-chip {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.25rem 0.65rem;
-  border-radius: 4px;
-}
-
-.caw-chip-met {
-  background: rgba(30, 125, 75, 0.15);
-  color: var(--color-success);
-  border: 1px solid rgba(30, 125, 75, 0.25);
-}
-
-.caw-chip-not-met {
-  background: rgba(180, 35, 24, 0.15);
-  color: var(--color-danger);
-  border: 1px solid rgba(180, 35, 24, 0.25);
-}
-
-.caw-chip-not-assessed {
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-}
-
 /* ── Not Started Prompt Banner ───────────────────────────────────────────── */
 
 .caw-not-started-banner {
@@ -293,7 +183,7 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-.caw-not-started-content h3 {
+.caw-not-started-content h2 {
   margin: 0 0 0.25rem 0;
   font-size: 1.05rem;
   color: var(--color-text);
@@ -303,344 +193,6 @@
   margin: 0;
   font-size: 0.88rem;
   color: var(--color-text-muted);
-}
-
-/* ── Dual-Pane Layout (FDR-032) ──────────────────────────────────────────── */
-
-.caw-dual-pane {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .caw-dual-pane {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ── Left Category Sub-Rail ──────────────────────────────────────────────── */
-
-.caw-category-rail {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 0.75rem;
-  position: sticky;
-  top: 1rem;
-}
-
-.caw-category-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.caw-category-tab {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 6px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.9rem;
-  text-align: left;
-  transition: all 0.15s ease;
-  min-height: 48px;
-}
-
-.caw-category-tab:hover {
-  background: var(--color-surface-sunken);
-}
-
-.caw-tab-active {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-gold);
-  box-shadow: 0 0 0 1px var(--color-gold);
-  font-weight: 600;
-}
-
-.caw-tab-title {
-  display: flex;
-  flex-direction: column;
-}
-
-.caw-tab-korean {
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  font-weight: normal;
-}
-
-.caw-tab-done-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  background: rgba(30, 125, 75, 0.12);
-  color: var(--color-success);
-}
-
-.caw-tab-remaining-badge {
-  font-size: 0.76rem;
-  color: var(--color-text-muted);
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  background: var(--color-surface-sunken);
-  border: 1px solid var(--color-border);
-}
-
-/* ── Right Assessment Items Panel ────────────────────────────────────────── */
-
-.caw-items-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.caw-category-heading-wrap {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.caw-category-heading {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.caw-category-track {
-  font-size: 0.9rem;
-  font-weight: normal;
-  color: var(--color-text-muted);
-}
-
-.caw-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-/* ── Item Card & 3-State Segmented Control (FDR-033) ─────────────────────── */
-
-.caw-item-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 1.15rem 1.35rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.caw-item-card:hover {
-  border-color: var(--color-border);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-
-.caw-item-not-met {
-  border-left: 4px solid var(--color-danger);
-}
-
-.caw-item-main {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  flex-wrap: wrap;
-}
-
-.caw-item-info {
-  flex: 1;
-  min-width: 260px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.caw-item-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.caw-item-seq {
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--color-text-muted);
-}
-
-.caw-item-name {
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: var(--color-text);
-}
-
-.caw-item-korean {
-  font-size: 0.92rem;
-  color: var(--color-text-muted);
-}
-
-.caw-required-badge {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-  border: 1px solid rgba(185, 118, 10, 0.25);
-}
-
-.caw-optional-badge {
-  font-size: 0.72rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-}
-
-.caw-item-desc {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-.caw-item-meta-row {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
-}
-
-.caw-assessor-tag {
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-}
-
-.caw-note-preview-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--color-danger);
-  font-style: italic;
-  font-size: 0.82rem;
-  cursor: pointer;
-  text-align: left;
-}
-
-.caw-note-preview-btn:hover {
-  text-decoration: underline;
-}
-
-.caw-add-note-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.caw-add-note-btn:hover {
-  color: var(--color-gold-strong);
-  text-decoration: underline;
-}
-
-.caw-inline-note-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.35rem;
-}
-
-.caw-inline-note-input {
-  flex: 1;
-  padding: 0.45rem 0.75rem;
-  font-size: 0.85rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.caw-save-note-btn {
-  padding: 0.45rem 0.85rem;
-  font-size: 0.82rem;
-}
-
-/* ── 3-State Segmented Touch Control (FDR-033: min 48px touch targets) ── */
-
-.caw-segmented-control {
-  display: inline-flex;
-  align-items: stretch;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
-  padding: 3px;
-  gap: 3px;
-}
-
-.caw-seg-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  min-height: 48px;
-  min-width: 80px;
-  padding: 0.5rem 0.95rem;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-text-muted);
-  transition: all 0.15s ease;
-}
-
-.caw-seg-btn:hover:not(:disabled) {
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.caw-seg-not-assessed.caw-seg-active {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.caw-seg-met.caw-seg-active {
-  background: var(--color-success);
-  border-color: var(--color-success);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(30, 125, 75, 0.3);
-}
-
-.caw-seg-not-met.caw-seg-active {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 1px 4px rgba(180, 35, 24, 0.3);
 }
 
 /* ── SCR-020: Completion Review Workspace ────────────────────────────────── */
@@ -968,4 +520,483 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCR-026 / FDR-042: Mat-side scoring — Single Column Run
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/*
+  The run owns the viewport: one line of chrome, a scrolling column of
+  requirements, and a mat bar pinned to the bottom. `min-height: 0` on the
+  scroller is what lets it scroll instead of pushing the bar off-screen.
+*/
+.caw-run {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: calc(100vh - 2rem);
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.caw-run > .caw-breadcrumbs {
+  padding: 0.75rem 1.5rem 0;
+}
+
+/* ── One-line identity header ────────────────────────────────────────────── */
+
+.caw-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.caw-identity .caw-candidate-name {
+  font-size: 1.5rem;
+}
+
+.caw-candidate-wksa {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.caw-identity-divider {
+  width: 1px;
+  height: 1.35rem;
+  background: var(--color-border);
+}
+
+.caw-identity-spacer {
+  flex-grow: 1;
+}
+
+.caw-provenance {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+/* ── The run ─────────────────────────────────────────────────────────────── */
+
+.caw-run-scroll {
+  flex-grow: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.caw-band-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1.5rem;
+  background: var(--color-surface-sunken);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.caw-band-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.caw-band-korean {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.caw-band-rule {
+  flex-grow: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.caw-band-progress {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-band-track {
+  width: 84px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.caw-band-track-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+  transition: width 160ms ease;
+}
+
+/* ── Requirement rows: divider-led, not cards (FDR-008) ──────────────────── */
+
+.caw-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.85rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/*
+  Result is carried by the button's pressed state and its label; the tint is a
+  secondary cue only, never the sole carrier of meaning (FDR-003).
+*/
+.caw-row-met {
+  background: rgba(30, 125, 75, 0.035);
+}
+
+.caw-row-not-met {
+  background: rgba(180, 35, 24, 0.04);
+}
+
+.caw-row-detail {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.caw-row-title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.caw-row-seq {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+}
+
+.caw-row-name {
+  font-size: 0.97rem;
+  font-weight: 600;
+}
+
+.caw-row-korean {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.caw-row-range {
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 3px;
+  padding: 0.05rem 0.35rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-row-desc {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+.caw-row-meta {
+  margin-top: 0.45rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.caw-row-note {
+  font-size: 0.78rem;
+  color: var(--color-text);
+  background: var(--color-surface-sunken);
+  border-left: 2px solid var(--color-border);
+  padding: 0.2rem 0.55rem;
+  border-radius: 0 4px 4px 0;
+}
+
+/* ── Two verdict targets, and the row tools ──────────────────────────────── */
+
+.caw-row-actions {
+  flex-shrink: 0;
+  width: 262px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+}
+
+.caw-verdicts {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.caw-verdict {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  min-width: 96px;
+  padding: 0 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.caw-verdict:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  color: var(--color-text);
+}
+
+.caw-verdict:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.caw-verdict-met.caw-verdict-active {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.caw-verdict-not-met.caw-verdict-active {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.caw-row-tools {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.caw-row-tool {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.caw-row-tool:hover {
+  color: var(--color-text);
+}
+
+.caw-row-note-edit {
+  width: 100%;
+}
+
+.caw-row-note-input {
+  width: 100%;
+  border: 1px solid var(--color-gold-strong);
+  border-radius: 6px;
+  padding: 0.5rem 0.65rem;
+  font: inherit;
+  font-size: 0.8rem;
+  resize: vertical;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── Inline clear confirmation (FDR-045) ─────────────────────────────────── */
+
+.caw-clear-confirm {
+  width: 100%;
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger-surface);
+  border-radius: 7px;
+  padding: 0.55rem 0.7rem;
+}
+
+.caw-clear-confirm p {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.caw-clear-confirm-actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.caw-clear-confirm-actions button {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  font-size: 0.78rem;
+}
+
+.caw-run-end {
+  margin: 0;
+  padding: 1.1rem 1.5rem 0.4rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* ── Persistent mat bar ──────────────────────────────────────────────────── */
+
+.caw-mat-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.7rem 1.5rem;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -2px 12px rgb(21 19 15 / 6%);
+}
+
+.caw-mat-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.caw-mat-figure {
+  font-size: 1.2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.caw-mat-figure-label {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.caw-mat-track {
+  flex-grow: 1;
+  max-width: 300px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  overflow: hidden;
+  display: flex;
+}
+
+.caw-mat-track-met {
+  background: var(--color-success);
+  transition: width 160ms ease;
+}
+
+.caw-mat-track-not-met {
+  background: var(--color-danger);
+  transition: width 160ms ease;
+}
+
+.caw-mat-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+}
+
+.caw-mat-tally-met {
+  color: var(--color-success);
+}
+
+.caw-mat-tally-not-met {
+  color: var(--color-danger);
+}
+
+.caw-mat-tally-remaining {
+  color: var(--color-text-muted);
+}
+
+/* ── Tablet and phone ────────────────────────────────────────────────────── */
+
+@media (max-width: 56rem) {
+  /*
+    The run stops owning the viewport and flows with the page, so the mat bar
+    can no longer be pinned by the flex column. `position: sticky` would not
+    rescue it: the bar sits after the whole syllabus, and sticky never pulls an
+    element that has not yet been scrolled to into view. It is fixed to the
+    viewport instead, which is safe here because the nav rail becomes a top row
+    at this width rather than a bottom bar.
+  */
+  .caw-run {
+    height: auto;
+  }
+
+  .caw-run > .caw-breadcrumbs,
+  .caw-identity,
+  .caw-band-header,
+  .caw-row,
+  .caw-mat-bar,
+  .caw-run-end {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Stacked, the verdicts belong under the requirement they judge. */
+  .caw-row {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .caw-row-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .caw-verdicts {
+    width: 100%;
+  }
+
+  .caw-verdict {
+    flex: 1 1 0;
+  }
+
+  .caw-row-tools {
+    justify-content: flex-end;
+  }
+
+  .caw-mat-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+  }
+
+  /* Clear the fixed bar so the last requirement is never hidden behind it. */
+  .caw-run-scroll {
+    padding-bottom: 7rem;
+  }
+
+  .caw-mat-track {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caw-band-track-fill,
+  .caw-mat-track-met,
+  .caw-mat-track-not-met,
+  .caw-verdict {
+    transition: none;
+  }
 }

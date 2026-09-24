@@ -4750,7 +4750,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     vi.unstubAllGlobals();
   });
 
-  it("renders candidate assessment workspace with dual-pane layout, sub-rail, and items", async () => {
+  it("renders the single column run with band headers, rows and the mat bar", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/auth/me/")) {
@@ -4789,19 +4789,20 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
     expect(screen.getByText("KG-0264")).toBeVisible();
     expect(screen.getByText("Junior (9–12)")).toBeVisible();
-    expect(screen.getByText("In progress")).toBeVisible();
+    // The status pill also carries the start time in 1A, so match on the pill.
+    expect(screen.getByTestId("caw-status-pill")).toHaveTextContent("In progress");
 
-    // Progress ledger
+    // Mat bar (FDR-042) carries the live count in place of the progress ledger
     expect(screen.getByText("2 / 3")).toBeVisible();
-    expect(screen.getByText(/Required items assessed \(67%\)/)).toBeVisible();
-    expect(screen.getByText("1 Met")).toBeVisible();
-    expect(screen.getByText("1 Not Met")).toBeVisible();
-    expect(screen.getByText("1 Not Assessed")).toBeVisible();
-    expect(screen.getByText(/Required items assessed/).closest('[role="status"]')).not.toBeNull();
+    expect(screen.getByText("required assessed")).toBeVisible();
+    expect(screen.getByText("1 met")).toBeVisible();
+    expect(screen.getByText("1 not met")).toBeVisible();
+    expect(screen.getByText("1 remaining")).toBeVisible();
+    expect(screen.getByText("2 / 3").closest('[role="status"]')).not.toBeNull();
 
-    // Category rail has Etiquette and Kicking
-    expect(screen.getByTestId("caw-cat-tab-ETIQUETTE")).toBeVisible();
-    expect(screen.getByTestId("caw-cat-tab-KICKING")).toBeVisible();
+    // Sticky band headers replace the category sub-rail
+    expect(screen.getByTestId("caw-cat-header-ETIQUETTE")).toBeVisible();
+    expect(screen.getByTestId("caw-cat-header-KICKING")).toBeVisible();
 
     // "Complete assessment" button is disabled because 1 required item remains
     const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
@@ -4960,7 +4961,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
     expect(completeBtn).toBeEnabled();
 
-    await user.click(screen.getByTestId("btn-not-assessed-1001"));
+    await user.click(screen.getByTestId("btn-clear-1001"));
+    await user.click(screen.getByTestId("btn-clear-confirm-1001"));
 
     await waitFor(() => expect(completeBtn).toBeDisabled());
     expect(completeBtn).toHaveTextContent("Saving...");
@@ -5023,9 +5025,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     // Served: 6 of 7 required assessed. Recounting the three rows would say 2 of 3.
     expect(screen.getByText("6 / 7")).toBeVisible();
-    expect(screen.getByText("5 Met")).toBeVisible();
-    expect(screen.getByText("1 Not Met")).toBeVisible();
-    expect(screen.getByText("3 Not Assessed")).toBeVisible();
+    expect(screen.getByText("5 met")).toBeVisible();
+    expect(screen.getByText("1 not met")).toBeVisible();
+    expect(screen.getByText("1 remaining")).toBeVisible();
 
     // Completion stays locked on the server's all_required_assessed, not on a
     // local tally of the rows that happen to be loaded.
@@ -5141,7 +5143,196 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(patchedBody).toEqual({ result: "MET" });
   });
 
-  it("switches categories via the left sub-rail", async () => {
+  // FDR-045: the `candidate_item_assessor_matches_result` constraint nulls
+  // `assessor` and `assessed_at` when a result returns to NOT_ASSESSED, and
+  // that attribution cannot be restored. Clearing therefore confirms inline
+  // and names what it erases, instead of sitting as a third verdict button.
+  it("confirms a clear inline and names the attribution it erases", async () => {
+    const user = userEvent.setup();
+    let patchCount = 0;
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "PATCH") {
+        patchCount += 1;
+        return jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" });
+      }
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // There is no third verdict target: NOT_ASSESSED is an undo, not a peer.
+    expect(screen.queryByTestId("btn-not-assessed-1001")).toBeNull();
+
+    // Item 1003 is unassessed, so there is nothing to clear on it.
+    expect(screen.queryByTestId("btn-clear-1003")).toBeNull();
+
+    await user.click(screen.getByTestId("btn-clear-1001"));
+
+    const confirm = screen.getByTestId("caw-clear-confirm-1001");
+    expect(confirm).toHaveTextContent("casey@example.com");
+    expect(confirm).toHaveTextContent("Attribution cannot be restored");
+    expect(patchCount).toBe(0);
+
+    // Backing out writes nothing.
+    await user.click(within(confirm).getByRole("button", { name: "Keep" }));
+    expect(screen.queryByTestId("caw-clear-confirm-1001")).toBeNull();
+    expect(patchCount).toBe(0);
+
+    await user.click(screen.getByTestId("btn-clear-1001"));
+    await user.click(screen.getByTestId("btn-clear-confirm-1001"));
+    await waitFor(() => expect(patchCount).toBe(1));
+  });
+
+  // The previous screen showed assessor and time only on not-met rows, so
+  // "who marked this, and when" was invisible across most of the record.
+  // Opening the confirmation unmounts the `Clear` button that was focused. If
+  // focus is not moved deliberately it falls back to the document, dropping a
+  // keyboard user out of a destructive prompt they just opened.
+  it("moves focus into the clear confirmation and back out on cancel", async () => {
+    const user = userEvent.setup();
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    await user.click(screen.getByTestId("btn-clear-1001"));
+
+    // Focus lands on the safe action, not on the document.
+    const confirm = screen.getByTestId("caw-clear-confirm-1001");
+    const keep = within(confirm).getByRole("button", { name: "Keep" });
+    await waitFor(() => expect(keep).toHaveFocus());
+
+    // Escape backs out, and focus returns to the control that opened it.
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.getByTestId("btn-clear-1001")).toHaveFocus());
+  });
+  it("renders assessor attribution on met rows, not only on failures", async () => {
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    // 1001 is MET, 1002 is NOT_MET: both carry their assessor.
+    expect(screen.getByTestId("caw-item-1001")).toHaveTextContent("casey@example.com");
+    expect(screen.getByTestId("caw-item-1002")).toHaveTextContent("casey@example.com");
+    // 1003 is unassessed, so it has no attribution to show.
+    expect(screen.getByTestId("caw-item-1003")).not.toHaveTextContent("casey@example.com");
+  });
+
+  // A COMPLETED assessment is immutable: it must offer no way to score or to
+  // clear, which is the affordance that would erase attribution.
+  it("offers no scoring or clear affordance once the assessment is completed", async () => {
+    const completed = { ...mockAssessment, status: "COMPLETED" as const, status_display: "Completed" };
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) {
+        return jsonResponse(200, assessmentSummaryFor([mockItem1, mockItem2, mockItem3]));
+      }
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [completed] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, {
+          count: 3, next: null, previous: null, results: [mockItem1, mockItem2, mockItem3],
+        });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    expect(screen.getByTestId("btn-met-1003")).toBeDisabled();
+    expect(screen.getByTestId("btn-not-met-1003")).toBeDisabled();
+    expect(screen.queryByTestId("btn-clear-1001")).toBeNull();
+    expect(screen.queryByTestId("btn-note-1001")).toBeNull();
+    expect(screen.getByTestId("caw-view-review-btn")).toBeVisible();
+  });
+  it("renders every category in one continuous run, not behind a rail", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -5169,28 +5360,26 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       return jsonResponse(404, { detail: "Not found" });
     });
     vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Alex Carter" });
 
-    // Click "Etiquette" category tab
-    const etiquetteTab = screen.getByTestId("caw-cat-tab-ETIQUETTE");
-    await user.click(etiquetteTab);
-
-    // Etiquette item is displayed
+    // No rail, no filtering: every requirement is in the same scroll, so all
+    // three rows are on screen at once.
     expect(screen.getByText("Etiquette & Bowing")).toBeVisible();
-    // Kicking items are not displayed when filtered to Etiquette
-    expect(screen.queryByText("Ap Cha Gi (Front Kick)")).not.toBeInTheDocument();
-
-    // Click "Kicking" category tab
-    const kickingTab = screen.getByTestId("caw-cat-tab-KICKING");
-    await user.click(kickingTab);
-
-    // Kicking items are displayed
     expect(screen.getByText("Ap Cha Gi (Front Kick)")).toBeVisible();
     expect(screen.getByText("Yup Cha Gi (Side Kick)")).toBeVisible();
+    expect(screen.queryByTestId("caw-cat-tab-ETIQUETTE")).toBeNull();
+
+    // Each band header carries its own progress, which is what the rail's
+    // remaining-count badges were for.
+    const etiquette = screen.getByTestId("caw-cat-header-ETIQUETTE");
+    expect(etiquette).toHaveTextContent("Etiquette");
+    expect(etiquette).toHaveTextContent("1 of 1 required");
+
+    const kicking = screen.getByTestId("caw-cat-header-KICKING");
+    expect(kicking).toHaveTextContent("1 of 2 required");
   });
 
   it("transitions to Completion Review (SCR-020) and confirms completion", async () => {
@@ -5439,7 +5628,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     // Prompt banner is displayed
     expect(await screen.findByTestId("caw-not-started-banner")).toBeVisible();
-    expect(screen.getByText("Assessment Ready To Begin")).toBeVisible();
+    expect(screen.getByText("Assessment ready to begin")).toBeVisible();
 
     // Start assessment button
     const startBtn = screen.getByTestId("start-assessment-btn");

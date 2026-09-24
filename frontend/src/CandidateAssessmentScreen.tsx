@@ -1,4 +1,23 @@
-import { useState } from "react";
+/**
+ * Mat-side scoring - Single Column Run (SCR-026, FDR-042).
+ *
+ * Rebuilt from SCR-019's dual-pane workspace. The differences that matter:
+ *
+ * - No category sub-rail. One continuous scroll in syllabus order with sticky
+ *   category headers carrying their own progress. A grading runs in ceremony
+ *   order, so the rail forced mode-switching for a jump nobody makes.
+ * - Requirement rows are divider-led, not cards (FDR-008).
+ * - Two verdict targets. `NOT_ASSESSED` is an undo, not a peer of Met and Not
+ *   met, so it becomes a `Clear` that confirms inline and names the
+ *   attribution it erases (FDR-045).
+ * - Header chrome collapses to one line, and the live count plus the
+ *   completion action move to a persistent mat bar.
+ * - Attribution renders on every scored row, not only the failures.
+ *
+ * Counts are served, never recounted here (FDR-046) - see
+ * `candidateAssessmentData.ts`.
+ */
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth";
@@ -12,10 +31,53 @@ import {
   updateCandidateAssessmentItem,
 } from "./api";
 import { RankVisual } from "./RankVisual";
-import { formatTimeOnly, useCandidateAssessmentData } from "./candidateAssessmentData";
+import {
+  CategoryGroup,
+  formatDayMonth,
+  formatTimeOnly,
+  useCandidateAssessmentData,
+} from "./candidateAssessmentData";
 import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 
+/*
+ * One icon set, drawn inline. The previous screen mixed raw emoji into the
+ * chrome, which renders as a different typeface on every platform and carries
+ * no consistent weight - an explicit correction already logged in the register.
+ */
+function CheckIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+      <path d="M5 12.5 10 17.5 19 7" />
+    </svg>
+  );
+}
+
+function CrossIcon({ size = 17 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
+      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+    </svg>
+  );
+}
+
+function AssessorIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <circle cx="12" cy="8" r="3.4" />
+      <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <path d="M12 3.5 21.5 20H2.5z" />
+      <path d="M12 10v4.5M12 17.2v.1" />
+    </svg>
+  );
+}
 
 export function CandidateAssessmentScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -26,31 +88,24 @@ export function CandidateAssessmentScreen() {
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
 
-  // User selected category filter
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  // Error state for actions
   const [actionError, setActionError] = useState<string | null>(null);
-  // Delete-assessment confirmation dialog (administrator cleanup only)
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // At most one row may be confirming a clear or editing a note at a time -
+  // both are held here rather than in the row so opening one closes the other.
+  const [confirmingClearId, setConfirmingClearId] = useState<number | null>(null);
+  const [openNoteId, setOpenNoteId] = useState<number | null>(null);
 
   const {
     session,
     candidate,
     studentRankName,
     assessment,
-    items,
     categoryGroups,
     stats,
     isLoading,
     hasLoadError,
   } = useCandidateAssessmentData(numSessionId, numCandidateId);
 
-  // Default active category to the first one with remaining items, or the first group
-  const activeCategory =
-    selectedCategory ??
-    (categoryGroups.find((g) => !g.isDone)?.category ?? categoryGroups[0]?.category ?? "");
-
-  // 8. Mutations
   const generateAssessmentMutation = useMutation({
     mutationFn: () => {
       if (!candidate) throw new Error("Candidate not found");
@@ -63,15 +118,10 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
     },
     onError: (err) => {
-      if (err instanceof ApiError) {
-        setActionError(err.message);
-      } else {
-        setActionError("Failed to prepare the assessment form.");
-      }
+      setActionError(err instanceof ApiError ? err.message : "Failed to prepare the assessment form.");
     },
   });
 
-  // Start assessment mutation
   const startAssessmentMutation = useMutation({
     mutationFn: () => {
       if (!assessment) throw new Error("Assessment not found");
@@ -84,15 +134,10 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
     },
     onError: (err) => {
-      if (err instanceof ApiError) {
-        setActionError(err.message);
-      } else {
-        setActionError("Failed to start assessment.");
-      }
+      setActionError(err instanceof ApiError ? err.message : "Failed to start assessment.");
     },
   });
 
-  // Update item result mutation
   const updateItemMutation = useMutation({
     mutationFn: ({
       itemId,
@@ -109,7 +154,6 @@ export function CandidateAssessmentScreen() {
       return updateCandidateAssessmentItem(itemId, payload);
     },
     onMutate: async ({ itemId, result, notes }) => {
-      // Optimistic update
       await queryClient.cancelQueries({ queryKey: ["candidateAssessmentItems", assessment?.id] });
       const previous = queryClient.getQueryData<{ results: CandidateAssessmentItem[] }>([
         "candidateAssessmentItems",
@@ -117,16 +161,15 @@ export function CandidateAssessmentScreen() {
       ]);
 
       if (previous?.results) {
-        const nextResults = previous.results.map((i) => {
-          if (i.id === itemId) {
-            return {
-              ...i,
-              result: result !== undefined ? result : i.result,
-              assessor_notes: notes !== undefined ? notes : i.assessor_notes,
-            };
-          }
-          return i;
-        });
+        const nextResults = previous.results.map((i) =>
+          i.id === itemId
+            ? {
+                ...i,
+                result: result !== undefined ? result : i.result,
+                assessor_notes: notes !== undefined ? notes : i.assessor_notes,
+              }
+            : i,
+        );
         queryClient.setQueryData(["candidateAssessmentItems", assessment?.id], {
           ...previous,
           results: nextResults,
@@ -138,23 +181,17 @@ export function CandidateAssessmentScreen() {
       if (context?.previous) {
         queryClient.setQueryData(["candidateAssessmentItems", assessment?.id], context.previous);
       }
-      if (err instanceof ApiError) {
-        setActionError(err.message);
-      } else {
-        setActionError("Could not save item evaluation.");
-      }
+      setActionError(err instanceof ApiError ? err.message : "Could not save item evaluation.");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentItems", assessment?.id] });
       // The rollup is served now, so a scored item has to refetch it or the
-      // mat bar and category badges go stale (FDR-046).
+      // mat bar and category headers go stale (FDR-046).
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
     },
   });
 
-  // Delete assessment mutation (administrator cleanup only - cascades
-  // through any outcome/promotion on the backend)
   const deleteAssessmentMutation = useMutation({
     mutationFn: () => {
       if (!assessment) throw new Error("Assessment not found");
@@ -167,11 +204,8 @@ export function CandidateAssessmentScreen() {
     },
   });
   const deleteAssessmentError =
-    deleteAssessmentMutation.error instanceof ApiError
-      ? deleteAssessmentMutation.error.message
-      : null;
+    deleteAssessmentMutation.error instanceof ApiError ? deleteAssessmentMutation.error.message : null;
 
-  // Loading state
   if (isLoading) {
     return (
       <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-loading">
@@ -183,7 +217,6 @@ export function CandidateAssessmentScreen() {
     );
   }
 
-  // Not found or error state
   if (hasLoadError) {
     return (
       <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-load-error">
@@ -224,131 +257,81 @@ export function CandidateAssessmentScreen() {
   const isAssessmentMissing = assessment === null;
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
+  const isEditable = !!isAssessmentInProgress && !isAssessmentCompleted;
 
-  // Filter items for the active category
-  const activeGroup = categoryGroups.find((g) => g.category === activeCategory) ?? categoryGroups[0];
-  const itemsToDisplay = activeCategory ? (activeGroup?.items ?? []) : items;
+  const metWidth = stats.totalItems > 0 ? (stats.metCount / stats.totalItems) * 100 : 0;
+  const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
 
-  // Render SCR-019: Mat-side Scoring Workspace
   return (
-    <section aria-labelledby="caw-title" className="caw-page" data-testid="caw-workspace">
-      {/* Top Breadcrumbs */}
+    <section aria-labelledby="caw-title" className="caw-run" data-testid="caw-workspace">
+      {/* One line of chrome, not four. */}
       <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
         <Link to="/gradings">Gradings</Link>
         <span aria-hidden="true" className="breadcrumb-separator">/</span>
         <Link to={`/gradings/${session.id}`}>{session.title}</Link>
         <span aria-hidden="true" className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">{candidate.student_display_name} (Assessment)</span>
+        <span className="breadcrumb-current">{candidate.student_display_name}</span>
       </nav>
 
-      {/* Header Banner */}
-      <header className="caw-header">
-        <div className="caw-header-left">
-          <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
-          {candidate.student_wksa_id && (
-            <span className="caw-candidate-wksa">
-              <span className="caw-wksa-label">WKSA ID</span>
-              <span className="caw-wksa-val">{candidate.student_wksa_id}</span>
-            </span>
-          )}
-          <div className="caw-rank-pills">
-            <span className="caw-rank-tag">
-              {studentRankName && <RankVisual rankName={studentRankName} />}
-              <span>{studentRankName || "Current Rank"}</span>
-            </span>
-            <span aria-hidden="true" className="caw-rank-arrow">→</span>
-            <span className="caw-rank-tag caw-rank-tag-dest">
-              <RankVisual rankName={candidate.testing_for_rank_name} />
-              <span>{candidate.testing_for_rank_name}</span>
-            </span>
-            <span className="caw-age-pill">{candidate.age_band_display}</span>
-            <span
-              className={`caw-status-pill caw-status-${assessment?.status?.toLowerCase() || "not-started"}`}
-            >
-              <span className="caw-status-dot" aria-hidden="true" />
-              {assessment?.status_display || "Not started"}
-            </span>
-          </div>
-        </div>
+      <header className="caw-identity">
+        <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>
+        {candidate.student_wksa_id && (
+          <span className="caw-candidate-wksa">{candidate.student_wksa_id}</span>
+        )}
+        <span aria-hidden="true" className="caw-identity-divider" />
+        <span className="caw-rank-tag">
+          {studentRankName && <RankVisual rankName={studentRankName} />}
+          <span>{studentRankName || "Current rank"}</span>
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
+          <path d="M4 12h15M14 7l5 5-5 5" />
+        </svg>
+        <span className="caw-rank-tag caw-rank-tag-dest">
+          <RankVisual rankName={candidate.testing_for_rank_name} />
+          <span>{candidate.testing_for_rank_name}</span>
+        </span>
+        <span className="caw-age-pill">{candidate.age_band_display}</span>
+        <span
+          className={`caw-status-pill caw-status-${assessment?.status?.toLowerCase() || "not-started"}`}
+          data-testid="caw-status-pill"
+        >
+          <span className="caw-status-dot" aria-hidden="true" />
+          {assessment?.status_display || "Not started"}
+          {assessment?.started_at && ` · started ${formatTimeOnly(assessment.started_at)}`}
+        </span>
 
-        <div className="caw-header-right">
-          {isAssessmentCompleted ? (
-            <Link
-              className="btn-secondary caw-review-btn"
-              to={reviewPath}
-              data-testid="caw-view-review-btn"
-            >
-              View completion record →
-            </Link>
-          ) : (
-            <button
-              type="button"
-              className={`caw-complete-action-btn ${canComplete ? "caw-complete-ready" : ""}`}
-              disabled={!canComplete}
-              onClick={() => navigate(reviewPath)}
-              title={
-                updateItemMutation.isPending
-                  ? "Saving the last result"
-                  : stats.canComplete
-                  ? "Proceed to completion review"
-                  : `${stats.remainingRequired} required items remain unassessed`
-              }
-              data-testid="caw-complete-assessment-btn"
-            >
-              {updateItemMutation.isPending
-                ? "Saving..."
-                : stats.canComplete
-                ? "Complete assessment →"
-                : `Complete assessment (${stats.remainingRequired} required remaining)`}
-            </button>
-          )}
-          {currentUser?.role === "administrator" && assessment && (
-            <button
-              type="button"
-              className="caw-danger-btn"
-              onClick={() => setDeleteOpen(true)}
-              data-testid="caw-delete-assessment-btn"
-            >
-              Delete assessment
-            </button>
-          )}
-        </div>
+        <div className="caw-identity-spacer" />
+
+        {/* Provenance: who prepared the snapshot, and when it was frozen. */}
+        {assessment?.generated_by_email && (
+          <span className="caw-provenance">
+            Form prepared by {assessment.generated_by_email}
+            {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
+          </span>
+        )}
+        {currentUser?.role === "administrator" && assessment && (
+          <button
+            type="button"
+            className="caw-danger-btn"
+            onClick={() => setDeleteOpen(true)}
+            data-testid="caw-delete-assessment-btn"
+          >
+            Delete assessment
+          </button>
+        )}
       </header>
 
       {actionError && (
         <div className="caw-action-error" role="alert">
-          <span aria-hidden="true">⚠️</span>
+          <AlertIcon />
           <p>{actionError}</p>
         </div>
       )}
 
-      {/* Required Items Assessed Progress Ledger */}
-      <div className="caw-progress-ledger" role="status" aria-live="polite">
-        <div className="caw-progress-main">
-          <span className="caw-progress-icon" aria-hidden="true">
-            {stats.remainingRequired === 0 ? "✓" : "!"}
-          </span>
-          <span className="caw-progress-text">
-            <strong>{stats.requiredAssessed} / {stats.requiredItems}</strong> Required items assessed ({stats.percent}%)
-          </span>
-        </div>
-        <div className="caw-progress-chips">
-          <span className="caw-chip caw-chip-met">
-            {stats.metCount} Met
-          </span>
-          <span className="caw-chip caw-chip-not-met">
-            {stats.notMetCount} Not Met
-          </span>
-          <span className="caw-chip caw-chip-not-assessed">
-            {stats.notAssessedCount} Not Assessed
-          </span>
-        </div>
-      </div>
-
       {isAssessmentMissing && (
         <div className="caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
-            <h3>Prepare Assessment Form</h3>
+            <h2>Prepare assessment form</h2>
             <p>
               Generate the candidate&rsquo;s immutable syllabus snapshot before starting
               assessment.
@@ -374,9 +357,10 @@ export function CandidateAssessmentScreen() {
       {isAssessmentNotStarted && (
         <div className="caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">
-            <h3>Assessment Ready To Begin</h3>
+            <h2>Assessment ready to begin</h2>
             <p>
-              Candidates must have their assessment started before individual syllabus items can be scored.
+              Candidates must have their assessment started before individual syllabus items
+              can be scored.
             </p>
           </div>
           <button
@@ -395,79 +379,105 @@ export function CandidateAssessmentScreen() {
         </div>
       )}
 
-      {/* Dual-Pane Workspace */}
-      <div className="caw-dual-pane">
-        {/* Left Category Sub-Rail */}
-        <aside aria-label="Syllabus Categories" className="caw-category-rail">
-          <ul className="caw-category-list" role="tablist" aria-orientation="vertical">
-            {categoryGroups.map((group) => {
-              const isActive = activeCategory === group.category;
-              return (
-                <li key={group.category} role="presentation">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={`caw-category-tab ${isActive ? "caw-tab-active" : ""}`}
-                    onClick={() => setSelectedCategory(group.category)}
-                    data-testid={`caw-cat-tab-${group.category}`}
-                  >
-                    <span className="caw-tab-title">
-                      {group.categoryDisplay}
-                      {group.koreanName && (
-                        <span className="caw-tab-korean"> ({group.koreanName})</span>
-                      )}
-                    </span>
-                    {group.isDone ? (
-                      <span className="caw-tab-done-badge" aria-label="Category completed">
-                        <span aria-hidden="true">✓</span> Done
-                      </span>
-                    ) : (
-                      <span className="caw-tab-remaining-badge">
-                        {group.remainingRequiredCount} remaining
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </aside>
-
-        {/* Right Assessment Items Panel */}
-        <main className="caw-items-panel">
-          {activeGroup && (
-            <div className="caw-category-heading-wrap">
-              <h2 className="caw-category-heading">
-                {activeGroup.categoryDisplay}
-                {activeGroup.koreanName && ` · ${activeGroup.koreanName}`}
-                <span className="caw-category-track"> ({candidate.age_band_display})</span>
-              </h2>
-            </div>
-          )}
-
-          {itemsToDisplay.length === 0 ? (
-            <div className="caw-empty-items">
-              <p>No assessment items found in this section.</p>
-            </div>
-          ) : (
-            <div className="caw-items-list" role="list">
-              {itemsToDisplay.map((item) => (
+      {/* The run itself: every requirement, in syllabus order, in one scroll. */}
+      <div className="caw-run-scroll">
+        {categoryGroups.length === 0 ? (
+          <div className="caw-empty-items">
+            <p>No assessment items found in this snapshot.</p>
+          </div>
+        ) : (
+          categoryGroups.map((group) => (
+            <div key={group.category} className="caw-band">
+              <CategoryHeader group={group} />
+              {group.items.map((item) => (
                 <AssessmentItemRow
                   key={item.id}
                   item={item}
-                  isEditable={isAssessmentInProgress && !isAssessmentCompleted}
-                  onUpdateResult={(result) =>
-                    updateItemMutation.mutate({ itemId: item.id, result })
-                  }
-                  onUpdateNotes={(notes) =>
-                    updateItemMutation.mutate({ itemId: item.id, notes })
-                  }
+                  isEditable={isEditable}
+                  isConfirmingClear={confirmingClearId === item.id}
+                  isNoteOpen={openNoteId === item.id}
+                  onAskClear={() => {
+                    setOpenNoteId(null);
+                    setConfirmingClearId(item.id);
+                  }}
+                  onCancelClear={() => setConfirmingClearId(null)}
+                  onToggleNote={() => {
+                    setConfirmingClearId(null);
+                    setOpenNoteId((current) => (current === item.id ? null : item.id));
+                  }}
+                  onUpdateResult={(result) => {
+                    setConfirmingClearId(null);
+                    updateItemMutation.mutate({ itemId: item.id, result });
+                  }}
+                  onUpdateNotes={(notes) => updateItemMutation.mutate({ itemId: item.id, notes })}
                 />
               ))}
             </div>
-          )}
-        </main>
+          ))
+        )}
+
+        {categoryGroups.length > 0 && (
+          <p className="caw-run-end">
+            End of syllabus snapshot · {categoryGroups.length}{" "}
+            {categoryGroups.length === 1 ? "category" : "categories"}
+            {assessment?.generated_at && ` · frozen ${formatDayMonth(assessment.generated_at)}`} from{" "}
+            {candidate.age_band_display}
+          </p>
+        )}
+      </div>
+
+      {/* Persistent mat bar: the live count and the only completion action. */}
+      <div className="caw-mat-bar" data-testid="caw-mat-bar">
+        <div className="caw-mat-count" role="status" aria-live="polite">
+          <span className="caw-mat-figure">{`${stats.requiredAssessed} / ${stats.requiredItems}`}</span>
+          <span className="caw-mat-figure-label">required assessed</span>
+        </div>
+
+        <span aria-hidden="true" className="caw-mat-track">
+          <span className="caw-mat-track-met" style={{ width: `${metWidth}%` }} />
+          <span className="caw-mat-track-not-met" style={{ width: `${notMetWidth}%` }} />
+        </span>
+
+        <span className="caw-mat-tally caw-mat-tally-met">
+          <CheckIcon size={13} />
+          {`${stats.metCount} met`}
+        </span>
+        <span className="caw-mat-tally caw-mat-tally-not-met">
+          <CrossIcon size={13} />
+          {`${stats.notMetCount} not met`}
+        </span>
+        <span className="caw-mat-tally caw-mat-tally-remaining">
+          {`${stats.remainingRequired} remaining`}
+        </span>
+
+        <div className="caw-identity-spacer" />
+
+        {isAssessmentCompleted ? (
+          <Link className="btn-secondary caw-review-btn" to={reviewPath} data-testid="caw-view-review-btn">
+            View completion record →
+          </Link>
+        ) : (
+          <button
+            type="button"
+            className={`caw-complete-action-btn ${canComplete ? "caw-complete-ready" : ""}`}
+            disabled={!canComplete}
+            onClick={() => navigate(reviewPath)}
+            title={
+              updateItemMutation.isPending
+                ? "Saving the last result"
+                : stats.canComplete
+                ? "Proceed to completion review"
+                : `${stats.remainingRequired} required items remain unassessed`
+            }
+            data-testid="caw-complete-assessment-btn"
+          >
+            {updateItemMutation.isPending
+              ? "Saving..."
+              : stats.canComplete
+              ? "Complete assessment →"
+              : `Complete assessment (${stats.remainingRequired} required remaining)`}
+          </button>
+        )}
       </div>
 
       {deleteOpen && assessment && (
@@ -480,6 +490,33 @@ export function CandidateAssessmentScreen() {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * Sticky band header. It carries the category's own progress, which is what
+ * the removed sub-rail was really for - the instructor wants to know where
+ * they are in the section they are standing in, not to jump to another one.
+ */
+function CategoryHeader({ group }: { group: CategoryGroup }) {
+  const filled = group.requiredCount > 0 ? (group.requiredAssessedCount / group.requiredCount) * 100 : 100;
+
+  return (
+    <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
+      <h2 className="caw-band-title">
+        {group.categoryDisplay}
+        {group.koreanName && <span className="caw-band-korean"> · {group.koreanName}</span>}
+      </h2>
+      <span aria-hidden="true" className="caw-band-rule" />
+      <span className="caw-band-progress">
+        {group.isDone
+          ? `${group.requiredCount} of ${group.requiredCount} required`
+          : `${group.requiredAssessedCount} of ${group.requiredCount} required`}
+      </span>
+      <span aria-hidden="true" className="caw-band-track">
+        <span className="caw-band-track-fill" style={{ width: `${filled}%` }} />
+      </span>
+    </div>
   );
 }
 
@@ -539,12 +576,7 @@ function DeleteAssessmentDialog({
           >
             Cancel
           </button>
-          <button
-            type="button"
-            className="caw-danger-btn"
-            onClick={onConfirm}
-            disabled={isPending}
-          >
+          <button type="button" className="caw-danger-btn" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Deleting…" : "Delete assessment"}
           </button>
         </div>
@@ -554,165 +586,218 @@ function DeleteAssessmentDialog({
 }
 
 /**
- * Individual Candidate Assessment Item Row Component
- * Implements FDR-033 3-state segmented controls with 48px touch targets,
- * inline notes and assessor attribution.
+ * One requirement, as a divider-led row (FDR-008).
+ *
+ * Two verdict targets. `Clear` sits with the row tools rather than in the
+ * verdict group, and confirms inline naming the assessor and time it erases:
+ * the `candidate_item_assessor_matches_result` constraint nulls both when a
+ * result returns to `NOT_ASSESSED`, and that attribution cannot be restored
+ * (FDR-045).
  */
 function AssessmentItemRow({
   item,
   isEditable,
+  isConfirmingClear,
+  isNoteOpen,
+  onAskClear,
+  onCancelClear,
+  onToggleNote,
   onUpdateResult,
   onUpdateNotes,
 }: {
   item: CandidateAssessmentItem;
   isEditable: boolean;
+  isConfirmingClear: boolean;
+  isNoteOpen: boolean;
+  onAskClear: () => void;
+  onCancelClear: () => void;
+  onToggleNote: () => void;
   onUpdateResult: (result: CandidateAssessmentItemResult) => void;
   onUpdateNotes: (notes: string) => void;
 }) {
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState(item.assessor_notes || "");
+  const keepButtonRef = useRef<HTMLButtonElement>(null);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const metButtonRef = useRef<HTMLButtonElement>(null);
+  const wasConfirmingRef = useRef(false);
 
-  const handleNotesBlur = () => {
-    setIsEditingNotes(false);
+  /*
+    Opening the confirmation unmounts the `Clear` button that was focused, so
+    without this a keyboard user is dropped back to the document instead of
+    into the destructive prompt. Focus lands on the safe action.
+
+    This is deliberately not `useDialogFocus`: that hook is for modals, and it
+    hides body overflow and traps Tab. This confirmation is inline in a
+    scrolling list and must not do either.
+  */
+  useEffect(() => {
+    if (isConfirmingClear) {
+      keepButtonRef.current?.focus();
+      wasConfirmingRef.current = true;
+      return;
+    }
+    if (wasConfirmingRef.current) {
+      wasConfirmingRef.current = false;
+      // After a cancel the `Clear` button is back. After a confirmed clear the
+      // row has no result, so it is gone and the verdicts take focus instead.
+      (clearButtonRef.current ?? metButtonRef.current)?.focus();
+    }
+  }, [isConfirmingClear]);
+
+  const commitNotes = () => {
     if (notesValue !== (item.assessor_notes || "")) {
       onUpdateNotes(notesValue);
     }
+    onToggleNote();
   };
+
+  const isScored = item.result === "MET" || item.result === "NOT_MET";
+  const attribution = item.assessor_email
+    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTimeOnly(item.assessed_at)}` : ""}`
+    : "";
 
   return (
     <div
-      className={`caw-item-card ${item.result === "NOT_MET" ? "caw-item-not-met" : ""}`}
+      className={`caw-row caw-row-${(item.result ?? "NOT_ASSESSED").toLowerCase().replace("_", "-")}`}
       data-testid={`caw-item-${item.id}`}
     >
-      <div className="caw-item-main">
-        {/* Left details */}
-        <div className="caw-item-info">
-          <div className="caw-item-title-row">
-            <span className="caw-item-seq">#{item.requirement_sequence}</span>
-            <span className="caw-item-name">{item.item_name}</span>
-            {item.korean_name && (
-              <span className="caw-item-korean"> · {item.korean_name}</span>
-            )}
-            {item.required ? (
-              <span className="caw-required-badge">Required</span>
-            ) : (
-              <span className="caw-optional-badge">Optional</span>
-            )}
-          </div>
-
-          {item.requirement_notes && (
-            <p className="caw-item-desc">{item.requirement_notes}</p>
+      <div className="caw-row-detail">
+        <div className="caw-row-title-line">
+          <span className="caw-row-seq">#{item.requirement_sequence}</span>
+          <span className="caw-row-name">{item.item_name}</span>
+          {item.korean_name && <span className="caw-row-korean">{item.korean_name}</span>}
+          {item.required ? (
+            <span className="caw-required-badge">Required</span>
+          ) : (
+            <span className="caw-optional-badge">Optional</span>
           )}
+          {item.display_range && <span className="caw-row-range">{item.display_range}</span>}
+        </div>
 
-          {/* Assessor attribution & notes summary */}
-          <div className="caw-item-meta-row">
-            {item.assessor_email && (
+        {item.requirement_notes && <p className="caw-row-desc">{item.requirement_notes}</p>}
+
+        {/*
+          Attribution renders on every scored row. The previous screen showed
+          it only on not-met rows, so "who marked this, and when" was invisible
+          across most of the record.
+        */}
+        {(attribution || item.assessor_notes) && (
+          <div className="caw-row-meta">
+            {attribution && (
               <span className="caw-assessor-tag">
-                Assessed by {item.assessor_email}
-                {item.assessed_at && ` at ${formatTimeOnly(item.assessed_at)}`}
+                <AssessorIcon />
+                {attribution}
               </span>
             )}
-
-            {!isEditingNotes && item.assessor_notes && (
-              <button
-                type="button"
-                className="caw-note-preview-btn"
-                onClick={() => setIsEditingNotes(true)}
-                title="Click to edit assessor note"
-              >
-                Note: "{item.assessor_notes}"
-              </button>
+            {item.assessor_notes && !isNoteOpen && (
+              <span className="caw-row-note">“{item.assessor_notes}”</span>
             )}
+          </div>
+        )}
+      </div>
 
-            {!isEditingNotes && !item.assessor_notes && isEditable && (
+      <div className="caw-row-actions">
+        {isConfirmingClear ? (
+          <div
+            role="alertdialog"
+            aria-label={`Confirm clearing the result for ${item.item_name}`}
+            className="caw-clear-confirm"
+            data-testid={`caw-clear-confirm-${item.id}`}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                onCancelClear();
+              }
+            }}
+          >
+            <p>
+              Clearing also erases{" "}
+              <strong>{attribution || "this result's attribution"}</strong>. Attribution cannot
+              be restored.
+            </p>
+            <div className="caw-clear-confirm-actions">
+              <button type="button" className="btn-secondary" onClick={onCancelClear} ref={keepButtonRef}>
+                Keep
+              </button>
               <button
                 type="button"
-                className="caw-add-note-btn"
-                onClick={() => setIsEditingNotes(true)}
+                className="caw-danger-btn"
+                onClick={() => onUpdateResult("NOT_ASSESSED")}
+                data-testid={`btn-clear-confirm-${item.id}`}
               >
-                + Add note
+                Clear result
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div role="group" aria-label={`Result for ${item.item_name}`} className="caw-verdicts">
+            <button
+              type="button"
+              className={`caw-verdict caw-verdict-met ${item.result === "MET" ? "caw-verdict-active" : ""}`}
+              disabled={!isEditable}
+              onClick={() => onUpdateResult("MET")}
+              aria-pressed={item.result === "MET"}
+              data-testid={`btn-met-${item.id}`}
+              ref={metButtonRef}
+            >
+              <CheckIcon />
+              Met
+            </button>
+            <button
+              type="button"
+              className={`caw-verdict caw-verdict-not-met ${item.result === "NOT_MET" ? "caw-verdict-active" : ""}`}
+              disabled={!isEditable}
+              onClick={() => onUpdateResult("NOT_MET")}
+              aria-pressed={item.result === "NOT_MET"}
+              data-testid={`btn-not-met-${item.id}`}
+            >
+              <CrossIcon />
+              Not met
+            </button>
+          </div>
+        )}
+
+        {isEditable && !isConfirmingClear && (
+          <div className="caw-row-tools">
+            <button type="button" className="caw-row-tool" onClick={onToggleNote} data-testid={`btn-note-${item.id}`}>
+              {item.assessor_notes ? "Edit note" : "Add note"}
+            </button>
+            {/* Clearing is only offered once there is a result to clear. */}
+            {isScored && (
+              <button
+                type="button"
+                className="caw-row-tool"
+                onClick={onAskClear}
+                data-testid={`btn-clear-${item.id}`}
+                ref={clearButtonRef}
+              >
+                Clear
               </button>
             )}
           </div>
+        )}
 
-          {/* Inline notes input */}
-          {isEditingNotes && isEditable && (
-            <div className="caw-inline-note-wrap">
-              <input
-                type="text"
-                className="caw-inline-note-input"
-                placeholder="Add observation note (e.g. Guard dropped on turn)..."
-                value={notesValue}
-                onChange={(e) => setNotesValue(e.target.value)}
-                onBlur={handleNotesBlur}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleNotesBlur();
-                  if (e.key === "Escape") {
-                    setNotesValue(item.assessor_notes || "");
-                    setIsEditingNotes(false);
-                  }
-                }}
-                autoFocus
-              />
-              <button
-                type="button"
-                className="btn-secondary caw-save-note-btn"
-                onClick={handleNotesBlur}
-              >
-                Save
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Right: FDR-033 Segmented 3-state touch controls (min 48px touch targets) */}
-        <div
-          className="caw-segmented-control"
-          role="group"
-          aria-label={`Evaluation for ${item.item_name}`}
-        >
-          <button
-            type="button"
-            className={`caw-seg-btn caw-seg-not-assessed ${
-              item.result === "NOT_ASSESSED" ? "caw-seg-active" : ""
-            }`}
-            disabled={!isEditable}
-            onClick={() => onUpdateResult("NOT_ASSESSED")}
-            aria-pressed={item.result === "NOT_ASSESSED"}
-            data-testid={`btn-not-assessed-${item.id}`}
-          >
-            <span aria-hidden="true">—</span>
-            <span>Not Assessed</span>
-          </button>
-
-          <button
-            type="button"
-            className={`caw-seg-btn caw-seg-met ${
-              item.result === "MET" ? "caw-seg-active" : ""
-            }`}
-            disabled={!isEditable}
-            onClick={() => onUpdateResult("MET")}
-            aria-pressed={item.result === "MET"}
-            data-testid={`btn-met-${item.id}`}
-          >
-            <span aria-hidden="true">✓</span>
-            <span>Met</span>
-          </button>
-
-          <button
-            type="button"
-            className={`caw-seg-btn caw-seg-not-met ${
-              item.result === "NOT_MET" ? "caw-seg-active" : ""
-            }`}
-            disabled={!isEditable}
-            onClick={() => onUpdateResult("NOT_MET")}
-            aria-pressed={item.result === "NOT_MET"}
-            data-testid={`btn-not-met-${item.id}`}
-          >
-            <span aria-hidden="true">✕</span>
-            <span>Not Met</span>
-          </button>
-        </div>
+        {isNoteOpen && isEditable && (
+          <div className="caw-row-note-edit">
+            <textarea
+              aria-label={`Assessor note for ${item.item_name}`}
+              rows={2}
+              className="caw-row-note-input"
+              placeholder="Assessor note — what was observed"
+              value={notesValue}
+              onChange={(e) => setNotesValue(e.target.value)}
+              onBlur={commitNotes}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setNotesValue(item.assessor_notes || "");
+                  onToggleNote();
+                }
+              }}
+              data-testid={`caw-note-input-${item.id}`}
+              autoFocus
+            />
+          </div>
+        )}
       </div>
     </div>
   );

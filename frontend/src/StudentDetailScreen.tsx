@@ -18,6 +18,7 @@ import {
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
+import { calculateAge, formatApiDate } from "./dates";
 
 function LockIcon() {
   return (
@@ -57,34 +58,18 @@ function CheckIcon() {
   );
 }
 
+/*
+  These receive both shapes - `date_of_birth` and `effective_date` are
+  date-only, `created_at` and `promoted_at` are timestamps - so parsing is
+  delegated to `parseApiDate`, which decides from the value. Parsing a
+  date-only value as a timestamp rendered the previous day west of UTC.
+*/
 function formatDateFull(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  return formatApiDate(dateStr, { day: "2-digit", month: "long", year: "numeric" });
 }
 
 function formatDateShort(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  try {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  return formatApiDate(dateStr, { day: "2-digit", month: "short", year: "numeric" });
 }
 
 const MONTH_NAMES = [
@@ -108,19 +93,6 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
   if (item.outcome === "FAIL") return "Fail";
   if (item.outcome === "CONDITIONAL") return "Conditional";
   return "Unresolved";
-}
-
-function calculateAge(dobStr: string | null | undefined): number | null {
-  if (!dobStr) return null;
-  const dob = new Date(dobStr);
-  if (isNaN(dob.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
 }
 
 function resolveAgeBand(dobStr: string | null | undefined): string {

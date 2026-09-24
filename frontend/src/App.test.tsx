@@ -1809,7 +1809,15 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
     expect(screen.getByText("24 April 2012")).toBeVisible();
     expect(screen.getByText("13 – 17")).toBeVisible();
-    expect(screen.getByText("08 January 2021")).toBeVisible();
+    // `created_at` is a real timestamp and correctly renders in the reader's
+    // own timezone - 10:00Z on the 8th is the 9th at UTC+14. Derived rather
+    // than hard-coded so this asserts formatting, not the suite's timezone.
+    const createdDay = new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    }).format(new Date("2021-01-08T10:00:00Z"));
+    expect(screen.getByText(createdDay)).toBeVisible();
 
     // Grading readiness card
     expect(screen.getByRole("heading", { name: "Grading readiness" })).toBeVisible();

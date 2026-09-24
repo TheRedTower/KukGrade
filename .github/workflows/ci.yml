@@ -127,6 +127,16 @@ jobs:
       - name: Tests
         run: npm run test
 
+      # The runner is UTC, and a date-only value parsed as a timestamp is only
+      # wrong away from UTC - so the UTC run above cannot see that class of bug
+      # at all. A second run west of UTC is what actually guards it; without
+      # this, tests asserting `grading_date`, `effective_date` or
+      # `date_of_birth` pass just as happily on broken parsing.
+      - name: Tests (non-UTC timezone)
+        run: npm run test
+        env:
+          TZ: America/Los_Angeles
+
       - name: Build
         run: npm run build
 

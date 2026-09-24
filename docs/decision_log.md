@@ -18,6 +18,54 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-24 - Parse API dates through one shared module, and run the frontend suite in a second timezone
+
+Status: Accepted
+
+Decision:
+All API dates are parsed through `frontend/src/dates.ts`, which detects
+date-only values and splits them into local year/month/day, and keeps normal
+parsing for timestamps. CI runs the frontend suite twice: once as it did, and
+once with `TZ=America/Los_Angeles`.
+
+Context:
+The API returns two shapes. Date-only values (`grading_date`,
+`Promotion.effective_date`, `Student.date_of_birth`,
+`GradingHistoryItem.date`) are read by `new Date()` as UTC midnight, so west of
+UTC they render as the previous day. Timestamps (`created_at`, `promoted_at`,
+`generated_at`, `completed_at`) carry an offset and must keep rendering in the
+reader's own timezone.
+
+The same formatter had been written six times across the app with three
+different parsing strategies. Two were wrong: `PromotionLedgerScreen` showed
+the day before the grading for `grading_date` and `effective_date`, and
+`StudentDetailScreen` did the same for `date_of_birth` and promotion dates.
+`calculateAge` shared the defect, which matters beyond display: age decides the
+age band, and the age band decides which syllabus a candidate is assessed
+against.
+
+The shape is detected from the value rather than chosen by the caller, because
+several formatters receive both kinds - `StudentDetailScreen` formats
+`date_of_birth` and `created_at` through the same function.
+
+The CI change is part of the fix rather than an extra. The runner is UTC, and
+this class of bug is invisible there: with the defect reintroduced, the UTC run
+passes 187/187 while the `America/Los_Angeles` run fails 5. Tests asserting
+these fields gave no protection at all before.
+
+Two tests asserted timestamps in UTC-specific form (`UsersScreen` on
+`last_login`, student detail on `created_at`). Those were test defects, not
+product bugs - a timestamp *should* render differently by timezone - so the
+expected values are now derived from the same formatter rather than hard-coded.
+
+Consequences:
+The suite passes in UTC, America/Los_Angeles, Pacific/Auckland, Asia/Kolkata,
+Pacific/Kiritimati and America/Sao_Paulo. New date formatting goes through
+`dates.ts`; the remaining correct-but-duplicated formatters in
+`GradingSessionsScreen`, `GradingSessionDetailScreen`, `OverviewScreen` and
+`BuildGradingCohortScreen` were left alone rather than churn working code, and
+are candidates for the same consolidation.
+
 ### 2026-09-23 - Expose the assessment summary on the assessment resource
 
 Status: Accepted

@@ -337,6 +337,20 @@ entry.
   `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
   `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
   about which categories are core areas.
+- **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
+  detects date-only values (`grading_date`, `Promotion.effective_date`,
+  `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
+  local year/month/day, while timestamps (`created_at`, `promoted_at`,
+  `generated_at`, `completed_at`) keep normal parsing so they render in the
+  reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
+  UTC date-only values previously rendered as the previous day - in
+  `PromotionLedgerScreen` and `StudentDetailScreen`, and in `calculateAge`,
+  where it could shift the age band that selects a candidate's syllabus. CI
+  runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
+  the UTC runner cannot observe this class of bug: with the defect
+  reintroduced, UTC passes and the non-UTC run fails 5 tests. Four
+  correct-but-duplicated formatters remain in `GradingSessionsScreen`,
+  `GradingSessionDetailScreen`, `OverviewScreen` and `BuildGradingCohortScreen`.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

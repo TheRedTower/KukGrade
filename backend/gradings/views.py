@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from typing import cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -35,10 +34,15 @@ from gradings.models import (
     Promotion,
 )
 from gradings.serializers import (
+    BulkAssessmentGenerationResultSerializer,
     BulkAssessmentGenerationSerializer,
+    BulkAssessmentStartResultSerializer,
     BulkAssessmentStartSerializer,
+    BulkCandidateRegistrationResultSerializer,
     BulkCandidateRegistrationSerializer,
+    BulkCandidateStatusUpdateResultSerializer,
     BulkCandidateStatusUpdateSerializer,
+    BulkPromotionResultSerializer,
     BulkPromotionSerializer,
     CandidateAssessmentItemSerializer,
     CandidateAssessmentSerializer,
@@ -55,7 +59,6 @@ from gradings.serializers import (
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     VoidLegacyRecordSerializer,
-    raise_drf_validation_error,
 )
 from gradings.services import (
     bulk_generate_candidate_assessments,
@@ -69,10 +72,15 @@ from gradings.services import (
     delete_candidate_assessment,
     delete_grading_session,
     generate_candidate_assessment,
-    validate_candidate_can_be_deleted,
-    validate_session_can_be_deleted,
 )
-from kukgrade.filtering import parse_date_filter
+from kukgrade.exceptions import raise_drf_validation_error
+from kukgrade.filtering import (
+    filter_choice,
+    filter_date,
+    filter_exact,
+    filter_id,
+    filter_uuid,
+)
 from syllabus.models import AgeBand, SyllabusItem
 
 
@@ -94,54 +102,36 @@ class GradingSessionViewSet(ModelViewSet):
             "created_at",
         )
 
-        status_filter = self.request.query_params.get("status")
-        if status_filter in GradingSession.Status.values:
-            queryset = queryset.filter(status=status_filter)
-        elif status_filter:
-            queryset = queryset.none()
+        params = self.request.query_params
+        queryset = filter_choice(
+            queryset,
+            params.get("status"),
+            "status",
+            GradingSession.Status.values,
+        )
+        queryset = filter_date(queryset, params.get("grading_date"), "grading_date")
+        queryset = filter_date(
+            queryset,
+            params.get("grading_date_from"),
+            "grading_date__gte",
+        )
+        queryset = filter_date(
+            queryset,
+            params.get("grading_date_to"),
+            "grading_date__lte",
+        )
 
-        search = self.request.query_params.get("search", "").strip()
+        search = params.get("search", "").strip()
         if search:
             queryset = queryset.filter(
                 Q(title__icontains=search) | Q(location__icontains=search)
             )
-
-        grading_date_value = self.request.query_params.get("grading_date")
-        grading_date = parse_date_filter(grading_date_value)
-        if grading_date:
-            queryset = queryset.filter(grading_date=grading_date)
-        elif grading_date_value:
-            return queryset.none()
-
-        grading_date_from_value = self.request.query_params.get("grading_date_from")
-        grading_date_from = parse_date_filter(grading_date_from_value)
-        if grading_date_from:
-            queryset = queryset.filter(grading_date__gte=grading_date_from)
-        elif grading_date_from_value:
-            return queryset.none()
-
-        grading_date_to_value = self.request.query_params.get("grading_date_to")
-        grading_date_to = parse_date_filter(grading_date_to_value)
-        if grading_date_to:
-            queryset = queryset.filter(grading_date__lte=grading_date_to)
-        elif grading_date_to_value:
-            return queryset.none()
-
-        if (
-            grading_date_from is not None
-            and grading_date_to is not None
-            and grading_date_from > grading_date_to
-        ):
-            return queryset.none()
-
         return queryset
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        actor = cast(User, request.user)
         try:
-            validate_session_can_be_deleted(instance, actor=actor)
-            delete_grading_session(instance, actor=actor)
+            delete_grading_session(instance, actor=cast(User, request.user))
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -170,58 +160,51 @@ class GradingCandidateViewSet(ModelViewSet):
     }
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
-        queryset = (
-            GradingCandidate.objects.select_related(
-                "session",
-                "student",
-                "testing_for_rank",
-                "withdrawn_by",
-            )
-            .all()
-            .order_by(
-                "session__grading_date",
-                "student__last_name",
-                "student__first_name",
-            )
+        queryset = GradingCandidate.objects.select_related(
+            "session",
+            "student",
+            "testing_for_rank",
+            "withdrawn_by",
+        ).order_by(
+            "session__grading_date",
+            "student__last_name",
+            "student__first_name",
         )
 
-        session = self.request.query_params.get("session")
-        if session and session.isdecimal():
-            queryset = queryset.filter(session_id=int(session))
-        elif session:
-            queryset = queryset.none()
-
-        student_wksa_id = self.request.query_params.get("student_wksa_id")
-        if student_wksa_id:
-            queryset = queryset.filter(student__wksa_id=student_wksa_id)
-
-        testing_for_rank_code = self.request.query_params.get("testing_for_rank_code")
-        if testing_for_rank_code:
-            queryset = queryset.filter(testing_for_rank__code=testing_for_rank_code)
-
-        age_band = self.request.query_params.get("age_band")
-        if age_band in AgeBand.values:
-            queryset = queryset.filter(age_band=age_band)
-        elif age_band:
-            queryset = queryset.none()
-
-        status_filter = self.request.query_params.get("status")
-        if status_filter in GradingCandidate.Status.values:
-            queryset = queryset.filter(status=status_filter)
-        elif status_filter:
-            queryset = queryset.none()
-
-        return queryset
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("session"), "session_id")
+        queryset = filter_exact(
+            queryset,
+            params.get("student_wksa_id"),
+            "student__wksa_id",
+        )
+        queryset = filter_exact(
+            queryset,
+            params.get("testing_for_rank_code"),
+            "testing_for_rank__code",
+        )
+        queryset = filter_choice(
+            queryset,
+            params.get("age_band"),
+            "age_band",
+            AgeBand.values,
+        )
+        return filter_choice(
+            queryset,
+            params.get("status"),
+            "status",
+            GradingCandidate.Status.values,
+        )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
         try:
-            validate_candidate_can_be_deleted(instance)
             delete_candidate(instance, actor=cast(User, request.user))
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(request=None, responses={201: CandidateAssessmentSerializer})
     @action(detail=True, methods=["post"], url_path="generate-assessment")
     def generate_assessment(
         self,
@@ -242,6 +225,10 @@ class GradingCandidateViewSet(ModelViewSet):
         )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        request=BulkCandidateRegistrationSerializer,
+        responses=BulkCandidateRegistrationResultSerializer,
+    )
     @action(detail=False, methods=["post"], url_path="bulk-register")
     def bulk_register(
         self,
@@ -259,28 +246,22 @@ class GradingCandidateViewSet(ModelViewSet):
                 "generate_assessments"
             ],
         )
-        created_data = [
+        result = BulkCandidateRegistrationResultSerializer(
             {
-                "candidate": GradingCandidateSerializer(
-                    candidate_obj,
-                    context={"request": request},
-                ).data,
-                "assessment": (
-                    CandidateAssessmentSerializer(
-                        assessment_obj,
-                        context={"request": request},
-                    ).data
-                    if assessment_obj is not None
-                    else None
-                ),
-            }
-            for candidate_obj, assessment_obj in created
-        ]
-        return Response(
-            {"created": created_data, "errors": errors},
-            status=status.HTTP_200_OK,
+                "created": [
+                    {"candidate": candidate, "assessment": assessment}
+                    for candidate, assessment in created
+                ],
+                "errors": errors,
+            },
+            context={"request": request},
         )
+        return Response(result.data)
 
+    @extend_schema(
+        request=BulkAssessmentGenerationSerializer,
+        responses=BulkAssessmentGenerationResultSerializer,
+    )
     @action(detail=False, methods=["post"], url_path="bulk-generate-assessments")
     def bulk_generate_assessments(
         self,
@@ -294,16 +275,16 @@ class GradingCandidateViewSet(ModelViewSet):
             candidates=input_serializer.validated_data["candidates"],
             generated_by=cast(User, request.user),
         )
-        serializer = CandidateAssessmentSerializer(
-            created,
-            many=True,
+        result = BulkAssessmentGenerationResultSerializer(
+            {"created": created, "errors": errors},
             context={"request": request},
         )
-        return Response(
-            {"created": serializer.data, "errors": errors},
-            status=status.HTTP_200_OK,
-        )
+        return Response(result.data)
 
+    @extend_schema(
+        request=BulkCandidateStatusUpdateSerializer,
+        responses=BulkCandidateStatusUpdateResultSerializer,
+    )
     @action(detail=False, methods=["post"], url_path="bulk-update-status")
     def bulk_update_status(
         self,
@@ -318,15 +299,11 @@ class GradingCandidateViewSet(ModelViewSet):
             new_status=input_serializer.validated_data["status"],
             actor=cast(User, request.user),
         )
-        serializer = GradingCandidateSerializer(
-            updated,
-            many=True,
+        result = BulkCandidateStatusUpdateResultSerializer(
+            {"updated": updated, "errors": errors},
             context={"request": request},
         )
-        return Response(
-            {"updated": serializer.data, "errors": errors},
-            status=status.HTTP_200_OK,
-        )
+        return Response(result.data)
 
     @extend_schema(
         request=LockedCandidateWithdrawalSerializer,
@@ -356,6 +333,7 @@ class GradingCandidateViewSet(ModelViewSet):
             GradingCandidateSerializer(updated, context={"request": request}).data,
         )
 
+    @extend_schema(request=None, responses={201: CandidateOutcomeSerializer})
     @action(detail=True, methods=["post"], url_path="create-outcome")
     def create_outcome(
         self,
@@ -406,35 +384,25 @@ class CandidateAssessmentViewSet(
             )
         )
 
-        candidate = self.request.query_params.get("candidate")
-        if candidate and candidate.isdecimal():
-            queryset = queryset.filter(candidate_id=int(candidate))
-        elif candidate:
-            queryset = queryset.none()
-
-        session = self.request.query_params.get("session")
-        if session and session.isdecimal():
-            queryset = queryset.filter(candidate__session_id=int(session))
-        elif session:
-            queryset = queryset.none()
-
-        student_wksa_id = self.request.query_params.get("student_wksa_id")
-        if student_wksa_id:
-            queryset = queryset.filter(candidate__student__wksa_id=student_wksa_id)
-
-        testing_for_rank_code = self.request.query_params.get("testing_for_rank_code")
-        if testing_for_rank_code:
-            queryset = queryset.filter(
-                candidate__testing_for_rank__code=testing_for_rank_code,
-            )
-
-        status_filter = self.request.query_params.get("status")
-        if status_filter in CandidateAssessment.Status.values:
-            queryset = queryset.filter(status=status_filter)
-        elif status_filter:
-            queryset = queryset.none()
-
-        return queryset
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("candidate"), "candidate_id")
+        queryset = filter_id(queryset, params.get("session"), "candidate__session_id")
+        queryset = filter_exact(
+            queryset,
+            params.get("student_wksa_id"),
+            "candidate__student__wksa_id",
+        )
+        queryset = filter_exact(
+            queryset,
+            params.get("testing_for_rank_code"),
+            "candidate__testing_for_rank__code",
+        )
+        return filter_choice(
+            queryset,
+            params.get("status"),
+            "status",
+            CandidateAssessment.Status.values,
+        )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
@@ -461,9 +429,13 @@ class CandidateAssessmentViewSet(
         assessment is being scored or reviewed - which is exactly when the
         scoring and completion screens need these counts. See FDR-046.
         """
-        assessment = self.get_object()
-        return Response(candidate_assessment_summary(assessment))
+        summary = candidate_assessment_summary(self.get_object())
+        return Response(CandidateAssessmentSummarySerializer(summary).data)
 
+    @extend_schema(
+        request=BulkAssessmentStartSerializer,
+        responses=BulkAssessmentStartResultSerializer,
+    )
     @action(detail=False, methods=["post"], url_path="bulk-start")
     def bulk_start(
         self,
@@ -477,15 +449,11 @@ class CandidateAssessmentViewSet(
             assessments=input_serializer.validated_data["assessments"],
             actor=cast(User, request.user),
         )
-        serializer = CandidateAssessmentSerializer(
-            started,
-            many=True,
+        result = BulkAssessmentStartResultSerializer(
+            {"started": started, "errors": errors},
             context={"request": request},
         )
-        return Response(
-            {"started": serializer.data, "errors": errors},
-            status=status.HTTP_200_OK,
-        )
+        return Response(result.data)
 
 
 class CandidateAssessmentItemViewSet(
@@ -504,55 +472,43 @@ class CandidateAssessmentItemViewSet(
     }
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
-        queryset = (
-            CandidateAssessmentItem.objects.select_related(
-                "assessment__candidate__session",
-                "assessment__candidate__student",
-                "assessment__candidate__testing_for_rank",
-                "source_requirement",
-                "source_item",
-                "source_rank",
-                "assessor",
-            )
-            .all()
-            .order_by("requirement_sequence", "item_name", "pk")
+        queryset = CandidateAssessmentItem.objects.select_related(
+            "assessment__candidate__session",
+            "assessment__candidate__student",
+            "assessment__candidate__testing_for_rank",
+            "source_requirement",
+            "source_item",
+            "source_rank",
+            "assessor",
+        ).order_by("requirement_sequence", "item_name", "pk")
+
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("assessment"), "assessment_id")
+        queryset = filter_id(
+            queryset,
+            params.get("candidate"),
+            "assessment__candidate_id",
+        )
+        queryset = filter_id(
+            queryset,
+            params.get("session"),
+            "assessment__candidate__session_id",
+        )
+        queryset = filter_exact(queryset, params.get("item_code"), "item_code")
+        queryset = filter_choice(
+            queryset,
+            params.get("category"),
+            "category",
+            SyllabusItem.Category.values,
+        )
+        queryset = filter_choice(
+            queryset,
+            params.get("result"),
+            "result",
+            CandidateAssessmentItem.Result.values,
         )
 
-        assessment = self.request.query_params.get("assessment")
-        if assessment and assessment.isdecimal():
-            queryset = queryset.filter(assessment_id=int(assessment))
-        elif assessment:
-            queryset = queryset.none()
-
-        candidate = self.request.query_params.get("candidate")
-        if candidate and candidate.isdecimal():
-            queryset = queryset.filter(assessment__candidate_id=int(candidate))
-        elif candidate:
-            queryset = queryset.none()
-
-        session = self.request.query_params.get("session")
-        if session and session.isdecimal():
-            queryset = queryset.filter(assessment__candidate__session_id=int(session))
-        elif session:
-            queryset = queryset.none()
-
-        item_code = self.request.query_params.get("item_code")
-        if item_code:
-            queryset = queryset.filter(item_code=item_code)
-
-        category = self.request.query_params.get("category")
-        if category in SyllabusItem.Category.values:
-            queryset = queryset.filter(category=category)
-        elif category:
-            queryset = queryset.none()
-
-        result = self.request.query_params.get("result")
-        if result in CandidateAssessmentItem.Result.values:
-            queryset = queryset.filter(result=result)
-        elif result:
-            queryset = queryset.none()
-
-        required = self.request.query_params.get("required")
+        required = params.get("required")
         if required in {"true", "1", "yes"}:
             queryset = queryset.filter(required=True)
         elif required in {"false", "0", "no"}:
@@ -586,78 +542,52 @@ class CandidateOutcomeViewSet(
     }
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
-        queryset = (
-            CandidateOutcome.objects.select_related(
-                "candidate__session",
-                "candidate__student",
-                "candidate__testing_for_rank",
-                "assessment",
-                "proposed_by",
-                "decided_by",
-            )
-            .all()
-            .order_by(
-                "candidate__session__grading_date",
-                "candidate__student__last_name",
-                "candidate__student__first_name",
-            )
+        queryset = CandidateOutcome.objects.select_related(
+            "candidate__session",
+            "candidate__student",
+            "candidate__testing_for_rank",
+            "assessment",
+            "proposed_by",
+            "decided_by",
+        ).order_by(
+            "candidate__session__grading_date",
+            "candidate__student__last_name",
+            "candidate__student__first_name",
         )
 
-        session = self.request.query_params.get("session")
-        if session and session.isdecimal():
-            queryset = queryset.filter(candidate__session_id=int(session))
-        elif session:
-            queryset = queryset.none()
-
-        candidate = self.request.query_params.get("candidate")
-        if candidate and candidate.isdecimal():
-            queryset = queryset.filter(candidate_id=int(candidate))
-        elif candidate:
-            queryset = queryset.none()
-
-        student_wksa_id = self.request.query_params.get("student_wksa_id")
-        if student_wksa_id:
-            queryset = queryset.filter(candidate__student__wksa_id=student_wksa_id)
-
-        testing_for_rank_code = self.request.query_params.get("testing_for_rank_code")
-        if testing_for_rank_code:
-            queryset = queryset.filter(
-                candidate__testing_for_rank__code=testing_for_rank_code,
-            )
-
-        status_filter = self.request.query_params.get("status")
-        if status_filter in CandidateOutcome.Status.values:
-            queryset = queryset.filter(status=status_filter)
-        elif status_filter:
-            queryset = queryset.none()
-
-        proposed_outcome = self.request.query_params.get("proposed_outcome")
-        if proposed_outcome in CandidateOutcome.Outcome.values:
-            queryset = queryset.filter(proposed_outcome=proposed_outcome)
-        elif proposed_outcome:
-            queryset = queryset.none()
-
-        final_outcome = self.request.query_params.get("final_outcome")
-        if final_outcome in CandidateOutcome.Outcome.values:
-            queryset = queryset.filter(final_outcome=final_outcome)
-        elif final_outcome:
-            queryset = queryset.none()
-
-        proposed_by = self.request.query_params.get("proposed_by")
-        if proposed_by:
-            try:
-                queryset = queryset.filter(proposed_by_id=uuid.UUID(proposed_by))
-            except ValueError:
-                queryset = queryset.none()
-
-        decided_by = self.request.query_params.get("decided_by")
-        if decided_by:
-            try:
-                queryset = queryset.filter(decided_by_id=uuid.UUID(decided_by))
-            except ValueError:
-                queryset = queryset.none()
-
-        return queryset
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("session"), "candidate__session_id")
+        queryset = filter_id(queryset, params.get("candidate"), "candidate_id")
+        queryset = filter_exact(
+            queryset,
+            params.get("student_wksa_id"),
+            "candidate__student__wksa_id",
+        )
+        queryset = filter_exact(
+            queryset,
+            params.get("testing_for_rank_code"),
+            "candidate__testing_for_rank__code",
+        )
+        queryset = filter_choice(
+            queryset,
+            params.get("status"),
+            "status",
+            CandidateOutcome.Status.values,
+        )
+        queryset = filter_choice(
+            queryset,
+            params.get("proposed_outcome"),
+            "proposed_outcome",
+            CandidateOutcome.Outcome.values,
+        )
+        queryset = filter_choice(
+            queryset,
+            params.get("final_outcome"),
+            "final_outcome",
+            CandidateOutcome.Outcome.values,
+        )
+        queryset = filter_uuid(queryset, params.get("proposed_by"), "proposed_by_id")
+        return filter_uuid(queryset, params.get("decided_by"), "decided_by_id")
 
     def partial_update(
         self,
@@ -677,6 +607,10 @@ class CandidateOutcomeViewSet(
             ),
         )
 
+    @extend_schema(
+        request=CandidateOutcomeProposalSerializer,
+        responses=CandidateOutcomeSerializer,
+    )
     @action(detail=True, methods=["patch"])
     def propose(
         self,
@@ -699,6 +633,10 @@ class CandidateOutcomeViewSet(
         )
         return Response(response_serializer.data)
 
+    @extend_schema(
+        request=CandidateOutcomeFinaliseSerializer,
+        responses=CandidateOutcomeSerializer,
+    )
     @action(
         detail=True,
         methods=["patch"],
@@ -734,8 +672,13 @@ class CandidateOutcomeViewSet(
         **kwargs: object,
     ) -> Response:
         outcome = self.get_object()
-        return Response(candidate_assessment_summary(outcome.assessment))
+        summary = candidate_assessment_summary(outcome.assessment)
+        return Response(CandidateAssessmentSummarySerializer(summary).data)
 
+    @extend_schema(
+        request=CandidatePromotionSerializer,
+        responses={201: PromotionSerializer},
+    )
     @action(
         detail=True,
         methods=["post"],
@@ -762,6 +705,10 @@ class CandidateOutcomeViewSet(
         )
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        request=BulkPromotionSerializer,
+        responses=BulkPromotionResultSerializer,
+    )
     @action(
         detail=False,
         methods=["post"],
@@ -780,15 +727,11 @@ class CandidateOutcomeViewSet(
             outcomes=input_serializer.validated_data["outcomes"],
             actor=cast(User, request.user),
         )
-        serializer = PromotionSerializer(
-            promoted,
-            many=True,
+        result = BulkPromotionResultSerializer(
+            {"promoted": promoted, "errors": errors},
             context={"request": request},
         )
-        return Response(
-            {"promoted": serializer.data, "errors": errors},
-            status=status.HTTP_200_OK,
-        )
+        return Response(result.data)
 
 
 class PromotionViewSet(ReadOnlyModelViewSet):
@@ -800,81 +743,45 @@ class PromotionViewSet(ReadOnlyModelViewSet):
     }
 
     def get_queryset(self) -> QuerySet[Promotion]:
-        queryset = (
-            Promotion.objects.select_related(
-                "student__current_rank",
-                "outcome",
-                "grading_candidate__session",
-                "from_rank",
-                "to_rank",
-                "promoted_by",
-            )
-            .all()
-            .order_by("-effective_date", "-promoted_at", "-pk")
+        queryset = Promotion.objects.select_related(
+            "student__current_rank",
+            "outcome",
+            "grading_candidate__session",
+            "from_rank",
+            "to_rank",
+            "promoted_by",
+        ).order_by("-effective_date", "-promoted_at", "-pk")
+
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("student"), "student_id")
+        queryset = filter_exact(
+            queryset,
+            params.get("student_wksa_id"),
+            "student__wksa_id",
         )
-
-        student = self.request.query_params.get("student")
-        if student and student.isdecimal():
-            queryset = queryset.filter(student_id=int(student))
-        elif student:
-            queryset = queryset.none()
-
-        student_wksa_id = self.request.query_params.get("student_wksa_id")
-        if student_wksa_id:
-            queryset = queryset.filter(student__wksa_id=student_wksa_id)
-
-        from_rank_code = self.request.query_params.get("from_rank_code")
-        if from_rank_code:
-            queryset = queryset.filter(from_rank__code=from_rank_code)
-
-        to_rank_code = self.request.query_params.get("to_rank_code")
-        if to_rank_code:
-            queryset = queryset.filter(to_rank__code=to_rank_code)
-
-        session = self.request.query_params.get("session")
-        if session and session.isdecimal():
-            queryset = queryset.filter(grading_candidate__session_id=int(session))
-        elif session:
-            queryset = queryset.none()
-
-        effective_date_value = self.request.query_params.get("effective_date")
-        effective_date = parse_date_filter(effective_date_value)
-        if effective_date:
-            queryset = queryset.filter(effective_date=effective_date)
-        elif effective_date_value:
-            return queryset.none()
-
-        effective_date_from_value = self.request.query_params.get(
-            "effective_date_from",
+        queryset = filter_exact(
+            queryset,
+            params.get("from_rank_code"),
+            "from_rank__code",
         )
-        effective_date_from = parse_date_filter(effective_date_from_value)
-        if effective_date_from:
-            queryset = queryset.filter(effective_date__gte=effective_date_from)
-        elif effective_date_from_value:
-            return queryset.none()
-
-        effective_date_to_value = self.request.query_params.get("effective_date_to")
-        effective_date_to = parse_date_filter(effective_date_to_value)
-        if effective_date_to:
-            queryset = queryset.filter(effective_date__lte=effective_date_to)
-        elif effective_date_to_value:
-            return queryset.none()
-
-        if (
-            effective_date_from is not None
-            and effective_date_to is not None
-            and effective_date_from > effective_date_to
-        ):
-            return queryset.none()
-
-        promoted_by = self.request.query_params.get("promoted_by")
-        if promoted_by:
-            try:
-                queryset = queryset.filter(promoted_by_id=uuid.UUID(promoted_by))
-            except ValueError:
-                queryset = queryset.none()
-
-        return queryset
+        queryset = filter_exact(queryset, params.get("to_rank_code"), "to_rank__code")
+        queryset = filter_id(
+            queryset,
+            params.get("session"),
+            "grading_candidate__session_id",
+        )
+        queryset = filter_date(queryset, params.get("effective_date"), "effective_date")
+        queryset = filter_date(
+            queryset,
+            params.get("effective_date_from"),
+            "effective_date__gte",
+        )
+        queryset = filter_date(
+            queryset,
+            params.get("effective_date_to"),
+            "effective_date__lte",
+        )
+        return filter_uuid(queryset, params.get("promoted_by"), "promoted_by_id")
 
 
 class LegacyGradingRecordViewSet(
@@ -883,8 +790,8 @@ class LegacyGradingRecordViewSet(
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
-    (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-    the import spec). No ordinary create/update/delete: rows are only ever
+    (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+    and 15). No ordinary create/update/delete: rows are only ever
     created by data_imports.services.commit_legacy_grading_import, and only
     ever changed through the five gradings.legacy_services functions."""
 
@@ -909,36 +816,28 @@ class LegacyGradingRecordViewSet(
             "source_batch",
         ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
 
-        student = self.request.query_params.get("student")
-        if student and student.isdecimal():
-            queryset = queryset.filter(student_id=int(student))
-        elif student:
-            queryset = queryset.none()
+        params = self.request.query_params
+        queryset = filter_id(queryset, params.get("student"), "student_id")
 
-        linked_param = self.request.query_params.get("linked")
+        linked_param = params.get("linked")
         if linked_param == "true":
             queryset = queryset.filter(student__isnull=False)
         elif linked_param == "false":
             queryset = queryset.filter(student__isnull=True)
 
-        voided_param = self.request.query_params.get("voided")
+        voided_param = params.get("voided")
         if voided_param == "true":
             queryset = queryset.filter(is_void=True)
         elif voided_param == "false":
             queryset = queryset.filter(is_void=False)
 
-        record_kind = self.request.query_params.get("record_kind")
-        if record_kind:
-            queryset = queryset.filter(record_kind=record_kind)
+        queryset = filter_exact(queryset, params.get("record_kind"), "record_kind")
+        return filter_id(queryset, params.get("source_batch"), "source_batch_id")
 
-        batch = self.request.query_params.get("source_batch")
-        if batch and batch.isdecimal():
-            queryset = queryset.filter(source_batch_id=int(batch))
-        elif batch:
-            queryset = queryset.none()
-
-        return queryset
-
+    @extend_schema(
+        request=LinkLegacyRecordSerializer,
+        responses=LegacyGradingRecordSerializer,
+    )
     @action(detail=True, methods=["post"], url_path="link-student")
     def link_student(
         self,
@@ -956,6 +855,7 @@ class LegacyGradingRecordViewSet(
         updated = serializer.save()
         return Response(LegacyGradingRecordSerializer(updated).data)
 
+    @extend_schema(request=None, responses=LegacyGradingRecordSerializer)
     @action(detail=True, methods=["post"], url_path="unlink-student")
     def unlink_student(
         self,
@@ -973,6 +873,10 @@ class LegacyGradingRecordViewSet(
             raise_drf_validation_error(exc)
         return Response(LegacyGradingRecordSerializer(updated).data)
 
+    @extend_schema(
+        request=ResolveLegacyRankSerializer,
+        responses=LegacyGradingRecordSerializer,
+    )
     @action(detail=True, methods=["post"], url_path="resolve-current-rank")
     def resolve_current_rank(
         self,
@@ -993,6 +897,10 @@ class LegacyGradingRecordViewSet(
             raise_drf_validation_error(exc)
         return Response(LegacyGradingRecordSerializer(updated).data)
 
+    @extend_schema(
+        request=ResolveLegacyRankSerializer,
+        responses=LegacyGradingRecordSerializer,
+    )
     @action(detail=True, methods=["post"], url_path="resolve-testing-for-rank")
     def resolve_testing_for_rank(
         self,
@@ -1013,6 +921,10 @@ class LegacyGradingRecordViewSet(
             raise_drf_validation_error(exc)
         return Response(LegacyGradingRecordSerializer(updated).data)
 
+    @extend_schema(
+        request=VoidLegacyRecordSerializer,
+        responses=LegacyGradingRecordSerializer,
+    )
     @action(detail=True, methods=["post"])
     def void(self, request: Request, *args: object, **kwargs: object) -> Response:
         record_ = self.get_object()

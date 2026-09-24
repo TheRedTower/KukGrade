@@ -1,74 +1,57 @@
 # Architecture
 
-## Confirmed Direction
+## Shape
 
-- KukGrade will be a modular monolith.
-- The backend will use Django and Django REST Framework.
-- The frontend will use React and TypeScript.
-- The database will be PostgreSQL.
-- Production deployment will be Docker-based.
-- Backend APIs must enforce permissions.
-- The syllabus and grading rules must be stored as backend/domain data and exposed through APIs.
-- React components must not hard-code syllabus rules.
+- A modular monolith: one Django/DRF backend, one React/TypeScript frontend,
+  one PostgreSQL database. No microservices, no worker until a real
+  asynchronous workload is accepted.
+- The backend enforces every permission; the frontend only reflects them.
+- Syllabus and grading rules live in backend data and services, exposed
+  through the API. React components never hard-code them.
+- Repository boundaries: `backend/`, `frontend/`, `docs/`.
 
-## Repository Boundaries
+## Backend apps
 
-- `backend/` - Django and Django REST Framework application.
-- `frontend/` - React and TypeScript application.
-- `docs/` - planning, architecture, domain, testing, and workflow documentation.
+| App | Owns |
+| --- | --- |
+| `kukgrade` | Settings, URL routing, the error envelope, pagination, shared query-parameter filters, serving the built frontend |
+| `accounts` | Email-first staff users, role groups, per-user authority permissions, the permission classes every view uses |
+| `audit` | The append-only `AuditEvent` log and the one `record()` function that writes it |
+| `ranks` | The seeded rank catalogue |
+| `students` | Students, their status, and their rank and grading history reads |
+| `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative effective-syllabus read model |
+| `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, and imported `LegacyGradingRecord`s |
+| `data_imports` | Import batches: student-roster import and the historical-workbook adapter |
+| `health` | Liveness (`/api/health/`) and database readiness (`/api/ready/`) |
 
-The asynchronous worker boundary is deferred until there is a confirmed workload.
+Every state change goes through a service function (`<app>/services.py`)
+that validates it, writes it inside a transaction, and records its audit
+event in that same transaction. Views, serializers, and Django admin all
+call those services, so the rules and the audit trail are identical however
+a change arrives. Models additionally refuse illegal states themselves, so the
+shell and bulk querysets cannot bypass them.
 
-## Proposed Backend Modules
+## Frontend
 
-The Django project should be structured as a modular monolith with clear domain modules rather than separate services:
+React with React Router and TanStack Query. API types are generated from
+`backend/schema.yml` into `frontend/src/api/schema.ts`; `frontend/src/api.ts`
+aliases them and holds the fetch functions. Styling is plain CSS, one
+stylesheet per feature area, on the design tokens in `frontend/src/theme.css`.
 
-- identity and access: users, roles, branch or organisation access, authentication.
-- organisations: organisation and branch data.
-- students: student profiles, statuses, and historical rank-related records.
-- ranks: rank reference data and progression pathways.
-- syllabus: versioned syllabus definitions, categories, criteria, age bands.
-- gradings: sessions, candidates, examiner assignments, assessments, final decisions.
-- audit: append-only audit events for sensitive changes.
-- reporting: read-only summaries and exports if reporting is accepted for the relevant release.
+## Data
 
-Module names are proposals and can change during scaffolding.
+- PostgreSQL is the system of record; Django migrations define the schema.
+- A grading keeps the exact syllabus it was assessed against: generating an
+  assessment copies every requirement's text into immutable per-candidate
+  snapshot rows, so a later syllabus edit cannot change a past grading.
+- Finalised outcomes, promotions, and audit events are immutable. Imported
+  historical records keep their source text immutable and are voided, never
+  deleted.
 
-## Proposed Frontend Shape
+## Deployment
 
-The React app should consume the DRF API and treat the backend as the source of truth for:
-
-- permissions and visible actions.
-- syllabus content and grading criteria.
-- assessment structure.
-- final decision rules.
-- audit-sensitive workflow state.
-
-Frontend screens and routes should be derived from confirmed workflows. Exact UI structure is unresolved.
-
-## Data And State
-
-- PostgreSQL is the system of record.
-- Django migrations must define schema changes.
-- Historical grading data must reference the immutable syllabus version selected for that grading.
-- The selected syllabus version must be locked for a grading before assessment item results are recorded.
-- Draft assessments may be updated until submitted or locked by confirmed workflow rules.
-- Final decisions and audit events should be append-oriented. Changes after finalisation require explicit permission checks and audit records.
-
-## Deployment Direction
-
-Production should run through Docker images or containers for:
-
-- Django API.
-- React frontend.
-- PostgreSQL as the configured production database.
-- Optional worker only after asynchronous workloads are confirmed.
-
-The current Docker Compose file is local-development-only PostgreSQL. Production image layout remains unresolved.
-
-## Unresolved Decisions
-
-- Frontend styling approach.
-- Whether audit logging is implemented with custom models only or supported by a package.
-- Whether reports are API-only at first or include frontend screens in V1.
-- Production Docker image layout and deployment target.
+One production image contains the Django API, the built React frontend, and
+its static files. `compose.prod.yml` defines only that app service, joined to
+the host's existing Traefik and PostgreSQL containers through external Docker
+networks. `compose.yaml` is local-development PostgreSQL only. See
+`deployment.md`.

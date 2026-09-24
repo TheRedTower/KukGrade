@@ -4,8 +4,7 @@ Never wired to `MEDIA_URL` or served statically - a source file holds
 personal data (student names, dates of birth) and is only ever read
 server-side, between upload and commit/cancel/expiry. `IMPORT_UPLOAD_ROOT`
 must be a persistent volume in any deployment, the same requirement the
-database's own data directory already has - see the deployment note in
-docs/data-import-and-legacy-migration.md once it exists.
+database's own data directory already has - see docs/deployment.md.
 
 The storage backend itself is the "import_uploads" alias registered in
 `kukgrade.settings.STORAGES`, resolved through `import_upload_storage()`
@@ -30,8 +29,7 @@ def import_upload_storage() -> Storage:
 
 
 def import_upload_path(instance: ImportBatch, filename: str) -> str:
-    # Unpredictable identifier, not the original filename - see
-    # KukGrade_Data_Import_Legacy_Migration_Definitive_Implementation_Spec.md
-    # section 11 ("no direct public URL", "unpredictable identifier").
+    # An unpredictable identifier, never the original filename: the file
+    # has no public URL and its name must not reveal what it holds.
     suffix = PurePosixPath(filename).suffix.lower()
     return f"{uuid.uuid4().hex}{suffix}"

@@ -25,7 +25,7 @@ ADMINISTRATOR_GROUP = "Administrator"
 # separate, administrator-only capability (_DATA_CLEANUP_PERMISSIONS below);
 # every relationship to a Student is PROTECT, so it cascades through a
 # service, not this ordinary CRUD grant. Ranks and the syllabus are read-only
-# until syllabus versioning lands in Phase 2b.
+# while syllabus versioning is deferred (see docs/decision_log.md).
 _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("students", "view_student"),
     ("students", "add_student"),
@@ -51,13 +51,13 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "change_candidateoutcome"),
     ("gradings", "view_promotion"),
     # Historical grading visibility matches native grading visibility
-    # (Decision 15 of the import spec) - both roles may view imported
+    # (import Decision 15) - both roles may view imported
     # legacy records; only an administrator may import/reconcile/void one
     # (_LEGACY_GRADING_RECONCILIATION_PERMISSIONS below).
     ("gradings", "view_legacygradingrecord"),
     # Deliberately not "audit", "view_auditevent" here: audit log access is
-    # administrator-or-Master (accounts.permissions.CanViewAuditLog), a
-    # narrower cut than either role group, so no group grants it at all.
+    # accounts.permissions.can_view_audit_log, a narrower cut than either
+    # role group, so no group grants it at all.
 )
 
 # Administrators additionally manage people. Logistics beyond Kuk Sool.
@@ -80,9 +80,9 @@ _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("students", "delete_student"),
 )
 
-# Bulk data import (student rosters, and later legacy grading workbooks).
-# Administrator-only by decision - see the Definitive Implementation Spec's
-# Decision 1 and docs/decision_log.md. "can_commit_import" is a custom
+# Bulk data import (student rosters and legacy grading workbooks).
+# Administrator-only by decision - import Decision 1 in
+# docs/data-import-and-legacy-migration.md. "can_commit_import" is a custom
 # permission (ImportBatch.Meta.permissions) rather than the auto-generated
 # "change_importbatch", so upload/preview can be separated from the
 # irreversible act of actually creating students.
@@ -94,7 +94,7 @@ _DATA_IMPORT_PERMISSIONS: tuple[tuple[str, str], ...] = (
 )
 
 # Link/unlink/resolve-rank/void a historical record - Administrator-only
-# (Decision 1/15 of the import spec), distinct from view_legacygradingrecord
+# (import Decisions 1 and 15), distinct from view_legacygradingrecord
 # above so an instructor can read imported history without being able to
 # correct it.
 _LEGACY_GRADING_RECONCILIATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
@@ -112,14 +112,9 @@ GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
 }
 
-# Deliberately in no group. These are granted per user, so that an instructor
-# or an administrator can hold them without changing what their role means.
-SENSITIVE_PERMISSIONS: tuple[str, ...] = (
-    "gradings.can_make_final_grading_decision",
-    "gradings.can_promote_student",
-    "gradings.can_override_locked_session",
-    "gradings.can_view_grading_audit_log",
-)
+# The per-user authority permissions (accounts.permissions.AUTHORITY_PERMISSIONS)
+# are deliberately in no group: an instructor or administrator holds them
+# without that changing what their role means.
 
 
 def group_for_role(role: str) -> str:

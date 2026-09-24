@@ -156,7 +156,7 @@ paths:
     get:
       operationId: data_imports_batches_list
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -187,7 +187,7 @@ paths:
     post:
       operationId: data_imports_batches_create
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -197,13 +197,14 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportBatchCreate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportBatchCreate'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportBatchCreate'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -211,13 +212,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportBatch'
+                $ref: '#/components/schemas/ImportBatchCreated'
           description: ''
   /api/data-imports/batches/{id}/:
     get:
       operationId: data_imports_batches_retrieve
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -243,7 +244,7 @@ paths:
     post:
       operationId: data_imports_batches_cancel_create
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -256,31 +257,16 @@ paths:
         required: true
       tags:
       - data-imports
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/ImportBatch'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/ImportBatch'
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ImportBatch'
       security:
       - cookieAuth: []
       responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportBatch'
-          description: ''
+        '204':
+          description: No response body
   /api/data-imports/batches/{id}/commit/:
     post:
       operationId: data_imports_batches_commit_create
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -297,13 +283,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
       security:
       - cookieAuth: []
       responses:
@@ -317,7 +303,7 @@ paths:
     post:
       operationId: data_imports_batches_preview_create
       description: |-
-        Administrator-only bulk data import (Decision 1 of the import spec).
+        Administrator-only bulk data import (import Decision 1).
 
         No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
         `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -334,13 +320,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportBatch'
+              $ref: '#/components/schemas/ImportRequest'
       security:
       - cookieAuth: []
       responses:
@@ -348,7 +334,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportBatch'
+                $ref: '#/components/schemas/ImportPreview'
           description: ''
   /api/gradings/assessment-items/:
     get:
@@ -565,13 +551,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateAssessment'
+              $ref: '#/components/schemas/BulkAssessmentStart'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/CandidateAssessment'
+              $ref: '#/components/schemas/BulkAssessmentStart'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CandidateAssessment'
+              $ref: '#/components/schemas/BulkAssessmentStart'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -579,7 +566,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateAssessment'
+                $ref: '#/components/schemas/BulkAssessmentStartResult'
           description: ''
   /api/gradings/candidates/:
     get:
@@ -745,26 +732,14 @@ paths:
         required: true
       tags:
       - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-        required: true
       security:
       - cookieAuth: []
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/CandidateOutcome'
           description: ''
   /api/gradings/candidates/{id}/generate-assessment/:
     post:
@@ -778,26 +753,14 @@ paths:
         required: true
       tags:
       - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GradingCandidate'
-        required: true
       security:
       - cookieAuth: []
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/CandidateAssessment'
           description: ''
   /api/gradings/candidates/{id}/withdraw/:
     post:
@@ -841,13 +804,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkAssessmentGeneration'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkAssessmentGeneration'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkAssessmentGeneration'
         required: true
       security:
       - cookieAuth: []
@@ -856,7 +819,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/BulkAssessmentGenerationResult'
           description: ''
   /api/gradings/candidates/bulk-register/:
     post:
@@ -867,13 +830,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateRegistration'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateRegistration'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateRegistration'
         required: true
       security:
       - cookieAuth: []
@@ -882,7 +845,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/BulkCandidateRegistrationResult'
           description: ''
   /api/gradings/candidates/bulk-update-status/:
     post:
@@ -893,13 +856,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
         required: true
       security:
       - cookieAuth: []
@@ -908,15 +871,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GradingCandidate'
+                $ref: '#/components/schemas/BulkCandidateStatusUpdateResult'
           description: ''
   /api/gradings/legacy-records/:
     get:
       operationId: gradings_legacy_records_list
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -948,8 +911,8 @@ paths:
       operationId: gradings_legacy_records_retrieve
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -975,8 +938,8 @@ paths:
       operationId: gradings_legacy_records_link_student_create
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -992,13 +955,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/LinkLegacyRecord'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/LinkLegacyRecord'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/LinkLegacyRecord'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1013,8 +977,8 @@ paths:
       operationId: gradings_legacy_records_resolve_current_rank_create
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -1030,13 +994,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1051,8 +1016,8 @@ paths:
       operationId: gradings_legacy_records_resolve_testing_for_rank_create
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -1068,13 +1033,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/ResolveLegacyRank'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1089,8 +1055,8 @@ paths:
       operationId: gradings_legacy_records_unlink_student_create
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -1102,17 +1068,6 @@ paths:
         required: true
       tags:
       - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
       security:
       - cookieAuth: []
       responses:
@@ -1127,8 +1082,8 @@ paths:
       operationId: gradings_legacy_records_void_create
       description: |-
         Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (Decision 1/15 of
-        the import spec). No ordinary create/update/delete: rows are only ever
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
@@ -1144,13 +1099,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/VoidLegacyRecord'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/VoidLegacyRecord'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LegacyGradingRecord'
+              $ref: '#/components/schemas/VoidLegacyRecord'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1255,13 +1211,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
       security:
       - cookieAuth: []
       responses:
@@ -1287,21 +1243,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/CandidatePromotion'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/CandidatePromotion'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/CandidatePromotion'
       security:
       - cookieAuth: []
       responses:
-        '200':
+        '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateOutcome'
+                $ref: '#/components/schemas/Promotion'
           description: ''
   /api/gradings/outcomes/{id}/propose/:
     patch:
@@ -1319,13 +1275,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
       security:
       - cookieAuth: []
       responses:
@@ -1365,13 +1321,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/BulkPromotion'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/BulkPromotion'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CandidateOutcome'
+              $ref: '#/components/schemas/BulkPromotion'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -1379,7 +1336,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CandidateOutcome'
+                $ref: '#/components/schemas/BulkPromotionResult'
           description: ''
   /api/gradings/promotions/:
     get:
@@ -1643,6 +1600,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Rank'
+          description: ''
+  /api/ready/:
+    get:
+      operationId: ready_retrieve
+      tags:
+      - ready
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
           description: ''
   /api/students/:
     get:
@@ -2319,12 +2291,17 @@ components:
           type: boolean
           readOnly: true
         category:
+          allOf:
+          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
+          readOnly: true
+        category_display:
           type: string
           readOnly: true
       required:
       - all_required_assessed
       - all_required_met
       - category
+      - category_display
       - met
       - not_assessed
       - not_met
@@ -2446,6 +2423,152 @@ components:
       - metadata
       - occurred_at
       - summary
+    BulkAssessmentGeneration:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            type: integer
+      required:
+      - candidates
+    BulkAssessmentGenerationResult:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        created:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateAssessment'
+      required:
+      - created
+      - errors
+    BulkAssessmentStart:
+      type: object
+      properties:
+        assessments:
+          type: array
+          items:
+            type: integer
+      required:
+      - assessments
+    BulkAssessmentStartResult:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        started:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateAssessment'
+      required:
+      - errors
+      - started
+    BulkCandidateRegistration:
+      type: object
+      properties:
+        session:
+          type: integer
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkCandidateRegistrationItem'
+        generate_assessments:
+          type: boolean
+          default: false
+      required:
+      - candidates
+      - session
+    BulkCandidateRegistrationItem:
+      type: object
+      properties:
+        student:
+          type: integer
+        testing_for_rank:
+          type: integer
+        notes:
+          type: string
+          default: ''
+      required:
+      - student
+    BulkCandidateRegistrationResult:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        created:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegisteredCandidate'
+      required:
+      - created
+      - errors
+    BulkCandidateStatusUpdate:
+      type: object
+      properties:
+        candidates:
+          type: array
+          items:
+            type: integer
+        status:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+      required:
+      - candidates
+      - status
+    BulkCandidateStatusUpdateResult:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        updated:
+          type: array
+          items:
+            $ref: '#/components/schemas/GradingCandidate'
+      required:
+      - errors
+      - updated
+    BulkPromotion:
+      type: object
+      properties:
+        outcomes:
+          type: array
+          items:
+            type: integer
+      required:
+      - outcomes
+    BulkPromotionResult:
+      type: object
+      properties:
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+        promoted:
+          type: array
+          items:
+            $ref: '#/components/schemas/Promotion'
+      required:
+      - errors
+      - promoted
     CandidateAssessment:
       type: object
       properties:
@@ -2840,6 +2963,60 @@ components:
         * `DRAFT` - Draft
         * `PROPOSED` - Proposed
         * `FINALISED` - Finalised
+    CandidatePromotion:
+      type: object
+      properties:
+        notes:
+          type: string
+    CanonicalLegacyRow:
+      type: object
+      properties:
+        source_sheet:
+          type: string
+        source_section:
+          type: string
+        source_locator:
+          type: string
+        cycle_year:
+          type: integer
+        cycle_month:
+          type: integer
+        record_kind:
+          $ref: '#/components/schemas/RecordKindEnum'
+        source_name:
+          type: string
+        source_current_rank_text:
+          type: string
+        source_testing_for_rank_text:
+          type: string
+        source_outcome_text:
+          type: string
+        outcome:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        attendance_status:
+          $ref: '#/components/schemas/AttendanceStatusEnum'
+        comments:
+          type: string
+        admin_note:
+          type: string
+      required:
+      - admin_note
+      - attendance_status
+      - comments
+      - cycle_month
+      - cycle_year
+      - outcome
+      - record_kind
+      - source_current_rank_text
+      - source_locator
+      - source_name
+      - source_outcome_text
+      - source_section
+      - source_sheet
+      - source_testing_for_rank_text
     ChangePassword:
       type: object
       description: |-
@@ -3061,7 +3238,7 @@ components:
       type: object
       properties:
         source:
-          type: string
+          $ref: '#/components/schemas/SourceEnum'
         record_id:
           type: integer
         date:
@@ -3075,7 +3252,7 @@ components:
           type: integer
           nullable: true
         date_precision:
-          type: string
+          $ref: '#/components/schemas/DatePrecisionEnum'
         testing_for_rank_code:
           type: string
           nullable: true
@@ -3085,10 +3262,12 @@ components:
         source_testing_for_rank_text:
           type: string
         outcome:
-          type: string
           nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+          - $ref: '#/components/schemas/NullEnum'
         attendance_status:
-          type: string
+          $ref: '#/components/schemas/AttendanceStatusEnum'
         comments:
           type: string
         promotion_id:
@@ -3234,8 +3413,13 @@ components:
           readOnly: true
           nullable: true
         summary_json:
+          type: object
+          additionalProperties:
+            type: integer
           readOnly: true
         configuration_json:
+          type: object
+          additionalProperties: {}
           readOnly: true
         error_summary:
           type: string
@@ -3267,6 +3451,128 @@ components:
       - updated_at
       - uploaded_at
       - uploaded_by_email
+    ImportBatchCreate:
+      type: object
+      properties:
+        kind:
+          $ref: '#/components/schemas/KindEnum'
+        file:
+          type: string
+          format: uri
+      required:
+      - file
+      - kind
+    ImportBatchCreated:
+      type: object
+      description: |-
+        The batch, plus one-shot creation-response extras: a duplicate-hash
+        warning and the file's own headers, so the frontend can build its
+        mapping step without a second request. Not persisted batch state.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        kind_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportBatchStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        original_filename:
+          type: string
+          readOnly: true
+        sha256:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        uploaded_by_email:
+          type: string
+          format: email
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        committed_by_email:
+          type: string
+          format: email
+          readOnly: true
+          nullable: true
+        committed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        summary_json:
+          type: object
+          additionalProperties:
+            type: integer
+          readOnly: true
+        configuration_json:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        error_summary:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        already_imported_warning:
+          type: boolean
+          readOnly: true
+        detected_headers:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        suggested_mapping:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+      required:
+      - already_imported_warning
+      - cancelled_at
+      - committed_at
+      - committed_by_email
+      - configuration_json
+      - created_at
+      - detected_headers
+      - error_summary
+      - file_size
+      - id
+      - kind
+      - kind_display
+      - original_filename
+      - sha256
+      - status
+      - status_display
+      - suggested_mapping
+      - summary_json
+      - updated_at
+      - uploaded_at
+      - uploaded_by_email
     ImportBatchStatusEnum:
       enum:
       - UPLOADED
@@ -3287,6 +3593,14 @@ components:
         * `CANCELLED` - Cancelled
         * `FAILED` - Failed
         * `EXPIRED` - Expired
+    ImportPreview:
+      oneOf:
+      - $ref: '#/components/schemas/StudentImportPreview'
+      - $ref: '#/components/schemas/LegacyImportPreview'
+    ImportRequest:
+      oneOf:
+      - $ref: '#/components/schemas/StudentImportRequest'
+      - $ref: '#/components/schemas/LegacyImportRequest'
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -3471,6 +3785,68 @@ components:
       - voided_at
       - voided_by
       - voided_by_email
+    LegacyImportPreview:
+      type: object
+      properties:
+        total:
+          type: integer
+        grading_result:
+          type: integer
+        auxiliary_note:
+          type: integer
+        did_not_attend:
+          type: integer
+        unresolved_current_rank:
+          type: integer
+        unresolved_testing_for_rank:
+          type: integer
+        unresolved_outcome:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+        rank_suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankMappingSuggestion'
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CanonicalLegacyRow'
+      required:
+      - auxiliary_note
+      - did_not_attend
+      - grading_result
+      - rank_suggestions
+      - rows
+      - total
+      - unresolved_current_rank
+      - unresolved_outcome
+      - unresolved_testing_for_rank
+      - warnings
+    LegacyImportRequest:
+      type: object
+      description: |-
+        Shared request shape for the historical preview and commit actions.
+
+        Keys are the source rank text exactly as it appeared in the workbook
+        (case-insensitive on the service side); a null/omitted value explicitly
+        means "leave unresolved" - never a block on committing that row
+        (import Decision 4, unlike the student roster importer's required rank).
+      properties:
+        rank_mappings:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+    LinkLegacyRecord:
+      type: object
+      properties:
+        student:
+          type: integer
+      required:
+      - student
     LockedCandidateWithdrawal:
       type: object
       properties:
@@ -4115,6 +4491,22 @@ components:
           type: string
           format: date-time
           readOnly: true
+    PatchedCandidateOutcomeFinalise:
+      type: object
+      properties:
+        final_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+    PatchedCandidateOutcomeProposal:
+      type: object
+      properties:
+        proposed_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        proposal_notes:
+          type: string
     PatchedGradingCandidate:
       type: object
       properties:
@@ -4671,6 +5063,28 @@ components:
         * `COLOURED_BELT` - Coloured belt
         * `BLACK_BELT_CANDIDATE` - Black belt candidate
         * `BLACK_BELT` - Black belt
+    RankMappingSuggestion:
+      type: object
+      properties:
+        source_text:
+          type: string
+        suggested_rank_id:
+          type: integer
+          nullable: true
+        suggested_rank_code:
+          type: string
+          nullable: true
+      required:
+      - source_text
+      - suggested_rank_code
+      - suggested_rank_id
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
     RecordKindEnum:
       enum:
       - GRADING_RESULT
@@ -4681,6 +5095,27 @@ components:
         * `GRADING_RESULT` - Grading result
         * `AUXILIARY_NOTE` - Auxiliary note
         * `DID_NOT_ATTEND` - Did not attend
+    RegisteredCandidate:
+      type: object
+      properties:
+        candidate:
+          $ref: '#/components/schemas/GradingCandidate'
+        assessment:
+          allOf:
+          - $ref: '#/components/schemas/CandidateAssessment'
+          nullable: true
+      required:
+      - assessment
+      - candidate
+    ResolveLegacyRank:
+      type: object
+      description: '`rank=null` explicitly leaves the mapping unresolved.'
+      properties:
+        rank:
+          type: integer
+          nullable: true
+      required:
+      - rank
     ResultEnum:
       enum:
       - NOT_ASSESSED
@@ -4713,6 +5148,14 @@ components:
           writeOnly: true
       required:
       - password
+    SourceEnum:
+      enum:
+      - KUKGRADE
+      - LEGACY
+      type: string
+      description: |-
+        * `KUKGRADE` - KUKGRADE
+        * `LEGACY` - LEGACY
     Student:
       type: object
       description: |-
@@ -4786,9 +5229,9 @@ components:
       type: object
       description: |-
         Combines finalised native outcomes with linked, non-voided legacy
-        records (spec section 25) - kept deliberately separate from
+        records - kept deliberately separate from
         StudentRankHistorySerializer/`/rank-history/`, which remains
-        Promotion-only (spec section 26).
+        Promotion-only (import Decision 6).
       properties:
         student:
           type: integer
@@ -4808,6 +5251,98 @@ components:
       - student
       - student_display_name
       - student_wksa_id
+    StudentImportPreview:
+      type: object
+      properties:
+        total:
+          type: integer
+        ready:
+          type: integer
+        review_required:
+          type: integer
+        skip_existing:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentImportRowResult'
+      required:
+      - ready
+      - review_required
+      - rows
+      - skip_existing
+      - total
+    StudentImportRequest:
+      type: object
+      description: Shared request shape for the preview and commit actions.
+      properties:
+        column_mapping:
+          type: object
+          additionalProperties:
+            type: string
+        corrections:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: string
+      required:
+      - column_mapping
+    StudentImportRowOutcomeEnum:
+      enum:
+      - READY
+      - REVIEW_REQUIRED
+      - SKIP_EXISTING
+      type: string
+      description: |-
+        * `READY` - Ready
+        * `REVIEW_REQUIRED` - Needs review
+        * `SKIP_EXISTING` - Skip - WKSA ID exists
+    StudentImportRowResult:
+      type: object
+      properties:
+        row_number:
+          type: integer
+        outcome:
+          $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
+        wksa_id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth_display:
+          type: string
+        current_rank_text:
+          type: string
+        current_rank_code:
+          type: string
+          nullable: true
+        status:
+          type: string
+        issues:
+          type: array
+          items:
+            type: string
+        existing_student_id:
+          type: integer
+          nullable: true
+        existing_student_display:
+          type: string
+          nullable: true
+      required:
+      - current_rank_code
+      - current_rank_text
+      - date_of_birth_display
+      - existing_student_display
+      - existing_student_id
+      - first_name
+      - issues
+      - last_name
+      - outcome
+      - row_number
+      - status
+      - wksa_id
     StudentList:
       type: object
       description: |-
@@ -5203,6 +5738,13 @@ components:
       - must_change_password
       - password
       - role_display
+    VoidLegacyRecord:
+      type: object
+      properties:
+        reason:
+          type: string
+      required:
+      - reason
     WithdrawalReasonEnum:
       enum:
       - INJURY

@@ -20,7 +20,7 @@ chat session.
 
 Work in small reviewable slices. Do not combine a screen rebuild with
 stylesheet modularisation, test-file moves, or accessibility remediation — the
-frontend hygiene work in `frontend-next-steps-handoff.md` is a separate track.
+remaining frontend hygiene work in `docs/action_plan.md` is a separate track.
 
 ## Read Before Changing Code
 
@@ -31,12 +31,12 @@ Read the repository `AGENTS.md`, then:
    work depends on (see §6).
 3. `docs/permissions.md` — Master authority is three per-user permissions,
    never a role.
-4. `docs/domain-model.md` — grading lifecycle and historical reproducibility.
-5. `docs/testing-strategy.md`
-6. `docs/development-workflow.md` — verification commands.
-7. `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md` — the
+4. `docs/architecture.md` — app boundaries and historical reproducibility.
+5. `docs/development-workflow.md` — testing expectations and verification
+   commands.
+6. `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md` — the
    accepted visual direction and the FDR decisions this work supersedes.
-8. `frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
+7. `frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
    — the nine proposed directions.
 
 ## 1. Selected directions

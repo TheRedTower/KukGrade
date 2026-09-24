@@ -1,25 +1,14 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-22. This document
-takes precedence over older planning documents for what exists now.
+Describes the implementation on `dev` as verified on 2026-09-24. This document
+takes precedence over every other document for what exists now.
 
-Verified on 2026-09-23 with 617 backend tests and 173 frontend tests passing.
-Ruff, formatting, strict mypy, Django checks, migration drift, OpenAPI schema,
-ESLint, TypeScript, production build, generated API types, and `npm audit` are
-clean. CI enforces the same categories on each push and pull request.
-
-**Fixed 2026-09-22**: what had been recorded here as harmless "pre-existing,
-order-dependent flakiness" in 8 backend tests was actually a deterministic CI
-regression, introduced by `accounts/migrations/0005_seed_deleted_user_placeholder.py`
-(2026-09-21) and failing on every push since. `accounts/apps.py`'s `post_save`
-receiver on `User` (`_apply_role_group`) ran on every save, including the
-`raw=True` saves pytest-django's `serialized_rollback` issues while replaying
-its snapshot after a transactional test's flush; racing that replay's own
-`Group` rows produced `IntegrityError: duplicate key value violates unique
-constraint "auth_group_name_key"` on the second and later transactional test
-in a session. Fixed by having `_apply_role_group` return early on `raw=True`,
-the guard Django reserves exactly for this. See the 2026-09-22 decision log
-entry.
+Verified on 2026-09-24 with 633 backend tests and 196 frontend tests passing
+(the frontend suite in both UTC and `TZ=America/Los_Angeles`).
+Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
+OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
+build, and `npm audit --audit-level=high` are clean. CI enforces the same
+checks on each push and pull request.
 
 ## Implemented
 
@@ -28,6 +17,14 @@ entry.
   Vitest, ESLint.
 - **CI** runs the full verification set on every branch push and pull request.
   Verified to fail on a deliberate error.
+- **Production app packaging (2026-09-23)**: one Docker image builds React
+  with same-origin `/api/` calls, bundles it with Django, and collects static
+  files with WhiteNoise. `compose.prod.yml` defines one app service attached
+  to external Traefik and PostgreSQL networks; it does not create either
+  existing service. The container runs migrations before one threaded
+  Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
+  health; the public `/api/health/` remains a process liveness endpoint.
+  See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and
   secure cookies default on. The one exception is the reverse-proxy header
@@ -139,10 +136,11 @@ entry.
   closed, and retain the page-scroll lock during the interaction. The lifecycle
   modal's opener is a dropdown item that unmounts in the same render as the
   modal mounting; focus is moved onto the still-mounted dropdown trigger first
-  so restoration lands there rather than on `document.body`. Not yet migrated
-  to the same `useDialogFocus` contract: the audit event detail dialog, the
-  attendance/withdrawal dialogs, and the user-management create/password-reset
-  dialogs - each has its own working but separately-implemented Tab-trap.
+  so restoration lands there rather than on `document.body`. Every dialog in
+  the app - including the audit event detail, attendance/withdrawal, and
+  user-management create/password-reset dialogs - uses the same
+  `useDialogFocus` contract; none can be closed while its request is in
+  flight.
 - **Accessibility pass (2026-09-20)**: every implemented route carries a
   landmark (`<section aria-labelledby>`/`aria-label`); the four that didn't
   (grading-session detail, cohort builder, promotion ledger, candidate
@@ -163,9 +161,7 @@ entry.
   WCAG 1.4.10 treats as equivalent to 200% zoom on a 1280px display. Icon-only
   buttons, input/radio-group labelling, and colour-alone status indicators
   were audited app-wide with no violations found. Not yet done: per-element
-  contrast measurement (checked visually, not measured), and migrating the
-  still-separately-implemented dialogs (audit event detail, attendance/
-  withdrawal, user-management create/password-reset) onto `useDialogFocus`.
+  contrast measurement (checked visually, not measured).
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a
@@ -247,7 +243,7 @@ entry.
   the new permission automatically, with no separate filtering logic needed.
 - **Master authority is administrator-exclusive by design**: granting
   `can_make_final_grading_decision` to an administrator is refused
-  (`POST /api/users/{id}/authority/`), and promoting a user who already
+  (`PATCH /api/users/{id}/authority/`), and promoting a user who already
   holds it to administrator is refused too
   (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
   designated Master, never an administrator; administrators hold every
@@ -344,13 +340,13 @@ entry.
   `generated_at`, `completed_at`) keep normal parsing so they render in the
   reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
-  `PromotionLedgerScreen` and `StudentDetailScreen`, and in `calculateAge`,
-  where it could shift the age band that selects a candidate's syllabus. CI
+  `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
+  is the API's own `age_band_display`, never recomputed in the browser. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
   the UTC runner cannot observe this class of bug: with the defect
-  reintroduced, UTC passes and the non-UTC run fails 5 tests. Four
-  correct-but-duplicated formatters remain in `GradingSessionsScreen`,
-  `GradingSessionDetailScreen`, `OverviewScreen` and `BuildGradingCohortScreen`.
+  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen,
+  including the assessment screens' time and record-date formatters, formats
+  through `formatApiDate`/`formatSessionDate`.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and
@@ -359,9 +355,10 @@ entry.
 - **Design tokens for the "Quiet Command" visual direction** live in
   `frontend/src/theme.css` as CSS custom properties (`--color-*`,
   `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
-  FDR-001 through FDR-004 and FDR-012. Most application styling uses the
-  tokens, but legacy literal colours and the large shared `App.css` remain a
-  cleanup item. Dark mode follows `prefers-color-scheme` by default; an
+  FDR-001 through FDR-004 and FDR-012. Styling is one stylesheet per feature
+  area on those tokens, with `App.css` holding only the shell and shared
+  primitives; a few literal colours remain (belt colours, status tints). Dark
+  mode follows `prefers-color-scheme` by default; an
   explicit Light/Dark/System choice sets
   `[data-theme]` on `<html>` instead, applied before first paint by an inline
   script in `index.html` so a stored choice does not flash the system default.
@@ -383,15 +380,15 @@ entry.
   "Welcome back" implies a return visit that has not actually happened yet.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
-  `frontend/src/api/schema.ts`, and `AuthUser`/`HealthResponse` are aliases
-  onto it rather than separately maintained types - see the 2026-09-14
-  decision log entry. CI regenerates the file and fails the build if it
-  differs from what is committed, so a serializer change nobody mirrors is
-  caught there rather than surfacing as a frontend type error later. The
-  error envelope has no schema entry to generate from - `custom_exception_handler`
-  builds it outside DRF's serializer-driven response path, so `FieldErrors`/
-  `ApiErrorBody` stay hand-written until error responses are declared
-  explicitly per view.
+  `frontend/src/api/schema.ts`, and every type in `frontend/src/api.ts` is an
+  alias onto it - see the 2026-09-14 decision log entry. Every custom action
+  declares its real request and response (`@extend_schema`), and the bulk,
+  summary, and import actions serialize through those same declared
+  serializers, so the schema cannot describe a shape the API does not send.
+  CI regenerates both the schema and the types and fails if either differs
+  from what is committed. The only hand-written API shapes are the error
+  envelope, which `custom_exception_handler` builds outside DRF's
+  serializer path, and the page envelope.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every
@@ -418,12 +415,22 @@ entry.
   the per-user permission class each requires, independent of the ordinary
   `permission_map` check.
 
+## Known Gaps
+
+- Per-element contrast has been checked visually in both themes, not
+  measured.
+- `frontend/src/App.test.tsx` still holds about 5,000 lines of screen tests
+  that belong in per-screen files.
+- The historical-workbook adapter has only been exercised on synthetic
+  workbooks; a rehearsal on a sanitised copy of the real file is required
+  before a production import.
+
 ## Not Implemented
 
 - Offline/PWA storage and synchronisation; the frontend is online-first.
 - Syllabus versioning: deliberately deferred, see the decision log.
 - Data erasure: handled manually by decision, see the decision log.
-- Deployment, production image, backups.
+- Production host integration, scheduled backups, and verified restore.
 
 ## Deferred Or Out Of Scope
 

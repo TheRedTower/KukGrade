@@ -15,57 +15,10 @@ import {
   getRanks,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
+import { RankVisual } from "./RankVisual";
+import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
 
-function formatSessionDate(dateStr: string): string {
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    if (!year || !month || !day) return dateStr;
-    const date = new Date(year, month - 1, day);
-    return new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
-  } catch {
-    return dateStr;
-  }
-}
-
-function RankVisual({ rankName }: { rankName: string }) {
-  const isStripe = rankName.toLowerCase().includes("stripe");
-  const lower = rankName.toLowerCase();
-
-  let color = "#94a3b8"; // white / default
-  if (lower.includes("white")) color = "#cbd5e1";
-  else if (lower.includes("yellow")) color = "#eab308";
-  else if (lower.includes("blue")) color = "#2563eb";
-  else if (lower.includes("red")) color = "#dc2626";
-  else if (lower.includes("brown")) color = "#78350f";
-  else if (lower.includes("black") || lower.includes("dahn")) color = "#0f172a";
-
-  if (isStripe) {
-    return (
-      <span
-        className="bgc-rank-stripes"
-        style={{ "--rank-color": color } as React.CSSProperties}
-        aria-hidden="true"
-      >
-        <span className="bgc-stripe-bar" />
-        <span className="bgc-stripe-bar" />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className="bgc-rank-dot"
-      style={{ backgroundColor: color }}
-      aria-hidden="true"
-    />
-  );
-}
 
 interface CohortItem {
   student: StudentListItem;
@@ -201,23 +154,7 @@ export function BuildGradingCohortScreen() {
       if (statusFilter === "INACTIVE" && s.status !== "INACTIVE") return false;
 
       // Age group filter
-      if (ageFilter !== "ALL") {
-        const matchesCanonical = s.age_band === ageFilter;
-        const matchesShort =
-          (ageFilter === "8_UNDER" && s.age_band === "AGE_8_AND_UNDER") ||
-          (ageFilter === "9_12" && s.age_band === "AGE_9_TO_12") ||
-          (ageFilter === "13_17" && s.age_band === "AGE_13_TO_17") ||
-          (ageFilter === "18_PLUS" && s.age_band === "AGE_18_AND_OVER");
-        const matchesDisplay =
-          (ageFilter === "8 and under" && s.age_band === "AGE_8_AND_UNDER") ||
-          (ageFilter === "9-12" && s.age_band === "AGE_9_TO_12") ||
-          (ageFilter === "13-17" && s.age_band === "AGE_13_TO_17") ||
-          (ageFilter === "18+" && s.age_band === "AGE_18_AND_OVER");
-
-        if (!matchesCanonical && !matchesShort && !matchesDisplay) {
-          return false;
-        }
-      }
+      if (ageFilter !== "ALL" && s.age_band !== ageFilter) return false;
 
       return true;
     });
@@ -921,7 +858,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-wksa">{s.wksa_id || "—"}</td>
                           <td className="bgc-td-rank">
                             <div className="bgc-rank-cell">
-                              <RankVisual rankName={s.current_rank_name || currentRankObj?.name || ""} />
+                              <RankVisual classPrefix="bgc" rankName={s.current_rank_name || currentRankObj?.name || ""} />
                               <span className="bgc-rank-label">
                                 {s.current_rank_name || currentRankObj?.name || "—"}
                               </span>
@@ -930,7 +867,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-rank">
                             {destRankObj ? (
                               <div className="bgc-rank-cell">
-                                <RankVisual rankName={destRankObj.name} />
+                                <RankVisual classPrefix="bgc" rankName={destRankObj.name} />
                                 <span className="bgc-rank-label">{destRankObj.name}</span>
                               </div>
                             ) : (
@@ -1017,7 +954,7 @@ export function BuildGradingCohortScreen() {
                         <tr key={group.rank.id}>
                           <td className="bgc-td-rank">
                             <div className="bgc-rank-cell">
-                              <RankVisual rankName={group.rank.name} />
+                              <RankVisual classPrefix="bgc" rankName={group.rank.name} />
                               <span className="bgc-rank-label">{group.rank.name}</span>
                             </div>
                           </td>
@@ -1027,7 +964,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-rank">
                             {group.destinationRank ? (
                               <div className="bgc-rank-cell">
-                                <RankVisual rankName={group.destinationRank.name} />
+                                <RankVisual classPrefix="bgc" rankName={group.destinationRank.name} />
                                 <span className="bgc-rank-label">{group.destinationRank.name}</span>
                               </div>
                             ) : (
@@ -1124,7 +1061,7 @@ export function BuildGradingCohortScreen() {
                       <tr key={item.rankId}>
                         <td className="bgc-tray-td-rank">
                           <div className="bgc-rank-cell">
-                            {item.currentRank && <RankVisual rankName={item.currentRank.name} />}
+                            {item.currentRank && <RankVisual classPrefix="bgc" rankName={item.currentRank.name} />}
                             <span className="bgc-rank-label">
                               {item.currentRank?.name || "Unknown"}
                             </span>
@@ -1136,7 +1073,7 @@ export function BuildGradingCohortScreen() {
                         <td className="bgc-tray-td-rank">
                           <div className="bgc-rank-cell">
                             {item.destinationRank && (
-                              <RankVisual rankName={item.destinationRank.name} />
+                              <RankVisual classPrefix="bgc" rankName={item.destinationRank.name} />
                             )}
                             <span className="bgc-rank-label">
                               {item.destinationRank?.name || "—"}

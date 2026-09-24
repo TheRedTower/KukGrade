@@ -5,6 +5,7 @@ from typing import cast
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
+from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -16,6 +17,7 @@ from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from data_imports.models import ImportBatch
 from data_imports.serializers import (
+    ImportBatchCreatedSerializer,
     ImportBatchCreateSerializer,
     ImportBatchSerializer,
     LegacyImportPreviewSerializer,
@@ -31,7 +33,21 @@ from data_imports.services import (
     preview_legacy_grading_import,
     preview_student_import,
 )
-from gradings.serializers import raise_drf_validation_error
+from kukgrade.exceptions import raise_drf_validation_error
+
+# Preview and commit take, and preview returns, a different shape per batch
+# kind: a student roster's column mapping, or a legacy workbook's rank
+# mappings.
+_IMPORT_REQUEST = PolymorphicProxySerializer(
+    component_name="ImportRequest",
+    serializers=[StudentImportRequestSerializer, LegacyImportRequestSerializer],
+    resource_type_field_name=None,
+)
+_IMPORT_PREVIEW = PolymorphicProxySerializer(
+    component_name="ImportPreview",
+    serializers=[StudentImportPreviewSerializer, LegacyImportPreviewSerializer],
+    resource_type_field_name=None,
+)
 
 
 class ImportBatchViewSet(
@@ -39,7 +55,7 @@ class ImportBatchViewSet(
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
-    """Administrator-only bulk data import (Decision 1 of the import spec).
+    """Administrator-only bulk data import (import Decision 1).
 
     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -64,6 +80,10 @@ class ImportBatchViewSet(
             "cancelled_by",
         ).order_by("-uploaded_at", "-pk")
 
+    @extend_schema(
+        request=ImportBatchCreateSerializer,
+        responses={201: ImportBatchCreatedSerializer},
+    )
     def create(self, request: Request, *args: object, **kwargs: object) -> Response:
         input_serializer = ImportBatchCreateSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
@@ -75,20 +95,13 @@ class ImportBatchViewSet(
             )
         except DjangoValidationError as exc:
             raise_drf_validation_error(exc)
-        # Flattened onto the batch representation rather than a dedicated
-        # response serializer: these three are one-shot creation-response
-        # extras (a duplicate-hash warning, and the file's own headers so
-        # the frontend can build a mapping step without a second request),
-        # not persisted batch state, so they are intentionally outside
-        # ImportBatchSerializer's OpenAPI-documented shape.
-        payload = dict(
-            ImportBatchSerializer(result.batch, context={"request": request}).data,
+        created = ImportBatchCreatedSerializer(
+            result.batch,
+            context={"request": request, "creation": result},
         )
-        payload["already_imported_warning"] = result.already_imported_warning
-        payload["detected_headers"] = result.detected_headers
-        payload["suggested_mapping"] = result.suggested_mapping
-        return Response(payload, status=status.HTTP_201_CREATED)
+        return Response(created.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(request=None, responses={204: None})
     @action(detail=True, methods=["post"])
     def cancel(self, request: Request, *args: object, **kwargs: object) -> Response:
         batch = self.get_object()
@@ -98,6 +111,7 @@ class ImportBatchViewSet(
             raise_drf_validation_error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(request=_IMPORT_REQUEST, responses=_IMPORT_PREVIEW)
     @action(detail=True, methods=["post"])
     def preview(self, request: Request, *args: object, **kwargs: object) -> Response:
         batch = self.get_object()
@@ -126,6 +140,7 @@ class ImportBatchViewSet(
             raise_drf_validation_error(exc)
         return Response(StudentImportPreviewSerializer(preview).data)
 
+    @extend_schema(request=_IMPORT_REQUEST, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])
     def commit(self, request: Request, *args: object, **kwargs: object) -> Response:
         batch = self.get_object()

@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -176,6 +175,26 @@ describe("UsersScreen", () => {
     expect(fieldError.closest("[role='alert']")).not.toBeNull();
     expect(emailInput).toHaveAttribute("aria-invalid", "true");
     expect(emailInput).toHaveAttribute("aria-describedby", "cud-email-error");
+  });
+
+  it("cannot be closed while the create request is in flight", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockReturnValue(new Promise(() => {}));
+    renderScreen();
+    await screen.findByText("Riley Khan");
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await user.type(within(dialog).getByLabelText("Email address"), "pending@example.com");
+    await user.type(within(dialog).getByLabelText("Temporary password"), "Temporary-Password-2026!");
+    await user.type(within(dialog).getByLabelText("Confirm password"), "Temporary-Password-2026!");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    await waitFor(() => expect(mockCreateManagedUser).toHaveBeenCalled());
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog", { name: "Add staff user" })).toBeInTheDocument();
   });
 
   it("opens the selected user for management", async () => {

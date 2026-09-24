@@ -280,19 +280,19 @@ export function CandidateAssessmentScreen() {
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <span className="caw-rank-tag">
-          {studentRankName && <RankVisual rankName={studentRankName} />}
+          {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
           <span>{studentRankName || "Current rank"}</span>
         </span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />
         </svg>
         <span className="caw-rank-tag caw-rank-tag-dest">
-          <RankVisual rankName={candidate.testing_for_rank_name} />
+          <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
           <span>{candidate.testing_for_rank_name}</span>
         </span>
         <span className="caw-age-pill">{candidate.age_band_display}</span>
         <span
-          className={`caw-status-pill caw-status-${assessment?.status?.toLowerCase() || "not-started"}`}
+          className={`caw-status-pill caw-status-${(assessment?.status ?? "NOT_STARTED").toLowerCase()}`}
           data-testid="caw-status-pill"
         >
           <span className="caw-status-dot" aria-hidden="true" />

@@ -63,23 +63,11 @@ export function formatApiDate(
   }
 }
 
-/**
- * Whole years between a date of birth and today.
- *
- * Age decides the applicable age band, and the age band decides which syllabus
- * a candidate is assessed against - so an off-by-one here is a domain error,
- * not a cosmetic one. `date_of_birth` is date-only, which is why this goes
- * through `parseApiDate` rather than `new Date()`.
- */
-export function calculateAge(dobStr: string | null | undefined): number | null {
-  const dob = parseApiDate(dobStr);
-  if (!dob) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDelta = today.getMonth() - dob.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < dob.getDate())) {
-    age--;
-  }
-  return age;
+/** A grading date as it reads throughout the app: "Tuesday, 1 June 2027". */
+export function formatSessionDate(isoDate: string): string {
+  return formatApiDate(
+    isoDate,
+    { weekday: "long", day: "numeric", month: "long", year: "numeric" },
+    "",
+  );
 }

@@ -1,9 +1,8 @@
 """Standard student-roster template and best-effort header suggestions.
 
 Suggestions are never authoritative - the admin confirms or overrides the
-mapping before anything is validated or committed (Decision 11 of the
-Definitive Implementation Spec: support both the standard template and a
-custom mapping).
+mapping before anything is validated or committed (import Decision 11:
+support both the standard template and a custom mapping).
 """
 
 from __future__ import annotations
@@ -27,7 +26,8 @@ STUDENT_REQUIRED_TARGET_FIELDS: tuple[str, ...] = (
     "current_rank",
 )
 
-# The downloadable standard template's own header row, in column order.
+# The standard template's header row, in column order. The frontend's
+# "Download standard template" link (ImportStudentsScreen) must match it.
 STANDARD_STUDENT_HEADERS: dict[str, str] = {
     "wksa_id": "WKSA ID",
     "first_name": "First Name",

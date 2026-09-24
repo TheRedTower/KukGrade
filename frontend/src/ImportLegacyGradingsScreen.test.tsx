@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -35,6 +34,7 @@ const batchResponse: DataImportBatch = {
   kind: "LEGACY_GRADINGS",
   kind_display: "Legacy grading records",
   status: "UPLOADED",
+  status_display: "Uploaded",
   original_filename: "workbook.xlsx",
   sha256: "abc",
   file_size: 2048,

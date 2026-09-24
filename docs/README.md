@@ -1,60 +1,48 @@
 # Documentation Index
 
-This directory contains both current-state documentation and older planning
-inputs. Treat `current-system.md` as the current-state authority. Use accepted,
-non-superseded entries in `decision_log.md` for decisions and the requirements
-documents for intended scope, not as proof that something is implemented.
+Each document has one job. When they disagree, `current-system.md` wins for
+what exists today and `decision_log.md` for why.
 
-## Primary Documents
+## Current state and contracts
 
-- `current-system.md` - exact implemented architecture, endpoints, entities,
-  known gaps, and deferred areas for the current `dev` baseline.
-- `data-import-and-legacy-migration.md` - implemented bulk student-roster
-  import and historical KSW Colchester grading-workbook migration: the
-  `ImportBatch` lifecycle, the workbook adapter, rank review,
-  `LegacyGradingRecord` immutability/reconciliation, and the unified
-  grading-history read model.
-- `product-requirements.md` - product goals, users, confirmed requirements, proposed scope, and unresolved product decisions.
-- `architecture.md` - modular monolith architecture, backend/frontend boundaries, data storage, deployment direction, and deferred worker guidance.
-- `domain-model.md` - core domain concepts, proposed entities, grading lifecycle, and historical reproducibility rules.
-- `syllabus-model.md` - data-driven versioned syllabus model and historical grading references.
-- `permissions.md` - roles, backend permission enforcement, privacy rules, and audit requirements.
-- `testing-strategy.md` - expected backend, frontend, permission, audit, and contract testing coverage.
-- `development-workflow.md` - repository workflow, sequencing, definition of done, and unresolved engineering choices.
-- `audits/2026-09-13-independent-repository-audit.md` and
-  `audits/2026-09-15-post-completion-audit.md` - dated audit snapshots; verify
-  their findings against current code before acting.
+- `current-system.md` - what is implemented on `dev`, how it was verified,
+  and the known gaps. The current-state authority.
+- `api_contract.md` - the HTTP contract, endpoint by endpoint. The
+  machine-readable form is `../backend/schema.yml`, which declares every
+  request and response body and generates the frontend's types.
+- `permissions.md` - roles, the Django-permission authority model, and the
+  capability map.
+- `data-import-and-legacy-migration.md` - student-roster import, historical
+  KSW Colchester workbook migration, and the sixteen locked import decisions
+  the code cites as "import Decision N".
+- `deployment.md` - production image, Traefik/PostgreSQL connections,
+  startup, update, and recovery.
 
-## Supporting Planning Inputs
+## Direction and reasoning
 
-- `action_plan.md` - current high-level implementation sequence.
-- `frontend-next-steps-handoff.md` - current implementation handoff for the
-  remaining frontend accessibility, stylesheet modularisation, test
-  modularisation, validation, and delivery work.
-- `assessment-grading-redesign-handoff.md` - implementation handoff for
-  rebuilding the three assessment grading screens: the verified backend
-  contract for assessments, items, outcomes and promotions, what is wrong with
-  the current screens, the selection gate over the nine proposed directions in
+- `decision_log.md` - dated decisions and their reasoning.
+- `product-requirements.md` - product goals, users, confirmed requirements,
+  and scope.
+- `architecture.md` - the modular monolith, its app boundaries, and
+  deployment shape.
+- `action_plan.md` - what remains, in order.
+- `assessment-grading-redesign-handoff.md` - the in-progress rebuild of the
+  assessment grading screens: the verified backend contract, the selected
+  design directions in
   `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/`, and
-  the suggested implementation slices. Directions were selected on 2026-09-23;
-  one open decision in `decision_log.md`, the assessment summary endpoint,
-  blocks slice 2 only.
-- `api_contract.md` - mixed implemented and target REST API surface; check
-  section labels before treating an endpoint as real.
-- `data_model.md` - target/legacy detailed data model notes, not the current
-  schema.
-- `decision_log.md` - accepted decisions and their reasoning.
-- `audits/remediation-status.md` - historical H/M/L register superseded by the
-  KG-numbered audits; retained for traceability.
-- `grading_app_planning.md` - earlier product direction and phased
-  implementation notes, retained as legacy planning context.
+  the implementation slices still to do. Retire it when its last slice lands.
+- `development-workflow.md` - working rules, testing expectations, and the
+  one canonical list of verification commands.
 
-## Working Agreement
+## Evidence
 
-Use the primary documents first. The supporting planning inputs are useful context, but some terms need reconciliation before implementation. In particular, older documents mention outcomes such as defer or reassess; the confirmed final outcomes are Pass, Fail, and Conditional.
+- `audits/` - dated audit snapshots. Code comments and the decision log cite
+  their `KG-nnn` findings. Verify a finding against current code before
+  acting on it, and never rewrite a dated audit to look current.
 
-Before each meaningful implementation step, confirm the relevant unresolved
-decisions, keep the change small, and update the decision log when a choice
-affects structure, dependencies, data shape, user workflows, or long-term
-maintainability. During audit remediation, follow the stage boundaries in
-the current code and the relevant dated audit evidence.
+## Working agreement
+
+Before a change that affects behaviour or structure, read the relevant
+documents above and confirm any unresolved decision it depends on. Update the
+documents a change makes stale in the same change, and record structural,
+dependency, data-shape or workflow choices in `decision_log.md`.

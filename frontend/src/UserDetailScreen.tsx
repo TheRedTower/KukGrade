@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -228,7 +228,6 @@ function PasswordResetDialog({
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [clientError, setClientError] = useState("");
-  const dialogRef = useRef<HTMLElement>(null);
   const mutation = useMutation({
     mutationFn: () => resetManagedUserPassword(user.id, password),
     onSuccess: () => {
@@ -236,36 +235,20 @@ function PasswordResetDialog({
       onClose();
     },
   });
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab" || !dialogRef.current) return;
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), input:not(:disabled)",
-      )];
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  const dialogRef = useDialogFocus<HTMLElement>({
+    isOpen: true,
+    onClose,
+    canClose: !mutation.isPending,
+  });
 
   const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
-    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={dialogRef} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
+    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending) onClose(); }}>
+      <section ref={dialogRef} tabIndex={-1} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
         <header>
           <div><p>Security action</p><h2 id="reset-password-title">Set a temporary password</h2></div>
-          <button type="button" className="users-link-button" onClick={onClose}>Close</button>
+          <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>Close</button>
         </header>
         <form onSubmit={(event) => {
           event.preventDefault();
@@ -289,7 +272,7 @@ function PasswordResetDialog({
           <label>
             <span>Temporary password</span>
             <input
-              autoFocus
+              data-dialog-autofocus
               required
               type="password"
               autoComplete="new-password"
@@ -309,7 +292,7 @@ function PasswordResetDialog({
           )}
           {(clientError || error) && <div className="users-error" role="alert">{clientError || error?.message}</div>}
           <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose}>Cancel</button>
+            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
             <button type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : "Set password"}</button>
           </div>
         </form>

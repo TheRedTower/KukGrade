@@ -7,12 +7,10 @@ from __future__ import annotations
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.core.files.uploadedfile import SimpleUploadedFile
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
-from data_imports.models import ImportBatch
-from data_imports.services import create_import_batch
+from data_imports.testing import legacy_batch, legacy_record
 from gradings.legacy_services import (
     create_legacy_grading_record,
     link_legacy_record_to_student,
@@ -33,45 +31,8 @@ from students.models import Student
 pytestmark = pytest.mark.django_db
 
 
-def import_batch(uploaded_by: User | None = None) -> ImportBatch:
-    result = create_import_batch(
-        kind=ImportBatch.Kind.LEGACY_GRADINGS,
-        upload=SimpleUploadedFile("workbook.xlsx", _xlsx_bytes()),
-        uploaded_by=uploaded_by or user("legacy-batch-uploader@example.com"),
-    )
-    return result.batch
-
-
-def _xlsx_bytes() -> bytes:
-    import tablib
-
-    dataset = tablib.Dataset(headers=["Name", "Current Rank", "Testing For", "Outcome"])
-    dataset.append(["A. Example", "Yellow Belt", "Blue Stripe", "Pass"])
-    exported = dataset.export("xlsx")
-    return exported if isinstance(exported, bytes) else exported.encode()
-
-
-def legacy_record(**overrides: object) -> LegacyGradingRecord:
-    data: dict[str, object] = {
-        "record_kind": LegacyRecordKind.GRADING_RESULT,
-        "source_sheet": "06/2025",
-        "source_locator": "06/2025!A14:E14",
-        "cycle_year": 2025,
-        "cycle_month": 6,
-        "source_name": "A. Example",
-    }
-    data.update(overrides)
-    # Built lazily, only when the caller has not supplied one - `setdefault`
-    # would still evaluate import_batch() eagerly every call, creating (and
-    # discarding) an unused batch, including its own default-email
-    # uploader, which collides on a second call within the same test.
-    if "source_batch" not in data:
-        data["source_batch"] = import_batch()
-    return create_legacy_grading_record(**data)  # type: ignore[arg-type]
-
-
 def test_create_legacy_grading_record_persists_source_facts() -> None:
-    batch = import_batch()
+    batch = legacy_batch()
     record = create_legacy_grading_record(
         source_batch=batch,
         record_kind=LegacyRecordKind.GRADING_RESULT,
@@ -94,7 +55,7 @@ def test_create_legacy_grading_record_persists_source_facts() -> None:
 
 
 def test_duplicate_source_locator_within_a_batch_is_rejected() -> None:
-    batch = import_batch()
+    batch = legacy_batch()
     legacy_record(source_batch=batch, source_locator="06/2025!A14:E14")
 
     with pytest.raises(ValidationError, match="already exists"):

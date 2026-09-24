@@ -201,10 +201,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       setIsBatchTrayOpen(false);
 
-      if (res.errors && res.errors.length > 0) {
+      const failed = Object.keys(res.errors).length;
+      if (failed > 0) {
         setActionFeedback({
           type: "error",
-          message: `Promoted ${res.promoted.length} candidates, but ${res.errors.length} encountered errors.`,
+          message: `Promoted ${res.promoted.length} candidates, but ${failed} encountered errors.`,
         });
       } else {
         setActionFeedback({

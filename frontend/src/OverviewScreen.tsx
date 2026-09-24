@@ -13,6 +13,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
+import { formatSessionDate } from "./dates";
 import "./OverviewScreen.css";
 
 function CalendarIcon() {
@@ -117,25 +118,7 @@ function SuccessCheckIcon() {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function formatSessionDate(dateString: string): string {
-  if (!dateString) return "";
-  try {
-    const [year, month, day] = dateString.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    return new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(date);
-  } catch {
-    return dateString;
-  }
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function formatRelativeTime(isoString: string): string {
+function formatRelativeTime(isoString: string): string {
   if (!isoString) return "";
   try {
     const date = new Date(isoString);
@@ -171,7 +154,7 @@ export function formatRelativeTime(isoString: string): string {
   }
 }
 
-export type FormattedActivityItem = {
+type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
   targetName: string;
@@ -180,8 +163,7 @@ export type FormattedActivityItem = {
   statusLabel: string;
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
+function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   const summaryLower = (event.summary || "").toLowerCase();
   const actionLower = (event.action || "").toLowerCase();
 

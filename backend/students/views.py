@@ -1,4 +1,5 @@
-from datetime import date
+from __future__ import annotations
+
 from typing import cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -12,8 +13,13 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from gradings.serializers import raise_drf_validation_error
-from gradings.services import student_rank_timeline, unified_student_grading_history
+from gradings.services import (
+    age_band_birth_date_bounds,
+    student_rank_timeline,
+    unified_student_grading_history,
+)
+from kukgrade.exceptions import raise_drf_validation_error
+from kukgrade.filtering import filter_choice, filter_exact
 from students.models import Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -23,13 +29,6 @@ from students.serializers import (
 )
 from students.services import delete_student
 from syllabus.models import AgeBand
-
-
-def _safe_date(year: int, month: int, day: int) -> date:
-    try:
-        return date(year, month, day)
-    except ValueError:
-        return date(year, 2, 28)
 
 
 class StudentViewSet(
@@ -44,9 +43,8 @@ class StudentViewSet(
     # than just omitting an UpdateModelMixin's put support, is what
     # actually returns 405 for it - the router still binds it to any mixin
     # method that exists, and http_method_names is what dispatch checks
-    # before that binding is used. DELETE is administrator-only hard
-    # delete (students.services.delete_student), not the plain CRUD
-    # students.delete_student both roles used to lack entirely - see
+    # before that binding is used. DELETE is the administrator-only hard
+    # delete (students.services.delete_student) - see
     # accounts.groups._DATA_CLEANUP_PERMISSIONS.
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     permission_classes = [HasRequiredPermissions]
@@ -81,41 +79,33 @@ class StudentViewSet(
             "wksa_id",
         )
 
-        status_filter = self.request.query_params.get("status")
-        if status_filter in Student.Status.values:
-            queryset = queryset.filter(status=status_filter)
-        elif status_filter:
-            queryset = queryset.none()
+        params = self.request.query_params
+        queryset = filter_choice(
+            queryset,
+            params.get("status"),
+            "status",
+            Student.Status.values,
+        )
+        queryset = filter_exact(
+            queryset,
+            params.get("current_rank_code"),
+            "current_rank__code",
+        )
 
-        age_band = self.request.query_params.get("age_band")
+        age_band = params.get("age_band")
         if age_band in AgeBand.values:
-            today = timezone.localdate()
-            if age_band == AgeBand.AGE_8_AND_UNDER:
-                cutoff = _safe_date(today.year - 9, today.month, today.day)
-                queryset = queryset.filter(date_of_birth__gt=cutoff)
-            elif age_band == AgeBand.AGE_9_TO_12:
-                lower = _safe_date(today.year - 13, today.month, today.day)
-                upper = _safe_date(today.year - 9, today.month, today.day)
-                queryset = queryset.filter(
-                    date_of_birth__gt=lower, date_of_birth__lte=upper
-                )
-            elif age_band == AgeBand.AGE_13_TO_17:
-                lower = _safe_date(today.year - 18, today.month, today.day)
-                upper = _safe_date(today.year - 13, today.month, today.day)
-                queryset = queryset.filter(
-                    date_of_birth__gt=lower, date_of_birth__lte=upper
-                )
-            elif age_band == AgeBand.AGE_18_AND_OVER:
-                cutoff = _safe_date(today.year - 18, today.month, today.day)
-                queryset = queryset.filter(date_of_birth__lte=cutoff)
+            born_after, born_on_or_before = age_band_birth_date_bounds(
+                age_band,
+                timezone.localdate(),
+            )
+            if born_after is not None:
+                queryset = queryset.filter(date_of_birth__gt=born_after)
+            if born_on_or_before is not None:
+                queryset = queryset.filter(date_of_birth__lte=born_on_or_before)
         elif age_band:
             queryset = queryset.none()
 
-        current_rank_code = self.request.query_params.get("current_rank_code")
-        if current_rank_code:
-            queryset = queryset.filter(current_rank__code=current_rank_code)
-
-        search = self.request.query_params.get("search")
+        search = params.get("search")
         if search:
             queryset = queryset.filter(
                 Q(first_name__icontains=search)

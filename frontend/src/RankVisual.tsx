@@ -1,36 +1,50 @@
+import type { CSSProperties } from "react";
+
 /**
- * Belt swatch shown beside a rank name on the assessment screens.
- *
- * Decorative only - every use sits next to the rank's own text, so the swatch
- * is `aria-hidden` and never the sole carrier of meaning (FDR-003).
+ * A belt's colour from its rank name: the coloured belts by name, and black
+ * for Black stripe and every black-belt title (Dahn Bo Nim onwards) - the
+ * same classification as the syllabus screen's BeltSwatch.
  */
-export function RankVisual({ rankName }: { rankName: string }) {
-  const isStripe = rankName.toLowerCase().includes("stripe");
-  const lower = rankName.toLowerCase();
+function rankColor(rankName: string): string {
+  const name = rankName.toLowerCase();
+  if (name.includes("white")) return "#cbd5e1";
+  if (name.includes("yellow")) return "#eab308";
+  if (name.includes("blue")) return "#2563eb";
+  if (name.includes("red")) return "#dc2626";
+  if (name.includes("brown")) return "#78350f";
+  return "#0f172a";
+}
 
-  let color = "#94a3b8"; // default
-  if (lower.includes("yellow")) color = "#eab308";
-  else if (lower.includes("blue")) color = "#2563eb";
-  else if (lower.includes("red")) color = "#dc2626";
-  else if (lower.includes("brown")) color = "#78350f";
-  else if (lower.includes("black") || lower.includes("dahn") || lower.includes("pu sa")) color = "#0f172a";
+/**
+ * A rank as a dot of belt colour, or two bars for a stripe rank. Each screen
+ * sizes it with its own `<prefix>-rank-dot`, `<prefix>-rank-stripes` and
+ * `<prefix>-stripe-bar` rules.
+ */
+export function RankVisual({
+  rankName,
+  classPrefix,
+}: {
+  rankName: string;
+  classPrefix: "bgc" | "gsd" | "caw";
+}) {
+  const color = rankColor(rankName);
 
-  if (isStripe) {
+  if (rankName.toLowerCase().includes("stripe")) {
     return (
       <span
-        className="caw-rank-stripes"
-        style={{ "--rank-color": color } as React.CSSProperties}
+        className={`${classPrefix}-rank-stripes`}
+        style={{ "--rank-color": color } as CSSProperties}
         aria-hidden="true"
       >
-        <span className="caw-stripe-bar" />
-        <span className="caw-stripe-bar" />
+        <span className={`${classPrefix}-stripe-bar`} />
+        <span className={`${classPrefix}-stripe-bar`} />
       </span>
     );
   }
 
   return (
     <span
-      className="caw-rank-dot"
+      className={`${classPrefix}-rank-dot`}
       style={{ backgroundColor: color }}
       aria-hidden="true"
     />

@@ -19,6 +19,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CandidateAssessmentItem,
+  CategoryAssessmentSummary,
   GradingCandidate,
   getAllGradingCandidates,
   getAssessmentSummary,
@@ -27,18 +28,10 @@ import {
   getGradingSession,
   getStudents,
 } from "./api";
+import { formatApiDate } from "./dates";
 
 export function formatTimeOnly(isoStr: string | null): string {
-  if (!isoStr) return "";
-  try {
-    const date = new Date(isoStr);
-    return new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date);
-  } catch {
-    return "";
-  }
+  return formatApiDate(isoStr, { hour: "2-digit", minute: "2-digit" }, "");
 }
 
 /**
@@ -46,13 +39,7 @@ export function formatTimeOnly(isoStr: string | null): string {
  * the session, so repeating it on every row of chrome is noise.
  */
 export function formatDayMonth(isoStr: string | null): string {
-  if (!isoStr) return "";
-  try {
-    const date = new Date(isoStr);
-    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date);
-  } catch {
-    return "";
-  }
+  return formatApiDate(isoStr, { day: "2-digit", month: "short" }, "");
 }
 
 export interface CategoryGroup {
@@ -167,7 +154,7 @@ export function useCandidateAssessmentData(
       itemsByCategory.get(item.category)!.push(item);
     }
 
-    const servedByCategory = new Map(
+    const servedByCategory = new Map<string, CategoryAssessmentSummary>(
       (summary?.categories ?? []).map((category) => [category.category, category]),
     );
 

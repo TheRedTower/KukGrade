@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1753,6 +1752,8 @@ describe("Student detail screen (/students/:id)", () => {
     status: "ACTIVE",
     status_display: "Active",
     can_be_graded: true,
+    age_band: "AGE_13_TO_17",
+    age_band_display: "13-17",
     created_at: "2021-01-08T10:00:00Z",
     updated_at: "2021-01-08T10:00:00Z",
   };
@@ -1808,7 +1809,7 @@ describe("Student detail screen (/students/:id)", () => {
     // Student details card
     expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
     expect(screen.getByText("24 April 2012")).toBeVisible();
-    expect(screen.getByText("13 – 17")).toBeVisible();
+    expect(screen.getByText("13-17")).toBeVisible();
     // `created_at` is a real timestamp and correctly renders in the reader's
     // own timezone - 10:00Z on the 8th is the 9th at UTC+14. Derived rather
     // than hard-coded so this asserts formatting, not the suite's timezone.
@@ -2904,6 +2905,13 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "REGISTERED" as const,
       status_display: "Registered",
       notes: "",
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      withdrawal_note: "",
+      withdrawn_by: null,
+      withdrawn_by_email: "",
+      withdrawn_by_name: "",
+      withdrawn_at: null,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-01T10:00:00Z",
     },
@@ -2922,6 +2930,13 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "REGISTERED" as const,
       status_display: "Registered",
       notes: "",
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      withdrawal_note: "",
+      withdrawn_by: null,
+      withdrawn_by_email: "",
+      withdrawn_by_name: "",
+      withdrawn_at: null,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-01T10:00:00Z",
     },
@@ -2940,6 +2955,13 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "REGISTERED" as const,
       status_display: "Registered",
       notes: "",
+      withdrawal_reason: "",
+      withdrawal_reason_display: "",
+      withdrawal_note: "",
+      withdrawn_by: null,
+      withdrawn_by_email: "",
+      withdrawn_by_name: "",
+      withdrawn_at: null,
       created_at: "2026-09-01T10:00:00Z",
       updated_at: "2026-09-01T10:00:00Z",
     },
@@ -4208,6 +4230,13 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     status: "REGISTERED",
     status_display: "Registered",
     notes: "",
+    withdrawal_reason: "",
+    withdrawal_reason_display: "",
+    withdrawal_note: "",
+    withdrawn_by: null,
+    withdrawn_by_email: "",
+    withdrawn_by_name: "",
+    withdrawn_at: null,
     created_at: "2026-09-02T10:00:00Z",
     updated_at: "2026-09-02T10:00:00Z",
   };
@@ -4624,6 +4653,13 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "REGISTERED",
     status_display: "Registered",
     notes: "",
+    withdrawal_reason: "",
+    withdrawal_reason_display: "",
+    withdrawal_note: "",
+    withdrawn_by: null,
+    withdrawn_by_email: "",
+    withdrawn_by_name: "",
+    withdrawn_at: null,
     created_at: "2026-09-18T10:00:00Z",
     updated_at: "2026-09-18T10:00:00Z",
   };

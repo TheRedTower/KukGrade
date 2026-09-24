@@ -1,0 +1,48 @@
+name: kukgrade
+
+services:
+  app:
+    image: kukgrade:local
+    container_name: kukgrade
+    build:
+      context: .
+      target: production
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - kukgrade_import_uploads:/var/lib/kukgrade/import_uploads
+    networks:
+      - apps_net
+      - postgres_net
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=apps_net"
+      - "traefik.http.routers.kukgrade.rule=Host(`www.kukgrade.co.uk`)"
+      - "traefik.http.routers.kukgrade.entrypoints=websecure"
+      - "traefik.http.routers.kukgrade.tls=true"
+      - "traefik.http.routers.kukgrade.tls.certresolver=cloudflare"
+      - "traefik.http.services.kukgrade.loadbalancer.server.port=8000"
+
+networks:
+  apps_net:
+    external: true
+  postgres_net:
+    external: true
+    name: ${POSTGRES_NETWORK:?Set POSTGRES_NETWORK}
+
+volumes:
+  kukgrade_import_uploads:

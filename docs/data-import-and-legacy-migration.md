@@ -1,10 +1,44 @@
 # Data import and legacy grading migration
 
-Source spec: `KukGrade_Data_Import_Legacy_Migration_Definitive_Implementation_Spec.md`
-(handed over in full; its sixteen locked product/domain decisions are
-authoritative for this feature unless superseded by a dated entry in
-`decision_log.md`). This document tracks what is actually implemented today
-and defers to the spec for anything not yet built.
+This feature was built from an external implementation specification that
+is not part of this repository. Its sixteen locked product decisions are
+summarised below - code comments cite them as "import Decision N" - and stay
+authoritative unless a dated `decision_log.md` entry supersedes one.
+
+## Locked decisions
+
+1. **Import authority**: only administrators upload, preview, map, commit,
+   reconcile, or void. Backend permissions enforce it.
+2. **No Student link required**: a historical record may be committed
+   before anyone knows which student it belongs to; it keeps its own source
+   name rather than inventing a placeholder student.
+3. **No automatic identity linking**: suggestions only; a link is real only
+   once an administrator confirms it.
+4. **Rank mappings need review**: source rank text is never silently
+   normalised, and is kept verbatim after a mapping is approved.
+5. **Uncertainty does not block the import**: an unresolved rank or outcome
+   is imported and left unresolved for review; a row fails only when it
+   cannot be represented safely.
+6. **A historical Pass never creates a native Promotion**, outcome,
+   candidate, assessment, or rank change - native rank history stays
+   native.
+7. **Comments are not interpreted**: preserved verbatim, never turned into
+   results.
+8. **Did Not Attend is attendance, not failure**, and is excluded from
+   Pass/Fail/Conditional rates.
+9. **An existing WKSA ID is skipped and flagged**, never updated.
+10. **No incomplete or placeholder students**: a roster row missing
+    required data is held for review, not created.
+11. **Standard template or custom mapping** for student files.
+12. **Formats**: `.xlsx`/`.csv` rosters; `.xlsx` historical workbooks.
+13. **Auxiliary information is preserved** (Unaccounted, Missing, Current
+    belt sections) rather than dropped.
+14. **Source date precision is preserved**: a cycle month stays a month;
+    an exact day is never invented.
+15. **Historical visibility matches native grading visibility**: both roles
+    read imported records.
+16. **Historical records are never physically deleted**: void, with a
+    reason, is the only removal; a wrong link is corrected by unlinking.
 
 ## Status
 
@@ -13,15 +47,14 @@ KSW Colchester grading-workbook migration (2026-09-22)**, including rank
 review, identity reconciliation, void/correction workflows, and the unified
 grading-history read model. See `decision_log.md`'s "Student roster bulk
 import (Phase A of the data-import spec)" entry for the five deviations
-from the spec's literal recommendations that apply to both halves (Tablib
+from the specification's recommendations that apply to both halves (Tablib
 instead of `django-import-export`, no background worker, local filesystem
 storage, all-or-nothing commit) and the exact-match-only rank resolution
 decision specific to the roster importer, and its "Historical KSW
 Colchester grading-workbook migration" entry for the historical half's own
 choices. Not yet done: a rehearsal against a real (sanitised) copy of the
 actual workbook - every fixture used to build and test the adapter is
-synthetic, and the real file must never enter this repository (spec
-sections 38/40).
+synthetic, and the real file must never enter this repository.
 
 ## Student roster import
 
@@ -34,7 +67,8 @@ of these to an Instructor. See `permissions.md`.
 
 ### Accepted formats
 
-`.xlsx` and `.csv`, up to 5 MiB, up to 5,000 rows and 50 columns. Anything
+`.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 5,000 rows,
+and 50 columns. Anything
 else - wrong extension, a file that isn't actually a valid workbook/CSV,
 `.xlsm` - is rejected before it is ever written to disk.
 
@@ -44,7 +78,7 @@ else - wrong extension, a file that isn't actually a valid workbook/CSV,
 WKSA ID | First Name | Last Name | Date of Birth | Current Rank | Status
 ```
 
-Dates: `YYYY-MM-DD` or `DD/MM/YYYY`. `Current Rank` must match a `Rank.code`
+Dates: `YYYY-MM-DD`, `DD/MM/YYYY`, or `DD-MM-YYYY`. `Current Rank` must match a `Rank.code`
 or `Rank.name` exactly (case-insensitive) - see "Rank resolution" below.
 `Status` defaults to `ACTIVE` if left blank.
 
@@ -85,8 +119,8 @@ upload (create_import_batch)
   that was `READY` at the start of commit somehow fails when actually
   written (a rare race, not something normal usage triggers), the whole
   batch rolls back rather than partially committing. This is a deliberate
-  simplification versus the source spec's partial-commit design - see the
-  decision log.
+  simplification versus the specification's partial-commit design - see
+  the decision log.
 - The source file is deleted from private storage on commit, cancel, or
   expiry (`manage.py expire_stale_import_batches --hours 24`, run manually
   or via an external cron - no background worker exists in this codebase).
@@ -132,7 +166,7 @@ Import/commit: the same `data_imports.*` permissions as the roster importer.
 Reconciliation (link/unlink/resolve/void): `gradings.can_reconcile_imported
 _history`, administrator-only. **Reading** an imported record
 (`GET /api/gradings/legacy-records/`) is available to both roles, matching
-native grading visibility (Decision 15 of the spec) - an instructor can see
+native grading visibility (import Decision 15) - an instructor can see
 imported history, only an administrator can correct it.
 
 ### Accepted format
@@ -142,19 +176,20 @@ imported history, only an administrator can correct it.
 ### The workbook adapter
 
 `data_imports/ksw_adapter.py`, `parse_ksw_colchester_workbook()` -
-deliberately source-specific (spec section 15), understands one workbook's
+deliberately source-specific, understands one workbook's
 structure only:
 
 - Ignores an `Information` sheet; recognises a cycle sheet by a `MM/YYYY`-
   shaped title and derives `cycle_year`/`cycle_month` from it, never an
   exact day. **A real finding during implementation**: Excel forbids `/` in
-  a worksheet title (openpyxl raises on it), so despite the spec's own prose
-  consistently writing cycle sheet names as `"06/2025"`, the real workbook
+  a worksheet title (openpyxl raises on it), so although cycle sheet names
+  are conventionally written `"06/2025"`, the real workbook
   cannot literally be titled that - the sheet-name pattern accepts `-` or
   `.` as the separator too, and preserves whatever the real title turns out
   to be in `source_sheet` rather than normalising it.
-  An unrecognised non-empty sheet produces a warning rather than being
-  silently dropped.
+  An unrecognised non-empty sheet, or a cycle sheet with no recognisable
+  header row, produces a warning in the preview rather than being silently
+  dropped.
 - Finds the main table's header row by content (a defensive scan for at
   least three of `Name`/`Current Rank`/`Testing For`/`Outcome`/`Comments`),
   not a fixed row number, and does not stop at the first blank row - an
@@ -175,13 +210,13 @@ structure only:
 - **Never resolves a rank.** `source_current_rank_text`/
   `source_testing_for_rank_text` are extracted verbatim; `current_rank`/
   `testing_for_rank` are always left unset by the parser. Rank resolution
-  is an explicit, later, admin-reviewed step (Decision 4), not a parsing
+  is an explicit, later, admin-reviewed step (import Decision 4), not a parsing
   concern.
 
 ### Rank review
 
 Unlike the roster importer, rank text here is reviewed **once per distinct
-value across the whole batch**, not per row (spec section 17) -
+value across the whole batch**, not per row -
 `preview_legacy_grading_import()` collects every distinct
 `source_current_rank_text`/`source_testing_for_rank_text`, case-insensitive,
 and suggests an exact `Rank.code`/`Rank.name` match for each (never a
@@ -222,7 +257,7 @@ each locking the row, saving, and recording one audit event
 
 - `link_legacy_record_to_student(record, student, actor=...)` /
   `unlink_legacy_record_from_student(record, actor=...)` - every link is an
-  explicit administrator decision (Decision 3); nothing in this codebase
+  explicit administrator decision (import Decision 3); nothing in this codebase
   ever infers one from a name match, however strong the suggestion looked.
   Unlinking or relinking never touches `source_name`.
 - `resolve_legacy_current_rank(record, rank_or_none, actor=...)` /
@@ -251,20 +286,20 @@ student into one newest-first, source-labelled (`KUKGRADE`/`LEGACY`) list,
 each item carrying its own honest date precision (`DAY` for a native
 grading; `MONTH` for a historical one, unless a genuinely verified exact
 date was added later). Deliberately separate from `/rank-history/`, which
-is untouched and remains `Promotion`-only (spec section 26) - a legacy Pass
+is untouched and remains `Promotion`-only (import Decision 6) - a legacy Pass
 is never merged into native rank history. `StudentDetailScreen.tsx`'s
 "Grading history" card renders this endpoint directly, with Did Not Attend
 shown distinctly from Fail rather than as a red failure.
 
 ### Still open before a real production import
 
-The spec's own hardening/rehearsal step (section 46): run the adapter
+A rehearsal before any production import: run the adapter
 against a sanitised copy of the actual KSW Colchester workbook in a
 non-production environment, compare per-sheet record counts against the
 source, and explicitly verify zero native `Promotion`s, zero native
 `CandidateOutcome`s, and zero `Student.current_rank` changes resulted. The
 adapter's sheet-structure assumptions (header row detection, auxiliary
 section names, the `-`/`.` sheet-name separator finding above) are a
-best-effort reading of the spec's written description, built without ever
+best-effort reading of the workbook's written description, built without ever
 having the real file in this repository, and should be expected to need
 adjustment once tested against it.

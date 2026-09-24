@@ -36,6 +36,7 @@ import {
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { isCoreCategory } from "./syllabusCategories";
+import { formatApiDate } from "./dates";
 import "./CandidateAssessment.css";
 
 function CheckIcon({ size = 13 }: { size?: number }) {
@@ -63,38 +64,10 @@ function SealIcon() {
   );
 }
 
-/*
-  Handles both shapes this screen formats, which parse differently:
-
-  - `grading_date` is a date-only string (`2026-11-12`). `new Date()` reads
-    that as UTC midnight, so west of UTC it renders the *previous* day - the
-    permanent record would misstate the date the grading happened. It is
-    therefore split into local year/month/day, as `GradingSessionDetailScreen`
-    already does.
-  - `generated_at` and `completed_at` are real timestamps with an offset, and
-    must keep normal parsing so they render in the reader's own timezone.
-*/
-const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
-
+// Date-only grading dates and offset timestamps parse differently;
+// formatApiDate (dates.ts) decides from the value.
 function formatRecordDate(isoStr: string | null | undefined): string {
-  if (!isoStr) return "";
-  try {
-    let date: Date;
-    if (DATE_ONLY.test(isoStr)) {
-      const [year, month, day] = isoStr.split("-").map(Number);
-      if (!year || !month || !day) return isoStr;
-      date = new Date(year, month - 1, day);
-    } else {
-      date = new Date(isoStr);
-    }
-    return new Intl.DateTimeFormat("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(date);
-  } catch {
-    return "";
-  }
+  return formatApiDate(isoStr, { day: "2-digit", month: "short", year: "numeric" }, "");
 }
 
 /** The mark shown against a requirement or core area on the proof. */
@@ -306,14 +279,14 @@ export function AssessmentCompletionScreen() {
               <div className="acp-label">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
-                  {studentRankName && <RankVisual rankName={studentRankName} />}
+                  {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
                   <span>{studentRankName || "Current rank"}</span>
                 </span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
                 </svg>
                 <span className="acp-rank acp-rank-dest">
-                  <RankVisual rankName={candidate.testing_for_rank_name} />
+                  <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
                   <span>{candidate.testing_for_rank_name}</span>
                 </span>
               </div>

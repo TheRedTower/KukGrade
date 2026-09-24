@@ -6,7 +6,8 @@ KukGrade is an internal web application for managing Kuk Sool Won grading operat
 
 ## Confirmed Requirements
 
-- Users are instructors, grading managers, administrators, and authorised Masters.
+- Users are instructors and administrators; one designated instructor holds
+  authorised Master authority. There is no separate grading-manager role.
 - Students do not directly access the application.
 - An authorised Master makes the final grading decision.
 - Supported final outcomes are Pass, Fail, and Conditional.
@@ -14,7 +15,7 @@ KukGrade is an internal web application for managing Kuk Sool Won grading operat
 - Assessment data must support category-level results, item-level met/not-met results, comments, and positive observations.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
-- Each grading must retain the exact syllabus version used at the time before assessment results are recorded.
+- Each grading must retain the exact syllabus it was assessed against.
 - Updating a syllabus must not change historical grading records.
 - Student status must support active, inactive, and left.
 - Missing a grading must not automatically mean that a student left.
@@ -50,35 +51,28 @@ Ranks:
 - Sa Buhm nim
 - Pyung Kwahn Jung Nim
 
-## Proposed V1 Scope
+## Scope
 
-- Staff authentication and role-based access.
-- Student profile management.
-- Rank and age-band-aware syllabus lookup.
-- Grading session creation and candidate management.
-- Examiner draft assessments with item-level met/not-met results.
-- Comments, positive observations, and category-level summaries.
-- Authorised Master final decision capture.
-- Historical grading records and rank-change history.
-- Audit logging for sensitive changes.
+Delivered: staff authentication with role and per-user authority
+permissions; student records; rank- and age-band-aware syllabus lookup;
+grading sessions and candidates; item-level assessment with comments;
+outcome proposal and the authorised Master's final decision; promotion and
+rank history; bulk student-roster import and historical grading-workbook
+migration; and an append-only audit log. `current-system.md` has the detail.
 
-## Proposed Later Scope
+Not yet built, each needing an accepted specification first: eligibility
+calculations, reports and exports, certificates, notifications, and offline
+use. See `action_plan.md`.
 
-- Eligibility calculations based on confirmed rules.
-- Recommendation workflow.
-- Attendance import or attendance management.
-- Certificate generation.
-- Reports and exports.
-- Notifications and asynchronous jobs.
-- Limited external integrations if needed.
+## Settled questions
 
-## Unresolved Decisions
+Questions this document once left open, now answered in `decision_log.md`:
+Master authority is three per-user permissions rather than a role; a Pass is
+promoted by a separate, explicit promotion step; attendance is recorded as
+grading participation (withdrawn/no-show), not managed separately;
+Conditional carries mandatory written conditional requirements.
 
-- Whether V1 includes eligibility calculations or only records eligibility-related data for later use.
-- Whether attendance is managed inside KukGrade, imported, or deferred.
-- Exact definition of Conditional and how follow-up actions are recorded.
-- Whether an authorised Master is represented as a separate role, a permission, or a role plus explicit authorisation.
-- Exact fields required on student profiles beyond the confirmed personal data and grading data.
-- Whether a Pass automatically creates a promotion record and rank change, or whether a separate confirmation step is required.
-- Whether cohort-level comments are required in V1.
-- Whether reports are required in V1 or deferred.
+## Open questions
+
+- Whether cohort-level comments are needed.
+- Whether reports and exports belong in the next release.

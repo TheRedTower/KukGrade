@@ -18,7 +18,7 @@ import {
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
-import { calculateAge, formatApiDate } from "./dates";
+import { formatApiDate } from "./dates";
 
 function LockIcon() {
   return (
@@ -95,14 +95,6 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
   return "Unresolved";
 }
 
-function resolveAgeBand(dobStr: string | null | undefined): string {
-  const age = calculateAge(dobStr);
-  if (age === null) return "—";
-  if (age <= 8) return "8 and under";
-  if (age <= 12) return "9 – 12";
-  if (age <= 17) return "13 – 17";
-  return "18+";
-}
 
 export function StudentDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -419,7 +411,7 @@ export function StudentDetailScreen() {
 
               <div className="detail-kv-row">
                 <dt className="detail-kv-label">Age band</dt>
-                <dd className="detail-kv-value">{resolveAgeBand(student.date_of_birth)}</dd>
+                <dd className="detail-kv-value">{student.age_band_display}</dd>
               </div>
 
               <div className="detail-kv-row">

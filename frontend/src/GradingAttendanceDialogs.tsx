@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import type { LockedCandidateWithdrawal } from "./api";
+import { useDialogFocus } from "./useDialogFocus";
 import "./GradingAttendance.css";
 
 export type AttendanceCandidate = {
@@ -12,62 +13,30 @@ export type AttendanceCandidate = {
 type DialogFrameProps = {
   title: string;
   eyebrow: string;
+  pending: boolean;
   onClose: () => void;
   children: React.ReactNode;
 };
 
-function DialogFrame({ title, eyebrow, onClose, children }: DialogFrameProps) {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = dialogRef.current;
-    (
-      dialog?.querySelector<HTMLElement>("[data-dialog-autofocus]") ??
-      dialog?.querySelector<HTMLElement>("input, select, textarea, button")
-    )?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-      if (event.key !== "Tab" || !dialog) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]',
-        ),
-      );
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
-    };
-  }, [onClose]);
+function DialogFrame({ title, eyebrow, pending, onClose, children }: DialogFrameProps) {
+  // Nothing closes the dialog while its request is in flight.
+  const dialogRef = useDialogFocus<HTMLDivElement>({
+    isOpen: true,
+    onClose,
+    canClose: !pending,
+  });
 
   return (
     <div
       className="attendance-dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && !pending) onClose();
       }}
     >
       <div
         ref={dialogRef}
+        tabIndex={-1}
         className="attendance-dialog"
         role="dialog"
         aria-modal="true"
@@ -78,7 +47,7 @@ function DialogFrame({ title, eyebrow, onClose, children }: DialogFrameProps) {
             <p>{eyebrow}</p>
             <h2 id="attendance-dialog-title">{title}</h2>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose}>
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
             Close
           </button>
         </header>
@@ -106,7 +75,12 @@ export function NoShowDialog({
   const [selected, setSelected] = useState<number[]>([]);
 
   return (
-    <DialogFrame title="Confirm attendance" eyebrow="Before assessment" onClose={onClose}>
+    <DialogFrame
+      title="Confirm attendance"
+      eyebrow="Before assessment"
+      pending={pending}
+      onClose={onClose}
+    >
       <p className="attendance-dialog-copy">
         Select only the candidates who did not attend. Everyone else remains registered and unchanged.
       </p>
@@ -175,7 +149,12 @@ export function LockedWithdrawalDialog({
   const [note, setNote] = useState("");
 
   return (
-    <DialogFrame title={`Withdraw ${candidate.name}`} eyebrow="Locked-session override" onClose={onClose}>
+    <DialogFrame
+      title={`Withdraw ${candidate.name}`}
+      eyebrow="Locked-session override"
+      pending={pending}
+      onClose={onClose}
+    >
       <p className="attendance-dialog-copy">
         Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
       </p>

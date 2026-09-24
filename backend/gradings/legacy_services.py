@@ -4,10 +4,10 @@
 the native grading workflow (see its docstring in gradings/models.py). Every
 function here either creates a record from already-parsed, already-validated
 data (`create_legacy_grading_record`, called once per row from a data_imports
-commit service) or performs one of the five explicit corrections the
-Definitive Implementation Spec's section 14 allows - nothing here ever
-touches `outcome`/`comments`/other source-derived fields once a record
-exists; `LegacyGradingRecord.clean()` enforces that even if a caller tried.
+commit service) or performs one of the five explicit corrections a record
+allows - nothing here ever touches `outcome`/`comments`/other source-derived
+fields once a record exists; `LegacyGradingRecord.clean()` enforces that even
+if a caller tried.
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ def create_legacy_grading_record(
     Called once per parsed row from a data_imports commit service, which
     records a single batch-level audit event covering the whole cascade -
     the same "one event per commit, not one per row" rule already applied
-    to student-roster import (spec section 29; see data_imports.services.
+    to student-roster import (see data_imports.services.
     commit_student_import's IMPORT_BATCH_COMMITTED event).
     """
     return LegacyGradingRecord.objects.create(
@@ -95,8 +95,8 @@ def link_legacy_record_to_student(
     *,
     actor: User,
 ) -> LegacyGradingRecord:
-    """Decision 3: every link is an explicit administrator decision, never
-    inferred from a name match, however strong the suggestion looked."""
+    """Import Decision 3: every link is an explicit administrator decision,
+    never inferred from a name match, however strong the suggestion looked."""
     locked = _locked(record_.pk)
     locked.student = student
     locked.save()
@@ -140,60 +140,58 @@ def unlink_legacy_record_from_student(
     return locked
 
 
+_RANK_FIELD_LABELS = {
+    "current_rank": "current-rank",
+    "testing_for_rank": "testing-for-rank",
+}
+
+
 @transaction.atomic
+def _resolve_legacy_rank(
+    record_: LegacyGradingRecord,
+    field: str,
+    rank: Rank | None,
+    actor: User,
+) -> LegacyGradingRecord:
+    """`rank=None` explicitly leaves the mapping unresolved (import
+    Decision 4) - the source text is never touched either way."""
+    locked = _locked(record_.pk)
+    setattr(locked, field, rank)
+    locked.save()
+    resolved_display = rank.code if rank else "unresolved"
+    record(
+        AuditAction.LEGACY_GRADING_RANK_RESOLVED,
+        locked,
+        f"Legacy record {_RANK_FIELD_LABELS[field]} mapping resolved to "
+        f"{resolved_display}.",
+        actor=actor,
+        metadata={
+            "legacy_record_id": locked.pk,
+            "field": field,
+            "source_text": getattr(locked, f"source_{field}_text"),
+            "resolved_rank_code": rank.code if rank else None,
+            "batch_id": locked.source_batch_id,
+        },
+    )
+    return locked
+
+
 def resolve_legacy_current_rank(
     record_: LegacyGradingRecord,
     rank: Rank | None,
     *,
     actor: User,
 ) -> LegacyGradingRecord:
-    """`rank=None` explicitly leaves the mapping unresolved (Decision 4/17) -
-    source text is never touched either way."""
-    locked = _locked(record_.pk)
-    locked.current_rank = rank
-    locked.save()
-    resolved_display = rank.code if rank else "unresolved"
-    record(
-        AuditAction.LEGACY_GRADING_RANK_RESOLVED,
-        locked,
-        f"Legacy record current-rank mapping resolved to {resolved_display}.",
-        actor=actor,
-        metadata={
-            "legacy_record_id": locked.pk,
-            "field": "current_rank",
-            "source_text": locked.source_current_rank_text,
-            "resolved_rank_code": rank.code if rank else None,
-            "batch_id": locked.source_batch_id,
-        },
-    )
-    return locked
+    return _resolve_legacy_rank(record_, "current_rank", rank, actor)
 
 
-@transaction.atomic
 def resolve_legacy_testing_for_rank(
     record_: LegacyGradingRecord,
     rank: Rank | None,
     *,
     actor: User,
 ) -> LegacyGradingRecord:
-    locked = _locked(record_.pk)
-    locked.testing_for_rank = rank
-    locked.save()
-    resolved_display = rank.code if rank else "unresolved"
-    record(
-        AuditAction.LEGACY_GRADING_RANK_RESOLVED,
-        locked,
-        f"Legacy record testing-for-rank mapping resolved to {resolved_display}.",
-        actor=actor,
-        metadata={
-            "legacy_record_id": locked.pk,
-            "field": "testing_for_rank",
-            "source_text": locked.source_testing_for_rank_text,
-            "resolved_rank_code": rank.code if rank else None,
-            "batch_id": locked.source_batch_id,
-        },
-    )
-    return locked
+    return _resolve_legacy_rank(record_, "testing_for_rank", rank, actor)
 
 
 @transaction.atomic
@@ -204,10 +202,9 @@ def void_legacy_record(
     actor: User,
 ) -> LegacyGradingRecord:
     """Excludes the record from active history without deleting it
-    (Decision 16). Deterministically refused a second time - no "unvoid"
-    path exists (spec section 40.13's own framing: idempotent or
-    deterministically rejected; this codebase's convention elsewhere is
-    always the latter, e.g. a second import-batch commit)."""
+    (import Decision 16). Deterministically refused a second time - no
+    "unvoid" path exists, the same convention as a second import-batch
+    commit."""
     cleaned_reason = (reason or "").strip()
     if not cleaned_reason:
         raise ValidationError(

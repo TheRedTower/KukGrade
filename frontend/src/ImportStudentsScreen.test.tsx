@@ -1,4 +1,3 @@
-import "@testing-library/jest-dom/vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -34,6 +33,7 @@ const batchResponse: CreateDataImportBatchResponse = {
   kind: "STUDENT_ROSTER",
   kind_display: "Student roster",
   status: "UPLOADED",
+  status_display: "Uploaded",
   original_filename: "roster.xlsx",
   sha256: "abc123",
   file_size: 1024,

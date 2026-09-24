@@ -7,7 +7,12 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
-from syllabus.models import AgeBand, SyllabusItem
+from syllabus.models import (
+    AgeBand,
+    SyllabusItem,
+    format_numbered_range,
+    numbered_range_errors,
+)
 
 if TYPE_CHECKING:
     from accounts.models import User
@@ -686,11 +691,7 @@ class CandidateOutcome(models.Model):
             )
             if previous is not None:
                 status_changed = previous["status"] != self.status
-                if status_changed and not getattr(
-                    self,
-                    "_allow_status_transition",
-                    False,
-                ):
+                if status_changed and not self._allow_status_transition:
                     errors["status"] = [
                         "Use the candidate outcome workflow services for "
                         "status changes.",
@@ -957,7 +958,7 @@ class CandidateAssessmentItem(models.Model):
         self.requirement_notes = (self.requirement_notes or "").strip()
         self.assessor_notes = (self.assessor_notes or "").strip()
 
-        errors: dict[str, list[str]] = {}
+        errors = numbered_range_errors(self.start_number, self.end_number)
         if not self.item_code:
             errors["item_code"] = ["Item code is required."]
         if not self.item_name:
@@ -965,39 +966,12 @@ class CandidateAssessmentItem(models.Model):
         if self.requirement_sequence is not None and self.requirement_sequence <= 0:
             errors["requirement_sequence"] = ["Requirement sequence must be positive."]
 
-        has_start = self.start_number is not None
-        has_end = self.end_number is not None
-        if has_start != has_end:
-            message = "Start and end numbers must be provided together."
-            if has_start:
-                errors["end_number"] = [message]
-            else:
-                errors["start_number"] = [message]
-        if self.start_number is not None and self.start_number < 1:
-            errors["start_number"] = ["Start number must be at least 1."]
-        if (
-            self.start_number is not None
-            and self.end_number is not None
-            and self.end_number < self.start_number
-        ):
-            errors["end_number"] = [
-                "End number must be greater than or equal to start number.",
-            ]
-
         if errors:
             raise ValidationError(errors)
 
     @property
-    def has_numbered_range(self) -> bool:
-        return self.start_number is not None and self.end_number is not None
-
-    @property
     def display_range(self) -> str:
-        if not self.has_numbered_range:
-            return ""
-        if self.start_number == self.end_number:
-            return str(self.start_number)
-        return f"{self.start_number}-{self.end_number}"
+        return format_numbered_range(self.start_number, self.end_number)
 
 
 class PromotionQuerySet(models.QuerySet["Promotion"]):
@@ -1013,11 +987,6 @@ class PromotionQuerySet(models.QuerySet["Promotion"]):
         raise ValidationError(
             {"promotion": ["Promotion records are immutable and cannot be changed."]},
         )
-
-
-class PromotionManager(models.Manager["Promotion"]):
-    def get_queryset(self) -> PromotionQuerySet:
-        return PromotionQuerySet(self.model, using=self._db)
 
 
 class Promotion(models.Model):
@@ -1065,7 +1034,7 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = PromotionManager()
+    objects = PromotionQuerySet.as_manager()
 
     class Meta:
         ordering = ["-effective_date", "-promoted_at", "-pk"]
@@ -1199,11 +1168,6 @@ class LegacyGradingRecordQuerySet(models.QuerySet["LegacyGradingRecord"]):
         )
 
 
-class LegacyGradingRecordManager(models.Manager["LegacyGradingRecord"]):
-    def get_queryset(self) -> LegacyGradingRecordQuerySet:
-        return LegacyGradingRecordQuerySet(self.model, using=self._db)
-
-
 class LegacyRecordKind(models.TextChoices):
     GRADING_RESULT = "GRADING_RESULT", "Grading result"
     AUXILIARY_NOTE = "AUXILIARY_NOTE", "Auxiliary note"
@@ -1233,8 +1197,8 @@ class LegacyGradingRecord(models.Model):
     A distinct, deliberately weaker evidence model from CandidateAssessment/
     CandidateOutcome/Promotion: the historical workbook does not contain
     enough evidence (exact date, syllabus snapshot, item-level judgement,
-    assessor, decision attribution) to honestly recreate those. See the
-    Definitive Implementation Spec sections 4.2/57 for the full rationale.
+    assessor, decision attribution) to honestly recreate those. See
+    docs/data-import-and-legacy-migration.md.
 
     Source-text fields (everything except `student`, `current_rank`,
     `testing_for_rank` and the void fields) are immutable after import -
@@ -1244,7 +1208,7 @@ class LegacyGradingRecord(models.Model):
     queryset mutation and physical deletion are blocked outright
     (LegacyGradingRecordQuerySet above) - void is the only removal path,
     consistent with "historical records are never physically deleted"
-    (Decision 16 of the spec).
+    (import Decision 16).
     """
 
     if TYPE_CHECKING:
@@ -1274,7 +1238,7 @@ class LegacyGradingRecord(models.Model):
     )
 
     # Nullable, PROTECT: a legacy record may be committed with no known
-    # Student match (Decision 2) but must never silently lose that link once
+    # Student match (import Decision 2) but must never silently lose that link once
     # deleting a user is possible.
     student = models.ForeignKey(
         "students.Student",
@@ -1296,7 +1260,7 @@ class LegacyGradingRecord(models.Model):
 
     cycle_year = models.PositiveSmallIntegerField()
     cycle_month = models.PositiveSmallIntegerField()
-    # Never invented beyond what the source states (Decision 14) - MONTH
+    # Never invented beyond what the source states (import Decision 14) - MONTH
     # unless a specific day was genuinely present in the source.
     grading_date = models.DateField(null=True, blank=True)
     date_precision = models.CharField(
@@ -1325,7 +1289,7 @@ class LegacyGradingRecord(models.Model):
     )
 
     source_outcome_text = models.CharField(max_length=200, blank=True)
-    # Deterministic Pass/Fail/Conditional mappings only (Decision 16.1) -
+    # Deterministic Pass/Fail/Conditional mappings only (import Decision 5) -
     # never set from free-form/uncertain source text, so unlike
     # current_rank/testing_for_rank this has no separate admin-resolution
     # service and is immutable alongside the other source-derived fields.
@@ -1358,7 +1322,7 @@ class LegacyGradingRecord(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    objects = LegacyGradingRecordManager()
+    objects = LegacyGradingRecordQuerySet.as_manager()
 
     class Meta:
         ordering = ["-cycle_year", "-cycle_month", "source_sheet", "source_locator"]

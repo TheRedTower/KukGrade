@@ -317,7 +317,7 @@ export function MasterFinalDecisionDrawer({
 
                           return (
                             <tr key={cat.category}>
-                              <td className="mfd-cell-category">{cat.category}</td>
+                              <td className="mfd-cell-category">{cat.category_display}</td>
                               <td className="mfd-cell-score" style={{ textAlign: "right" }}>
                                 <span className="mfd-score-pill">{scoreDisplay}</span>
                               </td>

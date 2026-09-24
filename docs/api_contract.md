@@ -1,17 +1,15 @@
-# API Contract for Single-Discipline Grading App
+# API Contract
 
-Status: mixed current and target contract.
+Every endpoint below is implemented. All are prefixed with `/api/`, return
+JSON, and use Django session authentication with CSRF protection.
 
-This document started as a broad target REST contract and now contains both
-implemented endpoints and deferred target endpoints. Before building against an
-endpoint, check the section notes and `docs/current-system.md`. Implemented
-current endpoints are authentication, health, users/roles, ranks, syllabus
-lookup, students, grading sessions, grading candidates, candidate assessments,
-assessment items, candidate outcomes, promotions, and audit events.
-Organisations/branches, eligibility, certificates, and reports are target or
-deferred unless a section explicitly says otherwise.
-
-This document defines REST endpoints for the grading management system.  All endpoints are prefixed with `/api/` and return JSON responses. Authentication uses Django session authentication with CSRF protection for the React frontend.
+This document explains the contract; `backend/schema.yml` is its
+machine-readable form. The schema declares every request and response body,
+including the bulk, summary, and import actions, and generates the frontend's
+TypeScript types. CI fails if the schema drifts from the serializers or the
+types drift from the schema. Nothing is planned here: endpoints that do not
+exist yet (organisations, eligibility, certificates, reports) are listed as
+deferred in `current-system.md`.
 
 ## 0. Response conventions
 
@@ -52,6 +50,13 @@ Django's `handler500`, returns the same `{"error": {...}}` shape with code
 `server_error` and no detail about the cause - that belongs in the logs,
 not the response.
 
+## 0c. Health and readiness
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
+| GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
+
 ## 1. Authentication
 
 | Method | Endpoint              | Description                       |
@@ -74,8 +79,9 @@ password path in the app. Returns `204` on success; the value is never
 logged or included in the audit event it writes.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
-`can_promote_student` and `can_override_locked_session`, all **computed from
-the caller's Django permissions** rather than stored. Use them to hide
+`can_promote_student`, `can_override_locked_session` and
+`can_view_grading_audit_log`, all **computed from the caller's Django
+permissions** rather than stored. Use them to hide
 affordances; the server remains the enforcement boundary. `role` is
 `instructor` or `administrator` and carries no authority of its own.
 
@@ -106,29 +112,13 @@ resource. Responses include read-only `date_joined` and nullable `last_login`
 timestamps. There is no invite flow; account creation uses a temporary
 password and marks it for mandatory change at first sign-in.
 
-## 3. Organisation and Branches
+## 3. Students
 
-Status: target/deferred. These API endpoints are not implemented on `dev`.
-
-| Method | Endpoint                          | Description                                       |
-|--------|------------------------------------|---------------------------------------------------|
-| GET    | /api/organisations/                | List organisations (V1 returns one)               |
-| POST   | /api/organisations/                | Create an organisation (initially internal only)  |
-| GET    | /api/organisations/{id}/           | Retrieve organisation details                     |
-| PATCH  | /api/organisations/{id}/           | Update organisation                               |
-| GET    | /api/branches/                     | List all branches                                 |
-| POST   | /api/branches/                     | Create a branch                                   |
-| GET    | /api/branches/{id}/                | Retrieve branch details                           |
-| PATCH  | /api/branches/{id}/                | Update branch details                             |
-
-## 4. Students
-
-Status: implemented, list/retrieve/create/update/delete. Deferred:
-eligibility and recommendation endpoints (not part of any accepted design).
+List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `search` |
+| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `age_band`, `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -152,53 +142,33 @@ the student's own record.
 
 `grading-history` (2026-09-22) is deliberately distinct from
 `rank-history`: it combines finalised native `CandidateOutcome`s with
-linked, non-voided `LegacyGradingRecord`s (see section 14a) into one
+linked, non-voided `LegacyGradingRecord`s (see section 11) into one
 newest-first list, each item tagged `"source": "KUKGRADE"` or `"LEGACY"`
 with its own `date_precision` (`"DAY"` or `"MONTH"`). `rank-history` is
 untouched and stays `Promotion`-only - a legacy Pass is never merged into
 it.
 
-## 5. Ranks and Pathways
+## 4. Ranks
 
-Current implementation note: the rank foundation exposes a read-only
-authenticated `/api/ranks/` endpoint for the seeded active rank catalogue.
-Writable rank and pathway endpoints are deferred until progression pathway and
-syllabus management workflows are confirmed.
+The seeded, read-only rank catalogue; ranks are maintained by migration.
 
 | Method | Endpoint                                  | Description                                       |
 |--------|--------------------------------------------|---------------------------------------------------|
-| GET    | /api/ranks/                                | List ranks (ordered)                              |
-| GET    | /api/ranks/{id}/                           | Retrieve rank details                             |
-| POST   | /api/ranks/                                | Deferred                                          |
-| PATCH  | /api/ranks/{id}/                           | Deferred                                          |
-| GET    | /api/rank-pathways/                        | Deferred                                          |
-| POST   | /api/rank-pathways/                        | Deferred                                          |
-| GET    | /api/rank-pathways/{id}/                   | Deferred                                          |
-| PATCH  | /api/rank-pathways/{id}/                   | Deferred                                          |
+| GET    | /api/ranks/                                | List active ranks in progression order            |
+| GET    | /api/ranks/{id}/                           | Retrieve one rank                                 |
 
-## 6. Syllabus Catalogue
+## 5. Syllabus Catalogue
 
-Current implementation note: the syllabus foundation exposes authenticated
-read-only lookup endpoints for seeded WKSA Version 2014 syllabus items and
-rank/age-band requirements. Syllabus version management, grading-session
-selection, assessment results, scoring, attendance, and promotion decisions are
-deferred.
+Read-only lookup of the seeded WKSA Version 2014 syllabus. Syllabus writes
+and version management are deferred.
 
 | Method | Endpoint                              | Description                                      |
 |--------|----------------------------------------|--------------------------------------------------|
 | GET    | /api/syllabus/items/                   | List active syllabus items                       |
 | GET    | /api/syllabus/items/{id}/              | Retrieve a syllabus item                         |
-| POST   | /api/syllabus/items/                   | 405; API writes deferred                         |
-| PUT    | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
-| PATCH  | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
-| DELETE | /api/syllabus/items/{id}/              | 405; API writes deferred                         |
 | GET    | /api/syllabus/requirements/            | List active requirements, attached directly to one rank |
 | GET    | /api/syllabus/requirements/{id}/       | Retrieve a syllabus requirement                  |
 | GET    | /api/syllabus/requirements/effective/  | Cumulative Technique/Form requirements examinable through a rank - see below |
-| POST   | /api/syllabus/requirements/            | 405; API writes deferred                         |
-| PUT    | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
-| PATCH  | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
-| DELETE | /api/syllabus/requirements/{id}/       | 405; API writes deferred                         |
 
 Requirement list filters:
 
@@ -232,25 +202,10 @@ Breaking) are not part of this endpoint - they come from
 `/api/syllabus/items/`, ordered to match the WKSA chart's own category
 sequence rather than alphabetically.
 
-## 7. Eligibility (V2)
+## 6. Grading Sessions
 
-Status: target/deferred. These API endpoints are not implemented on `dev`.
-
-| Method | Endpoint                                 | Description                                        |
-|--------|-------------------------------------------|----------------------------------------------------|
-| POST   | /api/eligibility/recalculate/             | Trigger recalculation for all students             |
-| GET    | /api/eligibility/students/                | List students with eligibility status              |
-| GET    | /api/eligibility/students/{student_id}/   | Retrieve eligibility for a specific student        |
-
-## 8. Grading Sessions
-
-Current implementation note: the grading foundation exposes authenticated CRUD
-endpoints for sessions and candidates, plus generated candidate assessment
-snapshots, per-requirement item results, candidate outcomes, authorised final
-Master decisions, and promotion (`Student.current_rank` updates and rank
-history - see section 10). It does not create automatic promotion,
-attendance outside grading participation, certificates, notifications, or
-payment workflows.
+Sessions and candidates, plus assessment generation and the bulk actions.
+Promotion is never automatic - see section 8.
 
 | Method | Endpoint                              | Description                                      |
 |-------|----------------------------------------|--------------------------------------------------|
@@ -390,6 +345,11 @@ Session filters:
 - `grading_date`
 - `grading_date_from`
 - `grading_date_to`
+- `search` (title or location)
+
+A filter value that cannot match anything - an unknown status, a malformed
+date or id - returns an empty page rather than an error. This holds for every
+list endpoint.
 
 Candidate fields:
 
@@ -421,7 +381,7 @@ student/session pairs; invalid testing-for ranks; and missing student date of
 birth. The testing-for rank must be the next active rank after the student's
 current rank. Registering a candidate does not itself change
 `Student.current_rank` - that happens only on promotion, once the outcome is
-finalised as `PASS` (see section 10).
+finalised as `PASS` (see section 8).
 
 Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
 only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
@@ -436,7 +396,7 @@ testing rank and age-band snapshot in deterministic sequence order, then copies
 the requirement and item display data into immutable candidate-specific
 snapshot rows.
 
-## 9. Assessments
+## 7. Assessments
 
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
@@ -457,9 +417,9 @@ Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
 Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
 `IN_PROGRESS -> COMPLETED`; direct `NOT_STARTED -> COMPLETED` is rejected.
 `NOT_STARTED -> IN_PROGRESS` is allowed only while the session is `OPEN`.
-Completed assessments and their items are immutable in this slice - the
-`DELETE` above is a distinct, administrator-only hard-delete for cleanup,
-not a correction path.
+Completed assessments and their items are immutable - the `DELETE` above is
+a distinct, administrator-only hard-delete for cleanup, not a correction
+path.
 
 `POST /api/gradings/assessments/bulk-start/` body:
 
@@ -509,7 +469,7 @@ generator attribution, and informational item counts. Counts report total,
 required, met, not met, and not assessed items only; no pass/fail/conditional
 outcome is produced.
 
-## 10. Outcomes and Promotions
+## 8. Outcomes and Promotions
 
 | Method | Endpoint                                      | Description                                  |
 |--------|-----------------------------------------------|----------------------------------------------|
@@ -564,10 +524,12 @@ notes, and conditional requirements. Clients cannot write `status`, candidate,
 assessment, actor, or timestamp fields directly.
 
 The summary action groups `CandidateAssessmentItem` rows by copied snapshot
-category. It returns category and overall counts for total, required, met, not
-met, not assessed, required-met, required-not-met, required-not-assessed,
-all-required-assessed, and all-required-met values. It does not return an
-inferred final outcome.
+category, in the syllabus chart's category order. It returns `overall` and
+per-category counts for total, required, met, not met, not assessed,
+required-met, required-not-met, required-not-assessed, all-required-assessed,
+and all-required-met; each category carries its code and its display label
+(`category`, `category_display`). It does not return an inferred final
+outcome.
 
 ### Promotion
 
@@ -584,13 +546,13 @@ success it creates a `Promotion` record and updates `Student.current_rank`.
 
 `Promotion` records are immutable and undeletable once created (`PUT`,
 `PATCH`, `DELETE` all 405). `GET /api/gradings/promotions/` and
-`/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 4)
+`/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 3)
 returns a student's current rank plus every promotion in one call, which is
 the more convenient read for a single student's history.
 
 `POST /api/gradings/outcomes/bulk-promote/` promotes several outcomes in one
 request - any quantity, from one to an entire cohort - independently per
-row, same shape as the other bulk endpoints (see section 8): each outcome
+row, same shape as the other bulk endpoints (see section 6): each outcome
 runs through the same `promote_candidate()` validation as the single-item
 action, in its own savepoint, so one outcome that is not eligible (not
 finalised, not a `PASS`, already promoted) does not block the rest. Requires
@@ -614,28 +576,7 @@ Promotion list filters:
 - `effective_date_to`
 - `promoted_by`
 
-## 11. Certificates
-
-Status: target/deferred. These API endpoints are not implemented on `dev`.
-
-| Method | Endpoint                                           | Description                                      |
-|--------|-----------------------------------------------------|--------------------------------------------------|
-| POST   | /api/promotions/{promotion_id}/certificate/         | Generate a certificate PDF                       |
-| GET    | /api/certificates/{id}/                            | Retrieve certificate metadata                    |
-| GET    | /api/certificates/{id}/download/                   | Download certificate file                        |
-
-## 12. Reports
-
-Status: target/deferred. These API endpoints are not implemented on `dev`.
-
-| Method | Endpoint                                | Description                                        |
-|--------|------------------------------------------|----------------------------------------------------|
-| GET    | /api/reports/eligibility/                | Report of students by eligibility status           |
-| GET    | /api/reports/outcomes/                   | Report of grading outcomes (pass/fail/conditional) |
-| GET    | /api/reports/rank-distribution/          | Distribution of students per rank                  |
-| GET    | /api/reports/conditional-candidates/     | Deferred; list conditional candidates              |
-
-## 13. Audit
+## 9. Audit
 
 Status: implemented, read-only. Access is restricted by `CanViewAuditLog` to
 administrators, holders of Master final-decision authority, and (since
@@ -687,7 +628,7 @@ service functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
 created or edited through admin is audited and attributed to whoever is
 signed in, exactly as if it had gone through the API.
 
-## 14. Data Imports (Admin only)
+## 10. Data Imports (Admin only)
 
 Status: implemented for both batch kinds - student-roster import
 (2026-09-21) and historical grading-workbook migration (2026-09-22). See
@@ -704,6 +645,11 @@ Status: implemented for both batch kinds - student-roster import
 
 `kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
 only). `preview`/`commit` request/response shape depends on `kind`:
+
+Creating a batch returns the batch plus three one-shot fields that are not
+stored: `already_imported_warning` (the same file was already committed),
+`detected_headers` (a roster's own header row), and `suggested_mapping` (a
+best-effort column mapping to pre-fill, never applied automatically).
 
 - **`STUDENT_ROSTER`**: request body `column_mapping` (target field ->
   source header, required fields
@@ -723,13 +669,13 @@ only). `preview`/`commit` request/response shape depends on `kind`:
   `rank_suggestions` (`source_text`, `suggested_rank_id`,
   `suggested_rank_code` - an exact-match suggestion only, never applied
   automatically), and the full parsed `rows` for display. Commit creates
-  one `LegacyGradingRecord` per row (see 14a) - never a `Student`, a
+  one `LegacyGradingRecord` per row (see section 11) - never a `Student`, a
   `Promotion`, or a `CandidateOutcome`.
 
 No `DELETE` on a batch, and no endpoint downloads the raw source file back -
 it is a server-side-only artefact between upload and commit/cancel/expiry.
 
-## 14a. Legacy Grading Records
+## 11. Legacy Grading Records
 
 Status: implemented (2026-09-22). Read access matches native grading
 visibility (both roles); the five reconciliation actions are
@@ -754,6 +700,3 @@ path - void is the only removal, and it is itself one-shot. Each action
 records its own audit event (`LEGACY_GRADING_LINKED`/`_UNLINKED`/
 `_RANK_RESOLVED`/`_VOIDED`) and never touches the record's source fields.
 
----
-
-This contract should be refined during implementation, but it provides comprehensive coverage of the backend endpoints needed for the grading application.

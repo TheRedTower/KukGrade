@@ -2,7 +2,7 @@
 
 ## Project Context
 
-KukGrade is an internal martial-arts grading management application for Kuk Sool Won instructors, grading managers, administrators, and authorised Masters. Students do not directly access the application.
+KukGrade is an internal martial-arts grading management application for Kuk Sool Won instructors, administrators, and the authorised Master. Students do not directly access the application.
 
 The repository is past initial planning and now has a runnable Django/DRF
 backend, React/TypeScript frontend, local PostgreSQL configuration, and several
@@ -14,27 +14,21 @@ workload is accepted.
 Before implementation, read:
 
 - `README.md`
-- `docs/README.md`
+- `docs/README.md` - the index, which says what each document is for
 - `docs/current-system.md`
 - `docs/action_plan.md`
 - `docs/decision_log.md`
 - `docs/product-requirements.md`
 - `docs/architecture.md`
-- `docs/domain-model.md`
 - `docs/permissions.md`
-- `docs/testing-strategy.md`
 - `docs/development-workflow.md`
-- `docs/data_model.md`
 - `docs/api_contract.md`
-- `docs/grading_app_planning.md`
+- `backend/README.md`
 
 Implemented stack: Django, Django REST Framework, React, TypeScript, Vite,
 PostgreSQL, pytest, Ruff, mypy, React Testing Library, Vitest, GitHub Actions
-CI, and local Docker Compose for PostgreSQL. Production Docker images and
-deployment are not implemented.
-Treat `docs/api_contract.md`, `docs/data_model.md`, and
-`docs/grading_app_planning.md` as older target/legacy planning inputs unless
-they have been reconciled with `docs/current-system.md` and accepted decisions.
+CI, local Docker Compose for PostgreSQL, and a single-container production
+image (`docs/deployment.md`) that is not yet deployed to a live host.
 
 ## Domain Rules
 
@@ -43,7 +37,7 @@ they have been reconciled with `docs/current-system.md` and accepted decisions.
   per-user permissions `can_make_final_grading_decision`,
   `can_promote_student` and `can_override_locked_session`.
 - An authorised Master makes the final grading decision.
-- Grading outcomes are Pass, Fail, and Conditional. If existing docs mention defer or reassess, reconcile the wording before implementation.
+- Grading outcomes are Pass, Fail, and Conditional.
 - Assessment data must support category-level results and item-level
   met/not-met results. Category-level results are computed from item results,
   never stored. Per-item free text is the single `assessor_notes` field, which
@@ -98,8 +92,10 @@ Ranks:
 - Apply least-privilege permissions throughout the API and UI.
 - Sensitive changes must be auditable, especially syllabus changes, permission changes, final decisions, overrides, rank changes, and student status changes.
 - Sensitive actions are recorded in the append-only `audit` app. Events are
-  written inside the acting service's transaction, are immutable, and are
-  readable by any signed-in user.
+  written inside the acting service's transaction and are immutable. Only
+  administrators, the designated Master, and holders of
+  `can_view_grading_audit_log` may read them, and user-management events are
+  administrator-only (`accounts.permissions.can_view_audit_log`).
 - Do not commit secrets, credentials, production exports, or real student data.
 - Prefer explicit fixtures and anonymised test data.
 
@@ -114,11 +110,13 @@ Ranks:
 - Avoid unrelated changes.
 - Prefer small, reviewable implementation slices.
 - Confirm unresolved decisions in `docs/decision_log.md` before large scaffolding, dependency, schema, or workflow choices.
-- Keep `worker/` dormant until there is a real asynchronous workload.
-- `docs/current-system.md` is the current-state source of truth, and
-  `docs/backend-completion-spec.md` specifies the remaining backend work.
-  `docs/audits/2026-09-13-independent-repository-audit.md` is a dated snapshot;
-  do not treat its open findings as current without checking.
+- `docs/current-system.md` is the current-state source of truth and
+  `docs/action_plan.md` lists the remaining work. The files in `docs/audits/`
+  are dated snapshots; do not treat their open findings as current without
+  checking.
+- Every API request and response is declared in `backend/schema.yml` and the
+  frontend's types are generated from it. Never hand-write an API type in the
+  frontend; declare the shape in the backend and regenerate.
 
 ## Definition of Done
 

@@ -8,12 +8,14 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.production.example
 .local/
 
 # Django
 db.sqlite3
 media/
 staticfiles/
+backend/frontend_dist/
 backend/var/
 
 # Node

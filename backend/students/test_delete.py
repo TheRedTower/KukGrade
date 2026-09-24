@@ -4,25 +4,17 @@ them; a linked LegacyGradingRecord is unlinked, not deleted."""
 
 from __future__ import annotations
 
-import itertools
-
 import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
-from data_imports.test_legacy_import import legacy_batch
-from gradings.legacy_services import (
-    create_legacy_grading_record,
-    link_legacy_record_to_student,
-)
+from data_imports.testing import legacy_record
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
-    LegacyGradingRecord,
-    LegacyRecordKind,
     Promotion,
 )
 from gradings.services import (
@@ -46,28 +38,6 @@ from students.models import Student
 from students.services import delete_student
 
 pytestmark = pytest.mark.django_db
-
-_locator_counter = itertools.count(1)
-
-
-def _legacy_record(student: Student, **overrides: object) -> LegacyGradingRecord:
-    uploader = user("student-delete-legacy-up@example.com")
-    data: dict[str, object] = {
-        "source_batch": legacy_batch(uploaded_by=uploader),
-        "record_kind": LegacyRecordKind.GRADING_RESULT,
-        "source_sheet": "06-2025",
-        "source_locator": f"06-2025!R{next(_locator_counter)}",
-        "cycle_year": 2025,
-        "cycle_month": 6,
-        "source_name": str(student),
-    }
-    data.update(overrides)
-    record = create_legacy_grading_record(**data)  # type: ignore[arg-type]
-    return link_legacy_record_to_student(
-        record,
-        student,
-        actor=user("student-delete-legacy-linker@example.com"),
-    )
 
 
 def test_delete_requires_the_students_delete_permission() -> None:
@@ -152,7 +122,7 @@ def test_deleting_a_student_cascades_registrations_assessments_outcomes_and_prom
 def test_deleting_a_student_unlinks_but_does_not_delete_linked_legacy_records() -> None:
     built, _generated = locked_completed_candidate()
     student = built.student
-    legacy = _legacy_record(student)
+    legacy = legacy_record(student=student)
 
     admin = user(
         "student-delete-legacy-admin@example.com", role=User.Role.ADMINISTRATOR

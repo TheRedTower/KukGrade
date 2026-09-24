@@ -10,14 +10,13 @@ from __future__ import annotations
 from typing import Any
 
 from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from accounts.models import User
 from accounts.permissions import (
+    AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
-    GRADING_AUDIT_LOG_PERMISSION,
-    OVERRIDE_LOCKED_SESSION_PERMISSION,
-    PROMOTE_STUDENT_PERMISSION,
 )
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -27,15 +26,6 @@ from audit.recording import record
 # not import application code, since it is free to change shape after a
 # migration is written and frozen.
 DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
-
-# Named once, so /api/auth/me/, the users API's authority sub-resource, and
-# this module cannot each spell "the sensitive permissions" differently.
-AUTHORITY_PERMISSIONS: dict[str, str] = {
-    "can_make_final_grading_decision": FINAL_GRADING_DECISION_PERMISSION,
-    "can_promote_student": PROMOTE_STUDENT_PERMISSION,
-    "can_override_locked_session": OVERRIDE_LOCKED_SESSION_PERMISSION,
-    "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
-}
 
 
 def _snapshot(user: User) -> dict[str, Any]:
@@ -105,8 +95,6 @@ def update_platform_user(
     if role == User.Role.ADMINISTRATOR and user.has_perm(
         FINAL_GRADING_DECISION_PERMISSION,
     ):
-        from django.core.exceptions import ValidationError
-
         raise ValidationError(
             {
                 "role": [
@@ -186,8 +174,6 @@ def delete_platform_user(target: User, actor: User) -> User:
     instance-level override on purpose. Every other field on the affected
     rows is untouched.
     """
-    from django.core.exceptions import ValidationError
-
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
 
@@ -269,8 +255,6 @@ def validate_authority_change(
     actor: User,
     **flags: bool | None,
 ) -> None:
-    from django.core.exceptions import ValidationError
-
     if target.pk == actor.pk:
         raise ValidationError(
             {
@@ -298,7 +282,7 @@ def validate_authority_change(
 
 @transaction.atomic
 def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
-    """Grant or revoke the three sensitive permissions.
+    """Grant or revoke the per-user authority permissions.
 
     Not a role: granted per user so authority survives one person being
     unavailable, and self-granting is refused so an administrator cannot

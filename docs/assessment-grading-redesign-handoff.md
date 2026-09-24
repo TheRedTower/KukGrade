@@ -346,10 +346,14 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    `gradings/:sessionId/assessments/:candidateId/review`. The five shared
    queries and derived rollups moved to `candidateAssessmentData.ts`, and
    `RankVisual` to its own file, so nothing is duplicated. No visual change.
-4. **Rebuild mat-side scoring as 1A.** Divider-led rows in syllabus order,
-   sticky category headers carrying their own progress, two verdict targets
-   plus the confirmed `Clear` (FDR-045), per-row assessor attribution, and the
-   persistent mat bar. No longer blocked; see §6.1.
+4. **Rebuild mat-side scoring as 1A.** *Done, 2026-09-24.* Divider-led rows in
+   syllabus order, sticky category headers carrying their own progress, two
+   verdict targets plus the confirmed `Clear` (FDR-045), per-row assessor
+   attribution, and the persistent mat bar. The category sub-rail, the
+   three-peer segmented control, the progress ledger and the single-line note
+   input are gone; chrome icons are inline SVG rather than emoji. Notes are a
+   textarea. `CandidateAssessment.css` lost the dual-pane, sub-rail, item-card
+   and segmented-control blocks.
 5. **Rebuild completion review as 2B.** The record as a proof sheet: rank
    transition, core grading areas, Techniques and Forms ledgers, recorded
    not-met notes, assessment note, and a seal line blank until sealed.

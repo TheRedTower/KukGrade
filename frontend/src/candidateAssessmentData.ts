@@ -41,6 +41,20 @@ export function formatTimeOnly(isoStr: string | null): string {
   }
 }
 
+/**
+ * Day and month only, for the snapshot provenance line. The year is carried by
+ * the session, so repeating it on every row of chrome is noise.
+ */
+export function formatDayMonth(isoStr: string | null): string {
+  if (!isoStr) return "";
+  try {
+    const date = new Date(isoStr);
+    return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short" }).format(date);
+  } catch {
+    return "";
+  }
+}
+
 export interface CategoryGroup {
   category: string;
   categoryDisplay: string;

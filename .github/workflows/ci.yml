@@ -162,8 +162,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # compose.prod.yml loads .env.production into the container, and that
+      # file only exists on the deployment host - validate against a copy of
+      # the committed template instead.
       - name: Validate production Compose template
-        run: docker compose --env-file .env.production.example -f compose.prod.yml config --no-env-resolution --quiet
+        run: |
+          cp .env.production.example .env.production
+          docker compose --env-file .env.production -f compose.prod.yml config --no-env-resolution --quiet
 
       - name: Build production image
         run: docker build --target production -t kukgrade:ci .

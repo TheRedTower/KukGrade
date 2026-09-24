@@ -1,22 +1,122 @@
 /**
- * Assessment completion review (SCR-020, superseded by SCR-027).
+ * Completion review - Certificate Proof (SCR-027, FDR-043).
  *
- * Extracted from `CandidateAssessmentScreen`'s `isReviewMode` branch into its
- * own route so that the selected 2B Certificate Proof direction can be built
- * as a route rather than an in-page mode. This file is a faithful move of the
- * existing design - the 2B rebuild is a later slice.
+ * Rebuilt from SCR-020's dual-card ledger. The record renders as the document
+ * it becomes, so the instructor proofreads rather than fills in a form:
+ * candidate and rank transition, core grading areas, the requirement ledgers,
+ * every recorded note, the assessment note, and a seal line that stays blank
+ * until the record is sealed. Provenance and counts sit in a side column.
+ *
+ * Two things FDR-043 is explicit about, both of which would be easy to get
+ * wrong:
+ *
+ * - **Every** recorded `assessor_notes` value renders, not only those on
+ *   `NOT_MET` items. Since the 2026-09-23 decision that field carries positive
+ *   observations too, so a note on a met requirement would otherwise be
+ *   invisible at the last moment it can be read, and absent from the permanent
+ *   record afterwards.
+ * - The assessment note stays **editable** while unsealed. Completion is the
+ *   only point at which `CandidateAssessment.notes` can be written - it is
+ *   submitted with the `COMPLETED` transition and is immutable afterwards -
+ *   and the 1A scoring screen has no overall-note control, so rendering it as
+ *   static prose would remove the only write path in the application.
+ *
+ * Counts are served, never recounted here (FDR-046). No percentages: `Result`
+ * is NOT_ASSESSED / MET / NOT_MET and carries no partial credit.
  */
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, updateCandidateAssessment } from "./api";
+import { ApiError, CandidateAssessmentItem, updateCandidateAssessment } from "./api";
 import { RankVisual } from "./RankVisual";
 import {
+  CategoryGroup,
   formatTimeOnly,
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
+import { isCoreCategory } from "./syllabusCategories";
 import "./CandidateAssessment.css";
+
+function CheckIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
+      <path d="M5 12.5 10 17.5 19 7" />
+    </svg>
+  );
+}
+
+function CrossIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
+      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
+    </svg>
+  );
+}
+
+function SealIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="4.5" y="10.5" width="15" height="10" rx="2" />
+      <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+/*
+  Handles both shapes this screen formats, which parse differently:
+
+  - `grading_date` is a date-only string (`2026-11-12`). `new Date()` reads
+    that as UTC midnight, so west of UTC it renders the *previous* day - the
+    permanent record would misstate the date the grading happened. It is
+    therefore split into local year/month/day, as `GradingSessionDetailScreen`
+    already does.
+  - `generated_at` and `completed_at` are real timestamps with an offset, and
+    must keep normal parsing so they render in the reader's own timezone.
+*/
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+function formatRecordDate(isoStr: string | null | undefined): string {
+  if (!isoStr) return "";
+  try {
+    let date: Date;
+    if (DATE_ONLY.test(isoStr)) {
+      const [year, month, day] = isoStr.split("-").map(Number);
+      if (!year || !month || !day) return isoStr;
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(isoStr);
+    }
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+  } catch {
+    return "";
+  }
+}
+
+/** The mark shown against a requirement or core area on the proof. */
+function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
+  if (result === "MET") {
+    return (
+      <span className="acp-result acp-result-met">
+        <CheckIcon />
+        Met
+      </span>
+    );
+  }
+  if (result === "NOT_MET") {
+    return (
+      <span className="acp-result acp-result-not-met">
+        <CrossIcon />
+        Not met
+      </span>
+    );
+  }
+  return <span className="acp-result acp-result-none">Not assessed</span>;
+}
 
 export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
@@ -26,11 +126,11 @@ export function AssessmentCompletionScreen() {
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
 
-  // General assessment notes. The draft outlives a trip back to scoring - see
-  // useAssessmentNotesDraft.
+  // The draft outlives a trip back to scoring - see useAssessmentNotesDraft.
   const { draft: userNotes, setDraft: setUserNotes, clearDraft: clearNotesDraft } =
     useAssessmentNotesDraft(numCandidateId);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [hasProofread, setHasProofread] = useState(false);
 
   const {
     session,
@@ -64,11 +164,7 @@ export function AssessmentCompletionScreen() {
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
-      if (err instanceof ApiError) {
-        setActionError(err.message);
-      } else {
-        setActionError("Failed to complete assessment.");
-      }
+      setActionError(err instanceof ApiError ? err.message : "Failed to complete assessment.");
     },
   });
 
@@ -112,12 +208,12 @@ export function AssessmentCompletionScreen() {
     );
   }
 
-  const isAssessmentCompleted = assessment?.status === "COMPLETED";
+  const isSealed = assessment?.status === "COMPLETED";
 
   // Reachable by typed URL before the assessment is ready for review. The
   // scoring screen only links here once every required item is assessed, so
-  // this state explains itself rather than showing an empty review.
-  if (!assessment || (!isAssessmentCompleted && !stats.canComplete)) {
+  // this state explains itself rather than showing an empty proof.
+  if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
       <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-unavailable">
         <div className="caw-error-banner" role="alert">
@@ -136,196 +232,379 @@ export function AssessmentCompletionScreen() {
     );
   }
 
-  const notMetItems = items.filter((item) => item.result === "NOT_MET");
+  /*
+    The proof separates the six universal core areas from the rank-specific
+    ledgers (FDR-018, via `syllabusCategories`). Everything that is not a core
+    area gets a ledger of its own under its served `category_display` - not
+    just Techniques and Forms. A Weapons or Other requirement that was scored
+    during the grading must still appear, or the permanent record would be
+    missing part of what was assessed.
+  */
+  const coreGroups = categoryGroups.filter((group) => isCoreCategory(group.category));
+  const ledgerGroups = categoryGroups.filter((group) => !isCoreCategory(group.category));
+
+  // Every recorded note, whichever way the requirement went (FDR-043).
+  const notedItems = items.filter((item) => item.assessor_notes);
+
+  // Distinct assessors across the record, in the order they first appear.
+  const assessors = Array.from(
+    new Set(items.map((item) => item.assessor_email).filter((email): email is string => !!email)),
+  );
+
+  const canSeal = hasProofread && !completeAssessmentMutation.isPending;
 
   return (
-    <section aria-labelledby="caw-review-title" className="caw-page" data-testid="caw-review-workspace">
-      {/* Top Breadcrumb Header */}
-      <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
-        <Link to="/gradings">Gradings</Link>
-        <span aria-hidden="true" className="breadcrumb-separator">/</span>
-        <Link to={`/gradings/${session.id}`}>{session.title}</Link>
-        <span aria-hidden="true" className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">{candidate.student_display_name} (Completion Review)</span>
-      </nav>
-
-      <header className="caw-review-header">
-        <div>
-          <h1 className="caw-candidate-title" id="caw-review-title">Review &amp; Complete Assessment</h1>
-          <div className="caw-candidate-sub">
-            <span className="caw-candidate-name">{candidate.student_display_name}</span>
-            {candidate.student_wksa_id && (
-              <span className="caw-candidate-wksa">WKSA ID: {candidate.student_wksa_id}</span>
-            )}
-            <div className="caw-rank-pills">
-              <span className="caw-rank-tag">
-                {studentRankName && <RankVisual rankName={studentRankName} />}
-                <span>{studentRankName || "Current Rank"}</span>
-              </span>
-              <span aria-hidden="true" className="caw-rank-arrow">→</span>
-              <span className="caw-rank-tag caw-rank-tag-dest">
-                <RankVisual rankName={candidate.testing_for_rank_name} />
-                <span>{candidate.testing_for_rank_name}</span>
-              </span>
-              <span className="caw-age-pill">{candidate.age_band_display}</span>
-            </div>
-          </div>
-        </div>
+    <section aria-labelledby="acp-title" className="acp-page" data-testid="caw-review-workspace">
+      <header className="acp-topbar">
+        <Link to={scoringPath} className="acp-back" data-testid="acp-back-to-scoring">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M20 12H5M10 7l-5 5 5 5" />
+          </svg>
+          Back to scoring
+        </Link>
+        <span aria-hidden="true" className="acp-topbar-divider" />
+        <span className="acp-topbar-note">
+          {isSealed ? "This record is sealed and cannot be changed" : "Proof the record before it is sealed"}
+        </span>
       </header>
 
       {actionError && (
         <div className="caw-action-error" role="alert">
-          <span aria-hidden="true">⚠️</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="M12 3.5 21.5 20H2.5z" />
+            <path d="M12 10v4.5M12 17.2v.1" />
+          </svg>
           <p>{actionError}</p>
         </div>
       )}
 
-      {/* Dual-Card Review Layout */}
-      <div className="caw-review-grid">
-        {/* Left Column: Evaluation Rollup & Category Breakdown */}
-        <div className="caw-review-left-card">
-          <div className="caw-card-header">
-            <h2 className="caw-card-title">Evaluation Rollup</h2>
-            <div className="caw-rollup-chips">
-              <span className="caw-chip caw-chip-total">
-                {stats.requiredAssessed}/{stats.requiredItems} Required Assessed ({stats.percent}%)
-              </span>
-              <span className="caw-chip caw-chip-met">
-                ✓ {stats.metCount} Met
-              </span>
-              {stats.notMetCount > 0 && (
-                <span className="caw-chip caw-chip-not-met">
-                  ✕ {stats.notMetCount} Not Met
+      <div className="acp-layout">
+        {/* ── The record ─────────────────────────────────────────────────── */}
+        <article aria-label="Assessment record proof" className="acp-sheet">
+          <div className="acp-sheet-head">
+            <div>
+              <div className="acp-org">
+                Kuk Sool Won{session.location && ` · ${session.location}`}
+              </div>
+              <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
+            </div>
+            <span className={`acp-stamp ${isSealed ? "acp-stamp-sealed" : ""}`} data-testid="acp-stamp">
+              {isSealed ? "Sealed" : "Unsealed draft"}
+            </span>
+          </div>
+
+          <div className="acp-identity">
+            <div className="acp-identity-left">
+              <div className="acp-label">Candidate</div>
+              <div className="acp-candidate-name">{candidate.student_display_name}</div>
+              <div className="acp-candidate-sub">
+                {candidate.student_wksa_id && `WKSA ID ${candidate.student_wksa_id} · `}
+                {candidate.age_band_display}
+              </div>
+            </div>
+            <div className="acp-identity-right">
+              <div className="acp-label">Assessed for</div>
+              <div className="acp-rank-line">
+                <span className="acp-rank">
+                  {studentRankName && <RankVisual rankName={studentRankName} />}
+                  <span>{studentRankName || "Current rank"}</span>
                 </span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
+                  <path d="M4 12h15M14 7l5 5-5 5" />
+                </svg>
+                <span className="acp-rank acp-rank-dest">
+                  <RankVisual rankName={candidate.testing_for_rank_name} />
+                  <span>{candidate.testing_for_rank_name}</span>
+                </span>
+              </div>
+              <div className="acp-candidate-sub">
+                {session.title}
+                {session.grading_date && ` · ${formatRecordDate(session.grading_date)}`}
+              </div>
+            </div>
+          </div>
+
+          {coreGroups.length > 0 && (
+            <>
+              <h2 className="acp-section">Core grading areas · always assessed</h2>
+              <div className="acp-core-grid">
+                {coreGroups.map((group) => (
+                  <div key={group.category} className="acp-core-cell" data-testid={`acp-core-${group.category}`}>
+                    <CoreAreaMark group={group} />
+                    <span className="acp-core-text">
+                      <span className="acp-core-name">{group.categoryDisplay}</span>
+                      <span className="acp-core-detail">
+                        {group.metCount} of {group.totalCount} met
+                        {group.notMetCount > 0 && ` · ${group.notMetCount} not met`}
+                        {group.notAssessedCount > 0 && ` · ${group.notAssessedCount} not assessed`}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {ledgerGroups.map((group) => (
+            <LedgerTable key={group.category} group={group} />
+          ))}
+
+          <h2 className="acp-section">Assessor notes recorded against requirements</h2>
+          {notedItems.length === 0 ? (
+            <p className="acp-section-note">No notes were recorded against individual requirements.</p>
+          ) : (
+            <>
+              <p className="acp-section-note">
+                Every note recorded during scoring, whichever way the requirement went.
+              </p>
+              {notedItems.map((item) => (
+                <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
+                  <div className="acp-note-head">
+                    <span className="acp-note-title">
+                      #{item.requirement_sequence} {item.item_name}
+                      {item.korean_name && ` · ${item.korean_name}`}
+                    </span>
+                    <ResultMark result={item.result} />
+                  </div>
+                  <p className="acp-note-body">
+                    “{item.assessor_notes}”
+                    {item.assessor_email && (
+                      <span className="acp-note-by">
+                        {" "}— {item.assessor_email}
+                        {item.assessed_at && ` · ${formatTimeOnly(item.assessed_at)}`}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </>
+          )}
+
+          <h2 className="acp-section">
+            <label htmlFor="general-assessment-notes">Assessment note</label>
+          </h2>
+          {isSealed ? (
+            <p className="acp-sealed-note" data-testid="acp-sealed-note">
+              {assessment.notes || "No overall assessment note was recorded."}
+            </p>
+          ) : (
+            <>
+              <p className="acp-section-note">
+                Editable until the record is sealed. This is the only point at which the overall
+                assessment note can be written — it is submitted with the record and is immutable
+                afterwards.
+              </p>
+              <textarea
+                id="general-assessment-notes"
+                className="acp-note-input"
+                rows={3}
+                placeholder="Overall observation for this assessment (optional)"
+                value={generalNotes}
+                onChange={(e) => setUserNotes(e.target.value)}
+              />
+            </>
+          )}
+
+          <div className="acp-seal-line">
+            <div>
+              <div className="acp-label">Recorded by</div>
+              <div className="acp-seal-value">
+                {assessors.length > 0 ? assessors.join(", ") : "Not yet attributed"}
+              </div>
+              {assessment.started_at && (
+                <div className="acp-seal-detail">
+                  Assessed from {formatTimeOnly(assessment.started_at)}
+                  {assessment.completed_at && ` to ${formatTimeOnly(assessment.completed_at)}`}
+                  {session.grading_date && ` on ${formatRecordDate(session.grading_date)}`}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="acp-label">Seal</div>
+              {/* Blank until sealed: the line is the point of the document. */}
+              {isSealed && assessment.completed_at ? (
+                <>
+                  <div className="acp-seal-value acp-seal-applied" data-testid="acp-seal-applied">
+                    Sealed {formatRecordDate(assessment.completed_at)} at{" "}
+                    {formatTimeOnly(assessment.completed_at)}
+                  </div>
+                  <div className="acp-seal-detail">This record can no longer be changed.</div>
+                </>
+              ) : (
+                <>
+                  <div className="acp-seal-blank" aria-hidden="true" />
+                  <div className="acp-seal-detail">Applied when the record is sealed</div>
+                </>
               )}
             </div>
           </div>
+        </article>
 
-          <div className="caw-category-table-wrap">
-            <h3 className="caw-table-heading">Category Breakdown</h3>
-            <table className="caw-category-table">
-              <thead>
-                <tr>
-                  <th scope="col">Category</th>
-                  <th scope="col">Met status</th>
-                  <th scope="col">Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/*
-                  No percentage column. `CandidateAssessmentItem.Result` is
-                  NOT_ASSESSED / MET / NOT_MET with no partial credit, so a
-                  per-category percentage implied a score that does not exist
-                  (FDR-046). Counts come from the served summary.
-                */}
-                {categoryGroups.map((group) => (
-                  <tr key={group.category} data-testid={`review-cat-row-${group.category}`}>
-                    <td className="caw-cat-td-name">
-                      <strong>{group.categoryDisplay}</strong>
-                      {group.koreanName && (
-                        <span className="caw-korean-sub"> ({group.koreanName})</span>
-                      )}
-                    </td>
-                    <td className="caw-cat-td-status">
-                      {group.metCount}/{group.totalCount} Met
-                    </td>
-                    <td className="caw-cat-td-pct">
-                      {group.notMetCount > 0 ? (
-                        <span className="caw-pct-flag">({group.notMetCount} Not Met)</span>
-                      ) : group.notAssessedCount > 0 ? (
-                        /*
-                          Zero not-met does not mean every requirement was met:
-                          optional items may legitimately be left unassessed, so
-                          saying "All met" here would contradict the item rows.
-                        */
-                        <span className="caw-pct-flag">({group.notAssessedCount} Not Assessed)</span>
-                      ) : (
-                        <span className="caw-pct-clean">
-                          All met <span className="caw-check-icon">✓</span>
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* ── Provenance, counts and the seal controls ───────────────────── */}
+        <aside aria-label="Record provenance and seal controls" className="acp-aside">
+          <div className="acp-card">
+            <h2 className="acp-card-title">Provenance</h2>
+            <dl className="acp-dl">
+              <div>
+                <dt>Snapshot frozen</dt>
+                <dd>{assessment.generated_at ? formatRecordDate(assessment.generated_at) : "—"}</dd>
+              </div>
+              <div>
+                <dt>Prepared by</dt>
+                <dd>{assessment.generated_by_email || "—"}</dd>
+              </div>
+              <div>
+                <dt>Source track</dt>
+                <dd>{candidate.age_band_display}</dd>
+              </div>
+              <div>
+                <dt>Assessors</dt>
+                <dd>{assessors.length > 0 ? assessors.join(", ") : "—"}</dd>
+              </div>
+            </dl>
           </div>
-        </div>
 
-        {/* Right Column: Flagged Not Met Items & Confirmation */}
-        <div className="caw-review-right-card">
-          {/* Flagged Not Met Items */}
-          <div className="caw-not-met-section">
-            <h2 className="caw-card-title caw-title-warning">
-              Attention: {notMetItems.length} {notMetItems.length === 1 ? "Item" : "Items"} Not Met
-            </h2>
-            {notMetItems.length === 0 ? (
-              <p className="caw-clean-text">All requirements were successfully met with no recorded deficiencies.</p>
-            ) : (
-              <ul className="caw-not-met-list">
-                {notMetItems.map((item) => (
-                  <li key={item.id} className="caw-not-met-item" data-testid={`flagged-item-${item.id}`}>
-                    <div className="caw-not-met-header">
-                      <span className="caw-not-met-title">
-                        #{item.requirement_sequence} {item.item_name}
-                        {item.korean_name && ` · ${item.korean_name}`}
-                      </span>
-                      <span className="caw-not-met-cat">Category: {item.category_display}</span>
-                    </div>
-                    {item.assessor_notes && (
-                      <p className="caw-not-met-notes">"{item.assessor_notes}"</p>
-                    )}
-                    {item.assessor_email && (
-                      <span className="caw-not-met-assessor">
-                        Assessed by {item.assessor_email}
-                        {item.assessed_at && ` at ${formatTimeOnly(item.assessed_at)}`}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
+          <div className="acp-card">
+            <h2 className="acp-card-title">Counts</h2>
+            {/*
+              No percentage. `Result` is NOT_ASSESSED / MET / NOT_MET with no
+              partial credit, so a percentage would imply a score the model
+              cannot express (FDR-046). Counts are served, not recounted.
+            */}
+            <div className="acp-count-figure">
+              <strong>{stats.requiredAssessed}</strong>
+              <span>{`/ ${stats.requiredItems} required`}</span>
+            </div>
+            <div className="acp-count-tallies">
+              <span className="acp-result acp-result-met">
+                <CheckIcon />
+                {`${stats.metCount} met`}
+              </span>
+              <span className="acp-result acp-result-not-met">
+                <CrossIcon />
+                {`${stats.notMetCount} not met`}
+              </span>
+            </div>
+            {stats.notAssessedCount > 0 && (
+              <p className="acp-count-optional">
+                {`${stats.notAssessedCount} optional ${
+                  stats.notAssessedCount === 1 ? "requirement was" : "requirements were"
+                } left unassessed.`}
+              </p>
             )}
           </div>
 
-          {/* General Assessment Notes */}
-          <div className="caw-notes-section">
-            <label htmlFor="general-assessment-notes" className="caw-card-title">
-              General Assessment Notes
-            </label>
-            <textarea
-              id="general-assessment-notes"
-              className="caw-notes-textarea"
-              rows={4}
-              placeholder="Overall candidate notes (optional)"
-              value={generalNotes}
-              onChange={(e) => setUserNotes(e.target.value)}
-              disabled={isAssessmentCompleted}
-            />
-          </div>
-
-          {/* Confirm Completion Box */}
-          <div className="caw-confirm-box">
-            <div className="caw-confirm-warning">
-              <span className="caw-warning-icon" aria-hidden="true">⚠️</span>
-              <span>Completed assessments cannot be edited once confirmed.</span>
+          {isSealed ? (
+            <div className="acp-card acp-card-sealed" data-testid="acp-sealed-panel">
+              <div className="acp-notice-row">
+                <SealIcon />
+                <p>
+                  This record was sealed and is permanent. Results, notes, assessors and times
+                  cannot be changed, and the assessment cannot be reopened.
+                </p>
+              </div>
             </div>
-            <div className="caw-confirm-actions">
-              <Link to={scoringPath} className="btn-secondary">
-                Return to scoring
-              </Link>
+          ) : (
+            <>
+              <div className="acp-card acp-card-notice">
+                <div className="acp-notice-row">
+                  <SealIcon />
+                  <p>
+                    Sealing writes this record permanently. Results, notes, assessors and times
+                    can never be changed, and the assessment cannot be reopened.
+                  </p>
+                </div>
+                <label className="acp-proofread">
+                  <input
+                    type="checkbox"
+                    checked={hasProofread}
+                    onChange={(e) => setHasProofread(e.target.checked)}
+                    data-testid="acp-proofread-checkbox"
+                  />
+                  <span>I have proofread the record above.</span>
+                </label>
+              </div>
+
               <button
                 type="button"
-                className="btn-primary caw-complete-btn"
+                className="btn-primary acp-seal-btn"
                 onClick={() => completeAssessmentMutation.mutate()}
-                disabled={completeAssessmentMutation.isPending || isAssessmentCompleted}
+                disabled={!canSeal}
                 data-testid="confirm-complete-assessment-btn"
               >
-                {completeAssessmentMutation.isPending ? "Confirming..." : "Confirm & complete assessment"}
+                <CheckIcon size={17} />
+                {completeAssessmentMutation.isPending ? "Sealing..." : "Seal assessment record"}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+
+          <Link to={scoringPath} className="btn-secondary acp-return-btn">
+            Return to scoring
+          </Link>
+        </aside>
       </div>
     </section>
+  );
+}
+
+/** Core areas carry a mark rather than a full ledger row. */
+function CoreAreaMark({ group }: { group: CategoryGroup }) {
+  if (group.notMetCount > 0) {
+    return (
+      <span className="acp-core-mark acp-core-mark-not-met" aria-hidden="true">
+        <CrossIcon />
+      </span>
+    );
+  }
+  if (group.notAssessedCount > 0) {
+    return (
+      <span className="acp-core-mark acp-core-mark-partial" aria-hidden="true">
+        –
+      </span>
+    );
+  }
+  return (
+    <span className="acp-core-mark acp-core-mark-met" aria-hidden="true">
+      <CheckIcon />
+    </span>
+  );
+}
+
+/**
+ * One rank-specific ledger, headed by the category's own served display name.
+ * `display_range` is the syllabus numbering the paper chart carries, which the
+ * old review screen never showed.
+ */
+function LedgerTable({ group }: { group: CategoryGroup }) {
+  const hasAnyRange = group.items.some((item) => item.display_range);
+
+  return (
+    <>
+      <h2 className="acp-section">{group.categoryDisplay}</h2>
+      <table className="acp-ledger" data-testid={`acp-ledger-${group.category}`}>
+        <thead>
+          <tr>
+            <th scope="col">Requirement</th>
+            {hasAnyRange && <th scope="col" className="acp-ledger-range-col">Numbers</th>}
+            <th scope="col" className="acp-ledger-result-col">Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {group.items.map((item) => (
+            <tr key={item.id} data-testid={`acp-ledger-row-${item.id}`}>
+              <td>
+                <strong>{item.item_name}</strong>
+                {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
+                {!item.required && <span className="caw-optional-badge">Optional</span>}
+              </td>
+              {hasAnyRange && <td className="acp-ledger-range">{item.display_range}</td>}
+              <td>
+                <ResultMark result={item.result} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }

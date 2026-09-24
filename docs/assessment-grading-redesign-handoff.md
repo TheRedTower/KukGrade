@@ -354,11 +354,19 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    input are gone; chrome icons are inline SVG rather than emoji. Notes are a
    textarea. `CandidateAssessment.css` lost the dual-pane, sub-rail, item-card
    and segmented-control blocks.
-5. **Rebuild completion review as 2B.** The record as a proof sheet: rank
-   transition, core grading areas, Techniques and Forms ledgers, recorded
-   not-met notes, assessment note, and a seal line blank until sealed.
-   Provenance and counts in a side column — this is where `generated_by`,
-   `generated_at`, `started_at` and `completed_at` finally surface.
+5. **Rebuild completion review as 2B.** *Done, 2026-09-24.* The record as a
+   proof sheet: rank transition, core grading areas, requirement ledgers,
+   every recorded note, the editable assessment note, and a seal line blank
+   until sealed. Provenance and counts in a side column — `generated_by_email`,
+   `generated_at`, `started_at` and `completed_at` surface here. Sealing is
+   gated on an explicit proofread acknowledgement. One deliberate deviation
+   from the board: the ledgers are **not** limited to Techniques and Forms.
+   Every non-core category present in the snapshot gets a ledger under its
+   served `category_display`, because a Weapons or Other requirement that was
+   scored must still appear or the permanent record would omit part of what
+   was assessed. `CORE_CATEGORY_CODES` moved from `SyllabusScreen` to
+   `syllabusCategories.ts` so the syllabus and the record cannot disagree
+   about what a core area is.
 6. **Build the Cohort Adjudication Board as 3C.** New route over a `LOCKED`
    session. Rows carry evidence, proposal and an inline decision; detail pane
    for the row in focus; decisions stage, then write one candidate at a time

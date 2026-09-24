@@ -74,7 +74,16 @@ describe("UsersScreen", () => {
     expect(screen.getByText("Locked-session override")).toBeInTheDocument();
     const row = screen.getByRole("row", { name: /Riley Khan/ });
     expect(within(row).getByText("Active")).toBeInTheDocument();
-    expect(screen.getByText(/14 Sept 2026/)).toBeInTheDocument();
+    // `last_login` is a real timestamp, so it correctly renders in the
+    // reader's own timezone - 18:43Z on the 14th is the 15th in Auckland. The
+    // expected date is derived rather than hard-coded so this asserts the
+    // formatting, not the timezone the suite happens to run in.
+    const lastLoginDay = new Intl.DateTimeFormat("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(managedUser.last_login!));
+    expect(screen.getByText(new RegExp(lastLoginDay.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))).toBeInTheDocument();
 
     for (const header of screen.getAllByRole("columnheader")) {
       expect(header).toHaveAttribute("scope", "col");

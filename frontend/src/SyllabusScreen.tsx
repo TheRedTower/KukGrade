@@ -9,6 +9,7 @@ import {
   getSyllabusItems,
 } from "./api";
 import "./Syllabus.css";
+import { CORE_CATEGORY_CODES } from "./syllabusCategories";
 
 type CurriculumTrack = "JUNIOR_LITTLE_DRAGON" | "ADULT_YOUTH";
 
@@ -50,19 +51,6 @@ const AGE_BAND_OPTIONS: AgeBandOption[] = [
     ageDisplay: "Adult ages 18+",
   },
 ];
-
-// Structural, not data: FDR-018 already separates the six universal areas
-// from rank-specific Techniques and Forms. Their names, Korean labels and
-// display order all come from the API (SyllabusItemViewSet); this only says
-// which category codes belong in the compact strip.
-const CORE_CATEGORY_CODES = new Set([
-  "ETIQUETTE",
-  "FUNDAMENTALS",
-  "HAND_TECHNIQUES",
-  "KICKING",
-  "FALLING",
-  "BREAKING",
-]);
 
 export function BeltSwatch({ rankCode, rankName }: { rankCode: string; rankName: string }) {
   const code = rankCode.toUpperCase();

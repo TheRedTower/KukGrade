@@ -63,14 +63,35 @@ function SealIcon() {
   );
 }
 
+/*
+  Handles both shapes this screen formats, which parse differently:
+
+  - `grading_date` is a date-only string (`2026-11-12`). `new Date()` reads
+    that as UTC midnight, so west of UTC it renders the *previous* day - the
+    permanent record would misstate the date the grading happened. It is
+    therefore split into local year/month/day, as `GradingSessionDetailScreen`
+    already does.
+  - `generated_at` and `completed_at` are real timestamps with an offset, and
+    must keep normal parsing so they render in the reader's own timezone.
+*/
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 function formatRecordDate(isoStr: string | null | undefined): string {
   if (!isoStr) return "";
   try {
+    let date: Date;
+    if (DATE_ONLY.test(isoStr)) {
+      const [year, month, day] = isoStr.split("-").map(Number);
+      if (!year || !month || !day) return isoStr;
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(isoStr);
+    }
     return new Intl.DateTimeFormat("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric",
-    }).format(new Date(isoStr));
+    }).format(date);
   } catch {
     return "";
   }

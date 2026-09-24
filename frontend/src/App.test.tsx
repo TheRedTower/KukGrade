@@ -4946,6 +4946,53 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   // A sealed record is the permanent document. It must show its seal and offer
   // no way to write to it — the assessment note is immutable after COMPLETED.
+  // `grading_date` is a date-only string. Parsed as a timestamp it is read as
+  // UTC midnight, so west of UTC the proof renders the day *before* the
+  // grading — a permanent record misstating when it happened. This test runs
+  // in America/Los_Angeles, where that off-by-one shows.
+  it("renders a date-only grading date in local time, west of UTC", async () => {
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, assessedItem3];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    // mockSession.grading_date is 2026-10-15. UTC-midnight parsing would show
+    // 14 Oct here. The date renders in both the identity block and the seal
+    // line, so both must be right.
+    expect(screen.getAllByText(/15 Oct 2026/)).toHaveLength(2);
+    expect(screen.queryAllByText(/14 Oct 2026/)).toHaveLength(0);
+  });
   it("shows a sealed record with its seal line applied and no write path", async () => {
     const sealed: CandidateAssessment = {
       ...mockAssessment,

@@ -4873,15 +4873,202 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     render(<App />);
 
-    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
+    await screen.findByRole("heading", { name: "Assessment record" });
 
-    const row = screen.getByTestId("review-cat-row-ETIQUETTE");
-    expect(row).toHaveTextContent("1 Not Assessed");
-    expect(row).not.toHaveTextContent("All met");
+    // Etiquette is a core area, so it renders in the proof's core strip. Zero
+    // not-met never implies every requirement was met: an optional item left
+    // unassessed must say so rather than reading as a clean sweep.
+    const cell = screen.getByTestId("acp-core-ETIQUETTE");
+    expect(cell).toHaveTextContent("1 not assessed");
+    expect(cell).toHaveTextContent("1 of 2 met");
   });
 
   // The rollup and the item rows are separate requests. If the rollup fails on
   // its own the screen must say so, not render every count as zero.
+  // FDR-043: `assessor_notes` carries positive observations as well as
+  // shortfalls since the 2026-09-23 decision, so a note on a MET requirement
+  // must appear on the proof. The review this replaced rendered only the notes
+  // attached to NOT_MET items, which made a praise note invisible at the last
+  // moment it could be read and absent from the permanent record.
+  it("renders every recorded item note on the proof, not only the failures", async () => {
+    const metWithNote: CandidateAssessmentItem = {
+      ...mockItem1,
+      assessor_notes: "Bow was crisp and unhurried; best in the group.",
+    };
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [metWithNote, mockItem2, assessedItem3];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    // The note on the MET requirement is on the record, with its result.
+    const metNote = screen.getByTestId("acp-note-1001");
+    expect(metNote).toHaveTextContent("Bow was crisp and unhurried");
+    expect(metNote).toHaveTextContent("Met");
+    expect(metNote).toHaveTextContent("casey@example.com");
+
+    // As is the note on the NOT_MET one.
+    expect(screen.getByTestId("acp-note-1002")).toHaveTextContent("Guard dropped on turn");
+
+    // The requirement with no note recorded contributes none.
+    expect(screen.queryByTestId("acp-note-1003")).toBeNull();
+  });
+
+  // A sealed record is the permanent document. It must show its seal and offer
+  // no way to write to it — the assessment note is immutable after COMPLETED.
+  it("shows a sealed record with its seal line applied and no write path", async () => {
+    const sealed: CandidateAssessment = {
+      ...mockAssessment,
+      status: "COMPLETED",
+      status_display: "Completed",
+      completed_at: "2026-09-18T11:30:00Z",
+      notes: "Strong throughout; guard discipline to revisit.",
+    };
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, assessedItem3];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [sealed] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Sealed");
+    expect(screen.getByTestId("acp-seal-applied")).toBeVisible();
+    expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
+
+    // The assessment note is rendered as the record, not as an input.
+    expect(screen.getByTestId("acp-sealed-note")).toHaveTextContent(
+      "Strong throughout; guard discipline to revisit.",
+    );
+    expect(screen.queryByLabelText("Assessment note")).toBeNull();
+    expect(screen.queryByTestId("confirm-complete-assessment-btn")).toBeNull();
+    expect(screen.queryByTestId("acp-proofread-checkbox")).toBeNull();
+  });
+
+  // A scored requirement in any category belongs on the permanent record.
+  // Rendering only Techniques and Forms would silently drop a Weapons or Other
+  // requirement that was actually assessed during the grading.
+  it("gives every non-core category its own ledger on the proof", async () => {
+    const weaponsItem: CandidateAssessmentItem = {
+      ...mockItem3,
+      id: 1004,
+      item_code: "WEAPONS_01",
+      item_name: "Jung Bong basics",
+      korean_name: "중봉",
+      category: "WEAPONS",
+      category_display: "Weapons",
+      requirement_sequence: 4,
+      display_range: "1–5",
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:25:00Z",
+    };
+    const assessedItem3: CandidateAssessmentItem = {
+      ...mockItem3,
+      result: "MET",
+      assessor: authUser.id,
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:20:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, assessedItem3, weaponsItem];
+
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+      if (url.includes("/api/gradings/candidates/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+      }
+      if (url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockStudent] });
+      }
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+      if (url.includes("/api/gradings/assessments/")) {
+        return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return jsonResponse(200, { count: 4, next: null, previous: null, results: proofItems });
+      }
+      return jsonResponse(404, { detail: "Not found" });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Assessment record" });
+
+    // Weapons is not a core area, so it gets its own ledger under its served
+    // display name rather than being dropped.
+    const weapons = screen.getByTestId("acp-ledger-WEAPONS");
+    expect(weapons).toHaveTextContent("Jung Bong basics");
+    expect(weapons).toHaveTextContent("1–5");
+    expect(screen.getByRole("heading", { name: "Weapons" })).toBeVisible();
+
+    // Kicking is a core area and stays in the strip, not in a ledger.
+    expect(screen.getByTestId("acp-core-KICKING")).toBeVisible();
+    expect(screen.queryByTestId("acp-ledger-KICKING")).toBeNull();
+  });
   it("reports a failed rollup instead of rendering zero counts", async () => {
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -5075,7 +5262,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     expect(await screen.findByTestId("caw-review-unavailable")).toBeVisible();
     expect(screen.getByText(/1 required item remains unassessed/)).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Review & Complete Assessment" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Assessment record" })).toBeNull();
     expect(screen.getByRole("link", { name: /Return to scoring/ })).toHaveAttribute(
       "href",
       "/gradings/10/assessments/101",
@@ -5382,7 +5569,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(kicking).toHaveTextContent("1 of 2 required");
   });
 
-  it("transitions to Completion Review (SCR-020) and confirms completion", async () => {
+  it("transitions to the completion proof (SCR-027) and seals the record", async () => {
     // Assessment with all 3 items assessed (2 Met, 1 Not Met, 0 Not Assessed)
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
@@ -5454,20 +5641,24 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // Click to enter review mode
     await user.click(completeBtn);
 
-    // Review mode renders (SCR-020)
-    expect(await screen.findByRole("heading", { name: "Review & Complete Assessment" })).toBeVisible();
-    expect(screen.getByText("Evaluation Rollup")).toBeVisible();
-    expect(screen.getByText("Category Breakdown")).toBeVisible();
-    expect(screen.getByText("Attention: 1 Item Not Met")).toBeVisible();
-    expect(screen.getByTestId("flagged-item-1002")).toBeVisible();
-    expect(screen.getByText('"Guard dropped on turn"')).toBeVisible();
+    // The proof sheet renders as the document the record becomes (SCR-027)
+    expect(await screen.findByRole("heading", { name: "Assessment record" })).toBeVisible();
+    expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Unsealed draft");
+    expect(screen.getByText("Alex Carter")).toBeVisible();
+    expect(screen.getByTestId("acp-note-1002")).toHaveTextContent("Guard dropped on turn");
 
-    // Enter general assessment notes
-    const notesInput = screen.getByLabelText("General Assessment Notes");
+    // The seal line stays blank until the record is sealed.
+    expect(screen.queryByTestId("acp-seal-applied")).toBeNull();
+    expect(screen.getByText("Applied when the record is sealed")).toBeVisible();
+
+    const notesInput = screen.getByLabelText("Assessment note");
     await user.type(notesInput, "Strong etiquette and balance, focus on guard discipline during spinning kicks.");
 
-    // Click "Confirm & complete assessment"
+    // Sealing is gated on an explicit proofread acknowledgement.
     const confirmBtn = screen.getByTestId("confirm-complete-assessment-btn");
+    expect(confirmBtn).toBeDisabled();
+    await user.click(screen.getByTestId("acp-proofread-checkbox"));
+    expect(confirmBtn).toBeEnabled();
     await user.click(confirmBtn);
 
     // Verify completion payload
@@ -5542,9 +5733,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Alex Carter" });
     await user.click(screen.getByTestId("caw-complete-assessment-btn"));
 
-    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
+    await screen.findByRole("heading", { name: "Assessment record" });
     await user.type(
-      screen.getByLabelText("General Assessment Notes"),
+      screen.getByLabelText("Assessment note"),
       "Guard discipline needs work before the next grading.",
     );
 
@@ -5553,8 +5744,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Alex Carter" });
     await user.click(screen.getByTestId("caw-complete-assessment-btn"));
 
-    await screen.findByRole("heading", { name: "Review & Complete Assessment" });
-    expect(screen.getByLabelText("General Assessment Notes")).toHaveValue(
+    await screen.findByRole("heading", { name: "Assessment record" });
+    expect(screen.getByLabelText("Assessment note")).toHaveValue(
       "Guard discipline needs work before the next grading.",
     );
   });

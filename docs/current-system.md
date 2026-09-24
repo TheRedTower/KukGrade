@@ -320,6 +320,23 @@ entry.
   than a single-line input; and the live required count plus the completion
   action sit in a persistent mat bar. A `COMPLETED` assessment offers no
   scoring, note or clear affordance.
+- **Completion review is the Certificate Proof (2026-09-24)**: SCR-027/FDR-043
+  replaced SCR-020's dual-card ledger. `AssessmentCompletionScreen` renders the
+  record as the document it becomes - candidate and rank transition, a core
+  grading areas strip, a ledger per non-core category, every recorded
+  `assessor_notes` value with its result and attribution, the assessment note,
+  and a seal line that stays blank until the record is sealed. Provenance
+  (`generated_at`, `generated_by_email`) and the served counts sit in a side
+  column; there are no percentages. Two constraints drive the design: every
+  note renders, not only those on `NOT_MET` items, because `assessor_notes`
+  carries positive observations too; and the assessment note stays editable
+  while unsealed, because completion is the only point at which
+  `CandidateAssessment.notes` can be written and the 1A scoring screen has no
+  overall-note control. Sealing requires an explicit proofread
+  acknowledgement. A sealed record shows its seal and offers no write path.
+  `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
+  `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
+  about which categories are core areas.
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-26 - List filters are declared once and published in the schema
+
+Status: Accepted
+
+Decision:
+Each list view declares its query filters in `query_filters`
+(`kukgrade/filtering.py`); a default filter backend applies them and
+supplies them to the OpenAPI schema. Boolean filters accept only
+`true`/`false`.
+
+Context:
+Filters were parsed by hand in each `get_queryset`, and none reached the
+schema, so the frontend hand-wrote every list-parameter type against the
+"never hand-write an API type" rule. The boolean filters also disagreed:
+`required` accepted `1`/`yes`, and `linked`/`voided` ignored an invalid value
+where every other filter returned an empty page.
+
+Consequences:
+No new dependency (django-filter was not needed for this). `required=yes` and
+similar now return an empty page. A test checks every declared filter appears
+in the schema.
+
 ### 2026-09-26 - A session locks only when grading is complete; completed assessments reopen until then
 
 Status: Accepted

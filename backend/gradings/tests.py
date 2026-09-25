@@ -1466,6 +1466,18 @@ def test_a_registrations_student_cannot_be_changed() -> None:
     assert GradingCandidate.objects.get(pk=built.pk).student_id != other.pk
 
 
+def test_boolean_filters_accept_only_true_and_false() -> None:
+    # One rule for every boolean filter: anything else is an impossible
+    # value and returns an empty page, like an unknown choice or bad date.
+    generated = assessment(candidate=candidate())
+    client = auth_client("boolean-filters@example.com")
+    url = f"/api/gradings/assessment-items/?assessment={generated.pk}&required="
+
+    assert client.get(url + "true").json()["count"] > 0
+    assert client.get(url + "yes").json()["count"] == 0
+    assert client.get("/api/gradings/legacy-records/?linked=maybe").json()["count"] == 0
+
+
 def test_candidate_api_filters_work() -> None:
     session = grading_session()
     candidate_student = student(wksa_id="FILTER001")

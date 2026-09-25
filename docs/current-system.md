@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-26. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-26 with 654 backend tests and 207 frontend tests passing
+Verified on 2026-09-26 with 656 backend tests and 207 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -419,7 +419,9 @@ checks on each push and pull request.
   and `PatchedStudentRequest` are generated too, without the read-only fields
   a response carries.
   CI regenerates both the schema and the types and fails if either differs
-  from what is committed. The only hand-written API shapes are the error
+  from what is committed. List-filter parameters are generated too: each view declares its filters
+  once and the same declaration filters the queryset and documents the
+  schema. The only hand-written API shapes are the error
   envelope, which `custom_exception_handler` builds outside DRF's
   serializer path, and the page envelope.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,

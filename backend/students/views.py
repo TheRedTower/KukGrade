@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -17,7 +17,7 @@ from gradings.services import (
     student_rank_timeline,
     unified_student_grading_history,
 )
-from kukgrade.filtering import filter_choice, filter_exact
+from kukgrade.filtering import QueryFilter, choice, exact, search
 from students.models import Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -27,6 +27,20 @@ from students.serializers import (
 )
 from students.services import delete_student
 from syllabus.models import AgeBand
+
+
+def _filter_age_band(queryset: QuerySet[Student], value: str) -> QuerySet[Student]:
+    if value not in AgeBand.values:
+        return queryset.none()
+    born_after, born_on_or_before = age_band_birth_date_bounds(
+        value,
+        timezone.localdate(),
+    )
+    if born_after is not None:
+        return queryset.filter(date_of_birth__gt=born_after)
+    if born_on_or_before is not None:
+        queryset = queryset.filter(date_of_birth__lte=born_on_or_before)
+    return queryset
 
 
 class StudentViewSet(
@@ -70,48 +84,24 @@ class StudentViewSet(
             return StudentGradingHistorySerializer
         return StudentSerializer
 
+    query_filters = (
+        choice("status", "status", Student.Status.values),
+        exact("current_rank_code", "current_rank__code"),
+        QueryFilter(
+            "age_band",
+            lambda queryset, value: _filter_age_band(queryset, value),
+            {"type": "string", "enum": sorted(AgeBand.values)},
+            "The student's age band today, not at any grading.",
+        ),
+        search("search", ("first_name", "last_name", "wksa_id")),
+    )
+
     def get_queryset(self) -> QuerySet[Student]:
-        queryset = Student.objects.select_related("current_rank").order_by(
+        return Student.objects.select_related("current_rank").order_by(
             "last_name",
             "first_name",
             "wksa_id",
         )
-
-        params = self.request.query_params
-        queryset = filter_choice(
-            queryset,
-            params.get("status"),
-            "status",
-            Student.Status.values,
-        )
-        queryset = filter_exact(
-            queryset,
-            params.get("current_rank_code"),
-            "current_rank__code",
-        )
-
-        age_band = params.get("age_band")
-        if age_band in AgeBand.values:
-            born_after, born_on_or_before = age_band_birth_date_bounds(
-                age_band,
-                timezone.localdate(),
-            )
-            if born_after is not None:
-                queryset = queryset.filter(date_of_birth__gt=born_after)
-            if born_on_or_before is not None:
-                queryset = queryset.filter(date_of_birth__lte=born_on_or_before)
-        elif age_band:
-            queryset = queryset.none()
-
-        search = params.get("search")
-        if search:
-            queryset = queryset.filter(
-                Q(first_name__icontains=search)
-                | Q(last_name__icontains=search)
-                | Q(wksa_id__icontains=search),
-            )
-
-        return queryset
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()

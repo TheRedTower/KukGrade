@@ -119,7 +119,7 @@ export function StudentsScreen() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
@@ -286,7 +286,7 @@ export function StudentsScreen() {
             className="filter-select"
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter(e.target.value);
+              setStatusFilter(e.target.value as StudentStatus | "ALL");
               setPage(1);
             }}
           >

@@ -212,6 +212,9 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": _RENDERER_CLASSES,
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "kukgrade.pagination.DefaultPagination",
+    # Each list view declares its filters once, in `query_filters`; this
+    # applies them and documents them in the schema (kukgrade/filtering.py).
+    "DEFAULT_FILTER_BACKENDS": ["kukgrade.filtering.DeclaredQueryFilters"],
     # Scoped so it only throttles views that opt in with throttle_scope - a
     # view without one is never rate limited by this. LoginView is the only
     # one that sets it today, since unlimited password attempts is the risk

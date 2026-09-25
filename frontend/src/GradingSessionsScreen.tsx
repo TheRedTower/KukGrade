@@ -218,7 +218,7 @@ export function GradingSessionsScreen() {
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
@@ -366,7 +366,7 @@ export function GradingSessionsScreen() {
   const candidateCounts = candidatesForPageQuery.data ?? {};
   const assessmentCounts = assessmentsForPageQuery.data ?? {};
 
-  function handleStatusFilter(value: string) { setStatusFilter(value); setPage(1); }
+  function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
   function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
   function handleSearch(value: string) { setSearchText(value); setPage(1); }
   function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setPage(1); }
@@ -431,7 +431,7 @@ export function GradingSessionsScreen() {
         </div>
         <div className="gs-filter-group">
           <label className="gs-filter-label" htmlFor="gs-status-filter">Status</label>
-          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value)} value={statusFilter}>
+          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
             {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>

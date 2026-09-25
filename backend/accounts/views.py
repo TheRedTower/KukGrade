@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import cast
 
 from django.contrib.auth import login, logout
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
@@ -29,6 +29,7 @@ from accounts.serializers import (
     UserSerializer,
 )
 from accounts.services import delete_platform_user
+from kukgrade.filtering import boolean, choice, search
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -132,36 +133,20 @@ class UserViewSet(
         delete_platform_user(instance, cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    query_filters = (
+        choice("role", "role", User.Role.values),
+        boolean("is_active", "is_active"),
+        search("search", ("email", "first_name", "last_name")),
+    )
+
     def get_queryset(self) -> QuerySet[User]:
         # The "Deleted User" placeholder (see accounts.services) is internal
         # bookkeeping, not an account anyone administers - hidden from the
         # users API entirely so it can never show up in the list, be edited,
         # or be deleted itself through this endpoint.
-        queryset = User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL).order_by(
+        return User.objects.exclude(email=DELETED_USER_PLACEHOLDER_EMAIL).order_by(
             "email",
         )
-
-        role_filter = self.request.query_params.get("role")
-        if role_filter in User.Role.values:
-            queryset = queryset.filter(role=role_filter)
-        elif role_filter:
-            queryset = queryset.none()
-
-        active_filter = self.request.query_params.get("is_active")
-        if active_filter in {"true", "false"}:
-            queryset = queryset.filter(is_active=active_filter == "true")
-        elif active_filter:
-            queryset = queryset.none()
-
-        search = self.request.query_params.get("search")
-        if search:
-            queryset = queryset.filter(
-                Q(email__icontains=search)
-                | Q(first_name__icontains=search)
-                | Q(last_name__icontains=search),
-            )
-
-        return queryset
 
     @extend_schema(
         request=UserAuthoritySerializer,

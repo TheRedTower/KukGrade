@@ -23,6 +23,14 @@ Default page size 50, `?page_size=` overridable to a maximum of 200, and an
 out-of-range page returns 404. Detail endpoints and custom actions return the
 object directly. See `backend/README.md` for the rationale.
 
+List filters follow one rule on every endpoint: an absent or blank parameter
+does not filter, and a value that cannot match - a non-numeric id, an unknown
+choice, a malformed UUID or date, or a boolean other than `true`/`false` -
+returns an empty page. Each view declares its filters once
+(`query_filters`, `kukgrade/filtering.py`), and that declaration both applies
+them and publishes them in `backend/schema.yml`, which is the authoritative
+list; the tables below summarise it.
+
 ## 0b. Error responses
 
 Every error response uses one envelope:

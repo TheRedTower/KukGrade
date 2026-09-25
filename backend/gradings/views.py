@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from django.db.models import Q, QuerySet
+from django.db.models import QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
@@ -73,13 +73,7 @@ from gradings.services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from kukgrade.filtering import (
-    filter_choice,
-    filter_date,
-    filter_exact,
-    filter_id,
-    filter_uuid,
-)
+from kukgrade.filtering import boolean, by_id, by_uuid, choice, exact, on_date, search
 from syllabus.models import AgeBand, SyllabusItem
 
 
@@ -95,37 +89,19 @@ class GradingSessionViewSet(ModelViewSet):
         "destroy": ("gradings.delete_gradingsession",),
     }
 
+    query_filters = (
+        choice("status", "status", GradingSession.Status.values),
+        on_date("grading_date", "grading_date"),
+        on_date("grading_date_from", "grading_date__gte"),
+        on_date("grading_date_to", "grading_date__lte"),
+        search("search", ("title", "location")),
+    )
+
     def get_queryset(self) -> QuerySet[GradingSession]:
-        queryset = GradingSession.objects.select_related("created_by").order_by(
+        return GradingSession.objects.select_related("created_by").order_by(
             "-grading_date",
             "created_at",
         )
-
-        params = self.request.query_params
-        queryset = filter_choice(
-            queryset,
-            params.get("status"),
-            "status",
-            GradingSession.Status.values,
-        )
-        queryset = filter_date(queryset, params.get("grading_date"), "grading_date")
-        queryset = filter_date(
-            queryset,
-            params.get("grading_date_from"),
-            "grading_date__gte",
-        )
-        queryset = filter_date(
-            queryset,
-            params.get("grading_date_to"),
-            "grading_date__lte",
-        )
-
-        search = params.get("search", "").strip()
-        if search:
-            queryset = queryset.filter(
-                Q(title__icontains=search) | Q(location__icontains=search)
-            )
-        return queryset
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
@@ -155,8 +131,16 @@ class GradingCandidateViewSet(ModelViewSet):
         "withdraw": ("gradings.change_gradingcandidate",),
     }
 
+    query_filters = (
+        by_id("session", "session_id"),
+        exact("student_wksa_id", "student__wksa_id"),
+        exact("testing_for_rank_code", "testing_for_rank__code"),
+        choice("age_band", "age_band", AgeBand.values),
+        choice("status", "status", GradingCandidate.Status.values),
+    )
+
     def get_queryset(self) -> QuerySet[GradingCandidate]:
-        queryset = GradingCandidate.objects.select_related(
+        return GradingCandidate.objects.select_related(
             "session",
             "student",
             "from_rank",
@@ -166,31 +150,6 @@ class GradingCandidateViewSet(ModelViewSet):
             "session__grading_date",
             "student__last_name",
             "student__first_name",
-        )
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("session"), "session_id")
-        queryset = filter_exact(
-            queryset,
-            params.get("student_wksa_id"),
-            "student__wksa_id",
-        )
-        queryset = filter_exact(
-            queryset,
-            params.get("testing_for_rank_code"),
-            "testing_for_rank__code",
-        )
-        queryset = filter_choice(
-            queryset,
-            params.get("age_band"),
-            "age_band",
-            AgeBand.values,
-        )
-        return filter_choice(
-            queryset,
-            params.get("status"),
-            "status",
-            GradingCandidate.Status.values,
         )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
@@ -357,8 +316,16 @@ class CandidateAssessmentViewSet(
         "destroy": ("gradings.delete_candidateassessment",),
     }
 
+    query_filters = (
+        by_id("candidate", "candidate_id"),
+        by_id("session", "candidate__session_id"),
+        exact("student_wksa_id", "candidate__student__wksa_id"),
+        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
+        choice("status", "status", CandidateAssessment.Status.values),
+    )
+
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
-        queryset = (
+        return (
             CandidateAssessment.objects.select_related(
                 "candidate__session",
                 "candidate__student",
@@ -371,26 +338,6 @@ class CandidateAssessmentViewSet(
                 "candidate__student__last_name",
                 "candidate__student__first_name",
             )
-        )
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("candidate"), "candidate_id")
-        queryset = filter_id(queryset, params.get("session"), "candidate__session_id")
-        queryset = filter_exact(
-            queryset,
-            params.get("student_wksa_id"),
-            "candidate__student__wksa_id",
-        )
-        queryset = filter_exact(
-            queryset,
-            params.get("testing_for_rank_code"),
-            "candidate__testing_for_rank__code",
-        )
-        return filter_choice(
-            queryset,
-            params.get("status"),
-            "status",
-            CandidateAssessment.Status.values,
         )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
@@ -477,8 +424,18 @@ class CandidateAssessmentItemViewSet(
         "partial_update": ("gradings.change_candidateassessmentitem",),
     }
 
+    query_filters = (
+        by_id("assessment", "assessment_id"),
+        by_id("candidate", "assessment__candidate_id"),
+        by_id("session", "assessment__candidate__session_id"),
+        exact("item_code", "item_code"),
+        choice("category", "category", SyllabusItem.Category.values),
+        choice("result", "result", CandidateAssessmentItem.Result.values),
+        boolean("required", "required"),
+    )
+
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
-        queryset = CandidateAssessmentItem.objects.select_related(
+        return CandidateAssessmentItem.objects.select_related(
             "assessment__candidate__session",
             "assessment__candidate__student",
             "assessment__candidate__testing_for_rank",
@@ -487,42 +444,6 @@ class CandidateAssessmentItemViewSet(
             "source_rank",
             "assessor",
         ).order_by("requirement_sequence", "item_name", "pk")
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("assessment"), "assessment_id")
-        queryset = filter_id(
-            queryset,
-            params.get("candidate"),
-            "assessment__candidate_id",
-        )
-        queryset = filter_id(
-            queryset,
-            params.get("session"),
-            "assessment__candidate__session_id",
-        )
-        queryset = filter_exact(queryset, params.get("item_code"), "item_code")
-        queryset = filter_choice(
-            queryset,
-            params.get("category"),
-            "category",
-            SyllabusItem.Category.values,
-        )
-        queryset = filter_choice(
-            queryset,
-            params.get("result"),
-            "result",
-            CandidateAssessmentItem.Result.values,
-        )
-
-        required = params.get("required")
-        if required in {"true", "1", "yes"}:
-            queryset = queryset.filter(required=True)
-        elif required in {"false", "0", "no"}:
-            queryset = queryset.filter(required=False)
-        elif required:
-            queryset = queryset.none()
-
-        return queryset
 
 
 class CandidateOutcomeViewSet(
@@ -547,8 +468,20 @@ class CandidateOutcomeViewSet(
         "bulk_promote": ("gradings.view_candidateoutcome",),
     }
 
+    query_filters = (
+        by_id("session", "candidate__session_id"),
+        by_id("candidate", "candidate_id"),
+        exact("student_wksa_id", "candidate__student__wksa_id"),
+        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
+        choice("status", "status", CandidateOutcome.Status.values),
+        choice("proposed_outcome", "proposed_outcome", CandidateOutcome.Outcome.values),
+        choice("final_outcome", "final_outcome", CandidateOutcome.Outcome.values),
+        by_uuid("proposed_by", "proposed_by_id"),
+        by_uuid("decided_by", "decided_by_id"),
+    )
+
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
-        queryset = CandidateOutcome.objects.select_related(
+        return CandidateOutcome.objects.select_related(
             "candidate__session",
             "candidate__student",
             "candidate__testing_for_rank",
@@ -560,40 +493,6 @@ class CandidateOutcomeViewSet(
             "candidate__student__last_name",
             "candidate__student__first_name",
         )
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("session"), "candidate__session_id")
-        queryset = filter_id(queryset, params.get("candidate"), "candidate_id")
-        queryset = filter_exact(
-            queryset,
-            params.get("student_wksa_id"),
-            "candidate__student__wksa_id",
-        )
-        queryset = filter_exact(
-            queryset,
-            params.get("testing_for_rank_code"),
-            "candidate__testing_for_rank__code",
-        )
-        queryset = filter_choice(
-            queryset,
-            params.get("status"),
-            "status",
-            CandidateOutcome.Status.values,
-        )
-        queryset = filter_choice(
-            queryset,
-            params.get("proposed_outcome"),
-            "proposed_outcome",
-            CandidateOutcome.Outcome.values,
-        )
-        queryset = filter_choice(
-            queryset,
-            params.get("final_outcome"),
-            "final_outcome",
-            CandidateOutcome.Outcome.values,
-        )
-        queryset = filter_uuid(queryset, params.get("proposed_by"), "proposed_by_id")
-        return filter_uuid(queryset, params.get("decided_by"), "decided_by_id")
 
     def partial_update(
         self,
@@ -748,8 +647,20 @@ class PromotionViewSet(ReadOnlyModelViewSet):
         "retrieve": ("gradings.view_promotion",),
     }
 
+    query_filters = (
+        by_id("student", "student_id"),
+        exact("student_wksa_id", "student__wksa_id"),
+        exact("from_rank_code", "from_rank__code"),
+        exact("to_rank_code", "to_rank__code"),
+        by_id("session", "grading_candidate__session_id"),
+        on_date("effective_date", "effective_date"),
+        on_date("effective_date_from", "effective_date__gte"),
+        on_date("effective_date_to", "effective_date__lte"),
+        by_uuid("promoted_by", "promoted_by_id"),
+    )
+
     def get_queryset(self) -> QuerySet[Promotion]:
-        queryset = Promotion.objects.select_related(
+        return Promotion.objects.select_related(
             "student__current_rank",
             "outcome",
             "grading_candidate__session",
@@ -757,37 +668,6 @@ class PromotionViewSet(ReadOnlyModelViewSet):
             "to_rank",
             "promoted_by",
         ).order_by("-effective_date", "-promoted_at", "-pk")
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("student"), "student_id")
-        queryset = filter_exact(
-            queryset,
-            params.get("student_wksa_id"),
-            "student__wksa_id",
-        )
-        queryset = filter_exact(
-            queryset,
-            params.get("from_rank_code"),
-            "from_rank__code",
-        )
-        queryset = filter_exact(queryset, params.get("to_rank_code"), "to_rank__code")
-        queryset = filter_id(
-            queryset,
-            params.get("session"),
-            "grading_candidate__session_id",
-        )
-        queryset = filter_date(queryset, params.get("effective_date"), "effective_date")
-        queryset = filter_date(
-            queryset,
-            params.get("effective_date_from"),
-            "effective_date__gte",
-        )
-        queryset = filter_date(
-            queryset,
-            params.get("effective_date_to"),
-            "effective_date__lte",
-        )
-        return filter_uuid(queryset, params.get("promoted_by"), "promoted_by_id")
 
 
 class LegacyGradingRecordViewSet(
@@ -813,32 +693,22 @@ class LegacyGradingRecordViewSet(
         "void": ("gradings.can_reconcile_imported_history",),
     }
 
+    query_filters = (
+        by_id("student", "student_id"),
+        boolean("linked", "student__isnull", invert=True),
+        boolean("voided", "is_void"),
+        exact("record_kind", "record_kind"),
+        by_id("source_batch", "source_batch_id"),
+    )
+
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
-        queryset = LegacyGradingRecord.objects.select_related(
+        return LegacyGradingRecord.objects.select_related(
             "student",
             "current_rank",
             "testing_for_rank",
             "voided_by",
             "source_batch",
         ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
-
-        params = self.request.query_params
-        queryset = filter_id(queryset, params.get("student"), "student_id")
-
-        linked_param = params.get("linked")
-        if linked_param == "true":
-            queryset = queryset.filter(student__isnull=False)
-        elif linked_param == "false":
-            queryset = queryset.filter(student__isnull=True)
-
-        voided_param = params.get("voided")
-        if voided_param == "true":
-            queryset = queryset.filter(is_void=True)
-        elif voided_param == "false":
-            queryset = queryset.filter(is_void=False)
-
-        queryset = filter_exact(queryset, params.get("record_kind"), "record_kind")
-        return filter_id(queryset, params.get("source_batch"), "source_batch_id")
 
     @extend_schema(
         request=LinkLegacyRecordSerializer,

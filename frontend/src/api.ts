@@ -23,7 +23,6 @@ export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
 export type GradingCandidate = Schemas["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
-export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
@@ -462,10 +461,7 @@ export async function getAllCandidateAssessments(
 
 export async function updateCandidateAssessment(
   id: number,
-  data: {
-    status?: CandidateAssessmentStatus;
-    notes?: string;
-  },
+  data: Schemas["PatchedCandidateAssessmentRequest"],
 ): Promise<CandidateAssessment> {
   return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`, {
     method: "PATCH",
@@ -515,12 +511,16 @@ export async function getAllCandidateAssessmentItems(
   );
 }
 
+/** Returns a completed assessment to in-progress while its session is open. */
+export async function reopenCandidateAssessment(id: number): Promise<CandidateAssessment> {
+  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/reopen/`, {
+    method: "POST",
+  });
+}
+
 export async function updateCandidateAssessmentItem(
   id: number,
-  data: {
-    result?: CandidateAssessmentItemResult;
-    assessor_notes?: string;
-  },
+  data: Schemas["PatchedCandidateAssessmentItemRequest"],
 ): Promise<CandidateAssessmentItem> {
   return apiRequest<CandidateAssessmentItem>(`/api/gradings/assessment-items/${id}/`, {
     method: "PATCH",
@@ -559,10 +559,7 @@ export async function createCandidateOutcome(candidateId: number): Promise<Candi
 
 export async function proposeCandidateOutcome(
   outcomeId: number,
-  data: {
-    proposed_outcome: CandidateOutcomeOutcome;
-    proposal_notes?: string;
-  },
+  data: Schemas["PatchedCandidateOutcomeProposalRequest"],
 ): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/propose/`, {
     method: "PATCH",
@@ -595,11 +592,7 @@ export async function getCandidateAssessmentSummary(
 
 export async function finaliseCandidateOutcome(
   outcomeId: number,
-  data: {
-    final_outcome: "PASS" | "CONDITIONAL" | "FAIL";
-    decision_notes?: string;
-    conditional_requirements?: string;
-  },
+  data: Schemas["PatchedCandidateOutcomeFinaliseRequest"],
 ): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(
     `/api/gradings/outcomes/${outcomeId}/finalise/`,
@@ -754,7 +747,7 @@ export async function promoteCandidateOutcome(
 export type BulkPromoteResponse = Schemas["BulkPromotionResult"];
 
 export async function bulkPromoteCandidateOutcomes(
-  data: { outcomes: number[] },
+  data: Schemas["BulkPromotionRequest"],
 ): Promise<BulkPromoteResponse> {
   return apiRequest<BulkPromoteResponse>(
     `/api/gradings/outcomes/bulk-promote/`,

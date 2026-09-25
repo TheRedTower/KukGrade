@@ -1337,3 +1337,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.acp-reopen-btn {
+  margin-top: 0.75rem;
+}

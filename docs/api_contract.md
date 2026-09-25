@@ -455,9 +455,13 @@ longer open) does not block the rest. Returns `200` with
 
 Assessment-item result values are `NOT_ASSESSED`, `MET`, and `NOT_MET`. The
 server rejects item result changes until the parent assessment is explicitly
-started. Result changes are allowed for `IN_PROGRESS` assessments while the
-session is `OPEN` or `LOCKED`; locked sessions can finish work already in
-progress but cannot start new assessments. The server sets `assessor` to
+started. Result changes and completion are allowed only while the session is
+`OPEN`; a session cannot lock until every non-withdrawn assessment is
+`COMPLETED`. `POST /api/gradings/assessments/{id}/reopen/` returns a
+`COMPLETED` assessment to `IN_PROGRESS` (and its candidate to `REGISTERED`)
+while the session is still `OPEN`, keeping every item result and its
+attribution; it is audited as `ASSESSMENT_REOPENED` and needs
+`gradings.change_candidateassessment`. The server sets `assessor` to
 `request.user` and `assessed_at` when a result changes to `MET` or `NOT_MET`.
 Resetting an item to `NOT_ASSESSED` before completion clears assessor metadata.
 Result values are not aggregated into an overall candidate outcome.

@@ -512,6 +512,29 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/gradings/assessments/{id}/reopen/:
+    post:
+      operationId: gradings_assessments_reopen_create
+      description: Return a completed assessment to in-progress while the session
+        is open.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
   /api/gradings/assessments/{id}/summary/:
     get:
       operationId: gradings_assessments_summary_retrieve
@@ -2175,6 +2198,7 @@ components:
       - ASSESSMENT_GENERATED
       - ASSESSMENT_STARTED
       - ASSESSMENT_COMPLETED
+      - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
       - OUTCOME_CREATED
@@ -2208,6 +2232,7 @@ components:
         * `ASSESSMENT_GENERATED` - Assessment generated
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_COMPLETED` - Assessment completed
+        * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
         * `OUTCOME_CREATED` - Outcome created

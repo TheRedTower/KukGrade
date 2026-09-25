@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-25. This document
+Describes the implementation on `dev` as verified on 2026-09-26. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-25 with 639 backend tests and 206 frontend tests passing
+Verified on 2026-09-26 with 651 backend tests and 207 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -135,6 +135,12 @@ checks on each push and pull request.
   mixed-belt group registers in one request with no rank picked at all.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
+- **Locking ends grading (2026-09-26)**: results are recorded and assessments
+  completed only while the session is `OPEN`, and it cannot lock until every
+  non-withdrawn assessment is `COMPLETED`. Until then a completed assessment
+  can be reopened for correction (`POST .../assessments/{id}/reopen/`,
+  audited), from a "Reopen for correction" control on the sealed record. A
+  registration always starts `REGISTERED`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
 - Outcome proposal and final-decision drawers, cohort-exception review, student

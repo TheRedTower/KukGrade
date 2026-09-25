@@ -5173,6 +5173,66 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(screen.queryByTestId("acp-proofread-checkbox")).toBeNull();
   });
 
+  it("reopens a sealed record for correction only while the session is open", async () => {
+    const sealed: CandidateAssessment = {
+      ...mockAssessment,
+      status: "COMPLETED",
+      status_display: "Completed",
+      completed_at: "2026-09-18T11:30:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, { ...mockItem3, result: "MET" as const }];
+
+    function sealedRecordFetch(sessionStatus: GradingSession["status"]) {
+      return vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/reopen/") && init?.method === "POST") {
+          return jsonResponse(200, { ...sealed, status: "IN_PROGRESS", completed_at: null });
+        }
+        if (url.includes("/api/gradings/sessions/10/")) {
+          return jsonResponse(200, { ...mockSession, status: sessionStatus });
+        }
+        if (url.includes("/api/gradings/candidates/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockCandidate] });
+        }
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(proofItems));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [sealed] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: proofItems });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      });
+    }
+
+    const lockedFetch = sealedRecordFetch("LOCKED");
+    vi.stubGlobal("fetch", lockedFetch);
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+    const lockedView = render(<App />);
+    await screen.findByRole("heading", { name: "Assessment record" });
+    expect(screen.queryByTestId("acp-reopen-btn")).toBeNull();
+    lockedView.unmount();
+
+    const openFetch = sealedRecordFetch("OPEN");
+    vi.stubGlobal("fetch", openFetch);
+    window.history.replaceState({}, "", "/gradings/10/assessments/101/review");
+    render(<App />);
+    const user = userEvent.setup();
+    await user.click(await screen.findByTestId("acp-reopen-btn"));
+
+    await waitFor(() => {
+      expect(
+        openFetch.mock.calls.some(
+          ([url, init]) =>
+            String(url).includes("/api/gradings/assessments/501/reopen/") &&
+            (init as RequestInit | undefined)?.method === "POST",
+        ),
+      ).toBe(true);
+    });
+    await waitFor(() => expect(window.location.pathname).toBe("/gradings/10/assessments/101"));
+  });
+
   // A scored requirement in any category belongs on the permanent record.
   // Rendering only Techniques and Forms would silently drop a Weapons or Other
   // requirement that was actually assessed during the grading.

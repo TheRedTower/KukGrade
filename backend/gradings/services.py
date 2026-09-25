@@ -56,11 +56,6 @@ ASSESSMENT_GENERATION_SESSION_STATUSES = {
     GradingSession.Status.OPEN,
 }
 
-ASSESSMENT_RESULT_ENTRY_SESSION_STATUSES = {
-    GradingSession.Status.OPEN,
-    GradingSession.Status.LOCKED,
-}
-
 OUTCOME_CREATION_SESSION_STATUSES = {
     GradingSession.Status.LOCKED,
 }
@@ -254,29 +249,19 @@ def validate_session_transition(
         current_status == GradingSession.Status.OPEN
         and next_status == GradingSession.Status.LOCKED
     ):
-        active_candidates = session.candidates.exclude(
-            status=GradingCandidate.Status.WITHDRAWN,
+        # Locking ends grading: every result is recorded first, and the
+        # session stays open for corrections until the instructors are done.
+        incomplete = (
+            session.candidates.exclude(status=GradingCandidate.Status.WITHDRAWN)
+            .exclude(assessment__status=CandidateAssessment.Status.COMPLETED)
+            .exists()
         )
-        missing_assessment = active_candidates.filter(assessment__isnull=True).exists()
-        if missing_assessment:
+        if incomplete:
             raise ValidationError(
                 {
                     "status": [
-                        "Every non-withdrawn candidate must have an assessment "
-                        "before the session can be locked.",
-                    ],
-                },
-            )
-        not_started_assessment = active_candidates.filter(
-            assessment__status=CandidateAssessment.Status.NOT_STARTED,
-        ).exists()
-        if not_started_assessment:
-            raise ValidationError(
-                {
-                    "status": [
-                        "Every non-withdrawn candidate assessment must be "
-                        "in progress or completed before the session can be "
-                        "locked.",
+                        "Every non-withdrawn candidate's assessment must be "
+                        "completed before the session can be locked.",
                     ],
                 },
             )
@@ -411,12 +396,11 @@ def withdraw_locked_candidate(
     note: str,
     actor: User,
 ) -> GradingCandidate:
-    """Withdraw a candidate who cannot finish, from a locked session.
+    """Withdraw a graded candidate who cannot receive a decision, after lock.
 
-    Without this the only way out was to mark their unassessed required items
-    NOT_MET and finalise a FAIL, which writes fabricated results into a record
-    the system then correctly refuses to change. Their partial assessment is
-    kept exactly as recorded.
+    Without this the only way to let the session complete would be to
+    finalise an outcome nobody actually decided. Their assessment is kept
+    exactly as recorded.
     """
     validate_locked_session_override_actor(actor)
     locked_candidate = (
@@ -1280,6 +1264,12 @@ def build_candidate(
     status: str = GradingCandidate.Status.REGISTERED,
     notes: str = "",
 ) -> GradingCandidate:
+    if status != GradingCandidate.Status.REGISTERED:
+        # Withdrawal and completion each have their own path, which records
+        # why and by whom; a registration cannot begin in either state.
+        raise ValidationError(
+            {"status": ["A candidate is always registered as REGISTERED."]},
+        )
     validate_session_accepts_candidates(session)
     validate_student_can_be_graded(student)
     validate_testing_for_rank(student, testing_for_rank)
@@ -1892,16 +1882,9 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"status": ["Only in-progress assessments can be completed."]},
         )
-    if assessment.candidate.session.status not in {
-        GradingSession.Status.OPEN,
-        GradingSession.Status.LOCKED,
-    }:
+    if assessment.candidate.session.status != GradingSession.Status.OPEN:
         raise ValidationError(
-            {
-                "session": [
-                    "Assessments can only be completed in open or locked sessions.",
-                ],
-            },
+            {"session": ["Assessments can only be completed in an open session."]},
         )
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
@@ -1982,6 +1965,57 @@ def update_candidate_assessment(
 
 
 @transaction.atomic
+def reopen_candidate_assessment(
+    assessment: CandidateAssessment,
+    actor: User,
+) -> CandidateAssessment:
+    """Return a completed assessment to in-progress for correction.
+
+    Only while the session is still open: locking is the point after which
+    the record is final. The candidate goes back to registered until the
+    assessment is completed again. Item results and their attribution are
+    kept exactly as recorded.
+    """
+    locked_assessment = (
+        CandidateAssessment.objects.select_for_update(of=("self",))
+        .select_related("candidate__session", "candidate__student")
+        .get(pk=assessment.pk)
+    )
+    if locked_assessment.status != CandidateAssessment.Status.COMPLETED:
+        raise ValidationError(
+            {"status": ["Only a completed assessment can be reopened."]},
+        )
+    if locked_assessment.candidate.session.status != GradingSession.Status.OPEN:
+        raise ValidationError(
+            {
+                "session": [
+                    "An assessment can only be reopened while its session is open.",
+                ],
+            },
+        )
+
+    completed_at = locked_assessment.completed_at
+    locked_assessment.status = CandidateAssessment.Status.IN_PROGRESS
+    locked_assessment.completed_at = None
+    locked_assessment.save()
+    GradingCandidate.objects.filter(pk=locked_assessment.candidate_id).update(
+        status=GradingCandidate.Status.REGISTERED,
+        updated_at=timezone.now(),
+    )
+    record(
+        AuditAction.ASSESSMENT_REOPENED,
+        locked_assessment,
+        (
+            f"Assessment for {locked_assessment.candidate.student} "
+            "reopened for correction."
+        ),
+        actor=actor,
+        metadata={"completed_at": completed_at.isoformat() if completed_at else None},
+    )
+    return locked_assessment
+
+
+@transaction.atomic
 def bulk_start_candidate_assessments(
     *,
     assessments: Sequence[CandidateAssessment],
@@ -2017,17 +2051,9 @@ def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> No
                 ],
             },
         )
-    if (
-        assessment.candidate.session.status
-        not in ASSESSMENT_RESULT_ENTRY_SESSION_STATUSES
-    ):
+    if assessment.candidate.session.status != GradingSession.Status.OPEN:
         raise ValidationError(
-            {
-                "session": [
-                    "Assessment results can only be entered in open or locked "
-                    "sessions.",
-                ],
-            },
+            {"session": ["Assessment results can only be entered in an open session."]},
         )
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(

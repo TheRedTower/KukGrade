@@ -139,17 +139,18 @@ item, and category-level results are computed, never stored.
   complete** (writes `status` and `notes`).
   `validate_assessment_can_start`: `NOT_STARTED` only, session `OPEN`,
   candidate not withdrawn.
-  `validate_assessment_can_complete`: `IN_PROGRESS` only, session `OPEN` or
-  `LOCKED`, candidate not withdrawn, and **every `required=True` item must not
+  `validate_assessment_can_complete`: `IN_PROGRESS` only, session `OPEN`,
+  candidate not withdrawn, and **every `required=True` item must not
   be `NOT_ASSESSED`** — optional items may be left unassessed. Completing also
   flips the candidate to `COMPLETED`. A `COMPLETED` assessment is immutable,
-  notes included.
+  notes included, except that `reopen_candidate_assessment` (since 2026-09-26)
+  returns it to `IN_PROGRESS` while the session is still `OPEN`.
 - `bulk_start_candidate_assessments` — per-row independent, returns
   `(started, errors)`.
 - `update_candidate_assessment_item` — **only `result` and `assessor_notes` are
   writable.** Sets and clears `assessor`/`assessed_at` automatically.
   `validate_assessment_item_can_be_changed`: assessment `IN_PROGRESS` (distinct
-  errors for `NOT_STARTED` and `COMPLETED`), session `OPEN`/`LOCKED`, candidate
+  errors for `NOT_STARTED` and `COMPLETED`), session `OPEN`, candidate
   not withdrawn. Notes-only edits are audited too.
 - `create_candidate_outcome` — session **`LOCKED`**, candidate `COMPLETED`,
   assessment `COMPLETED`.
@@ -165,8 +166,8 @@ item, and category-level results are computed, never stored.
   and `to_rank` must still be the next active rank after the student's current
   rank.
 - `transition_grading_session`, `validate_session_transition` — `OPEN→LOCKED`
-  requires every non-withdrawn candidate to have an assessment at least
-  `IN_PROGRESS`; `LOCKED→COMPLETED` requires every non-withdrawn candidate to
+  requires every non-withdrawn candidate's assessment to be `COMPLETED`
+  (since 2026-09-26); `LOCKED→COMPLETED` requires every non-withdrawn candidate to
   have a `COMPLETED` assessment **and** a `FINALISED` outcome.
 - `withdraw_locked_candidate` — requires `can_override_locked_session`.
 - `candidate_assessment_summary` — computes `overall` plus `categories`, each
@@ -247,7 +248,8 @@ The redesign should spend these rather than recomputing or omitting them:
 - Multiple assessors per item, co-signing, or panel voting. One `assessor` FK,
   overwritten by whoever marks last.
 - A stored category-level result, category comment or category sign-off.
-- Editing an item after completion, or reopening a `COMPLETED` assessment.
+- Editing an item after completion without reopening it first, or reopening
+  once the session has locked.
 - Editing `item_name`, `category`, `required` or `requirement_notes`, or
   adding/removing items. No create or delete route for items.
 - Bulk item scoring ("mark all met in this category") — no endpoint; it would
@@ -310,7 +312,8 @@ failure; administrator-only hard delete. Optional items may stay
 
 **Completion review** — reachable only from `IN_PROGRESS` with zero required
 items unassessed; re-entry after completion shows the sealed record with seal
-controls removed; session `OPEN` or `LOCKED` both permit completion; a clean
+controls removed, and a reopen control while the session is still `OPEN`;
+completion is only possible in an `OPEN` session; a clean
 assessment with no shortfalls must read as success, not as an empty screen.
 
 **Judgement** — outcome preconditions per §2; re-proposal allowed while

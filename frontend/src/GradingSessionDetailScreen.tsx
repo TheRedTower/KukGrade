@@ -1007,9 +1007,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     Boolean(currentUser?.can_override_locked_session) &&
                     !isWithdrawn &&
                     outcomeStatus !== "FINALISED";
-                  const lockedAssessmentUnavailable =
-                    session.status === "LOCKED" &&
-                    (!assessmentStatus || assessmentStatus === "NOT_STARTED");
 
                   let nextActionLabel = assessmentStatus
                     ? "Start assessment →"
@@ -1099,8 +1096,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         <div className="gsd-row-actions">
                           {isWithdrawn ? (
                             <span className="gsd-withdrawal-record">No further action</span>
-                          ) : lockedAssessmentUnavailable ? (
-                            <span className="gsd-withdrawal-record">Assessment was not started</span>
                           ) : isProposalDrawerTrigger ? (
                             <button
                               type="button"

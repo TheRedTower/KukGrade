@@ -71,6 +71,7 @@ from gradings.services import (
     delete_candidate_assessment,
     delete_grading_session,
     generate_candidate_assessment,
+    reopen_candidate_assessment,
 )
 from kukgrade.filtering import (
     filter_choice,
@@ -351,6 +352,7 @@ class CandidateAssessmentViewSet(
         "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
         "bulk_start": ("gradings.change_candidateassessment",),
+        "reopen": ("gradings.change_candidateassessment",),
         "summary": ("gradings.view_candidateassessment",),
         "destroy": ("gradings.delete_candidateassessment",),
     }
@@ -395,6 +397,26 @@ class CandidateAssessmentViewSet(
         instance = self.get_object()
         delete_candidate_assessment(instance, cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(request=None, responses=CandidateAssessmentSerializer)
+    @action(detail=True, methods=["post"])
+    def reopen(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Return a completed assessment to in-progress while the session is open."""
+        assessment = reopen_candidate_assessment(
+            self.get_object(),
+            cast(User, request.user),
+        )
+        return Response(
+            CandidateAssessmentSerializer(
+                assessment,
+                context={"request": request},
+            ).data,
+        )
 
     @extend_schema(responses=CandidateAssessmentSummarySerializer)
     @action(detail=True, methods=["get"])

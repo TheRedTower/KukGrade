@@ -34,6 +34,7 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment generated"
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
+    ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
 

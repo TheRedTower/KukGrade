@@ -18,6 +18,32 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-26 - A session locks only when grading is complete; completed assessments reopen until then
+
+Status: Accepted
+
+Decision:
+`OPEN -> LOCKED` requires every non-withdrawn candidate's assessment to be
+`COMPLETED`. Item results and completion are only accepted while the session
+is `OPEN`. While it is open, a completed assessment can be reopened
+(`POST /api/gradings/assessments/{id}/reopen/`, audited
+`ASSESSMENT_REOPENED`), keeping every result and its attribution. A
+registration always starts `REGISTERED`.
+
+Context:
+Confirmed 2026-09-25: the session stays open until the instructors are happy
+with every record, and locking marks the end of grading. Previously a session
+could lock with assessments still in progress and scoring continued after
+lock, so "locked" did not mean the record was final, and a completed
+assessment could not be corrected at all. Supersedes the "locked sessions can
+finish work already in progress" behaviour in the 2026-06-23 assessment
+snapshot foundation entry.
+
+Consequences:
+A locked withdrawal now applies to a graded but undecided candidate. The
+correction workflow after lock (for a finalised outcome) is still open and
+will be tuned in beta with the instructors.
+
 ### 2026-09-26 - Every withdrawal has a reason; a registration's student is fixed
 
 Status: Accepted

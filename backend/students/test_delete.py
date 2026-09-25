@@ -175,8 +175,8 @@ def test_deleting_a_student_with_multiple_promotions_needs_no_supersession_check
         user("student-delete-multi-generator@example.com"),
     )
     start_assessment(second_generated)
-    transition_grading_session(second_session, GradingSession.Status.LOCKED)
     complete_assessment(second_generated)
+    transition_grading_session(second_session, GradingSession.Status.LOCKED)
     second_outcome = finalised_outcome(second_built)
     second_promotion = promote_candidate(
         second_outcome,

@@ -13,29 +13,46 @@ import "./AuditScreen.css";
 
 const PAGE_SIZE = 10;
 
-const ACTION_OPTIONS: { value: AuditAction; label: string }[] = [
-  { value: "SESSION_CREATED", label: "Grading session created" },
-  { value: "SESSION_TRANSITIONED", label: "Grading session transitioned" },
-  { value: "SESSION_DELETED", label: "Grading session deleted" },
-  { value: "CANDIDATE_REGISTERED", label: "Candidate registered" },
-  { value: "CANDIDATE_UPDATED", label: "Candidate updated" },
-  { value: "CANDIDATE_WITHDRAWN", label: "Candidate withdrawn" },
-  { value: "CANDIDATE_DELETED", label: "Candidate deleted" },
-  { value: "ASSESSMENT_GENERATED", label: "Assessment generated" },
-  { value: "ASSESSMENT_STARTED", label: "Assessment started" },
-  { value: "ASSESSMENT_COMPLETED", label: "Assessment completed" },
-  { value: "ITEM_RESULT_RECORDED", label: "Assessment item result recorded" },
-  { value: "OUTCOME_CREATED", label: "Outcome created" },
-  { value: "OUTCOME_PROPOSED", label: "Outcome proposed" },
-  { value: "OUTCOME_FINALISED", label: "Outcome finalised" },
-  { value: "PROMOTION_RECORDED", label: "Promotion recorded" },
-  { value: "STUDENT_CREATED", label: "Student created" },
-  { value: "STUDENT_UPDATED", label: "Student updated" },
-  { value: "STUDENT_STATUS_CHANGED", label: "Student status changed" },
-  { value: "USER_CREATED", label: "User created" },
-  { value: "USER_UPDATED", label: "User updated" },
-  { value: "USER_AUTHORITY_CHANGED", label: "User authority changed" },
-];
+// A Record over the generated enum, so a new backend action cannot be
+// left out of the filter without a type error.
+const ACTION_LABELS: Record<AuditAction, string> = {
+  SESSION_CREATED: "Grading session created",
+  SESSION_TRANSITIONED: "Grading session transitioned",
+  SESSION_DELETED: "Grading session deleted",
+  CANDIDATE_REGISTERED: "Candidate registered",
+  CANDIDATE_UPDATED: "Candidate updated",
+  CANDIDATE_WITHDRAWN: "Candidate withdrawn",
+  CANDIDATE_DELETED: "Candidate deleted",
+  ASSESSMENT_GENERATED: "Assessment generated",
+  ASSESSMENT_STARTED: "Assessment started",
+  ASSESSMENT_COMPLETED: "Assessment completed",
+  ASSESSMENT_REOPENED: "Assessment reopened",
+  ASSESSMENT_DELETED: "Assessment deleted",
+  ITEM_RESULT_RECORDED: "Assessment item result recorded",
+  OUTCOME_CREATED: "Outcome created",
+  OUTCOME_PROPOSED: "Outcome proposed",
+  OUTCOME_FINALISED: "Outcome finalised",
+  PROMOTION_RECORDED: "Promotion recorded",
+  STUDENT_CREATED: "Student created",
+  STUDENT_UPDATED: "Student updated",
+  STUDENT_STATUS_CHANGED: "Student status changed",
+  STUDENT_DELETED: "Student deleted",
+  USER_CREATED: "User created",
+  USER_UPDATED: "User updated",
+  USER_AUTHORITY_CHANGED: "User authority changed",
+  USER_DELETED: "User deleted",
+  IMPORT_BATCH_COMMITTED: "Import committed",
+  IMPORT_BATCH_CANCELLED: "Import cancelled",
+  IMPORT_BATCH_EXPIRED: "Import expired",
+  LEGACY_GRADING_LINKED: "Historical record linked",
+  LEGACY_GRADING_UNLINKED: "Historical record unlinked",
+  LEGACY_GRADING_RANK_RESOLVED: "Historical record rank resolved",
+  LEGACY_GRADING_VOIDED: "Historical record voided",
+};
+
+const ACTION_OPTIONS = (Object.entries(ACTION_LABELS) as [AuditAction, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
 
 const ENTITY_OPTIONS = [
   ["GradingSession", "Grading session"],
@@ -46,6 +63,8 @@ const ENTITY_OPTIONS = [
   ["Promotion", "Promotion"],
   ["Student", "Student"],
   ["User", "User"],
+  ["ImportBatch", "Import batch"],
+  ["LegacyGradingRecord", "Historical grading record"],
 ] as const;
 
 const ENTITY_LABELS = new Map<string, string>(ENTITY_OPTIONS);

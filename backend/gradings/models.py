@@ -169,6 +169,7 @@ class GradingCandidate(models.Model):
     if TYPE_CHECKING:
         session_id: int
         student_id: int
+        from_rank_id: int
         testing_for_rank_id: int
         withdrawn_by_id: int | None
         assessment: CandidateAssessment
@@ -198,6 +199,16 @@ class GradingCandidate(models.Model):
         "students.Student",
         on_delete=models.PROTECT,
         related_name="grading_candidates",
+    )
+    # The rank the student held when registered. Snapshotted rather than read
+    # from Student.current_rank, which moves on after promotion - without it
+    # a sealed record would show the student's later rank as where they
+    # started. Set on first save from the student's current rank.
+    from_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        related_name="grading_candidates_from_rank",
+        editable=False,
     )
     testing_for_rank = models.ForeignKey(
         "ranks.Rank",
@@ -309,6 +320,8 @@ class GradingCandidate(models.Model):
         return f"{self.student} for {self.testing_for_rank} at {self.session}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and not self.from_rank_id and self.student_id:
+            self.from_rank_id = self.student.current_rank_id
         self.full_clean()
         super().save(*args, **kwargs)
 

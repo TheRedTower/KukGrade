@@ -2202,6 +2202,7 @@ components:
       - USER_DELETED
       - IMPORT_BATCH_COMMITTED
       - IMPORT_BATCH_CANCELLED
+      - IMPORT_BATCH_EXPIRED
       - LEGACY_GRADING_LINKED
       - LEGACY_GRADING_UNLINKED
       - LEGACY_GRADING_RANK_RESOLVED
@@ -2234,6 +2235,7 @@ components:
         * `USER_DELETED` - User deleted
         * `IMPORT_BATCH_COMMITTED` - Import batch committed
         * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
+        * `IMPORT_BATCH_EXPIRED` - Import batch expired
         * `LEGACY_GRADING_LINKED` - Legacy grading record linked
         * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
         * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
@@ -3148,6 +3150,15 @@ components:
         student_wksa_id:
           type: string
           readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_code:
+          type: string
+          readOnly: true
+        from_rank_name:
+          type: string
+          readOnly: true
         testing_for_rank:
           type: integer
         testing_for_rank_code:
@@ -3206,6 +3217,9 @@ components:
       - age_band
       - age_band_display
       - created_at
+      - from_rank
+      - from_rank_code
+      - from_rank_name
       - id
       - session
       - session_title
@@ -4524,6 +4538,15 @@ components:
           type: string
           readOnly: true
         student_wksa_id:
+          type: string
+          readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_code:
+          type: string
+          readOnly: true
+        from_rank_name:
           type: string
           readOnly: true
         testing_for_rank:

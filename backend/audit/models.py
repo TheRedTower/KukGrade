@@ -55,6 +55,7 @@ class AuditAction(models.TextChoices):
 
     IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import batch committed"
     IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import batch cancelled"
+    IMPORT_BATCH_EXPIRED = "IMPORT_BATCH_EXPIRED", "Import batch expired"
 
     LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Legacy grading record linked"
     LEGACY_GRADING_UNLINKED = (

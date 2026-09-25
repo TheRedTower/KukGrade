@@ -138,6 +138,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     session_title = serializers.CharField(source="session.title", read_only=True)
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
+    from_rank_code = serializers.CharField(source="from_rank.code", read_only=True)
+    from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     testing_for_rank_code = serializers.CharField(
         source="testing_for_rank.code",
         read_only=True,
@@ -172,6 +174,9 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "student",
             "student_display_name",
             "student_wksa_id",
+            "from_rank",
+            "from_rank_code",
+            "from_rank_name",
             "testing_for_rank",
             "testing_for_rank_code",
             "testing_for_rank_name",
@@ -195,6 +200,9 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "session_title",
             "student_display_name",
             "student_wksa_id",
+            "from_rank",
+            "from_rank_code",
+            "from_rank_name",
             "testing_for_rank_code",
             "testing_for_rank_name",
             "age_band",

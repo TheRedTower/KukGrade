@@ -13,7 +13,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
-import { formatSessionDate } from "./dates";
+import { formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 
 function CalendarIcon() {
@@ -257,7 +257,7 @@ export function OverviewScreen() {
 
   // Resolve next upcoming session
   const upcomingSession: GradingSession | undefined = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayIsoDate();
     const candidates = sessions
       .filter(
         (s) =>

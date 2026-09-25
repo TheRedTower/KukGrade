@@ -1322,6 +1322,8 @@ def update_candidate(
 
     candidate.session = new_session
     candidate.student = new_student
+    if student is not None:
+        candidate.from_rank_id = new_student.current_rank_id
     candidate.testing_for_rank = new_testing_for_rank
     if status is not None:
         candidate.status = status

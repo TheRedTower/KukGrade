@@ -17,19 +17,7 @@ import {
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
-
-function formatDate(value: string | null, includeTime = false): string {
-  if (!value) return "Never";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: includeTime ? "2-digit" : undefined,
-    minute: includeTime ? "2-digit" : undefined,
-  });
-}
+import { formatDateTime, formatLongDate } from "./dates";
 
 function AccountForm({
   user,
@@ -484,8 +472,8 @@ export function UserDetailScreen(): React.ReactElement {
           <section>
             <h2>Account information</h2>
             <dl>
-              <div><dt>Joined</dt><dd>{formatDate(managedUser.date_joined)}</dd></div>
-              <div><dt>Last active</dt><dd>{formatDate(managedUser.last_login, true)}</dd></div>
+              <div><dt>Joined</dt><dd>{formatLongDate(managedUser.date_joined, "Never")}</dd></div>
+              <div><dt>Last active</dt><dd>{formatDateTime(managedUser.last_login, "Never")}</dd></div>
               <div><dt>Role</dt><dd>{managedUser.role_display}</dd></div>
               <div><dt>Next sign-in</dt><dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd></div>
             </dl>
@@ -497,7 +485,7 @@ export function UserDetailScreen(): React.ReactElement {
             ) : activityQuery.data?.results.length ? (
               <ul className="user-activity-list">
                 {activityQuery.data.results.map((event) => (
-                  <li key={event.id}><strong>{event.action_display}</strong><span>{formatDate(event.occurred_at, true)}</span></li>
+                  <li key={event.id}><strong>{event.action_display}</strong><span>{formatDateTime(event.occurred_at)}</span></li>
                 ))}
               </ul>
             ) : (

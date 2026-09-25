@@ -366,11 +366,6 @@
   font-weight: 600;
 }
 
-.caw-band-korean {
-  font-weight: 400;
-  color: var(--color-text-muted);
-}
-
 .caw-band-rule {
   flex-grow: 1;
   height: 1px;

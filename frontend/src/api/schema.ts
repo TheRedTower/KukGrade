@@ -1185,13 +1185,14 @@ export interface components {
          *     * `USER_DELETED` - User deleted
          *     * `IMPORT_BATCH_COMMITTED` - Import batch committed
          *     * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
+         *     * `IMPORT_BATCH_EXPIRED` - Import batch expired
          *     * `LEGACY_GRADING_LINKED` - Legacy grading record linked
          *     * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
          *     * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
          *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
         /**
          * @description * `AGE_8_AND_UNDER` - 8 and under
          *     * `AGE_9_TO_12` - 9-12
@@ -1524,6 +1525,9 @@ export interface components {
             student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
+            readonly from_rank: number;
+            readonly from_rank_code: string;
+            readonly from_rank_name: string;
             testing_for_rank: number;
             readonly testing_for_rank_code: string;
             readonly testing_for_rank_name: string;
@@ -2130,6 +2134,9 @@ export interface components {
             student?: number;
             readonly student_display_name?: string;
             readonly student_wksa_id?: string;
+            readonly from_rank?: number;
+            readonly from_rank_code?: string;
+            readonly from_rank_name?: string;
             testing_for_rank?: number;
             readonly testing_for_rank_code?: string;
             readonly testing_for_rank_name?: string;

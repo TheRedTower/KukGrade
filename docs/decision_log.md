@@ -18,6 +18,30 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-25 - A candidate records the rank held at registration
+
+Status: Accepted
+
+Decision:
+`GradingCandidate.from_rank` snapshots the student's current rank when the
+candidate is created. It is read-only through the API and admin, and changes
+only if the registration's `student` itself is changed.
+
+Context:
+The completion proof and the promotion ledger showed the student's live
+`current_rank` as the starting rank. After promotion that is the rank the
+candidate was testing for, so a sealed record read "Yellow -> Yellow". The
+ledger also looked the rank up by student id in a rank-id map, and the
+assessment screens found the student by a WKSA-ID substring search. A record
+that changes after the fact is not reproducible, which the grading rules
+require.
+
+Consequences:
+Migration `gradings.0009` adds the field and backfills it: a promoted
+candidate's own `Promotion.from_rank`; otherwise the rank reached by the
+student's latest promotion before the session date; otherwise where their
+first later promotion started; otherwise their current rank.
+
 ### 2026-09-24 - One document per job; every API shape declared in the schema
 
 Status: Accepted

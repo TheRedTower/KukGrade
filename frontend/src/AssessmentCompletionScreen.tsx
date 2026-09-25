@@ -36,7 +36,7 @@ import {
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { isCoreCategory } from "./syllabusCategories";
-import { formatApiDate } from "./dates";
+import { formatShortDate } from "./dates";
 import "./CandidateAssessment.css";
 
 function CheckIcon({ size = 13 }: { size?: number }) {
@@ -62,12 +62,6 @@ function SealIcon() {
       <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
     </svg>
   );
-}
-
-// Date-only grading dates and offset timestamps parse differently;
-// formatApiDate (dates.ts) decides from the value.
-function formatRecordDate(isoStr: string | null | undefined): string {
-  return formatApiDate(isoStr, { day: "2-digit", month: "short", year: "numeric" }, "");
 }
 
 /** The mark shown against a requirement or core area on the proof. */
@@ -108,7 +102,6 @@ export function AssessmentCompletionScreen() {
   const {
     session,
     candidate,
-    studentRankName,
     assessment,
     items,
     categoryGroups,
@@ -279,8 +272,8 @@ export function AssessmentCompletionScreen() {
               <div className="acp-label">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
-                  {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
-                  <span>{studentRankName || "Current rank"}</span>
+                  {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+                  <span>{candidate?.from_rank_name ?? ""}</span>
                 </span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
@@ -292,7 +285,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div className="acp-candidate-sub">
                 {session.title}
-                {session.grading_date && ` · ${formatRecordDate(session.grading_date)}`}
+                {session.grading_date && ` · ${formatShortDate(session.grading_date, "")}`}
               </div>
             </div>
           </div>
@@ -388,7 +381,7 @@ export function AssessmentCompletionScreen() {
                 <div className="acp-seal-detail">
                   Assessed from {formatTimeOnly(assessment.started_at)}
                   {assessment.completed_at && ` to ${formatTimeOnly(assessment.completed_at)}`}
-                  {session.grading_date && ` on ${formatRecordDate(session.grading_date)}`}
+                  {session.grading_date && ` on ${formatShortDate(session.grading_date, "")}`}
                 </div>
               )}
             </div>
@@ -398,7 +391,7 @@ export function AssessmentCompletionScreen() {
               {isSealed && assessment.completed_at ? (
                 <>
                   <div className="acp-seal-value acp-seal-applied" data-testid="acp-seal-applied">
-                    Sealed {formatRecordDate(assessment.completed_at)} at{" "}
+                    Sealed {formatShortDate(assessment.completed_at, "")} at{" "}
                     {formatTimeOnly(assessment.completed_at)}
                   </div>
                   <div className="acp-seal-detail">This record can no longer be changed.</div>
@@ -420,7 +413,7 @@ export function AssessmentCompletionScreen() {
             <dl className="acp-dl">
               <div>
                 <dt>Snapshot frozen</dt>
-                <dd>{assessment.generated_at ? formatRecordDate(assessment.generated_at) : "—"}</dd>
+                <dd>{assessment.generated_at ? formatShortDate(assessment.generated_at, "") : "—"}</dd>
               </div>
               <div>
                 <dt>Prepared by</dt>

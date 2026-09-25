@@ -394,6 +394,7 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     list_display = (
         "session",
         "student",
+        "from_rank",
         "testing_for_rank",
         "age_band",
         "status",
@@ -405,8 +406,8 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
         "student__wksa_id",
     )
     ordering = ("session__grading_date", "student__last_name", "student__first_name")
-    list_select_related = ("session", "student", "testing_for_rank")
-    readonly_fields = ("age_band",)
+    list_select_related = ("session", "student", "from_rank", "testing_for_rank")
+    readonly_fields = ("from_rank", "age_band")
 
     def save_model(
         self,

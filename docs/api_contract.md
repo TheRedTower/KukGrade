@@ -228,6 +228,13 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
 | POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
 
+Every candidate response carries `from_rank`, `from_rank_code` and
+`from_rank_name`: the rank the student held when registered, snapshotted on
+the candidate and read-only. It does not move when the student is later
+promoted, so a sealed assessment or a promotion ledger always shows where the
+candidate actually started. Changing a candidate's `student` resets it to that
+student's current rank.
+
 Bulk endpoints process every row **independently**, not all-or-nothing: each
 row is validated and saved through the same domain service as its
 single-item counterpart, in its own savepoint. One row failing does not stop

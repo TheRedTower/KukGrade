@@ -3,7 +3,7 @@
  *
  * Mat-side scoring (`CandidateAssessmentScreen`) and completion review
  * (`AssessmentCompletionScreen`) are separate routes but read exactly the same
- * five resources and derive exactly the same rollups from them, so the queries
+ * four resources and derive exactly the same rollups from them, so the queries
  * live here rather than being duplicated across both files.
  *
  * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
@@ -26,7 +26,6 @@ import {
   getCandidateAssessments,
   getAllCandidateAssessmentItems,
   getGradingSession,
-  getStudents,
 } from "./api";
 import { formatApiDate } from "./dates";
 
@@ -45,7 +44,6 @@ export function formatDayMonth(isoStr: string | null): string {
 export interface CategoryGroup {
   category: string;
   categoryDisplay: string;
-  koreanName?: string;
   items: CandidateAssessmentItem[];
   totalCount: number;
   requiredCount: number;
@@ -83,21 +81,7 @@ export function useCandidateAssessmentData(
     return candidatesQuery.data.results.find((c) => c.id === numCandidateId);
   }, [candidatesQuery.data, numCandidateId]);
 
-  // 3. The candidate's student, for their current rank
-  const studentQuery = useQuery({
-    queryKey: ["student", candidate?.student],
-    queryFn: () => getStudents({ search: candidate?.student_wksa_id }),
-    enabled: !!candidate?.student_wksa_id,
-  });
-
-  const studentRankName = useMemo(() => {
-    if (studentQuery.data?.results && studentQuery.data.results.length > 0) {
-      return studentQuery.data.results[0].current_rank_name;
-    }
-    return "";
-  }, [studentQuery.data]);
-
-  // 4. The assessment itself. `null` means the form has not been generated yet,
+  // 3. The assessment itself. `null` means the form has not been generated yet,
   // which is a distinct state from "still loading".
   const assessmentQuery = useQuery({
     queryKey: ["candidateAssessment", numCandidateId],
@@ -110,7 +94,7 @@ export function useCandidateAssessmentData(
 
   const assessment = assessmentQuery.data;
 
-  // 5. The immutable syllabus snapshot rows
+  // 4. The immutable syllabus snapshot rows
   const itemsQuery = useQuery({
     queryKey: ["candidateAssessmentItems", assessment?.id],
     queryFn: () => getAllCandidateAssessmentItems({ assessment: assessment!.id }),
@@ -121,7 +105,7 @@ export function useCandidateAssessmentData(
     return itemsQuery.data?.results ?? [];
   }, [itemsQuery.data]);
 
-  // 6. Served rollup. Kept on its own key so a single item PATCH can
+  // 5. Served rollup. Kept on its own key so a single item PATCH can
   // invalidate it without refetching the whole item list.
   const summaryQuery = useQuery({
     queryKey: ["candidateAssessmentSummary", assessment?.id],
@@ -140,15 +124,12 @@ export function useCandidateAssessmentData(
 
     const order: string[] = [];
     const itemsByCategory = new Map<string, CandidateAssessmentItem[]>();
-    const displayByCategory = new Map<string, { display: string; korean?: string }>();
+    const displayByCategory = new Map<string, string>();
 
     for (const item of items) {
       if (!itemsByCategory.has(item.category)) {
         itemsByCategory.set(item.category, []);
-        displayByCategory.set(item.category, {
-          display: item.category_display || item.category,
-          korean: item.korean_name,
-        });
+        displayByCategory.set(item.category, item.category_display || item.category);
         order.push(item.category);
       }
       itemsByCategory.get(item.category)!.push(item);
@@ -160,14 +141,12 @@ export function useCandidateAssessmentData(
 
     return order.map((category) => {
       const served = servedByCategory.get(category);
-      const labels = displayByCategory.get(category)!;
       const requiredCount = served?.required ?? 0;
       const remaining = served?.required_not_assessed ?? 0;
 
       return {
         category,
-        categoryDisplay: labels.display,
-        koreanName: labels.korean,
+        categoryDisplay: displayByCategory.get(category)!,
         items: itemsByCategory.get(category)!,
         totalCount: served?.total ?? 0,
         requiredCount,
@@ -218,7 +197,6 @@ export function useCandidateAssessmentData(
   return {
     session: sessionQuery.data,
     candidate,
-    studentRankName,
     assessment,
     items,
     categoryGroups,
@@ -251,6 +229,10 @@ export function useAssessmentNotesDraft(numCandidateId: number | undefined) {
   const setDraft = useCallback(
     (value: string) => {
       setDraftState(value);
+      // Nothing observes this entry while the scoring screen is open, so the
+      // default five-minute garbage collection would silently discard the
+      // draft during a longer correction. It lives until cleared instead.
+      queryClient.setQueryDefaults(["assessmentNotesDraft"], { gcTime: Infinity });
       queryClient.setQueryData(["assessmentNotesDraft", numCandidateId], value);
     },
     [queryClient, numCandidateId],

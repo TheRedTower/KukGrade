@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import itertools
 from datetime import date, timedelta
 from types import SimpleNamespace
@@ -448,6 +449,7 @@ def test_invalid_candidate_age_band_rejected_at_database_level() -> None:
                 GradingCandidate(
                     session=grading_session(),
                     student=student(),
+                    from_rank=rank("WHITE"),
                     testing_for_rank=rank("YELLOW_STRIPE"),
                     age_band="INVALID",
                 ),
@@ -462,6 +464,7 @@ def test_invalid_candidate_status_rejected_at_database_level() -> None:
                 GradingCandidate(
                     session=grading_session(),
                     student=student(),
+                    from_rank=rank("WHITE"),
                     testing_for_rank=rank("YELLOW_STRIPE"),
                     age_band=AgeBand.AGE_9_TO_12,
                     status="INVALID",
@@ -3464,6 +3467,57 @@ def test_valid_promotion_updates_student_rank_and_records_history() -> None:
     assert student_after["updated_at"] == student_before["updated_at"]
     assert str(promotion) == (
         f"{built.student} promoted from {promotion.from_rank} to {promotion.to_rank}"
+    )
+
+
+def test_candidate_records_the_rank_held_at_registration() -> None:
+    built = candidate(
+        student=student(current_rank=rank("YELLOW_STRIPE")),
+        testing_for_rank=rank("YELLOW"),
+    )
+
+    assert built.from_rank.code == "YELLOW_STRIPE"
+
+
+def test_candidate_from_rank_does_not_move_when_the_student_is_promoted() -> None:
+    built, _generated = locked_completed_candidate()
+    promote_candidate(finalised_outcome(built), promoter("from-rank@example.com"))
+
+    built.refresh_from_db()
+    built.student.refresh_from_db()
+    response = auth_client("from-rank-api@example.com").get(
+        f"/api/gradings/candidates/{built.pk}/",
+    )
+
+    assert built.student.current_rank.code == "YELLOW_STRIPE"
+    assert built.from_rank.code == "WHITE"
+    assert response.status_code == 200
+    assert response.data["from_rank_code"] == "WHITE"
+    assert response.data["from_rank_name"] == "White"
+
+
+def test_from_rank_backfill_reconstructs_the_rank_at_registration() -> None:
+    backfill = importlib.import_module(
+        "gradings.migrations.0009_gradingcandidate_from_rank",
+    ).backfill_from_rank
+    promoted, _generated = locked_completed_candidate()
+    promote_candidate(finalised_outcome(promoted), promoter("backfill@example.com"))
+    # A later registration for the same, now promoted, student that was never
+    # itself promoted: its rank is the one the earlier promotion reached.
+    later = candidate(
+        session=grading_session(grading_date=date(2028, 3, 20)),
+        student=promoted.student,
+        testing_for_rank=rank("YELLOW"),
+    )
+    never_promoted = candidate()
+    GradingCandidate.objects.update(from_rank=rank("BROWN"))
+
+    backfill(apps, None)
+
+    assert GradingCandidate.objects.get(pk=promoted.pk).from_rank.code == "WHITE"
+    assert GradingCandidate.objects.get(pk=later.pk).from_rank.code == ("YELLOW_STRIPE")
+    assert GradingCandidate.objects.get(pk=never_promoted.pk).from_rank.code == (
+        "WHITE"
     )
 
 

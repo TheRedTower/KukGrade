@@ -14,7 +14,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
-import { formatSessionDate } from "./dates";
+import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -76,11 +76,6 @@ function XCircleIcon() {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-function formatDateShort(iso: string): string {
-  const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-}
 
 function yearFromIso(iso: string): number {
   return parseInt(iso.slice(0, 4), 10);
@@ -187,7 +182,7 @@ function SessionRow({
   return (
     <tr className="gs-table-row">
       <td className="gs-table-cell gs-cell-title">{session.title}</td>
-      <td className="gs-table-cell gs-cell-date">{formatDateShort(session.grading_date)}</td>
+      <td className="gs-table-cell gs-cell-date">{formatLongDate(session.grading_date)}</td>
       <td className="gs-table-cell gs-cell-location">{session.location || "—"}</td>
       <td className="gs-table-cell gs-cell-candidates">{candidateCount ?? "—"}</td>
       <td className="gs-table-cell gs-cell-progress">{progressText}</td>
@@ -253,8 +248,6 @@ export function GradingSessionsScreen() {
     onClose: closeDeleteConfirm,
     canClose: !deleteSessionMutation.isPending,
   });
-
-  const userCanDelete = user?.role === "administrator" || user?.role === "instructor" || user?.is_superuser === true;
 
   // All sessions (large page to populate year dropdown & find current session)
   const allSessionsQuery = useQuery({
@@ -381,10 +374,6 @@ export function GradingSessionsScreen() {
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
   const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
-  const canCreateGrading =
-    user?.role === "instructor" ||
-    user?.role === "administrator" ||
-    user?.is_superuser === true;
   // Historical import/reconciliation is administrator-only (data_imports
   // and gradings.can_reconcile_imported_history permissions) - see
   // docs/permissions.md.
@@ -421,11 +410,9 @@ export function GradingSessionsScreen() {
               </button>
             </>
           )}
-          {canCreateGrading && (
-            <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
-              <PlusIcon /> Create grading
-            </button>
-          )}
+          <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
+            <PlusIcon /> Create grading
+          </button>
         </div>
       </div>
 
@@ -500,7 +487,7 @@ export function GradingSessionsScreen() {
                     {filteredSessions.map((session) => {
                       const completeCount = assessmentCounts[session.id] ?? 0;
                       const isEligibleStatus = session.status === "CANCELLED" || session.status === "DRAFT";
-                      const canDelete = Boolean(userCanDelete && isEligibleStatus && completeCount === 0);
+                      const canDelete = isEligibleStatus && completeCount === 0;
                       return (
                         <SessionRow
                           assessmentsComplete={assessmentCounts[session.id] ?? null}
@@ -529,11 +516,9 @@ export function GradingSessionsScreen() {
             ) : (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
-                {canCreateGrading && (
-                  <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
-                    <PlusIcon /> Create grading
-                  </button>
-                )}
+                <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
+                  <PlusIcon /> Create grading
+                </button>
               </div>
             )}
           </div>

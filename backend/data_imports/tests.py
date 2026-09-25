@@ -2,10 +2,12 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import timedelta
+from io import StringIO
 
 import pytest
 import tablib
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -369,6 +371,25 @@ def test_cancel_deletes_temp_file_and_audits() -> None:
         entity_type="ImportBatch",
         entity_id=str(batch.pk),
     ).exists()
+
+
+def test_expiring_a_stale_batch_deletes_its_file_and_audits_it_as_expired() -> None:
+    admin = admin_user()
+    stale = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    ImportBatch.objects.filter(pk=stale.pk).update(
+        uploaded_at=timezone.now() - timedelta(hours=25),
+    )
+
+    call_command("expire_stale_import_batches", "--hours", "24", stdout=StringIO())
+
+    stale.refresh_from_db()
+    fresh.refresh_from_db()
+    assert stale.status == ImportBatch.Status.EXPIRED
+    assert not stale.source_file
+    assert fresh.status != ImportBatch.Status.EXPIRED
+    events = AuditEvent.objects.filter(entity_id=str(stale.pk))
+    assert [event.action for event in events] == [AuditAction.IMPORT_BATCH_EXPIRED]
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:

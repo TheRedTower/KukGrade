@@ -29,7 +29,6 @@ export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
-export type OverallAssessmentSummary = Schemas["AssessmentSummaryCounts"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
 export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
@@ -947,7 +946,6 @@ export async function cancelDataImportBatch(batchId: number): Promise<void> {
 }
 
 export type LegacyRecordKind = Schemas["RecordKindEnum"];
-export type RankMappingSuggestion = Schemas["RankMappingSuggestion"];
 export type LegacyImportPreview = Schemas["LegacyImportPreview"];
 export type LegacyImportRequestPayload = Schemas["LegacyImportRequest"];
 

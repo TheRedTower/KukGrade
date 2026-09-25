@@ -38,7 +38,7 @@ class Command(BaseCommand):
             batch.status = ImportBatch.Status.EXPIRED
             batch.save(update_fields=["status", "source_file", "updated_at"])
             record(
-                AuditAction.IMPORT_BATCH_CANCELLED,
+                AuditAction.IMPORT_BATCH_EXPIRED,
                 batch,
                 f"Import batch #{batch.pk} ({batch.kind}) expired "
                 f"after {options['hours']}h.",

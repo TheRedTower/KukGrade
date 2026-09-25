@@ -71,3 +71,34 @@ export function formatSessionDate(isoDate: string): string {
     "",
   );
 }
+
+/**
+ * Today's date as `YYYY-MM-DD` in the reader's own timezone, for comparing
+ * with date-only API values and for `<input type="date">` bounds.
+ * `toISOString()` gives the UTC date, which is tomorrow's date late in the
+ * evening west of UTC and yesterday's just after midnight east of it.
+ */
+export function todayIsoDate(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** "5 Oct 2026" - the compact date used in tables, ledgers and the proof. */
+export function formatShortDate(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(value, { day: "numeric", month: "short", year: "numeric" }, fallback);
+}
+
+/** "5 October 2026". */
+export function formatLongDate(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(value, { day: "numeric", month: "long", year: "numeric" }, fallback);
+}
+
+/** "5 October 2026, 14:30" in the reader's timezone, for timestamps. */
+export function formatDateTime(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(
+    value,
+    { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    fallback,
+  );
+}

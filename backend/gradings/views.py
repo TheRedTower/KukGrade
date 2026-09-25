@@ -163,6 +163,7 @@ class GradingCandidateViewSet(ModelViewSet):
         queryset = GradingCandidate.objects.select_related(
             "session",
             "student",
+            "from_rank",
             "testing_for_rank",
             "withdrawn_by",
         ).order_by(

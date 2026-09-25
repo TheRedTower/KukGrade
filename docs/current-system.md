@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-24. This document
+Describes the implementation on `dev` as verified on 2026-09-25. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-24 with 633 backend tests and 196 frontend tests passing
+Verified on 2026-09-25 with 637 backend tests and 204 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -107,6 +107,14 @@ checks on each push and pull request.
   was later added. Deliberately separate from `/rank-history/`, which is
   untouched and stays `Promotion`-only.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
+- **Candidates record the rank held at registration (2026-09-25)**:
+  `GradingCandidate.from_rank` is set from the student's current rank when the
+  candidate is created and never moves afterwards, so the completion proof and
+  the promotion ledger show where the candidate started even after promotion.
+  Existing rows were backfilled from each candidate's own `Promotion`, else by
+  replaying the student's promotion history to the session date. The
+  assessment screens no longer look the student up by a WKSA-ID substring
+  search, which could return a different student.
 - **Bulk operations**: `bulk-register` registers several candidates against
   one session (optionally generating their assessments in the same request);
   `bulk-generate-assessments` generates assessments for several already-
@@ -344,9 +352,12 @@ checks on each push and pull request.
   is the API's own `age_band_display`, never recomputed in the browser. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
   the UTC runner cannot observe this class of bug: with the defect
-  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen,
-  including the assessment screens' time and record-date formatters, formats
-  through `formatApiDate`/`formatSessionDate`.
+  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen
+  formats through `dates.ts` - `formatShortDate`, `formatLongDate`,
+  `formatDateTime`, `formatSessionDate` or `formatApiDate` - with no
+  per-screen formatter of its own, and "today" for a date input or a
+  comparison with a date-only value is `todayIsoDate()` (local), never
+  `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and

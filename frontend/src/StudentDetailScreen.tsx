@@ -18,7 +18,7 @@ import {
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
-import { formatApiDate } from "./dates";
+import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
 
 function LockIcon() {
   return (
@@ -58,20 +58,6 @@ function CheckIcon() {
   );
 }
 
-/*
-  These receive both shapes - `date_of_birth` and `effective_date` are
-  date-only, `created_at` and `promoted_at` are timestamps - so parsing is
-  delegated to `parseApiDate`, which decides from the value. Parsing a
-  date-only value as a timestamp rendered the previous day west of UTC.
-*/
-function formatDateFull(dateStr: string | null | undefined): string {
-  return formatApiDate(dateStr, { day: "2-digit", month: "long", year: "numeric" });
-}
-
-function formatDateShort(dateStr: string | null | undefined): string {
-  return formatApiDate(dateStr, { day: "2-digit", month: "short", year: "numeric" });
-}
-
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -79,7 +65,7 @@ const MONTH_NAMES = [
 
 function formatGradingHistoryDate(item: GradingHistoryItem): string {
   if (item.date_precision === "DAY" && item.date) {
-    return formatDateShort(item.date);
+    return formatShortDate(item.date);
   }
   if (item.cycle_year && item.cycle_month) {
     return `${MONTH_NAMES[item.cycle_month - 1]} ${item.cycle_year}`;
@@ -402,7 +388,7 @@ export function StudentDetailScreen() {
               <div className="detail-kv-row">
                 <dt className="detail-kv-label">Date of birth</dt>
                 <dd className="detail-kv-value">
-                  <span>{formatDateFull(student.date_of_birth)}</span>
+                  <span>{formatLongDate(student.date_of_birth)}</span>
                   <div className="privacy-badge-inline" title="Confidential: visible only on record">
                     <LockIcon />
                   </div>
@@ -421,7 +407,7 @@ export function StudentDetailScreen() {
 
               <div className="detail-kv-row">
                 <dt className="detail-kv-label">Joined</dt>
-                <dd className="detail-kv-value">{formatDateFull(student.created_at)}</dd>
+                <dd className="detail-kv-value">{formatLongDate(student.created_at)}</dd>
               </div>
             </dl>
           </div>
@@ -504,7 +490,7 @@ export function StudentDetailScreen() {
                 <div key={p.id} className="timeline-node-item">
                   <div className={`timeline-indicator ${idx === 0 ? "indicator-active" : ""}`} />
                   <div className="timeline-body">
-                    <div className="timeline-date">{formatDateShort(p.effective_date || p.promoted_at)}</div>
+                    <div className="timeline-date">{formatShortDate(p.effective_date || p.promoted_at)}</div>
                     <div className="timeline-rank-name">{p.to_rank_name}</div>
                     <div className="timeline-subtext">
                       Promoted at {p.session_title || "Grading Session"}
@@ -517,7 +503,7 @@ export function StudentDetailScreen() {
               <div className="timeline-node-item timeline-base-item">
                 <div className="timeline-indicator indicator-base" />
                 <div className="timeline-body">
-                  <div className="timeline-date">{formatDateShort(student.created_at)}</div>
+                  <div className="timeline-date">{formatShortDate(student.created_at)}</div>
                   <div className="timeline-rank-name">
                     {promotions.length > 0
                       ? promotions[promotions.length - 1].from_rank_name
@@ -938,7 +924,7 @@ export function StudentDetailScreen() {
                     type="date"
                     className={`form-text-input ${getEditFieldError("date_of_birth") ? "input-error" : ""}`}
                     value={editDob}
-                    max={new Date().toISOString().split("T")[0]}
+                    max={todayIsoDate()}
                     onChange={(e) => setEditDob(e.target.value)}
                     disabled={isSavingEdit}
                     aria-required="true"

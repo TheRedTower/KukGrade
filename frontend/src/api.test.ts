@@ -322,7 +322,11 @@ describe("bulk grading operations", () => {
       .mockResolvedValueOnce(jsonResponse(200, { id: 22, status: "WITHDRAWN" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await bulkUpdateCandidateStatus([21, 22], "WITHDRAWN");
+    await bulkUpdateCandidateStatus({
+      candidates: [21, 22],
+      status: "WITHDRAWN",
+      withdrawal_reason: "ABSENT",
+    });
     await withdrawLockedCandidate(22, {
       withdrawal_reason: "INJURY",
       withdrawal_note: "Unable to continue safely.",
@@ -333,7 +337,11 @@ describe("bulk grading operations", () => {
     );
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
-      body: JSON.stringify({ candidates: [21, 22], status: "WITHDRAWN" }),
+      body: JSON.stringify({
+        candidates: [21, 22],
+        status: "WITHDRAWN",
+        withdrawal_reason: "ABSENT",
+      }),
     });
     expect(String(fetchMock.mock.calls[1][0])).toContain(
       "/api/gradings/candidates/22/withdraw/",

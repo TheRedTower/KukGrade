@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-26 - Every withdrawal has a reason; a registration's student is fixed
+
+Status: Accepted
+
+Decision:
+Withdrawing a candidate before the session locks requires a reason from the
+same list as a locked withdrawal and records who and when; reinstating clears
+it. The bulk no-show action sends `ABSENT`. A registration's `student` can no
+longer be changed; moving a registration to another session is still allowed.
+
+Context:
+Confirmed 2026-09-25: a withdrawal before lock previously recorded nothing,
+while one after lock required a reason - so the record could not say why most
+candidates had not graded. Swapping the student rewrote what a registration
+meant; remove and re-register instead. Moving session stays, pending a
+possible "deferred" concept.
+
+Consequences:
+Enforced in `update_candidate` for withdrawals and in the model's `clean()`
+for the student, so the API, bulk endpoint and Django admin all hold. Existing
+withdrawn rows without a reason are left as they are.
+
 ### 2026-09-26 - Audit events keep the actor's identity through user deletion
 
 Status: Accepted
@@ -46,8 +68,8 @@ Status: Accepted
 
 Decision:
 `GradingCandidate.from_rank` snapshots the student's current rank when the
-candidate is created. It is read-only through the API and admin, and changes
-only if the registration's `student` itself is changed.
+candidate is created. It is read-only through the API and admin and never
+changes (a registration's student is fixed - see the 2026-09-26 entry).
 
 Context:
 The completion proof and the promotion ledger showed the student's live

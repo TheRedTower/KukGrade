@@ -2414,6 +2414,9 @@ components:
       - metadata
       - occurred_at
       - summary
+    BlankEnum:
+      enum:
+      - ''
     BulkAssessmentGenerationRequest:
       type: object
       properties:
@@ -2516,6 +2519,10 @@ components:
             type: integer
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        withdrawal_reason:
+          $ref: '#/components/schemas/WithdrawalReasonEnum'
+        withdrawal_note:
+          type: string
       required:
       - candidates
       - status
@@ -3172,14 +3179,14 @@ components:
         notes:
           type: string
         withdrawal_reason:
-          type: string
-          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         withdrawal_reason_display:
           type: string
           readOnly: true
         withdrawal_note:
           type: string
-          readOnly: true
         withdrawn_by:
           type: string
           format: uuid
@@ -3222,8 +3229,6 @@ components:
       - testing_for_rank_code
       - testing_for_rank_name
       - updated_at
-      - withdrawal_note
-      - withdrawal_reason
       - withdrawal_reason_display
       - withdrawn_at
       - withdrawn_by
@@ -3241,6 +3246,12 @@ components:
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
         notes:
+          type: string
+        withdrawal_reason:
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        withdrawal_note:
           type: string
       required:
       - session
@@ -4305,6 +4316,12 @@ components:
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
         notes:
+          type: string
+        withdrawal_reason:
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        withdrawal_note:
           type: string
     PatchedGradingSessionRequest:
       type: object

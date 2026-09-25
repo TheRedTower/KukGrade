@@ -285,6 +285,8 @@ class GradingCandidateViewSet(ModelViewSet):
         updated, errors = bulk_update_candidate_status(
             candidates=input_serializer.validated_data["candidates"],
             new_status=input_serializer.validated_data["status"],
+            withdrawal_reason=input_serializer.validated_data.get("withdrawal_reason"),
+            withdrawal_note=input_serializer.validated_data.get("withdrawal_note"),
             actor=cast(User, request.user),
         )
         result = BulkCandidateStatusUpdateResultSerializer(

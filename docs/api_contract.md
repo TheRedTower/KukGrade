@@ -219,7 +219,7 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
 | PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
-| PATCH | /api/gradings/candidates/{id}/         | Update candidate status or notes                 |
+| PATCH | /api/gradings/candidates/{id}/         | Update session, testing-for rank, status or notes; `student` is fixed after registration |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
@@ -232,8 +232,15 @@ Every candidate response carries `from_rank`, `from_rank_code` and
 `from_rank_name`: the rank the student held when registered, snapshotted on
 the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
-candidate actually started. Changing a candidate's `student` resets it to that
-student's current rank.
+candidate actually started.
+
+A registration's `student` never changes: sending a different one is a `400`
+(remove the candidate and register the right student instead). Setting
+`status` to `WITHDRAWN` requires `withdrawal_reason` (`INJURY`, `WITHDREW`,
+`ABSENT`, `ADMIN_ERROR`) and accepts an optional `withdrawal_note`; the
+withdrawal records who made it and when, and is audited as
+`CANDIDATE_WITHDRAWN`. Setting a withdrawn candidate back to `REGISTERED`
+clears all four withdrawal fields.
 
 Bulk endpoints process every row **independently**, not all-or-nothing: each
 row is validated and saved through the same domain service as its
@@ -295,8 +302,11 @@ Returns `200` with `{"created": [...generated assessments...], "errors": {...}}`
 `POST /api/gradings/candidates/bulk-update-status/` body:
 
 ```json
-{"candidates": [101, 102], "status": "WITHDRAWN"}
+{"candidates": [101, 102], "status": "WITHDRAWN", "withdrawal_reason": "ABSENT"}
 ```
+
+`withdrawal_reason` is required when `status` is `WITHDRAWN`; the whole
+request is refused without it. The frontend's no-show action sends `ABSENT`.
 
 Built for confirming attendance in bulk: tick the candidates who did not show
 up, set `WITHDRAWN`, and confirm - the rest are left untouched. Uses the same

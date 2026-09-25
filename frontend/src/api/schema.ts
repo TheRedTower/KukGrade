@@ -1266,6 +1266,8 @@ export interface components {
             readonly summary: string;
             readonly metadata: unknown;
         };
+        /** @enum {unknown} */
+        BlankEnum: "";
         BulkAssessmentGenerationRequest: {
             candidates: number[];
         };
@@ -1305,6 +1307,8 @@ export interface components {
         BulkCandidateStatusUpdateRequest: {
             candidates: number[];
             status: components["schemas"]["GradingCandidateStatusEnum"];
+            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"];
+            withdrawal_note?: string;
         };
         BulkCandidateStatusUpdateResult: {
             errors: {
@@ -1536,9 +1540,9 @@ export interface components {
             status?: components["schemas"]["GradingCandidateStatusEnum"];
             readonly status_display: string;
             notes?: string;
-            readonly withdrawal_reason: string;
+            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
-            readonly withdrawal_note: string;
+            withdrawal_note?: string;
             /** Format: uuid */
             readonly withdrawn_by: string | null;
             readonly withdrawn_by_email: string;
@@ -1556,6 +1560,8 @@ export interface components {
             testing_for_rank: number;
             status?: components["schemas"]["GradingCandidateStatusEnum"];
             notes?: string;
+            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
+            withdrawal_note?: string;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -2054,6 +2060,8 @@ export interface components {
             testing_for_rank?: number;
             status?: components["schemas"]["GradingCandidateStatusEnum"];
             notes?: string;
+            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
+            withdrawal_note?: string;
         };
         PatchedGradingSessionRequest: {
             title?: string;

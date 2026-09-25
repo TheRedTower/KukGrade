@@ -2919,7 +2919,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     updated_at: "2026-09-01T10:00:00Z",
   };
 
-  const testCandidates = [
+  const testCandidates: GradingCandidate[] = [
     {
       id: 101,
       session: 10,
@@ -3359,6 +3359,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
         candidates: [101, 103],
         status: "WITHDRAWN",
+        withdrawal_reason: "ABSENT",
       });
     });
     expect(await screen.findByText("2 candidates marked as no-show.")).toBeVisible();

@@ -169,6 +169,12 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
         return super().delete()
 
 
+CANDIDATE_STUDENT_FIXED_MESSAGE = (
+    "A registration's student cannot be changed. Remove the candidate and "
+    "register the right student instead."
+)
+
+
 class GradingCandidate(models.Model):
     if TYPE_CHECKING:
         session_id: int
@@ -226,8 +232,8 @@ class GradingCandidate(models.Model):
         default=Status.REGISTERED,
     )
     notes = models.TextField(blank=True)
-    # Populated only for a withdrawal from a LOCKED session. A withdrawal
-    # before the session locks is routine and needs no justification.
+    # Every withdrawal records why, who and when - before the session locks
+    # (attendance) as well as after it (withdraw_locked_candidate).
     withdrawal_reason = models.CharField(
         max_length=32,
         choices=WithdrawalReason.choices,
@@ -368,13 +374,14 @@ class GradingCandidate(models.Model):
                     )
                     .first()
                 )
+                if previous and previous["student_id"] != self.student_id:
+                    raise ValidationError(
+                        {"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]},
+                    )
                 validate_candidate_assessment_changes(
                     self,
                     session_changed=bool(
                         previous and previous["session_id"] != self.session_id
-                    ),
-                    student_changed=bool(
-                        previous and previous["student_id"] != self.student_id
                     ),
                     testing_for_rank_changed=bool(
                         previous

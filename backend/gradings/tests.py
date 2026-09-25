@@ -1318,7 +1318,9 @@ def test_admin_candidate_update_is_audited() -> None:
     built = candidate(notes="Before")
     model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
     built.notes = "After"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"]))
+    form = cast(
+        "ModelForm[Any]", SimpleNamespace(changed_data=["notes"], cleaned_data={})
+    )
     admin_user = user("admin-candidate-updater@example.com")
     request = cast(HttpRequest, RequestFactory().post("/admin/"))
     request.user = admin_user
@@ -1360,7 +1362,7 @@ def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
     detail_response = client.get(f"/api/gradings/candidates/{payload['id']}/")
     patch_response = client.patch(
         f"/api/gradings/candidates/{payload['id']}/",
-        {"status": GradingCandidate.Status.WITHDRAWN},
+        {"status": GradingCandidate.Status.WITHDRAWN, "withdrawal_reason": "ABSENT"},
         format="json",
     )
     delete_response = client.delete(f"/api/gradings/candidates/{payload['id']}/")
@@ -1368,6 +1370,80 @@ def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
     assert detail_response.status_code == 200
     assert patch_response.status_code == 200
     assert delete_response.status_code == 204
+
+
+def test_withdrawing_before_lock_requires_a_reason_and_records_who_and_when() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    client = auth_client("prelock-withdraw@example.com")
+    url = f"/api/gradings/candidates/{built.pk}/"
+
+    refused = client.patch(url, {"status": "WITHDRAWN"}, format="json")
+    accepted = client.patch(
+        url,
+        {
+            "status": "WITHDRAWN",
+            "withdrawal_reason": "INJURY",
+            "withdrawal_note": "Wrist",
+        },
+        format="json",
+    )
+
+    assert refused.status_code == 400
+    assert "withdrawal_reason" in refused.json()["error"]["fields"]
+    assert accepted.status_code == 200
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.WITHDRAWN
+    assert built.withdrawal_reason == "INJURY"
+    assert built.withdrawal_note == "Wrist"
+    assert built.withdrawn_by is not None and built.withdrawn_at is not None
+    event = AuditEvent.objects.filter(entity_id=str(built.pk)).latest("occurred_at")
+    assert event.action == AuditAction.CANDIDATE_WITHDRAWN
+
+
+def test_bulk_no_show_without_a_reason_is_refused() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+
+    response = auth_client("bulk-no-reason@example.com").post(
+        "/api/gradings/candidates/bulk-update-status/",
+        {"candidates": [built.pk], "status": "WITHDRAWN"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+
+
+def test_reinstating_a_withdrawn_candidate_clears_the_withdrawal() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    actor = user("reinstate-actor@example.com")
+    apply_candidate_update(
+        built, status="WITHDRAWN", withdrawal_reason="ABSENT", actor=actor
+    )
+
+    reinstated = apply_candidate_update(built, status="REGISTERED", actor=actor)
+
+    reinstated.refresh_from_db()
+    assert reinstated.withdrawal_reason == ""
+    assert reinstated.withdrawn_by is None and reinstated.withdrawn_at is None
+
+
+def test_a_registrations_student_cannot_be_changed() -> None:
+    built = candidate()
+    other = student(wksa_id="SWAP0002")
+
+    response = auth_client("student-swap@example.com").patch(
+        f"/api/gradings/candidates/{built.pk}/",
+        {"student": other.pk},
+        format="json",
+    )
+    built.student = other
+    with pytest.raises(ValidationError):
+        built.save()
+
+    assert response.status_code == 400
+    assert "student" in response.json()["error"]["fields"]
+    assert GradingCandidate.objects.get(pk=built.pk).student_id != other.pk
 
 
 def test_candidate_api_filters_work() -> None:
@@ -1834,6 +1910,7 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
         {
             "candidates": [absent_first.id, absent_second.id],
             "status": GradingCandidate.Status.WITHDRAWN,
+            "withdrawal_reason": "ABSENT",
         },
         format="json",
     )
@@ -1846,13 +1923,10 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
         absent_second.id,
     }
     for item in payload["updated"]:
-        assert item["withdrawal_reason"] == ""
-        assert item["withdrawal_reason_display"] == ""
-        assert item["withdrawal_note"] == ""
-        assert item["withdrawn_by"] is None
-        assert item["withdrawn_by_email"] == ""
-        assert item["withdrawn_by_name"] == ""
-        assert item["withdrawn_at"] is None
+        assert item["withdrawal_reason"] == "ABSENT"
+        assert item["withdrawal_reason_display"] == "Did not attend"
+        assert item["withdrawn_by_email"] == "bulk-attendance@example.com"
+        assert item["withdrawn_at"] is not None
     absent_first.refresh_from_db()
     absent_second.refresh_from_db()
     assert absent_first.status == GradingCandidate.Status.WITHDRAWN
@@ -1877,6 +1951,7 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
         {
             "candidates": [open_session_candidate.id, locked_session_candidate.id],
             "status": GradingCandidate.Status.WITHDRAWN,
+            "withdrawal_reason": "ABSENT",
         },
         format="json",
     )
@@ -4207,7 +4282,9 @@ def test_promotion_admin_is_read_only_and_has_no_bulk_actions() -> None:
     model_admin = PromotionAdmin(Promotion, admin.site)
     request = admin_request("promotion-admin-request@example.com")
     promotion.notes = "Unsafe admin edit"
-    form = cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"]))
+    form = cast(
+        "ModelForm[Any]", SimpleNamespace(changed_data=["notes"], cleaned_data={})
+    )
 
     assert model_admin.has_add_permission(request) is False
     assert model_admin.has_delete_permission(request, promotion) is False

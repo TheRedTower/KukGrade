@@ -581,7 +581,6 @@ def validate_candidate_assessment_changes(
     candidate: GradingCandidate,
     *,
     session_changed: bool = False,
-    student_changed: bool = False,
     testing_for_rank_changed: bool = False,
     status: str | None = None,
 ) -> None:
@@ -599,11 +598,11 @@ def validate_candidate_assessment_changes(
             )
         return
 
-    if session_changed or student_changed or testing_for_rank_changed:
+    if session_changed or testing_for_rank_changed:
         raise ValidationError(
             {
                 "candidate": [
-                    "Session, student, and testing-for rank cannot be changed "
+                    "Session and testing-for rank cannot be changed "
                     "after an assessment snapshot has been generated.",
                 ],
             },
@@ -1294,45 +1293,76 @@ def build_candidate(
     )
 
 
+WITHDRAWAL_REASON_REQUIRED_MESSAGE = "A reason is required to withdraw a candidate."
+
+
 def update_candidate(
     candidate: GradingCandidate,
     *,
     session: GradingSession | None = None,
-    student: Student | None = None,
     testing_for_rank: Rank | None = None,
     status: str | None = None,
     notes: str | None = None,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
+    actor: User | None = None,
 ) -> GradingCandidate:
     new_session = session or candidate.session
-    new_student = student or candidate.student
     new_testing_for_rank = testing_for_rank or candidate.testing_for_rank
+    session_changed = session is not None and session.pk != candidate.session_id
+    rank_changed = (
+        testing_for_rank is not None
+        and testing_for_rank.pk != candidate.testing_for_rank_id
+    )
 
     validate_candidate_can_be_changed(candidate)
     validate_candidate_assessment_changes(
         candidate,
-        session_changed=session is not None,
-        student_changed=student is not None,
-        testing_for_rank_changed=testing_for_rank is not None,
+        session_changed=session_changed,
+        testing_for_rank_changed=rank_changed,
         status=status,
     )
-    if session is not None:
+    if session_changed:
         validate_session_accepts_candidates(new_session)
-    if student is not None:
-        validate_student_can_be_graded(new_student)
-    validate_testing_for_rank(new_student, new_testing_for_rank)
+    validate_testing_for_rank(candidate.student, new_testing_for_rank)
+
+    withdrawing = (
+        status == GradingCandidate.Status.WITHDRAWN
+        and candidate.status != GradingCandidate.Status.WITHDRAWN
+    )
+    reinstating = (
+        status is not None
+        and status != GradingCandidate.Status.WITHDRAWN
+        and candidate.status == GradingCandidate.Status.WITHDRAWN
+    )
+    if withdrawing:
+        if withdrawal_reason not in GradingCandidate.WithdrawalReason.values:
+            raise ValidationError(
+                {"withdrawal_reason": [WITHDRAWAL_REASON_REQUIRED_MESSAGE]},
+            )
+        if actor is None:
+            raise ValidationError(
+                {"candidate": ["A withdrawal must be attributed to whoever made it."]},
+            )
+        candidate.withdrawal_reason = withdrawal_reason
+        candidate.withdrawal_note = (withdrawal_note or "").strip()
+        candidate.withdrawn_by = actor
+        candidate.withdrawn_at = timezone.now()
+    elif reinstating:
+        candidate.withdrawal_reason = ""
+        candidate.withdrawal_note = ""
+        candidate.withdrawn_by = None
+        candidate.withdrawn_at = None
 
     candidate.session = new_session
-    candidate.student = new_student
-    if student is not None:
-        candidate.from_rank_id = new_student.current_rank_id
     candidate.testing_for_rank = new_testing_for_rank
     if status is not None:
         candidate.status = status
     if notes is not None:
         candidate.notes = notes
-    if session is not None or student is not None:
+    if session_changed:
         candidate.age_band = resolve_age_band(
-            new_student.date_of_birth,
+            candidate.student.date_of_birth,
             new_session.grading_date,
         )
     return candidate
@@ -1543,6 +1573,8 @@ def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
         "testing_for_rank": candidate.testing_for_rank_id,
         "status": candidate.status,
         "notes": candidate.notes,
+        "withdrawal_reason": candidate.withdrawal_reason,
+        "withdrawal_note": candidate.withdrawal_note,
     }
 
 
@@ -1551,10 +1583,11 @@ def apply_candidate_update(
     candidate: GradingCandidate,
     *,
     session: GradingSession | None = None,
-    student: Student | None = None,
     testing_for_rank: Rank | None = None,
     status: str | None = None,
     notes: str | None = None,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
     actor: User | None = None,
 ) -> GradingCandidate:
     # Read fresh from the database rather than snapshotting the `candidate`
@@ -1568,10 +1601,12 @@ def apply_candidate_update(
     updated = update_candidate(
         candidate,
         session=session,
-        student=student,
         testing_for_rank=testing_for_rank,
         status=status,
         notes=notes,
+        withdrawal_reason=withdrawal_reason,
+        withdrawal_note=withdrawal_note,
+        actor=actor,
     )
     updated.save()
 
@@ -1581,10 +1616,18 @@ def apply_candidate_update(
         # trail exists to show what changed, and nothing did.
         return updated
 
+    withdrawn = (
+        before["status"] != GradingCandidate.Status.WITHDRAWN
+        and updated.status == GradingCandidate.Status.WITHDRAWN
+    )
     record(
-        AuditAction.CANDIDATE_UPDATED,
+        AuditAction.CANDIDATE_WITHDRAWN if withdrawn else AuditAction.CANDIDATE_UPDATED,
         updated,
-        f"Candidate record for {updated.student} updated.",
+        (
+            f"{updated.student} withdrawn ({updated.get_withdrawal_reason_display()})."
+            if withdrawn
+            else f"Candidate record for {updated.student} updated."
+        ),
         actor=actor,
         metadata={"before": before, "after": after},
     )
@@ -1807,6 +1850,8 @@ def bulk_update_candidate_status(
     *,
     candidates: Sequence[GradingCandidate],
     new_status: str,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
     actor: User | None = None,
 ) -> tuple[list[GradingCandidate], dict[str, list[str]]]:
     """Set `new_status` on every candidate, independently of the others.
@@ -1820,6 +1865,8 @@ def bulk_update_candidate_status(
         lambda candidate: apply_candidate_update(
             candidate,
             status=new_status,
+            withdrawal_reason=withdrawal_reason,
+            withdrawal_note=withdrawal_note,
             actor=actor,
         ),
     )

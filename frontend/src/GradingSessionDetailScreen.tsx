@@ -338,7 +338,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   const attendanceMutation = useMutation({
     mutationFn: (candidateIds: number[]) =>
-      bulkUpdateCandidateStatus(candidateIds, "WITHDRAWN"),
+      // A no-show is by definition "did not attend".
+      bulkUpdateCandidateStatus({
+        candidates: candidateIds,
+        status: "WITHDRAWN",
+        withdrawal_reason: "ABSENT",
+      }),
     onSuccess: ({ updated, errors }) => {
       refreshCandidateWork();
       setAttendanceDialogOpen(false);

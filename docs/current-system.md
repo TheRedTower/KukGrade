@@ -123,7 +123,8 @@ checks on each push and pull request.
   action, never bundled into generation or registration, so bulk-starting is
   always a choice; `bulk-update-status` sets status on several candidates at
   once (built for confirming attendance - tick the no-shows, set
-  `WITHDRAWN`, confirm); `bulk-promote` (on `/api/gradings/outcomes/`)
+  `WITHDRAWN` with reason `ABSENT`, confirm; since 2026-09-26 every
+  withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
   the same domain service as its single-item endpoint inside its own

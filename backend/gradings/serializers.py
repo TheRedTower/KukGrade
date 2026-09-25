@@ -8,6 +8,7 @@ from rest_framework import serializers
 from accounts.models import User
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
+    CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -17,6 +18,7 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
+    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
     CategoryAssessmentSummary,
     apply_candidate_update,
     create_grading_session,
@@ -120,7 +122,12 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         source="get_age_band_display", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    withdrawal_reason = serializers.CharField(read_only=True)
+    # Blank on a candidate who is not withdrawn, so the schema admits "".
+    withdrawal_reason = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+        required=False,
+        allow_blank=True,
+    )
     session_title = serializers.CharField(source="session.title", read_only=True)
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
@@ -144,6 +151,11 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
 
     def get_student_display_name(self, instance: GradingCandidate) -> str:
         return f"{instance.student.first_name} {instance.student.last_name}".strip()
+
+    def validate_student(self, value: Student) -> Student:
+        if self.instance is not None and value.pk != self.instance.student_id:
+            raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
+        return value
 
     def get_withdrawn_by_email(self, instance: GradingCandidate) -> str:
         return instance.withdrawn_by.email if instance.withdrawn_by else ""
@@ -194,9 +206,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "age_band",
             "age_band_display",
             "status_display",
-            "withdrawal_reason",
             "withdrawal_reason_display",
-            "withdrawal_note",
             "withdrawn_by",
             "withdrawn_by_email",
             "withdrawn_by_name",
@@ -235,13 +245,14 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             candidate = apply_candidate_update(
                 instance,
                 session=cast(GradingSession | None, validated_data.get("session")),
-                student=cast(Student | None, validated_data.get("student")),
                 testing_for_rank=cast(
                     Rank | None,
                     validated_data.get("testing_for_rank"),
                 ),
                 status=cast(str | None, validated_data.get("status")),
                 notes=cast(str | None, validated_data.get("notes")),
+                withdrawal_reason=validated_data.get("withdrawal_reason"),
+                withdrawal_note=validated_data.get("withdrawal_note"),
                 actor=cast(User, self.context["request"].user),
             )
         except IntegrityError as exc:
@@ -291,6 +302,24 @@ class BulkCandidateStatusUpdateSerializer(serializers.Serializer):
         allow_empty=False,
     )
     status = serializers.ChoiceField(choices=GradingCandidate.Status.choices)
+    withdrawal_reason = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+        required=False,
+    )
+    withdrawal_note = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["status"] == GradingCandidate.Status.WITHDRAWN and not attrs.get(
+            "withdrawal_reason"
+        ):
+            raise serializers.ValidationError(
+                {"withdrawal_reason": [WITHDRAWAL_REASON_REQUIRED_MESSAGE]},
+            )
+        return attrs
 
 
 class BulkAssessmentStartSerializer(serializers.Serializer):

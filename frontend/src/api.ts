@@ -412,12 +412,11 @@ export async function bulkGenerateCandidateAssessments(
 }
 
 export async function bulkUpdateCandidateStatus(
-  candidateIds: number[],
-  status: GradingCandidate["status"],
+  payload: Schemas["BulkCandidateStatusUpdateRequest"],
 ): Promise<Schemas["BulkCandidateStatusUpdateResult"]> {
   return apiRequest("/api/gradings/candidates/bulk-update-status/", {
     method: "POST",
-    body: JSON.stringify({ candidates: candidateIds, status }),
+    body: JSON.stringify(payload),
   });
 }
 

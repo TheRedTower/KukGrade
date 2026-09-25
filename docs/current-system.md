@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-26. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-26 with 651 backend tests and 207 frontend tests passing
+Verified on 2026-09-26 with 654 backend tests and 207 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -44,7 +44,9 @@ checks on each push and pull request.
 - **Pagination** on every list endpoint, uniformly, no exemptions.
 - **One error envelope** for every error, with per-field validation messages
   reachable by the client. Unhandled 500s are enveloped too.
-- Rank catalogue seeded White through PKJN, read-only.
+- Rank catalogue seeded White through PKJN, read-only - in Django admin as
+  well as the API since 2026-09-26, for superusers too, so an unaudited edit
+  cannot change how past records read. The syllabus catalogue is the same.
 - Syllabus catalogue for WKSA Version 2014, read-only. Beyond the plain
   per-rank requirement list, `GET /api/syllabus/requirements/effective/`
   (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form

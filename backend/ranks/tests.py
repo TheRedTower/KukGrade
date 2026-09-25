@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import pytest
+from django.contrib.admin.sites import site
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Model
+from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
+from syllabus.models import SyllabusItem, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -225,3 +229,21 @@ def test_rank_api_rejects_write_methods(method: str, path: str) -> None:
     )
 
     assert response.status_code == 405
+
+
+@pytest.mark.parametrize("model", [Rank, SyllabusItem, SyllabusRequirement])
+def test_catalogue_is_read_only_in_django_admin(model: type[Model]) -> None:
+    # Even a superuser, who otherwise bypasses every permission check, can
+    # only view ranks and the syllabus: edits there would change how past
+    # records read and would not be audited.
+    request = RequestFactory().get("/admin/")
+    request.user = User.objects.create_superuser(
+        email=f"catalogue-{model.__name__.lower()}@example.com",
+        password="a-long-test-password-123",
+    )
+    model_admin = site._registry[model]
+
+    assert model_admin.has_view_permission(request) is True
+    assert model_admin.has_add_permission(request) is False
+    assert model_admin.has_change_permission(request) is False
+    assert model_admin.has_delete_permission(request) is False

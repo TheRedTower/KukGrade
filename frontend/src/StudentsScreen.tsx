@@ -135,7 +135,7 @@ export function StudentsScreen() {
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
 
@@ -145,7 +145,7 @@ export function StudentsScreen() {
 
   // 2. Fetch paginated students with active filters
   const studentsQuery = useQuery({
-    queryKey: ["studentsList", search, statusFilter, rankFilter, page],
+    queryKey: ["students", "list", search, statusFilter, rankFilter, page],
     queryFn: () =>
       getStudents({
         search: search.trim() || undefined,

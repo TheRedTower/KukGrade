@@ -52,7 +52,7 @@ export function AddStudentScreen() {
 
   // 1. Fetch active ranks
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
 
@@ -111,7 +111,7 @@ export function AddStudentScreen() {
       });
 
       // Invalidate student lists
-      await queryClient.invalidateQueries({ queryKey: ["studentsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
 
       // Navigate to student detail view
       navigate(`/students/${newStudent.id}`);

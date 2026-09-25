@@ -491,14 +491,10 @@ const mockExistingPromotions: Promotion[] = [
   }),
 ];
 
-function renderScreen(sessionId = 1) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
+function renderScreen(
+  sessionId = 1,
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/gradings/${sessionId}/promotions`]}>
@@ -753,6 +749,35 @@ describe("PromotionLedgerScreen", () => {
       ).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("marks every cached view of the promoted student stale", async () => {
+    const user = userEvent.setup();
+    mockPromoteCandidateOutcome.mockResolvedValue(
+      createMockPromotion({
+        id: 2,
+        student: 50,
+        student_display_name: "Alex Mercer",
+        grading_candidate: 101,
+        outcome: 101,
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(["students", "detail", 50], { id: 50 });
+    queryClient.setQueryData(["students", "list", "", "ALL", "ALL", 1], { results: [] });
+    queryClient.setQueryData(["students", "rankHistory", 50], { promotions: [] });
+
+    renderScreen(1, queryClient);
+    await user.click(await screen.findByTestId("promote-candidate-btn-101"));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }),
+    );
+
+    await waitFor(() => {
+      expect(queryClient.getQueryState(["students", "detail", 50])?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(["students", "list", "", "ALL", "ALL", 1])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["students", "rankHistory", 50])?.isInvalidated).toBe(true);
   });
 
   it("can cancel single candidate promotion modal without calling API", async () => {

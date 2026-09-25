@@ -1221,6 +1221,30 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(screen.getByRole("button", { name: /View all activity/i })).toBeVisible();
   });
 
+  it("offers the audit feed by audit-log grant, not by staff flags", async () => {
+    async function auditRequested(user: Record<string, unknown>): Promise<boolean> {
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) {
+          return jsonResponse(200, user);
+        }
+        if (url.includes("/api/gradings/sessions/") || url.includes("/api/audit-events/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        return jsonResponse(404, {});
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const view = render(<App />);
+      expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+      await screen.findByText("No upcoming gradings");
+      const requested = fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/"));
+      view.unmount();
+      return requested;
+    }
+
+    expect(await auditRequested({ ...authUser, can_view_grading_audit_log: true })).toBe(true);
+    expect(await auditRequested({ ...authUser, can_view_grading_audit_log: false, is_staff: true })).toBe(false);
+  });
+
   it("navigates to gradings and audit when action links are clicked", async () => {
     const openSession = {
       id: 101,

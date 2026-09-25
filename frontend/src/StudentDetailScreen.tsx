@@ -129,28 +129,28 @@ export function StudentDetailScreen() {
 
   // 1. Fetch Student Detail
   const studentQuery = useQuery({
-    queryKey: ["studentDetail", studentId],
+    queryKey: ["students", "detail", studentId],
     queryFn: () => getStudent(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
   // 2. Fetch Rank History
   const rankHistoryQuery = useQuery({
-    queryKey: ["studentRankHistory", studentId],
+    queryKey: ["students", "rankHistory", studentId],
     queryFn: () => getStudentRankHistory(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
   // 2b. Fetch unified grading history (native + linked historical records)
   const gradingHistoryQuery = useQuery({
-    queryKey: ["studentGradingHistory", studentId],
+    queryKey: ["students", "gradingHistory", studentId],
     queryFn: () => getStudentGradingHistory(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
   // 3. Fetch Ranks Catalogue
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
 
@@ -181,8 +181,8 @@ export function StudentDetailScreen() {
     try {
       await updateStudent(student.id, { status: selectedStatus });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["studentDetail", student.id] }),
-        queryClient.invalidateQueries({ queryKey: ["studentsList"] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", student.id] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
         queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
       ]);
       setIsStatusModalOpen(false);
@@ -205,7 +205,7 @@ export function StudentDetailScreen() {
     try {
       await deleteStudent(student.id);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["studentsList"] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
         queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
       ]);
       navigate("/students");
@@ -251,8 +251,8 @@ export function StudentDetailScreen() {
         date_of_birth: editDob,
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["studentDetail", student.id] }),
-        queryClient.invalidateQueries({ queryKey: ["studentsList"] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", student.id] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
       ]);
       setIsEditModalOpen(false);
     } catch (err: unknown) {

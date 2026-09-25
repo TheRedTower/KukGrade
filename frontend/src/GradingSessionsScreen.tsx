@@ -228,7 +228,6 @@ export function GradingSessionsScreen() {
   const deleteSessionMutation = useMutation({
     mutationFn: (id: number) => deleteGradingSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradingSessionsAll"] });
       queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       setDeleteConfirmSession(null);
       setDeleteError(null);
@@ -251,7 +250,7 @@ export function GradingSessionsScreen() {
 
   // All sessions (large page to populate year dropdown & find current session)
   const allSessionsQuery = useQuery({
-    queryKey: ["gradingSessionsAll"],
+    queryKey: ["gradingSessions", "all"],
     queryFn: () => getAllGradingSessions(),
   });
 
@@ -272,7 +271,7 @@ export function GradingSessionsScreen() {
 
   // Candidate & assessment counts for the current (open) session spotlight
   const currentCandidatesQuery = useQuery({
-    queryKey: ["gradingCandidatesCurrent", currentSession?.id],
+    queryKey: ["gradingCandidates", "count", currentSession?.id],
     queryFn: () =>
       currentSession
         ? getGradingCandidates({ session: currentSession.id } as Parameters<typeof getGradingCandidates>[0])
@@ -281,7 +280,7 @@ export function GradingSessionsScreen() {
   });
 
   const currentAssessmentsQuery = useQuery({
-    queryKey: ["gradingAssessmentsCurrent", currentSession?.id],
+    queryKey: ["candidateAssessments", "count", currentSession?.id],
     queryFn: () =>
       currentSession
         ? getCandidateAssessments({ session: currentSession.id } as Parameters<typeof getCandidateAssessments>[0])
@@ -309,7 +308,7 @@ export function GradingSessionsScreen() {
   const serverSearch = searchText.trim() || undefined;
 
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", page, serverStatus, selectedYear, serverSearch],
+    queryKey: ["gradingSessions", "page", page, serverStatus, selectedYear, serverSearch],
     queryFn: () =>
       getGradingSessions({
         page,
@@ -333,7 +332,7 @@ export function GradingSessionsScreen() {
   const sessionIdsOnPage = filteredSessions.map((s) => s.id);
 
   const candidatesForPageQuery = useQuery({
-    queryKey: ["gradingCandidatesPage", sessionIdsOnPage.join(",")],
+    queryKey: ["gradingCandidates", "bySessions", sessionIdsOnPage.join(",")],
     queryFn: async () => {
       if (sessionIdsOnPage.length === 0) return {};
       const results: Record<number, number> = {};
@@ -349,7 +348,7 @@ export function GradingSessionsScreen() {
   });
 
   const assessmentsForPageQuery = useQuery({
-    queryKey: ["gradingAssessmentsPage", sessionIdsOnPage.join(",")],
+    queryKey: ["candidateAssessments", "bySessions", sessionIdsOnPage.join(",")],
     queryFn: async () => {
       if (sessionIdsOnPage.length === 0) return {};
       const results: Record<number, number> = {};

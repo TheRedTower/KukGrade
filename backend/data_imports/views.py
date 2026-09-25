@@ -20,9 +20,9 @@ from data_imports.serializers import (
     ImportBatchCreateSerializer,
     ImportBatchSerializer,
     LegacyImportPreviewSerializer,
-    LegacyImportRequestSerializer,
+    LegacyImportSerializer,
     StudentImportPreviewSerializer,
-    StudentImportRequestSerializer,
+    StudentImportSerializer,
 )
 from data_imports.services import (
     cancel_import_batch,
@@ -38,7 +38,7 @@ from data_imports.services import (
 # mappings.
 _IMPORT_REQUEST = PolymorphicProxySerializer(
     component_name="ImportRequest",
-    serializers=[StudentImportRequestSerializer, LegacyImportRequestSerializer],
+    serializers=[StudentImportSerializer, LegacyImportSerializer],
     resource_type_field_name=None,
 )
 _IMPORT_PREVIEW = PolymorphicProxySerializer(
@@ -109,7 +109,7 @@ class ImportBatchViewSet(
         batch = self.get_object()
 
         if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
-            legacy_input = LegacyImportRequestSerializer(data=request.data)
+            legacy_input = LegacyImportSerializer(data=request.data)
             legacy_input.is_valid(raise_exception=True)
             legacy_preview = preview_legacy_grading_import(
                 batch,
@@ -117,7 +117,7 @@ class ImportBatchViewSet(
             )
             return Response(LegacyImportPreviewSerializer(legacy_preview).data)
 
-        input_serializer = StudentImportRequestSerializer(data=request.data)
+        input_serializer = StudentImportSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
         preview = preview_student_import(
             batch,
@@ -132,7 +132,7 @@ class ImportBatchViewSet(
         batch = self.get_object()
 
         if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
-            legacy_input = LegacyImportRequestSerializer(data=request.data)
+            legacy_input = LegacyImportSerializer(data=request.data)
             legacy_input.is_valid(raise_exception=True)
             legacy_committed = commit_legacy_grading_import(
                 batch,
@@ -145,7 +145,7 @@ class ImportBatchViewSet(
             )
             return Response(serialized.data)
 
-        input_serializer = StudentImportRequestSerializer(data=request.data)
+        input_serializer = StudentImportSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
         committed = commit_student_import(
             batch,

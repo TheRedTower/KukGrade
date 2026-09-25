@@ -77,11 +77,11 @@ export function BuildGradingCohortScreen() {
 
   const ranksQuery = useQuery({
     queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 50 }),
+    queryFn: () => getRanks({ page_size: 100 }),
   });
 
   const studentsQuery = useQuery({
-    queryKey: ["students", "all-eligible"],
+    queryKey: ["students", "all"],
     queryFn: () => getAllStudents(),
   });
 

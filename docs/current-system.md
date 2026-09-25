@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-25. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-25 with 637 backend tests and 204 frontend tests passing
+Verified on 2026-09-25 with 639 backend tests and 206 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -396,6 +396,10 @@ checks on each push and pull request.
   declares its real request and response (`@extend_schema`), and the bulk,
   summary, and import actions serialize through those same declared
   serializers, so the schema cannot describe a shape the API does not send.
+  The schema splits request and response components
+  (`COMPONENT_SPLIT_REQUEST`), so request payloads such as `StudentRequest`
+  and `PatchedStudentRequest` are generated too, without the read-only fields
+  a response carries.
   CI regenerates both the schema and the types and fails if either differs
   from what is committed. The only hand-written API shapes are the error
   envelope, which `custom_exception_handler` builds outside DRF's

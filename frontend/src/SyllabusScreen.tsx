@@ -251,7 +251,7 @@ export function SyllabusScreen() {
       try {
         setIsLoadingRanks(true);
         setError(null);
-        const res = await getRanks({ page_size: 50 });
+        const res = await getRanks({ page_size: 100 });
         if (!active) return;
         const fetchedRanks = res.results || [];
         setRanks(fetchedRanks);

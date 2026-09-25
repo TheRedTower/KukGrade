@@ -38,7 +38,7 @@ function StudentPicker({
 }) {
   const [search, setSearch] = useState("");
   const searchQuery = useQuery({
-    queryKey: ["legacyReconcileStudentSearch", search],
+    queryKey: ["students", "search", search],
     queryFn: () => getStudents({ search: search.trim() || undefined, page_size: 10 }),
     enabled: search.trim().length > 1,
   });
@@ -97,7 +97,7 @@ export function LegacyReconciliationScreen() {
         page_size: PAGE_SIZE,
       }),
   });
-  const ranksQuery = useQuery({ queryKey: ["ranksList"], queryFn: () => getRanks({ page_size: 100 }) });
+  const ranksQuery = useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: 100 }) });
   const ranks = ranksQuery.data?.results ?? [];
 
   const records = recordsQuery.data?.results ?? [];

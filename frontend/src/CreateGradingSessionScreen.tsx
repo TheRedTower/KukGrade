@@ -138,7 +138,6 @@ export function CreateGradingSessionScreen() {
 
       // Invalidate grading session lists
       await queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
-      await queryClient.invalidateQueries({ queryKey: ["allGradingSessions"] });
 
       // Navigate back to gradings list
       navigate("/gradings");

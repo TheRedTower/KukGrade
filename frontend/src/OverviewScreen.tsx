@@ -13,6 +13,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
+import { canViewAuditLog } from "./permissions";
 import { formatSessionDate, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 
@@ -223,11 +224,7 @@ export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const canViewAudit =
-    user?.role === "administrator" ||
-    !!user?.can_make_final_grading_decision ||
-    !!user?.is_staff ||
-    !!user?.is_superuser;
+  const canViewAudit = user ? canViewAuditLog(user) : false;
 
   const currentDateDisplay = useMemo(() => {
     return new Intl.DateTimeFormat("en-GB", {
@@ -240,7 +237,7 @@ export function OverviewScreen() {
 
   // 1. Fetch grading sessions
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions"],
+    queryKey: ["gradingSessions", "all"],
     queryFn: () => getAllGradingSessions(),
   });
 
@@ -286,7 +283,7 @@ export function OverviewScreen() {
 
   // 4. Fetch recent audit events
   const auditQuery = useQuery({
-    queryKey: ["recentAuditEvents"],
+    queryKey: ["auditEvents", "recent"],
     queryFn: () => getAuditEvents({ page_size: 6 }),
     enabled: canViewAudit,
     retry: false,

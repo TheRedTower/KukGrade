@@ -1266,7 +1266,7 @@ export interface components {
             readonly summary: string;
             readonly metadata: unknown;
         };
-        BulkAssessmentGeneration: {
+        BulkAssessmentGenerationRequest: {
             candidates: number[];
         };
         BulkAssessmentGenerationResult: {
@@ -1275,7 +1275,7 @@ export interface components {
             };
             created: components["schemas"]["CandidateAssessment"][];
         };
-        BulkAssessmentStart: {
+        BulkAssessmentStartRequest: {
             assessments: number[];
         };
         BulkAssessmentStartResult: {
@@ -1284,17 +1284,17 @@ export interface components {
             };
             started: components["schemas"]["CandidateAssessment"][];
         };
-        BulkCandidateRegistration: {
-            session: number;
-            candidates: components["schemas"]["BulkCandidateRegistrationItem"][];
-            /** @default false */
-            generate_assessments?: boolean;
-        };
-        BulkCandidateRegistrationItem: {
+        BulkCandidateRegistrationItemRequest: {
             student: number;
             testing_for_rank?: number;
             /** @default  */
             notes?: string;
+        };
+        BulkCandidateRegistrationRequest: {
+            session: number;
+            candidates: components["schemas"]["BulkCandidateRegistrationItemRequest"][];
+            /** @default false */
+            generate_assessments?: boolean;
         };
         BulkCandidateRegistrationResult: {
             errors: {
@@ -1302,7 +1302,7 @@ export interface components {
             };
             created: components["schemas"]["RegisteredCandidate"][];
         };
-        BulkCandidateStatusUpdate: {
+        BulkCandidateStatusUpdateRequest: {
             candidates: number[];
             status: components["schemas"]["GradingCandidateStatusEnum"];
         };
@@ -1312,7 +1312,7 @@ export interface components {
             };
             updated: components["schemas"]["GradingCandidate"][];
         };
-        BulkPromotion: {
+        BulkPromotionRequest: {
             outcomes: number[];
         };
         BulkPromotionResult: {
@@ -1450,7 +1450,7 @@ export interface components {
          * @enum {string}
          */
         CandidateOutcomeStatusEnum: "DRAFT" | "PROPOSED" | "FINALISED";
-        CandidatePromotion: {
+        CandidatePromotionRequest: {
             notes?: string;
         };
         CanonicalLegacyRow: {
@@ -1479,7 +1479,7 @@ export interface components {
          *     else's - current_password is required precisely because a hijacked
          *     session should not be enough to lock the real owner out.
          */
-        ChangePassword: {
+        ChangePasswordRequest: {
             current_password: string;
             new_password: string;
         };
@@ -1550,6 +1550,13 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        GradingCandidateRequest: {
+            session: number;
+            student: number;
+            testing_for_rank: number;
+            status?: components["schemas"]["GradingCandidateStatusEnum"];
+            notes?: string;
+        };
         /**
          * @description * `REGISTERED` - Registered
          *     * `WITHDRAWN` - Withdrawn
@@ -1591,6 +1598,15 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        GradingSessionRequest: {
+            title: string;
+            /** Format: date */
+            grading_date: string;
+            status?: components["schemas"]["GradingSessionStatusEnum"];
+            location?: string;
+            notes?: string;
+            cancellation_reason?: string;
         };
         /**
          * @description * `DRAFT` - Draft
@@ -1636,9 +1652,9 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
-        ImportBatchCreate: {
+        ImportBatchCreateRequest: {
             kind: components["schemas"]["KindEnum"];
-            /** Format: uri */
+            /** Format: binary */
             file: string;
         };
         /**
@@ -1695,7 +1711,7 @@ export interface components {
          */
         ImportBatchStatusEnum: "UPLOADED" | "NEEDS_REVIEW" | "READY" | "COMMITTED" | "PARTIAL" | "CANCELLED" | "FAILED" | "EXPIRED";
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
-        ImportRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
+        ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /**
          * @description * `STUDENT_ROSTER` - Student roster
          *     * `LEGACY_GRADINGS` - Legacy grading records
@@ -1776,14 +1792,14 @@ export interface components {
                 [key: string]: string | null;
             };
         };
-        LinkLegacyRecord: {
+        LinkLegacyRecordRequest: {
             student: number;
         };
-        LockedCandidateWithdrawal: {
+        LockedCandidateWithdrawalRequest: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
             withdrawal_note?: string;
         };
-        Login: {
+        LoginRequest: {
             /** Format: email */
             email: string;
             password: string;
@@ -2015,168 +2031,38 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
         };
-        PatchedCandidateAssessment: {
-            readonly id?: number;
-            readonly candidate?: number;
-            readonly candidate_student_name?: string;
-            readonly candidate_student_wksa_id?: string;
-            readonly testing_for_rank_code?: string;
-            readonly testing_for_rank_name?: string;
-            readonly age_band?: string;
-            readonly age_band_display?: string;
-            status?: components["schemas"]["CandidateAssessmentStatusEnum"];
-            readonly status_display?: string;
-            /** Format: uuid */
-            readonly generated_by?: string;
-            /** Format: email */
-            readonly generated_by_email?: string;
-            /** Format: date-time */
-            readonly generated_at?: string;
-            /** Format: date-time */
-            readonly started_at?: string | null;
-            /** Format: date-time */
-            readonly completed_at?: string | null;
-            notes?: string;
-            readonly item_counts?: {
-                [key: string]: number;
-            };
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
-        };
-        PatchedCandidateAssessmentItem: {
-            readonly id?: number;
-            readonly assessment?: number;
-            readonly source_requirement?: number | null;
-            readonly source_item?: number | null;
-            readonly source_rank?: number | null;
-            readonly source_age_band?: components["schemas"]["AgeBandEnum"];
-            readonly item_code?: string;
-            readonly item_name?: string;
-            readonly korean_name?: string;
-            readonly category?: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display?: string;
-            readonly requirement_sequence?: number;
-            readonly required?: boolean;
-            readonly start_number?: number | null;
-            readonly end_number?: number | null;
-            readonly display_range?: string;
-            readonly requirement_notes?: string;
+        PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
-            readonly result_display?: string;
-            /** Format: uuid */
-            readonly assessor?: string | null;
-            /** Format: email */
-            readonly assessor_email?: string;
-            /** Format: date-time */
-            readonly assessed_at?: string | null;
             assessor_notes?: string;
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
         };
-        PatchedCandidateOutcome: {
-            readonly id?: number;
-            readonly candidate?: number;
-            readonly assessment?: number;
-            readonly assessment_status?: string;
-            readonly student?: number;
-            readonly student_display_name?: string;
-            readonly student_wksa_id?: string;
-            readonly session?: number;
-            readonly session_title?: string;
-            readonly testing_for_rank?: number;
-            readonly testing_for_rank_code?: string;
-            readonly testing_for_rank_name?: string;
-            readonly status?: components["schemas"]["CandidateOutcomeStatusEnum"];
-            readonly status_display?: string;
-            readonly proposed_outcome?: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly proposed_outcome_display?: string;
-            /** Format: uuid */
-            readonly proposed_by?: string | null;
-            /** Format: email */
-            readonly proposed_by_email?: string;
-            readonly proposed_by_name?: string;
-            /** Format: date-time */
-            readonly proposed_at?: string | null;
-            readonly proposal_notes?: string;
-            readonly final_outcome?: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            readonly final_outcome_display?: string;
-            /** Format: uuid */
-            readonly decided_by?: string | null;
-            /** Format: email */
-            readonly decided_by_email?: string;
-            readonly decided_by_name?: string;
-            /** Format: date-time */
-            readonly decided_at?: string | null;
-            readonly decision_notes?: string;
-            readonly conditional_requirements?: string;
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
+        PatchedCandidateAssessmentRequest: {
+            status?: components["schemas"]["CandidateAssessmentStatusEnum"];
+            notes?: string;
         };
-        PatchedCandidateOutcomeFinalise: {
+        PatchedCandidateOutcomeFinaliseRequest: {
             final_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             decision_notes?: string;
             conditional_requirements?: string;
         };
-        PatchedCandidateOutcomeProposal: {
+        PatchedCandidateOutcomeProposalRequest: {
             proposed_outcome?: components["schemas"]["CandidateOutcomeOutcomeEnum"];
             proposal_notes?: string;
         };
-        PatchedGradingCandidate: {
-            readonly id?: number;
+        PatchedGradingCandidateRequest: {
             session?: number;
-            readonly session_title?: string;
             student?: number;
-            readonly student_display_name?: string;
-            readonly student_wksa_id?: string;
-            readonly from_rank?: number;
-            readonly from_rank_code?: string;
-            readonly from_rank_name?: string;
             testing_for_rank?: number;
-            readonly testing_for_rank_code?: string;
-            readonly testing_for_rank_name?: string;
-            readonly age_band?: string;
-            readonly age_band_display?: string;
             status?: components["schemas"]["GradingCandidateStatusEnum"];
-            readonly status_display?: string;
             notes?: string;
-            readonly withdrawal_reason?: string;
-            readonly withdrawal_reason_display?: string;
-            readonly withdrawal_note?: string;
-            /** Format: uuid */
-            readonly withdrawn_by?: string | null;
-            readonly withdrawn_by_email?: string;
-            readonly withdrawn_by_name?: string;
-            /** Format: date-time */
-            readonly withdrawn_at?: string | null;
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
         };
-        PatchedGradingSession: {
-            readonly id?: number;
+        PatchedGradingSessionRequest: {
             title?: string;
             /** Format: date */
             grading_date?: string;
             status?: components["schemas"]["GradingSessionStatusEnum"];
-            readonly status_display?: string;
             location?: string;
             notes?: string;
             cancellation_reason?: string;
-            /** Format: uuid */
-            readonly created_by?: string;
-            /** Format: email */
-            readonly created_by_email?: string;
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
         };
         /**
          * @description PATCH /api/auth/me/.
@@ -2187,27 +2073,9 @@ export interface components {
          *     a separate serializer keeps "what a user can do to themselves" from ever
          *     silently growing alongside admin capabilities.
          */
-        PatchedSelfProfile: {
-            /** Format: uuid */
-            readonly id?: string;
-            /** Format: email */
-            readonly email?: string;
+        PatchedSelfProfileRequest: {
             first_name?: string;
             last_name?: string;
-            readonly full_name?: string;
-            readonly role?: components["schemas"]["RoleEnum"];
-            readonly role_display?: string;
-            readonly can_make_final_grading_decision?: boolean;
-            readonly can_promote_student?: boolean;
-            readonly can_override_locked_session?: boolean;
-            readonly can_view_grading_audit_log?: boolean;
-            readonly must_change_password?: boolean;
-            readonly is_staff?: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser?: boolean;
         };
         /**
          * @description Detail, create and update. wksa_id is writable only on create.
@@ -2216,25 +2084,14 @@ export interface components {
          *     except wksa_id, and splitting them further would just be the same
          *     fields copied into different classes.
          */
-        PatchedStudent: {
-            readonly id?: number;
+        PatchedStudentRequest: {
             wksa_id?: string;
             first_name?: string;
             last_name?: string;
             /** Format: date */
             date_of_birth?: string;
             current_rank?: number;
-            readonly current_rank_code?: string;
-            readonly current_rank_name?: string;
             status?: components["schemas"]["StudentStatusEnum"];
-            readonly status_display?: string;
-            readonly can_be_graded?: boolean;
-            readonly age_band?: string;
-            readonly age_band_display?: string;
-            /** Format: date-time */
-            readonly created_at?: string;
-            /** Format: date-time */
-            readonly updated_at?: string;
         };
         /**
          * @description PATCH /api/users/{id}/authority/.
@@ -2242,7 +2099,7 @@ export interface components {
          *     Same keys /api/auth/me/ returns, so the concept is spelled one way
          *     throughout rather than the read shape and the write shape drifting.
          */
-        PatchedUserAuthority: {
+        PatchedUserAuthorityRequest: {
             can_make_final_grading_decision?: boolean;
             can_promote_student?: boolean;
             can_override_locked_session?: boolean;
@@ -2257,32 +2114,13 @@ export interface components {
          *     writable at all. Sharing one class between the two would couple changes
          *     meant for one endpoint to the other.
          */
-        PatchedUserManagement: {
-            /** Format: uuid */
-            readonly id?: string;
+        PatchedUserManagementRequest: {
             /** Format: email */
             email?: string;
             first_name?: string;
             last_name?: string;
-            readonly full_name?: string;
             role?: components["schemas"]["RoleEnum"];
-            readonly role_display?: string;
             is_active?: boolean;
-            readonly can_make_final_grading_decision?: boolean;
-            readonly can_promote_student?: boolean;
-            readonly can_override_locked_session?: boolean;
-            readonly can_view_grading_audit_log?: boolean;
-            readonly must_change_password?: boolean;
-            readonly is_staff?: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser?: boolean;
-            /** Format: date-time */
-            readonly date_joined?: string;
-            /** Format: date-time */
-            readonly last_login?: string | null;
             password?: string;
         };
         Promotion: {
@@ -2382,7 +2220,7 @@ export interface components {
             assessment: components["schemas"]["CandidateAssessment"] | null;
         };
         /** @description `rank=null` explicitly leaves the mapping unresolved. */
-        ResolveLegacyRank: {
+        ResolveLegacyRankRequest: {
             rank: number | null;
         };
         /**
@@ -2405,7 +2243,7 @@ export interface components {
          *     so a plain PATCH to a user's other details can never carry a password
          *     change as a side effect.
          */
-        SetPassword: {
+        SetPasswordRequest: {
             password: string;
         };
         /**
@@ -2522,6 +2360,22 @@ export interface components {
             readonly promotions: components["schemas"]["PromotionRankHistory"][];
         };
         /**
+         * @description Detail, create and update. wksa_id is writable only on create.
+         *
+         *     One serializer rather than three: create and update share every field
+         *     except wksa_id, and splitting them further would just be the same
+         *     fields copied into different classes.
+         */
+        StudentRequest: {
+            wksa_id: string;
+            first_name: string;
+            last_name: string;
+            /** Format: date */
+            date_of_birth: string;
+            current_rank: number;
+            status?: components["schemas"]["StudentStatusEnum"];
+        };
+        /**
          * @description * `ACTIVE` - Active
          *     * `INACTIVE` - Inactive
          *     * `LEFT` - Left
@@ -2630,9 +2484,26 @@ export interface components {
             readonly date_joined: string;
             /** Format: date-time */
             readonly last_login: string | null;
+        };
+        /**
+         * @description List, retrieve, create and update for the administrator-facing API.
+         *
+         *     Deliberately separate from UserSerializer, which is a fixed read-only
+         *     self-view for /api/auth/me/: that one has no reason to expose is_active
+         *     or date_joined about the caller to themselves, and has no reason to be
+         *     writable at all. Sharing one class between the two would couple changes
+         *     meant for one endpoint to the other.
+         */
+        UserManagementRequest: {
+            /** Format: email */
+            email: string;
+            first_name?: string;
+            last_name?: string;
+            role?: components["schemas"]["RoleEnum"];
+            is_active?: boolean;
             password: string;
         };
-        VoidLegacyRecord: {
+        VoidLegacyRecordRequest: {
             reason: string;
         };
         /**
@@ -2707,9 +2578,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ChangePassword"];
-                "application/x-www-form-urlencoded": components["schemas"]["ChangePassword"];
-                "multipart/form-data": components["schemas"]["ChangePassword"];
+                "application/json": components["schemas"]["ChangePasswordRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ChangePasswordRequest"];
+                "multipart/form-data": components["schemas"]["ChangePasswordRequest"];
             };
         };
         responses: {
@@ -2731,9 +2602,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Login"];
-                "application/x-www-form-urlencoded": components["schemas"]["Login"];
-                "multipart/form-data": components["schemas"]["Login"];
+                "application/json": components["schemas"]["LoginRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LoginRequest"];
+                "multipart/form-data": components["schemas"]["LoginRequest"];
             };
         };
         responses: {
@@ -2793,9 +2664,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedSelfProfile"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedSelfProfile"];
-                "multipart/form-data": components["schemas"]["PatchedSelfProfile"];
+                "application/json": components["schemas"]["PatchedSelfProfileRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSelfProfileRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSelfProfileRequest"];
             };
         };
         responses: {
@@ -2842,9 +2713,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportBatchCreate"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportBatchCreate"];
-                "application/json": components["schemas"]["ImportBatchCreate"];
+                "multipart/form-data": components["schemas"]["ImportBatchCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportBatchCreateRequest"];
+                "application/json": components["schemas"]["ImportBatchCreateRequest"];
             };
         };
         responses: {
@@ -2913,9 +2784,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequest"];
-                "application/json": components["schemas"]["ImportRequest"];
+                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
+                "application/json": components["schemas"]["ImportRequestRequest"];
             };
         };
         responses: {
@@ -2941,9 +2812,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "multipart/form-data": components["schemas"]["ImportRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["ImportRequest"];
-                "application/json": components["schemas"]["ImportRequest"];
+                "multipart/form-data": components["schemas"]["ImportRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRequestRequest"];
+                "application/json": components["schemas"]["ImportRequestRequest"];
             };
         };
         responses: {
@@ -3015,9 +2886,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateAssessmentItem"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateAssessmentItem"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateAssessmentItem"];
+                "application/json": components["schemas"]["PatchedCandidateAssessmentItemRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateAssessmentItemRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateAssessmentItemRequest"];
             };
         };
         responses: {
@@ -3110,9 +2981,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateAssessment"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateAssessment"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateAssessment"];
+                "application/json": components["schemas"]["PatchedCandidateAssessmentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateAssessmentRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateAssessmentRequest"];
             };
         };
         responses: {
@@ -3157,9 +3028,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkAssessmentStart"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentStart"];
-                "multipart/form-data": components["schemas"]["BulkAssessmentStart"];
+                "application/json": components["schemas"]["BulkAssessmentStartRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentStartRequest"];
+                "multipart/form-data": components["schemas"]["BulkAssessmentStartRequest"];
             };
         };
         responses: {
@@ -3206,9 +3077,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["GradingCandidateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
+                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
             };
         };
         responses: {
@@ -3256,9 +3127,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidate"];
-                "multipart/form-data": components["schemas"]["GradingCandidate"];
+                "application/json": components["schemas"]["GradingCandidateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
+                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
             };
         };
         responses: {
@@ -3305,9 +3176,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedGradingCandidate"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedGradingCandidate"];
-                "multipart/form-data": components["schemas"]["PatchedGradingCandidate"];
+                "application/json": components["schemas"]["PatchedGradingCandidateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedGradingCandidateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedGradingCandidateRequest"];
             };
         };
         responses: {
@@ -3377,9 +3248,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LockedCandidateWithdrawal"];
-                "application/x-www-form-urlencoded": components["schemas"]["LockedCandidateWithdrawal"];
-                "multipart/form-data": components["schemas"]["LockedCandidateWithdrawal"];
+                "application/json": components["schemas"]["LockedCandidateWithdrawalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LockedCandidateWithdrawalRequest"];
+                "multipart/form-data": components["schemas"]["LockedCandidateWithdrawalRequest"];
             };
         };
         responses: {
@@ -3402,9 +3273,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkAssessmentGeneration"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentGeneration"];
-                "multipart/form-data": components["schemas"]["BulkAssessmentGeneration"];
+                "application/json": components["schemas"]["BulkAssessmentGenerationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkAssessmentGenerationRequest"];
+                "multipart/form-data": components["schemas"]["BulkAssessmentGenerationRequest"];
             };
         };
         responses: {
@@ -3427,9 +3298,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkCandidateRegistration"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateRegistration"];
-                "multipart/form-data": components["schemas"]["BulkCandidateRegistration"];
+                "application/json": components["schemas"]["BulkCandidateRegistrationRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateRegistrationRequest"];
+                "multipart/form-data": components["schemas"]["BulkCandidateRegistrationRequest"];
             };
         };
         responses: {
@@ -3452,9 +3323,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkCandidateStatusUpdate"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateStatusUpdate"];
-                "multipart/form-data": components["schemas"]["BulkCandidateStatusUpdate"];
+                "application/json": components["schemas"]["BulkCandidateStatusUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkCandidateStatusUpdateRequest"];
+                "multipart/form-data": components["schemas"]["BulkCandidateStatusUpdateRequest"];
             };
         };
         responses: {
@@ -3526,9 +3397,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LinkLegacyRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["LinkLegacyRecord"];
-                "multipart/form-data": components["schemas"]["LinkLegacyRecord"];
+                "application/json": components["schemas"]["LinkLegacyRecordRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LinkLegacyRecordRequest"];
+                "multipart/form-data": components["schemas"]["LinkLegacyRecordRequest"];
             };
         };
         responses: {
@@ -3554,9 +3425,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ResolveLegacyRank"];
-                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRank"];
-                "multipart/form-data": components["schemas"]["ResolveLegacyRank"];
+                "application/json": components["schemas"]["ResolveLegacyRankRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRankRequest"];
+                "multipart/form-data": components["schemas"]["ResolveLegacyRankRequest"];
             };
         };
         responses: {
@@ -3582,9 +3453,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ResolveLegacyRank"];
-                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRank"];
-                "multipart/form-data": components["schemas"]["ResolveLegacyRank"];
+                "application/json": components["schemas"]["ResolveLegacyRankRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ResolveLegacyRankRequest"];
+                "multipart/form-data": components["schemas"]["ResolveLegacyRankRequest"];
             };
         };
         responses: {
@@ -3632,9 +3503,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["VoidLegacyRecord"];
-                "application/x-www-form-urlencoded": components["schemas"]["VoidLegacyRecord"];
-                "multipart/form-data": components["schemas"]["VoidLegacyRecord"];
+                "application/json": components["schemas"]["VoidLegacyRecordRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["VoidLegacyRecordRequest"];
+                "multipart/form-data": components["schemas"]["VoidLegacyRecordRequest"];
             };
         };
         responses: {
@@ -3704,13 +3575,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcome"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcome"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcome"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -3734,9 +3599,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcomeFinalise"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeFinalise"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeFinalise"];
+                "application/json": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeFinaliseRequest"];
             };
         };
         responses: {
@@ -3762,9 +3627,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["CandidatePromotion"];
-                "application/x-www-form-urlencoded": components["schemas"]["CandidatePromotion"];
-                "multipart/form-data": components["schemas"]["CandidatePromotion"];
+                "application/json": components["schemas"]["CandidatePromotionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["CandidatePromotionRequest"];
+                "multipart/form-data": components["schemas"]["CandidatePromotionRequest"];
             };
         };
         responses: {
@@ -3790,9 +3655,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedCandidateOutcomeProposal"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeProposal"];
-                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeProposal"];
+                "application/json": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
+                "multipart/form-data": components["schemas"]["PatchedCandidateOutcomeProposalRequest"];
             };
         };
         responses: {
@@ -3837,9 +3702,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkPromotion"];
-                "application/x-www-form-urlencoded": components["schemas"]["BulkPromotion"];
-                "multipart/form-data": components["schemas"]["BulkPromotion"];
+                "application/json": components["schemas"]["BulkPromotionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkPromotionRequest"];
+                "multipart/form-data": components["schemas"]["BulkPromotionRequest"];
             };
         };
         responses: {
@@ -3932,9 +3797,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingSession"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingSession"];
-                "multipart/form-data": components["schemas"]["GradingSession"];
+                "application/json": components["schemas"]["GradingSessionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GradingSessionRequest"];
+                "multipart/form-data": components["schemas"]["GradingSessionRequest"];
             };
         };
         responses: {
@@ -3982,9 +3847,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["GradingSession"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingSession"];
-                "multipart/form-data": components["schemas"]["GradingSession"];
+                "application/json": components["schemas"]["GradingSessionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["GradingSessionRequest"];
+                "multipart/form-data": components["schemas"]["GradingSessionRequest"];
             };
         };
         responses: {
@@ -4031,9 +3896,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedGradingSession"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedGradingSession"];
-                "multipart/form-data": components["schemas"]["PatchedGradingSession"];
+                "application/json": components["schemas"]["PatchedGradingSessionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedGradingSessionRequest"];
+                "multipart/form-data": components["schemas"]["PatchedGradingSessionRequest"];
             };
         };
         responses: {
@@ -4164,9 +4029,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Student"];
-                "application/x-www-form-urlencoded": components["schemas"]["Student"];
-                "multipart/form-data": components["schemas"]["Student"];
+                "application/json": components["schemas"]["StudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentRequest"];
+                "multipart/form-data": components["schemas"]["StudentRequest"];
             };
         };
         responses: {
@@ -4235,9 +4100,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedStudent"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedStudent"];
-                "multipart/form-data": components["schemas"]["PatchedStudent"];
+                "application/json": components["schemas"]["PatchedStudentRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStudentRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStudentRequest"];
             };
         };
         responses: {
@@ -4444,9 +4309,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["UserManagement"];
-                "application/x-www-form-urlencoded": components["schemas"]["UserManagement"];
-                "multipart/form-data": components["schemas"]["UserManagement"];
+                "application/json": components["schemas"]["UserManagementRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["UserManagementRequest"];
+                "multipart/form-data": components["schemas"]["UserManagementRequest"];
             };
         };
         responses: {
@@ -4515,9 +4380,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedUserManagement"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserManagement"];
-                "multipart/form-data": components["schemas"]["PatchedUserManagement"];
+                "application/json": components["schemas"]["PatchedUserManagementRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserManagementRequest"];
+                "multipart/form-data": components["schemas"]["PatchedUserManagementRequest"];
             };
         };
         responses: {
@@ -4543,9 +4408,9 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["PatchedUserAuthority"];
-                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserAuthority"];
-                "multipart/form-data": components["schemas"]["PatchedUserAuthority"];
+                "application/json": components["schemas"]["PatchedUserAuthorityRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedUserAuthorityRequest"];
+                "multipart/form-data": components["schemas"]["PatchedUserAuthorityRequest"];
             };
         };
         responses: {
@@ -4571,9 +4436,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["SetPassword"];
-                "application/x-www-form-urlencoded": components["schemas"]["SetPassword"];
-                "multipart/form-data": components["schemas"]["SetPassword"];
+                "application/json": components["schemas"]["SetPasswordRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SetPasswordRequest"];
+                "multipart/form-data": components["schemas"]["SetPasswordRequest"];
             };
         };
         responses: {

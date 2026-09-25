@@ -252,7 +252,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // 5. Fetch students list to cross-reference current ranks
   const studentsQuery = useQuery({
-    queryKey: ["studentsReferenceList"],
+    queryKey: ["students", "all"],
     queryFn: () => getAllStudents(),
     staleTime: 60_000,
   });

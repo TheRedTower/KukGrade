@@ -385,7 +385,7 @@ export function UserDetailScreen(): React.ReactElement {
     enabled: Boolean(id),
   });
   const activityQuery = useQuery({
-    queryKey: ["userAuditEvents", id],
+    queryKey: ["auditEvents", "user", id],
     queryFn: () => getAuditEvents({ entity_type: "User", entity_id: id, page_size: 4 }),
     enabled: Boolean(id),
   });

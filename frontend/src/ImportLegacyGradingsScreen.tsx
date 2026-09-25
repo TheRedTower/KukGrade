@@ -35,7 +35,7 @@ export function ImportLegacyGradingsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
   const ranks = useMemo<Rank[]>(

@@ -234,6 +234,10 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request and response components (StudentRequest,
+    # PatchedStudentRequest, ...) so the frontend's request payloads are
+    # generated too, without the read-only fields a response carries.
+    "COMPONENT_SPLIT_REQUEST": True,
     # Five different models each have their own "status" field, and two have
     # a "category" field - without this every one of them collides on the
     # same generated enum name. CandidateOutcome.Outcome and syllabus.AgeBand

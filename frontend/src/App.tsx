@@ -9,11 +9,11 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
-
 import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
+import { canViewAuditLog } from "./permissions";
 import {
   AuditIcon,
   GradingsIcon,
@@ -70,7 +70,7 @@ function UserManagementFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading user management…</div>;
 }
 
-function ImportStudentsFallback(): React.ReactElement {
+function ImportFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading import…</div>;
 }
 
@@ -253,10 +253,7 @@ function ConnectionErrorPage() {
 }
 
 function NavigationRail({ user }: { user: AuthUser }) {
-  const canViewAudit =
-    user.role === "administrator" ||
-    user.can_make_final_grading_decision ||
-    user.can_view_grading_audit_log;
+  const canViewAudit = canViewAuditLog(user);
   const canViewUsers = user.role === "administrator";
 
   return (
@@ -326,67 +323,9 @@ function NavigationRail({ user }: { user: AuthUser }) {
   );
 }
 
-function OverviewPage() {
-  return <OverviewScreen />;
-}
-
-function StudentsPage() {
-  return <StudentsScreen />;
-}
-
-function StudentDetailPage() {
-  return <StudentDetailScreen />;
-}
-
-
-function AddStudentPage() {
-  return <AddStudentScreen />;
-}
-
-function GradingsPage() {
-  return <GradingSessionsScreen />;
-}
-
-function CreateGradingSessionPage() {
-  return <CreateGradingSessionScreen />;
-}
-
-function GradingSessionDetailPage() {
-  return (
-    <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
-      <GradingSessionDetailScreen />
-    </Suspense>
-  );
-}
-
-function BuildGradingCohortPage() {
-  return <BuildGradingCohortScreen />;
-}
-
-function PromotionLedgerPage() {
-  return <PromotionLedgerScreen />;
-}
-
-function CandidateAssessmentPage() {
-  return <CandidateAssessmentScreen />;
-}
-
-function AssessmentCompletionPage() {
-  return <AssessmentCompletionScreen />;
-}
-
-function SyllabusPage() {
-  return <SyllabusScreen />;
-}
-
 function RequireAuditAccess({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  if (
-    !user ||
-    (user.role !== "administrator" &&
-      !user.can_make_final_grading_decision &&
-      !user.can_view_grading_audit_log)
-  ) {
+  if (!user || !canViewAuditLog(user)) {
     return <Navigate replace to="/" />;
   }
   return children;
@@ -434,10 +373,6 @@ function ApplicationShell() {
             <span className="location-name">Kuk Sool Won Colchester</span>
           </div>
           <div className="top-bar-controls">
-            <span aria-label="System status: Online" className="connectivity-badge">
-              <span aria-hidden="true" className="status-dot" />
-              Online
-            </span>
             <ProfileMenu
               isLoggingOut={isLoggingOut}
               onLogout={handleLogout}
@@ -467,7 +402,7 @@ function ApplicationShell() {
           <span className="footer-tagline">
             Trusted by instructors. Built for what matters.
           </span>
-          <span className="footer-version">Version 1.0.0</span>
+          <span className="footer-version">Version {__APP_VERSION__}</span>
         </footer>
       </div>
     </div>
@@ -561,26 +496,26 @@ function App() {
                 </RequireAuth>
               }
             >
-              <Route element={<OverviewPage />} index />
+              <Route element={<OverviewScreen />} index />
               <Route element={<Navigate replace to="/" />} path="overview" />
-              <Route element={<StudentsPage />} path="students" />
-              <Route element={<AddStudentPage />} path="students/new" />
+              <Route element={<StudentsScreen />} path="students" />
+              <Route element={<AddStudentScreen />} path="students/new" />
               <Route
                 element={
                   <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                    <Suspense fallback={<ImportFallback />}>
                       <ImportStudentsScreen />
                     </Suspense>
                   </RequireAdminAccess>
                 }
                 path="students/import"
               />
-              <Route element={<StudentDetailPage />} path="students/:id" />
-              <Route element={<CreateGradingSessionPage />} path="gradings/new" />
+              <Route element={<StudentDetailScreen />} path="students/:id" />
+              <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
               <Route
                 element={
                   <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                    <Suspense fallback={<ImportFallback />}>
                       <ImportLegacyGradingsScreen />
                     </Suspense>
                   </RequireAdminAccess>
@@ -590,20 +525,27 @@ function App() {
               <Route
                 element={
                   <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                    <Suspense fallback={<ImportFallback />}>
                       <LegacyReconciliationScreen />
                     </Suspense>
                   </RequireAdminAccess>
                 }
                 path="gradings/legacy-records"
               />
-              <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
-              <Route element={<PromotionLedgerPage />} path="gradings/:id/promotions" />
-              <Route element={<AssessmentCompletionPage />} path="gradings/:sessionId/assessments/:candidateId/review" />
-              <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />
-              <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
-              <Route element={<GradingsPage />} path="gradings" />
-              <Route element={<SyllabusPage />} path="syllabus" />
+              <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+              <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
+              <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
+              <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
+              <Route
+                element={
+                  <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
+                    <GradingSessionDetailScreen />
+                  </Suspense>
+                }
+                path="gradings/:id"
+              />
+              <Route element={<GradingSessionsScreen />} path="gradings" />
+              <Route element={<SyllabusScreen />} path="syllabus" />
               <Route
                 element={
                   <RequireAuditAccess>

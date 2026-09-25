@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import cast
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 from rest_framework import mixins, status
@@ -18,7 +17,6 @@ from gradings.services import (
     student_rank_timeline,
     unified_student_grading_history,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 from kukgrade.filtering import filter_choice, filter_exact
 from students.models import Student
 from students.serializers import (
@@ -117,10 +115,7 @@ class StudentViewSet(
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        try:
-            delete_student(instance, cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        delete_student(instance, cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="rank-history")

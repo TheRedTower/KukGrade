@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import cast
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
@@ -73,7 +72,6 @@ from gradings.services import (
     delete_grading_session,
     generate_candidate_assessment,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 from kukgrade.filtering import (
     filter_choice,
     filter_date,
@@ -130,10 +128,7 @@ class GradingSessionViewSet(ModelViewSet):
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        try:
-            delete_grading_session(instance, actor=cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        delete_grading_session(instance, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -199,10 +194,7 @@ class GradingCandidateViewSet(ModelViewSet):
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        try:
-            delete_candidate(instance, actor=cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        delete_candidate(instance, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(request=None, responses={201: CandidateAssessmentSerializer})
@@ -214,12 +206,7 @@ class GradingCandidateViewSet(ModelViewSet):
         **kwargs: object,
     ) -> Response:
         candidate = self.get_object()
-        try:
-            assessment = generate_candidate_assessment(
-                candidate, cast(User, request.user)
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        assessment = generate_candidate_assessment(candidate, cast(User, request.user))
         serializer = CandidateAssessmentSerializer(
             assessment,
             context={"request": request},
@@ -343,10 +330,7 @@ class GradingCandidateViewSet(ModelViewSet):
         **kwargs: object,
     ) -> Response:
         candidate = self.get_object()
-        try:
-            outcome = create_candidate_outcome(candidate, cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        outcome = create_candidate_outcome(candidate, cast(User, request.user))
         serializer = CandidateOutcomeSerializer(outcome, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -407,10 +391,7 @@ class CandidateAssessmentViewSet(
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        try:
-            delete_candidate_assessment(instance, cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        delete_candidate_assessment(instance, cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @extend_schema(responses=CandidateAssessmentSummarySerializer)
@@ -865,13 +846,10 @@ class LegacyGradingRecordViewSet(
         **kwargs: object,
     ) -> Response:
         record_ = self.get_object()
-        try:
-            updated = unlink_legacy_record_from_student(
-                record_,
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        updated = unlink_legacy_record_from_student(
+            record_,
+            actor=cast(User, request.user),
+        )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
     @extend_schema(
@@ -888,14 +866,11 @@ class LegacyGradingRecordViewSet(
         record_ = self.get_object()
         serializer = ResolveLegacyRankSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            updated = resolve_legacy_current_rank(
-                record_,
-                serializer.validated_data["rank"],
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        updated = resolve_legacy_current_rank(
+            record_,
+            serializer.validated_data["rank"],
+            actor=cast(User, request.user),
+        )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
     @extend_schema(
@@ -912,14 +887,11 @@ class LegacyGradingRecordViewSet(
         record_ = self.get_object()
         serializer = ResolveLegacyRankSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        try:
-            updated = resolve_legacy_testing_for_rank(
-                record_,
-                serializer.validated_data["rank"],
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        updated = resolve_legacy_testing_for_rank(
+            record_,
+            serializer.validated_data["rank"],
+            actor=cast(User, request.user),
+        )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
     @extend_schema(

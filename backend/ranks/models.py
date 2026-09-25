@@ -70,11 +70,3 @@ class Rank(models.Model):
 
         if errors:
             raise ValidationError(errors)
-
-    @property
-    def is_black_belt(self) -> bool:
-        return self.category == self.Category.BLACK_BELT
-
-    @property
-    def is_candidate(self) -> bool:
-        return self.category == self.Category.BLACK_BELT_CANDIDATE

@@ -67,8 +67,6 @@ def test_seeded_ranks_are_active_and_categorised() -> None:
     assert ranks_by_code["DAHN_BO"].category == Rank.Category.BLACK_BELT_CANDIDATE
     assert ranks_by_code["JKN"].category == Rank.Category.BLACK_BELT
     assert ranks_by_code["PKJN"].category == Rank.Category.BLACK_BELT
-    assert ranks_by_code["DAHN_BO"].is_candidate is True
-    assert ranks_by_code["JKN"].is_black_belt is True
     assert str(ranks_by_code["WHITE"]) == "1. White"
 
 

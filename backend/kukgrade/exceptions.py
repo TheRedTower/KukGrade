@@ -14,7 +14,7 @@ and every 400 degraded to a generic string.
 
 from __future__ import annotations
 
-from typing import Any, NoReturn
+from typing import Any
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -91,22 +91,22 @@ def _error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
     return {"error": {"code": code, "message": message}}
 
 
-def raise_drf_validation_error(exc: DjangoValidationError) -> NoReturn:
-    """Re-raise a domain-service ValidationError as DRF's, keeping field keys.
-
-    Services raise Django's ValidationError so they stay usable from admin
-    and the shell; views and serializers translate it here so the error
-    envelope above can report it per field.
-    """
+def _as_drf_validation_error(exc: DjangoValidationError) -> exceptions.ValidationError:
+    """A domain-service ValidationError as DRF's, keeping its field keys."""
     if hasattr(exc, "message_dict"):
-        raise exceptions.ValidationError(exc.message_dict) from exc
-    raise exceptions.ValidationError(exc.messages) from exc
+        return exceptions.ValidationError(exc.message_dict)
+    return exceptions.ValidationError(exc.messages)
 
 
 def custom_exception_handler(
     exc: Exception,
     context: dict[str, Any],
 ) -> Response | None:
+    # Services raise Django's ValidationError so they stay usable from admin
+    # and the shell. DRF's handler ignores it (it would become a 500), so it
+    # is translated once here rather than in every view and serializer.
+    if isinstance(exc, DjangoValidationError):
+        exc = _as_drf_validation_error(exc)
     response = exception_handler(exc, context)
     if response is None:
         return None

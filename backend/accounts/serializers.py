@@ -22,7 +22,6 @@ from accounts.services import (
     set_user_authority,
     update_platform_user,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 
 security_logger = logging.getLogger("kukgrade.security")
 
@@ -105,10 +104,7 @@ class SelfProfileSerializer(UserSerializer):
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return update_platform_user(instance, actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_platform_user(instance, actor=request.user, **validated_data)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -223,17 +219,11 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return create_platform_user(actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return create_platform_user(actor=request.user, **validated_data)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return update_platform_user(instance, actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_platform_user(instance, actor=request.user, **validated_data)
 
 
 class UserAuthoritySerializer(serializers.Serializer):
@@ -250,14 +240,11 @@ class UserAuthoritySerializer(serializers.Serializer):
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return set_user_authority(
-                instance,
-                actor=request.user,
-                **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return set_user_authority(
+            instance,
+            actor=request.user,
+            **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
+        )
 
 
 class SetPasswordSerializer(serializers.Serializer):

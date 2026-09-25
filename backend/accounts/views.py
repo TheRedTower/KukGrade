@@ -4,7 +4,6 @@ from collections.abc import Sequence
 from typing import cast
 
 from django.contrib.auth import login, logout
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import Q, QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -30,7 +29,6 @@ from accounts.serializers import (
     UserSerializer,
 )
 from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL, delete_platform_user
-from kukgrade.exceptions import raise_drf_validation_error
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -131,10 +129,7 @@ class UserViewSet(
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
-        try:
-            delete_platform_user(instance, cast(User, request.user))
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        delete_platform_user(instance, cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def get_queryset(self) -> QuerySet[User]:

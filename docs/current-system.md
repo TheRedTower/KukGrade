@@ -219,7 +219,14 @@ checks on each push and pull request.
   orphaned, refusing when a later promotion has already superseded it. Both
   bypass immutability guards on `Promotion`, finalised `CandidateOutcome`
   and `AuditEvent` deliberately, at one documented call site each, rather
-  than by omission. See the 2026-09-21 decision log entry.
+  than by omission. See the 2026-09-21 decision log entry. **Since
+  2026-09-26 the audit trail keeps the person**: every event copies the
+  actor's email and name when written (`actor_email`, `actor_name`), so
+  re-pointing `actor` to the placeholder no longer hides who acted, and the
+  `USER_DELETED` event records the deleted account's email, name and role
+  alongside who deleted it. The placeholder is hidden from the Users API and
+  Django admin, and the model refuses to make it active from any path, so it
+  can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
   stay administrator-only. `POST /api/auth/change-password/` lets a user

@@ -8,11 +8,12 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 
-from accounts.models import User
+from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import create_platform_user, update_platform_user
 
 
@@ -101,6 +102,17 @@ class UserAdmin(DjangoUserAdmin):
     )
     search_fields = ("email", "first_name", "last_name")
     ordering = ("email",)
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
+        # Internal bookkeeping, not an account anyone administers.
+        return (
+            super()
+            .get_queryset(request)
+            .exclude(
+                email=DELETED_USER_PLACEHOLDER_EMAIL,
+            )
+        )
+
     fieldsets = (
         (None, {"fields": ("email", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name")}),

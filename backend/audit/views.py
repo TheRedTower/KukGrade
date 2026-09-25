@@ -67,8 +67,7 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
                 Q(summary__icontains=search)
                 | Q(entity_type__icontains=search)
                 | Q(entity_id__icontains=search)
-                | Q(actor__email__icontains=search)
-                | Q(actor__first_name__icontains=search)
-                | Q(actor__last_name__icontains=search)
+                | Q(actor_email__icontains=search)
+                | Q(actor_name__icontains=search)
             )
         return queryset

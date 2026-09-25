@@ -29,6 +29,7 @@ from accounts.permissions import (
     HasRequiredPermissions,
 )
 from audit.models import AuditAction, AuditEvent
+from audit.recording import record
 
 pytestmark = pytest.mark.django_db
 
@@ -965,7 +966,7 @@ def test_administrator_cannot_delete_their_own_account() -> None:
 
 
 def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
-    from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL
+    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
 
     client, _admin = admin_client("placeholder-visibility-admin@example.com")
 
@@ -976,8 +977,43 @@ def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
     }
 
 
+def test_deleted_user_placeholder_can_never_be_reactivated() -> None:
+    from django.core.exceptions import ValidationError
+
+    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
+
+    placeholder = User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
+    placeholder.is_active = True
+
+    with pytest.raises(ValidationError):
+        placeholder.full_clean(exclude=["password"])
+    with pytest.raises(ValidationError):
+        placeholder.save()
+    placeholder.refresh_from_db()
+    assert placeholder.is_active is False
+
+
+def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
+    from django.contrib.admin.sites import site
+    from django.test import RequestFactory
+
+    from accounts.admin import UserAdmin
+    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
+
+    request = RequestFactory().get("/admin/accounts/user/")
+    request.user = User.objects.create_superuser(
+        email="placeholder-admin-view@example.com",
+        password="a-long-test-password-123",
+    )
+
+    emails = UserAdmin(User, site).get_queryset(request).values_list("email", flat=True)
+
+    assert "placeholder-admin-view@example.com" in emails
+    assert DELETED_USER_PLACEHOLDER_EMAIL not in emails
+
+
 def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
-    from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL
+    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
     from gradings.models import GradingSession
 
     client, admin = admin_client("delete-history-admin@example.com")
@@ -989,12 +1025,11 @@ def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
         grading_date="2027-03-20",
         created_by=target,
     )
-    actored_event = AuditEvent.objects.create(
+    actored_event = record(
+        AuditAction.SESSION_CREATED,
+        session,
+        "Some earlier action by the target user.",
         actor=target,
-        action=AuditAction.STUDENT_CREATED,
-        entity_type="Student",
-        entity_id="1",
-        summary="Some earlier action by the target user.",
     )
     events_before = AuditEvent.objects.count()
 
@@ -1008,6 +1043,8 @@ def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
     actored_event.refresh_from_db()
     assert session.created_by == placeholder
     assert actored_event.actor == placeholder
+    # The trail still names the real person: the actor is only re-pointed.
+    assert actored_event.actor_email == "delete-history-target@example.com"
 
     deletion_event = AuditEvent.objects.filter(
         entity_type="User",
@@ -1015,6 +1052,8 @@ def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
         action=AuditAction.USER_DELETED,
     ).get()
     assert deletion_event.actor == admin
+    assert deletion_event.actor_email == admin.email
+    assert deletion_event.metadata["email"] == "delete-history-target@example.com"
     assert deletion_event.metadata["reassigned"]["grading_sessions_created"] == 1
     assert deletion_event.metadata["reassigned"]["audit_events_actored"] == 1
     # The deletion event itself, plus the reassignment - not one event per

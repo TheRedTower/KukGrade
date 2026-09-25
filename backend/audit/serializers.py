@@ -7,8 +7,6 @@ from audit.models import AuditEvent
 
 class AuditEventSerializer(serializers.ModelSerializer):
     action_display = serializers.CharField(source="get_action_display", read_only=True)
-    actor_email = serializers.EmailField(source="actor.email", read_only=True)
-    actor_name = serializers.CharField(source="actor.get_full_name", read_only=True)
 
     class Meta:
         model = AuditEvent

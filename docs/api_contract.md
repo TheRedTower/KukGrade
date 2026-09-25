@@ -613,11 +613,15 @@ outside the caller's queryset.
 | GET    | /api/audit-events/{id}/      | Retrieve one audit event              |
 
 Every event has `actor` (nullable - null only for a system action),
-`action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
+`actor_email` and `actor_name` (who acted, copied when the event was written;
+empty for a system action), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
 a record outlives the schema it describes), `occurred_at`, a human-readable
 `summary`, and `metadata` (a `{"before": {...}, "after": {...}}` object for a
 revision, `{}` otherwise). The model is append-only: no admin, API, queryset
-or shell path can update or delete a row.
+or shell path can update or delete a row. The one exception is deleting a
+user, which re-points `actor` to the deleted-user placeholder; `actor_email`
+and `actor_name` are untouched, so the event still names who acted. The
+`search` filter matches those two fields.
 
 Filters:
 

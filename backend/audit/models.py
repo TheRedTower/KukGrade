@@ -108,6 +108,11 @@ class AuditEvent(models.Model):
         null=True,
         blank=True,
     )
+    # Who acted, as they were at the time. `actor` can later be reassigned to
+    # the deleted-user placeholder (accounts.services.delete_platform_user);
+    # these copies are what keep the trail attributable to the real person.
+    actor_email = models.EmailField(blank=True)
+    actor_name = models.CharField(max_length=301, blank=True)
     action = models.CharField(max_length=64, choices=AuditAction.choices)
     entity_type = models.CharField(max_length=64)
     entity_id = models.CharField(max_length=64)

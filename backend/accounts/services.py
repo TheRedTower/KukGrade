@@ -13,19 +13,13 @@ from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
-from accounts.models import User
+from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
 )
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
-
-# Kept in sync by hand with the literal in
-# accounts/migrations/0005_seed_deleted_user_placeholder.py - migrations must
-# not import application code, since it is free to change shape after a
-# migration is written and frozen.
-DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
 
 
 def _snapshot(user: User) -> dict[str, Any]:
@@ -244,7 +238,12 @@ def delete_platform_user(target: User, actor: User) -> User:
         f"User account {target.email} deleted; historical attribution "
         "reassigned to the placeholder account.",
         actor=actor,
-        metadata={"role": target.role, "reassigned": reassigned},
+        metadata={
+            "email": target.email,
+            "name": target.get_full_name(),
+            "role": target.role,
+            "reassigned": reassigned,
+        },
     )
     target.delete()
     return placeholder

@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
-from accounts.models import User
+from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.permissions import HasRequiredPermissions
 from accounts.serializers import (
     ChangePasswordSerializer,
@@ -28,7 +28,7 @@ from accounts.serializers import (
     UserManagementSerializer,
     UserSerializer,
 )
-from accounts.services import DELETED_USER_PLACEHOLDER_EMAIL, delete_platform_user
+from accounts.services import delete_platform_user
 
 
 @method_decorator(csrf_protect, name="dispatch")

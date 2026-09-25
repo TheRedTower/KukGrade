@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-26 - Audit events keep the actor's identity through user deletion
+
+Status: Accepted
+
+Decision:
+`AuditEvent` copies `actor_email` and `actor_name` when written. Deleting a
+user still re-points `actor` to the deleted-user placeholder, but the copies
+are never changed. The placeholder can never be active.
+
+Context:
+Deleting a user rewrote `actor` on every event they had caused, and nothing
+else on the event named them - so the audit trail forgot who made the final
+decisions, promotions and edits it exists to prove. Confirmed requirement:
+"we should definitely know who was deleted and by who... instead of a full
+erasure otherwise it's not auditable."
+
+Consequences:
+Migration `audit.0007` adds the fields and backfills them from each event's
+current actor; events already re-pointed before it keep the placeholder's
+identity. Refines the 2026-09-21 hard-delete entry, which still stands for
+every other attribution field.
+
 ### 2026-09-25 - A candidate records the rank held at registration
 
 Status: Accepted

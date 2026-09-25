@@ -41,3 +41,6 @@ htmlcov/
 .playwright-cli/
 output/
 tmp/
+
+# Local agent workspace
+.claude/

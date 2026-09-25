@@ -5137,6 +5137,23 @@ def test_locked_session_with_finalised_outcomes_and_promotions_deletable_by_admi
     assert AuditEvent.objects.count() == events_before + 1
 
 
+def test_any_status_session_delete_follows_the_permission_not_the_role() -> None:
+    # An instructor granted the permission directly may delete a locked
+    # session; nothing about the decision reads User.role.
+    session = grading_session(status=GradingSession.Status.LOCKED)
+    granted = user("delete-any-granted@example.com")
+    granted.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="gradings",
+            codename="delete_any_gradingsession",
+        ),
+    )
+
+    delete_grading_session(session, actor=User.objects.get(pk=granted.pk))
+
+    assert not GradingSession.objects.filter(pk=session.pk).exists()
+
+
 def test_completed_session_is_deletable_by_administrator() -> None:
     session = grading_session(status=GradingSession.Status.COMPLETED)
     admin = user(

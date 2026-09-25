@@ -591,7 +591,8 @@ administrators, holders of Master final-decision authority, and (since
 `gradings.can_view_grading_audit_log` permission - a fourth sensitive
 permission alongside the three Master ones, granted the same way via
 `PATCH /api/users/{id}/authority/`. An instructor holding none of the three
-is refused. No role group carries `audit.view_auditevent`.
+is refused. Administrators read it through the Administrator group's
+`audit.view_auditevent`; the Instructor group has no such grant.
 
 **Exception: user-management events are administrator-only.** `USER_CREATED`,
 `USER_UPDATED`, `USER_AUTHORITY_CHANGED` and `USER_DELETED` are additionally

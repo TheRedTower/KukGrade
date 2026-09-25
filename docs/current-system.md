@@ -248,8 +248,10 @@ checks on each push and pull request.
   2026-09-21) any instructor individually granted the fourth sensitive
   permission, `can_view_grading_audit_log`** - a plain instructor holding
   none of the three gets 403, in both the API (`CanViewAuditLog`) and Django
-  admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`); no
-  group carries the `view_auditevent` permission for this reason. For all
+  admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`).
+  Administrators read it through the Administrator group's
+  `audit.view_auditevent` grant (since 2026-09-26; previously their role was
+  checked directly); the Instructor group carries no such grant. For all
   three, user-management events (`USER_CREATED`, `USER_UPDATED`,
   `USER_AUTHORITY_CHANGED`, `USER_DELETED`) are additionally administrator-only
   - logistics, same as the Users API itself - so a Master or a

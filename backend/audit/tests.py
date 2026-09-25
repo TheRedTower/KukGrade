@@ -254,6 +254,21 @@ def test_administrator_can_read_the_log() -> None:
     assert response.json()["count"] > 0
 
 
+def test_reading_the_log_follows_the_permission_not_the_role() -> None:
+    locked_completed_candidate_with_outcome()
+    reader = user("audit-view-granted@example.com")
+    reader.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="audit",
+            codename="view_auditevent",
+        ),
+    )
+    client = APIClient()
+    client.force_authenticate(user=User.objects.get(pk=reader.pk))
+
+    assert client.get("/api/audit-events/").status_code == 200
+
+
 def test_master_authority_instructor_can_read_the_log() -> None:
     locked_completed_candidate_with_outcome()
     client = APIClient()

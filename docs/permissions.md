@@ -14,7 +14,10 @@
 
 Accepted 2026-09-13, implemented in `accounts/groups.py`. Django permissions
 are the authority primitive; `User.role` is a label that decides group
-membership and is never consulted when authorising a request.
+membership and is never consulted when authorising a request. The one
+place role appears in a rule is the policy that an administrator may not
+hold final-decision authority (`accounts.services`), which is a rule about
+roles rather than an authorisation check.
 
 | Capability | Instructor | Administrator | Master |
 | --- | --- | --- | --- |
@@ -31,8 +34,8 @@ membership and is never consulted when authorising a request.
 | **Delete a user account** | No | **Yes** | via group |
 | **Delete a completed assessment** | No | **Yes** | via group |
 | **Delete a student (full cascade)** | No | **Yes** | via group |
-| **Delete a grading session in any status** | No | **Yes** | via group |
-| **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
+| **Delete a grading session in any status** (`gradings.delete_any_gradingsession`) | No | **Yes** | via group |
+| **Read the audit log** | via `can_view_grading_audit_log` | **Yes** (`audit.view_auditevent`) | **Yes** |
 | **Bulk-import student roster (upload/preview/commit)** | No | **Yes** | via group |
 | **Bulk-import historical grading workbook (upload/preview/commit)** | No | **Yes** | via group |
 | Read imported historical grading records | Yes | Yes | via group |

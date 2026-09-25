@@ -79,6 +79,10 @@ class GradingSession(models.Model):
                 "can_override_locked_session",
                 "Can withdraw a candidate from, or cancel, a locked session",
             ),
+            (
+                "delete_any_gradingsession",
+                "Can delete a grading session in any status",
+            ),
         ]
         indexes = [
             models.Index(

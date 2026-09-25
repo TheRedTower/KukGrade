@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.permissions import (
+    DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
@@ -529,7 +530,7 @@ def validate_session_can_be_deleted(
     # (delete_candidate_assessment), which already ignores session status
     # entirely. Extends the 2026-09-20 cancelled-with-recorded-work decision
     # to every status, not just CANCELLED.
-    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
         return
     if session.status not in {
         GradingSession.Status.DRAFT,
@@ -1379,7 +1380,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
     # session has already superseded refuses the whole deletion rather than
     # leaving the session half-erased.
     reverted_student_ranks: list[dict[str, object]] = []
-    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
         candidates = list(
             session.candidates.select_related(
                 "student",

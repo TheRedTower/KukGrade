@@ -16,10 +16,9 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
     """Read-only by construction: the model refuses writes from every path."""
 
     serializer_class = AuditEventSerializer
-    # Gated by CanViewAuditLog (accounts.permissions.can_view_audit_log), not
-    # a Django permission: no group carries a view_auditevent grant, since
-    # that would need to reach some instructors without reaching every
-    # instructor.
+    # Gated by CanViewAuditLog (accounts.permissions.can_view_audit_log):
+    # audit.view_auditevent (Administrator group) or either per-user
+    # authority that reads the log.
     # permission_map is authenticated-is-enough so HasRequiredPermissions
     # still answers a wrong-method request with 405 rather than a misleading
     # 403.

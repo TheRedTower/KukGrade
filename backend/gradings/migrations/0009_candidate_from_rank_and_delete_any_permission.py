@@ -72,4 +72,20 @@ class Migration(migrations.Migration):
                 to="ranks.rank",
             ),
         ),
+        migrations.AlterModelOptions(
+            name="gradingsession",
+            options={
+                "ordering": ["-grading_date", "created_at"],
+                "permissions": [
+                    (
+                        "can_override_locked_session",
+                        "Can withdraw a candidate from, or cancel, a locked session",
+                    ),
+                    (
+                        "delete_any_gradingsession",
+                        "Can delete a grading session in any status",
+                    ),
+                ],
+            },
+        ),
     ]

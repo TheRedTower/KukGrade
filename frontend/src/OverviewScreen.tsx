@@ -14,7 +14,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { canViewAuditLog } from "./permissions";
-import { formatSessionDate, todayIsoDate } from "./dates";
+import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 
 function CalendarIcon() {
@@ -120,39 +120,12 @@ function SuccessCheckIcon() {
 }
 
 function formatRelativeTime(isoString: string): string {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday =
-      date.getDate() === yesterday.getDate() &&
-      date.getMonth() === yesterday.getMonth() &&
-      date.getFullYear() === yesterday.getFullYear();
-
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const timeStr = `${hours}:${minutes}`;
-
-    if (isToday) {
-      return `Today ${timeStr}`;
-    }
-    if (isYesterday) {
-      return `Yesterday ${timeStr}`;
-    }
-
-    const day = date.getDate();
-    const month = date.toLocaleString("en-GB", { month: "short" });
-    return `${day} ${month} ${timeStr}`;
-  } catch {
-    return isoString;
-  }
+  const daysAgo = calendarDaysAgo(isoString);
+  if (daysAgo === null) return isoString;
+  const time = formatTime(isoString);
+  if (daysAgo === 0) return `Today ${time}`;
+  if (daysAgo === 1) return `Yesterday ${time}`;
+  return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
 }
 
 type FormattedActivityItem = {
@@ -224,16 +197,9 @@ export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const canViewAudit = user ? canViewAuditLog(user) : false;
+  const canViewAudit = canViewAuditLog(user);
 
-  const currentDateDisplay = useMemo(() => {
-    return new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date());
-  }, []);
+  const currentDateDisplay = useMemo(() => formatSessionDate(todayIsoDate()), []);
 
   // 1. Fetch grading sessions
   const sessionsQuery = useQuery({

@@ -33,12 +33,12 @@ import {
 import { RankVisual } from "./RankVisual";
 import {
   CategoryGroup,
-  formatDayMonth,
-  formatTimeOnly,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
+import { formatDayMonth, formatTime } from "./dates";
+import { isAdministrator } from "./permissions";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
@@ -296,7 +296,7 @@ export function CandidateAssessmentScreen() {
         >
           <span className="caw-status-dot" aria-hidden="true" />
           {assessment?.status_display || "Not started"}
-          {assessment?.started_at && ` · started ${formatTimeOnly(assessment.started_at)}`}
+          {assessment?.started_at && ` · started ${formatTime(assessment.started_at)}`}
         </span>
 
         <div className="caw-identity-spacer" />
@@ -308,7 +308,7 @@ export function CandidateAssessmentScreen() {
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
-        {currentUser?.role === "administrator" && assessment && (
+        {isAdministrator(currentUser) && assessment && (
           <button
             type="button"
             className="caw-danger-btn"
@@ -651,7 +651,7 @@ function AssessmentItemRow({
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
   const attribution = item.assessor_email
-    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTimeOnly(item.assessed_at)}` : ""}`
+    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
     : "";
 
   return (

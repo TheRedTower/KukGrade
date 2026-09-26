@@ -15,6 +15,7 @@ import {
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
+import { isAdministrator } from "./permissions";
 import "./GradingSessions.css";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -376,7 +377,7 @@ export function GradingSessionsScreen() {
   // Historical import/reconciliation is administrator-only (data_imports
   // and gradings.can_reconcile_imported_history permissions) - see
   // docs/permissions.md.
-  const canManageLegacyImports = user?.role === "administrator";
+  const canManageLegacyImports = isAdministrator(user);
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";

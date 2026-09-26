@@ -2,13 +2,13 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { useAuth } from "./auth";
 import {
   ApiError,
   type FieldErrors,
   createGradingSession,
 } from "./api";
 import "./GradingSessions.css";
+import { formatSessionDate } from "./dates";
 
 const MONTHS = [
   { value: "01", label: "January" },
@@ -43,17 +43,12 @@ function formatPreviewDate(year: string, month: string, day: string): string {
   if (isNaN(dateObj.getTime()) || dateObj.getDate() !== d || dateObj.getMonth() !== m) {
     return "Invalid date";
   }
-  const weekday = dateObj.toLocaleDateString("en-GB", { weekday: "long" });
-  const dayNum = dateObj.toLocaleDateString("en-GB", { day: "numeric" });
-  const monthName = dateObj.toLocaleDateString("en-GB", { month: "long" });
-  const yearNum = dateObj.toLocaleDateString("en-GB", { year: "numeric" });
-  return `${weekday} ${dayNum} ${monthName} ${yearNum}`;
+  return formatSessionDate(`${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`);
 }
 
 export function CreateGradingSessionScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   // Form State
   const [title, setTitle] = useState("");
@@ -154,27 +149,6 @@ export function CreateGradingSessionScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  const canCreateGrading =
-    user?.role === "instructor" ||
-    user?.role === "administrator" ||
-    user?.is_superuser === true;
-
-  if (user && !canCreateGrading) {
-    return (
-      <section aria-labelledby="unauth-heading" className="cgs-page">
-        <div className="cgs-page-header">
-          <h1 id="unauth-heading" className="cgs-page-title">Access Restricted</h1>
-          <p className="cgs-page-subtitle">
-            Your account does not have permission to create grading sessions.
-          </p>
-        </div>
-        <button className="btn-ghost" onClick={() => navigate("/gradings")} type="button">
-          Return to Gradings
-        </button>
-      </section>
-    );
   }
 
   return (

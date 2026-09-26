@@ -18,6 +18,7 @@ import {
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
+import { isAdministrator } from "./permissions";
 
 function AccountForm({
   user,
@@ -122,7 +123,7 @@ function AuthorityForm({
     can_view_grading_audit_log: user.can_view_grading_audit_log,
   });
   const queryClient = useQueryClient();
-  const isAdministrator = user.role === "administrator";
+  const targetIsAdministrator = isAdministrator(user);
   const mutation = useMutation({
     mutationFn: () => updateManagedUserAuthority(user.id, authority),
     onSuccess: (updated) => {
@@ -143,7 +144,7 @@ function AuthorityForm({
       key: "can_make_final_grading_decision",
       label: "Make final grading decisions",
       description: "Allow this user to make final decisions on student gradings.",
-      disabled: isAdministrator,
+      disabled: targetIsAdministrator,
     },
     {
       key: "can_promote_student",
@@ -191,7 +192,7 @@ function AuthorityForm({
         <p>
           {isSelf
             ? "You cannot change your own authority."
-            : isAdministrator
+            : targetIsAdministrator
               ? "Administrators cannot hold final-decision authority. Other authority changes are audited."
               : "Authority changes are recorded in the audit log."}
         </p>

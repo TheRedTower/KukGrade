@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./AuditScreen.css";
+import { calendarDaysAgo, formatApiDate, formatDateTime, formatTime, parseApiDate } from "./dates";
 
 const PAGE_SIZE = 10;
 
@@ -70,28 +71,20 @@ const ENTITY_OPTIONS = [
 const ENTITY_LABELS = new Map<string, string>(ENTITY_OPTIONS);
 
 function eventTime(value: string): { date: string; time: string } {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: value, time: "" };
-
-  const now = new Date();
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+  const daysAgo = calendarDaysAgo(value);
+  if (daysAgo === null) return { date: value, time: "" };
+  const sameYear = parseApiDate(value)?.getFullYear() === new Date().getFullYear();
 
   return {
-    date: isToday
-      ? "Today"
-      : new Intl.DateTimeFormat("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
-        }).format(date),
-    time: new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(date),
+    date:
+      daysAgo === 0
+        ? "Today"
+        : formatApiDate(value, {
+            day: "numeric",
+            month: "short",
+            year: sameYear ? undefined : "numeric",
+          }),
+    time: formatTime(value),
   };
 }
 
@@ -429,7 +422,7 @@ export function AuditScreen(): React.ReactElement {
               </button>
             </header>
             <dl className="audit-detail-grid">
-              <div><dt>Occurred</dt><dd>{new Date(selectedEvent.occurred_at).toLocaleString("en-GB")}</dd></div>
+              <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
               <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
               <div><dt>Entity</dt><dd>{ENTITY_LABELS.get(selectedEvent.entity_type) ?? selectedEvent.entity_type} #{selectedEvent.entity_id}</dd></div>
               <div><dt>Action code</dt><dd><code>{selectedEvent.action}</code></dd></div>

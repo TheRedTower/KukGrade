@@ -126,7 +126,9 @@ checks - and CI runs all of it on every push and pull request.
 ## Non-Goals For The Current Foundation
 
 - No production secrets, real student data, or production exports.
-- No certificates, payments, notifications, or correction/reopening workflow.
+- No certificates, payments or notifications. Corrections are possible only
+  before a session locks (a completed assessment can be reopened while the
+  session is open); there is no correction workflow after lock yet.
 - No offline/PWA support yet; the frontend is online-first.
 - No background worker until there is a confirmed asynchronous workload.
 - No production host connection or verified database restore yet.

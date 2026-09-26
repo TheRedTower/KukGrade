@@ -105,7 +105,7 @@ decisions, promotions and edits it exists to prove. Confirmed requirement:
 erasure otherwise it's not auditable."
 
 Consequences:
-Migration `audit.0007` adds the fields and backfills them from each event's
+Migration `audit.0006` adds the fields and backfills them from each event's
 current actor; events already re-pointed before it keep the placeholder's
 identity. Refines the 2026-09-21 hard-delete entry, which still stands for
 every other attribution field.

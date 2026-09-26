@@ -1,4 +1,4 @@
-import { formatSessionDate, formatShortDate, todayIsoDate } from "./dates";
+import { calendarDaysAgo, formatSessionDate, formatShortDate, todayIsoDate } from "./dates";
 
 describe("todayIsoDate", () => {
   it("is the local calendar date, not the UTC one", () => {
@@ -31,5 +31,20 @@ describe("formatShortDate", () => {
   it("uses the fallback for a missing value", () => {
     expect(formatShortDate(null)).toBe("—");
     expect(formatShortDate(undefined, "")).toBe("");
+  });
+});
+
+describe("calendarDaysAgo", () => {
+  const now = new Date(2026, 9, 15, 0, 30);
+
+  it("counts local calendar days, not 24-hour periods", () => {
+    expect(calendarDaysAgo("2026-10-15", now)).toBe(0);
+    expect(calendarDaysAgo("2026-10-14", now)).toBe(1);
+    expect(calendarDaysAgo(new Date(2026, 9, 14, 23, 50).toISOString(), now)).toBe(1);
+  });
+
+  it("is null for a value it cannot parse", () => {
+    expect(calendarDaysAgo("soon", now)).toBeNull();
+    expect(calendarDaysAgo(null, now)).toBeNull();
   });
 });

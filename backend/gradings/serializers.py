@@ -8,6 +8,7 @@ from rest_framework import serializers
 from accounts.models import User
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
+    CANDIDATE_REGISTERED_ON_CREATION_MESSAGE,
     CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -157,6 +158,16 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
         return value
 
+    def validate_status(self, value: str) -> str:
+        if self.instance is None and value != GradingCandidate.Status.REGISTERED:
+            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
+        return value
+
+    def validate_withdrawal_reason(self, value: str) -> str:
+        if self.instance is None and value:
+            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
+        return value
+
     def get_withdrawn_by_email(self, instance: GradingCandidate) -> str:
         return instance.withdrawn_by.email if instance.withdrawn_by else ""
 
@@ -221,12 +232,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
                 session=cast(GradingSession, validated_data["session"]),
                 student=cast(Student, validated_data["student"]),
                 testing_for_rank=cast(Rank, validated_data["testing_for_rank"]),
-                status=str(
-                    validated_data.get(
-                        "status",
-                        GradingCandidate.Status.REGISTERED,
-                    ),
-                ),
                 notes=str(validated_data.get("notes", "")),
                 actor=cast(User, self.context["request"].user),
             )

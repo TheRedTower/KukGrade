@@ -242,8 +242,10 @@ the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
 candidate actually started.
 
-A registration's `student` never changes: sending a different one is a `400`
-(remove the candidate and register the right student instead). Setting
+A candidate is always created `REGISTERED`: a `POST` with any other `status`,
+or with a `withdrawal_reason`, is a `400`. A registration's `student` never
+changes: sending a different one is a `400` (remove the candidate and
+register the right student instead). Setting
 `status` to `WITHDRAWN` requires `withdrawal_reason` (`INJURY`, `WITHDREW`,
 `ABSENT`, `ADMIN_ERROR`) and accepts an optional `withdrawal_note`; the
 withdrawal records who made it and when, and is audited as

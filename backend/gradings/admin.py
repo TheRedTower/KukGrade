@@ -436,7 +436,6 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
                 session=obj.session,
                 student=obj.student,
                 testing_for_rank=obj.testing_for_rank,
-                status=obj.status,
                 notes=obj.notes,
                 actor=cast(User, request.user),
             )

@@ -173,6 +173,10 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
     "A registration's student cannot be changed. Remove the candidate and "
     "register the right student instead."
 )
+CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
+    "A candidate is registered as REGISTERED, then withdrawn afterwards with "
+    "a reason if they do not grade."
+)
 
 
 class GradingCandidate(models.Model):
@@ -361,6 +365,12 @@ class GradingCandidate(models.Model):
             )
 
             if self._state.adding:
+                # Withdrawal and completion each have their own path, which
+                # records why and by whom.
+                if self.status != GradingCandidate.Status.REGISTERED:
+                    raise ValidationError(
+                        {"status": [CANDIDATE_REGISTERED_ON_CREATION_MESSAGE]},
+                    )
                 validate_session_accepts_candidates(self.session)
             else:
                 validate_candidate_can_be_changed(self)

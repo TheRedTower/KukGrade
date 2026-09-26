@@ -2515,7 +2515,42 @@ def test_a_candidate_cannot_be_registered_as_withdrawn() -> None:
     )
 
     assert response.status_code == 400
+    assert "status" in response.json()["error"]["fields"]
     assert not GradingCandidate.objects.filter(student=target).exists()
+
+
+def test_a_withdrawal_reason_is_refused_at_registration() -> None:
+    session = grading_session()
+    target = student(wksa_id="REGWD002")
+
+    response = auth_client("register-with-reason@example.com").post(
+        "/api/gradings/candidates/",
+        {
+            "session": session.pk,
+            "student": target.pk,
+            "testing_for_rank": rank("YELLOW_STRIPE").pk,
+            "withdrawal_reason": "ABSENT",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "withdrawal_reason" in response.json()["error"]["fields"]
+
+
+def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() -> None:
+    # Admin and the shell reach the model directly, not the serializer.
+    built = build_candidate(
+        session=grading_session(),
+        student=student(wksa_id="REGWD003"),
+        testing_for_rank=rank("YELLOW_STRIPE"),
+    )
+    built.status = GradingCandidate.Status.COMPLETED
+
+    with pytest.raises(ValidationError) as exc_info:
+        built.save()
+
+    assert "status" in exc_info.value.message_dict
 
 
 def test_item_results_cannot_change_once_the_session_locks() -> None:
@@ -3682,7 +3717,7 @@ def test_candidate_from_rank_does_not_move_when_the_student_is_promoted() -> Non
 
 def test_from_rank_backfill_reconstructs_the_rank_at_registration() -> None:
     backfill = importlib.import_module(
-        "gradings.migrations.0009_gradingcandidate_from_rank",
+        "gradings.migrations.0009_candidate_from_rank_and_delete_any_permission",
     ).backfill_from_rank
     promoted, _generated = locked_completed_candidate()
     promote_candidate(finalised_outcome(promoted), promoter("backfill@example.com"))

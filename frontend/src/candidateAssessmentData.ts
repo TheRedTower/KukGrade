@@ -27,19 +27,6 @@ import {
   getAllCandidateAssessmentItems,
   getGradingSession,
 } from "./api";
-import { formatApiDate } from "./dates";
-
-export function formatTimeOnly(isoStr: string | null): string {
-  return formatApiDate(isoStr, { hour: "2-digit", minute: "2-digit" }, "");
-}
-
-/**
- * Day and month only, for the snapshot provenance line. The year is carried by
- * the session, so repeating it on every row of chrome is noise.
- */
-export function formatDayMonth(isoStr: string | null): string {
-  return formatApiDate(isoStr, { day: "2-digit", month: "short" }, "");
-}
 
 export interface CategoryGroup {
   category: string;

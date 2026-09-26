@@ -13,7 +13,7 @@ import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
-import { canViewAuditLog } from "./permissions";
+import { canViewAuditLog, isAdministrator } from "./permissions";
 import {
   AuditIcon,
   GradingsIcon,
@@ -254,7 +254,7 @@ function ConnectionErrorPage() {
 
 function NavigationRail({ user }: { user: AuthUser }) {
   const canViewAudit = canViewAuditLog(user);
-  const canViewUsers = user.role === "administrator";
+  const canViewUsers = isAdministrator(user);
 
   return (
     <aside aria-label="Navigation rail" className="nav-rail">
@@ -333,7 +333,7 @@ function RequireAuditAccess({ children }: { children: ReactNode }) {
 
 function RequireAdminAccess({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  if (!user || user.role !== "administrator") {
+  if (!isAdministrator(user)) {
     return <Navigate replace to="/" />;
   }
   return children;

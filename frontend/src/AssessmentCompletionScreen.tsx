@@ -36,12 +36,11 @@ import {
 import { RankVisual } from "./RankVisual";
 import {
   CategoryGroup,
-  formatTimeOnly,
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { isCoreCategory } from "./syllabusCategories";
-import { formatShortDate } from "./dates";
+import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 
 function CheckIcon({ size = 13 }: { size?: number }) {
@@ -364,7 +363,7 @@ export function AssessmentCompletionScreen() {
                     {item.assessor_email && (
                       <span className="acp-note-by">
                         {" "}— {item.assessor_email}
-                        {item.assessed_at && ` · ${formatTimeOnly(item.assessed_at)}`}
+                        {item.assessed_at && ` · ${formatTime(item.assessed_at)}`}
                       </span>
                     )}
                   </p>
@@ -406,8 +405,8 @@ export function AssessmentCompletionScreen() {
               </div>
               {assessment.started_at && (
                 <div className="acp-seal-detail">
-                  Assessed from {formatTimeOnly(assessment.started_at)}
-                  {assessment.completed_at && ` to ${formatTimeOnly(assessment.completed_at)}`}
+                  Assessed from {formatTime(assessment.started_at)}
+                  {assessment.completed_at && ` to ${formatTime(assessment.completed_at)}`}
                   {session.grading_date && ` on ${formatShortDate(session.grading_date, "")}`}
                 </div>
               )}
@@ -419,7 +418,7 @@ export function AssessmentCompletionScreen() {
                 <>
                   <div className="acp-seal-value acp-seal-applied" data-testid="acp-seal-applied">
                     Sealed {formatShortDate(assessment.completed_at, "")} at{" "}
-                    {formatTimeOnly(assessment.completed_at)}
+                    {formatTime(assessment.completed_at)}
                   </div>
                   <div className="acp-seal-detail">This record can no longer be changed.</div>
                 </>

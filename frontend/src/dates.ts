@@ -102,3 +102,36 @@ export function formatDateTime(value: string | null | undefined, fallback = "—
     fallback,
   );
 }
+
+/** "5 Oct 2026, 14:30" - a timestamp in a table row. */
+export function formatShortDateTime(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(
+    value,
+    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    fallback,
+  );
+}
+
+/** "14:30" in the reader's timezone. */
+export function formatTime(value: string | null | undefined, fallback = ""): string {
+  return formatApiDate(value, { hour: "2-digit", minute: "2-digit" }, fallback);
+}
+
+/** "05 Oct" - when the year is already carried by the surrounding context. */
+export function formatDayMonth(value: string | null | undefined, fallback = ""): string {
+  return formatApiDate(value, { day: "2-digit", month: "short" }, fallback);
+}
+
+/**
+ * How many calendar days before `now` an API value falls, in the reader's own
+ * timezone: 0 for today, 1 for yesterday. `null` when it cannot be parsed.
+ */
+export function calendarDaysAgo(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  const date = parseApiDate(value);
+  if (!date) return null;
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((startOf(now) - startOf(date)) / 86_400_000);
+}

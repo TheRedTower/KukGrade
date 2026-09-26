@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
+import { formatShortDateTime } from "./dates";
 
 const PAGE_SIZE = 10;
 
@@ -22,19 +23,6 @@ function authoritySummary(user: ManagedUser): string {
     user.can_view_grading_audit_log ? "Audit log" : null,
   ].filter(Boolean);
   return authorities.length ? authorities.join(" · ") : "None";
-}
-
-function lastActive(value: string | null): string {
-  if (!value) return "Never";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 function CreateUserDialog({
@@ -319,7 +307,7 @@ export function UsersScreen(): React.ReactElement {
                       <td>{user.role_display}</td>
                       <td className="users-authority-summary" title={authoritySummary(user)}>{authoritySummary(user)}</td>
                       <td><span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>{user.is_active ? "Active" : "Inactive"}</span></td>
-                      <td>{lastActive(user.last_login)}</td>
+                      <td>{formatShortDateTime(user.last_login, "Never")}</td>
                       <td><button type="button" className="users-manage-button" onClick={() => navigate(`/users/${user.id}`)}>Manage user</button></td>
                     </tr>
                   ))}

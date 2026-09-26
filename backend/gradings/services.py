@@ -1261,15 +1261,8 @@ def build_candidate(
     session: GradingSession,
     student: Student,
     testing_for_rank: Rank,
-    status: str = GradingCandidate.Status.REGISTERED,
     notes: str = "",
 ) -> GradingCandidate:
-    if status != GradingCandidate.Status.REGISTERED:
-        # Withdrawal and completion each have their own path, which records
-        # why and by whom; a registration cannot begin in either state.
-        raise ValidationError(
-            {"status": ["A candidate is always registered as REGISTERED."]},
-        )
     validate_session_accepts_candidates(session)
     validate_student_can_be_graded(student)
     validate_testing_for_rank(student, testing_for_rank)
@@ -1278,7 +1271,6 @@ def build_candidate(
         student=student,
         testing_for_rank=testing_for_rank,
         age_band=resolve_age_band(student.date_of_birth, session.grading_date),
-        status=status,
         notes=notes,
     )
 
@@ -1470,7 +1462,6 @@ def register_candidate(
     session: GradingSession,
     student: Student,
     testing_for_rank: Rank,
-    status: str = GradingCandidate.Status.REGISTERED,
     notes: str = "",
     actor: User | None = None,
 ) -> GradingCandidate:
@@ -1478,7 +1469,6 @@ def register_candidate(
         session=session,
         student=student,
         testing_for_rank=testing_for_rank,
-        status=status,
         notes=notes,
     )
     candidate.save()

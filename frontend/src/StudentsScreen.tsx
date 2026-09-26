@@ -10,6 +10,7 @@ import {
   getStudents,
 } from "./api";
 import { useAuth } from "./auth";
+import { isAdministrator } from "./permissions";
 import "./StudentScreens.css";
 
 function SearchIcon() {
@@ -123,15 +124,9 @@ export function StudentsScreen() {
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
-  // Authenticated staff and administrators can register students
-  const canAddStudent =
-    user?.role === "administrator" ||
-    user?.role === "instructor" ||
-    !!user?.is_staff ||
-    !!user?.is_superuser;
   // Bulk import is administrator-only (data_imports permissions) - see
   // docs/permissions.md.
-  const canImportStudents = user?.role === "administrator";
+  const canImportStudents = isAdministrator(user);
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useQuery({
@@ -231,17 +226,15 @@ export function StudentsScreen() {
               Import students
             </button>
           )}
-          {canAddStudent && (
-            <button
-              type="button"
-              className="btn-add-student"
-              onClick={() => navigate("/students/new")}
-              aria-label="Add new student"
-            >
-              <UserPlusIcon />
-              <span>Add student</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-add-student"
+            onClick={() => navigate("/students/new")}
+            aria-label="Add new student"
+          >
+            <UserPlusIcon />
+            <span>Add student</span>
+          </button>
         </div>
       </div>
 
@@ -356,15 +349,13 @@ export function StudentsScreen() {
                 <p className="empty-state-description">
                   Get started by registering your first student record in the registry.
                 </p>
-                {canAddStudent && (
-                  <button
-                    type="button"
-                    className="btn-add-first-student"
-                    onClick={() => navigate("/students/new")}
-                  >
-                    Add student +
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="btn-add-first-student"
+                  onClick={() => navigate("/students/new")}
+                >
+                  Add student +
+                </button>
               </div>
             )}
           </div>

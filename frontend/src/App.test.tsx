@@ -2734,7 +2734,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "12");
     await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2026");
 
-    expect(within(previewTable).getByText("Saturday 12 December 2026")).toBeVisible();
+    expect(within(previewTable).getByText("Saturday, 12 December 2026")).toBeVisible();
 
     // Type location
     await user.type(screen.getByLabelText(/location/i), "Colchester Dojang");

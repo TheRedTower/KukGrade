@@ -31,6 +31,7 @@ import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankVisual } from "./RankVisual";
 import { formatSessionDate } from "./dates";
+import { isAdministrator } from "./permissions";
 import "./GradingSessions.css";
 
 
@@ -550,7 +551,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setConfirmModal({
         open: true,
         title: "Lock Grading Session",
-        message: "Locking the session prevents further candidate assessment edits unless unlocked by an Authorised Master.",
+        message: "Locking ends grading. Every assessment must be completed first, and after locking no result can be changed or reopened.",
         actionType: "LOCK",
       });
     } else if (actionType === "COMPLETE") {
@@ -746,7 +747,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         Cancel session
                       </button>
                     )}
-                    {currentUser?.role === "administrator" && (
+                    {isAdministrator(currentUser) && (
                       <button
                         type="button"
                         role="menuitem"
@@ -769,7 +770,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {currentUser?.role === "administrator" && (
+                    {isAdministrator(currentUser) && (
                       <button
                         type="button"
                         role="menuitem"
@@ -792,7 +793,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {(!hasAssessmentWork || currentUser?.role === "administrator") && (
+                    {(!hasAssessmentWork || isAdministrator(currentUser)) && (
                       <button
                         type="button"
                         role="menuitem"

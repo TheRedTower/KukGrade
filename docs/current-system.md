@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-26. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-26 with 656 backend tests and 207 frontend tests passing
+Verified on 2026-09-26 with 658 backend tests and 211 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -372,8 +372,9 @@ checks on each push and pull request.
   the UTC runner cannot observe this class of bug: with the defect
   reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen
   formats through `dates.ts` - `formatShortDate`, `formatLongDate`,
-  `formatDateTime`, `formatSessionDate` or `formatApiDate` - with no
-  per-screen formatter of its own, and "today" for a date input or a
+  `formatDateTime`, `formatShortDateTime`, `formatTime`, `formatDayMonth`,
+  `formatSessionDate` or `formatApiDate`, with "today"/"yesterday" decided by
+  `calendarDaysAgo` - with no per-screen formatter of its own, and "today" for a date input or a
   comparison with a date-only value is `todayIsoDate()` (local), never
   `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when

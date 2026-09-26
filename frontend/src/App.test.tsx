@@ -24,9 +24,28 @@ const authUser = {
   can_make_final_grading_decision: false,
   can_promote_student: false,
   can_override_locked_session: false,
+  can_view_grading_audit_log: false,
+  can_manage_users: false,
+  can_import_data: false,
+  can_reconcile_imported_history: false,
+  can_delete_students: false,
+  can_delete_assessments: false,
+  can_delete_any_session: false,
+  can_read_audit_log: false,
   must_change_password: false,
   is_staff: false,
   is_superuser: false,
+};
+
+// What /api/auth/me/ reports for an account in the Administrator group.
+const ADMINISTRATOR_CAPABILITIES = {
+  can_manage_users: true,
+  can_import_data: true,
+  can_reconcile_imported_history: true,
+  can_delete_students: true,
+  can_delete_assessments: true,
+  can_delete_any_session: true,
+  can_read_audit_log: true,
 };
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -532,6 +551,7 @@ describe("Navigation rail and role-gated routes", () => {
   const masterInstructorUser = {
     ...authUser,
     can_make_final_grading_decision: true,
+    can_read_audit_log: true,
   };
 
   const adminUser = {
@@ -542,6 +562,7 @@ describe("Navigation rail and role-gated routes", () => {
     last_name: "Admin",
     full_name: "Alex Admin",
     role: "administrator" as const,
+    ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_promote_student: true,
     can_override_locked_session: true,
@@ -690,6 +711,7 @@ describe("Instructor profile menu and Master capabilities", () => {
   const masterUser = {
     ...authUser,
     can_make_final_grading_decision: true,
+    can_read_audit_log: true,
     can_promote_student: false,
     can_override_locked_session: false,
   };
@@ -702,6 +724,7 @@ describe("Instructor profile menu and Master capabilities", () => {
     last_name: "Admin",
     full_name: "Alex Admin",
     role: "administrator" as const,
+    ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: false,
     can_promote_student: true,
@@ -1158,7 +1181,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator" });
+        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, {
@@ -1241,8 +1264,8 @@ describe("Overview screen (Operational Ledger)", () => {
       return requested;
     }
 
-    expect(await auditRequested({ ...authUser, can_view_grading_audit_log: true })).toBe(true);
-    expect(await auditRequested({ ...authUser, can_view_grading_audit_log: false, is_staff: true })).toBe(false);
+    expect(await auditRequested({ ...authUser, can_read_audit_log: true })).toBe(true);
+    expect(await auditRequested({ ...authUser, can_read_audit_log: false, is_staff: true })).toBe(false);
   });
 
   it("navigates to gradings and audit when action links are clicked", async () => {
@@ -1261,7 +1284,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator" });
+        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [openSession] });
@@ -2338,6 +2361,8 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     const adminUser = {
       ...authUser,
       role: "administrator" as const,
+      ...ADMINISTRATOR_CAPABILITIES,
+    ...ADMINISTRATOR_CAPABILITIES,
       role_display: "Administrator",
       is_staff: true,
       is_superuser: true,
@@ -2645,8 +2670,10 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     last_name: "Admin",
     full_name: "Alex Admin",
     role: "administrator" as const,
+    ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
+    can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
     must_change_password: false,
@@ -2895,8 +2922,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     last_name: "Admin",
     full_name: "Alex Admin",
     role: "administrator" as const,
+    ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
+    can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
     must_change_password: false,
@@ -4133,8 +4162,10 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     last_name: "Admin",
     full_name: "Alex Admin",
     role: "administrator" as const,
+    ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
+    can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
     must_change_password: false,

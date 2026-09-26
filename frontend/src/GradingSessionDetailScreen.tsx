@@ -31,7 +31,6 @@ import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankVisual } from "./RankVisual";
 import { formatSessionDate } from "./dates";
-import { isAdministrator } from "./permissions";
 import "./GradingSessions.css";
 
 
@@ -747,7 +746,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         Cancel session
                       </button>
                     )}
-                    {isAdministrator(currentUser) && (
+                    {currentUser?.can_delete_any_session && (
                       <button
                         type="button"
                         role="menuitem"
@@ -770,7 +769,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {isAdministrator(currentUser) && (
+                    {currentUser?.can_delete_any_session && (
                       <button
                         type="button"
                         role="menuitem"
@@ -793,7 +792,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {(!hasAssessmentWork || isAdministrator(currentUser)) && (
+                    {(!hasAssessmentWork || currentUser?.can_delete_any_session) && (
                       <button
                         type="button"
                         role="menuitem"

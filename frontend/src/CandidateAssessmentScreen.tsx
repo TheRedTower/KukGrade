@@ -38,7 +38,6 @@ import {
 import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 import { formatDayMonth, formatTime } from "./dates";
-import { isAdministrator } from "./permissions";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
@@ -308,7 +307,7 @@ export function CandidateAssessmentScreen() {
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
-        {isAdministrator(currentUser) && assessment && (
+        {currentUser?.can_delete_assessments && assessment && (
           <button
             type="button"
             className="caw-danger-btn"

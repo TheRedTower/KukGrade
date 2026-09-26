@@ -48,6 +48,13 @@ const adminUser: AuthUser = {
   can_promote_student: true,
   can_override_locked_session: true,
   can_view_grading_audit_log: false,
+  can_manage_users: true,
+  can_import_data: true,
+  can_reconcile_imported_history: true,
+  can_delete_students: true,
+  can_delete_assessments: true,
+  can_delete_any_session: true,
+  can_read_audit_log: true,
   must_change_password: false,
   is_staff: false,
   is_superuser: false,
@@ -61,6 +68,13 @@ const instructorUser: AuthUser = {
   role_display: "Instructor",
   can_promote_student: false,
   can_override_locked_session: false,
+  can_manage_users: false,
+  can_import_data: false,
+  can_reconcile_imported_history: false,
+  can_delete_students: false,
+  can_delete_assessments: false,
+  can_delete_any_session: false,
+  can_read_audit_log: false,
 };
 
 function lockedSession(): GradingSession {

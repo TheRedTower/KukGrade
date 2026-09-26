@@ -10,7 +10,6 @@ import {
   getStudents,
 } from "./api";
 import { useAuth } from "./auth";
-import { isAdministrator } from "./permissions";
 import "./StudentScreens.css";
 
 function SearchIcon() {
@@ -124,9 +123,7 @@ export function StudentsScreen() {
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
-  // Bulk import is administrator-only (data_imports permissions) - see
-  // docs/permissions.md.
-  const canImportStudents = isAdministrator(user);
+  const canImportStudents = Boolean(user?.can_import_data);
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useQuery({

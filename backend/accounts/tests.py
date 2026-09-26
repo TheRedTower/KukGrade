@@ -259,9 +259,55 @@ def test_current_user_returns_authenticated_user() -> None:
         "can_promote_student": False,
         "can_override_locked_session": False,
         "can_view_grading_audit_log": False,
+        "can_manage_users": False,
+        "can_import_data": False,
+        "can_reconcile_imported_history": False,
+        "can_delete_students": False,
+        "can_delete_assessments": False,
+        "can_delete_any_session": False,
+        # A Master may read the audit log.
+        "can_read_audit_log": True,
         "must_change_password": False,
         "is_staff": False,
         "is_superuser": False,
+    }
+
+
+CAPABILITY_FLAGS = (
+    "can_manage_users",
+    "can_import_data",
+    "can_reconcile_imported_history",
+    "can_delete_students",
+    "can_delete_assessments",
+    "can_delete_any_session",
+    "can_read_audit_log",
+)
+
+
+def test_current_user_capabilities_follow_permissions_not_role() -> None:
+    from django.contrib.auth.models import Permission
+
+    administrator = create_user(
+        email="capabilities-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    granted = create_user(email="capabilities-granted@example.com")
+    granted.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="gradings",
+            codename="delete_any_gradingsession",
+        ),
+    )
+
+    def flags(user: User) -> dict[str, bool]:
+        client = APIClient()
+        client.force_authenticate(user=User.objects.get(pk=user.pk))
+        body = client.get("/api/auth/me/").json()
+        return {name: body[name] for name in CAPABILITY_FLAGS}
+
+    assert all(flags(administrator).values())
+    assert flags(granted) == {
+        name: name == "can_delete_any_session" for name in CAPABILITY_FLAGS
     }
 
 

@@ -13,7 +13,6 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
-import { canViewAuditLog } from "./permissions";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 
@@ -197,7 +196,7 @@ export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const canViewAudit = canViewAuditLog(user);
+  const canViewAudit = Boolean(user?.can_read_audit_log);
 
   const currentDateDisplay = useMemo(() => formatSessionDate(todayIsoDate()), []);
 

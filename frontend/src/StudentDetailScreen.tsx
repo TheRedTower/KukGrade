@@ -19,7 +19,6 @@ import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
 import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
-import { isAdministrator } from "./permissions";
 
 function LockIcon() {
   return (
@@ -591,7 +590,7 @@ export function StudentDetailScreen() {
                 Change status
               </button>
 
-              {isAdministrator(currentUser) && (
+              {currentUser?.can_delete_students && (
                 <button
                   type="button"
                   className="btn-danger-sm"

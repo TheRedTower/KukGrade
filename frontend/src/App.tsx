@@ -13,7 +13,6 @@ import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
-import { canViewAuditLog, isAdministrator } from "./permissions";
 import {
   AuditIcon,
   GradingsIcon,
@@ -253,8 +252,8 @@ function ConnectionErrorPage() {
 }
 
 function NavigationRail({ user }: { user: AuthUser }) {
-  const canViewAudit = canViewAuditLog(user);
-  const canViewUsers = isAdministrator(user);
+  const canViewAudit = user.can_read_audit_log;
+  const canViewUsers = user.can_manage_users;
 
   return (
     <aside aria-label="Navigation rail" className="nav-rail">
@@ -323,17 +322,15 @@ function NavigationRail({ user }: { user: AuthUser }) {
   );
 }
 
-function RequireAuditAccess({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  if (!user || !canViewAuditLog(user)) {
-    return <Navigate replace to="/" />;
-  }
-  return children;
-}
+/** The boolean capability flags `/api/auth/me/` reports for the signed-in user. */
+type Capability = {
+  [K in keyof AuthUser]: AuthUser[K] extends boolean ? K : never;
+}[keyof AuthUser];
 
-function RequireAdminAccess({ children }: { children: ReactNode }) {
+/** Renders a route only when the server says this user may use it. */
+function RequireAccess({ flag, children }: { flag: Capability; children: ReactNode }) {
   const { user } = useAuth();
-  if (!isAdministrator(user)) {
+  if (!user?.[flag]) {
     return <Navigate replace to="/" />;
   }
   return children;
@@ -502,11 +499,11 @@ function App() {
               <Route element={<AddStudentScreen />} path="students/new" />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_import_data">
                     <Suspense fallback={<ImportFallback />}>
                       <ImportStudentsScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="students/import"
               />
@@ -514,21 +511,21 @@ function App() {
               <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_import_data">
                     <Suspense fallback={<ImportFallback />}>
                       <ImportLegacyGradingsScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="gradings/import-legacy"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_reconcile_imported_history">
                     <Suspense fallback={<ImportFallback />}>
                       <LegacyReconciliationScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="gradings/legacy-records"
               />
@@ -548,29 +545,29 @@ function App() {
               <Route element={<SyllabusScreen />} path="syllabus" />
               <Route
                 element={
-                  <RequireAuditAccess>
+                  <RequireAccess flag="can_read_audit_log">
                     <AuditScreen />
-                  </RequireAuditAccess>
+                  </RequireAccess>
                 }
                 path="audit"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_manage_users">
                     <Suspense fallback={<UserManagementFallback />}>
                       <UsersScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="users"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_manage_users">
                     <Suspense fallback={<UserManagementFallback />}>
                       <UserDetailScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="users/:id"
               />

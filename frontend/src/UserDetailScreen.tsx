@@ -18,7 +18,6 @@ import {
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
-import { isAdministrator } from "./permissions";
 
 function AccountForm({
   user,
@@ -123,7 +122,7 @@ function AuthorityForm({
     can_view_grading_audit_log: user.can_view_grading_audit_log,
   });
   const queryClient = useQueryClient();
-  const targetIsAdministrator = isAdministrator(user);
+  const targetIsAdministrator = user.role === "administrator";
   const mutation = useMutation({
     mutationFn: () => updateManagedUserAuthority(user.id, authority),
     onSuccess: (updated) => {

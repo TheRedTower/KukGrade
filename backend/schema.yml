@@ -5787,6 +5787,27 @@ components:
         can_view_grading_audit_log:
           type: boolean
           readOnly: true
+        can_manage_users:
+          type: boolean
+          readOnly: true
+        can_import_data:
+          type: boolean
+          readOnly: true
+        can_reconcile_imported_history:
+          type: boolean
+          readOnly: true
+        can_delete_students:
+          type: boolean
+          readOnly: true
+        can_delete_assessments:
+          type: boolean
+          readOnly: true
+        can_delete_any_session:
+          type: boolean
+          readOnly: true
+        can_read_audit_log:
+          type: boolean
+          readOnly: true
         must_change_password:
           type: boolean
           readOnly: true
@@ -5800,9 +5821,16 @@ components:
           description: Designates that this user has all permissions without explicitly
             assigning them.
       required:
+      - can_delete_any_session
+      - can_delete_assessments
+      - can_delete_students
+      - can_import_data
       - can_make_final_grading_decision
+      - can_manage_users
       - can_override_locked_session
       - can_promote_student
+      - can_read_audit_log
+      - can_reconcile_imported_history
       - can_view_grading_audit_log
       - email
       - first_name

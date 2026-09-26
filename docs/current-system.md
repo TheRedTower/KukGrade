@@ -274,6 +274,11 @@ checks on each push and pull request.
   (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
   designated Master, never an administrator; administrators hold every
   other capability, including the other two sensitive permissions.
+- **The UI never decides from role (2026-09-26)**: `/api/auth/me/` reports
+  each administrator capability from the permission its action checks, and
+  whether the audit log is readable from the backend rule itself. Routes
+  (one `RequireAccess` guard) and controls read those flags, so the UI cannot
+  offer what the server will refuse.
 - **Frontend authentication and shell**: login, logout, current-user bootstrap,
   responsive navigation, profile/password controls, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The

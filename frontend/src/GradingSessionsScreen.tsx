@@ -15,7 +15,6 @@ import {
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
-import { isAdministrator } from "./permissions";
 import "./GradingSessions.css";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -374,10 +373,6 @@ export function GradingSessionsScreen() {
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
   const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
-  // Historical import/reconciliation is administrator-only (data_imports
-  // and gradings.can_reconcile_imported_history permissions) - see
-  // docs/permissions.md.
-  const canManageLegacyImports = isAdministrator(user);
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
@@ -392,23 +387,23 @@ export function GradingSessionsScreen() {
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
         <div className="gs-page-header-actions">
-          {canManageLegacyImports && (
-            <>
-              <button
-                className="btn-secondary"
-                onClick={() => navigate("/gradings/legacy-records")}
-                type="button"
-              >
-                Historical records
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => navigate("/gradings/import-legacy")}
-                type="button"
-              >
-                Import historical gradings
-              </button>
-            </>
+          {user?.can_reconcile_imported_history && (
+            <button
+              className="btn-secondary"
+              onClick={() => navigate("/gradings/legacy-records")}
+              type="button"
+            >
+              Historical records
+            </button>
+          )}
+          {user?.can_import_data && (
+            <button
+              className="btn-secondary"
+              onClick={() => navigate("/gradings/import-legacy")}
+              type="button"
+            >
+              Import historical gradings
+            </button>
           )}
           <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
             <PlusIcon /> Create grading

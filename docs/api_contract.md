@@ -88,10 +88,15 @@ logged or included in the audit event it writes.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student`, `can_override_locked_session` and
-`can_view_grading_audit_log`, all **computed from the caller's Django
-permissions** rather than stored. Use them to hide
-affordances; the server remains the enforcement boundary. `role` is
-`instructor` or `administrator` and carries no authority of its own.
+`can_view_grading_audit_log` (the four grantable authorities), and the
+capabilities `can_manage_users`, `can_import_data`,
+`can_reconcile_imported_history`, `can_delete_students`,
+`can_delete_assessments` and `can_delete_any_session`, each from the exact
+permission its action checks, plus `can_read_audit_log`, the audit-log rule
+itself. All are **computed on the server** rather than stored. The frontend
+decides what to offer from these and never from `role`; the server remains
+the enforcement boundary. `role` is `instructor` or `administrator` and
+carries no authority of its own.
 
 Login failures use a generic error and must not reveal whether an account exists. Unsafe session-authenticated requests require a CSRF token. The React frontend obtains the CSRF cookie from `/api/auth/me/` during startup and sends credentials with API requests.
 

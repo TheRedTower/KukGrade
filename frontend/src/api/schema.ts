@@ -2467,6 +2467,13 @@ export interface components {
             readonly can_promote_student: boolean;
             readonly can_override_locked_session: boolean;
             readonly can_view_grading_audit_log: boolean;
+            readonly can_manage_users: boolean;
+            readonly can_import_data: boolean;
+            readonly can_reconcile_imported_history: boolean;
+            readonly can_delete_students: boolean;
+            readonly can_delete_assessments: boolean;
+            readonly can_delete_any_session: boolean;
+            readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
             readonly is_staff: boolean;
             /**

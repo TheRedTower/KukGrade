@@ -238,7 +238,8 @@ checks on each push and pull request.
   can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
-  stay administrator-only. `POST /api/auth/change-password/` lets a user
+  stay administrator-only; the account menu's "Edit your name" form calls it
+  and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one; throttled the same
   way login is, validated by the same password validators as every other
   password path, and never logs the value. Both are audited as the user's

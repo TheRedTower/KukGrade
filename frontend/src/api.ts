@@ -205,6 +205,16 @@ export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
 }
 
+export type SelfProfilePayload = Schemas["PatchedSelfProfileRequest"];
+
+/** Your own first and last name - the only things a user edits about themselves. */
+export async function updateCurrentUser(data: SelfProfilePayload): Promise<AuthUser> {
+  return apiRequest<AuthUser>("/api/auth/me/", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function loginUser(
   email: string,
   password: string,

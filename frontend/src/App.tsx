@@ -338,7 +338,7 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 }
 
 function ApplicationShell() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateName } = useAuth();
   const navigate = useNavigate();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
@@ -374,6 +374,7 @@ function ApplicationShell() {
             <ProfileMenu
               isLoggingOut={isLoggingOut}
               onLogout={handleLogout}
+              onUpdateName={updateName}
               themeToggle={<ThemeToggle />}
               user={user}
             />

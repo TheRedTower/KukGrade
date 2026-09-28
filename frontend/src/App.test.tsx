@@ -835,6 +835,71 @@ describe("Instructor profile menu and Master capabilities", () => {
     await user.click(screen.getByRole("heading", { name: "Overview" }));
     expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
   });
+
+  it("saves the user's own name and shows it straight away", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/") && init?.method === "PATCH") {
+        return jsonResponse(200, {
+          ...authUser,
+          first_name: "Casey",
+          last_name: "Park",
+          full_name: "Casey Park",
+        });
+      }
+      return jsonResponse(200, authUser);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Edit your name" }));
+    const lastName = screen.getByLabelText("Last name");
+    await user.clear(lastName);
+    await user.type(lastName, "  Park ");
+    await user.click(screen.getByRole("button", { name: "Save name" }));
+
+    expect(await screen.findByRole("button", { name: "Casey Park, Instructor" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Save name" })).not.toBeInTheDocument();
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(patch?.[0]).toContain("/api/auth/me/");
+    expect(JSON.parse(patch?.[1]?.body as string)).toEqual({
+      first_name: "Casey",
+      last_name: "Park",
+    });
+  });
+
+  it("keeps the name form open with the server's message when saving fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === "PATCH") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "Last name is too long.",
+              fields: { last_name: ["Last name is too long."] },
+            },
+          });
+        }
+        return jsonResponse(200, authUser);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Edit your name" }));
+    await user.click(screen.getByRole("button", { name: "Save name" }));
+
+    const menu = screen.getByLabelText("User account menu");
+    expect(await within(menu).findByRole("alert")).toHaveTextContent("Last name is too long.");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeEnabled();
+  });
 });
 
 describe("Mandatory password change", () => {

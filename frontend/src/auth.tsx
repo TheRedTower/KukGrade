@@ -15,6 +15,7 @@ import {
   getCurrentUser,
   loginUser,
   logoutUser,
+  updateCurrentUser,
 } from "./api";
 
 type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
@@ -27,6 +28,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateName: (firstName: string, lastName: string) => Promise<void>;
   /** Re-run the session check after a transport failure. */
   retry: () => void;
 };
@@ -112,6 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const updateNameMutation = useMutation({
+    mutationFn: ({ firstName, lastName }: { firstName: string; lastName: string }) =>
+      updateCurrentUser({ first_name: firstName, last_name: lastName }),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updatedUser);
+    },
+  });
+
   const user = currentUserQuery.data ?? null;
 
   useEffect(() => {
@@ -168,9 +178,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [changePasswordMutation],
   );
 
+  const updateName = useCallback(
+    async (firstName: string, lastName: string) => {
+      await updateNameMutation.mutateAsync({ firstName, lastName });
+    },
+    [updateNameMutation],
+  );
+
   const value = useMemo(
-    () => ({ user, status, error, login, logout, changePassword, retry }),
-    [changePassword, error, login, logout, retry, status, user],
+    () => ({ user, status, error, login, logout, changePassword, updateName, retry }),
+    [changePassword, error, login, logout, retry, status, updateName, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

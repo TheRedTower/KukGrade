@@ -88,7 +88,8 @@ def test_production_settings_are_hardened(
     assert settings.SECURE_SSL_REDIRECT is True
     assert settings.SECURE_HSTS_SECONDS == 31536000
     assert settings.SECURE_HSTS_INCLUDE_SUBDOMAINS is True
-    assert settings.SECURE_HSTS_PRELOAD is True
+    # Preload is a deliberate opt-in: it is close to permanent for the domain.
+    assert settings.SECURE_HSTS_PRELOAD is False
     # Unlike every other transport setting above, this one is not implied by
     # DEBUG=false: trusting a proxy header is only safe when the deployment
     # guarantees the proxy strips it, which is not something this code can

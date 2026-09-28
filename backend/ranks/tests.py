@@ -193,6 +193,7 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "category_display": "Coloured belt",
         "belt_colour": "WHITE",
         "stripe_colour": "",
+        "stripe_count": 0,
         "active": True,
         "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
     }
@@ -261,26 +262,43 @@ def test_catalogue_is_read_only_in_django_admin(model: type[Model]) -> None:
 
 def test_every_coloured_rank_is_the_belt_below_with_a_stripe_towards_the_next() -> None:
     belts = {
-        rank.code: (rank.belt_colour, rank.stripe_colour)
+        rank.code: (rank.belt_colour, rank.stripe_colour, rank.stripe_count)
         for rank in Rank.objects.filter(category=Rank.Category.COLOURED_BELT)
     }
 
     assert belts == {
-        "WHITE": ("WHITE", ""),
-        "YELLOW_STRIPE": ("WHITE", "YELLOW"),
-        "YELLOW": ("YELLOW", ""),
-        "BLUE_STRIPE": ("YELLOW", "BLUE"),
-        "BLUE": ("BLUE", ""),
-        "RED_STRIPE": ("BLUE", "RED"),
-        "RED": ("RED", ""),
-        "BROWN_STRIPE": ("RED", "BROWN"),
-        "BROWN": ("BROWN", ""),
-        "BLACK_STRIPE": ("BROWN", "BLACK"),
+        "WHITE": ("WHITE", "", 0),
+        "YELLOW_STRIPE": ("WHITE", "YELLOW", 1),
+        "YELLOW": ("YELLOW", "", 0),
+        "BLUE_STRIPE": ("YELLOW", "BLUE", 1),
+        "BLUE": ("BLUE", "", 0),
+        "RED_STRIPE": ("BLUE", "RED", 1),
+        "RED": ("RED", "", 0),
+        "BROWN_STRIPE": ("RED", "BROWN", 1),
+        "BROWN": ("BROWN", "", 0),
+        "BLACK_STRIPE": ("BROWN", "BLACK", 1),
     }
 
 
+def test_dahn_bo_is_a_brown_belt_with_two_black_stripes() -> None:
+    dahn_bo = Rank.objects.get(code="DAHN_BO")
+
+    assert (dahn_bo.belt_colour, dahn_bo.stripe_colour, dahn_bo.stripe_count) == (
+        "BROWN",
+        "BLACK",
+        2,
+    )
+
+
+def test_stripes_and_their_colour_go_together() -> None:
+    for kwargs in ({"stripe_colour": BeltColour.BLUE}, {"stripe_count": 1}):
+        with pytest.raises(ValidationError) as exc_info:
+            Rank(**rank_kwargs(**kwargs)).full_clean()
+        assert "stripe_count" in exc_info.value.message_dict
+
+
 def test_a_stripe_must_differ_from_its_belt() -> None:
-    rank = Rank(**rank_kwargs(stripe_colour=BeltColour.WHITE))
+    rank = Rank(**rank_kwargs(stripe_colour=BeltColour.WHITE, stripe_count=1))
 
     with pytest.raises(ValidationError) as exc_info:
         rank.full_clean()

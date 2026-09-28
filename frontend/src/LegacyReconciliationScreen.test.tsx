@@ -39,6 +39,7 @@ const yellowRank: Rank = {
   category_display: "Coloured belt",
   belt_colour: "YELLOW",
   stripe_colour: "",
+  stripe_count: 0,
   active: true,
   next_rank: null,
 };

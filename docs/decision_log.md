@@ -18,6 +18,22 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - HSTS without preload
+
+Status: Accepted
+
+Decision:
+Production sends HSTS for one year including subdomains, without the
+preload token. `DJANGO_SECURE_HSTS_PRELOAD=true` opts in; the `check
+--deploy` warning for a missing preload (`security.W021`) is silenced only
+while preload is off.
+
+Context:
+Preloading puts kukgrade.co.uk and every subdomain into browsers as
+HTTPS-only, which takes months to undo, and the token alone lets anyone
+submit the domain. The only gain is protecting a first-ever visit, which
+Cloudflare's HTTPS redirect already covers. Agreed with the user 2026-09-28.
+
 ### 2026-09-28 - Two-hour idle sign-out; two trusted proxies
 
 Status: Accepted
@@ -73,9 +89,10 @@ user 2026-09-28.
 
 Consequences:
 `RankVisual` and the syllabus screen's own swatch are deleted, with their
-per-screen CSS. Dahn Bo is a brown belt with two stripes and PSBN and above
-wear a thicker belt; until the black-belt ranks' appearance is decided they
-are served as plain black.
+per-screen CSS. A `stripe_count` carries Dahn Bo: a brown belt with two black
+stripes (the user, same day; it can be more, and two is the symbol). PSBN and
+above wear a thicker belt; until the black-belt titles' appearance is decided
+they are served as plain black.
 
 ### 2026-09-28 - Age bands and their programmes are served
 

@@ -177,9 +177,10 @@ the same rule the grading services use (`RankQuerySet.next_active_after`), so
 the frontend never works out rank progression itself.
 
 Each rank also carries its belt: `belt_colour` (`WHITE`, `YELLOW`, `BLUE`,
-`RED`, `BROWN`, `BLACK`) and `stripe_colour` (the same colours, or blank for
-no stripe). A stripe rank is the belt below it with a stripe of the colour it
-is working towards - Blue stripe is `YELLOW` with a `BLUE` stripe.
+`RED`, `BROWN`, `BLACK`), `stripe_colour` (the same colours, or blank for no
+stripe) and `stripe_count`. A stripe rank is the belt below it with one stripe
+of the colour it is working towards - Blue stripe is `YELLOW` with one `BLUE`
+stripe - and Dahn Bo is `BROWN` with two `BLACK` stripes.
 
 ## 5. Syllabus Catalogue
 

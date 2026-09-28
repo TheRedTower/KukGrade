@@ -29,8 +29,9 @@ checks on each push and pull request.
   an assumed venue.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
-  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and
-  secure cookies default on. The one exception is the reverse-proxy header
+  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
+  subdomains included), SSL redirect and secure cookies default on; HSTS
+  preload defaults off and is an explicit opt-in. The one exception is the reverse-proxy header
   (`DJANGO_BEHIND_TLS_PROXY`), which defaults **off** even in production and
   must be opted into explicitly - trusting it without a proxy that actually
   strips it lets a client spoof an already-secure request. The browsable API
@@ -53,8 +54,9 @@ checks on each push and pull request.
   Each rank carries its belt: `belt_colour`, plus `stripe_colour` for a
   stripe rank, which is the belt below with a stripe towards the next (Blue
   stripe is a yellow belt with a blue stripe). Every screen draws ranks with
-  one `BeltSwatch` from these fields. Dahn Bo and the black-belt titles are
-  plain black until their appearance is decided.
+  one `BeltSwatch` from these fields and `stripe_count`. Dahn Bo is a brown
+  belt with two black stripes; the black-belt titles are plain black until
+  their appearance is decided.
 - Syllabus catalogue for WKSA Version 2014, read-only. Requirements are read
   through `GET /api/syllabus/requirements/effective/`
   (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form

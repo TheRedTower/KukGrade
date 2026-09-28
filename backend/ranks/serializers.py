@@ -35,6 +35,7 @@ class RankSerializer(serializers.ModelSerializer):
             "category_display",
             "belt_colour",
             "stripe_colour",
+            "stripe_count",
             "active",
             "next_rank",
         )

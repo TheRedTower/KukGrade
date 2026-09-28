@@ -1,9 +1,11 @@
 /* One belt swatch for every screen: the belt colour, and a band across its
-   middle for a stripe rank. Colours come from the --belt-* tokens. */
+   middle for each stripe - one for a stripe rank, two for Dahn Bo. Colours
+   come from the --belt-* tokens. */
 
 .belt {
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
+  justify-content: center;
+  gap: 0.15rem;
   flex-shrink: 0;
   width: 1.5rem;
   height: 0.6rem;
@@ -13,12 +15,7 @@
 }
 
 .belt-stripe {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 0.4rem;
-  transform: translateX(-50%);
+  width: 0.3rem;
 }
 
 .belt-white {

@@ -20,6 +20,7 @@ const blueStripe: Rank = {
   category_display: "Coloured belt",
   belt_colour: "YELLOW",
   stripe_colour: "BLUE",
+  stripe_count: 1,
   active: true,
   next_rank: 5,
 };
@@ -35,11 +36,26 @@ describe("BeltSwatch", () => {
 
   it("draws no band for a rank without a stripe", () => {
     const { container } = render(
-      <BeltSwatch rank={{ ...blueStripe, belt_colour: "BLUE", stripe_colour: "" }} />,
+      <BeltSwatch
+        rank={{ ...blueStripe, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0 }}
+      />,
     );
 
     expect(container.querySelector(".belt")).toHaveClass("belt-blue");
     expect(container.querySelector(".belt-stripe")).toBeNull();
+  });
+
+  it("draws two black bands on a brown belt for Dahn Bo", () => {
+    const { container } = render(
+      <BeltSwatch
+        rank={{ ...blueStripe, belt_colour: "BROWN", stripe_colour: "BLACK", stripe_count: 2 }}
+      />,
+    );
+
+    expect(container.querySelector(".belt")).toHaveClass("belt-brown");
+    const stripes = container.querySelectorAll(".belt-stripe");
+    expect(stripes).toHaveLength(2);
+    stripes.forEach((stripe) => expect(stripe).toHaveClass("belt-black"));
   });
 });
 

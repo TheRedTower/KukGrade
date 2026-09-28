@@ -307,7 +307,14 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
     not DEBUG,
 )
-SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", not DEBUG)
+# Preload is off by default: listing the domain in browsers' preload lists is
+# close to permanent for kukgrade.co.uk and every subdomain, and the header's
+# preload token alone lets anyone submit it. A year of HSTS plus Cloudflare's
+# HTTPS redirect covers the first visit well enough. Opt in deliberately.
+SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
+# check --deploy warns when preload is off; that is the decision above, not an
+# oversight (2026-09-28 decision log entry).
+SILENCED_SYSTEM_CHECKS = [] if SECURE_HSTS_PRELOAD else ["security.W021"]
 
 # Set when TLS terminates at a reverse proxy that forwards the scheme, so
 # Django can tell an already-secure request from one that needs redirecting.

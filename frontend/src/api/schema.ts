@@ -2163,6 +2163,7 @@ export interface components {
             readonly category_display: string;
             readonly belt_colour: components["schemas"]["BeltColourEnum"];
             readonly stripe_colour: components["schemas"]["BeltColourEnum"] | components["schemas"]["BlankEnum"];
+            readonly stripe_count: number;
             readonly active: boolean;
             readonly next_rank: number | null;
         };

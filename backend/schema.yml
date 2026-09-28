@@ -4916,6 +4916,9 @@ components:
           oneOf:
           - $ref: '#/components/schemas/BeltColourEnum'
           - $ref: '#/components/schemas/BlankEnum'
+        stripe_count:
+          type: integer
+          readOnly: true
         active:
           type: boolean
           readOnly: true
@@ -4934,6 +4937,7 @@ components:
       - next_rank
       - order
       - stripe_colour
+      - stripe_count
     RankCategoryEnum:
       enum:
       - COLOURED_BELT

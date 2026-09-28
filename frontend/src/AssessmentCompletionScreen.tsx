@@ -42,22 +42,7 @@ import {
 import { isCoreCategory } from "./syllabusCategories";
 import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
-
-function CheckIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
-      <path d="M5 12.5 10 17.5 19 7" />
-    </svg>
-  );
-}
-
-function CrossIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
-      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
-    </svg>
-  );
-}
+import { CheckIcon, CrossIcon } from "./Icons";
 
 function SealIcon() {
   return (
@@ -73,7 +58,7 @@ function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "MET") {
     return (
       <span className="acp-result acp-result-met">
-        <CheckIcon />
+        <CheckIcon size={13} />
         Met
       </span>
     );
@@ -81,7 +66,7 @@ function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "NOT_MET") {
     return (
       <span className="acp-result acp-result-not-met">
-        <CrossIcon />
+        <CrossIcon size={13} />
         Not met
       </span>
     );
@@ -469,11 +454,11 @@ export function AssessmentCompletionScreen() {
             </div>
             <div className="acp-count-tallies">
               <span className="acp-result acp-result-met">
-                <CheckIcon />
+                <CheckIcon size={13} />
                 {`${stats.metCount} met`}
               </span>
               <span className="acp-result acp-result-not-met">
-                <CrossIcon />
+                <CrossIcon size={13} />
                 {`${stats.notMetCount} not met`}
               </span>
             </div>
@@ -556,7 +541,7 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notMetCount > 0) {
     return (
       <span className="acp-core-mark acp-core-mark-not-met" aria-hidden="true">
-        <CrossIcon />
+        <CrossIcon size={13} />
       </span>
     );
   }
@@ -569,7 +554,7 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
   }
   return (
     <span className="acp-core-mark acp-core-mark-met" aria-hidden="true">
-      <CheckIcon />
+      <CheckIcon size={13} />
     </span>
   );
 }

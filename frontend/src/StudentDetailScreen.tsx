@@ -19,44 +19,7 @@ import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
 import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
-
-function LockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="privacy-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <rect height="11" rx="2" ry="2" width="18" x="3" y="11" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2.5"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
+import { CheckIcon, LockIcon } from "./Icons";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -80,7 +43,6 @@ function gradingHistoryOutcomeLabel(item: GradingHistoryItem): string {
   if (item.outcome === "CONDITIONAL") return "Conditional";
   return "Unresolved";
 }
-
 
 export function StudentDetailScreen() {
   const { id } = useParams<{ id: string }>();
@@ -352,7 +314,6 @@ export function StudentDetailScreen() {
           </p>
         </div>
 
-
         <div className="detail-header-actions">
           <button
             type="button"
@@ -384,7 +345,7 @@ export function StudentDetailScreen() {
                 <dd className="detail-kv-value">
                   <span>{formatLongDate(student.date_of_birth)}</span>
                   <div className="privacy-badge-inline" title="Confidential: visible only on record">
-                    <LockIcon />
+                    <LockIcon size={14} className="privacy-icon" />
                   </div>
                 </dd>
               </div>
@@ -448,7 +409,7 @@ export function StudentDetailScreen() {
                             </span>
                           ) : item.outcome === "PASS" ? (
                             <span className="outcome-badge outcome-passed">
-                              <CheckIcon />
+                              <CheckIcon size={14} />
                               <span>{gradingHistoryOutcomeLabel(item)}</span>
                             </span>
                           ) : (
@@ -527,7 +488,7 @@ export function StudentDetailScreen() {
                 <span className="readiness-label">Current status</span>
                 {student.status === "ACTIVE" ? (
                   <span className="readiness-badge readiness-eligible">
-                    <CheckIcon />
+                    <CheckIcon size={14} />
                     <span>Eligible for registration</span>
                   </span>
                 ) : student.status === "INACTIVE" ? (

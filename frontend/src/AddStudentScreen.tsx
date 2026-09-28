@@ -12,26 +12,7 @@ import {
 } from "./api";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
-
-function LockIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="privacy-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <rect height="11" rx="2" ry="2" width="18" x="3" y="11" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
+import { LockIcon } from "./Icons";
 
 export function AddStudentScreen() {
   const navigate = useNavigate();
@@ -140,7 +121,6 @@ export function AddStudentScreen() {
     }
     return null;
   }
-
 
   return (
     <section aria-labelledby="add-student-title" className="add-student-view">
@@ -275,7 +255,7 @@ export function AddStudentScreen() {
                 <p className="form-field-error" id="dob-error" role="alert">{getFieldError("date_of_birth")}</p>
               ) : (
                 <div className="privacy-badge-line">
-                  <LockIcon />
+                  <LockIcon size={14} className="privacy-icon" />
                   <span>Date of birth is visible only on the individual student record.</span>
                 </div>
               )}

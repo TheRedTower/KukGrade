@@ -41,6 +41,7 @@ import { formatSessionDate, formatTime } from "./dates";
 import { RankVisual } from "./RankVisual";
 import "./CandidateAssessment.css";
 import "./CohortAdjudication.css";
+import { CheckIcon, WarningIcon } from "./Icons";
 
 type StagedDecision = {
   outcome: CandidateOutcomeOutcome;
@@ -70,23 +71,6 @@ function outcomeClass(outcome: CandidateOutcomeOutcome | null | undefined): stri
 
 function missingRequirements(decision: StagedDecision): boolean {
   return decision.outcome === "CONDITIONAL" && !decision.conditionalRequirements.trim();
-}
-
-function RecordedIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true">
-      <path d="M5 12.5l4.5 4.5L19 7.5" />
-    </svg>
-  );
-}
-
-function ShortfallIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
-      <path d="M12 3.5 21.5 20H2.5z" />
-      <path d="M12 10v4M12 17h.01" />
-    </svg>
-  );
 }
 
 export function CohortAdjudicationScreen() {
@@ -386,7 +370,7 @@ export function CohortAdjudicationScreen() {
                     <td>
                       {outcome?.status === "FINALISED" ? (
                         <span className="cab-recorded">
-                          <RecordedIcon /> Recorded · {outcome.final_outcome_display}
+                          <CheckIcon size={14} /> Recorded · {outcome.final_outcome_display}
                         </span>
                       ) : row.decidable && canDecide && outcome ? (
                         <div
@@ -452,7 +436,7 @@ export function CohortAdjudicationScreen() {
                   {shortfalls.map((item) => (
                     <li key={item.id} className="cab-note cab-note-shortfall">
                       <span className="cab-note-title">
-                        <ShortfallIcon /> {item.item_name} · {item.category_display}
+                        <WarningIcon size={14} /> {item.item_name} · {item.category_display}
                       </span>
                       {item.assessor_notes && <q>{item.assessor_notes}</q>}
                       <span className="cab-note-by">

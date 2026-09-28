@@ -16,6 +16,7 @@ import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
+import { CheckIcon, LockIcon, SearchIcon } from "./Icons";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -28,37 +29,11 @@ function PlusIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg aria-hidden="true" className="gs-search-icon" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-    </svg>
-  );
-}
-
 function ArrowRightIcon() {
   return (
     <svg aria-hidden="true" fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16">
       <line x1="5" x2="19" y1="12" y2="12" />
       <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="13">
-      <rect height="11" rx="2" ry="2" width="18" x="3" y="11" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" width="13">
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
@@ -96,8 +71,8 @@ function SessionStatusBadge({ status }: { status: GradingSessionStatus }) {
   const cls = `gs-status-badge gs-status-${status.toLowerCase()}`;
   if (status === "OPEN") return <span className={cls}><span className="gs-status-dot" />Open</span>;
   if (status === "DRAFT") return <span className={cls}><span className="gs-status-dot" />Draft</span>;
-  if (status === "LOCKED") return <span className={cls}><LockIcon /> Locked</span>;
-  if (status === "COMPLETED") return <span className={cls}><CheckIcon /> Completed</span>;
+  if (status === "LOCKED") return <span className={cls}><LockIcon size={13} /> Locked</span>;
+  if (status === "COMPLETED") return <span className={cls}><CheckIcon size={13} /> Completed</span>;
   if (status === "CANCELLED") return <span className={cls}><XCircleIcon /> Cancelled</span>;
   return <span className={cls}>{STATUS_LABEL[status]}</span>;
 }
@@ -414,7 +389,7 @@ export function GradingSessionsScreen() {
       {/* ── Filters */}
       <div className="gs-filter-bar" role="search">
         <div className="gs-filter-search-wrap">
-          <SearchIcon />
+          <SearchIcon size={16} className="gs-search-icon" />
           <input
             aria-label="Search grading sessions"
             className="gs-search-input"

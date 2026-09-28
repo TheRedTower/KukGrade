@@ -11,26 +11,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import "./StudentScreens.css";
-
-function SearchIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="filter-icon"
-      fill="none"
-      height="18"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="18"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-    </svg>
-  );
-}
+import { SearchIcon } from "./Icons";
 
 function ClearIcon() {
   return (
@@ -238,7 +219,7 @@ export function StudentsScreen() {
       {/* Filter and Search Bar */}
       <div className="students-filter-bar" role="search" aria-label="Student filters">
         <div className="search-input-wrapper">
-          <SearchIcon />
+          <SearchIcon size={18} className="filter-icon" />
           <input
             type="text"
             className="student-search-input"

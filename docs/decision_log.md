@@ -18,6 +18,24 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - Two-hour idle sign-out; two trusted proxies
+
+Status: Accepted
+
+Decision:
+A session ends after two hours with no request; each request restarts the
+two hours. Production trusts two proxy hops, Cloudflare then Traefik.
+
+Context:
+Confirmed by the user 2026-09-28: "if the session is idle for 2 hours ...
+it's logged out", and the site will sit behind Cloudflare and Traefik.
+
+Consequences:
+The frontend signs the viewer out as soon as any request reports the session
+has ended. The proxy count is only correct if Traefik trusts Cloudflare's
+ranges and the host takes web traffic only from Cloudflare - see
+`deployment.md`.
+
 ### 2026-09-28 - Three withdrawal reasons and Other, served
 
 Status: Accepted

@@ -477,6 +477,13 @@ checks on each push and pull request.
   bound holds as stated. If that ever becomes multi-process, the throttle
   needs a shared cache (Redis) or the bound loosens to 10/min per process;
   see the 2026-09-15 decision log entry.
+  Production sits behind Cloudflare and then Traefik, so the throttle trusts
+  two proxy hops (`DJANGO_NUM_PROXIES=2`) to find the visitor's address.
+- **Sessions end after two hours without a request** (`SESSION_COOKIE_AGE`,
+  with `SESSION_SAVE_EVERY_REQUEST` sliding it forward). Nothing in the
+  frontend polls, so an idle tab does not keep a session alive. Any request
+  answered "not signed in" returns the viewer to sign-in (`AuthProvider`
+  watches every query and mutation), not only the startup session check.
 - **Password validation is consistent everywhere an account can be
   created**: the users API, `SetPasswordSerializer`, and the Django admin
   add-user form all run the full configured validator set, including

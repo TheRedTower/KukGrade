@@ -150,6 +150,22 @@ describe("App authentication", () => {
     );
   });
 
+  it("returns to sign-in when a screen's request finds the session has ended", async () => {
+    window.history.replaceState({}, "", "/students");
+    // Signed in when the app loads; the session then expires, so the
+    // students request is the first to hear it.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) =>
+        url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : authRequiredResponse(),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
   it("protects authenticated routes from anonymous users", async () => {
     window.history.replaceState({}, "", "/sessions");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));

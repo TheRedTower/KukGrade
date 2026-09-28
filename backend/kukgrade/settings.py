@@ -221,8 +221,9 @@ REST_FRAMEWORK = {
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_change": "10/min"},
-    # One trusted Traefik hop in production. Zero ignores untrusted
-    # X-Forwarded-For in native development.
+    # Production sits behind Cloudflare and then Traefik: two trusted hops,
+    # so the client address is the second-to-last X-Forwarded-For entry.
+    # Zero ignores untrusted X-Forwarded-For in native development.
     "NUM_PROXIES": env_int("DJANGO_NUM_PROXIES", 0),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -284,6 +285,12 @@ CSRF_FAILURE_VIEW = "kukgrade.exceptions.csrf_failure"
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
+# Signed out after two hours with no request. Saving on every request slides
+# the expiry forward, so the two hours count from the last activity, not
+# from sign-in. The frontend never polls, so an idle tab does not keep a
+# session alive on its own.
+SESSION_COOKIE_AGE = 2 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = os.environ.get("DJANGO_SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = os.environ.get("DJANGO_CSRF_COOKIE_SAMESITE", "Lax")

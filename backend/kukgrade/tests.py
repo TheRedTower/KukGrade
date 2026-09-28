@@ -137,12 +137,12 @@ def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(
     assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 
-def test_one_trusted_proxy_can_be_configured_for_traefik(
+def test_the_trusted_proxy_count_is_configurable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="1")
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="2")
 
-    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 1
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 2
 
 
 def test_browsable_api_is_not_exposed_in_production(

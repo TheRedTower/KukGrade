@@ -122,6 +122,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // A session that expired - two hours without a request - answers every
+  // call with "not signed in". Whichever request hears it first signs the
+  // viewer out here, so the next action lands on sign-in rather than an
+  // error on whatever screen was open.
+  useEffect(() => {
+    function signOutIfSessionEnded(error: unknown) {
+      if (isAnonymousResponse(error)) {
+        queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      }
+    }
+    const stopQueries = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    const stopMutations = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    return () => {
+      stopQueries();
+      stopMutations();
+    };
+  }, [queryClient]);
+
   const user = currentUserQuery.data ?? null;
 
   useEffect(() => {

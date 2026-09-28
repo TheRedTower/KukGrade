@@ -26,9 +26,16 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
    name as it should appear in the top bar. Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
-5. Verify that Traefik overwrites client-supplied `X-Forwarded-Proto` and
-   appends the true remote address to `X-Forwarded-For` before keeping
-   `DJANGO_BEHIND_TLS_PROXY=true` and `DJANGO_NUM_PROXIES=1`.
+5. Requests pass through Cloudflare and then Traefik, so
+   `DJANGO_NUM_PROXIES=2`. That count is only right if Traefik trusts
+   Cloudflare's published IP ranges in its entrypoint's
+   `forwardedHeaders.trustedIPs` - it then appends Cloudflare's address to the
+   `X-Forwarded-For` Cloudflare set, leaving the visitor second from the end -
+   and if the host accepts web traffic only from Cloudflare. Verify both, and
+   that `X-Forwarded-Proto` cannot be set by a client, before keeping
+   `DJANGO_BEHIND_TLS_PROXY=true` and `DJANGO_NUM_PROXIES=2`. With the wrong
+   count every visitor shares Cloudflare's address and the login throttle
+   locks everyone out together.
 
 The app's named volume holds private, temporary roster/workbook uploads across
 container replacement. It is never served by WhiteNoise. The image has a

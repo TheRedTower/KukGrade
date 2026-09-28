@@ -7,14 +7,12 @@ import {
   CandidateOutcome,
   GradingCandidate,
   GradingSession,
-  StudentListItem,
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
   bulkUpdateCandidateStatus,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
-  getAllStudents,
   getGradingSession,
   updateGradingSession,
   deleteGradingSession,
@@ -250,13 +248,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     enabled: !isNaN(sessionId),
   });
 
-  // 5. Fetch students list to cross-reference current ranks
-  const studentsQuery = useQuery({
-    queryKey: ["students", "all"],
-    queryFn: () => getAllStudents(),
-    staleTime: 60_000,
-  });
-
   const session = sessionQuery.data;
 
   // Mutations
@@ -387,26 +378,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     const rawCandidates: GradingCandidate[] = candidatesQuery.data?.results ?? [];
     const assessments: CandidateAssessment[] = assessmentsQuery.data?.results ?? [];
     const outcomes: CandidateOutcome[] = outcomesQuery.data?.results ?? [];
-    const students: StudentListItem[] = studentsQuery.data?.results ?? [];
 
-    const studentMap = new Map<number, StudentListItem>(students.map((s) => [s.id, s]));
     const assessmentMap = new Map<number, CandidateAssessment>(assessments.map((a) => [a.candidate, a]));
     const outcomeMap = new Map<number, CandidateOutcome>(outcomes.map((o) => [o.candidate, o]));
 
     return rawCandidates.map((c: GradingCandidate) => {
-      const student = studentMap.get(c.student);
       const assessment = assessmentMap.get(c.id);
       const outcome = outcomeMap.get(c.id);
 
       return {
         candidate: c,
-        currentRankName: student?.current_rank_name || "White",
+        // The rank held at registration (GradingCandidate.from_rank_name),
+        // not the student's live current rank - see the 2026-09-25 decision
+        // log entry. Never moves if the student is promoted elsewhere.
+        currentRankName: c.from_rank_name,
         targetRankName: c.testing_for_rank_name || "Next rank",
         assessment,
         outcome,
       };
     });
-  }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data, studentsQuery.data]);
+  }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data]);
 
   // Count candidates awaiting final decision
   const awaitingDecisionCount = useMemo(() => {

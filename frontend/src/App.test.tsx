@@ -3294,7 +3294,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const row1 = await screen.findByTestId("candidate-row-101");
     expect(within(row1).getByText("Alex Carter")).toBeVisible();
     expect(within(row1).getByText("WKSA: UK-1001")).toBeVisible();
-    expect(within(row1).getByText("Yellow stripe")).toBeVisible();
+    expect(within(row1).getByText("Yellow Stripe")).toBeVisible();
     expect(within(row1).getByText("Yellow")).toBeVisible();
     expect(within(row1).getByText("In progress")).toBeVisible();
     expect(within(row1).getByText("Continue assessment →")).toBeVisible();

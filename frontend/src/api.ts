@@ -502,7 +502,7 @@ export async function bulkStartCandidateAssessments(
   });
 }
 
-export async function getCandidateAssessmentItems(
+async function getCandidateAssessmentItems(
   params?: ListQuery<"gradings_assessment_items_list">,
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
@@ -535,7 +535,7 @@ export async function updateCandidateAssessmentItem(
   });
 }
 
-export async function getCandidateOutcomes(
+async function getCandidateOutcomes(
   params?: ListQuery<"gradings_outcomes_list">,
 ): Promise<PaginatedResponse<CandidateOutcome>> {
   return apiRequest<PaginatedResponse<CandidateOutcome>>(
@@ -627,7 +627,7 @@ export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">
   );
 }
 
-export async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
+async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
     withQuery("/api/syllabus/requirements/effective/", {
       ...params,
@@ -683,7 +683,7 @@ export async function deleteStudent(id: number): Promise<void> {
   });
 }
 
-export async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
+async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
   return apiRequest<PaginatedResponse<Promotion>>(
     withQuery("/api/gradings/promotions/", params),
   );

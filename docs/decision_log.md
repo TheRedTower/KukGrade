@@ -18,6 +18,27 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - Each rank carries its belt colours
+
+Status: Accepted
+
+Decision:
+`Rank` has `belt_colour` and `stripe_colour`, seeded by migration and served
+on `/api/ranks/`. One frontend `BeltSwatch` draws every rank from them.
+
+Context:
+Two belt icons guessed colours from rank names and disagreed with each other
+and with the belts. A stripe rank is the belt below with a stripe of the
+colour it is working towards: Yellow stripe is white with yellow, Blue stripe
+is yellow with blue, through Black stripe, brown with black. Confirmed by the
+user 2026-09-28.
+
+Consequences:
+`RankVisual` and the syllabus screen's own swatch are deleted, with their
+per-screen CSS. Dahn Bo is a brown belt with two stripes and PSBN and above
+wear a thicker belt; until the black-belt ranks' appearance is decided they
+are served as plain black.
+
 ### 2026-09-28 - Age bands and their programmes are served
 
 Status: Accepted

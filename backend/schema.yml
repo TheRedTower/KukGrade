@@ -2622,6 +2622,22 @@ components:
       - metadata
       - occurred_at
       - summary
+    BeltColourEnum:
+      enum:
+      - WHITE
+      - YELLOW
+      - BLUE
+      - RED
+      - BROWN
+      - BLACK
+      type: string
+      description: |-
+        * `WHITE` - White
+        * `YELLOW` - Yellow
+        * `BLUE` - Blue
+        * `RED` - Red
+        * `BROWN` - Brown
+        * `BLACK` - Black
     BlankEnum:
       enum:
       - ''
@@ -4818,6 +4834,15 @@ components:
         category_display:
           type: string
           readOnly: true
+        belt_colour:
+          allOf:
+          - $ref: '#/components/schemas/BeltColourEnum'
+          readOnly: true
+        stripe_colour:
+          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/BeltColourEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         active:
           type: boolean
           readOnly: true
@@ -4827,6 +4852,7 @@ components:
           nullable: true
       required:
       - active
+      - belt_colour
       - category
       - category_display
       - code
@@ -4834,6 +4860,7 @@ components:
       - name
       - next_rank
       - order
+      - stripe_colour
     RankCategoryEnum:
       enum:
       - COLOURED_BELT

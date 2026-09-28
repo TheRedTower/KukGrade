@@ -38,7 +38,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { formatSessionDate, formatTime } from "./dates";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import "./CandidateAssessment.css";
 import "./CohortAdjudication.css";
 import { CheckIcon, WarningIcon } from "./Icons";
@@ -411,10 +411,10 @@ export function CohortAdjudicationScreen() {
             <p className="cab-eyebrow">In focus</p>
             <h2 id="cab-focus-title">{focusRow.candidate.student_display_name}</h2>
             <p className="cab-rank-line">
-              <RankVisual classPrefix="caw" rankName={focusRow.candidate.from_rank_name} />
+              <RankBelt rankId={focusRow.candidate.from_rank} />
               {focusRow.candidate.from_rank_name}
               <span aria-hidden="true">→</span>
-              <RankVisual classPrefix="caw" rankName={focusRow.candidate.testing_for_rank_name} />
+              <RankBelt rankId={focusRow.candidate.testing_for_rank} />
               {focusRow.candidate.testing_for_rank_name}
             </p>
 

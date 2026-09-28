@@ -33,7 +33,7 @@ import {
   reopenCandidateAssessment,
   updateCandidateAssessment,
 } from "./api";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import {
   CategoryGroup,
   useAssessmentNotesDraft,
@@ -283,14 +283,14 @@ export function AssessmentCompletionScreen() {
               <div className="acp-label">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
-                  {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+                  {candidate && <RankBelt rankId={candidate.from_rank} />}
                   <span>{candidate?.from_rank_name ?? ""}</span>
                 </span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
                 </svg>
                 <span className="acp-rank acp-rank-dest">
-                  <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
+                  <RankBelt rankId={candidate.testing_for_rank} />
                   <span>{candidate.testing_for_rank_name}</span>
                 </span>
               </div>

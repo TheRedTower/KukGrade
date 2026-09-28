@@ -2092,12 +2092,14 @@ def test_generate_candidate_assessment_rejects_no_applicable_requirements() -> N
         name="No Requirement Current",
         order=100,
         category=Rank.Category.COLOURED_BELT,
+        belt_colour="WHITE",
     )
     target_rank = Rank.objects.create(
         code="NO_REQ_TARGET",
         name="No Requirement Target",
         order=101,
         category=Rank.Category.COLOURED_BELT,
+        belt_colour="WHITE",
     )
     built = candidate(
         student=student(current_rank=current_rank),

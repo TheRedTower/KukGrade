@@ -30,7 +30,7 @@ import {
   updateCandidateAssessment,
   updateCandidateAssessmentItem,
 } from "./api";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import {
   CategoryGroup,
   useCandidateAssessmentData,
@@ -255,14 +255,14 @@ export function CandidateAssessmentScreen() {
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <span className="caw-rank-tag">
-          {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+          {candidate && <RankBelt rankId={candidate.from_rank} />}
           <span>{candidate?.from_rank_name ?? ""}</span>
         </span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />
         </svg>
         <span className="caw-rank-tag caw-rank-tag-dest">
-          <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
+          <RankBelt rankId={candidate.testing_for_rank} />
           <span>{candidate.testing_for_rank_name}</span>
         </span>
         <span className="caw-age-pill">{candidate.age_band_display}</span>

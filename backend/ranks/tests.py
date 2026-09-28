@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from kukgrade.testing import results
-from ranks.models import Rank
+from ranks.models import BeltColour, Rank
 from syllabus.models import SyllabusItem, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
@@ -41,6 +41,7 @@ def rank_kwargs(**overrides: object) -> dict[str, object]:
         "name": "Test Rank",
         "order": 99,
         "category": Rank.Category.COLOURED_BELT,
+        "belt_colour": BeltColour.WHITE,
     }
     data.update(overrides)
     return data
@@ -190,6 +191,8 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "order": 1,
         "category": Rank.Category.COLOURED_BELT,
         "category_display": "Coloured belt",
+        "belt_colour": "WHITE",
+        "stripe_colour": "",
         "active": True,
         "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
     }
@@ -254,3 +257,49 @@ def test_catalogue_is_read_only_in_django_admin(model: type[Model]) -> None:
     assert model_admin.has_add_permission(request) is False
     assert model_admin.has_change_permission(request) is False
     assert model_admin.has_delete_permission(request) is False
+
+
+def test_every_coloured_rank_is_the_belt_below_with_a_stripe_towards_the_next() -> None:
+    belts = {
+        rank.code: (rank.belt_colour, rank.stripe_colour)
+        for rank in Rank.objects.filter(category=Rank.Category.COLOURED_BELT)
+    }
+
+    assert belts == {
+        "WHITE": ("WHITE", ""),
+        "YELLOW_STRIPE": ("WHITE", "YELLOW"),
+        "YELLOW": ("YELLOW", ""),
+        "BLUE_STRIPE": ("YELLOW", "BLUE"),
+        "BLUE": ("BLUE", ""),
+        "RED_STRIPE": ("BLUE", "RED"),
+        "RED": ("RED", ""),
+        "BROWN_STRIPE": ("RED", "BROWN"),
+        "BROWN": ("BROWN", ""),
+        "BLACK_STRIPE": ("BROWN", "BLACK"),
+    }
+
+
+def test_a_stripe_must_differ_from_its_belt() -> None:
+    rank = Rank(**rank_kwargs(stripe_colour=BeltColour.WHITE))
+
+    with pytest.raises(ValidationError) as exc_info:
+        rank.full_clean()
+
+    assert "stripe_colour" in exc_info.value.message_dict
+
+
+def test_an_unknown_belt_colour_is_rejected_by_the_database() -> None:
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Rank.objects.bulk_create([Rank(**rank_kwargs(belt_colour="PURPLE"))])
+
+
+def test_the_rank_api_serves_each_belt() -> None:
+    client = APIClient()
+    client.force_authenticate(user=User.objects.create_user(email="belts@example.com"))
+
+    rows = {row["code"]: row for row in results(client.get("/api/ranks/?page_size=50"))}
+
+    blue_stripe = rows["BLUE_STRIPE"]
+    assert blue_stripe["belt_colour"] == "YELLOW"
+    assert blue_stripe["stripe_colour"] == "BLUE"
+    assert rows["BLUE"]["stripe_colour"] == ""

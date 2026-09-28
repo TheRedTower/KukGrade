@@ -11,95 +11,9 @@ import {
   getRanks,
   getSyllabusItems,
 } from "./api";
+import { BeltSwatch } from "./Belt";
 import "./Syllabus.css";
 import { CORE_CATEGORY_CODES } from "./syllabusCategories";
-
-export function BeltSwatch({ rankCode, rankName }: { rankCode: string; rankName: string }) {
-  const code = rankCode.toUpperCase();
-  const name = rankName.toLowerCase();
-
-  // White
-  if (code === "WHITE" || name === "white") {
-    return <span className="syl-swatch syl-swatch-white" aria-hidden="true" />;
-  }
-
-  // Yellow Stripe
-  if (code === "YELLOW_STRIPE" || (name.includes("yellow") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-yellow-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Yellow
-  if (code === "YELLOW" || name.includes("yellow")) {
-    return <span className="syl-swatch syl-swatch-yellow" aria-hidden="true" />;
-  }
-
-  // Blue Stripe
-  if (code === "BLUE_STRIPE" || (name.includes("blue") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-blue-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Blue
-  if (code === "BLUE" || name.includes("blue")) {
-    return <span className="syl-swatch syl-swatch-blue" aria-hidden="true" />;
-  }
-
-  // Red Stripe
-  if (code === "RED_STRIPE" || (name.includes("red") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-red-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Red
-  if (code === "RED" || name.includes("red")) {
-    return <span className="syl-swatch syl-swatch-red" aria-hidden="true" />;
-  }
-
-  // Brown Stripe
-  if (code === "BROWN_STRIPE" || (name.includes("brown") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-brown-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Brown
-  if (code === "BROWN" || name.includes("brown")) {
-    return <span className="syl-swatch syl-swatch-brown" aria-hidden="true" />;
-  }
-
-  // Black Stripe
-  if (code === "BLACK_STRIPE" || (name.includes("black") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-black-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Dahn Bo / Dahn Bo Nim
-  if (code === "DAHN_BO" || name.includes("dahn")) {
-    return (
-      <span className="syl-swatch syl-swatch-dahn-bo" aria-hidden="true">
-        <span className="syl-swatch-stripe syl-swatch-stripe-gold" />
-      </span>
-    );
-  }
-
-  // Black belt / Master ranks (JKN, KSN, PSBN, SBN, PKJN)
-  return <span className="syl-swatch syl-swatch-black" aria-hidden="true" />;
-}
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -462,7 +376,7 @@ export function SyllabusScreen() {
                 aria-pressed={isSelected}
                 title={`Select ${rank.name}`}
               >
-                <BeltSwatch rankCode={rank.code} rankName={rank.name} />
+                <BeltSwatch rank={rank} />
                 <span className="syl-belt-label">{rank.name}</span>
               </button>
             );

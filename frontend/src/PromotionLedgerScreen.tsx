@@ -14,7 +14,7 @@ import {
   promoteCandidateOutcome,
 } from "./api";
 import { useAuth } from "./auth";
-import { BeltSwatch } from "./SyllabusScreen";
+import { RankBelt } from "./Belt";
 import { useDialogFocus } from "./useDialogFocus";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
@@ -24,7 +24,6 @@ type PromotionRowItem = {
   outcome?: CandidateOutcome;
   promotion?: Promotion;
   currentRankName: string;
-  currentRankCode: string;
   targetRankName: string;
   isEligible: boolean;
   isPromoted: boolean;
@@ -101,7 +100,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
       // The rank held at registration, snapshotted on the candidate - never
       // the student's live rank, which has already moved on once promoted.
       const currentRankName = candidate.from_rank_name;
-      const currentRankCode = candidate.from_rank_code;
       const targetRankName = candidate.testing_for_rank_name;
 
       const isPromoted = Boolean(promotion);
@@ -116,7 +114,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
         outcome,
         promotion,
         currentRankName,
-        currentRankCode,
         targetRankName,
         isEligible,
         isPromoted,
@@ -402,10 +399,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     {/* Current Belt */}
                     <td className="pl-cell-current-belt">
                       <div className="pl-belt-chip">
-                        <BeltSwatch
-                          rankCode={row.currentRankCode}
-                          rankName={row.currentRankName}
-                        />
+                        <RankBelt rankId={row.candidate.from_rank} />
                         <span className="pl-belt-name">{row.currentRankName}</span>
                       </div>
                     </td>

@@ -31,7 +31,7 @@ import {
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { useDialogFocus } from "./useDialogFocus";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 
@@ -1127,13 +1127,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                       </td>
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
-                          <RankVisual classPrefix="gsd" rankName={item.currentRankName} />
+                          <RankBelt rankId={item.candidate.from_rank} />
                           <span>{item.currentRankName}</span>
                         </div>
                       </td>
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
-                          <RankVisual classPrefix="gsd" rankName={item.targetRankName} />
+                          <RankBelt rankId={item.candidate.testing_for_rank} />
                           <span>{item.targetRankName}</span>
                         </div>
                       </td>

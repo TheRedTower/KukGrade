@@ -47,8 +47,13 @@ checks on each push and pull request.
 - Rank catalogue seeded White through PKJN, read-only - in Django admin as
   well as the API since 2026-09-26, for superusers too, so an unaudited edit
   cannot change how past records read. The syllabus catalogue is the same.
-- Syllabus catalogue for WKSA Version 2014, read-only. Beyond the plain
-  per-rank requirement list, `GET /api/syllabus/requirements/effective/`
+  Each rank carries its belt: `belt_colour`, plus `stripe_colour` for a
+  stripe rank, which is the belt below with a stripe towards the next (Blue
+  stripe is a yellow belt with a blue stripe). Every screen draws ranks with
+  one `BeltSwatch` from these fields. Dahn Bo and the black-belt titles are
+  plain black until their appearance is decided.
+- Syllabus catalogue for WKSA Version 2014, read-only. Requirements are read
+  through `GET /api/syllabus/requirements/effective/`
   (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
   item examinable through a selected rank: the latest applicable mapping at
   or before that rank supplies the effective range, the earliest supplies
@@ -413,7 +418,8 @@ checks on each push and pull request.
   `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
   FDR-001 through FDR-004 and FDR-012. Styling is one stylesheet per feature
   area on those tokens, with `App.css` holding only the shell and shared
-  primitives; a few literal colours remain (belt colours, status tints). Dark
+  primitives; a few literal colours remain (status tints). Belt colours are
+  the `--belt-*` tokens, fixed across themes because they are physical belts. Dark
   mode follows `prefers-color-scheme` by default; an
   explicit Light/Dark/System choice sets
   `[data-theme]` on `<html>` instead, applied before first paint by an inline

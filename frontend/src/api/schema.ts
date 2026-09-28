@@ -1183,6 +1183,16 @@ export interface components {
             readonly summary: string;
             readonly metadata: unknown;
         };
+        /**
+         * @description * `WHITE` - White
+         *     * `YELLOW` - Yellow
+         *     * `BLUE` - Blue
+         *     * `RED` - Red
+         *     * `BROWN` - Brown
+         *     * `BLACK` - Black
+         * @enum {string}
+         */
+        BeltColourEnum: "WHITE" | "YELLOW" | "BLUE" | "RED" | "BROWN" | "BLACK";
         /** @enum {unknown} */
         BlankEnum: "";
         BulkAssessmentGenerationRequest: {
@@ -2094,6 +2104,8 @@ export interface components {
             readonly order: number;
             readonly category: components["schemas"]["RankCategoryEnum"];
             readonly category_display: string;
+            readonly belt_colour: components["schemas"]["BeltColourEnum"];
+            readonly stripe_colour: components["schemas"]["BeltColourEnum"] | components["schemas"]["BlankEnum"];
             readonly active: boolean;
             readonly next_rank: number | null;
         };

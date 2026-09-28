@@ -16,7 +16,7 @@ import {
   getRanks,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
-import { RankVisual } from "./RankVisual";
+import { BeltSwatch } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
 
@@ -866,7 +866,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-wksa">{s.wksa_id || "—"}</td>
                           <td className="bgc-td-rank">
                             <div className="bgc-rank-cell">
-                              <RankVisual classPrefix="bgc" rankName={s.current_rank_name || currentRankObj?.name || ""} />
+                              <BeltSwatch rank={currentRankObj} />
                               <span className="bgc-rank-label">
                                 {s.current_rank_name || currentRankObj?.name || "—"}
                               </span>
@@ -875,7 +875,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-rank">
                             {destRankObj ? (
                               <div className="bgc-rank-cell">
-                                <RankVisual classPrefix="bgc" rankName={destRankObj.name} />
+                                <BeltSwatch rank={destRankObj} />
                                 <span className="bgc-rank-label">{destRankObj.name}</span>
                               </div>
                             ) : (
@@ -962,7 +962,7 @@ export function BuildGradingCohortScreen() {
                         <tr key={group.rank.id}>
                           <td className="bgc-td-rank">
                             <div className="bgc-rank-cell">
-                              <RankVisual classPrefix="bgc" rankName={group.rank.name} />
+                              <BeltSwatch rank={group.rank} />
                               <span className="bgc-rank-label">{group.rank.name}</span>
                             </div>
                           </td>
@@ -972,7 +972,7 @@ export function BuildGradingCohortScreen() {
                           <td className="bgc-td-rank">
                             {group.destinationRank ? (
                               <div className="bgc-rank-cell">
-                                <RankVisual classPrefix="bgc" rankName={group.destinationRank.name} />
+                                <BeltSwatch rank={group.destinationRank} />
                                 <span className="bgc-rank-label">{group.destinationRank.name}</span>
                               </div>
                             ) : (
@@ -1071,7 +1071,7 @@ export function BuildGradingCohortScreen() {
                       <tr key={item.rankId}>
                         <td className="bgc-tray-td-rank">
                           <div className="bgc-rank-cell">
-                            {item.currentRank && <RankVisual classPrefix="bgc" rankName={item.currentRank.name} />}
+                            <BeltSwatch rank={item.currentRank} />
                             <span className="bgc-rank-label">
                               {item.currentRank?.name || "Unknown"}
                             </span>
@@ -1082,9 +1082,7 @@ export function BuildGradingCohortScreen() {
                         </td>
                         <td className="bgc-tray-td-rank">
                           <div className="bgc-rank-cell">
-                            {item.destinationRank && (
-                              <RankVisual classPrefix="bgc" rankName={item.destinationRank.name} />
-                            )}
+                            <BeltSwatch rank={item.destinationRank} />
                             <span className="bgc-rank-label">
                               {item.destinationRank?.name || "—"}
                             </span>

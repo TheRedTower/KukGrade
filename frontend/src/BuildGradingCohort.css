@@ -315,29 +315,6 @@
   color: var(--color-text);
 }
 
-.bgc-rank-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.bgc-rank-stripes {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.bgc-stripe-bar {
-  display: inline-block;
-  width: 14px;
-  height: 4px;
-  background: var(--rank-color, #eab308);
-  border-radius: 1px;
-}
-
 .bgc-td-arrow {
   color: var(--color-text-muted);
   font-weight: 600;

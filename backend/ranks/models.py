@@ -24,6 +24,15 @@ class RankQuerySet(models.QuerySet["Rank"]):
         )
 
 
+class BeltColour(models.TextChoices):
+    WHITE = "WHITE", "White"
+    YELLOW = "YELLOW", "Yellow"
+    BLUE = "BLUE", "Blue"
+    RED = "RED", "Red"
+    BROWN = "BROWN", "Brown"
+    BLACK = "BLACK", "Black"
+
+
 class Rank(models.Model):
     class Category(models.TextChoices):
         COLOURED_BELT = "COLOURED_BELT", "Coloured belt"
@@ -34,6 +43,17 @@ class Rank(models.Model):
     name = models.CharField(max_length=100, unique=True)
     order = models.PositiveSmallIntegerField(unique=True)
     category = models.CharField(max_length=32, choices=Category.choices)
+    # What the belt looks like. A stripe rank is the belt below it with a
+    # stripe of the colour it is working towards - Blue stripe is a yellow
+    # belt with a blue stripe - so every screen draws the rank from these
+    # two fields rather than guessing from its name. Blank means no stripe.
+    belt_colour = models.CharField(max_length=16, choices=BeltColour.choices)
+    stripe_colour = models.CharField(
+        max_length=16,
+        choices=BeltColour.choices,
+        blank=True,
+        default="",
+    )
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -65,6 +85,14 @@ class Rank(models.Model):
                 ),
                 name="rank_category_valid",
             ),
+            models.CheckConstraint(
+                condition=Q(belt_colour__in=BeltColour.values),
+                name="rank_belt_colour_valid",
+            ),
+            models.CheckConstraint(
+                condition=Q(stripe_colour="") | Q(stripe_colour__in=BeltColour.values),
+                name="rank_stripe_colour_valid",
+            ),
         ]
 
     def __str__(self) -> str:
@@ -86,6 +114,8 @@ class Rank(models.Model):
             errors["name"] = ["Rank name is required."]
         if self.order is not None and self.order <= 0:
             errors["order"] = ["Rank order must be positive."]
+        if self.stripe_colour and self.stripe_colour == self.belt_colour:
+            errors["stripe_colour"] = ["A stripe must differ from its belt."]
 
         if errors:
             raise ValidationError(errors)

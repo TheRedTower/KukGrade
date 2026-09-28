@@ -290,10 +290,8 @@ export async function resetManagedUserPassword(
   });
 }
 
-export type GradingSessionListParams = ListQuery<"gradings_sessions_list">;
-
 export async function getGradingSessions(
-  params?: GradingSessionListParams,
+  params?: ListQuery<"gradings_sessions_list">,
 ): Promise<PaginatedResponse<GradingSession>> {
   return apiRequest<PaginatedResponse<GradingSession>>(
     withQuery("/api/gradings/sessions/", params),
@@ -301,7 +299,7 @@ export async function getGradingSessions(
 }
 
 export async function getAllGradingSessions(
-  params: Omit<GradingSessionListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingSession>> {
   return collectAllPages((page) =>
     getGradingSessions({ ...params, page, page_size: 200 }),
@@ -341,18 +339,20 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
   });
 }
 
-export type GradingCandidateListParams = ListQuery<"gradings_candidates_list">;
-
 export async function getGradingCandidates(
-  params?: GradingCandidateListParams,
+  params?: ListQuery<"gradings_candidates_list">,
 ): Promise<PaginatedResponse<GradingCandidate>> {
   return apiRequest<PaginatedResponse<GradingCandidate>>(
     withQuery("/api/gradings/candidates/", params),
   );
 }
 
+export async function getGradingCandidate(id: number): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`);
+}
+
 export async function getAllGradingCandidates(
-  params: Omit<GradingCandidateListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingCandidate>> {
   return collectAllPages((page) =>
     getGradingCandidates({ ...params, page, page_size: 200 }),
@@ -418,10 +418,8 @@ export async function withdrawLockedCandidate(
   );
 }
 
-export type CandidateAssessmentListParams = ListQuery<"gradings_assessments_list">;
-
 export async function getCandidateAssessments(
-  params?: CandidateAssessmentListParams,
+  params?: ListQuery<"gradings_assessments_list">,
 ): Promise<PaginatedResponse<CandidateAssessment>> {
   return apiRequest<PaginatedResponse<CandidateAssessment>>(
     withQuery("/api/gradings/assessments/", params),
@@ -429,7 +427,7 @@ export async function getCandidateAssessments(
 }
 
 export async function getAllCandidateAssessments(
-  params: Omit<CandidateAssessmentListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_assessments_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessment>> {
   return collectAllPages((page) =>
     getCandidateAssessments({ ...params, page, page_size: 200 }),
@@ -461,10 +459,8 @@ export async function bulkStartCandidateAssessments(
   });
 }
 
-export type CandidateAssessmentItemListParams = ListQuery<"gradings_assessment_items_list">;
-
 export async function getCandidateAssessmentItems(
-  params?: CandidateAssessmentItemListParams,
+  params?: ListQuery<"gradings_assessment_items_list">,
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
     withQuery("/api/gradings/assessment-items/", params),
@@ -472,7 +468,7 @@ export async function getCandidateAssessmentItems(
 }
 
 export async function getAllCandidateAssessmentItems(
-  params: Omit<CandidateAssessmentItemListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return collectAllPages((page) =>
     getCandidateAssessmentItems({ ...params, page, page_size: 200 }),
@@ -496,10 +492,8 @@ export async function updateCandidateAssessmentItem(
   });
 }
 
-export type CandidateOutcomeListParams = ListQuery<"gradings_outcomes_list">;
-
 export async function getCandidateOutcomes(
-  params?: CandidateOutcomeListParams,
+  params?: ListQuery<"gradings_outcomes_list">,
 ): Promise<PaginatedResponse<CandidateOutcome>> {
   return apiRequest<PaginatedResponse<CandidateOutcome>>(
     withQuery("/api/gradings/outcomes/", params),
@@ -507,7 +501,7 @@ export async function getCandidateOutcomes(
 }
 
 export async function getAllCandidateOutcomes(
-  params: Omit<CandidateOutcomeListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_outcomes_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateOutcome>> {
   return collectAllPages((page) =>
     getCandidateOutcomes({ ...params, page, page_size: 200 }),

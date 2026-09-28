@@ -3,8 +3,8 @@
  *
  * Mat-side scoring (`CandidateAssessmentScreen`) and completion review
  * (`AssessmentCompletionScreen`) are separate routes but read exactly the same
- * four resources and derive exactly the same rollups from them, so the queries
- * live here rather than being duplicated across both files.
+ * resources and derive exactly the same rollups from them, so the queries live
+ * here rather than being duplicated across both files.
  *
  * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
  * recounting rows here (FDR-046). `item_counts` carries no required-split and
@@ -21,7 +21,7 @@ import {
   CandidateAssessmentItem,
   CategoryAssessmentSummary,
   GradingCandidate,
-  getAllGradingCandidates,
+  getGradingCandidate,
   getAssessmentSummary,
   getCandidateAssessments,
   getAllCandidateAssessmentItems,
@@ -51,27 +51,25 @@ export function useCandidateAssessmentData(
 
   // 1. Grading session
   const sessionQuery = useQuery({
-    queryKey: ["gradingSession", numSessionId],
+    queryKey: ["gradingSessions", "detail", numSessionId],
     queryFn: () => getGradingSession(numSessionId!),
     enabled: sessionEnabled,
   });
 
-  // 2. Candidates for the session, narrowed to this one
-  const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", numSessionId],
-    queryFn: () => getAllGradingCandidates({ session: numSessionId! }),
-    enabled: sessionEnabled,
+  // 2. The candidate, which must belong to the session in the URL
+  const candidateQuery = useQuery({
+    queryKey: ["gradingCandidates", "detail", numCandidateId],
+    queryFn: () => getGradingCandidate(numCandidateId!),
+    enabled: candidateEnabled,
   });
 
-  const candidate: GradingCandidate | undefined = useMemo(() => {
-    if (!candidatesQuery.data?.results || !numCandidateId) return undefined;
-    return candidatesQuery.data.results.find((c) => c.id === numCandidateId);
-  }, [candidatesQuery.data, numCandidateId]);
+  const candidate: GradingCandidate | undefined =
+    candidateQuery.data?.session === numSessionId ? candidateQuery.data : undefined;
 
   // 3. The assessment itself. `null` means the form has not been generated yet,
   // which is a distinct state from "still loading".
   const assessmentQuery = useQuery({
-    queryKey: ["candidateAssessment", numCandidateId],
+    queryKey: ["candidateAssessments", "byCandidate", numCandidateId],
     queryFn: async () => {
       const res = await getCandidateAssessments({ candidate: numCandidateId! });
       return res.results.length > 0 ? res.results[0] : null;
@@ -172,7 +170,7 @@ export function useCandidateAssessmentData(
 
   const isLoading =
     sessionQuery.isLoading ||
-    candidatesQuery.isLoading ||
+    candidateQuery.isLoading ||
     assessmentQuery.isLoading ||
     (!!assessment && (itemsQuery.isLoading || summaryQuery.isLoading));
 

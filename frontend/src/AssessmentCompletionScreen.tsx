@@ -128,9 +128,9 @@ export function AssessmentCompletionScreen() {
     onSuccess: () => {
       setActionError(null);
       clearNotesDraft();
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
@@ -146,9 +146,9 @@ export function AssessmentCompletionScreen() {
     },
     onSuccess: () => {
       setActionError(null);
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
       navigate(scoringPath);
     },
     onError: (err) => {

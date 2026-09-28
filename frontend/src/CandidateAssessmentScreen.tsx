@@ -111,9 +111,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (generated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessment", numCandidateId], generated);
+      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], generated);
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to prepare the assessment form.");
@@ -127,9 +127,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (updated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessment", numCandidateId], updated);
+      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], updated);
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to start assessment.");
@@ -186,7 +186,7 @@ export function CandidateAssessmentScreen() {
       // The rollup is served now, so a scored item has to refetch it or the
       // mat bar and category headers go stale (FDR-046).
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
     },
   });
 
@@ -197,7 +197,7 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
       navigate(`/gradings/${numSessionId}`);
     },
   });

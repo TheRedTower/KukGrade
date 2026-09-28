@@ -51,7 +51,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   // Queries
   const { data: session, isLoading: isLoadingSession } = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });

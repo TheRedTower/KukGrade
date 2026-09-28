@@ -224,7 +224,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // 1. Fetch session details
   const sessionQuery = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
@@ -261,11 +261,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Mutations
   const updateSessionMutation = useMutation({
-    mutationFn: (payload: { status?: GradingSession["status"]; notes?: string; cancellation_reason?: string }) =>
+    mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) =>
       updateGradingSession(sessionId, payload),
     onSuccess: (updated: GradingSession) => {
-      queryClient.setQueryData(["gradingSession", sessionId], updated);
-      void queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      // The response is the new state of this session; only the lists that
+      // summarise it need refetching.
+      queryClient.setQueryData(["gradingSessions", "detail", sessionId], updated);
+      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "all"] });
+      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "page"] });
       setIsEditingNotes(false);
       setConfirmModal(null);
       setCancellationReason("");

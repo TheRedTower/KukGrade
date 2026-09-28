@@ -70,7 +70,7 @@ export function BuildGradingCohortScreen() {
 
   // Queries
   const sessionQuery = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
@@ -321,7 +321,7 @@ export function BuildGradingCohortScreen() {
       // Invalidate relevant queries so cache reflects newly registered candidates
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSession", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const errorKeys = Object.keys(response.errors);
       if (errorKeys.length === 0) {
@@ -388,7 +388,7 @@ export function BuildGradingCohortScreen() {
 
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSession", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const remainingErrorKeys = Object.keys(response.errors);
       if (remainingErrorKeys.length === 0) {

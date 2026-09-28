@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django.db.models import Case, IntegerField, QuerySet, Value, When
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
 from accounts.permissions import HasRequiredPermissions
+from kukgrade.filtering import choice, exact
 from ranks.models import Rank
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 from syllabus.serializers import (
@@ -59,26 +60,27 @@ class SyllabusRequirementViewSet(ReadOnlyModelViewSet):
         "effective": ("syllabus.view_syllabusrequirement",),
     }
 
+    query_filters = (
+        exact("rank_code", "rank__code"),
+        choice("age_band", "age_band", AgeBand.values),
+    )
+
     def get_queryset(self) -> QuerySet[SyllabusRequirement]:
-        queryset = (
+        return (
             SyllabusRequirement.objects.filter(active=True, item__active=True)
             .select_related("rank", "item")
             .order_by("rank__order", "age_band", "sequence", "item__name")
         )
 
-        rank_code = self.request.query_params.get("rank_code")
-        if rank_code:
-            queryset = queryset.filter(rank__code=rank_code)
-
-        age_band = self.request.query_params.get("age_band")
-        if age_band in AgeBand.values:
-            queryset = queryset.filter(age_band=age_band)
-        elif age_band:
-            queryset = queryset.none()
-
-        return queryset
-
-    @extend_schema(responses=EffectiveSyllabusRequirementSerializer(many=True))
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("rank_code", str, required=True),
+            OpenApiParameter(
+                "age_band", str, required=True, enum=sorted(AgeBand.values)
+            ),
+        ],
+        responses=EffectiveSyllabusRequirementSerializer(many=True),
+    )
     @action(detail=False, methods=["get"])
     def effective(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Cumulative Technique/Form requirements examinable through a rank.

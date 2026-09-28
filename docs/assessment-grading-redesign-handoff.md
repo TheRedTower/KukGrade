@@ -102,7 +102,8 @@ and `assessed_at` both null; `MET`/`NOT_MET` ⇒ both non-null. **Clearing a
 result wipes attribution, irreversibly.**
 Uniqueness: `(assessment, source_requirement)` and
 `(assessment, source_age_band, item_code, requirement_sequence)`.
-Properties: `has_numbered_range`, `display_range` (`"3"` or `"3-5"`).
+Properties: `display_range` (`"3"` or `"3-5"`) - `has_numbered_range` was
+removed as dead code in the 2026-09-24 coherence audit.
 Default ordering is `requirement_sequence, item_name, pk` — **category is not
 an ordering key, so grouping by category is a client concern.**
 
@@ -139,17 +140,18 @@ item, and category-level results are computed, never stored.
   complete** (writes `status` and `notes`).
   `validate_assessment_can_start`: `NOT_STARTED` only, session `OPEN`,
   candidate not withdrawn.
-  `validate_assessment_can_complete`: `IN_PROGRESS` only, session `OPEN` or
-  `LOCKED`, candidate not withdrawn, and **every `required=True` item must not
+  `validate_assessment_can_complete`: `IN_PROGRESS` only, session `OPEN`,
+  candidate not withdrawn, and **every `required=True` item must not
   be `NOT_ASSESSED`** — optional items may be left unassessed. Completing also
   flips the candidate to `COMPLETED`. A `COMPLETED` assessment is immutable,
-  notes included.
+  notes included, except that `reopen_candidate_assessment` (since 2026-09-26)
+  returns it to `IN_PROGRESS` while the session is still `OPEN`.
 - `bulk_start_candidate_assessments` — per-row independent, returns
   `(started, errors)`.
 - `update_candidate_assessment_item` — **only `result` and `assessor_notes` are
   writable.** Sets and clears `assessor`/`assessed_at` automatically.
   `validate_assessment_item_can_be_changed`: assessment `IN_PROGRESS` (distinct
-  errors for `NOT_STARTED` and `COMPLETED`), session `OPEN`/`LOCKED`, candidate
+  errors for `NOT_STARTED` and `COMPLETED`), session `OPEN`, candidate
   not withdrawn. Notes-only edits are audited too.
 - `create_candidate_outcome` — session **`LOCKED`**, candidate `COMPLETED`,
   assessment `COMPLETED`.
@@ -165,8 +167,8 @@ item, and category-level results are computed, never stored.
   and `to_rank` must still be the next active rank after the student's current
   rank.
 - `transition_grading_session`, `validate_session_transition` — `OPEN→LOCKED`
-  requires every non-withdrawn candidate to have an assessment at least
-  `IN_PROGRESS`; `LOCKED→COMPLETED` requires every non-withdrawn candidate to
+  requires every non-withdrawn candidate's assessment to be `COMPLETED`
+  (since 2026-09-26); `LOCKED→COMPLETED` requires every non-withdrawn candidate to
   have a `COMPLETED` assessment **and** a `FINALISED` outcome.
 - `withdraw_locked_candidate` — requires `can_override_locked_session`.
 - `candidate_assessment_summary` — computes `overall` plus `categories`, each
@@ -214,14 +216,17 @@ The redesign should spend these rather than recomputing or omitting them:
 - `GET /outcomes/{id}/summary/` — carries the full overall and per-category
   breakdown including `required_met`, `required_not_met`,
   `required_not_assessed`, `all_required_assessed` and `all_required_met`, but
-  is consumed only by `MasterFinalDecisionDrawer.tsx`, and only
-  `categories[].all_required_met` and `overall.required_met`/`overall.required`.
-  **It is reachable only once a `CandidateOutcome` exists**, which requires
-  session `LOCKED` and assessment `COMPLETED` — so it is unavailable during
-  scoring and at completion review, which is why the scoring screen cannot call
-  it. The underlying service, `candidate_assessment_summary(assessment)`, takes
-  an assessment and works at any status; the outcome view is a two-line wrapper
-  over it (`views.py:714`). See §6.1.
+  at doc-authoring time was consumed only by `MasterFinalDecisionDrawer.tsx`,
+  and only `categories[].all_required_met` and
+  `overall.required_met`/`overall.required`. **It is reachable only once a
+  `CandidateOutcome` exists**, which requires session `LOCKED` and assessment
+  `COMPLETED` — so it is unavailable during scoring and at completion review.
+  The underlying service, `candidate_assessment_summary(assessment)`, takes
+  an assessment and works at any status; the outcome view is a two-line
+  wrapper over it (`gradings/views.py`, `CandidateOutcomeViewSet.summary`).
+  **Resolved by slice 2**: the same service is now also exposed on the
+  assessment resource (`GET /assessments/{id}/summary/`), which the scoring
+  and completion screens call instead. See §6.1.
 - `started_at`, `completed_at`, `generated_at` — never rendered.
 - `generated_by` / `generated_by_email` — never rendered.
 - Per-item `assessor_email` and `assessed_at` — rendered only in the not-met
@@ -247,7 +252,8 @@ The redesign should spend these rather than recomputing or omitting them:
 - Multiple assessors per item, co-signing, or panel voting. One `assessor` FK,
   overwritten by whoever marks last.
 - A stored category-level result, category comment or category sign-off.
-- Editing an item after completion, or reopening a `COMPLETED` assessment.
+- Editing an item after completion without reopening it first, or reopening
+  once the session has locked.
 - Editing `item_name`, `category`, `required` or `requirement_notes`, or
   adding/removing items. No create or delete route for items.
 - Bulk item scoring ("mark all met in this category") — no endpoint; it would
@@ -310,7 +316,8 @@ failure; administrator-only hard delete. Optional items may stay
 
 **Completion review** — reachable only from `IN_PROGRESS` with zero required
 items unassessed; re-entry after completion shows the sealed record with seal
-controls removed; session `OPEN` or `LOCKED` both permit completion; a clean
+controls removed, and a reopen control while the session is still `OPEN`;
+completion is only possible in an `OPEN` session; a clean
 assessment with no shortfalls must read as success, not as an empty screen.
 
 **Judgement** — outcome preconditions per §2; re-proposal allowed while
@@ -330,16 +337,20 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 1. **Selection and register.** *Done, 2026-09-23.* FDR-042 to FDR-047 and
    SCR-026 to SCR-028 recorded; SCR-019, SCR-020 and SCR-022 superseded;
    decision-log entries written.
-2. **Serve the counts (FDR-046).** Two parts, backend first.
-   *Backend:* expose the existing `candidate_assessment_summary` service on the
-   assessment resource — `GET /api/gradings/assessments/{id}/summary/`, a
-   two-line action mirroring the outcome one at `views.py:714`, plus contract
-   documentation and permission tests. No model, migration or service change.
-   *Frontend:* replace the client-side stat derivation in
-   `CandidateAssessmentScreen.tsx` with that response, and remove the
-   per-category percentage. Regenerate the OpenAPI schema and frontend types.
-   Behaviour-preserving apart from the percentage. Do this before any layout
-   change so the diff stays readable. See §6.1 — accepted.
+2. **Serve the counts (FDR-046).** *Done, 2026-09-23.* Two parts, backend
+   first.
+   *Backend:* the existing `candidate_assessment_summary` service is exposed
+   on the assessment resource — `GET /api/gradings/assessments/{id}/summary/`,
+   a two-line action mirroring the outcome one, plus contract documentation
+   and permission tests (`gradings/tests.py`:
+   `test_assessment_summary_is_served_while_the_assessment_is_in_progress`,
+   `test_assessment_summary_requires_the_view_permission`,
+   `test_assessment_summary_rejects_a_write`). No model, migration or service
+   change.
+   *Frontend:* the client-side stat derivation in `CandidateAssessmentScreen.tsx`
+   was replaced with that response (`candidateAssessmentData.ts`), and the
+   per-category percentage removed. Schema and frontend types regenerated.
+   See §6.1 — accepted.
 3. **Split the screen.** *Done, 2026-09-23.* Completion review moved out of
    `CandidateAssessmentScreen.tsx`'s `isReviewMode` branch into
    `AssessmentCompletionScreen.tsx` on
@@ -403,27 +414,10 @@ Mirrored in `decision_log.md`.
 
 ## 7. Verification
 
-Backend (from `backend/`), required if any open decision is answered "add the
-field":
-
-```
-uv run python manage.py makemigrations --check --dry-run
-uv run python manage.py migrate
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy kukgrade health accounts audit ranks students syllabus gradings
-```
-
-Frontend (from `frontend/`):
-
-```
-npm ci
-npm run test
-npm run lint
-npm run typecheck
-npm run build
-```
+Run the full command set in `docs/development-workflow.md` - the one
+canonical list, so it cannot drift from what is duplicated here. Backend
+migration checks are required if any open decision is answered "add the
+field".
 
 Regenerate the OpenAPI schema and frontend types if the API contract changes.
 Do not hand-write response types.

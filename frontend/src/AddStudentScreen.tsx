@@ -11,6 +11,7 @@ import {
   getRanks,
 } from "./api";
 import "./StudentScreens.css";
+import { todayIsoDate } from "./dates";
 
 function LockIcon() {
   return (
@@ -51,7 +52,7 @@ export function AddStudentScreen() {
 
   // 1. Fetch active ranks
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
 
@@ -110,7 +111,7 @@ export function AddStudentScreen() {
       });
 
       // Invalidate student lists
-      await queryClient.invalidateQueries({ queryKey: ["studentsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
 
       // Navigate to student detail view
       navigate(`/students/${newStudent.id}`);
@@ -263,7 +264,7 @@ export function AddStudentScreen() {
                 type="date"
                 className={`form-text-input ${getFieldError("date_of_birth") ? "input-error" : ""}`}
                 value={dateOfBirth}
-                max={new Date().toISOString().split("T")[0]}
+                max={todayIsoDate()}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 disabled={isSubmitting}
                 aria-required="true"

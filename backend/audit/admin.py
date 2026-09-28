@@ -13,13 +13,14 @@ from audit.models import AuditEvent, AuditEventQuerySet
 
 @admin.register(AuditEvent)
 class AuditEventAdmin(admin.ModelAdmin):
-    list_display = ("occurred_at", "action", "entity_type", "entity_id", "actor")
+    list_display = ("occurred_at", "action", "entity_type", "entity_id", "actor_email")
     list_filter = ("action", "entity_type")
-    search_fields = ("entity_id", "summary", "actor__email")
+    search_fields = ("entity_id", "summary", "actor_email", "actor_name")
     ordering = ("-occurred_at", "-pk")
-    list_select_related = ("actor",)
     readonly_fields = (
         "actor",
+        "actor_email",
+        "actor_name",
         "action",
         "entity_type",
         "entity_id",

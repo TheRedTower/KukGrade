@@ -6,30 +6,18 @@ import {
   type CandidateOutcome,
   type GradingCandidate,
   type Promotion,
-  type Rank,
   bulkPromoteCandidateOutcomes,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
   getAllPromotions,
   getGradingSession,
-  getRanks,
   promoteCandidateOutcome,
 } from "./api";
 import { useAuth } from "./auth";
 import { BeltSwatch } from "./SyllabusScreen";
 import { useDialogFocus } from "./useDialogFocus";
 import "./PromotionLedger.css";
-import { formatApiDate } from "./dates";
-
-/*
-  `grading_date` and `Promotion.effective_date` are both date-only. Parsed as
-  timestamps they were read as UTC midnight, so west of UTC the ledger showed
-  the day before the grading - and `effective_date` is the date a rank change
-  took effect, which is part of the promotion record.
-*/
-function formatSessionDate(dateStr?: string | null): string {
-  return formatApiDate(dateStr, { day: "numeric", month: "short", year: "numeric" });
-}
+import { formatShortDate } from "./dates";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -63,7 +51,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   // Queries
   const { data: session, isLoading: isLoadingSession } = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
@@ -86,24 +74,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const { data: ranksData } = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks(),
-  });
-
-  // Ranks map
-  const ranksMap = useMemo(() => {
-    const map = new Map<number, Rank>();
-    ranksData?.results.forEach((r) => map.set(r.id, r));
-    return map;
-  }, [ranksData]);
-
   // Promotions map
   const promotionsMap = useMemo(() => {
     const map = new Map<number, Promotion>();
     promotionsData?.results.forEach((p) => {
       map.set(p.grading_candidate, p);
-      if (p.outcome) map.set(p.outcome, p);
     });
     return map;
   }, [promotionsData]);
@@ -123,20 +98,11 @@ export function PromotionLedgerScreen(): React.ReactElement {
       const outcome = outcomesMap.get(candidate.id);
       const promotion = promotionsMap.get(candidate.id);
 
-      const currentRankObj = ranksMap.get(candidate.student);
-      const currentRankName =
-        currentRankObj?.name ||
-        promotion?.from_rank_name ||
-        "Current Rank";
-      const currentRankCode =
-        currentRankObj?.code ||
-        promotion?.from_rank_code ||
-        "WHITE";
-
-      const targetRankName =
-        candidate.testing_for_rank_name ||
-        promotion?.to_rank_name ||
-        "Next Rank";
+      // The rank held at registration, snapshotted on the candidate - never
+      // the student's live rank, which has already moved on once promoted.
+      const currentRankName = candidate.from_rank_name;
+      const currentRankCode = candidate.from_rank_code;
+      const targetRankName = candidate.testing_for_rank_name;
 
       const isPromoted = Boolean(promotion);
       const isFinalisedPass =
@@ -156,7 +122,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         isPromoted,
       };
     });
-  }, [candidatesData, outcomesMap, promotionsMap, ranksMap]);
+  }, [candidatesData, outcomesMap, promotionsMap]);
 
   // Eligible cohort
   const eligibleCohort = useMemo(() => rows.filter((r) => r.isEligible), [rows]);
@@ -460,7 +426,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                           </span>
                           {row.promotion?.effective_date && (
                             <span className="pl-promoted-date">
-                              Effective {formatSessionDate(row.promotion.effective_date)}
+                              Effective {formatShortDate(row.promotion.effective_date)}
                             </span>
                           )}
                         </div>
@@ -570,7 +536,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 <div className="pl-meta-row">
                   <span className="pl-meta-label">Locked</span>
                   <span className="pl-meta-val">
-                    {formatSessionDate(session?.grading_date)}
+                    {formatShortDate(session?.grading_date)}
                   </span>
                 </div>
                 <div className="pl-meta-row">
@@ -647,7 +613,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                   <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.targetRankName}</strong></span>
                 </p>
                 <p className="pl-modal-date-notice">
-                  Effective date: <strong>{formatSessionDate(session?.grading_date)}</strong> (locked to grading date).
+                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (locked to grading date).
                 </p>
               </div>
 

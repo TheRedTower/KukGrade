@@ -11,7 +11,6 @@ import type {
   GradingCandidate,
   GradingSession,
   Promotion,
-  Rank,
 } from "./api";
 
 let mockCurrentUser: AuthUser = {
@@ -26,6 +25,13 @@ let mockCurrentUser: AuthUser = {
   can_promote_student: true,
   can_override_locked_session: true,
   can_view_grading_audit_log: false,
+  can_manage_users: false,
+  can_import_data: false,
+  can_reconcile_imported_history: false,
+  can_delete_students: false,
+  can_delete_assessments: false,
+  can_delete_any_session: false,
+  can_read_audit_log: true,
   must_change_password: false,
   is_staff: false,
   is_superuser: false,
@@ -42,7 +48,6 @@ const mockGetGradingSession = vi.fn();
 const mockGetGradingCandidates = vi.fn();
 const mockGetCandidateOutcomes = vi.fn();
 const mockGetPromotions = vi.fn();
-const mockGetRanks = vi.fn();
 const mockPromoteCandidateOutcome = vi.fn();
 const mockBulkPromoteCandidateOutcomes = vi.fn();
 
@@ -54,7 +59,6 @@ vi.mock("./api", async () => {
     getAllGradingCandidates: (...args: unknown[]) => mockGetGradingCandidates(...args),
     getAllCandidateOutcomes: (...args: unknown[]) => mockGetCandidateOutcomes(...args),
     getAllPromotions: (...args: unknown[]) => mockGetPromotions(...args),
-    getRanks: (...args: unknown[]) => mockGetRanks(...args),
     promoteCandidateOutcome: (...args: unknown[]) => mockPromoteCandidateOutcome(...args),
     bulkPromoteCandidateOutcomes: (...args: unknown[]) => mockBulkPromoteCandidateOutcomes(...args),
   };
@@ -74,44 +78,6 @@ const mockSession: GradingSession = {
   updated_at: "2026-10-15T18:00:00Z",
 };
 
-const mockRanks: Rank[] = [
-  {
-    id: 1,
-    code: "WHITE",
-    name: "White",
-    order: 1,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
-  },
-  {
-    id: 2,
-    code: "YELLOW_STRIPE",
-    name: "Yellow Stripe",
-    order: 2,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
-  },
-  {
-    id: 3,
-    code: "YELLOW",
-    name: "Yellow",
-    order: 3,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
-  },
-  {
-    id: 4,
-    code: "BLUE_STRIPE",
-    name: "Blue Stripe",
-    order: 4,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
-  },
-];
 
 const mockCandidates: GradingCandidate[] = [
   {
@@ -121,6 +87,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 50,
     student_display_name: "Alex Mercer",
     student_wksa_id: "K-88231",
+    from_rank: 2,
+    from_rank_code: "YELLOW_STRIPE",
+    from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
     testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
@@ -146,6 +115,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 51,
     student_display_name: "Beth Harmon",
     student_wksa_id: "K-88232",
+    from_rank: 3,
+    from_rank_code: "YELLOW",
+    from_rank_name: "Yellow",
     testing_for_rank: 4,
     testing_for_rank_code: "BLUE_STRIPE",
     testing_for_rank_name: "Blue Stripe",
@@ -171,6 +143,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 52,
     student_display_name: "Carlos Rivera",
     student_wksa_id: "K-88233",
+    from_rank: 2,
+    from_rank_code: "YELLOW_STRIPE",
+    from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
     testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
@@ -196,6 +171,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 53,
     student_display_name: "Diana Prince",
     student_wksa_id: "K-88234",
+    from_rank: 2,
+    from_rank_code: "YELLOW_STRIPE",
+    from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
     testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
@@ -221,6 +199,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 54,
     student_display_name: "Ethan Hunt",
     student_wksa_id: "K-88235",
+    from_rank: 2,
+    from_rank_code: "YELLOW_STRIPE",
+    from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
     testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
@@ -246,6 +227,9 @@ const mockCandidates: GradingCandidate[] = [
     student: 55,
     student_display_name: "Fiona Gallagher",
     student_wksa_id: "K-88236",
+    from_rank: 2,
+    from_rank_code: "YELLOW_STRIPE",
+    from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
     testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
@@ -514,14 +498,10 @@ const mockExistingPromotions: Promotion[] = [
   }),
 ];
 
-function renderScreen(sessionId = 1) {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
+function renderScreen(
+  sessionId = 1,
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/gradings/${sessionId}/promotions`]}>
@@ -550,6 +530,13 @@ describe("PromotionLedgerScreen", () => {
       can_promote_student: true,
       can_override_locked_session: true,
       can_view_grading_audit_log: false,
+      can_manage_users: false,
+      can_import_data: false,
+      can_reconcile_imported_history: false,
+      can_delete_students: false,
+      can_delete_assessments: false,
+      can_delete_any_session: false,
+      can_read_audit_log: true,
       must_change_password: false,
       is_staff: false,
       is_superuser: false,
@@ -573,12 +560,6 @@ describe("PromotionLedgerScreen", () => {
       next: null,
       previous: null,
       results: mockExistingPromotions,
-    });
-    mockGetRanks.mockResolvedValue({
-      count: mockRanks.length,
-      next: null,
-      previous: null,
-      results: mockRanks,
     });
   });
 
@@ -669,6 +650,69 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.queryByTestId("promote-candidate-btn-106")).not.toBeInTheDocument();
   });
 
+  it("reads each row's rank and promotion from that candidate alone, even when ids overlap", async () => {
+    // Deliberately overlapping ids: Ana's student id is a rank id, and each
+    // candidate's id is the other's outcome id. Rows keyed on anything but
+    // the candidate's own snapshot and promotion would cross-contaminate.
+    const ana: GradingCandidate = {
+      ...mockCandidates[0],
+      id: 7,
+      student: 3,
+      student_display_name: "Ana Overlap",
+      from_rank: 5,
+      from_rank_code: "BLUE",
+      from_rank_name: "Blue",
+      testing_for_rank: 6,
+      testing_for_rank_code: "RED_STRIPE",
+      testing_for_rank_name: "Red stripe",
+    };
+    const ben: GradingCandidate = {
+      ...mockCandidates[0],
+      id: 9,
+      student: 4,
+      student_display_name: "Ben Overlap",
+    };
+    mockGetGradingCandidates.mockResolvedValue({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [ana, ben],
+    });
+    mockGetCandidateOutcomes.mockResolvedValue({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { ...mockOutcomes[0], id: 9, candidate: 7, student: 3, student_display_name: "Ana Overlap" },
+        { ...mockOutcomes[0], id: 7, candidate: 9, student: 4, student_display_name: "Ben Overlap" },
+      ],
+    });
+    mockGetPromotions.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [
+        createMockPromotion({
+          id: 1,
+          student: 4,
+          student_display_name: "Ben Overlap",
+          grading_candidate: 9,
+          outcome: 7,
+        }),
+      ],
+    });
+
+    renderScreen(1);
+
+    const anaRow = await screen.findByTestId("promotion-row-7");
+    expect(anaRow).toHaveTextContent("Blue");
+    expect(anaRow).not.toHaveTextContent("Promoted ✓");
+    expect(screen.getByTestId("promote-candidate-btn-7")).toHaveTextContent(
+      "Promote to Red stripe",
+    );
+    expect(screen.getByTestId("promotion-row-9")).toHaveTextContent("Promoted ✓");
+  });
+
   it("handles single candidate promotion confirmation dialog and API submission", async () => {
     const user = userEvent.setup();
     const newPromotion = createMockPromotion({
@@ -719,6 +763,35 @@ describe("PromotionLedgerScreen", () => {
       ).toBeInTheDocument();
     });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("marks every cached view of the promoted student stale", async () => {
+    const user = userEvent.setup();
+    mockPromoteCandidateOutcome.mockResolvedValue(
+      createMockPromotion({
+        id: 2,
+        student: 50,
+        student_display_name: "Alex Mercer",
+        grading_candidate: 101,
+        outcome: 101,
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient.setQueryData(["students", "detail", 50], { id: 50 });
+    queryClient.setQueryData(["students", "list", "", "ALL", "ALL", 1], { results: [] });
+    queryClient.setQueryData(["students", "rankHistory", 50], { promotions: [] });
+
+    renderScreen(1, queryClient);
+    await user.click(await screen.findByTestId("promote-candidate-btn-101"));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }),
+    );
+
+    await waitFor(() => {
+      expect(queryClient.getQueryState(["students", "detail", 50])?.isInvalidated).toBe(true);
+    });
+    expect(queryClient.getQueryState(["students", "list", "", "ALL", "ALL", 1])?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(["students", "rankHistory", 50])?.isInvalidated).toBe(true);
   });
 
   it("can cancel single candidate promotion modal without calling API", async () => {

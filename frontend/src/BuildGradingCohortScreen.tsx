@@ -70,18 +70,18 @@ export function BuildGradingCohortScreen() {
 
   // Queries
   const sessionQuery = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
 
   const ranksQuery = useQuery({
     queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 50 }),
+    queryFn: () => getRanks({ page_size: 100 }),
   });
 
   const studentsQuery = useQuery({
-    queryKey: ["students", "all-eligible"],
+    queryKey: ["students", "all"],
     queryFn: () => getAllStudents(),
   });
 
@@ -103,14 +103,11 @@ export function BuildGradingCohortScreen() {
     const nextMap = new Map<number, Rank>();
 
     ranks.forEach((r) => map.set(r.id, r));
-
-    const activeRanks = ranks.filter((r) => r.active);
-    for (let i = 0; i < activeRanks.length; i++) {
-      const cur = activeRanks[i];
-      if (i + 1 < activeRanks.length) {
-        nextMap.set(cur.id, activeRanks[i + 1]);
-      }
-    }
+    // Each rank's next rank as the server defines it (Rank.next_rank).
+    ranks.forEach((r) => {
+      const next = r.next_rank === null ? undefined : map.get(r.next_rank);
+      if (next) nextMap.set(r.id, next);
+    });
 
     return { rankMap: map, nextRankMap: nextMap };
   }, [ranks]);
@@ -321,7 +318,7 @@ export function BuildGradingCohortScreen() {
       // Invalidate relevant queries so cache reflects newly registered candidates
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSession", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const errorKeys = Object.keys(response.errors);
       if (errorKeys.length === 0) {
@@ -388,7 +385,7 @@ export function BuildGradingCohortScreen() {
 
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSession", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const remainingErrorKeys = Object.keys(response.errors);
       if (remainingErrorKeys.length === 0) {

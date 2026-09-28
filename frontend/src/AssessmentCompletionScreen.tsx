@@ -27,16 +27,20 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, CandidateAssessmentItem, updateCandidateAssessment } from "./api";
+import {
+  ApiError,
+  CandidateAssessmentItem,
+  reopenCandidateAssessment,
+  updateCandidateAssessment,
+} from "./api";
 import { RankVisual } from "./RankVisual";
 import {
   CategoryGroup,
-  formatTimeOnly,
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { isCoreCategory } from "./syllabusCategories";
-import { formatApiDate } from "./dates";
+import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 
 function CheckIcon({ size = 13 }: { size?: number }) {
@@ -62,12 +66,6 @@ function SealIcon() {
       <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
     </svg>
   );
-}
-
-// Date-only grading dates and offset timestamps parse differently;
-// formatApiDate (dates.ts) decides from the value.
-function formatRecordDate(isoStr: string | null | undefined): string {
-  return formatApiDate(isoStr, { day: "2-digit", month: "short", year: "numeric" }, "");
 }
 
 /** The mark shown against a requirement or core area on the proof. */
@@ -108,7 +106,6 @@ export function AssessmentCompletionScreen() {
   const {
     session,
     candidate,
-    studentRankName,
     assessment,
     items,
     categoryGroups,
@@ -131,13 +128,31 @@ export function AssessmentCompletionScreen() {
     onSuccess: () => {
       setActionError(null);
       clearNotesDraft();
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to complete assessment.");
+    },
+  });
+
+  // A sealed record stays correctable until the session locks.
+  const reopenAssessmentMutation = useMutation({
+    mutationFn: () => {
+      if (!assessment) throw new Error("Assessment not found");
+      return reopenCandidateAssessment(assessment.id);
+    },
+    onSuccess: () => {
+      setActionError(null);
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      navigate(scoringPath);
+    },
+    onError: (err) => {
+      setActionError(err instanceof ApiError ? err.message : "Failed to reopen assessment.");
     },
   });
 
@@ -237,7 +252,11 @@ export function AssessmentCompletionScreen() {
         </Link>
         <span aria-hidden="true" className="acp-topbar-divider" />
         <span className="acp-topbar-note">
-          {isSealed ? "This record is sealed and cannot be changed" : "Proof the record before it is sealed"}
+          {isSealed
+            ? session.status === "OPEN"
+              ? "This record is sealed; it can be reopened until the session locks"
+              : "This record is sealed and cannot be changed"
+            : "Proof the record before it is sealed"}
         </span>
       </header>
 
@@ -279,8 +298,8 @@ export function AssessmentCompletionScreen() {
               <div className="acp-label">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
-                  {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
-                  <span>{studentRankName || "Current rank"}</span>
+                  {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+                  <span>{candidate?.from_rank_name ?? ""}</span>
                 </span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
@@ -292,7 +311,7 @@ export function AssessmentCompletionScreen() {
               </div>
               <div className="acp-candidate-sub">
                 {session.title}
-                {session.grading_date && ` · ${formatRecordDate(session.grading_date)}`}
+                {session.grading_date && ` · ${formatShortDate(session.grading_date, "")}`}
               </div>
             </div>
           </div>
@@ -344,7 +363,7 @@ export function AssessmentCompletionScreen() {
                     {item.assessor_email && (
                       <span className="acp-note-by">
                         {" "}— {item.assessor_email}
-                        {item.assessed_at && ` · ${formatTimeOnly(item.assessed_at)}`}
+                        {item.assessed_at && ` · ${formatTime(item.assessed_at)}`}
                       </span>
                     )}
                   </p>
@@ -386,9 +405,9 @@ export function AssessmentCompletionScreen() {
               </div>
               {assessment.started_at && (
                 <div className="acp-seal-detail">
-                  Assessed from {formatTimeOnly(assessment.started_at)}
-                  {assessment.completed_at && ` to ${formatTimeOnly(assessment.completed_at)}`}
-                  {session.grading_date && ` on ${formatRecordDate(session.grading_date)}`}
+                  Assessed from {formatTime(assessment.started_at)}
+                  {assessment.completed_at && ` to ${formatTime(assessment.completed_at)}`}
+                  {session.grading_date && ` on ${formatShortDate(session.grading_date, "")}`}
                 </div>
               )}
             </div>
@@ -398,8 +417,8 @@ export function AssessmentCompletionScreen() {
               {isSealed && assessment.completed_at ? (
                 <>
                   <div className="acp-seal-value acp-seal-applied" data-testid="acp-seal-applied">
-                    Sealed {formatRecordDate(assessment.completed_at)} at{" "}
-                    {formatTimeOnly(assessment.completed_at)}
+                    Sealed {formatShortDate(assessment.completed_at, "")} at{" "}
+                    {formatTime(assessment.completed_at)}
                   </div>
                   <div className="acp-seal-detail">This record can no longer be changed.</div>
                 </>
@@ -420,7 +439,7 @@ export function AssessmentCompletionScreen() {
             <dl className="acp-dl">
               <div>
                 <dt>Snapshot frozen</dt>
-                <dd>{assessment.generated_at ? formatRecordDate(assessment.generated_at) : "—"}</dd>
+                <dd>{assessment.generated_at ? formatShortDate(assessment.generated_at, "") : "—"}</dd>
               </div>
               <div>
                 <dt>Prepared by</dt>
@@ -472,10 +491,22 @@ export function AssessmentCompletionScreen() {
               <div className="acp-notice-row">
                 <SealIcon />
                 <p>
-                  This record was sealed and is permanent. Results, notes, assessors and times
-                  cannot be changed, and the assessment cannot be reopened.
+                  {session.status === "OPEN"
+                    ? "This record is sealed. While the session is open it can be reopened to correct a result; once the session locks it is permanent."
+                    : "This record is sealed and permanent. Results, notes, assessors and times cannot be changed."}
                 </p>
               </div>
+              {session.status === "OPEN" && (
+                <button
+                  type="button"
+                  className="btn-secondary acp-reopen-btn"
+                  onClick={() => reopenAssessmentMutation.mutate()}
+                  disabled={reopenAssessmentMutation.isPending}
+                  data-testid="acp-reopen-btn"
+                >
+                  {reopenAssessmentMutation.isPending ? "Reopening…" : "Reopen for correction"}
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -483,8 +514,8 @@ export function AssessmentCompletionScreen() {
                 <div className="acp-notice-row">
                   <SealIcon />
                   <p>
-                    Sealing writes this record permanently. Results, notes, assessors and times
-                    can never be changed, and the assessment cannot be reopened.
+                    Sealing completes this record. It can be reopened to correct it while the
+                    session is open, and becomes permanent when the session locks.
                   </p>
                 </div>
                 <label className="acp-proofread">

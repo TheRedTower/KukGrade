@@ -63,6 +63,11 @@ here does not by itself mean it has shipped.
 
 ## Concept screen register
 
+The `.png` concept images were moved out of the repository on 2026-09-25 to
+keep it lean; they are kept locally in
+`VScode/delete/KukGrade-Frontend-Design-Register-pngs/` under the same file
+names. The `.dc.html` boards for SCR-026 to SCR-028 remain here.
+
 | ID | Screen | Theme | File | Status |
 | --- | --- | --- | --- | --- |
 | SCR-001 | Operational overview | Light | `01-overview-light.png` | Selected concept |
@@ -96,7 +101,7 @@ here does not by itself mean it has shipped.
 
 ## Revised syllabus layout plan (2026-09-21)
 
-![Selected revised syllabus current-knowledge layout](25-syllabus-current-knowledge-revised.png)
+Concept image: `25-syllabus-current-knowledge-revised.png` (archived, see the screen register).
 
 ### Purpose and status
 

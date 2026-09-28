@@ -1,6 +1,5 @@
 import { render } from "@testing-library/react";
 
-import { formatSessionDate } from "./dates";
 import { RankVisual } from "./RankVisual";
 
 function dotColour(rankName: string): string {
@@ -28,16 +27,5 @@ describe("RankVisual", () => {
     expect(stripes).toHaveClass("caw-rank-stripes");
     expect(stripes.style.getPropertyValue("--rank-color")).toBe("#2563eb");
     expect(stripes.querySelectorAll(".caw-stripe-bar")).toHaveLength(2);
-  });
-});
-
-describe("formatSessionDate", () => {
-  it("reads an API date as that calendar day, whatever the time zone", () => {
-    expect(formatSessionDate("2027-06-01")).toBe("Tuesday, 1 June 2027");
-  });
-
-  it("shows anything unparseable as given", () => {
-    expect(formatSessionDate("")).toBe("");
-    expect(formatSessionDate("soon")).toBe("soon");
   });
 });

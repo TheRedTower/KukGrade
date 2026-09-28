@@ -13,7 +13,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
-import { formatSessionDate } from "./dates";
+import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 
 function CalendarIcon() {
@@ -119,39 +119,12 @@ function SuccessCheckIcon() {
 }
 
 function formatRelativeTime(isoString: string): string {
-  if (!isoString) return "";
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const isToday =
-      date.getDate() === now.getDate() &&
-      date.getMonth() === now.getMonth() &&
-      date.getFullYear() === now.getFullYear();
-
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const isYesterday =
-      date.getDate() === yesterday.getDate() &&
-      date.getMonth() === yesterday.getMonth() &&
-      date.getFullYear() === yesterday.getFullYear();
-
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const timeStr = `${hours}:${minutes}`;
-
-    if (isToday) {
-      return `Today ${timeStr}`;
-    }
-    if (isYesterday) {
-      return `Yesterday ${timeStr}`;
-    }
-
-    const day = date.getDate();
-    const month = date.toLocaleString("en-GB", { month: "short" });
-    return `${day} ${month} ${timeStr}`;
-  } catch {
-    return isoString;
-  }
+  const daysAgo = calendarDaysAgo(isoString);
+  if (daysAgo === null) return isoString;
+  const time = formatTime(isoString);
+  if (daysAgo === 0) return `Today ${time}`;
+  if (daysAgo === 1) return `Yesterday ${time}`;
+  return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
 }
 
 type FormattedActivityItem = {
@@ -201,7 +174,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
 
   // Target extraction: prefer actor_name or entity info from summary
   let targetName = event.actor_name || "System";
-  if (event.entity_type === "Student" || event.entity_type === "Candidate") {
+  if (event.entity_type === "Student" || event.entity_type === "GradingCandidate") {
     // If summary starts with or mentions a student/candidate name
     const match = event.summary.match(/^([^:]+):/);
     if (match) {
@@ -223,24 +196,13 @@ export function OverviewScreen() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const canViewAudit =
-    user?.role === "administrator" ||
-    !!user?.can_make_final_grading_decision ||
-    !!user?.is_staff ||
-    !!user?.is_superuser;
+  const canViewAudit = Boolean(user?.can_read_audit_log);
 
-  const currentDateDisplay = useMemo(() => {
-    return new Intl.DateTimeFormat("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date());
-  }, []);
+  const currentDateDisplay = useMemo(() => formatSessionDate(todayIsoDate()), []);
 
   // 1. Fetch grading sessions
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions"],
+    queryKey: ["gradingSessions", "all"],
     queryFn: () => getAllGradingSessions(),
   });
 
@@ -257,7 +219,7 @@ export function OverviewScreen() {
 
   // Resolve next upcoming session
   const upcomingSession: GradingSession | undefined = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = todayIsoDate();
     const candidates = sessions
       .filter(
         (s) =>
@@ -286,7 +248,7 @@ export function OverviewScreen() {
 
   // 4. Fetch recent audit events
   const auditQuery = useQuery({
-    queryKey: ["recentAuditEvents"],
+    queryKey: ["auditEvents", "recent"],
     queryFn: () => getAuditEvents({ page_size: 6 }),
     enabled: canViewAudit,
     retry: false,

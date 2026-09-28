@@ -10,6 +10,89 @@ paths:
       description: 'Read-only by construction: the model refuses writes from every
         path.'
       parameters:
+      - name: action
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - ASSESSMENT_COMPLETED
+          - ASSESSMENT_DELETED
+          - ASSESSMENT_GENERATED
+          - ASSESSMENT_REOPENED
+          - ASSESSMENT_STARTED
+          - CANDIDATE_DELETED
+          - CANDIDATE_REGISTERED
+          - CANDIDATE_UPDATED
+          - CANDIDATE_WITHDRAWN
+          - IMPORT_BATCH_CANCELLED
+          - IMPORT_BATCH_COMMITTED
+          - IMPORT_BATCH_EXPIRED
+          - ITEM_RESULT_RECORDED
+          - LEGACY_GRADING_LINKED
+          - LEGACY_GRADING_RANK_RESOLVED
+          - LEGACY_GRADING_UNLINKED
+          - LEGACY_GRADING_VOIDED
+          - OUTCOME_CREATED
+          - OUTCOME_FINALISED
+          - OUTCOME_PROPOSED
+          - PROMOTION_RECORDED
+          - SESSION_CREATED
+          - SESSION_DELETED
+          - SESSION_TRANSITIONED
+          - STUDENT_CREATED
+          - STUDENT_DELETED
+          - STUDENT_STATUS_CHANGED
+          - STUDENT_UPDATED
+          - USER_AUTHORITY_CHANGED
+          - USER_CREATED
+          - USER_DELETED
+          - USER_UPDATED
+      - name: actor
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: uuid
+      - name: entity_id
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: entity_type
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - CandidateAssessment
+          - CandidateAssessmentItem
+          - CandidateOutcome
+          - GradingCandidate
+          - GradingSession
+          - ImportBatch
+          - LegacyGradingRecord
+          - Promotion
+          - Student
+          - User
+      - name: occurred_from
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: occurred_to
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
       - name: page
         required: false
         in: query
@@ -22,6 +105,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - audit-events
       security:
@@ -65,13 +154,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ChangePassword'
+              $ref: '#/components/schemas/ChangePasswordRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ChangePassword'
+              $ref: '#/components/schemas/ChangePasswordRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ChangePassword'
+              $ref: '#/components/schemas/ChangePasswordRequest'
         required: true
       security:
       - cookieAuth: []
@@ -87,13 +176,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Login'
+              $ref: '#/components/schemas/LoginRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Login'
+              $ref: '#/components/schemas/LoginRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Login'
+              $ref: '#/components/schemas/LoginRequest'
         required: true
       security:
       - {}
@@ -136,13 +225,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedSelfProfile'
+              $ref: '#/components/schemas/PatchedSelfProfileRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedSelfProfile'
+              $ref: '#/components/schemas/PatchedSelfProfileRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedSelfProfile'
+              $ref: '#/components/schemas/PatchedSelfProfileRequest'
       security:
       - cookieAuth: []
       responses:
@@ -197,13 +286,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportBatchCreate'
+              $ref: '#/components/schemas/ImportBatchCreateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportBatchCreate'
+              $ref: '#/components/schemas/ImportBatchCreateRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportBatchCreate'
+              $ref: '#/components/schemas/ImportBatchCreateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -283,13 +372,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
       security:
       - cookieAuth: []
       responses:
@@ -320,13 +409,13 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
           application/json:
             schema:
-              $ref: '#/components/schemas/ImportRequest'
+              $ref: '#/components/schemas/ImportRequestRequest'
       security:
       - cookieAuth: []
       responses:
@@ -340,6 +429,41 @@ paths:
     get:
       operationId: gradings_assessment_items_list
       parameters:
+      - name: assessment
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: candidate
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: category
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - BREAKING
+          - ETIQUETTE
+          - FALLING
+          - FORM
+          - FUNDAMENTALS
+          - HAND_TECHNIQUES
+          - KICKING
+          - OTHER
+          - TECHNIQUE_SET
+          - WEAPONS
+      - name: item_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       - name: page
         required: false
         in: query
@@ -350,6 +474,28 @@ paths:
         required: false
         in: query
         description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: required
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: boolean
+      - name: result
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - MET
+          - NOT_ASSESSED
+          - NOT_MET
+      - name: session
+        required: false
+        in: query
+        description: ''
         schema:
           type: integer
       tags:
@@ -401,13 +547,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItemRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItemRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessmentItem'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentItemRequest'
       security:
       - cookieAuth: []
       responses:
@@ -421,6 +567,12 @@ paths:
     get:
       operationId: gradings_assessments_list
       parameters:
+      - name: candidate
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
       - name: page
         required: false
         in: query
@@ -433,6 +585,34 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: session
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - COMPLETED
+          - IN_PROGRESS
+          - NOT_STARTED
+      - name: student_wksa_id
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: testing_for_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - gradings
       security:
@@ -480,13 +660,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessment'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessment'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateAssessment'
+              $ref: '#/components/schemas/PatchedCandidateAssessmentRequest'
       security:
       - cookieAuth: []
       responses:
@@ -512,6 +692,29 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/gradings/assessments/{id}/reopen/:
+    post:
+      operationId: gradings_assessments_reopen_create
+      description: Return a completed assessment to in-progress while the session
+        is open.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate assessment.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CandidateAssessment'
+          description: ''
   /api/gradings/assessments/{id}/summary/:
     get:
       operationId: gradings_assessments_summary_retrieve
@@ -551,13 +754,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentStart'
+              $ref: '#/components/schemas/BulkAssessmentStartRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentStart'
+              $ref: '#/components/schemas/BulkAssessmentStartRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentStart'
+              $ref: '#/components/schemas/BulkAssessmentStartRequest'
         required: true
       security:
       - cookieAuth: []
@@ -572,6 +775,17 @@ paths:
     get:
       operationId: gradings_candidates_list
       parameters:
+      - name: age_band
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          - AGE_8_AND_UNDER
+          - AGE_9_TO_12
       - name: page
         required: false
         in: query
@@ -584,6 +798,34 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: session
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - COMPLETED
+          - REGISTERED
+          - WITHDRAWN
+      - name: student_wksa_id
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: testing_for_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - gradings
       security:
@@ -603,13 +845,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -656,13 +898,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingCandidate'
+              $ref: '#/components/schemas/GradingCandidateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -688,13 +930,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedGradingCandidate'
+              $ref: '#/components/schemas/PatchedGradingCandidateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedGradingCandidate'
+              $ref: '#/components/schemas/PatchedGradingCandidateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedGradingCandidate'
+              $ref: '#/components/schemas/PatchedGradingCandidateRequest'
       security:
       - cookieAuth: []
       responses:
@@ -778,13 +1020,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LockedCandidateWithdrawal'
+              $ref: '#/components/schemas/LockedCandidateWithdrawalRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LockedCandidateWithdrawal'
+              $ref: '#/components/schemas/LockedCandidateWithdrawalRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LockedCandidateWithdrawal'
+              $ref: '#/components/schemas/LockedCandidateWithdrawalRequest'
         required: true
       security:
       - cookieAuth: []
@@ -804,13 +1046,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentGeneration'
+              $ref: '#/components/schemas/BulkAssessmentGenerationRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentGeneration'
+              $ref: '#/components/schemas/BulkAssessmentGenerationRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BulkAssessmentGeneration'
+              $ref: '#/components/schemas/BulkAssessmentGenerationRequest'
         required: true
       security:
       - cookieAuth: []
@@ -830,13 +1072,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BulkCandidateRegistration'
+              $ref: '#/components/schemas/BulkCandidateRegistrationRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/BulkCandidateRegistration'
+              $ref: '#/components/schemas/BulkCandidateRegistrationRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BulkCandidateRegistration'
+              $ref: '#/components/schemas/BulkCandidateRegistrationRequest'
         required: true
       security:
       - cookieAuth: []
@@ -856,13 +1098,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdateRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdateRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BulkCandidateStatusUpdate'
+              $ref: '#/components/schemas/BulkCandidateStatusUpdateRequest'
         required: true
       security:
       - cookieAuth: []
@@ -883,6 +1125,12 @@ paths:
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
+      - name: linked
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: boolean
       - name: page
         required: false
         in: query
@@ -895,6 +1143,30 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: record_kind
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: source_batch
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: student
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: voided
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: boolean
       tags:
       - gradings
       security:
@@ -955,13 +1227,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LinkLegacyRecord'
+              $ref: '#/components/schemas/LinkLegacyRecordRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/LinkLegacyRecord'
+              $ref: '#/components/schemas/LinkLegacyRecordRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/LinkLegacyRecord'
+              $ref: '#/components/schemas/LinkLegacyRecordRequest'
         required: true
       security:
       - cookieAuth: []
@@ -994,13 +1266,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1033,13 +1305,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/ResolveLegacyRank'
+              $ref: '#/components/schemas/ResolveLegacyRankRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1099,13 +1371,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VoidLegacyRecord'
+              $ref: '#/components/schemas/VoidLegacyRecordRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/VoidLegacyRecord'
+              $ref: '#/components/schemas/VoidLegacyRecordRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/VoidLegacyRecord'
+              $ref: '#/components/schemas/VoidLegacyRecordRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1120,6 +1392,29 @@ paths:
     get:
       operationId: gradings_outcomes_list
       parameters:
+      - name: candidate
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: decided_by
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: uuid
+      - name: final_outcome
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - CONDITIONAL
+          - FAIL
+          - PASS
       - name: page
         required: false
         in: query
@@ -1132,6 +1427,51 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: proposed_by
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: uuid
+      - name: proposed_outcome
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - CONDITIONAL
+          - FAIL
+          - PASS
+      - name: session
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - DRAFT
+          - FINALISED
+          - PROPOSED
+      - name: student_wksa_id
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: testing_for_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - gradings
       security:
@@ -1175,17 +1515,6 @@ paths:
         required: true
       tags:
       - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcome'
       security:
       - cookieAuth: []
       responses:
@@ -1211,13 +1540,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeFinalise'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeFinaliseRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1243,13 +1572,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CandidatePromotion'
+              $ref: '#/components/schemas/CandidatePromotionRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/CandidatePromotion'
+              $ref: '#/components/schemas/CandidatePromotionRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/CandidatePromotion'
+              $ref: '#/components/schemas/CandidatePromotionRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1275,13 +1604,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedCandidateOutcomeProposal'
+              $ref: '#/components/schemas/PatchedCandidateOutcomeProposalRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1321,13 +1650,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/BulkPromotion'
+              $ref: '#/components/schemas/BulkPromotionRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/BulkPromotion'
+              $ref: '#/components/schemas/BulkPromotionRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BulkPromotion'
+              $ref: '#/components/schemas/BulkPromotionRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1342,6 +1671,33 @@ paths:
     get:
       operationId: gradings_promotions_list
       parameters:
+      - name: effective_date
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: effective_date_from
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: effective_date_to
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: from_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       - name: page
         required: false
         in: query
@@ -1354,6 +1710,37 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: promoted_by
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: uuid
+      - name: session
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: student
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: integer
+      - name: student_wksa_id
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: to_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - gradings
       security:
@@ -1390,6 +1777,27 @@ paths:
     get:
       operationId: gradings_sessions_list
       parameters:
+      - name: grading_date
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: grading_date_from
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
+      - name: grading_date_to
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          format: date
       - name: page
         required: false
         in: query
@@ -1402,6 +1810,24 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - CANCELLED
+          - COMPLETED
+          - DRAFT
+          - LOCKED
+          - OPEN
       tags:
       - gradings
       security:
@@ -1421,13 +1847,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1474,13 +1900,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/GradingSession'
+              $ref: '#/components/schemas/GradingSessionRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1506,13 +1932,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedGradingSession'
+              $ref: '#/components/schemas/PatchedGradingSessionRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedGradingSession'
+              $ref: '#/components/schemas/PatchedGradingSessionRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedGradingSession'
+              $ref: '#/components/schemas/PatchedGradingSessionRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1620,6 +2046,23 @@ paths:
     get:
       operationId: students_list
       parameters:
+      - name: age_band
+        required: false
+        in: query
+        description: The student's age band today, not at any grading.
+        schema:
+          type: string
+          enum:
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          - AGE_8_AND_UNDER
+          - AGE_9_TO_12
+      - name: current_rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       - name: page
         required: false
         in: query
@@ -1632,6 +2075,22 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - INACTIVE
+          - LEFT
       tags:
       - students
       security:
@@ -1651,13 +2110,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Student'
+              $ref: '#/components/schemas/StudentRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Student'
+              $ref: '#/components/schemas/StudentRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Student'
+              $ref: '#/components/schemas/StudentRequest'
         required: true
       security:
       - cookieAuth: []
@@ -1704,13 +2163,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedStudent'
+              $ref: '#/components/schemas/PatchedStudentRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedStudent'
+              $ref: '#/components/schemas/PatchedStudentRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedStudent'
+              $ref: '#/components/schemas/PatchedStudentRequest'
       security:
       - cookieAuth: []
       responses:
@@ -1830,6 +2289,17 @@ paths:
     get:
       operationId: syllabus_requirements_list
       parameters:
+      - name: age_band
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          - AGE_8_AND_UNDER
+          - AGE_9_TO_12
       - name: page
         required: false
         in: query
@@ -1842,6 +2312,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: rank_code
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - syllabus
       security:
@@ -1886,6 +2362,16 @@ paths:
         one. This mode does - see `syllabus.services.
         effective_syllabus_requirements` for the accumulation policy.
       parameters:
+      - in: query
+        name: age_band
+        schema:
+          type: string
+          enum:
+          - AGE_13_TO_17
+          - AGE_18_AND_OVER
+          - AGE_8_AND_UNDER
+          - AGE_9_TO_12
+        required: true
       - name: page
         required: false
         in: query
@@ -1898,6 +2384,11 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: rank_code
+        schema:
+          type: string
+        required: true
       tags:
       - syllabus
       security:
@@ -1924,6 +2415,12 @@ paths:
         placeholder account rather than erasing it. No PUT: partial_update
         covers every real edit.
       parameters:
+      - name: is_active
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: boolean
       - name: page
         required: false
         in: query
@@ -1936,6 +2433,21 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: role
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - administrator
+          - instructor
+      - name: search
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
       tags:
       - users
       security:
@@ -1966,13 +2478,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/UserManagementRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/UserManagementRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/UserManagement'
+              $ref: '#/components/schemas/UserManagementRequest'
         required: true
       security:
       - cookieAuth: []
@@ -2043,13 +2555,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserManagementRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserManagementRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedUserManagement'
+              $ref: '#/components/schemas/PatchedUserManagementRequest'
       security:
       - cookieAuth: []
       responses:
@@ -2115,13 +2627,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedUserAuthority'
+              $ref: '#/components/schemas/PatchedUserAuthorityRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedUserAuthority'
+              $ref: '#/components/schemas/PatchedUserAuthorityRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedUserAuthority'
+              $ref: '#/components/schemas/PatchedUserAuthorityRequest'
       security:
       - cookieAuth: []
       responses:
@@ -2159,13 +2671,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SetPassword'
+              $ref: '#/components/schemas/SetPasswordRequest'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/SetPassword'
+              $ref: '#/components/schemas/SetPasswordRequest'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/SetPassword'
+              $ref: '#/components/schemas/SetPasswordRequest'
         required: true
       security:
       - cookieAuth: []
@@ -2186,6 +2698,7 @@ components:
       - ASSESSMENT_GENERATED
       - ASSESSMENT_STARTED
       - ASSESSMENT_COMPLETED
+      - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
       - ITEM_RESULT_RECORDED
       - OUTCOME_CREATED
@@ -2202,6 +2715,7 @@ components:
       - USER_DELETED
       - IMPORT_BATCH_COMMITTED
       - IMPORT_BATCH_CANCELLED
+      - IMPORT_BATCH_EXPIRED
       - LEGACY_GRADING_LINKED
       - LEGACY_GRADING_UNLINKED
       - LEGACY_GRADING_RANK_RESOLVED
@@ -2218,6 +2732,7 @@ components:
         * `ASSESSMENT_GENERATED` - Assessment generated
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_COMPLETED` - Assessment completed
+        * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
         * `OUTCOME_CREATED` - Outcome created
@@ -2234,6 +2749,7 @@ components:
         * `USER_DELETED` - User deleted
         * `IMPORT_BATCH_COMMITTED` - Import batch committed
         * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
+        * `IMPORT_BATCH_EXPIRED` - Import batch expired
         * `LEGACY_GRADING_LINKED` - Legacy grading record linked
         * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
         * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
@@ -2371,6 +2887,30 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
+    AuditEntityEnum:
+      enum:
+      - GradingSession
+      - GradingCandidate
+      - CandidateAssessment
+      - CandidateAssessmentItem
+      - CandidateOutcome
+      - Promotion
+      - Student
+      - User
+      - ImportBatch
+      - LegacyGradingRecord
+      type: string
+      description: |-
+        * `GradingSession` - Grading session
+        * `GradingCandidate` - Candidate
+        * `CandidateAssessment` - Assessment
+        * `CandidateAssessmentItem` - Assessment item
+        * `CandidateOutcome` - Outcome
+        * `Promotion` - Promotion
+        * `Student` - Student
+        * `User` - User
+        * `ImportBatch` - Import batch
+        * `LegacyGradingRecord` - Historical grading record
     AuditEvent:
       type: object
       properties:
@@ -2389,7 +2929,8 @@ components:
           type: string
           readOnly: true
         entity_type:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/AuditEntityEnum'
           readOnly: true
         entity_id:
           type: string
@@ -2423,7 +2964,10 @@ components:
       - metadata
       - occurred_at
       - summary
-    BulkAssessmentGeneration:
+    BlankEnum:
+      enum:
+      - ''
+    BulkAssessmentGenerationRequest:
       type: object
       properties:
         candidates:
@@ -2448,7 +2992,7 @@ components:
       required:
       - created
       - errors
-    BulkAssessmentStart:
+    BulkAssessmentStartRequest:
       type: object
       properties:
         assessments:
@@ -2473,22 +3017,7 @@ components:
       required:
       - errors
       - started
-    BulkCandidateRegistration:
-      type: object
-      properties:
-        session:
-          type: integer
-        candidates:
-          type: array
-          items:
-            $ref: '#/components/schemas/BulkCandidateRegistrationItem'
-        generate_assessments:
-          type: boolean
-          default: false
-      required:
-      - candidates
-      - session
-    BulkCandidateRegistrationItem:
+    BulkCandidateRegistrationItemRequest:
       type: object
       properties:
         student:
@@ -2500,6 +3029,21 @@ components:
           default: ''
       required:
       - student
+    BulkCandidateRegistrationRequest:
+      type: object
+      properties:
+        session:
+          type: integer
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkCandidateRegistrationItemRequest'
+        generate_assessments:
+          type: boolean
+          default: false
+      required:
+      - candidates
+      - session
     BulkCandidateRegistrationResult:
       type: object
       properties:
@@ -2516,7 +3060,7 @@ components:
       required:
       - created
       - errors
-    BulkCandidateStatusUpdate:
+    BulkCandidateStatusUpdateRequest:
       type: object
       properties:
         candidates:
@@ -2525,6 +3069,10 @@ components:
             type: integer
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        withdrawal_reason:
+          $ref: '#/components/schemas/WithdrawalReasonEnum'
+        withdrawal_note:
+          type: string
       required:
       - candidates
       - status
@@ -2544,7 +3092,7 @@ components:
       required:
       - errors
       - updated
-    BulkPromotion:
+    BulkPromotionRequest:
       type: object
       properties:
         outcomes:
@@ -2963,7 +3511,7 @@ components:
         * `DRAFT` - Draft
         * `PROPOSED` - Proposed
         * `FINALISED` - Finalised
-    CandidatePromotion:
+    CandidatePromotionRequest:
       type: object
       properties:
         notes:
@@ -3017,7 +3565,7 @@ components:
       - source_section
       - source_sheet
       - source_testing_for_rank_text
-    ChangePassword:
+    ChangePasswordRequest:
       type: object
       description: |-
         POST /api/auth/change-password/.
@@ -3032,9 +3580,11 @@ components:
         current_password:
           type: string
           writeOnly: true
+          minLength: 1
         new_password:
           type: string
           writeOnly: true
+          minLength: 1
       required:
       - current_password
       - new_password
@@ -3148,6 +3698,15 @@ components:
         student_wksa_id:
           type: string
           readOnly: true
+        from_rank:
+          type: integer
+          readOnly: true
+        from_rank_code:
+          type: string
+          readOnly: true
+        from_rank_name:
+          type: string
+          readOnly: true
         testing_for_rank:
           type: integer
         testing_for_rank_code:
@@ -3170,14 +3729,14 @@ components:
         notes:
           type: string
         withdrawal_reason:
-          type: string
-          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         withdrawal_reason_display:
           type: string
           readOnly: true
         withdrawal_note:
           type: string
-          readOnly: true
         withdrawn_by:
           type: string
           format: uuid
@@ -3206,6 +3765,9 @@ components:
       - age_band
       - age_band_display
       - created_at
+      - from_rank
+      - from_rank_code
+      - from_rank_name
       - id
       - session
       - session_title
@@ -3217,13 +3779,34 @@ components:
       - testing_for_rank_code
       - testing_for_rank_name
       - updated_at
-      - withdrawal_note
-      - withdrawal_reason
       - withdrawal_reason_display
       - withdrawn_at
       - withdrawn_by
       - withdrawn_by_email
       - withdrawn_by_name
+    GradingCandidateRequest:
+      type: object
+      properties:
+        session:
+          type: integer
+        student:
+          type: integer
+        testing_for_rank:
+          type: integer
+        status:
+          $ref: '#/components/schemas/GradingCandidateStatusEnum'
+        notes:
+          type: string
+        withdrawal_reason:
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        withdrawal_note:
+          type: string
+      required:
+      - session
+      - student
+      - testing_for_rank
     GradingCandidateStatusEnum:
       enum:
       - REGISTERED
@@ -3336,6 +3919,28 @@ components:
       - status_display
       - title
       - updated_at
+    GradingSessionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        grading_date:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/GradingSessionStatusEnum'
+        location:
+          type: string
+          maxLength: 200
+        notes:
+          type: string
+        cancellation_reason:
+          type: string
+      required:
+      - grading_date
+      - title
     GradingSessionStatusEnum:
       enum:
       - DRAFT
@@ -3451,14 +4056,14 @@ components:
       - updated_at
       - uploaded_at
       - uploaded_by_email
-    ImportBatchCreate:
+    ImportBatchCreateRequest:
       type: object
       properties:
         kind:
           $ref: '#/components/schemas/KindEnum'
         file:
           type: string
-          format: uri
+          format: binary
       required:
       - file
       - kind
@@ -3597,7 +4202,7 @@ components:
       oneOf:
       - $ref: '#/components/schemas/StudentImportPreview'
       - $ref: '#/components/schemas/LegacyImportPreview'
-    ImportRequest:
+    ImportRequestRequest:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
       - $ref: '#/components/schemas/LegacyImportRequest'
@@ -3840,14 +4445,14 @@ components:
           additionalProperties:
             type: string
             nullable: true
-    LinkLegacyRecord:
+    LinkLegacyRecordRequest:
       type: object
       properties:
         student:
           type: integer
       required:
       - student
-    LockedCandidateWithdrawal:
+    LockedCandidateWithdrawalRequest:
       type: object
       properties:
         withdrawal_reason:
@@ -3856,16 +4461,18 @@ components:
           type: string
       required:
       - withdrawal_reason
-    Login:
+    LoginRequest:
       type: object
       properties:
         email:
           type: string
           format: email
           writeOnly: true
+          minLength: 1
         password:
           type: string
           writeOnly: true
+          minLength: 1
       required:
       - email
       - password
@@ -4217,281 +4824,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserManagement'
-    PatchedCandidateAssessment:
+    PatchedCandidateAssessmentItemRequest:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
-        candidate:
-          type: integer
-          readOnly: true
-        candidate_student_name:
-          type: string
-          readOnly: true
-        candidate_student_wksa_id:
-          type: string
-          readOnly: true
-        testing_for_rank_code:
-          type: string
-          readOnly: true
-        testing_for_rank_name:
-          type: string
-          readOnly: true
-        age_band:
-          type: string
-          readOnly: true
-        age_band_display:
-          type: string
-          readOnly: true
-        status:
-          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
-        status_display:
-          type: string
-          readOnly: true
-        generated_by:
-          type: string
-          format: uuid
-          readOnly: true
-        generated_by_email:
-          type: string
-          format: email
-          readOnly: true
-        generated_at:
-          type: string
-          format: date-time
-          readOnly: true
-        started_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        completed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        notes:
-          type: string
-        item_counts:
-          type: object
-          additionalProperties:
-            type: integer
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedCandidateAssessmentItem:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        assessment:
-          type: integer
-          readOnly: true
-        source_requirement:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_item:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_rank:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_age_band:
-          allOf:
-          - $ref: '#/components/schemas/AgeBandEnum'
-          readOnly: true
-        item_code:
-          type: string
-          readOnly: true
-        item_name:
-          type: string
-          readOnly: true
-        korean_name:
-          type: string
-          readOnly: true
-        category:
-          allOf:
-          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
-          readOnly: true
-        category_display:
-          type: string
-          readOnly: true
-        requirement_sequence:
-          type: integer
-          readOnly: true
-        required:
-          type: boolean
-          readOnly: true
-        start_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        end_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        display_range:
-          type: string
-          readOnly: true
-        requirement_notes:
-          type: string
-          readOnly: true
         result:
           $ref: '#/components/schemas/ResultEnum'
-        result_display:
-          type: string
-          readOnly: true
-        assessor:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        assessor_email:
-          type: string
-          format: email
-          readOnly: true
-        assessed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
         assessor_notes:
           type: string
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedCandidateOutcome:
+    PatchedCandidateAssessmentRequest:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
-        candidate:
-          type: integer
-          readOnly: true
-        assessment:
-          type: integer
-          readOnly: true
-        assessment_status:
-          type: string
-          readOnly: true
-        student:
-          type: integer
-          readOnly: true
-        student_display_name:
-          type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
-        session:
-          type: integer
-          readOnly: true
-        session_title:
-          type: string
-          readOnly: true
-        testing_for_rank:
-          type: integer
-          readOnly: true
-        testing_for_rank_code:
-          type: string
-          readOnly: true
-        testing_for_rank_name:
-          type: string
-          readOnly: true
         status:
-          allOf:
-          - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
-          readOnly: true
-        status_display:
+          $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
+        notes:
           type: string
-          readOnly: true
-        proposed_outcome:
-          readOnly: true
-          nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-          - $ref: '#/components/schemas/NullEnum'
-        proposed_outcome_display:
-          type: string
-          readOnly: true
-        proposed_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        proposed_by_email:
-          type: string
-          format: email
-          readOnly: true
-        proposed_by_name:
-          type: string
-          readOnly: true
-        proposed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        proposal_notes:
-          type: string
-          readOnly: true
-        final_outcome:
-          readOnly: true
-          nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-          - $ref: '#/components/schemas/NullEnum'
-        final_outcome_display:
-          type: string
-          readOnly: true
-        decided_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        decided_by_email:
-          type: string
-          format: email
-          readOnly: true
-        decided_by_name:
-          type: string
-          readOnly: true
-        decided_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        decision_notes:
-          type: string
-          readOnly: true
-        conditional_requirements:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedCandidateOutcomeFinalise:
+    PatchedCandidateOutcomeFinaliseRequest:
       type: object
       properties:
         final_outcome:
@@ -4500,103 +4847,44 @@ components:
           type: string
         conditional_requirements:
           type: string
-    PatchedCandidateOutcomeProposal:
+    PatchedCandidateOutcomeProposalRequest:
       type: object
       properties:
         proposed_outcome:
           $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
         proposal_notes:
           type: string
-    PatchedGradingCandidate:
+    PatchedGradingCandidateRequest:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
         session:
           type: integer
-        session_title:
-          type: string
-          readOnly: true
         student:
           type: integer
-        student_display_name:
-          type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
         testing_for_rank:
           type: integer
-        testing_for_rank_code:
-          type: string
-          readOnly: true
-        testing_for_rank_name:
-          type: string
-          readOnly: true
-        age_band:
-          type: string
-          readOnly: true
-        age_band_display:
-          type: string
-          readOnly: true
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
-        status_display:
-          type: string
-          readOnly: true
         notes:
           type: string
         withdrawal_reason:
-          type: string
-          readOnly: true
-        withdrawal_reason_display:
-          type: string
-          readOnly: true
+          oneOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          - $ref: '#/components/schemas/BlankEnum'
         withdrawal_note:
           type: string
-          readOnly: true
-        withdrawn_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        withdrawn_by_email:
-          type: string
-          readOnly: true
-        withdrawn_by_name:
-          type: string
-          readOnly: true
-        withdrawn_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedGradingSession:
+    PatchedGradingSessionRequest:
       type: object
       properties:
-        id:
-          type: integer
-          readOnly: true
         title:
           type: string
+          minLength: 1
           maxLength: 200
         grading_date:
           type: string
           format: date
         status:
           $ref: '#/components/schemas/GradingSessionStatusEnum'
-        status_display:
-          type: string
-          readOnly: true
         location:
           type: string
           maxLength: 200
@@ -4604,23 +4892,7 @@ components:
           type: string
         cancellation_reason:
           type: string
-        created_by:
-          type: string
-          format: uuid
-          readOnly: true
-        created_by_email:
-          type: string
-          format: email
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedSelfProfile:
+    PatchedSelfProfileRequest:
       type: object
       description: |-
         PATCH /api/auth/me/.
@@ -4631,55 +4903,13 @@ components:
         a separate serializer keeps "what a user can do to themselves" from ever
         silently growing alongside admin capabilities.
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        email:
-          type: string
-          format: email
-          readOnly: true
         first_name:
           type: string
           maxLength: 150
         last_name:
           type: string
           maxLength: 150
-        full_name:
-          type: string
-          readOnly: true
-        role:
-          allOf:
-          - $ref: '#/components/schemas/RoleEnum'
-          readOnly: true
-        role_display:
-          type: string
-          readOnly: true
-        can_make_final_grading_decision:
-          type: boolean
-          readOnly: true
-        can_promote_student:
-          type: boolean
-          readOnly: true
-        can_override_locked_session:
-          type: boolean
-          readOnly: true
-        can_view_grading_audit_log:
-          type: boolean
-          readOnly: true
-        must_change_password:
-          type: boolean
-          readOnly: true
-        is_staff:
-          type: boolean
-          readOnly: true
-        is_superuser:
-          type: boolean
-          readOnly: true
-          title: Superuser status
-          description: Designates that this user has all permissions without explicitly
-            assigning them.
-    PatchedStudent:
+    PatchedStudentRequest:
       type: object
       description: |-
         Detail, create and update. wksa_id is writable only on create.
@@ -4688,52 +4918,26 @@ components:
         except wksa_id, and splitting them further would just be the same
         fields copied into different classes.
       properties:
-        id:
-          type: integer
-          readOnly: true
         wksa_id:
           type: string
+          minLength: 1
           maxLength: 32
         first_name:
           type: string
+          minLength: 1
           maxLength: 150
         last_name:
           type: string
+          minLength: 1
           maxLength: 150
         date_of_birth:
           type: string
           format: date
         current_rank:
           type: integer
-        current_rank_code:
-          type: string
-          readOnly: true
-        current_rank_name:
-          type: string
-          readOnly: true
         status:
           $ref: '#/components/schemas/StudentStatusEnum'
-        status_display:
-          type: string
-          readOnly: true
-        can_be_graded:
-          type: boolean
-          readOnly: true
-        age_band:
-          type: string
-          readOnly: true
-        age_band_display:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedUserAuthority:
+    PatchedUserAuthorityRequest:
       type: object
       description: |-
         PATCH /api/users/{id}/authority/.
@@ -4749,7 +4953,7 @@ components:
           type: boolean
         can_view_grading_audit_log:
           type: boolean
-    PatchedUserManagement:
+    PatchedUserManagementRequest:
       type: object
       description: |-
         List, retrieve, create and update for the administrator-facing API.
@@ -4760,13 +4964,10 @@ components:
         writable at all. Sharing one class between the two would couple changes
         meant for one endpoint to the other.
       properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
         email:
           type: string
           format: email
+          minLength: 1
           maxLength: 254
         first_name:
           type: string
@@ -4774,52 +4975,14 @@ components:
         last_name:
           type: string
           maxLength: 150
-        full_name:
-          type: string
-          readOnly: true
         role:
           $ref: '#/components/schemas/RoleEnum'
-        role_display:
-          type: string
-          readOnly: true
         is_active:
           type: boolean
-        can_make_final_grading_decision:
-          type: boolean
-          readOnly: true
-        can_promote_student:
-          type: boolean
-          readOnly: true
-        can_override_locked_session:
-          type: boolean
-          readOnly: true
-        can_view_grading_audit_log:
-          type: boolean
-          readOnly: true
-        must_change_password:
-          type: boolean
-          readOnly: true
-        is_staff:
-          type: boolean
-          readOnly: true
-        is_superuser:
-          type: boolean
-          readOnly: true
-          title: Superuser status
-          description: Designates that this user has all permissions without explicitly
-            assigning them.
-        date_joined:
-          type: string
-          format: date-time
-          readOnly: true
-        last_login:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
         password:
           type: string
           writeOnly: true
+          minLength: 1
     Promotion:
       type: object
       properties:
@@ -5045,6 +5208,10 @@ components:
         active:
           type: boolean
           readOnly: true
+        next_rank:
+          type: integer
+          readOnly: true
+          nullable: true
       required:
       - active
       - category
@@ -5052,6 +5219,7 @@ components:
       - code
       - id
       - name
+      - next_rank
       - order
     RankCategoryEnum:
       enum:
@@ -5107,7 +5275,7 @@ components:
       required:
       - assessment
       - candidate
-    ResolveLegacyRank:
+    ResolveLegacyRankRequest:
       type: object
       description: '`rank=null` explicitly leaves the mapping unresolved.'
       properties:
@@ -5134,7 +5302,7 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
-    SetPassword:
+    SetPasswordRequest:
       type: object
       description: |-
         POST /api/users/{id}/set-password/.
@@ -5146,6 +5314,7 @@ components:
         password:
           type: string
           writeOnly: true
+          minLength: 1
       required:
       - password
     SourceEnum:
@@ -5432,6 +5601,40 @@ components:
       - student
       - student_display_name
       - student_wksa_id
+    StudentRequest:
+      type: object
+      description: |-
+        Detail, create and update. wksa_id is writable only on create.
+
+        One serializer rather than three: create and update share every field
+        except wksa_id, and splitting them further would just be the same
+        fields copied into different classes.
+      properties:
+        wksa_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        date_of_birth:
+          type: string
+          format: date
+        current_rank:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StudentStatusEnum'
+      required:
+      - current_rank
+      - date_of_birth
+      - first_name
+      - last_name
+      - wksa_id
     StudentStatusEnum:
       enum:
       - ACTIVE
@@ -5625,6 +5828,27 @@ components:
         can_view_grading_audit_log:
           type: boolean
           readOnly: true
+        can_manage_users:
+          type: boolean
+          readOnly: true
+        can_import_data:
+          type: boolean
+          readOnly: true
+        can_reconcile_imported_history:
+          type: boolean
+          readOnly: true
+        can_delete_students:
+          type: boolean
+          readOnly: true
+        can_delete_assessments:
+          type: boolean
+          readOnly: true
+        can_delete_any_session:
+          type: boolean
+          readOnly: true
+        can_read_audit_log:
+          type: boolean
+          readOnly: true
         must_change_password:
           type: boolean
           readOnly: true
@@ -5638,9 +5862,16 @@ components:
           description: Designates that this user has all permissions without explicitly
             assigning them.
       required:
+      - can_delete_any_session
+      - can_delete_assessments
+      - can_delete_students
+      - can_import_data
       - can_make_final_grading_decision
+      - can_manage_users
       - can_override_locked_session
       - can_promote_student
+      - can_read_audit_log
+      - can_reconcile_imported_history
       - can_view_grading_audit_log
       - email
       - first_name
@@ -5720,9 +5951,6 @@ components:
           format: date-time
           readOnly: true
           nullable: true
-        password:
-          type: string
-          writeOnly: true
       required:
       - can_make_final_grading_decision
       - can_override_locked_session
@@ -5736,13 +5964,46 @@ components:
       - is_superuser
       - last_login
       - must_change_password
-      - password
       - role_display
-    VoidLegacyRecord:
+    UserManagementRequest:
+      type: object
+      description: |-
+        List, retrieve, create and update for the administrator-facing API.
+
+        Deliberately separate from UserSerializer, which is a fixed read-only
+        self-view for /api/auth/me/: that one has no reason to expose is_active
+        or date_joined about the caller to themselves, and has no reason to be
+        writable at all. Sharing one class between the two would couple changes
+        meant for one endpoint to the other.
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        is_active:
+          type: boolean
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    VoidLegacyRecordRequest:
       type: object
       properties:
         reason:
           type: string
+          minLength: 1
       required:
       - reason
     WithdrawalReasonEnum:

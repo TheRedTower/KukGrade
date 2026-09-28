@@ -4,75 +4,89 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   type AuditAction,
+  type AuditEntity,
   type AuditEvent,
   ApiError,
   getAuditEvents,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./AuditScreen.css";
+import { calendarDaysAgo, formatApiDate, formatDateTime, formatTime, parseApiDate } from "./dates";
 
 const PAGE_SIZE = 10;
 
-const ACTION_OPTIONS: { value: AuditAction; label: string }[] = [
-  { value: "SESSION_CREATED", label: "Grading session created" },
-  { value: "SESSION_TRANSITIONED", label: "Grading session transitioned" },
-  { value: "SESSION_DELETED", label: "Grading session deleted" },
-  { value: "CANDIDATE_REGISTERED", label: "Candidate registered" },
-  { value: "CANDIDATE_UPDATED", label: "Candidate updated" },
-  { value: "CANDIDATE_WITHDRAWN", label: "Candidate withdrawn" },
-  { value: "CANDIDATE_DELETED", label: "Candidate deleted" },
-  { value: "ASSESSMENT_GENERATED", label: "Assessment generated" },
-  { value: "ASSESSMENT_STARTED", label: "Assessment started" },
-  { value: "ASSESSMENT_COMPLETED", label: "Assessment completed" },
-  { value: "ITEM_RESULT_RECORDED", label: "Assessment item result recorded" },
-  { value: "OUTCOME_CREATED", label: "Outcome created" },
-  { value: "OUTCOME_PROPOSED", label: "Outcome proposed" },
-  { value: "OUTCOME_FINALISED", label: "Outcome finalised" },
-  { value: "PROMOTION_RECORDED", label: "Promotion recorded" },
-  { value: "STUDENT_CREATED", label: "Student created" },
-  { value: "STUDENT_UPDATED", label: "Student updated" },
-  { value: "STUDENT_STATUS_CHANGED", label: "Student status changed" },
-  { value: "USER_CREATED", label: "User created" },
-  { value: "USER_UPDATED", label: "User updated" },
-  { value: "USER_AUTHORITY_CHANGED", label: "User authority changed" },
-];
+// A Record over the generated enum, so a new backend action cannot be
+// left out of the filter without a type error.
+const ACTION_LABELS: Record<AuditAction, string> = {
+  SESSION_CREATED: "Grading session created",
+  SESSION_TRANSITIONED: "Grading session transitioned",
+  SESSION_DELETED: "Grading session deleted",
+  CANDIDATE_REGISTERED: "Candidate registered",
+  CANDIDATE_UPDATED: "Candidate updated",
+  CANDIDATE_WITHDRAWN: "Candidate withdrawn",
+  CANDIDATE_DELETED: "Candidate deleted",
+  ASSESSMENT_GENERATED: "Assessment generated",
+  ASSESSMENT_STARTED: "Assessment started",
+  ASSESSMENT_COMPLETED: "Assessment completed",
+  ASSESSMENT_REOPENED: "Assessment reopened",
+  ASSESSMENT_DELETED: "Assessment deleted",
+  ITEM_RESULT_RECORDED: "Assessment item result recorded",
+  OUTCOME_CREATED: "Outcome created",
+  OUTCOME_PROPOSED: "Outcome proposed",
+  OUTCOME_FINALISED: "Outcome finalised",
+  PROMOTION_RECORDED: "Promotion recorded",
+  STUDENT_CREATED: "Student created",
+  STUDENT_UPDATED: "Student updated",
+  STUDENT_STATUS_CHANGED: "Student status changed",
+  STUDENT_DELETED: "Student deleted",
+  USER_CREATED: "User created",
+  USER_UPDATED: "User updated",
+  USER_AUTHORITY_CHANGED: "User authority changed",
+  USER_DELETED: "User deleted",
+  IMPORT_BATCH_COMMITTED: "Import committed",
+  IMPORT_BATCH_CANCELLED: "Import cancelled",
+  IMPORT_BATCH_EXPIRED: "Import expired",
+  LEGACY_GRADING_LINKED: "Historical record linked",
+  LEGACY_GRADING_UNLINKED: "Historical record unlinked",
+  LEGACY_GRADING_RANK_RESOLVED: "Historical record rank resolved",
+  LEGACY_GRADING_VOIDED: "Historical record voided",
+};
 
-const ENTITY_OPTIONS = [
-  ["GradingSession", "Grading session"],
-  ["GradingCandidate", "Candidate"],
-  ["CandidateAssessment", "Assessment"],
-  ["CandidateAssessmentItem", "Assessment item"],
-  ["CandidateOutcome", "Outcome"],
-  ["Promotion", "Promotion"],
-  ["Student", "Student"],
-  ["User", "User"],
-] as const;
+const ACTION_OPTIONS = (Object.entries(ACTION_LABELS) as [AuditAction, string][]).map(
+  ([value, label]) => ({ value, label }),
+);
 
-const ENTITY_LABELS = new Map<string, string>(ENTITY_OPTIONS);
+// A Record over the generated entity enum, for the same reason as actions.
+const ENTITY_LABELS: Record<AuditEntity, string> = {
+  GradingSession: "Grading session",
+  GradingCandidate: "Candidate",
+  CandidateAssessment: "Assessment",
+  CandidateAssessmentItem: "Assessment item",
+  CandidateOutcome: "Outcome",
+  Promotion: "Promotion",
+  Student: "Student",
+  User: "User",
+  ImportBatch: "Import batch",
+  LegacyGradingRecord: "Historical grading record",
+};
+
+const ENTITY_OPTIONS = Object.entries(ENTITY_LABELS) as [AuditEntity, string][];
 
 function eventTime(value: string): { date: string; time: string } {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return { date: value, time: "" };
-
-  const now = new Date();
-  const isToday =
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate();
+  const daysAgo = calendarDaysAgo(value);
+  if (daysAgo === null) return { date: value, time: "" };
+  const sameYear = parseApiDate(value)?.getFullYear() === new Date().getFullYear();
 
   return {
-    date: isToday
-      ? "Today"
-      : new Intl.DateTimeFormat("en-GB", {
-          day: "numeric",
-          month: "short",
-          year: date.getFullYear() === now.getFullYear() ? undefined : "numeric",
-        }).format(date),
-    time: new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(date),
+    date:
+      daysAgo === 0
+        ? "Today"
+        : formatApiDate(value, {
+            day: "numeric",
+            month: "short",
+            year: sameYear ? undefined : "numeric",
+          }),
+    time: formatTime(value),
   };
 }
 
@@ -111,7 +125,7 @@ export function AuditScreen(): React.ReactElement {
 
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const action = (searchParams.get("action") ?? "") as AuditAction | "";
-  const entityType = searchParams.get("entity_type") ?? "";
+  const entityType = (searchParams.get("entity_type") ?? "") as AuditEntity | "";
   const occurredFrom = searchParams.get("occurred_from") ?? "";
   const occurredTo = searchParams.get("occurred_to") ?? "";
   const appliedSearch = searchParams.get("search") ?? "";
@@ -310,7 +324,7 @@ export function AuditScreen(): React.ReactElement {
                         <td>{actorLabel(event)}</td>
                         <td>
                           <span className="audit-entity-type">
-                            {ENTITY_LABELS.get(event.entity_type) ?? event.entity_type}
+                            {ENTITY_LABELS[event.entity_type]}
                           </span>
                           <span className="audit-entity-id">#{event.entity_id}</span>
                         </td>
@@ -410,9 +424,9 @@ export function AuditScreen(): React.ReactElement {
               </button>
             </header>
             <dl className="audit-detail-grid">
-              <div><dt>Occurred</dt><dd>{new Date(selectedEvent.occurred_at).toLocaleString("en-GB")}</dd></div>
+              <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
               <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-              <div><dt>Entity</dt><dd>{ENTITY_LABELS.get(selectedEvent.entity_type) ?? selectedEvent.entity_type} #{selectedEvent.entity_id}</dd></div>
+              <div><dt>Entity</dt><dd>{ENTITY_LABELS[selectedEvent.entity_type]} #{selectedEvent.entity_id}</dd></div>
               <div><dt>Action code</dt><dd><code>{selectedEvent.action}</code></dd></div>
             </dl>
             <div className="audit-detail-section">

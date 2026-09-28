@@ -10,6 +10,13 @@ class RankSerializer(serializers.ModelSerializer):
         source="get_category_display",
         read_only=True,
     )
+    # The rank a student at this rank is graded for next, or null at the top.
+    # Served so the frontend never works out rank progression itself.
+    next_rank = serializers.IntegerField(
+        source="next_rank_id",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Rank
@@ -21,5 +28,6 @@ class RankSerializer(serializers.ModelSerializer):
             "category",
             "category_display",
             "active",
+            "next_rank",
         )
         read_only_fields = fields

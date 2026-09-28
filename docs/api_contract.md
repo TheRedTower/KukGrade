@@ -23,6 +23,14 @@ Default page size 50, `?page_size=` overridable to a maximum of 200, and an
 out-of-range page returns 404. Detail endpoints and custom actions return the
 object directly. See `backend/README.md` for the rationale.
 
+List filters follow one rule on every endpoint: an absent or blank parameter
+does not filter, and a value that cannot match - a non-numeric id, an unknown
+choice, a malformed UUID or date, or a boolean other than `true`/`false` -
+returns an empty page. Each view declares its filters once
+(`query_filters`, `kukgrade/filtering.py`), and that declaration both applies
+them and publishes them in `backend/schema.yml`, which is the authoritative
+list; the tables below summarise it.
+
 ## 0b. Error responses
 
 Every error response uses one envelope:
@@ -80,10 +88,15 @@ logged or included in the audit event it writes.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student`, `can_override_locked_session` and
-`can_view_grading_audit_log`, all **computed from the caller's Django
-permissions** rather than stored. Use them to hide
-affordances; the server remains the enforcement boundary. `role` is
-`instructor` or `administrator` and carries no authority of its own.
+`can_view_grading_audit_log` (the four grantable authorities), and the
+capabilities `can_manage_users`, `can_import_data`,
+`can_reconcile_imported_history`, `can_delete_students`,
+`can_delete_assessments` and `can_delete_any_session`, each from the exact
+permission its action checks, plus `can_read_audit_log`, the audit-log rule
+itself. All are **computed on the server** rather than stored. The frontend
+decides what to offer from these and never from `role`; the server remains
+the enforcement boundary. `role` is `instructor` or `administrator` and
+carries no authority of its own.
 
 Login failures use a generic error and must not reveal whether an account exists. Unsafe session-authenticated requests require a CSRF token. The React frontend obtains the CSRF cookie from `/api/auth/me/` during startup and sends credentials with API requests.
 
@@ -157,6 +170,11 @@ The seeded, read-only rank catalogue; ranks are maintained by migration.
 | GET    | /api/ranks/                                | List active ranks in progression order            |
 | GET    | /api/ranks/{id}/                           | Retrieve one rank                                 |
 
+Each rank carries `next_rank`: the id of the rank a student at this rank is
+graded for next (the next active rank by order), or `null` at the top. It is
+the same rule the grading services use (`RankQuerySet.next_active_after`), so
+the frontend never works out rank progression itself.
+
 ## 5. Syllabus Catalogue
 
 Read-only lookup of the seeded WKSA Version 2014 syllabus. Syllabus writes
@@ -219,7 +237,7 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
 | PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
-| PATCH | /api/gradings/candidates/{id}/         | Update candidate status or notes                 |
+| PATCH | /api/gradings/candidates/{id}/         | Update session, testing-for rank, status or notes; `student` is fixed after registration |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
@@ -227,6 +245,22 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/bulk-register/ | Register several candidates against one session in a single request, optionally generating their assessments too |
 | POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
 | POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
+
+Every candidate response carries `from_rank`, `from_rank_code` and
+`from_rank_name`: the rank the student held when registered, snapshotted on
+the candidate and read-only. It does not move when the student is later
+promoted, so a sealed assessment or a promotion ledger always shows where the
+candidate actually started.
+
+A candidate is always created `REGISTERED`: a `POST` with any other `status`,
+or with a `withdrawal_reason`, is a `400`. A registration's `student` never
+changes: sending a different one is a `400` (remove the candidate and
+register the right student instead). Setting
+`status` to `WITHDRAWN` requires `withdrawal_reason` (`INJURY`, `WITHDREW`,
+`ABSENT`, `ADMIN_ERROR`) and accepts an optional `withdrawal_note`; the
+withdrawal records who made it and when, and is audited as
+`CANDIDATE_WITHDRAWN`. Setting a withdrawn candidate back to `REGISTERED`
+clears all four withdrawal fields.
 
 Bulk endpoints process every row **independently**, not all-or-nothing: each
 row is validated and saved through the same domain service as its
@@ -288,8 +322,11 @@ Returns `200` with `{"created": [...generated assessments...], "errors": {...}}`
 `POST /api/gradings/candidates/bulk-update-status/` body:
 
 ```json
-{"candidates": [101, 102], "status": "WITHDRAWN"}
+{"candidates": [101, 102], "status": "WITHDRAWN", "withdrawal_reason": "ABSENT"}
 ```
+
+`withdrawal_reason` is required when `status` is `WITHDRAWN`; the whole
+request is refused without it. The frontend's no-show action sends `ABSENT`.
 
 Built for confirming attendance in bulk: tick the candidates who did not show
 up, set `WITHDRAWN`, and confirm - the rest are left untouched. Uses the same
@@ -438,9 +475,13 @@ longer open) does not block the rest. Returns `200` with
 
 Assessment-item result values are `NOT_ASSESSED`, `MET`, and `NOT_MET`. The
 server rejects item result changes until the parent assessment is explicitly
-started. Result changes are allowed for `IN_PROGRESS` assessments while the
-session is `OPEN` or `LOCKED`; locked sessions can finish work already in
-progress but cannot start new assessments. The server sets `assessor` to
+started. Result changes and completion are allowed only while the session is
+`OPEN`; a session cannot lock until every non-withdrawn assessment is
+`COMPLETED`. `POST /api/gradings/assessments/{id}/reopen/` returns a
+`COMPLETED` assessment to `IN_PROGRESS` (and its candidate to `REGISTERED`)
+while the session is still `OPEN`, keeping every item result and its
+attribution; it is audited as `ASSESSMENT_REOPENED` and needs
+`gradings.change_candidateassessment`. The server sets `assessor` to
 `request.user` and `assessed_at` when a result changes to `MET` or `NOT_MET`.
 Resetting an item to `NOT_ASSESSED` before completion clears assessor metadata.
 Result values are not aggregated into an overall candidate outcome.
@@ -584,7 +625,8 @@ administrators, holders of Master final-decision authority, and (since
 `gradings.can_view_grading_audit_log` permission - a fourth sensitive
 permission alongside the three Master ones, granted the same way via
 `PATCH /api/users/{id}/authority/`. An instructor holding none of the three
-is refused. No role group carries `audit.view_auditevent`.
+is refused. Administrators read it through the Administrator group's
+`audit.view_auditevent`; the Instructor group has no such grant.
 
 **Exception: user-management events are administrator-only.** `USER_CREATED`,
 `USER_UPDATED`, `USER_AUTHORITY_CHANGED` and `USER_DELETED` are additionally
@@ -606,16 +648,20 @@ outside the caller's queryset.
 | GET    | /api/audit-events/{id}/      | Retrieve one audit event              |
 
 Every event has `actor` (nullable - null only for a system action),
-`action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
+`actor_email` and `actor_name` (who acted, copied when the event was written;
+empty for a system action), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
 a record outlives the schema it describes), `occurred_at`, a human-readable
 `summary`, and `metadata` (a `{"before": {...}, "after": {...}}` object for a
 revision, `{}` otherwise). The model is append-only: no admin, API, queryset
-or shell path can update or delete a row.
+or shell path can update or delete a row. The one exception is deleting a
+user, which re-points `actor` to the deleted-user placeholder; `actor_email`
+and `actor_name` are untouched, so the event still names who acted. The
+`search` filter matches those two fields.
 
 Filters:
 
 - `action`
-- `entity_type`
+- `entity_type` - one of `AuditEntity` (`audit/models.py`): the model name of what the event is about. Recording an event about any other model is refused, so the list is complete.
 - `entity_id`
 - `actor`
 - `occurred_from`

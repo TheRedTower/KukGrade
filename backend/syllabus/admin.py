@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from django.contrib import admin
 
+from kukgrade.admin_mixins import ReadOnlyCatalogueAdmin
 from syllabus.models import SyllabusItem, SyllabusRequirement
 
 
 @admin.register(SyllabusItem)
-class SyllabusItemAdmin(admin.ModelAdmin):
+class SyllabusItemAdmin(ReadOnlyCatalogueAdmin):
     list_display = ("code", "name", "category", "active")
     list_filter = ("category", "active")
     search_fields = ("code", "name", "korean_name")
@@ -14,7 +15,7 @@ class SyllabusItemAdmin(admin.ModelAdmin):
 
 
 @admin.register(SyllabusRequirement)
-class SyllabusRequirementAdmin(admin.ModelAdmin):
+class SyllabusRequirementAdmin(ReadOnlyCatalogueAdmin):
     list_display = (
         "rank",
         "age_band",

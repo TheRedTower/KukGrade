@@ -23,6 +23,8 @@ FINAL_GRADING_DECISION_PERMISSION = "gradings.can_make_final_grading_decision"
 PROMOTE_STUDENT_PERMISSION = "gradings.can_promote_student"
 OVERRIDE_LOCKED_SESSION_PERMISSION = "gradings.can_override_locked_session"
 GRADING_AUDIT_LOG_PERMISSION = "gradings.can_view_grading_audit_log"
+AUDIT_LOG_PERMISSION = "audit.view_auditevent"
+DELETE_ANY_SESSION_PERMISSION = "gradings.delete_any_gradingsession"
 
 # The per-user authority flags, keyed the way /api/auth/me/ and the users
 # API's authority sub-resource spell them. Deliberately in no role group
@@ -37,13 +39,14 @@ AUTHORITY_PERMISSIONS: dict[str, str] = {
 
 
 def can_view_audit_log(user: User) -> bool:
-    """Administrator, Master authority, or the grantable audit-log permission.
+    """The Administrator group's grant, Master authority, or the grantable
+    audit-log permission.
 
     The one statement of this rule: the API (`CanViewAuditLog`) and Django
     admin (`audit.admin.AuditEventAdmin`) both ask it.
     """
     return user.is_active and (
-        user.role == User.Role.ADMINISTRATOR
+        user.has_perm(AUDIT_LOG_PERMISSION)
         or user.has_perm(FINAL_GRADING_DECISION_PERMISSION)
         or user.has_perm(GRADING_AUDIT_LOG_PERMISSION)
     )
@@ -155,7 +158,9 @@ class CanViewAuditLog(BasePermission):
 
 
 __all__ = [
+    "AUDIT_LOG_PERMISSION",
     "AUTHORITY_PERMISSIONS",
+    "DELETE_ANY_SESSION_PERMISSION",
     "FINAL_GRADING_DECISION_PERMISSION",
     "GRADING_AUDIT_LOG_PERMISSION",
     "OVERRIDE_LOCKED_SESSION_PERMISSION",

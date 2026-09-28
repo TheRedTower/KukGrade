@@ -11,10 +11,12 @@ from rest_framework import serializers
 from accounts.models import User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
+    DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     GRADING_AUDIT_LOG_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
+    can_view_audit_log,
 )
 from accounts.services import (
     create_platform_user,
@@ -22,7 +24,6 @@ from accounts.services import (
     set_user_authority,
     update_platform_user,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 
 security_logger = logging.getLogger("kukgrade.security")
 
@@ -64,6 +65,23 @@ class AuthorityFields(serializers.Serializer):
 class UserSerializer(AuthorityFields, serializers.ModelSerializer):
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    # What the signed-in user may do beyond ordinary grading, from the exact
+    # permission each action checks - so the UI offers a control only when
+    # the server will accept it, and never decides that from role.
+    can_manage_users = HasPermission("accounts.view_user")
+    can_import_data = HasPermission("data_imports.add_importbatch")
+    can_reconcile_imported_history = HasPermission(
+        "gradings.can_reconcile_imported_history",
+    )
+    can_delete_students = HasPermission("students.delete_student")
+    can_delete_assessments = HasPermission("gradings.delete_candidateassessment")
+    can_delete_any_session = HasPermission(DELETE_ANY_SESSION_PERMISSION)
+    # Not a single permission: the audit-log rule, computed by the same
+    # function the API and admin enforce it with.
+    can_read_audit_log = serializers.SerializerMethodField()
+
+    def get_can_read_audit_log(self, user: User) -> bool:
+        return can_view_audit_log(user)
 
     class Meta:
         model = User
@@ -79,6 +97,13 @@ class UserSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_promote_student",
             "can_override_locked_session",
             "can_view_grading_audit_log",
+            "can_manage_users",
+            "can_import_data",
+            "can_reconcile_imported_history",
+            "can_delete_students",
+            "can_delete_assessments",
+            "can_delete_any_session",
+            "can_read_audit_log",
             "must_change_password",
             "is_staff",
             "is_superuser",
@@ -105,10 +130,7 @@ class SelfProfileSerializer(UserSerializer):
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return update_platform_user(instance, actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_platform_user(instance, actor=request.user, **validated_data)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -223,17 +245,11 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     def create(self, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return create_platform_user(actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return create_platform_user(actor=request.user, **validated_data)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return update_platform_user(instance, actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_platform_user(instance, actor=request.user, **validated_data)
 
 
 class UserAuthoritySerializer(serializers.Serializer):
@@ -250,14 +266,11 @@ class UserAuthoritySerializer(serializers.Serializer):
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
-        try:
-            return set_user_authority(
-                instance,
-                actor=request.user,
-                **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return set_user_authority(
+            instance,
+            actor=request.user,
+            **{name: validated_data.get(name) for name in AUTHORITY_PERMISSIONS},
+        )
 
 
 class SetPasswordSerializer(serializers.Serializer):

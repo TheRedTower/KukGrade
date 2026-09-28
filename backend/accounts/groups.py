@@ -55,9 +55,8 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     # legacy records; only an administrator may import/reconcile/void one
     # (_LEGACY_GRADING_RECONCILIATION_PERMISSIONS below).
     ("gradings", "view_legacygradingrecord"),
-    # Deliberately not "audit", "view_auditevent" here: audit log access is
-    # accounts.permissions.can_view_audit_log, a narrower cut than either
-    # role group, so no group grants it at all.
+    # Deliberately not "audit", "view_auditevent": instructors read the log
+    # only through a per-user grant (accounts.permissions.can_view_audit_log).
 )
 
 # Administrators additionally manage people. Logistics beyond Kuk Sool.
@@ -74,6 +73,7 @@ _USER_ADMINISTRATION_PERMISSIONS: tuple[tuple[str, str], ...] = (
 # See gradings.services / students.services for the cascade/attribution
 # handling this gates.
 _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
+    ("gradings", "delete_any_gradingsession"),
     ("gradings", "delete_candidateassessment"),
     ("gradings", "delete_candidateoutcome"),
     ("gradings", "delete_promotion"),
@@ -109,6 +109,7 @@ GROUP_PERMISSIONS: dict[str, tuple[tuple[str, str], ...]] = {
         + _DATA_CLEANUP_PERMISSIONS
         + _DATA_IMPORT_PERMISSIONS
         + _LEGACY_GRADING_RECONCILIATION_PERMISSIONS
+        + (("audit", "view_auditevent"),)
     ),
 }
 

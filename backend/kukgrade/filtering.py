@@ -1,23 +1,51 @@
-"""Query-parameter filters shared across list endpoints.
+"""Query-parameter filters for list endpoints, declared once per view.
 
-Every list endpoint follows one rule: an absent or blank parameter does not
-filter, and a value that cannot possibly match - a non-numeric id, an unknown
-choice, a malformed UUID or date - returns an empty page rather than a 400 or
-being silently ignored. Each helper applies that rule to one parameter, so a
-`get_queryset` reads as a flat list of the filters it supports.
+A view lists its filters in `query_filters`; `DeclaredQueryFilters` (the
+default filter backend) applies them and describes them to the OpenAPI
+schema, so the filters a list endpoint accepts and the ones its contract
+documents cannot drift apart - and the frontend's parameter types are
+generated from the same declaration.
+
+Every filter follows one rule: an absent or blank parameter does not filter,
+and a value that cannot possibly match - a non-numeric id, an unknown choice,
+a malformed UUID or date, a boolean other than `true`/`false` - returns an
+empty page rather than a 400 or being silently ignored.
 """
 
 from __future__ import annotations
 
 import uuid
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Sequence
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
+from rest_framework.filters import BaseFilterBackend
+from rest_framework.request import Request
+from rest_framework.views import APIView
+
+type Apply = Callable[[QuerySet[Any], str], QuerySet[Any]]
 
 
-def parse_date_filter(value: str | None) -> date | None:
+@dataclass(frozen=True)
+class QueryFilter:
+    name: str
+    apply: Apply
+    schema: dict[str, Any] = field(default_factory=lambda: {"type": "string"})
+    description: str = ""
+
+    def schema_parameter(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "required": False,
+            "in": "query",
+            "description": self.description,
+            "schema": self.schema,
+        }
+
+
+def _parse_date(value: str | None) -> date | None:
     if not value:
         return None
     try:
@@ -26,49 +54,110 @@ def parse_date_filter(value: str | None) -> date | None:
         return None
 
 
-def filter_exact[QS: QuerySet[Any]](queryset: QS, value: str | None, lookup: str) -> QS:
-    if not value:
-        return queryset
-    return queryset.filter(**{lookup: value})
+def exact(name: str, lookup: str, description: str = "") -> QueryFilter:
+    return QueryFilter(
+        name,
+        lambda queryset, value: queryset.filter(**{lookup: value}),
+        description=description,
+    )
 
 
-def filter_id[QS: QuerySet[Any]](queryset: QS, value: str | None, lookup: str) -> QS:
-    if not value:
-        return queryset
-    if not value.isdecimal():
-        return queryset.none()
-    return queryset.filter(**{lookup: int(value)})
+def by_id(name: str, lookup: str, description: str = "") -> QueryFilter:
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        if not value.isdecimal():
+            return queryset.none()
+        return queryset.filter(**{lookup: int(value)})
+
+    return QueryFilter(name, apply, {"type": "integer"}, description)
 
 
-def filter_choice[QS: QuerySet[Any]](
-    queryset: QS,
-    value: str | None,
+def choice(
+    name: str,
     lookup: str,
     choices: Collection[str],
-) -> QS:
-    if not value:
+    description: str = "",
+) -> QueryFilter:
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        if value not in choices:
+            return queryset.none()
+        return queryset.filter(**{lookup: value})
+
+    return QueryFilter(
+        name, apply, {"type": "string", "enum": sorted(choices)}, description
+    )
+
+
+def by_uuid(name: str, lookup: str, description: str = "") -> QueryFilter:
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        try:
+            parsed = uuid.UUID(value)
+        except ValueError:
+            return queryset.none()
+        return queryset.filter(**{lookup: parsed})
+
+    return QueryFilter(name, apply, {"type": "string", "format": "uuid"}, description)
+
+
+def on_date(name: str, lookup: str, description: str = "") -> QueryFilter:
+    """An ISO date. An inverted from/to pair needs no special case: `__gte`
+    and `__lte` applied together already match nothing."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        parsed = _parse_date(value)
+        if parsed is None:
+            return queryset.none()
+        return queryset.filter(**{lookup: parsed})
+
+    return QueryFilter(name, apply, {"type": "string", "format": "date"}, description)
+
+
+def boolean(
+    name: str,
+    lookup: str,
+    *,
+    invert: bool = False,
+    description: str = "",
+) -> QueryFilter:
+    """`true` or `false`; `invert` suits a lookup phrased the other way
+    round, such as `linked` over `student__isnull`."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        if value not in {"true", "false"}:
+            return queryset.none()
+        return queryset.filter(**{lookup: (value == "true") != invert})
+
+    return QueryFilter(name, apply, {"type": "boolean"}, description)
+
+
+def search(name: str, fields: Sequence[str], description: str = "") -> QueryFilter:
+    """Case-insensitive substring match across `fields`."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        term = value.strip()
+        if not term:
+            return queryset
+        condition = Q()
+        for lookup in fields:
+            condition |= Q(**{f"{lookup}__icontains": term})
+        return queryset.filter(condition)
+
+    return QueryFilter(name, apply, description=description)
+
+
+class DeclaredQueryFilters(BaseFilterBackend):
+    """Applies and documents a view's `query_filters`."""
+
+    def filter_queryset(
+        self,
+        request: Request,
+        queryset: QuerySet[Any],
+        view: APIView,
+    ) -> QuerySet[Any]:
+        for query_filter in getattr(view, "query_filters", ()):
+            value = request.query_params.get(query_filter.name)
+            if value:
+                queryset = query_filter.apply(queryset, value)
         return queryset
-    if value not in choices:
-        return queryset.none()
-    return queryset.filter(**{lookup: value})
 
-
-def filter_uuid[QS: QuerySet[Any]](queryset: QS, value: str | None, lookup: str) -> QS:
-    if not value:
-        return queryset
-    try:
-        parsed = uuid.UUID(value)
-    except ValueError:
-        return queryset.none()
-    return queryset.filter(**{lookup: parsed})
-
-
-def filter_date[QS: QuerySet[Any]](queryset: QS, value: str | None, lookup: str) -> QS:
-    """Filter on an ISO date. An inverted from/to pair needs no special case:
-    `__gte` and `__lte` applied together already match nothing."""
-    if not value:
-        return queryset
-    parsed = parse_date_filter(value)
-    if parsed is None:
-        return queryset.none()
-    return queryset.filter(**{lookup: parsed})
+    def get_schema_operation_parameters(self, view: APIView) -> list[dict[str, Any]]:
+        return [f.schema_parameter() for f in getattr(view, "query_filters", ())]

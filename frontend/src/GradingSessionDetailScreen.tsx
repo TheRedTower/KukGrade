@@ -7,14 +7,12 @@ import {
   CandidateOutcome,
   GradingCandidate,
   GradingSession,
-  StudentListItem,
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
   bulkUpdateCandidateStatus,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
-  getAllStudents,
   getGradingSession,
   updateGradingSession,
   deleteGradingSession,
@@ -224,7 +222,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // 1. Fetch session details
   const sessionQuery = useQuery({
-    queryKey: ["gradingSession", sessionId],
+    queryKey: ["gradingSessions", "detail", sessionId],
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
@@ -250,22 +248,18 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     enabled: !isNaN(sessionId),
   });
 
-  // 5. Fetch students list to cross-reference current ranks
-  const studentsQuery = useQuery({
-    queryKey: ["studentsReferenceList"],
-    queryFn: () => getAllStudents(),
-    staleTime: 60_000,
-  });
-
   const session = sessionQuery.data;
 
   // Mutations
   const updateSessionMutation = useMutation({
-    mutationFn: (payload: { status?: GradingSession["status"]; notes?: string; cancellation_reason?: string }) =>
+    mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) =>
       updateGradingSession(sessionId, payload),
     onSuccess: (updated: GradingSession) => {
-      queryClient.setQueryData(["gradingSession", sessionId], updated);
-      void queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      // The response is the new state of this session; only the lists that
+      // summarise it need refetching.
+      queryClient.setQueryData(["gradingSessions", "detail", sessionId], updated);
+      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "all"] });
+      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "page"] });
       setIsEditingNotes(false);
       setConfirmModal(null);
       setCancellationReason("");
@@ -338,7 +332,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   const attendanceMutation = useMutation({
     mutationFn: (candidateIds: number[]) =>
-      bulkUpdateCandidateStatus(candidateIds, "WITHDRAWN"),
+      // A no-show is by definition "did not attend".
+      bulkUpdateCandidateStatus({
+        candidates: candidateIds,
+        status: "WITHDRAWN",
+        withdrawal_reason: "ABSENT",
+      }),
     onSuccess: ({ updated, errors }) => {
       refreshCandidateWork();
       setAttendanceDialogOpen(false);
@@ -379,26 +378,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     const rawCandidates: GradingCandidate[] = candidatesQuery.data?.results ?? [];
     const assessments: CandidateAssessment[] = assessmentsQuery.data?.results ?? [];
     const outcomes: CandidateOutcome[] = outcomesQuery.data?.results ?? [];
-    const students: StudentListItem[] = studentsQuery.data?.results ?? [];
 
-    const studentMap = new Map<number, StudentListItem>(students.map((s) => [s.id, s]));
     const assessmentMap = new Map<number, CandidateAssessment>(assessments.map((a) => [a.candidate, a]));
     const outcomeMap = new Map<number, CandidateOutcome>(outcomes.map((o) => [o.candidate, o]));
 
     return rawCandidates.map((c: GradingCandidate) => {
-      const student = studentMap.get(c.student);
       const assessment = assessmentMap.get(c.id);
       const outcome = outcomeMap.get(c.id);
 
       return {
         candidate: c,
-        currentRankName: student?.current_rank_name || "White",
+        // The rank held at registration (GradingCandidate.from_rank_name),
+        // not the student's live current rank - see the 2026-09-25 decision
+        // log entry. Never moves if the student is promoted elsewhere.
+        currentRankName: c.from_rank_name,
         targetRankName: c.testing_for_rank_name || "Next rank",
         assessment,
         outcome,
       };
     });
-  }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data, studentsQuery.data]);
+  }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data]);
 
   // Count candidates awaiting final decision
   const awaitingDecisionCount = useMemo(() => {
@@ -545,7 +544,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setConfirmModal({
         open: true,
         title: "Lock Grading Session",
-        message: "Locking the session prevents further candidate assessment edits unless unlocked by an Authorised Master.",
+        message: "Locking ends grading. Every assessment must be completed first, and after locking no result can be changed or reopened.",
         actionType: "LOCK",
       });
     } else if (actionType === "COMPLETE") {
@@ -741,7 +740,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         Cancel session
                       </button>
                     )}
-                    {currentUser?.role === "administrator" && (
+                    {currentUser?.can_delete_any_session && (
                       <button
                         type="button"
                         role="menuitem"
@@ -764,7 +763,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {currentUser?.role === "administrator" && (
+                    {currentUser?.can_delete_any_session && (
                       <button
                         type="button"
                         role="menuitem"
@@ -787,7 +786,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       View audit events
                     </Link>
-                    {(!hasAssessmentWork || currentUser?.role === "administrator") && (
+                    {(!hasAssessmentWork || currentUser?.can_delete_any_session) && (
                       <button
                         type="button"
                         role="menuitem"
@@ -1002,9 +1001,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     Boolean(currentUser?.can_override_locked_session) &&
                     !isWithdrawn &&
                     outcomeStatus !== "FINALISED";
-                  const lockedAssessmentUnavailable =
-                    session.status === "LOCKED" &&
-                    (!assessmentStatus || assessmentStatus === "NOT_STARTED");
 
                   let nextActionLabel = assessmentStatus
                     ? "Start assessment →"
@@ -1094,8 +1090,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         <div className="gsd-row-actions">
                           {isWithdrawn ? (
                             <span className="gsd-withdrawal-record">No further action</span>
-                          ) : lockedAssessmentUnavailable ? (
-                            <span className="gsd-withdrawal-record">Assessment was not started</span>
                           ) : isProposalDrawerTrigger ? (
                             <button
                               type="button"

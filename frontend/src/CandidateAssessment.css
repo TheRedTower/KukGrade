@@ -38,14 +38,6 @@
   letter-spacing: -0.02em;
 }
 
-.caw-candidate-wksa {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
 .caw-rank-tag {
   display: inline-flex;
   align-items: center;
@@ -319,6 +311,9 @@
 }
 
 .caw-candidate-wksa {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.75rem;
   letter-spacing: 0.04em;
   color: var(--color-text-muted);
@@ -364,11 +359,6 @@
   margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
-}
-
-.caw-band-korean {
-  font-weight: 400;
-  color: var(--color-text-muted);
 }
 
 .caw-band-rule {
@@ -1346,4 +1336,8 @@
   .acp-core-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.acp-reopen-btn {
+  margin-top: 0.75rem;
 }

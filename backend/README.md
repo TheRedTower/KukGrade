@@ -53,8 +53,9 @@ everywhere:
   `audit.recording.record()` in that same transaction. Views, serializers,
   and Django admin all call the services, so a change is validated and
   audited identically however it arrives. Services raise Django's
-  `ValidationError`; views translate it with
-  `kukgrade.exceptions.raise_drf_validation_error`.
+  `ValidationError` and views let it propagate: `custom_exception_handler`
+  (`kukgrade/exceptions.py`) turns it into the standard 400 envelope, keeping
+  its field keys.
 - **Models refuse illegal states themselves.** Status changes, deletion
   rules, and immutability (finalised outcomes, promotions, audit events,
   imported source text) are enforced in `save()`/`delete()`/`clean()` and in

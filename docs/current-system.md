@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-24. This document
+Describes the implementation on `dev` as verified on 2026-09-28. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-24 with 633 backend tests and 196 frontend tests passing
+Verified on 2026-09-28 with 661 backend tests and 209 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -44,7 +44,9 @@ checks on each push and pull request.
 - **Pagination** on every list endpoint, uniformly, no exemptions.
 - **One error envelope** for every error, with per-field validation messages
   reachable by the client. Unhandled 500s are enveloped too.
-- Rank catalogue seeded White through PKJN, read-only.
+- Rank catalogue seeded White through PKJN, read-only - in Django admin as
+  well as the API since 2026-09-26, for superusers too, so an unaudited edit
+  cannot change how past records read. The syllabus catalogue is the same.
 - Syllabus catalogue for WKSA Version 2014, read-only. Beyond the plain
   per-rank requirement list, `GET /api/syllabus/requirements/effective/`
   (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
@@ -107,6 +109,14 @@ checks on each push and pull request.
   was later added. Deliberately separate from `/rank-history/`, which is
   untouched and stays `Promotion`-only.
 - Grading sessions, candidates, age-band snapshots, next-rank validation.
+- **Candidates record the rank held at registration (2026-09-25)**:
+  `GradingCandidate.from_rank` is set from the student's current rank when the
+  candidate is created and never moves afterwards, so the completion proof and
+  the promotion ledger show where the candidate started even after promotion.
+  Existing rows were backfilled from each candidate's own `Promotion`, else by
+  replaying the student's promotion history to the session date. The
+  assessment screens no longer look the student up by a WKSA-ID substring
+  search, which could return a different student.
 - **Bulk operations**: `bulk-register` registers several candidates against
   one session (optionally generating their assessments in the same request);
   `bulk-generate-assessments` generates assessments for several already-
@@ -115,7 +125,8 @@ checks on each push and pull request.
   action, never bundled into generation or registration, so bulk-starting is
   always a choice; `bulk-update-status` sets status on several candidates at
   once (built for confirming attendance - tick the no-shows, set
-  `WITHDRAWN`, confirm); `bulk-promote` (on `/api/gradings/outcomes/`)
+  `WITHDRAWN` with reason `ABSENT`, confirm; since 2026-09-26 every
+  withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
   the same domain service as its single-item endpoint inside its own
@@ -126,6 +137,12 @@ checks on each push and pull request.
   mixed-belt group registers in one request with no rank picked at all.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
+- **Locking ends grading (2026-09-26)**: results are recorded and assessments
+  completed only while the session is `OPEN`, and it cannot lock until every
+  non-withdrawn assessment is `COMPLETED`. Until then a completed assessment
+  can be reopened for correction (`POST .../assessments/{id}/reopen/`,
+  audited), from a "Reopen for correction" control on the sealed record. A
+  registration always starts `REGISTERED`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
 - Outcome proposal and final-decision drawers, cohort-exception review, student
@@ -211,7 +228,14 @@ checks on each push and pull request.
   orphaned, refusing when a later promotion has already superseded it. Both
   bypass immutability guards on `Promotion`, finalised `CandidateOutcome`
   and `AuditEvent` deliberately, at one documented call site each, rather
-  than by omission. See the 2026-09-21 decision log entry.
+  than by omission. See the 2026-09-21 decision log entry. **Since
+  2026-09-26 the audit trail keeps the person**: every event copies the
+  actor's email and name when written (`actor_email`, `actor_name`), so
+  re-pointing `actor` to the placeholder no longer hides who acted, and the
+  `USER_DELETED` event records the deleted account's email, name and role
+  alongside who deleted it. The placeholder is hidden from the Users API and
+  Django admin, and the model refuses to make it active from any path, so it
+  can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
   stay administrator-only. `POST /api/auth/change-password/` lets a user
@@ -233,21 +257,29 @@ checks on each push and pull request.
   2026-09-21) any instructor individually granted the fourth sensitive
   permission, `can_view_grading_audit_log`** - a plain instructor holding
   none of the three gets 403, in both the API (`CanViewAuditLog`) and Django
-  admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`); no
-  group carries the `view_auditevent` permission for this reason. For all
+  admin (`AuditEventAdmin.has_view_permission`/`has_module_permission`).
+  Administrators read it through the Administrator group's
+  `audit.view_auditevent` grant (since 2026-09-26; previously their role was
+  checked directly); the Instructor group carries no such grant. For all
   three, user-management events (`USER_CREATED`, `USER_UPDATED`,
   `USER_AUTHORITY_CHANGED`, `USER_DELETED`) are additionally administrator-only
   - logistics, same as the Users API itself - so a Master or a
   `can_view_grading_audit_log` holder who is not an administrator still
   cannot see them; the existing `accounts.view_user` exclusion filter scopes
   the new permission automatically, with no separate filtering logic needed.
-- **Master authority is administrator-exclusive by design**: granting
-  `can_make_final_grading_decision` to an administrator is refused
+- **An administrator can never hold Master authority (2026-09-16)**:
+  granting `can_make_final_grading_decision` to an administrator is refused
   (`PATCH /api/users/{id}/authority/`), and promoting a user who already
-  holds it to administrator is refused too
-  (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
-  designated Master, never an administrator; administrators hold every
-  other capability, including the other two sensitive permissions.
+  holds it to administrator is refused too (`PATCH /api/users/{id}/`,
+  `role`). Any number of instructors may hold it at once - a second Master
+  is a normal outcome, not an exception (2026-09-25) - but an administrator
+  never can; administrators hold every other capability, including the
+  other two sensitive permissions.
+- **The UI never decides from role (2026-09-26)**: `/api/auth/me/` reports
+  each administrator capability from the permission its action checks, and
+  whether the audit log is readable from the backend rule itself. Routes
+  (one `RequireAccess` guard) and controls read those flags, so the UI cannot
+  offer what the server will refuse.
 - **Frontend authentication and shell**: login, logout, current-user bootstrap,
   responsive navigation, profile/password controls, and a four-state auth model
   that distinguishes "not signed in" from "could not reach the server". The
@@ -344,9 +376,13 @@ checks on each push and pull request.
   is the API's own `age_band_display`, never recomputed in the browser. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
   the UTC runner cannot observe this class of bug: with the defect
-  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen,
-  including the assessment screens' time and record-date formatters, formats
-  through `formatApiDate`/`formatSessionDate`.
+  reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen
+  formats through `dates.ts` - `formatShortDate`, `formatLongDate`,
+  `formatDateTime`, `formatShortDateTime`, `formatTime`, `formatDayMonth`,
+  `formatSessionDate` or `formatApiDate`, with "today"/"yesterday" decided by
+  `calendarDaysAgo` - with no per-screen formatter of its own, and "today" for a date input or a
+  comparison with a date-only value is `todayIsoDate()` (local), never
+  `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and
   Gradings lists use server-side pagination; grading-session status, year, and
@@ -385,8 +421,14 @@ checks on each push and pull request.
   declares its real request and response (`@extend_schema`), and the bulk,
   summary, and import actions serialize through those same declared
   serializers, so the schema cannot describe a shape the API does not send.
+  The schema splits request and response components
+  (`COMPONENT_SPLIT_REQUEST`), so request payloads such as `StudentRequest`
+  and `PatchedStudentRequest` are generated too, without the read-only fields
+  a response carries.
   CI regenerates both the schema and the types and fails if either differs
-  from what is committed. The only hand-written API shapes are the error
+  from what is committed. List-filter parameters are generated too: each view declares its filters
+  once and the same declaration filters the queryset and documents the
+  schema. The only hand-written API shapes are the error
   envelope, which `custom_exception_handler` builds outside DRF's
   serializer path, and the page envelope.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,

@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from accounts.models import User
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
+    CANDIDATE_REGISTERED_ON_CREATION_MESSAGE,
+    CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -18,6 +19,7 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
+    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
     CategoryAssessmentSummary,
     apply_candidate_update,
     create_grading_session,
@@ -32,7 +34,6 @@ from gradings.services import (
     validate_session_transition,
     withdraw_locked_candidate,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import SyllabusItem
@@ -72,35 +73,26 @@ class GradingSessionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
         if self.instance is not None and "status" in attrs:
-            try:
-                validate_session_transition(
-                    self.instance.status,
-                    str(attrs["status"]),
-                    session=self.instance,
-                )
-            except DjangoValidationError as exc:
-                raise_drf_validation_error(exc)
+            validate_session_transition(
+                self.instance.status,
+                str(attrs["status"]),
+                session=self.instance,
+            )
         if self.instance is not None and "grading_date" in attrs:
             self.instance.grading_date = attrs["grading_date"]
-            try:
-                validate_session_grading_date_change(self.instance)
-            except DjangoValidationError as exc:
-                raise_drf_validation_error(exc)
+            validate_session_grading_date_change(self.instance)
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> GradingSession:
         request = self.context["request"]
-        try:
-            return create_grading_session(
-                title=str(validated_data["title"]),
-                grading_date=validated_data["grading_date"],
-                location=str(validated_data.get("location", "")),
-                notes=str(validated_data.get("notes", "")),
-                created_by=cast(User, request.user),
-                status=cast(str | None, validated_data.get("status")),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return create_grading_session(
+            title=str(validated_data["title"]),
+            grading_date=validated_data["grading_date"],
+            location=str(validated_data.get("location", "")),
+            notes=str(validated_data.get("notes", "")),
+            created_by=cast(User, request.user),
+            status=cast(str | None, validated_data.get("status")),
+        )
 
     def update(
         self,
@@ -109,23 +101,20 @@ class GradingSessionSerializer(serializers.ModelSerializer):
     ) -> GradingSession:
         target_status = cast(str | None, validated_data.pop("status", None))
         reason = cast(str, validated_data.pop("cancellation_reason", ""))
-        try:
-            with transaction.atomic():
-                if validated_data:
-                    instance = cast(
-                        GradingSession,
-                        super().update(instance, validated_data),
-                    )
-                if target_status is not None and target_status != instance.status:
-                    instance = transition_grading_session(
-                        instance,
-                        target_status,
-                        actor=self.context["request"].user,
-                        reason=reason,
-                    )
-                return instance
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        with transaction.atomic():
+            if validated_data:
+                instance = cast(
+                    GradingSession,
+                    super().update(instance, validated_data),
+                )
+            if target_status is not None and target_status != instance.status:
+                instance = transition_grading_session(
+                    instance,
+                    target_status,
+                    actor=self.context["request"].user,
+                    reason=reason,
+                )
+            return instance
 
 
 class GradingCandidateSerializer(serializers.ModelSerializer):
@@ -134,10 +123,17 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         source="get_age_band_display", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    withdrawal_reason = serializers.CharField(read_only=True)
+    # Blank on a candidate who is not withdrawn, so the schema admits "".
+    withdrawal_reason = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+        required=False,
+        allow_blank=True,
+    )
     session_title = serializers.CharField(source="session.title", read_only=True)
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
+    from_rank_code = serializers.CharField(source="from_rank.code", read_only=True)
+    from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
     testing_for_rank_code = serializers.CharField(
         source="testing_for_rank.code",
         read_only=True,
@@ -157,6 +153,21 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     def get_student_display_name(self, instance: GradingCandidate) -> str:
         return f"{instance.student.first_name} {instance.student.last_name}".strip()
 
+    def validate_student(self, value: Student) -> Student:
+        if self.instance is not None and value.pk != self.instance.student_id:
+            raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
+        return value
+
+    def validate_status(self, value: str) -> str:
+        if self.instance is None and value != GradingCandidate.Status.REGISTERED:
+            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
+        return value
+
+    def validate_withdrawal_reason(self, value: str) -> str:
+        if self.instance is None and value:
+            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
+        return value
+
     def get_withdrawn_by_email(self, instance: GradingCandidate) -> str:
         return instance.withdrawn_by.email if instance.withdrawn_by else ""
 
@@ -172,6 +183,9 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "student",
             "student_display_name",
             "student_wksa_id",
+            "from_rank",
+            "from_rank_code",
+            "from_rank_name",
             "testing_for_rank",
             "testing_for_rank_code",
             "testing_for_rank_name",
@@ -195,14 +209,15 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "session_title",
             "student_display_name",
             "student_wksa_id",
+            "from_rank",
+            "from_rank_code",
+            "from_rank_name",
             "testing_for_rank_code",
             "testing_for_rank_name",
             "age_band",
             "age_band_display",
             "status_display",
-            "withdrawal_reason",
             "withdrawal_reason_display",
-            "withdrawal_note",
             "withdrawn_by",
             "withdrawn_by_email",
             "withdrawn_by_name",
@@ -217,17 +232,9 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
                 session=cast(GradingSession, validated_data["session"]),
                 student=cast(Student, validated_data["student"]),
                 testing_for_rank=cast(Rank, validated_data["testing_for_rank"]),
-                status=str(
-                    validated_data.get(
-                        "status",
-                        GradingCandidate.Status.REGISTERED,
-                    ),
-                ),
                 notes=str(validated_data.get("notes", "")),
                 actor=cast(User, self.context["request"].user),
             )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
         except IntegrityError as exc:
             raise serializers.ValidationError(
                 {"student": ["Student is already registered for this session."]},
@@ -243,17 +250,16 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             candidate = apply_candidate_update(
                 instance,
                 session=cast(GradingSession | None, validated_data.get("session")),
-                student=cast(Student | None, validated_data.get("student")),
                 testing_for_rank=cast(
                     Rank | None,
                     validated_data.get("testing_for_rank"),
                 ),
                 status=cast(str | None, validated_data.get("status")),
                 notes=cast(str | None, validated_data.get("notes")),
+                withdrawal_reason=validated_data.get("withdrawal_reason"),
+                withdrawal_note=validated_data.get("withdrawal_note"),
                 actor=cast(User, self.context["request"].user),
             )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
         except IntegrityError as exc:
             raise serializers.ValidationError(
                 {"student": ["Student is already registered for this session."]},
@@ -301,6 +307,24 @@ class BulkCandidateStatusUpdateSerializer(serializers.Serializer):
         allow_empty=False,
     )
     status = serializers.ChoiceField(choices=GradingCandidate.Status.choices)
+    withdrawal_reason = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+        required=False,
+    )
+    withdrawal_note = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=True,
+    )
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs["status"] == GradingCandidate.Status.WITHDRAWN and not attrs.get(
+            "withdrawal_reason"
+        ):
+            raise serializers.ValidationError(
+                {"withdrawal_reason": [WITHDRAWAL_REASON_REQUIRED_MESSAGE]},
+            )
+        return attrs
 
 
 class BulkAssessmentStartSerializer(serializers.Serializer):
@@ -452,15 +476,12 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         instance: CandidateAssessment,
         validated_data: dict[str, Any],
     ) -> CandidateAssessment:
-        try:
-            return update_candidate_assessment(
-                instance,
-                status=cast(str | None, validated_data.get("status")),
-                notes=cast(str | None, validated_data.get("notes")),
-                actor=cast(User, self.context["request"].user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_candidate_assessment(
+            instance,
+            status=cast(str | None, validated_data.get("status")),
+            notes=cast(str | None, validated_data.get("notes")),
+            actor=cast(User, self.context["request"].user),
+        )
 
 
 class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
@@ -533,15 +554,12 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
         validated_data: dict[str, Any],
     ) -> CandidateAssessmentItem:
         request = self.context["request"]
-        try:
-            return update_candidate_assessment_item(
-                instance,
-                result=cast(str | None, validated_data.get("result")),
-                assessor_notes=cast(str | None, validated_data.get("assessor_notes")),
-                assessor=request.user,
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_candidate_assessment_item(
+            instance,
+            result=cast(str | None, validated_data.get("result")),
+            assessor_notes=cast(str | None, validated_data.get("assessor_notes")),
+            assessor=request.user,
+        )
 
 
 class CandidateOutcomeSerializer(serializers.ModelSerializer):
@@ -653,15 +671,12 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> CandidateOutcome:
         request = self.context["request"]
-        try:
-            return propose_candidate_outcome(
-                instance,
-                proposed_outcome=str(validated_data["proposed_outcome"]),
-                proposal_notes=str(validated_data.get("proposal_notes", "")),
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return propose_candidate_outcome(
+            instance,
+            proposed_outcome=str(validated_data["proposed_outcome"]),
+            proposal_notes=str(validated_data.get("proposal_notes", "")),
+            actor=cast(User, request.user),
+        )
 
 
 class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
@@ -683,18 +698,15 @@ class CandidateOutcomeFinaliseSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> CandidateOutcome:
         request = self.context["request"]
-        try:
-            return finalise_candidate_outcome(
-                instance,
-                final_outcome=str(validated_data["final_outcome"]),
-                decision_notes=str(validated_data.get("decision_notes", "")),
-                conditional_requirements=str(
-                    validated_data.get("conditional_requirements", ""),
-                ),
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return finalise_candidate_outcome(
+            instance,
+            final_outcome=str(validated_data["final_outcome"]),
+            decision_notes=str(validated_data.get("decision_notes", "")),
+            conditional_requirements=str(
+                validated_data.get("conditional_requirements", ""),
+            ),
+            actor=cast(User, request.user),
+        )
 
 
 class PromotionSerializer(serializers.ModelSerializer):
@@ -796,14 +808,11 @@ class CandidatePromotionSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> Promotion:
         request = self.context["request"]
-        try:
-            return promote_candidate(
-                instance,
-                actor=cast(User, request.user),
-                notes=str(validated_data.get("notes", "")),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return promote_candidate(
+            instance,
+            actor=cast(User, request.user),
+            notes=str(validated_data.get("notes", "")),
+        )
 
 
 class BulkPromotionSerializer(serializers.Serializer):
@@ -867,15 +876,12 @@ class LockedCandidateWithdrawalSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> GradingCandidate:
         request = self.context["request"]
-        try:
-            return withdraw_locked_candidate(
-                instance,
-                reason=str(validated_data["withdrawal_reason"]),
-                note=str(validated_data.get("withdrawal_note", "")),
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return withdraw_locked_candidate(
+            instance,
+            reason=str(validated_data["withdrawal_reason"]),
+            note=str(validated_data.get("withdrawal_note", "")),
+            actor=cast(User, request.user),
+        )
 
 
 class LegacyGradingRecordSerializer(serializers.ModelSerializer):
@@ -982,14 +988,11 @@ class LinkLegacyRecordSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> LegacyGradingRecord:
         request = self.context["request"]
-        try:
-            return link_legacy_record_to_student(
-                instance,
-                validated_data["student"],
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return link_legacy_record_to_student(
+            instance,
+            validated_data["student"],
+            actor=cast(User, request.user),
+        )
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):
@@ -1010,11 +1013,8 @@ class VoidLegacyRecordSerializer(serializers.Serializer):
         validated_data: dict[str, Any],
     ) -> LegacyGradingRecord:
         request = self.context["request"]
-        try:
-            return void_legacy_record(
-                instance,
-                reason=str(validated_data["reason"]),
-                actor=cast(User, request.user),
-            )
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return void_legacy_record(
+            instance,
+            reason=str(validated_data["reason"]),
+            actor=cast(User, request.user),
+        )

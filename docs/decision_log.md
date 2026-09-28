@@ -18,6 +18,200 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - The frontend derives no authority and no rank progression
+
+Status: Accepted
+
+Decision:
+`/api/auth/me/` reports each administrator capability from the permission
+its action checks, and `can_read_audit_log` from the backend rule itself;
+routes and controls read those flags and never `role`. Each rank carries
+`next_rank` from the one next-rank rule the grading services use. Audited
+entity types are declared (`AuditEntity`) and published as an enum.
+
+Context:
+The UI mirrored backend rules in the browser - role checks for
+administrator actions after the backend had moved to permissions, a copy
+of the audit-log rule, the next rank computed three different ways, and a
+hand-kept entity list - each of which could drift from the server, and one
+already had (a dead `"Candidate"` comparison).
+
+Consequences:
+`permissions.ts` is removed. `role` is read in the UI only where the rule is
+about the role (whether a managed user is an administrator).
+
+### 2026-09-26 - List filters are declared once and published in the schema
+
+Status: Accepted
+
+Decision:
+Each list view declares its query filters in `query_filters`
+(`kukgrade/filtering.py`); a default filter backend applies them and
+supplies them to the OpenAPI schema. Boolean filters accept only
+`true`/`false`.
+
+Context:
+Filters were parsed by hand in each `get_queryset`, and none reached the
+schema, so the frontend hand-wrote every list-parameter type against the
+"never hand-write an API type" rule. The boolean filters also disagreed:
+`required` accepted `1`/`yes`, and `linked`/`voided` ignored an invalid value
+where every other filter returned an empty page.
+
+Consequences:
+No new dependency (django-filter was not needed for this). `required=yes` and
+similar now return an empty page. A test checks every declared filter appears
+in the schema.
+
+### 2026-09-26 - A session locks only when grading is complete; completed assessments reopen until then
+
+Status: Accepted
+
+Decision:
+`OPEN -> LOCKED` requires every non-withdrawn candidate's assessment to be
+`COMPLETED`. Item results and completion are only accepted while the session
+is `OPEN`. While it is open, a completed assessment can be reopened
+(`POST /api/gradings/assessments/{id}/reopen/`, audited
+`ASSESSMENT_REOPENED`), keeping every result and its attribution. A
+registration always starts `REGISTERED`.
+
+Context:
+Confirmed 2026-09-25: the session stays open until the instructors are happy
+with every record, and locking marks the end of grading. Previously a session
+could lock with assessments still in progress and scoring continued after
+lock, so "locked" did not mean the record was final, and a completed
+assessment could not be corrected at all. Supersedes the "locked sessions can
+finish work already in progress" behaviour in the 2026-06-23 assessment
+snapshot foundation entry.
+
+Consequences:
+A locked withdrawal now applies to a graded but undecided candidate. The
+correction workflow after lock (for a finalised outcome) is still open and
+will be tuned in beta with the instructors.
+
+### 2026-09-26 - Every withdrawal has a reason; a registration's student is fixed
+
+Status: Accepted
+
+Decision:
+Withdrawing a candidate before the session locks requires a reason from the
+same list as a locked withdrawal and records who and when; reinstating clears
+it. The bulk no-show action sends `ABSENT`. A registration's `student` can no
+longer be changed; moving a registration to another session is still allowed.
+
+Context:
+Confirmed 2026-09-25: a withdrawal before lock previously recorded nothing,
+while one after lock required a reason - so the record could not say why most
+candidates had not graded. Swapping the student rewrote what a registration
+meant; remove and re-register instead. Moving session stays, pending a
+possible "deferred" concept.
+
+Consequences:
+Enforced in `update_candidate` for withdrawals and in the model's `clean()`
+for the student, so the API, bulk endpoint and Django admin all hold. Existing
+withdrawn rows without a reason are left as they are.
+
+### 2026-09-26 - Audit events keep the actor's identity through user deletion
+
+Status: Accepted
+
+Decision:
+`AuditEvent` copies `actor_email` and `actor_name` when written. Deleting a
+user still re-points `actor` to the deleted-user placeholder, but the copies
+are never changed. The placeholder can never be active.
+
+Context:
+Deleting a user rewrote `actor` on every event they had caused, and nothing
+else on the event named them - so the audit trail forgot who made the final
+decisions, promotions and edits it exists to prove. Confirmed requirement:
+"we should definitely know who was deleted and by who... instead of a full
+erasure otherwise it's not auditable."
+
+Consequences:
+Migration `audit.0006` adds the fields and backfills them from each event's
+current actor; events already re-pointed before it keep the placeholder's
+identity. Refines the 2026-09-21 hard-delete entry, which still stands for
+every other attribution field.
+
+### 2026-09-26 - Audit-log access and any-status session delete follow the permission, not the role
+
+Status: Accepted
+
+Decision:
+Both checks read `User.role` directly, against the documented rule that
+role is a label for group membership and is never consulted when
+authorising a request (see `docs/permissions.md`). The Administrator group
+now carries `audit.view_auditevent` and a new
+`gradings.delete_any_gradingsession`; the checks ask for those permissions
+instead.
+
+Context:
+`accounts.permissions.can_view_audit_log` and
+`validate_session_can_be_deleted` (2026-09-16 and 2026-09-20 entries) both
+special-cased `user.role == User.Role.ADMINISTRATOR`, so an instructor
+granted equivalent authority directly - which the four sensitive
+permissions exist precisely to allow - still could not do either. Found
+during the pre-merge audit of the `fix/audit-step1-defects` branch.
+
+Consequences:
+Migration `gradings.0009_candidate_from_rank_and_delete_any_permission`
+adds the permission (folded into an already-pending migration on this
+branch rather than issued as its own number). Tests grant each permission
+to a plain instructor and prove access follows it rather than role.
+Supersedes the role check in the 2026-09-16 "Audit log is
+administrator-or-Master" and 2026-09-20/2026-09-22 cancelled/any-status
+session delete entries; their access rules are otherwise unchanged.
+
+### 2026-09-25 - A candidate records the rank held at registration
+
+Status: Accepted
+
+Decision:
+`GradingCandidate.from_rank` snapshots the student's current rank when the
+candidate is created. It is read-only through the API and admin and never
+changes (a registration's student is fixed - see the 2026-09-26 entry).
+
+Context:
+The completion proof and the promotion ledger showed the student's live
+`current_rank` as the starting rank. After promotion that is the rank the
+candidate was testing for, so a sealed record read "Yellow -> Yellow". The
+ledger also looked the rank up by student id in a rank-id map, and the
+assessment screens found the student by a WKSA-ID substring search. A record
+that changes after the fact is not reproducible, which the grading rules
+require.
+
+Consequences:
+Migration `gradings.0009` adds the field and backfills it: a promoted
+candidate's own `Promotion.from_rank`; otherwise the rank reached by the
+student's latest promotion before the session date; otherwise where their
+first later promotion started; otherwise their current rank.
+
+### 2026-09-25 - Multiple Masters are permitted; no cap is enforced
+
+Status: Accepted
+
+Decision:
+`can_make_final_grading_decision` may be granted to more than one
+instructor at once. Nothing in the API or admin limits how many users
+hold it.
+
+Context:
+The 2026-09-16 "Master authority is administrator-exclusive" entry's
+Context paragraph paraphrased the stated reasoning as "exactly one
+designated Master should make final decisions", and
+`docs/current-system.md` and `docs/permissions.md` then repeated that as
+confirmed policy. Asked directly: "no, the grant can be given to
+authorised masters as needed to make the final decisions, if the school
+acquires another master level authority then they will be granted the
+rank of master" - a second Master is a normal outcome, not an exception.
+The 2026-09-16 rule itself is unaffected: an administrator can still
+never hold this permission.
+
+Consequences:
+No code change - nothing ever enforced a cap, so this corrects the
+documents rather than the system. `docs/current-system.md` and
+`docs/permissions.md` are updated to state that multiple Masters are
+expected, not exactly one.
+
 ### 2026-09-24 - One document per job; every API shape declared in the schema
 
 Status: Accepted
@@ -103,9 +297,11 @@ Consequences:
 The suite passes in UTC, America/Los_Angeles, Pacific/Auckland, Asia/Kolkata,
 Pacific/Kiritimati and America/Sao_Paulo. New date formatting goes through
 `dates.ts`; the remaining correct-but-duplicated formatters in
-`GradingSessionsScreen`, `GradingSessionDetailScreen`, `OverviewScreen` and
-`BuildGradingCohortScreen` were left alone rather than churn working code, and
-are candidates for the same consolidation.
+`GradingSessionsScreen`, `GradingSessionDetailScreen` and `OverviewScreen`
+were left alone at the time rather than churn working code - consolidated
+2026-09-26, along with `AuditScreen`, `UsersScreen` and
+`CreateGradingSessionScreen`, which had the same duplication.
+`BuildGradingCohortScreen` never had its own date formatter.
 
 ### 2026-09-23 - Expose the assessment summary on the assessment resource
 
@@ -132,9 +328,9 @@ completion review. The client-side derivation in
 serve what the screen needs, not by oversight.
 
 `candidate_assessment_summary` already takes a `CandidateAssessment` rather
-than an outcome, and `gradings/views.py:714` is a two-line wrapper over it, so
-the addition is a viewset action, contract documentation and permission tests.
-No model, migration or service change.
+than an outcome, and `CandidateOutcomeViewSet.summary` (`gradings/views.py`)
+is a two-line wrapper over it, so the addition is a viewset action, contract
+documentation and permission tests. No model, migration or service change.
 
 Consequences:
 Accepted and implemented on 2026-09-23. Slice 2 of the assessment redesign
@@ -750,7 +946,7 @@ Status: Accepted
 Decision:
 `gradings.can_make_final_grading_decision` can never be held by a user whose
 role is Administrator. Granting it to an administrator
-(`POST /api/users/{id}/authority/`) is refused, and promoting a user who
+(`PATCH /api/users/{id}/authority/`) is refused, and promoting a user who
 already holds it to administrator (`PATCH /api/users/{id}/`, `role`) is
 refused too. Administrators keep the other two sensitive permissions
 (`can_promote_student`, `can_override_locked_session`) and every other
@@ -862,6 +1058,29 @@ No code change. Revisit if the deployment ever becomes multi-process:
 add a `CACHES` entry pointing at Redis and confirm the throttle picks it up
 before shipping that topology, rather than discovering the gap in
 production.
+
+### 2026-09-14 - Remove the inert final-decision boolean from User
+
+Status: Accepted
+
+Decision:
+`User.can_make_final_grading_decision` is removed. Nothing ever consulted
+it; authority was always the Django permission of the same name. Migration
+`accounts.0003_remove_inert_final_decision_boolean` drops the column with
+no data migration, since it carried no authority to preserve.
+
+Context:
+The 2026-06-25 "Final decision authority source" entry treated the field as
+legacy and deferred a decision on removing it (tracked as audit finding
+M-01), because ticking it in admin - under a "KukGrade access" fieldset -
+looked like it granted final-decision authority when it granted nothing.
+Privilege confusion rather than privilege escalation, but the confusion was
+the danger, so the column is removed rather than left to be rediscovered.
+
+Consequences:
+Supersedes the 2026-06-25 entry's deferred remediation. Anyone who should
+hold final-decision authority is granted the permission directly; there is
+no field left to tick by mistake.
 
 ### 2026-09-14 - Frontend stack and generated API types
 
@@ -1065,9 +1284,13 @@ be re-proposed.
 Consequences:
 No domain logic changes. The audit log becomes load-bearing rather than
 supporting scenery, so a minimal `AuditEvent` model moves from Phase 4 into
-Phase 2 alongside the permissions work, estimated 1-2 days. Until it lands,
-outcome revisions remain unrecorded. The `actor` parameters already stubbed at
-`services.py:235` and `services.py:447` are the insertion points.
+Phase 2 alongside the permissions work, estimated 1-2 days. Landed:
+`OUTCOME_PROPOSED` and `OUTCOME_FINALISED` events record a revision's
+previous proposal (`gradings/services.py`, `audit/tests.py`
+`test_revising_a_proposal_records_what_it_said_before`); the specific
+`services.py:235`/`services.py:447` stub line numbers this entry originally
+pointed at no longer correspond to anything after the file's later growth
+and reorganisation.
 
 ### 2026-09-13 - Authority primitive is Django permissions
 
@@ -1196,7 +1419,7 @@ tracker.
 
 ### 2026-06-25 - Final decision authority source
 
-Status: Accepted
+Status: Superseded by 2026-09-14 - Remove the inert final-decision boolean from User
 
 Decision:
 Treat the Django permission `gradings.can_make_final_grading_decision` as the
@@ -1511,7 +1734,7 @@ Context:
 The planning document recommends this stack for a coded prototype that can evolve into the final application. Routing and server-state libraries are deferred until screens and API workflows are confirmed.
 
 Consequences:
-Frontend implementation should be scaffolded around these tools. Styling, routing, and server-state choices remain open until they are needed.
+Frontend implementation should be scaffolded around these tools. Styling, routing, and server-state choices remain open until they are needed - routing (React Router) and server-state (TanStack Query) were decided in the 2026-09-14 "Frontend stack and generated API types" entry; React, TypeScript and Vite themselves are unchanged.
 
 ### 2026-06-21 - Local development foundation
 
@@ -1524,7 +1747,11 @@ Context:
 The initial foundation needs a runnable backend, frontend, and local database without committing production Docker image decisions.
 
 Consequences:
-`compose.yaml` starts PostgreSQL only. Production image layout and CI remain unresolved.
+`compose.yaml` starts PostgreSQL only. Production image layout and CI, both
+unresolved at the time, are covered by the 2026-09-23 "One production app
+service on existing Traefik and PostgreSQL" entry and `.github/workflows/ci.yml`
+respectively; this entry's own decision - native dev servers, Compose for
+local PostgreSQL only - is still the current setup.
 
 ## Open decisions
 

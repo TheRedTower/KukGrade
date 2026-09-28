@@ -14,7 +14,10 @@
 
 Accepted 2026-09-13, implemented in `accounts/groups.py`. Django permissions
 are the authority primitive; `User.role` is a label that decides group
-membership and is never consulted when authorising a request.
+membership and is never consulted when authorising a request. The one
+place role appears in a rule is the policy that an administrator may not
+hold final-decision authority (`accounts.services`), which is a rule about
+roles rather than an authorisation check.
 
 | Capability | Instructor | Administrator | Master |
 | --- | --- | --- | --- |
@@ -31,8 +34,8 @@ membership and is never consulted when authorising a request.
 | **Delete a user account** | No | **Yes** | via group |
 | **Delete a completed assessment** | No | **Yes** | via group |
 | **Delete a student (full cascade)** | No | **Yes** | via group |
-| **Delete a grading session in any status** | No | **Yes** | via group |
-| **Read the audit log** | via `can_view_grading_audit_log` | **Yes** | **Yes** |
+| **Delete a grading session in any status** (`gradings.delete_any_gradingsession`) | No | **Yes** | via group |
+| **Read the audit log** | via `can_view_grading_audit_log` | **Yes** (`audit.view_auditevent`) | **Yes** |
 | **Bulk-import student roster (upload/preview/commit)** | No | **Yes** | via group |
 | **Bulk-import historical grading workbook (upload/preview/commit)** | No | **Yes** | via group |
 | Read imported historical grading records | Yes | Yes | via group |
@@ -90,9 +93,11 @@ grant mechanism.
 
 Final-decision authority is administrator-exclusive by decision (2026-09-16,
 see `decision_log.md`): granting it to an administrator, or promoting a
-holder to administrator, is refused outright. Exactly one designated Master
-holds it; administrators hold the other three sensitive permissions and
-every other capability instead. The audit log follows the same
+holder to administrator, is refused outright. Any number of instructors may
+hold it - a second Master is a normal outcome, not an exception (2026-09-25,
+see `decision_log.md`) - but an administrator never can. Administrators hold
+the other three sensitive permissions and every other capability instead.
+The audit log follows the same
 administrator-or-Master-or-grantee line, unlike every other capability above
 where Master access "via group" already covers it - a plain instructor
 holding none of the three is refused. The rule is stated once, in

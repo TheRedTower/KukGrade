@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from gradings.models import (
@@ -16,7 +15,6 @@ from gradings.services import (
     StudentGradingHistory,
     StudentRankTimeline,
 )
-from kukgrade.exceptions import raise_drf_validation_error
 from students.models import Student
 from students.services import create_student, update_student
 
@@ -245,14 +243,8 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
 
     def create(self, validated_data: dict[str, Any]) -> Student:
         request = self.context["request"]
-        try:
-            return create_student(actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return create_student(actor=request.user, **validated_data)
 
     def update(self, instance: Student, validated_data: dict[str, Any]) -> Student:
         request = self.context["request"]
-        try:
-            return update_student(instance, actor=request.user, **validated_data)
-        except DjangoValidationError as exc:
-            raise_drf_validation_error(exc)
+        return update_student(instance, actor=request.user, **validated_data)

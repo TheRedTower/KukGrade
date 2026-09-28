@@ -33,12 +33,11 @@ import {
 import { RankVisual } from "./RankVisual";
 import {
   CategoryGroup,
-  formatDayMonth,
-  formatTimeOnly,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
+import { formatDayMonth, formatTime } from "./dates";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
@@ -98,7 +97,6 @@ export function CandidateAssessmentScreen() {
   const {
     session,
     candidate,
-    studentRankName,
     assessment,
     categoryGroups,
     stats,
@@ -113,9 +111,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (generated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessment", numCandidateId], generated);
+      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], generated);
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to prepare the assessment form.");
@@ -129,9 +127,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (updated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessment", numCandidateId], updated);
+      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], updated);
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
       setActionError(err instanceof ApiError ? err.message : "Failed to start assessment.");
@@ -188,7 +186,7 @@ export function CandidateAssessmentScreen() {
       // The rollup is served now, so a scored item has to refetch it or the
       // mat bar and category headers go stale (FDR-046).
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessment", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
     },
   });
 
@@ -199,7 +197,7 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", numSessionId] });
+      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
       navigate(`/gradings/${numSessionId}`);
     },
   });
@@ -280,8 +278,8 @@ export function CandidateAssessmentScreen() {
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <span className="caw-rank-tag">
-          {studentRankName && <RankVisual classPrefix="caw" rankName={studentRankName} />}
-          <span>{studentRankName || "Current rank"}</span>
+          {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+          <span>{candidate?.from_rank_name ?? ""}</span>
         </span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />
@@ -297,7 +295,7 @@ export function CandidateAssessmentScreen() {
         >
           <span className="caw-status-dot" aria-hidden="true" />
           {assessment?.status_display || "Not started"}
-          {assessment?.started_at && ` · started ${formatTimeOnly(assessment.started_at)}`}
+          {assessment?.started_at && ` · started ${formatTime(assessment.started_at)}`}
         </span>
 
         <div className="caw-identity-spacer" />
@@ -309,7 +307,7 @@ export function CandidateAssessmentScreen() {
             {assessment.generated_at && ` · ${formatDayMonth(assessment.generated_at)}`}
           </span>
         )}
-        {currentUser?.role === "administrator" && assessment && (
+        {currentUser?.can_delete_assessments && assessment && (
           <button
             type="button"
             className="caw-danger-btn"
@@ -505,7 +503,6 @@ function CategoryHeader({ group }: { group: CategoryGroup }) {
     <div className="caw-band-header" data-testid={`caw-cat-header-${group.category}`}>
       <h2 className="caw-band-title">
         {group.categoryDisplay}
-        {group.koreanName && <span className="caw-band-korean"> · {group.koreanName}</span>}
       </h2>
       <span aria-hidden="true" className="caw-band-rule" />
       <span className="caw-band-progress">
@@ -653,7 +650,7 @@ function AssessmentItemRow({
 
   const isScored = item.result === "MET" || item.result === "NOT_MET";
   const attribution = item.assessor_email
-    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTimeOnly(item.assessed_at)}` : ""}`
+    ? `${item.assessor_email}${item.assessed_at ? ` · ${formatTime(item.assessed_at)}` : ""}`
     : "";
 
   return (

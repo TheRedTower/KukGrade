@@ -100,6 +100,19 @@ def test_entity_reference_is_stored_as_plain_strings() -> None:
     assert event.entity_id == str(actor.pk)
 
 
+def test_an_event_about_an_undeclared_entity_type_is_refused() -> None:
+    # AuditEntity is what the audit screen's filter is generated from; an
+    # audited model missing from it would silently never be filterable.
+    from ranks.models import Rank
+
+    with pytest.raises(ValidationError):
+        record(
+            AuditAction.STUDENT_UPDATED,
+            Rank.objects.get(code="WHITE"),
+            "Not audited.",
+        )
+
+
 # ---------------------------------------------------------------------------
 # The revision case, which is the whole point
 # ---------------------------------------------------------------------------
@@ -252,6 +265,21 @@ def test_administrator_can_read_the_log() -> None:
 
     assert response.status_code == 200
     assert response.json()["count"] > 0
+
+
+def test_reading_the_log_follows_the_permission_not_the_role() -> None:
+    locked_completed_candidate_with_outcome()
+    reader = user("audit-view-granted@example.com")
+    reader.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="audit",
+            codename="view_auditevent",
+        ),
+    )
+    client = APIClient()
+    client.force_authenticate(user=User.objects.get(pk=reader.pk))
+
+    assert client.get("/api/audit-events/").status_code == 200
 
 
 def test_master_authority_instructor_can_read_the_log() -> None:

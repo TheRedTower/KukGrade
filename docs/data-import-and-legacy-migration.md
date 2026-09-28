@@ -138,7 +138,8 @@ because a clean roster export is expected to already use real rank names.
 
 ### Audit trail
 
-One `IMPORT_BATCH_COMMITTED` (or `IMPORT_BATCH_CANCELLED`) event per batch,
+One `IMPORT_BATCH_COMMITTED`, `IMPORT_BATCH_CANCELLED` or (from
+`expire_stale_import_batches`) `IMPORT_BATCH_EXPIRED` event per batch,
 with safe summary metadata only (`batch_id`, `kind`, a SHA-256 prefix,
 `record_count`) - never row content, names, or dates of birth. Each created
 `Student` additionally gets its own ordinary `STUDENT_CREATED` event, exactly

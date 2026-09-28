@@ -251,7 +251,7 @@ export function SyllabusScreen() {
       try {
         setIsLoadingRanks(true);
         setError(null);
-        const res = await getRanks({ page_size: 50 });
+        const res = await getRanks({ page_size: 100 });
         if (!active) return;
         const fetchedRanks = res.results || [];
         setRanks(fetchedRanks);
@@ -377,12 +377,8 @@ export function SyllabusScreen() {
   }
 
   // Determine current selected rank object and next rank
-  const selectedRankIndex = ranks.findIndex((r) => r.code === selectedRankCode);
-  const selectedRank = selectedRankIndex >= 0 ? ranks[selectedRankIndex] : null;
-  const nextRank =
-    selectedRankIndex >= 0 && selectedRankIndex < ranks.length - 1
-      ? ranks[selectedRankIndex + 1]
-      : null;
+  const selectedRank = ranks.find((r) => r.code === selectedRankCode) ?? null;
+  const nextRank = ranks.find((r) => r.id === selectedRank?.next_rank) ?? null;
 
   const currentAgeOption = AGE_BAND_OPTIONS.find(
     (opt) => opt.value === selectedAgeBand,

@@ -14,7 +14,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
-import { formatSessionDate } from "./dates";
+import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -76,11 +76,6 @@ function XCircleIcon() {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-function formatDateShort(iso: string): string {
-  const d = new Date(iso + (iso.length === 10 ? "T00:00:00" : ""));
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-}
 
 function yearFromIso(iso: string): number {
   return parseInt(iso.slice(0, 4), 10);
@@ -187,7 +182,7 @@ function SessionRow({
   return (
     <tr className="gs-table-row">
       <td className="gs-table-cell gs-cell-title">{session.title}</td>
-      <td className="gs-table-cell gs-cell-date">{formatDateShort(session.grading_date)}</td>
+      <td className="gs-table-cell gs-cell-date">{formatLongDate(session.grading_date)}</td>
       <td className="gs-table-cell gs-cell-location">{session.location || "—"}</td>
       <td className="gs-table-cell gs-cell-candidates">{candidateCount ?? "—"}</td>
       <td className="gs-table-cell gs-cell-progress">{progressText}</td>
@@ -223,7 +218,7 @@ export function GradingSessionsScreen() {
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<GradingSessionStatus | "ALL">("ALL");
   const [yearFilter, setYearFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
@@ -233,7 +228,6 @@ export function GradingSessionsScreen() {
   const deleteSessionMutation = useMutation({
     mutationFn: (id: number) => deleteGradingSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradingSessionsAll"] });
       queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       setDeleteConfirmSession(null);
       setDeleteError(null);
@@ -254,11 +248,9 @@ export function GradingSessionsScreen() {
     canClose: !deleteSessionMutation.isPending,
   });
 
-  const userCanDelete = user?.role === "administrator" || user?.role === "instructor" || user?.is_superuser === true;
-
   // All sessions (large page to populate year dropdown & find current session)
   const allSessionsQuery = useQuery({
-    queryKey: ["gradingSessionsAll"],
+    queryKey: ["gradingSessions", "all"],
     queryFn: () => getAllGradingSessions(),
   });
 
@@ -279,7 +271,7 @@ export function GradingSessionsScreen() {
 
   // Candidate & assessment counts for the current (open) session spotlight
   const currentCandidatesQuery = useQuery({
-    queryKey: ["gradingCandidatesCurrent", currentSession?.id],
+    queryKey: ["gradingCandidates", "count", currentSession?.id],
     queryFn: () =>
       currentSession
         ? getGradingCandidates({ session: currentSession.id } as Parameters<typeof getGradingCandidates>[0])
@@ -288,7 +280,7 @@ export function GradingSessionsScreen() {
   });
 
   const currentAssessmentsQuery = useQuery({
-    queryKey: ["gradingAssessmentsCurrent", currentSession?.id],
+    queryKey: ["candidateAssessments", "count", currentSession?.id],
     queryFn: () =>
       currentSession
         ? getCandidateAssessments({ session: currentSession.id } as Parameters<typeof getCandidateAssessments>[0])
@@ -316,7 +308,7 @@ export function GradingSessionsScreen() {
   const serverSearch = searchText.trim() || undefined;
 
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", page, serverStatus, selectedYear, serverSearch],
+    queryKey: ["gradingSessions", "page", page, serverStatus, selectedYear, serverSearch],
     queryFn: () =>
       getGradingSessions({
         page,
@@ -340,7 +332,7 @@ export function GradingSessionsScreen() {
   const sessionIdsOnPage = filteredSessions.map((s) => s.id);
 
   const candidatesForPageQuery = useQuery({
-    queryKey: ["gradingCandidatesPage", sessionIdsOnPage.join(",")],
+    queryKey: ["gradingCandidates", "bySessions", sessionIdsOnPage.join(",")],
     queryFn: async () => {
       if (sessionIdsOnPage.length === 0) return {};
       const results: Record<number, number> = {};
@@ -356,7 +348,7 @@ export function GradingSessionsScreen() {
   });
 
   const assessmentsForPageQuery = useQuery({
-    queryKey: ["gradingAssessmentsPage", sessionIdsOnPage.join(",")],
+    queryKey: ["candidateAssessments", "bySessions", sessionIdsOnPage.join(",")],
     queryFn: async () => {
       if (sessionIdsOnPage.length === 0) return {};
       const results: Record<number, number> = {};
@@ -374,21 +366,13 @@ export function GradingSessionsScreen() {
   const candidateCounts = candidatesForPageQuery.data ?? {};
   const assessmentCounts = assessmentsForPageQuery.data ?? {};
 
-  function handleStatusFilter(value: string) { setStatusFilter(value); setPage(1); }
+  function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
   function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
   function handleSearch(value: string) { setSearchText(value); setPage(1); }
   function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setPage(1); }
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
   const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
-  const canCreateGrading =
-    user?.role === "instructor" ||
-    user?.role === "administrator" ||
-    user?.is_superuser === true;
-  // Historical import/reconciliation is administrator-only (data_imports
-  // and gradings.can_reconcile_imported_history permissions) - see
-  // docs/permissions.md.
-  const canManageLegacyImports = user?.role === "administrator";
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
@@ -403,29 +387,27 @@ export function GradingSessionsScreen() {
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
         <div className="gs-page-header-actions">
-          {canManageLegacyImports && (
-            <>
-              <button
-                className="btn-secondary"
-                onClick={() => navigate("/gradings/legacy-records")}
-                type="button"
-              >
-                Historical records
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => navigate("/gradings/import-legacy")}
-                type="button"
-              >
-                Import historical gradings
-              </button>
-            </>
-          )}
-          {canCreateGrading && (
-            <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
-              <PlusIcon /> Create grading
+          {user?.can_reconcile_imported_history && (
+            <button
+              className="btn-secondary"
+              onClick={() => navigate("/gradings/legacy-records")}
+              type="button"
+            >
+              Historical records
             </button>
           )}
+          {user?.can_import_data && (
+            <button
+              className="btn-secondary"
+              onClick={() => navigate("/gradings/import-legacy")}
+              type="button"
+            >
+              Import historical gradings
+            </button>
+          )}
+          <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
+            <PlusIcon /> Create grading
+          </button>
         </div>
       </div>
 
@@ -445,7 +427,7 @@ export function GradingSessionsScreen() {
         </div>
         <div className="gs-filter-group">
           <label className="gs-filter-label" htmlFor="gs-status-filter">Status</label>
-          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value)} value={statusFilter}>
+          <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
             {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
@@ -500,7 +482,7 @@ export function GradingSessionsScreen() {
                     {filteredSessions.map((session) => {
                       const completeCount = assessmentCounts[session.id] ?? 0;
                       const isEligibleStatus = session.status === "CANCELLED" || session.status === "DRAFT";
-                      const canDelete = Boolean(userCanDelete && isEligibleStatus && completeCount === 0);
+                      const canDelete = isEligibleStatus && completeCount === 0;
                       return (
                         <SessionRow
                           assessmentsComplete={assessmentCounts[session.id] ?? null}
@@ -529,11 +511,9 @@ export function GradingSessionsScreen() {
             ) : (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
-                {canCreateGrading && (
-                  <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
-                    <PlusIcon /> Create grading
-                  </button>
-                )}
+                <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
+                  <PlusIcon /> Create grading
+                </button>
               </div>
             )}
           </div>

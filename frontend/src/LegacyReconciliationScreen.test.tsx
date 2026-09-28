@@ -38,6 +38,7 @@ const yellowRank: Rank = {
   category: "COLOURED_BELT",
   category_display: "Coloured belt",
   active: true,
+  next_rank: null,
 };
 
 const unlinkedRecord: LegacyGradingRecord = {

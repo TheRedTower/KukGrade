@@ -34,6 +34,7 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment generated"
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
+    ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
 
@@ -55,6 +56,7 @@ class AuditAction(models.TextChoices):
 
     IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import batch committed"
     IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import batch cancelled"
+    IMPORT_BATCH_EXPIRED = "IMPORT_BATCH_EXPIRED", "Import batch expired"
 
     LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Legacy grading record linked"
     LEGACY_GRADING_UNLINKED = (
@@ -66,6 +68,21 @@ class AuditAction(models.TextChoices):
         "Legacy grading record rank resolved",
     )
     LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Legacy grading record voided"
+
+
+class AuditEntity(models.TextChoices):
+    """What an event is about: the model name `record()` stores."""
+
+    GRADING_SESSION = "GradingSession", "Grading session"
+    GRADING_CANDIDATE = "GradingCandidate", "Candidate"
+    CANDIDATE_ASSESSMENT = "CandidateAssessment", "Assessment"
+    CANDIDATE_ASSESSMENT_ITEM = "CandidateAssessmentItem", "Assessment item"
+    CANDIDATE_OUTCOME = "CandidateOutcome", "Outcome"
+    PROMOTION = "Promotion", "Promotion"
+    STUDENT = "Student", "Student"
+    USER = "User", "User"
+    IMPORT_BATCH = "ImportBatch", "Import batch"
+    LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
 
 
 # Logistics - who runs the roster - is an administrator concern, the same
@@ -107,8 +124,13 @@ class AuditEvent(models.Model):
         null=True,
         blank=True,
     )
+    # Who acted, as they were at the time. `actor` can later be reassigned to
+    # the deleted-user placeholder (accounts.services.delete_platform_user);
+    # these copies are what keep the trail attributable to the real person.
+    actor_email = models.EmailField(blank=True)
+    actor_name = models.CharField(max_length=301, blank=True)
     action = models.CharField(max_length=64, choices=AuditAction.choices)
-    entity_type = models.CharField(max_length=64)
+    entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
     entity_id = models.CharField(max_length=64)
     occurred_at = models.DateTimeField(auto_now_add=True)
     summary = models.TextField()

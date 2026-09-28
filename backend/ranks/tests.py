@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import pytest
+from django.contrib.admin.sites import site
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Model
+from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
+from syllabus.models import SyllabusItem, SyllabusRequirement
 
 pytestmark = pytest.mark.django_db
 
@@ -67,8 +71,6 @@ def test_seeded_ranks_are_active_and_categorised() -> None:
     assert ranks_by_code["DAHN_BO"].category == Rank.Category.BLACK_BELT_CANDIDATE
     assert ranks_by_code["JKN"].category == Rank.Category.BLACK_BELT
     assert ranks_by_code["PKJN"].category == Rank.Category.BLACK_BELT
-    assert ranks_by_code["DAHN_BO"].is_candidate is True
-    assert ranks_by_code["JKN"].is_black_belt is True
     assert str(ranks_by_code["WHITE"]) == "1. White"
 
 
@@ -189,7 +191,27 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "category": Rank.Category.COLOURED_BELT,
         "category_display": "Coloured belt",
         "active": True,
+        "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
     }
+    assert payload[-1]["next_rank"] is None
+
+
+def test_next_rank_skips_inactive_ranks() -> None:
+    # The served next rank and the grading services share one rule.
+    from gradings.services import get_next_active_rank
+
+    Rank.objects.filter(code="YELLOW_STRIPE").update(active=False)
+    white = Rank.objects.get(code="WHITE")
+    client = APIClient()
+    client.force_authenticate(
+        user=User.objects.create_user(email="rank-next@example.com")
+    )
+
+    served = results(client.get("/api/ranks/"))[0]["next_rank"]
+
+    assert served == Rank.objects.get(code="YELLOW").id
+    next_rank = get_next_active_rank(white)
+    assert next_rank is not None and next_rank.id == served
 
 
 def test_rank_api_returns_rank_detail() -> None:
@@ -227,3 +249,21 @@ def test_rank_api_rejects_write_methods(method: str, path: str) -> None:
     )
 
     assert response.status_code == 405
+
+
+@pytest.mark.parametrize("model", [Rank, SyllabusItem, SyllabusRequirement])
+def test_catalogue_is_read_only_in_django_admin(model: type[Model]) -> None:
+    # Even a superuser, who otherwise bypasses every permission check, can
+    # only view ranks and the syllabus: edits there would change how past
+    # records read and would not be audited.
+    request = RequestFactory().get("/admin/")
+    request.user = User.objects.create_superuser(
+        email=f"catalogue-{model.__name__.lower()}@example.com",
+        password="a-long-test-password-123",
+    )
+    model_admin = site._registry[model]
+
+    assert model_admin.has_view_permission(request) is True
+    assert model_admin.has_add_permission(request) is False
+    assert model_admin.has_change_permission(request) is False
+    assert model_admin.has_delete_permission(request) is False

@@ -106,7 +106,7 @@ def _validate_column_mapping(value: dict[str, str]) -> None:
         )
 
 
-class StudentImportRequestSerializer(serializers.Serializer):
+class StudentImportSerializer(serializers.Serializer):
     """Shared request shape for the preview and commit actions."""
 
     column_mapping = serializers.DictField(
@@ -143,7 +143,7 @@ class StudentImportPreviewSerializer(serializers.Serializer):
     rows = StudentImportRowResultSerializer(many=True)
 
 
-class LegacyImportRequestSerializer(serializers.Serializer):
+class LegacyImportSerializer(serializers.Serializer):
     """Shared request shape for the historical preview and commit actions.
 
     Keys are the source rank text exactly as it appeared in the workbook

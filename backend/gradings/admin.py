@@ -384,6 +384,8 @@ class GradingCandidateAdminForm(ModelForm):
             "testing_for_rank",
             "status",
             "notes",
+            "withdrawal_reason",
+            "withdrawal_note",
         )
 
 
@@ -394,6 +396,7 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     list_display = (
         "session",
         "student",
+        "from_rank",
         "testing_for_rank",
         "age_band",
         "status",
@@ -405,8 +408,18 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
         "student__wksa_id",
     )
     ordering = ("session__grading_date", "student__last_name", "student__first_name")
-    list_select_related = ("session", "student", "testing_for_rank")
-    readonly_fields = ("age_band",)
+    list_select_related = ("session", "student", "from_rank", "testing_for_rank")
+    readonly_fields = ("from_rank", "age_band")
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: GradingCandidate | None = None,
+    ) -> tuple[str, ...]:
+        # A registration's student is fixed once it exists.
+        if obj is not None:
+            return (*self.readonly_fields, "student")
+        return tuple(self.readonly_fields)
 
     def save_model(
         self,
@@ -423,7 +436,6 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
                 session=obj.session,
                 student=obj.student,
                 testing_for_rank=obj.testing_for_rank,
-                status=obj.status,
                 notes=obj.notes,
                 actor=cast(User, request.user),
             )
@@ -435,12 +447,13 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
         apply_candidate_update(
             obj,
             session=obj.session if "session" in changed_data else None,
-            student=obj.student if "student" in changed_data else None,
             testing_for_rank=(
                 obj.testing_for_rank if "testing_for_rank" in changed_data else None
             ),
             status=obj.status if "status" in changed_data else None,
             notes=obj.notes if "notes" in changed_data else None,
+            withdrawal_reason=form.cleaned_data.get("withdrawal_reason"),
+            withdrawal_note=form.cleaned_data.get("withdrawal_note"),
             actor=cast(User, request.user),
         )
 

@@ -71,3 +71,67 @@ export function formatSessionDate(isoDate: string): string {
     "",
   );
 }
+
+/**
+ * Today's date as `YYYY-MM-DD` in the reader's own timezone, for comparing
+ * with date-only API values and for `<input type="date">` bounds.
+ * `toISOString()` gives the UTC date, which is tomorrow's date late in the
+ * evening west of UTC and yesterday's just after midnight east of it.
+ */
+export function todayIsoDate(now: Date = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+/** "5 Oct 2026" - the compact date used in tables, ledgers and the proof. */
+export function formatShortDate(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(value, { day: "numeric", month: "short", year: "numeric" }, fallback);
+}
+
+/** "5 October 2026". */
+export function formatLongDate(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(value, { day: "numeric", month: "long", year: "numeric" }, fallback);
+}
+
+/** "5 October 2026, 14:30" in the reader's timezone, for timestamps. */
+export function formatDateTime(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(
+    value,
+    { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    fallback,
+  );
+}
+
+/** "5 Oct 2026, 14:30" - a timestamp in a table row. */
+export function formatShortDateTime(value: string | null | undefined, fallback = "—"): string {
+  return formatApiDate(
+    value,
+    { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" },
+    fallback,
+  );
+}
+
+/** "14:30" in the reader's timezone. */
+export function formatTime(value: string | null | undefined, fallback = ""): string {
+  return formatApiDate(value, { hour: "2-digit", minute: "2-digit" }, fallback);
+}
+
+/** "05 Oct" - when the year is already carried by the surrounding context. */
+export function formatDayMonth(value: string | null | undefined, fallback = ""): string {
+  return formatApiDate(value, { day: "2-digit", month: "short" }, fallback);
+}
+
+/**
+ * How many calendar days before `now` an API value falls, in the reader's own
+ * timezone: 0 for today, 1 for yesterday. `null` when it cannot be parsed.
+ */
+export function calendarDaysAgo(
+  value: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  const date = parseApiDate(value);
+  if (!date) return null;
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((startOf(now) - startOf(date)) / 86_400_000);
+}

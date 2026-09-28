@@ -119,23 +119,15 @@ export function StudentsScreen() {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
 
-  // Authenticated staff and administrators can register students
-  const canAddStudent =
-    user?.role === "administrator" ||
-    user?.role === "instructor" ||
-    !!user?.is_staff ||
-    !!user?.is_superuser;
-  // Bulk import is administrator-only (data_imports permissions) - see
-  // docs/permissions.md.
-  const canImportStudents = user?.role === "administrator";
+  const canImportStudents = Boolean(user?.can_import_data);
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useQuery({
-    queryKey: ["ranksList"],
+    queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
 
@@ -145,7 +137,7 @@ export function StudentsScreen() {
 
   // 2. Fetch paginated students with active filters
   const studentsQuery = useQuery({
-    queryKey: ["studentsList", search, statusFilter, rankFilter, page],
+    queryKey: ["students", "list", search, statusFilter, rankFilter, page],
     queryFn: () =>
       getStudents({
         search: search.trim() || undefined,
@@ -231,17 +223,15 @@ export function StudentsScreen() {
               Import students
             </button>
           )}
-          {canAddStudent && (
-            <button
-              type="button"
-              className="btn-add-student"
-              onClick={() => navigate("/students/new")}
-              aria-label="Add new student"
-            >
-              <UserPlusIcon />
-              <span>Add student</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn-add-student"
+            onClick={() => navigate("/students/new")}
+            aria-label="Add new student"
+          >
+            <UserPlusIcon />
+            <span>Add student</span>
+          </button>
         </div>
       </div>
 
@@ -286,7 +276,7 @@ export function StudentsScreen() {
             className="filter-select"
             value={statusFilter}
             onChange={(e) => {
-              setStatusFilter(e.target.value);
+              setStatusFilter(e.target.value as StudentStatus | "ALL");
               setPage(1);
             }}
           >
@@ -356,15 +346,13 @@ export function StudentsScreen() {
                 <p className="empty-state-description">
                   Get started by registering your first student record in the registry.
                 </p>
-                {canAddStudent && (
-                  <button
-                    type="button"
-                    className="btn-add-first-student"
-                    onClick={() => navigate("/students/new")}
-                  >
-                    Add student +
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="btn-add-first-student"
+                  onClick={() => navigate("/students/new")}
+                >
+                  Add student +
+                </button>
               </div>
             )}
           </div>

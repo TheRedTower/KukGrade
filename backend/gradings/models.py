@@ -79,6 +79,10 @@ class GradingSession(models.Model):
                 "can_override_locked_session",
                 "Can withdraw a candidate from, or cancel, a locked session",
             ),
+            (
+                "delete_any_gradingsession",
+                "Can delete a grading session in any status",
+            ),
         ]
         indexes = [
             models.Index(
@@ -165,10 +169,21 @@ class GradingCandidateQuerySet(models.QuerySet["GradingCandidate"]):
         return super().delete()
 
 
+CANDIDATE_STUDENT_FIXED_MESSAGE = (
+    "A registration's student cannot be changed. Remove the candidate and "
+    "register the right student instead."
+)
+CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
+    "A candidate is registered as REGISTERED, then withdrawn afterwards with "
+    "a reason if they do not grade."
+)
+
+
 class GradingCandidate(models.Model):
     if TYPE_CHECKING:
         session_id: int
         student_id: int
+        from_rank_id: int
         testing_for_rank_id: int
         withdrawn_by_id: int | None
         assessment: CandidateAssessment
@@ -199,6 +214,16 @@ class GradingCandidate(models.Model):
         on_delete=models.PROTECT,
         related_name="grading_candidates",
     )
+    # The rank the student held when registered. Snapshotted rather than read
+    # from Student.current_rank, which moves on after promotion - without it
+    # a sealed record would show the student's later rank as where they
+    # started. Set on first save from the student's current rank.
+    from_rank = models.ForeignKey(
+        "ranks.Rank",
+        on_delete=models.PROTECT,
+        related_name="grading_candidates_from_rank",
+        editable=False,
+    )
     testing_for_rank = models.ForeignKey(
         "ranks.Rank",
         on_delete=models.PROTECT,
@@ -211,8 +236,8 @@ class GradingCandidate(models.Model):
         default=Status.REGISTERED,
     )
     notes = models.TextField(blank=True)
-    # Populated only for a withdrawal from a LOCKED session. A withdrawal
-    # before the session locks is routine and needs no justification.
+    # Every withdrawal records why, who and when - before the session locks
+    # (attendance) as well as after it (withdraw_locked_candidate).
     withdrawal_reason = models.CharField(
         max_length=32,
         choices=WithdrawalReason.choices,
@@ -309,6 +334,8 @@ class GradingCandidate(models.Model):
         return f"{self.student} for {self.testing_for_rank} at {self.session}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and not self.from_rank_id and self.student_id:
+            self.from_rank_id = self.student.current_rank_id
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -338,6 +365,12 @@ class GradingCandidate(models.Model):
             )
 
             if self._state.adding:
+                # Withdrawal and completion each have their own path, which
+                # records why and by whom.
+                if self.status != GradingCandidate.Status.REGISTERED:
+                    raise ValidationError(
+                        {"status": [CANDIDATE_REGISTERED_ON_CREATION_MESSAGE]},
+                    )
                 validate_session_accepts_candidates(self.session)
             else:
                 validate_candidate_can_be_changed(self)
@@ -351,13 +384,14 @@ class GradingCandidate(models.Model):
                     )
                     .first()
                 )
+                if previous and previous["student_id"] != self.student_id:
+                    raise ValidationError(
+                        {"student": [CANDIDATE_STUDENT_FIXED_MESSAGE]},
+                    )
                 validate_candidate_assessment_changes(
                     self,
                     session_changed=bool(
                         previous and previous["session_id"] != self.session_id
-                    ),
-                    student_changed=bool(
-                        previous and previous["student_id"] != self.student_id
                     ),
                     testing_for_rank_changed=bool(
                         previous

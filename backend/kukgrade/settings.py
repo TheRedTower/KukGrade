@@ -212,6 +212,9 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": _RENDERER_CLASSES,
     "EXCEPTION_HANDLER": "kukgrade.exceptions.custom_exception_handler",
     "DEFAULT_PAGINATION_CLASS": "kukgrade.pagination.DefaultPagination",
+    # Each list view declares its filters once, in `query_filters`; this
+    # applies them and documents them in the schema (kukgrade/filtering.py).
+    "DEFAULT_FILTER_BACKENDS": ["kukgrade.filtering.DeclaredQueryFilters"],
     # Scoped so it only throttles views that opt in with throttle_scope - a
     # view without one is never rate limited by this. LoginView is the only
     # one that sets it today, since unlimited password attempts is the risk
@@ -234,6 +237,10 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Separate request and response components (StudentRequest,
+    # PatchedStudentRequest, ...) so the frontend's request payloads are
+    # generated too, without the read-only fields a response carries.
+    "COMPONENT_SPLIT_REQUEST": True,
     # Five different models each have their own "status" field, and two have
     # a "category" field - without this every one of them collides on the
     # same generated enum name. CandidateOutcome.Outcome and syllabus.AgeBand
@@ -252,6 +259,7 @@ SPECTACULAR_SETTINGS = {
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
         "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": (
             "data_imports.services.StudentImportRowOutcome"
         ),

@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from accounts.permissions import (
+    DELETE_ANY_SESSION_PERMISSION,
     FINAL_GRADING_DECISION_PERMISSION,
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
@@ -53,11 +54,6 @@ ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
 ASSESSMENT_GENERATION_SESSION_STATUSES = {
     GradingSession.Status.DRAFT,
     GradingSession.Status.OPEN,
-}
-
-ASSESSMENT_RESULT_ENTRY_SESSION_STATUSES = {
-    GradingSession.Status.OPEN,
-    GradingSession.Status.LOCKED,
 }
 
 OUTCOME_CREATION_SESSION_STATUSES = {
@@ -193,11 +189,7 @@ def age_band_birth_date_bounds(
 
 
 def get_next_active_rank(current_rank: Rank) -> Rank | None:
-    return (
-        Rank.objects.filter(active=True, order__gt=current_rank.order)
-        .order_by("order")
-        .first()
-    )
+    return Rank.objects.next_active_after(current_rank.order).first()
 
 
 def validate_student_can_be_graded(student: Student) -> None:
@@ -253,29 +245,19 @@ def validate_session_transition(
         current_status == GradingSession.Status.OPEN
         and next_status == GradingSession.Status.LOCKED
     ):
-        active_candidates = session.candidates.exclude(
-            status=GradingCandidate.Status.WITHDRAWN,
+        # Locking ends grading: every result is recorded first, and the
+        # session stays open for corrections until the instructors are done.
+        incomplete = (
+            session.candidates.exclude(status=GradingCandidate.Status.WITHDRAWN)
+            .exclude(assessment__status=CandidateAssessment.Status.COMPLETED)
+            .exists()
         )
-        missing_assessment = active_candidates.filter(assessment__isnull=True).exists()
-        if missing_assessment:
+        if incomplete:
             raise ValidationError(
                 {
                     "status": [
-                        "Every non-withdrawn candidate must have an assessment "
-                        "before the session can be locked.",
-                    ],
-                },
-            )
-        not_started_assessment = active_candidates.filter(
-            assessment__status=CandidateAssessment.Status.NOT_STARTED,
-        ).exists()
-        if not_started_assessment:
-            raise ValidationError(
-                {
-                    "status": [
-                        "Every non-withdrawn candidate assessment must be "
-                        "in progress or completed before the session can be "
-                        "locked.",
+                        "Every non-withdrawn candidate's assessment must be "
+                        "completed before the session can be locked.",
                     ],
                 },
             )
@@ -410,12 +392,11 @@ def withdraw_locked_candidate(
     note: str,
     actor: User,
 ) -> GradingCandidate:
-    """Withdraw a candidate who cannot finish, from a locked session.
+    """Withdraw a graded candidate who cannot receive a decision, after lock.
 
-    Without this the only way out was to mark their unassessed required items
-    NOT_MET and finalise a FAIL, which writes fabricated results into a record
-    the system then correctly refuses to change. Their partial assessment is
-    kept exactly as recorded.
+    Without this the only way to let the session complete would be to
+    finalise an outcome nobody actually decided. Their assessment is kept
+    exactly as recorded.
     """
     validate_locked_session_override_actor(actor)
     locked_candidate = (
@@ -529,7 +510,7 @@ def validate_session_can_be_deleted(
     # (delete_candidate_assessment), which already ignores session status
     # entirely. Extends the 2026-09-20 cancelled-with-recorded-work decision
     # to every status, not just CANCELLED.
-    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
         return
     if session.status not in {
         GradingSession.Status.DRAFT,
@@ -580,7 +561,6 @@ def validate_candidate_assessment_changes(
     candidate: GradingCandidate,
     *,
     session_changed: bool = False,
-    student_changed: bool = False,
     testing_for_rank_changed: bool = False,
     status: str | None = None,
 ) -> None:
@@ -598,11 +578,11 @@ def validate_candidate_assessment_changes(
             )
         return
 
-    if session_changed or student_changed or testing_for_rank_changed:
+    if session_changed or testing_for_rank_changed:
         raise ValidationError(
             {
                 "candidate": [
-                    "Session, student, and testing-for rank cannot be changed "
+                    "Session and testing-for rank cannot be changed "
                     "after an assessment snapshot has been generated.",
                 ],
             },
@@ -1277,7 +1257,6 @@ def build_candidate(
     session: GradingSession,
     student: Student,
     testing_for_rank: Rank,
-    status: str = GradingCandidate.Status.REGISTERED,
     notes: str = "",
 ) -> GradingCandidate:
     validate_session_accepts_candidates(session)
@@ -1288,48 +1267,80 @@ def build_candidate(
         student=student,
         testing_for_rank=testing_for_rank,
         age_band=resolve_age_band(student.date_of_birth, session.grading_date),
-        status=status,
         notes=notes,
     )
+
+
+WITHDRAWAL_REASON_REQUIRED_MESSAGE = "A reason is required to withdraw a candidate."
 
 
 def update_candidate(
     candidate: GradingCandidate,
     *,
     session: GradingSession | None = None,
-    student: Student | None = None,
     testing_for_rank: Rank | None = None,
     status: str | None = None,
     notes: str | None = None,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
+    actor: User | None = None,
 ) -> GradingCandidate:
     new_session = session or candidate.session
-    new_student = student or candidate.student
     new_testing_for_rank = testing_for_rank or candidate.testing_for_rank
+    session_changed = session is not None and session.pk != candidate.session_id
+    rank_changed = (
+        testing_for_rank is not None
+        and testing_for_rank.pk != candidate.testing_for_rank_id
+    )
 
     validate_candidate_can_be_changed(candidate)
     validate_candidate_assessment_changes(
         candidate,
-        session_changed=session is not None,
-        student_changed=student is not None,
-        testing_for_rank_changed=testing_for_rank is not None,
+        session_changed=session_changed,
+        testing_for_rank_changed=rank_changed,
         status=status,
     )
-    if session is not None:
+    if session_changed:
         validate_session_accepts_candidates(new_session)
-    if student is not None:
-        validate_student_can_be_graded(new_student)
-    validate_testing_for_rank(new_student, new_testing_for_rank)
+    validate_testing_for_rank(candidate.student, new_testing_for_rank)
+
+    withdrawing = (
+        status == GradingCandidate.Status.WITHDRAWN
+        and candidate.status != GradingCandidate.Status.WITHDRAWN
+    )
+    reinstating = (
+        status is not None
+        and status != GradingCandidate.Status.WITHDRAWN
+        and candidate.status == GradingCandidate.Status.WITHDRAWN
+    )
+    if withdrawing:
+        if withdrawal_reason not in GradingCandidate.WithdrawalReason.values:
+            raise ValidationError(
+                {"withdrawal_reason": [WITHDRAWAL_REASON_REQUIRED_MESSAGE]},
+            )
+        if actor is None:
+            raise ValidationError(
+                {"candidate": ["A withdrawal must be attributed to whoever made it."]},
+            )
+        candidate.withdrawal_reason = withdrawal_reason
+        candidate.withdrawal_note = (withdrawal_note or "").strip()
+        candidate.withdrawn_by = actor
+        candidate.withdrawn_at = timezone.now()
+    elif reinstating:
+        candidate.withdrawal_reason = ""
+        candidate.withdrawal_note = ""
+        candidate.withdrawn_by = None
+        candidate.withdrawn_at = None
 
     candidate.session = new_session
-    candidate.student = new_student
     candidate.testing_for_rank = new_testing_for_rank
     if status is not None:
         candidate.status = status
     if notes is not None:
         candidate.notes = notes
-    if session is not None or student is not None:
+    if session_changed:
         candidate.age_band = resolve_age_band(
-            new_student.date_of_birth,
+            candidate.student.date_of_birth,
             new_session.grading_date,
         )
     return candidate
@@ -1377,7 +1388,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
     # session has already superseded refuses the whole deletion rather than
     # leaving the session half-erased.
     reverted_student_ranks: list[dict[str, object]] = []
-    if actor is not None and actor.role == User.Role.ADMINISTRATOR:
+    if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
         candidates = list(
             session.candidates.select_related(
                 "student",
@@ -1447,7 +1458,6 @@ def register_candidate(
     session: GradingSession,
     student: Student,
     testing_for_rank: Rank,
-    status: str = GradingCandidate.Status.REGISTERED,
     notes: str = "",
     actor: User | None = None,
 ) -> GradingCandidate:
@@ -1455,7 +1465,6 @@ def register_candidate(
         session=session,
         student=student,
         testing_for_rank=testing_for_rank,
-        status=status,
         notes=notes,
     )
     candidate.save()
@@ -1540,6 +1549,8 @@ def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:
         "testing_for_rank": candidate.testing_for_rank_id,
         "status": candidate.status,
         "notes": candidate.notes,
+        "withdrawal_reason": candidate.withdrawal_reason,
+        "withdrawal_note": candidate.withdrawal_note,
     }
 
 
@@ -1548,10 +1559,11 @@ def apply_candidate_update(
     candidate: GradingCandidate,
     *,
     session: GradingSession | None = None,
-    student: Student | None = None,
     testing_for_rank: Rank | None = None,
     status: str | None = None,
     notes: str | None = None,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
     actor: User | None = None,
 ) -> GradingCandidate:
     # Read fresh from the database rather than snapshotting the `candidate`
@@ -1565,10 +1577,12 @@ def apply_candidate_update(
     updated = update_candidate(
         candidate,
         session=session,
-        student=student,
         testing_for_rank=testing_for_rank,
         status=status,
         notes=notes,
+        withdrawal_reason=withdrawal_reason,
+        withdrawal_note=withdrawal_note,
+        actor=actor,
     )
     updated.save()
 
@@ -1578,10 +1592,18 @@ def apply_candidate_update(
         # trail exists to show what changed, and nothing did.
         return updated
 
+    withdrawn = (
+        before["status"] != GradingCandidate.Status.WITHDRAWN
+        and updated.status == GradingCandidate.Status.WITHDRAWN
+    )
     record(
-        AuditAction.CANDIDATE_UPDATED,
+        AuditAction.CANDIDATE_WITHDRAWN if withdrawn else AuditAction.CANDIDATE_UPDATED,
         updated,
-        f"Candidate record for {updated.student} updated.",
+        (
+            f"{updated.student} withdrawn ({updated.get_withdrawal_reason_display()})."
+            if withdrawn
+            else f"Candidate record for {updated.student} updated."
+        ),
         actor=actor,
         metadata={"before": before, "after": after},
     )
@@ -1804,6 +1826,8 @@ def bulk_update_candidate_status(
     *,
     candidates: Sequence[GradingCandidate],
     new_status: str,
+    withdrawal_reason: str | None = None,
+    withdrawal_note: str | None = None,
     actor: User | None = None,
 ) -> tuple[list[GradingCandidate], dict[str, list[str]]]:
     """Set `new_status` on every candidate, independently of the others.
@@ -1817,6 +1841,8 @@ def bulk_update_candidate_status(
         lambda candidate: apply_candidate_update(
             candidate,
             status=new_status,
+            withdrawal_reason=withdrawal_reason,
+            withdrawal_note=withdrawal_note,
             actor=actor,
         ),
     )
@@ -1842,16 +1868,9 @@ def validate_assessment_can_complete(assessment: CandidateAssessment) -> None:
         raise ValidationError(
             {"status": ["Only in-progress assessments can be completed."]},
         )
-    if assessment.candidate.session.status not in {
-        GradingSession.Status.OPEN,
-        GradingSession.Status.LOCKED,
-    }:
+    if assessment.candidate.session.status != GradingSession.Status.OPEN:
         raise ValidationError(
-            {
-                "session": [
-                    "Assessments can only be completed in open or locked sessions.",
-                ],
-            },
+            {"session": ["Assessments can only be completed in an open session."]},
         )
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
@@ -1932,6 +1951,57 @@ def update_candidate_assessment(
 
 
 @transaction.atomic
+def reopen_candidate_assessment(
+    assessment: CandidateAssessment,
+    actor: User,
+) -> CandidateAssessment:
+    """Return a completed assessment to in-progress for correction.
+
+    Only while the session is still open: locking is the point after which
+    the record is final. The candidate goes back to registered until the
+    assessment is completed again. Item results and their attribution are
+    kept exactly as recorded.
+    """
+    locked_assessment = (
+        CandidateAssessment.objects.select_for_update(of=("self",))
+        .select_related("candidate__session", "candidate__student")
+        .get(pk=assessment.pk)
+    )
+    if locked_assessment.status != CandidateAssessment.Status.COMPLETED:
+        raise ValidationError(
+            {"status": ["Only a completed assessment can be reopened."]},
+        )
+    if locked_assessment.candidate.session.status != GradingSession.Status.OPEN:
+        raise ValidationError(
+            {
+                "session": [
+                    "An assessment can only be reopened while its session is open.",
+                ],
+            },
+        )
+
+    completed_at = locked_assessment.completed_at
+    locked_assessment.status = CandidateAssessment.Status.IN_PROGRESS
+    locked_assessment.completed_at = None
+    locked_assessment.save()
+    GradingCandidate.objects.filter(pk=locked_assessment.candidate_id).update(
+        status=GradingCandidate.Status.REGISTERED,
+        updated_at=timezone.now(),
+    )
+    record(
+        AuditAction.ASSESSMENT_REOPENED,
+        locked_assessment,
+        (
+            f"Assessment for {locked_assessment.candidate.student} "
+            "reopened for correction."
+        ),
+        actor=actor,
+        metadata={"completed_at": completed_at.isoformat() if completed_at else None},
+    )
+    return locked_assessment
+
+
+@transaction.atomic
 def bulk_start_candidate_assessments(
     *,
     assessments: Sequence[CandidateAssessment],
@@ -1967,17 +2037,9 @@ def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> No
                 ],
             },
         )
-    if (
-        assessment.candidate.session.status
-        not in ASSESSMENT_RESULT_ENTRY_SESSION_STATUSES
-    ):
+    if assessment.candidate.session.status != GradingSession.Status.OPEN:
         raise ValidationError(
-            {
-                "session": [
-                    "Assessment results can only be entered in open or locked "
-                    "sessions.",
-                ],
-            },
+            {"session": ["Assessment results can only be entered in an open session."]},
         )
     if assessment.candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(

@@ -9,7 +9,6 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
-
 import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser } from "./api";
@@ -70,7 +69,7 @@ function UserManagementFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading user management…</div>;
 }
 
-function ImportStudentsFallback(): React.ReactElement {
+function ImportFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading import…</div>;
 }
 
@@ -253,11 +252,8 @@ function ConnectionErrorPage() {
 }
 
 function NavigationRail({ user }: { user: AuthUser }) {
-  const canViewAudit =
-    user.role === "administrator" ||
-    user.can_make_final_grading_decision ||
-    user.can_view_grading_audit_log;
-  const canViewUsers = user.role === "administrator";
+  const canViewAudit = user.can_read_audit_log;
+  const canViewUsers = user.can_manage_users;
 
   return (
     <aside aria-label="Navigation rail" className="nav-rail">
@@ -326,75 +322,15 @@ function NavigationRail({ user }: { user: AuthUser }) {
   );
 }
 
-function OverviewPage() {
-  return <OverviewScreen />;
-}
+/** The boolean capability flags `/api/auth/me/` reports for the signed-in user. */
+type Capability = {
+  [K in keyof AuthUser]: AuthUser[K] extends boolean ? K : never;
+}[keyof AuthUser];
 
-function StudentsPage() {
-  return <StudentsScreen />;
-}
-
-function StudentDetailPage() {
-  return <StudentDetailScreen />;
-}
-
-
-function AddStudentPage() {
-  return <AddStudentScreen />;
-}
-
-function GradingsPage() {
-  return <GradingSessionsScreen />;
-}
-
-function CreateGradingSessionPage() {
-  return <CreateGradingSessionScreen />;
-}
-
-function GradingSessionDetailPage() {
-  return (
-    <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
-      <GradingSessionDetailScreen />
-    </Suspense>
-  );
-}
-
-function BuildGradingCohortPage() {
-  return <BuildGradingCohortScreen />;
-}
-
-function PromotionLedgerPage() {
-  return <PromotionLedgerScreen />;
-}
-
-function CandidateAssessmentPage() {
-  return <CandidateAssessmentScreen />;
-}
-
-function AssessmentCompletionPage() {
-  return <AssessmentCompletionScreen />;
-}
-
-function SyllabusPage() {
-  return <SyllabusScreen />;
-}
-
-function RequireAuditAccess({ children }: { children: ReactNode }) {
+/** Renders a route only when the server says this user may use it. */
+function RequireAccess({ flag, children }: { flag: Capability; children: ReactNode }) {
   const { user } = useAuth();
-  if (
-    !user ||
-    (user.role !== "administrator" &&
-      !user.can_make_final_grading_decision &&
-      !user.can_view_grading_audit_log)
-  ) {
-    return <Navigate replace to="/" />;
-  }
-  return children;
-}
-
-function RequireAdminAccess({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
-  if (!user || user.role !== "administrator") {
+  if (!user?.[flag]) {
     return <Navigate replace to="/" />;
   }
   return children;
@@ -434,10 +370,6 @@ function ApplicationShell() {
             <span className="location-name">Kuk Sool Won Colchester</span>
           </div>
           <div className="top-bar-controls">
-            <span aria-label="System status: Online" className="connectivity-badge">
-              <span aria-hidden="true" className="status-dot" />
-              Online
-            </span>
             <ProfileMenu
               isLoggingOut={isLoggingOut}
               onLogout={handleLogout}
@@ -467,7 +399,7 @@ function ApplicationShell() {
           <span className="footer-tagline">
             Trusted by instructors. Built for what matters.
           </span>
-          <span className="footer-version">Version 1.0.0</span>
+          <span className="footer-version">Version {__APP_VERSION__}</span>
         </footer>
       </div>
     </div>
@@ -561,74 +493,81 @@ function App() {
                 </RequireAuth>
               }
             >
-              <Route element={<OverviewPage />} index />
+              <Route element={<OverviewScreen />} index />
               <Route element={<Navigate replace to="/" />} path="overview" />
-              <Route element={<StudentsPage />} path="students" />
-              <Route element={<AddStudentPage />} path="students/new" />
+              <Route element={<StudentsScreen />} path="students" />
+              <Route element={<AddStudentScreen />} path="students/new" />
               <Route
                 element={
-                  <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                  <RequireAccess flag="can_import_data">
+                    <Suspense fallback={<ImportFallback />}>
                       <ImportStudentsScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="students/import"
               />
-              <Route element={<StudentDetailPage />} path="students/:id" />
-              <Route element={<CreateGradingSessionPage />} path="gradings/new" />
+              <Route element={<StudentDetailScreen />} path="students/:id" />
+              <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
               <Route
                 element={
-                  <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                  <RequireAccess flag="can_import_data">
+                    <Suspense fallback={<ImportFallback />}>
                       <ImportLegacyGradingsScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="gradings/import-legacy"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
-                    <Suspense fallback={<ImportStudentsFallback />}>
+                  <RequireAccess flag="can_reconcile_imported_history">
+                    <Suspense fallback={<ImportFallback />}>
                       <LegacyReconciliationScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="gradings/legacy-records"
               />
-              <Route element={<BuildGradingCohortPage />} path="gradings/:id/register" />
-              <Route element={<PromotionLedgerPage />} path="gradings/:id/promotions" />
-              <Route element={<AssessmentCompletionPage />} path="gradings/:sessionId/assessments/:candidateId/review" />
-              <Route element={<CandidateAssessmentPage />} path="gradings/:sessionId/assessments/:candidateId" />
-              <Route element={<GradingSessionDetailPage />} path="gradings/:id" />
-              <Route element={<GradingsPage />} path="gradings" />
-              <Route element={<SyllabusPage />} path="syllabus" />
+              <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+              <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
+              <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
+              <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
               <Route
                 element={
-                  <RequireAuditAccess>
+                  <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
+                    <GradingSessionDetailScreen />
+                  </Suspense>
+                }
+                path="gradings/:id"
+              />
+              <Route element={<GradingSessionsScreen />} path="gradings" />
+              <Route element={<SyllabusScreen />} path="syllabus" />
+              <Route
+                element={
+                  <RequireAccess flag="can_read_audit_log">
                     <AuditScreen />
-                  </RequireAuditAccess>
+                  </RequireAccess>
                 }
                 path="audit"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_manage_users">
                     <Suspense fallback={<UserManagementFallback />}>
                       <UsersScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="users"
               />
               <Route
                 element={
-                  <RequireAdminAccess>
+                  <RequireAccess flag="can_manage_users">
                     <Suspense fallback={<UserManagementFallback />}>
                       <UserDetailScreen />
                     </Suspense>
-                  </RequireAdminAccess>
+                  </RequireAccess>
                 }
                 path="users/:id"
               />

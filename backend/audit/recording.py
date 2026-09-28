@@ -24,6 +24,8 @@ def record(
 ) -> AuditEvent:
     return AuditEvent.objects.create(
         actor=actor,
+        actor_email=actor.email if actor else "",
+        actor_name=actor.get_full_name() if actor else "",
         action=action,
         entity_type=type(entity).__name__,
         entity_id=str(entity.pk),

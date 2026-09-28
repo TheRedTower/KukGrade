@@ -158,7 +158,7 @@ export function ImportStudentsScreen() {
         corrections,
       });
       setCommitResult(result);
-      await queryClient.invalidateQueries({ queryKey: ["studentsList"] });
+      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
       setStep("result");
     } catch (err) {
       setError(errorMessage(err, "Could not commit this import."));

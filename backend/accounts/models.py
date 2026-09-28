@@ -8,8 +8,17 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
 )
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
+
+# The account deleted users' history is reassigned to. Kept in sync by hand
+# with the literal in accounts/migrations/0005_seed_deleted_user_placeholder.py
+# - migrations must not import application code.
+DELETED_USER_PLACEHOLDER_EMAIL = "deleted-user@kukgrade.internal"
+PLACEHOLDER_ACTIVE_MESSAGE = (
+    "The deleted-user placeholder holds history only and can never be active."
+)
 
 
 class UserManager(BaseUserManager["User"]):
@@ -91,10 +100,20 @@ class User(AbstractBaseUser, PermissionsMixin):
     def clean(self) -> None:
         super().clean()
         self.email = User.objects.normalize_email(self.email)
+        if self.is_deleted_user_placeholder and self.is_active:
+            raise ValidationError({"is_active": [PLACEHOLDER_ACTIVE_MESSAGE]})
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.email = User.objects.normalize_email(self.email)
+        # Enforced here as well as in clean(): an active placeholder could be
+        # signed into, and anything it did would read as "a deleted user".
+        if self.is_deleted_user_placeholder and self.is_active:
+            raise ValidationError({"is_active": [PLACEHOLDER_ACTIVE_MESSAGE]})
         super().save(*args, **kwargs)
+
+    @property
+    def is_deleted_user_placeholder(self) -> bool:
+        return self.email == DELETED_USER_PLACEHOLDER_EMAIL
 
     def __str__(self) -> str:
         return self.email

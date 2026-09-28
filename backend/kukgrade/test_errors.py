@@ -16,10 +16,12 @@ from typing import Any
 import pytest
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from gradings.models import CandidateOutcome
+from kukgrade.exceptions import custom_exception_handler
 
 pytestmark = pytest.mark.django_db
 
@@ -184,3 +186,32 @@ def test_unhandled_server_errors_are_enveloped_too() -> None:
     assert "try again" in payload["error"]["message"]
     # The cause belongs in the logs, not the response.
     assert "Traceback" not in response.content.decode()
+
+
+@pytest.mark.parametrize(
+    ("raised", "fields"),
+    [
+        (
+            DjangoValidationError({"status": ["Not allowed."]}),
+            {"status": ["Not allowed."]},
+        ),
+        (DjangoValidationError("Not allowed."), {"non_field_errors": ["Not allowed."]}),
+    ],
+)
+def test_a_domain_validation_error_is_enveloped_by_the_handler(
+    raised: DjangoValidationError,
+    fields: dict[str, list[str]],
+) -> None:
+    # Views call services without translating their Django ValidationError;
+    # the handler is the one place that does, so it must keep field keys.
+    response = custom_exception_handler(raised, {})
+
+    assert response is not None
+    assert response.status_code == 400
+    assert response.data == {
+        "error": {
+            "code": "validation_error",
+            "message": "Not allowed.",
+            "fields": fields,
+        },
+    }

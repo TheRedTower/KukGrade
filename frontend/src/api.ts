@@ -1,4 +1,4 @@
-import type { components } from "./api/schema";
+import type { components, operations } from "./api/schema";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
@@ -8,6 +8,8 @@ const DEFAULT_API_BASE_URL = "http://localhost:8000";
 // Every request and response body is declared in the schema; the only
 // hand-written API shapes are the error envelope and the page envelope.
 type Schemas = components["schemas"];
+/** A list endpoint's query parameters, as its schema declares them. */
+type ListQuery<Op extends keyof operations> = NonNullable<operations[Op]["parameters"]["query"]>;
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
 export type ManagedUser = Omit<components["schemas"]["UserManagement"], "password">;
@@ -23,17 +25,16 @@ export type GradingSession = components["schemas"]["GradingSession"];
 export type GradingSessionStatus = components["schemas"]["GradingSessionStatusEnum"];
 export type GradingCandidate = Schemas["GradingCandidate"];
 export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
-export type CandidateAssessmentStatus = components["schemas"]["CandidateAssessmentStatusEnum"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
-export type OverallAssessmentSummary = Schemas["AssessmentSummaryCounts"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
 export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type AuditAction = components["schemas"]["ActionEnum"];
+export type AuditEntity = components["schemas"]["AuditEntityEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
@@ -44,14 +45,9 @@ export type EffectiveSyllabusRequirement =
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
 
 /**
- * The error envelope itself has no generated equivalent: `custom_exception_handler`
- * builds it outside DRF's serializer-driven response path, so drf-spectacular
- * documents only the 2xx responses in backend/schema.yml - there is no 4xx
- * schema to generate this from. Hand-written until the views declare their
- * error responses explicitly (`@extend_schema(responses=...)`).
- */
-
-/**
+ * The error envelope is hand-written: `custom_exception_handler` builds it
+ * outside DRF's serializer path, so the schema documents only 2xx responses.
+ *
  * Per-field validation messages, mirroring the serializer's shape. Values are
  * message lists for ordinary fields; nested serializers nest further. Errors
  * raised at serializer level rather than against a field are keyed under
@@ -174,6 +170,17 @@ async function apiRequest<T>(
   return (await response.json()) as T;
 }
 
+/** `path` with every present parameter appended; empty values are omitted. */
+function withQuery(path: string, params: object = {}): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === "") continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
 async function collectAllPages<T>(
   loadPage: (page: number) => Promise<PaginatedResponse<T>>,
 ): Promise<PaginatedResponse<T>> {
@@ -191,7 +198,6 @@ async function collectAllPages<T>(
 
   return { count: total, next: null, previous: null, results };
 }
-
 
 export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
@@ -226,26 +232,9 @@ export async function changePassword(
   });
 }
 
-export async function getManagedUsers(params?: {
-  search?: string;
-  role?: UserRole;
-  is_active?: boolean;
-  page?: number;
-  page_size?: number;
-}): Promise<PaginatedResponse<ManagedUser>> {
-  const searchParams = new URLSearchParams();
-  if (params?.search) searchParams.set("search", params.search);
-  if (params?.role) searchParams.set("role", params.role);
-  if (params?.is_active !== undefined) {
-    searchParams.set("is_active", String(params.is_active));
-  }
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) {
-    searchParams.set("page_size", String(params.page_size));
-  }
-  const query = searchParams.toString();
+export async function getManagedUsers(params?: ListQuery<"users_list">): Promise<PaginatedResponse<ManagedUser>> {
   return apiRequest<PaginatedResponse<ManagedUser>>(
-    `/api/users/${query ? `?${query}` : ""}`,
+    withQuery("/api/users/", params),
   );
 }
 
@@ -253,14 +242,7 @@ export async function getManagedUser(id: string): Promise<ManagedUser> {
   return apiRequest<ManagedUser>(`/api/users/${id}/`);
 }
 
-export type CreateManagedUserPayload = {
-  email: string;
-  password: string;
-  first_name?: string;
-  last_name?: string;
-  role?: UserRole;
-  is_active?: boolean;
-};
+export type CreateManagedUserPayload = Schemas["UserManagementRequest"];
 
 export async function createManagedUser(
   data: CreateManagedUserPayload,
@@ -279,9 +261,7 @@ export async function deleteManagedUser(id: string): Promise<void> {
 
 export async function updateManagedUser(
   id: string,
-  data: Partial<
-    Pick<ManagedUser, "email" | "first_name" | "last_name" | "role" | "is_active">
-  >,
+  data: Schemas["PatchedUserManagementRequest"],
 ): Promise<ManagedUser> {
   return apiRequest<ManagedUser>(`/api/users/${id}/`, {
     method: "PATCH",
@@ -289,12 +269,7 @@ export async function updateManagedUser(
   });
 }
 
-export type UserAuthorityPayload = {
-  can_make_final_grading_decision?: boolean;
-  can_promote_student?: boolean;
-  can_override_locked_session?: boolean;
-  can_view_grading_audit_log?: boolean;
-};
+export type UserAuthorityPayload = Schemas["PatchedUserAuthorityRequest"];
 
 export async function updateManagedUserAuthority(
   id: string,
@@ -316,48 +291,23 @@ export async function resetManagedUserPassword(
   });
 }
 
-export type GradingSessionListParams = {
-  page?: number;
-  page_size?: number;
-  status?: string;
-  search?: string;
-  grading_date?: string;
-  grading_date_from?: string;
-  grading_date_to?: string;
-};
-
 export async function getGradingSessions(
-  params?: GradingSessionListParams,
+  params?: ListQuery<"gradings_sessions_list">,
 ): Promise<PaginatedResponse<GradingSession>> {
-  const searchParams = new URLSearchParams();
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  if (params?.status) searchParams.set("status", params.status);
-  if (params?.search) searchParams.set("search", params.search);
-  if (params?.grading_date) searchParams.set("grading_date", params.grading_date);
-  if (params?.grading_date_from) searchParams.set("grading_date_from", params.grading_date_from);
-  if (params?.grading_date_to) searchParams.set("grading_date_to", params.grading_date_to);
-  const query = searchParams.toString();
   return apiRequest<PaginatedResponse<GradingSession>>(
-    `/api/gradings/sessions/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/sessions/", params),
   );
 }
 
 export async function getAllGradingSessions(
-  params: Omit<GradingSessionListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_sessions_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingSession>> {
   return collectAllPages((page) =>
     getGradingSessions({ ...params, page, page_size: 200 }),
   );
 }
 
-export interface CreateGradingSessionPayload {
-  title: string;
-  grading_date: string;
-  status?: GradingSessionStatus;
-  location?: string;
-  notes?: string;
-}
+export type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
 
 export async function createGradingSession(
   payload: CreateGradingSessionPayload,
@@ -376,7 +326,7 @@ export async function getGradingSession(
 
 export async function updateGradingSession(
   id: number | string,
-  payload: Partial<CreateGradingSessionPayload> & { cancellation_reason?: string },
+  payload: Schemas["PatchedGradingSessionRequest"],
 ): Promise<GradingSession> {
   return apiRequest<GradingSession>(`/api/gradings/sessions/${id}/`, {
     method: "PATCH",
@@ -390,37 +340,27 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
   });
 }
 
-export type GradingCandidateListParams = {
-  session?: number;
-  student_wksa_id?: string;
-  page?: number;
-  page_size?: number;
-};
-
 export async function getGradingCandidates(
-  params?: GradingCandidateListParams,
+  params?: ListQuery<"gradings_candidates_list">,
 ): Promise<PaginatedResponse<GradingCandidate>> {
-  const searchParams = new URLSearchParams();
-  if (params?.session !== undefined) searchParams.set("session", String(params.session));
-  if (params?.student_wksa_id) searchParams.set("student_wksa_id", params.student_wksa_id);
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
   return apiRequest<PaginatedResponse<GradingCandidate>>(
-    `/api/gradings/candidates/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/candidates/", params),
   );
 }
 
+export async function getGradingCandidate(id: number): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`);
+}
+
 export async function getAllGradingCandidates(
-  params: Omit<GradingCandidateListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_candidates_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<GradingCandidate>> {
   return collectAllPages((page) =>
     getGradingCandidates({ ...params, page, page_size: 200 }),
   );
 }
 
-
-export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistration"];
+export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistrationRequest"];
 export type BulkCandidateRegistrationResponse =
   Schemas["BulkCandidateRegistrationResult"];
 
@@ -455,17 +395,16 @@ export async function bulkGenerateCandidateAssessments(
 }
 
 export async function bulkUpdateCandidateStatus(
-  candidateIds: number[],
-  status: GradingCandidate["status"],
+  payload: Schemas["BulkCandidateStatusUpdateRequest"],
 ): Promise<Schemas["BulkCandidateStatusUpdateResult"]> {
   return apiRequest("/api/gradings/candidates/bulk-update-status/", {
     method: "POST",
-    body: JSON.stringify({ candidates: candidateIds, status }),
+    body: JSON.stringify(payload),
   });
 }
 
 export type LockedCandidateWithdrawal =
-  components["schemas"]["LockedCandidateWithdrawal"];
+  Schemas["LockedCandidateWithdrawalRequest"];
 
 export async function withdrawLockedCandidate(
   candidateId: number,
@@ -480,44 +419,25 @@ export async function withdrawLockedCandidate(
   );
 }
 
-export type CandidateAssessmentListParams = {
-  session?: number;
-  candidate?: number;
-  status?: string;
-  page?: number;
-  page_size?: number;
-};
-
 export async function getCandidateAssessments(
-  params?: CandidateAssessmentListParams,
+  params?: ListQuery<"gradings_assessments_list">,
 ): Promise<PaginatedResponse<CandidateAssessment>> {
-  const searchParams = new URLSearchParams();
-  if (params?.session !== undefined) searchParams.set("session", String(params.session));
-  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
-  if (params?.status) searchParams.set("status", params.status);
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
   return apiRequest<PaginatedResponse<CandidateAssessment>>(
-    `/api/gradings/assessments/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/assessments/", params),
   );
 }
 
 export async function getAllCandidateAssessments(
-  params: Omit<CandidateAssessmentListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_assessments_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessment>> {
   return collectAllPages((page) =>
     getCandidateAssessments({ ...params, page, page_size: 200 }),
   );
 }
 
-
 export async function updateCandidateAssessment(
   id: number,
-  data: {
-    status?: CandidateAssessmentStatus;
-    notes?: string;
-  },
+  data: Schemas["PatchedCandidateAssessmentRequest"],
 ): Promise<CandidateAssessment> {
   return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/`, {
     method: "PATCH",
@@ -540,49 +460,32 @@ export async function bulkStartCandidateAssessments(
   });
 }
 
-export type CandidateAssessmentItemListParams = {
-  assessment?: number;
-  candidate?: number;
-  session?: number;
-  category?: string;
-  result?: string;
-  required?: boolean;
-  page?: number;
-  page_size?: number;
-};
-
 export async function getCandidateAssessmentItems(
-  params?: CandidateAssessmentItemListParams,
+  params?: ListQuery<"gradings_assessment_items_list">,
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
-  const searchParams = new URLSearchParams();
-  if (params?.assessment !== undefined) searchParams.set("assessment", String(params.assessment));
-  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
-  if (params?.session !== undefined) searchParams.set("session", String(params.session));
-  if (params?.category) searchParams.set("category", params.category);
-  if (params?.result) searchParams.set("result", params.result);
-  if (params?.required !== undefined) searchParams.set("required", String(params.required));
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
   return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
-    `/api/gradings/assessment-items/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/assessment-items/", params),
   );
 }
 
 export async function getAllCandidateAssessmentItems(
-  params: Omit<CandidateAssessmentItemListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_assessment_items_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return collectAllPages((page) =>
     getCandidateAssessmentItems({ ...params, page, page_size: 200 }),
   );
 }
 
+/** Returns a completed assessment to in-progress while its session is open. */
+export async function reopenCandidateAssessment(id: number): Promise<CandidateAssessment> {
+  return apiRequest<CandidateAssessment>(`/api/gradings/assessments/${id}/reopen/`, {
+    method: "POST",
+  });
+}
+
 export async function updateCandidateAssessmentItem(
   id: number,
-  data: {
-    result?: CandidateAssessmentItemResult;
-    assessor_notes?: string;
-  },
+  data: Schemas["PatchedCandidateAssessmentItemRequest"],
 ): Promise<CandidateAssessmentItem> {
   return apiRequest<CandidateAssessmentItem>(`/api/gradings/assessment-items/${id}/`, {
     method: "PATCH",
@@ -590,35 +493,21 @@ export async function updateCandidateAssessmentItem(
   });
 }
 
-export type CandidateOutcomeListParams = {
-  session?: number;
-  candidate?: number;
-  page?: number;
-  page_size?: number;
-};
-
 export async function getCandidateOutcomes(
-  params?: CandidateOutcomeListParams,
+  params?: ListQuery<"gradings_outcomes_list">,
 ): Promise<PaginatedResponse<CandidateOutcome>> {
-  const searchParams = new URLSearchParams();
-  if (params?.session !== undefined) searchParams.set("session", String(params.session));
-  if (params?.candidate !== undefined) searchParams.set("candidate", String(params.candidate));
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
   return apiRequest<PaginatedResponse<CandidateOutcome>>(
-    `/api/gradings/outcomes/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/outcomes/", params),
   );
 }
 
 export async function getAllCandidateOutcomes(
-  params: Omit<CandidateOutcomeListParams, "page" | "page_size"> = {},
+  params: Omit<ListQuery<"gradings_outcomes_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<CandidateOutcome>> {
   return collectAllPages((page) =>
     getCandidateOutcomes({ ...params, page, page_size: 200 }),
   );
 }
-
 
 export async function createCandidateOutcome(candidateId: number): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/create-outcome/`, {
@@ -628,10 +517,7 @@ export async function createCandidateOutcome(candidateId: number): Promise<Candi
 
 export async function proposeCandidateOutcome(
   outcomeId: number,
-  data: {
-    proposed_outcome: CandidateOutcomeOutcome;
-    proposal_notes?: string;
-  },
+  data: Schemas["PatchedCandidateOutcomeProposalRequest"],
 ): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(`/api/gradings/outcomes/${outcomeId}/propose/`, {
     method: "PATCH",
@@ -664,11 +550,7 @@ export async function getCandidateAssessmentSummary(
 
 export async function finaliseCandidateOutcome(
   outcomeId: number,
-  data: {
-    final_outcome: "PASS" | "CONDITIONAL" | "FAIL";
-    decision_notes?: string;
-    conditional_requirements?: string;
-  },
+  data: Schemas["PatchedCandidateOutcomeFinaliseRequest"],
 ): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(
     `/api/gradings/outcomes/${outcomeId}/finalise/`,
@@ -679,51 +561,15 @@ export async function finaliseCandidateOutcome(
   );
 }
 
-export async function getAuditEvents(params?: {
-  page?: number;
-  page_size?: number;
-  action?: AuditAction;
-  entity_type?: string;
-  entity_id?: string;
-  actor?: string;
-  occurred_from?: string;
-  occurred_to?: string;
-  search?: string;
-}): Promise<PaginatedResponse<AuditEvent>> {
-  const searchParams = new URLSearchParams();
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  if (params?.action) searchParams.set("action", params.action);
-  if (params?.entity_type) searchParams.set("entity_type", params.entity_type);
-  if (params?.entity_id) searchParams.set("entity_id", params.entity_id);
-  if (params?.actor) searchParams.set("actor", params.actor);
-  if (params?.occurred_from) searchParams.set("occurred_from", params.occurred_from);
-  if (params?.occurred_to) searchParams.set("occurred_to", params.occurred_to);
-  if (params?.search) searchParams.set("search", params.search);
-  const query = searchParams.toString();
+export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {
   return apiRequest<PaginatedResponse<AuditEvent>>(
-    `/api/audit-events/${query ? `?${query}` : ""}`,
+    withQuery("/api/audit-events/", params),
   );
 }
 
-export async function getStudents(params?: {
-  search?: string;
-  status?: string;
-  current_rank_code?: string;
-  age_band?: string;
-  page?: number;
-  page_size?: number;
-}): Promise<PaginatedResponse<StudentListItem>> {
-  const searchParams = new URLSearchParams();
-  if (params?.search) searchParams.set("search", params.search);
-  if (params?.status) searchParams.set("status", params.status);
-  if (params?.current_rank_code) searchParams.set("current_rank_code", params.current_rank_code);
-  if (params?.age_band) searchParams.set("age_band", params.age_band);
-  if (params?.page !== undefined) searchParams.set("page", String(params.page));
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
+export async function getStudents(params?: ListQuery<"students_list">): Promise<PaginatedResponse<StudentListItem>> {
   return apiRequest<PaginatedResponse<StudentListItem>>(
-    `/api/students/${query ? `?${query}` : ""}`,
+    withQuery("/api/students/", params),
   );
 }
 
@@ -733,42 +579,24 @@ export async function getAllStudents(
   return collectAllPages((page) => getStudents({ ...params, page, page_size: 200 }));
 }
 
-export async function getRanks(params?: {
-  page_size?: number;
-}): Promise<PaginatedResponse<Rank>> {
-  const searchParams = new URLSearchParams();
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
+export async function getRanks(params?: ListQuery<"ranks_list">): Promise<PaginatedResponse<Rank>> {
   return apiRequest<PaginatedResponse<Rank>>(
-    `/api/ranks/${query ? `?${query}` : ""}`,
+    withQuery("/api/ranks/", params),
   );
 }
 
-
-export async function getSyllabusItems(params?: {
-  page_size?: number;
-}): Promise<PaginatedResponse<SyllabusItem>> {
-  const searchParams = new URLSearchParams();
-  if (params?.page_size !== undefined) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
+export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">): Promise<PaginatedResponse<SyllabusItem>> {
   return apiRequest<PaginatedResponse<SyllabusItem>>(
-    `/api/syllabus/items/${query ? `?${query}` : ""}`,
+    withQuery("/api/syllabus/items/", params),
   );
 }
 
-export async function getEffectiveSyllabusRequirements(params: {
-  rank_code: string;
-  age_band: string;
-  page?: number;
-  page_size?: number;
-}): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
-  const searchParams = new URLSearchParams();
-  searchParams.set("rank_code", params.rank_code);
-  searchParams.set("age_band", params.age_band);
-  if (params.page !== undefined) searchParams.set("page", String(params.page));
-  searchParams.set("page_size", String(params.page_size ?? 200));
+export async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
-    `/api/syllabus/requirements/effective/?${searchParams.toString()}`,
+    withQuery("/api/syllabus/requirements/effective/", {
+      ...params,
+      page_size: params.page_size ?? 200,
+    }),
   );
 }
 
@@ -784,23 +612,13 @@ export async function getStudent(id: number): Promise<StudentDetail> {
   return apiRequest<StudentDetail>(`/api/students/${id}/`);
 }
 
-export type CreateStudentPayload = {
-  first_name: string;
-  last_name: string;
-  wksa_id: string;
-  date_of_birth: string;
-  current_rank: number;
-  status?: StudentStatus;
-};
+export type CreateStudentPayload = Schemas["StudentRequest"];
 
 export async function createStudent(
   payload: CreateStudentPayload,
 ): Promise<StudentDetail> {
   return apiRequest<StudentDetail>("/api/students/", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(payload),
   });
 }
@@ -811,13 +629,7 @@ export async function getStudentRankHistory(id: number): Promise<StudentRankHist
   return apiRequest<StudentRankHistory>(`/api/students/${id}/rank-history/`);
 }
 
-export type UpdateStudentPayload = {
-  first_name?: string;
-  last_name?: string;
-  date_of_birth?: string;
-  current_rank?: number;
-  status?: StudentStatus;
-};
+export type UpdateStudentPayload = Schemas["PatchedStudentRequest"];
 
 export async function updateStudent(
   id: number,
@@ -825,9 +637,6 @@ export async function updateStudent(
 ): Promise<StudentDetail> {
   return apiRequest<StudentDetail>(`/api/students/${id}/`, {
     method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(payload),
   });
 }
@@ -838,25 +647,14 @@ export async function deleteStudent(id: number): Promise<void> {
   });
 }
 
-export async function getPromotions(params?: {
-  session?: number;
-  student?: number;
-  page?: number;
-  page_size?: number;
-}): Promise<PaginatedResponse<Promotion>> {
-  const query = new URLSearchParams();
-  if (params?.session !== undefined) query.set("session", String(params.session));
-  if (params?.student !== undefined) query.set("student", String(params.student));
-  if (params?.page !== undefined) query.set("page", String(params.page));
-  if (params?.page_size !== undefined) query.set("page_size", String(params.page_size));
-  const qs = query.toString();
+export async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
   return apiRequest<PaginatedResponse<Promotion>>(
-    `/api/gradings/promotions/${qs ? `?${qs}` : ""}`,
+    withQuery("/api/gradings/promotions/", params),
   );
 }
 
 export async function getAllPromotions(
-  params: { session?: number; student?: number } = {},
+  params: Omit<ListQuery<"gradings_promotions_list">, "page" | "page_size"> = {},
 ): Promise<PaginatedResponse<Promotion>> {
   return collectAllPages((page) =>
     getPromotions({ ...params, page, page_size: 200 }),
@@ -876,7 +674,7 @@ export async function promoteCandidateOutcome(
 export type BulkPromoteResponse = Schemas["BulkPromotionResult"];
 
 export async function bulkPromoteCandidateOutcomes(
-  data: { outcomes: number[] },
+  data: Schemas["BulkPromotionRequest"],
 ): Promise<BulkPromoteResponse> {
   return apiRequest<BulkPromoteResponse>(
     `/api/gradings/outcomes/bulk-promote/`,
@@ -946,8 +744,6 @@ export async function cancelDataImportBatch(batchId: number): Promise<void> {
   });
 }
 
-export type LegacyRecordKind = Schemas["RecordKindEnum"];
-export type RankMappingSuggestion = Schemas["RankMappingSuggestion"];
 export type LegacyImportPreview = Schemas["LegacyImportPreview"];
 export type LegacyImportRequestPayload = Schemas["LegacyImportRequest"];
 
@@ -979,31 +775,11 @@ export async function commitLegacyGradingImport(
 
 export type LegacyGradingRecord = Schemas["LegacyGradingRecord"];
 
-export async function getLegacyGradingRecords(params?: {
-  student?: number;
-  linked?: boolean;
-  voided?: boolean;
-  record_kind?: LegacyRecordKind;
-  source_batch?: number;
-  page?: number;
-  page_size?: number;
-}): Promise<PaginatedResponse<LegacyGradingRecord>> {
-  const searchParams = new URLSearchParams();
-  if (params?.student !== undefined) searchParams.set("student", String(params.student));
-  if (params?.linked !== undefined) searchParams.set("linked", String(params.linked));
-  if (params?.voided !== undefined) searchParams.set("voided", String(params.voided));
-  if (params?.record_kind) searchParams.set("record_kind", params.record_kind);
-  if (params?.source_batch !== undefined) {
-    searchParams.set("source_batch", String(params.source_batch));
-  }
-  if (params?.page) searchParams.set("page", String(params.page));
-  if (params?.page_size) searchParams.set("page_size", String(params.page_size));
-  const query = searchParams.toString();
+export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legacy_records_list">): Promise<PaginatedResponse<LegacyGradingRecord>> {
   return apiRequest<PaginatedResponse<LegacyGradingRecord>>(
-    `/api/gradings/legacy-records/${query ? `?${query}` : ""}`,
+    withQuery("/api/gradings/legacy-records/", params),
   );
 }
-
 
 export async function linkLegacyGradingRecord(
   id: number,

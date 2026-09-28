@@ -8,7 +8,7 @@ from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
 from accounts.permissions import (
@@ -109,7 +109,16 @@ class GradingSessionViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class GradingCandidateViewSet(ModelViewSet):
+class GradingCandidateViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    GenericViewSet,
+):
+    """Registrations are created by bulk-register only. PATCH and DELETE
+    change or remove one while its session is draft or open."""
+
     # No PUT: partial_update covers every real edit.
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     serializer_class = GradingCandidateSerializer
@@ -117,7 +126,6 @@ class GradingCandidateViewSet(ModelViewSet):
     permission_map = {
         "list": ("gradings.view_gradingcandidate",),
         "retrieve": ("gradings.view_gradingcandidate",),
-        "create": ("gradings.add_gradingcandidate",),
         "partial_update": ("gradings.change_gradingcandidate",),
         "destroy": ("gradings.delete_gradingcandidate",),
         # These create other models, so they are named for what they make
@@ -300,7 +308,6 @@ class GradingCandidateViewSet(ModelViewSet):
 
 class CandidateAssessmentViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     GenericViewSet,
 ):
@@ -309,7 +316,6 @@ class CandidateAssessmentViewSet(
     http_method_names = ["get", "patch", "post", "delete", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessment",),
-        "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
         "bulk_start": ("gradings.change_candidateassessment",),
         "reopen": ("gradings.change_candidateassessment",),
@@ -408,7 +414,6 @@ class CandidateAssessmentViewSet(
 
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     GenericViewSet,
 ):
@@ -417,7 +422,6 @@ class CandidateAssessmentItemViewSet(
     http_method_names = ["get", "patch", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessmentitem",),
-        "retrieve": ("gradings.view_candidateassessmentitem",),
         "partial_update": ("gradings.change_candidateassessmentitem",),
     }
 
@@ -445,7 +449,6 @@ class CandidateAssessmentItemViewSet(
 
 class CandidateOutcomeViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     serializer_class = CandidateOutcomeSerializer
@@ -453,7 +456,6 @@ class CandidateOutcomeViewSet(
     http_method_names = ["get", "patch", "post", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateoutcome",),
-        "retrieve": ("gradings.view_candidateoutcome",),
         "propose": ("gradings.change_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
         # permission class on the action, which also gives a better message.
@@ -603,12 +605,11 @@ class CandidateOutcomeViewSet(
         return Response(result.data)
 
 
-class PromotionViewSet(ReadOnlyModelViewSet):
+class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
     serializer_class = PromotionSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_promotion",),
-        "retrieve": ("gradings.view_promotion",),
     }
 
     query_filters = (
@@ -636,7 +637,6 @@ class PromotionViewSet(ReadOnlyModelViewSet):
 
 class LegacyGradingRecordViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
@@ -649,7 +649,6 @@ class LegacyGradingRecordViewSet(
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_legacygradingrecord",),
-        "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
         "resolve_current_rank": ("gradings.can_reconcile_imported_history",),

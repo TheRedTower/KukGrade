@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from django.db.models import Case, IntegerField, QuerySet, Value, When
+from django.db.models import Case, IntegerField, Value, When
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import serializers
+from rest_framework import mixins, serializers
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet
 
 from accounts.permissions import HasRequiredPermissions
-from kukgrade.filtering import choice, exact
 from ranks.models import Rank
-from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.models import AgeBand, SyllabusItem
 from syllabus.serializers import (
     AgeBandSerializer,
     EffectiveSyllabusRequirementSerializer,
     SyllabusItemSerializer,
-    SyllabusRequirementSerializer,
 )
 from syllabus.services import (
     EffectiveSyllabusRequirement,
@@ -53,7 +51,7 @@ class AgeBandViewSet(GenericViewSet):
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
-class SyllabusItemViewSet(ReadOnlyModelViewSet):
+class SyllabusItemViewSet(mixins.ListModelMixin, GenericViewSet):
     queryset = (
         SyllabusItem.objects.filter(active=True)
         .annotate(_category_order=_CATEGORY_DISPLAY_ORDER)
@@ -63,30 +61,17 @@ class SyllabusItemViewSet(ReadOnlyModelViewSet):
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("syllabus.view_syllabusitem",),
-        "retrieve": ("syllabus.view_syllabusitem",),
     }
 
 
-class SyllabusRequirementViewSet(ReadOnlyModelViewSet):
-    serializer_class = SyllabusRequirementSerializer
+class SyllabusRequirementViewSet(GenericViewSet):
+    """Requirements are read only as the cumulative `effective` view."""
+
+    serializer_class = EffectiveSyllabusRequirementSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
-        "list": ("syllabus.view_syllabusrequirement",),
-        "retrieve": ("syllabus.view_syllabusrequirement",),
         "effective": ("syllabus.view_syllabusrequirement",),
     }
-
-    query_filters = (
-        exact("rank_code", "rank__code"),
-        choice("age_band", "age_band", AgeBand.values),
-    )
-
-    def get_queryset(self) -> QuerySet[SyllabusRequirement]:
-        return (
-            SyllabusRequirement.objects.filter(active=True, item__active=True)
-            .select_related("rank", "item")
-            .order_by("rank__order", "age_band", "sequence", "item__name")
-        )
 
     @extend_schema(
         parameters=[

@@ -327,22 +327,11 @@ def test_syllabus_item_api_requires_authentication() -> None:
     assert response.status_code == 403
 
 
-def test_syllabus_requirement_api_requires_authentication() -> None:
-    response = APIClient().get("/api/syllabus/requirements/")
+def test_syllabus_item_api_lists_items() -> None:
+    response = auth_client().get("/api/syllabus/items/?page_size=200")
 
-    assert response.status_code == 403
-
-
-def test_syllabus_item_api_get_list_and_detail() -> None:
-    client = auth_client()
-    item = SyllabusItem.objects.get(code="KI_BOHN_SOO")
-
-    list_response = client.get("/api/syllabus/items/")
-    detail_response = client.get(f"/api/syllabus/items/{item.id}/")
-
-    assert list_response.status_code == 200
-    assert detail_response.status_code == 200
-    assert detail_response.json()["code"] == "KI_BOHN_SOO"
+    assert response.status_code == 200
+    assert "KI_BOHN_SOO" in {row["code"] for row in results(response)}
 
 
 def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
@@ -387,71 +376,6 @@ def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
         category in {"TECHNIQUE_SET", "FORM", "WEAPONS", "OTHER"}
         for category in categories[last_core_index + 1 :]
     )
-
-
-def test_syllabus_requirement_api_get_list_and_detail() -> None:
-    client = auth_client()
-    requirement = SyllabusRequirement.objects.get(
-        rank__code="YELLOW",
-        age_band=AgeBand.AGE_9_TO_12,
-        item__code="KI_BOHN_SOO",
-    )
-
-    list_response = client.get("/api/syllabus/requirements/")
-    detail_response = client.get(f"/api/syllabus/requirements/{requirement.id}/")
-
-    assert list_response.status_code == 200
-    assert detail_response.status_code == 200
-    assert detail_response.json()["rank_code"] == "YELLOW"
-    assert detail_response.json()["item_code"] == "KI_BOHN_SOO"
-    assert detail_response.json()["display_range"] == "1-10"
-
-
-def test_syllabus_requirement_api_filters_by_rank_code() -> None:
-    client = auth_client()
-
-    response = client.get("/api/syllabus/requirements/?rank_code=YELLOW")
-
-    assert response.status_code == 200
-    assert {item["rank_code"] for item in results(response)} == {"YELLOW"}
-
-
-def test_syllabus_requirement_api_filters_by_age_band() -> None:
-    client = auth_client()
-
-    response = client.get(
-        f"/api/syllabus/requirements/?age_band={AgeBand.AGE_8_AND_UNDER}",
-    )
-
-    assert response.status_code == 200
-    assert {item["age_band"] for item in results(response)} == {AgeBand.AGE_8_AND_UNDER}
-
-
-def test_syllabus_requirement_api_combined_filtering() -> None:
-    client = auth_client()
-
-    response = client.get(
-        f"/api/syllabus/requirements/?rank_code=YELLOW&age_band={AgeBand.AGE_9_TO_12}",
-    )
-
-    assert response.status_code == 200
-    payload = results(response)
-    assert payload
-    assert {item["rank_code"] for item in payload} == {"YELLOW"}
-    assert {item["age_band"] for item in payload} == {AgeBand.AGE_9_TO_12}
-
-
-def test_syllabus_requirement_api_ordering_is_deterministic() -> None:
-    client = auth_client()
-
-    response = client.get(
-        "/api/syllabus/requirements/"
-        f"?rank_code=YELLOW_STRIPE&age_band={AgeBand.AGE_8_AND_UNDER}",
-    )
-
-    assert response.status_code == 200
-    sequences = [item["sequence"] for item in results(response)]
-    assert sequences == sorted(sequences)
 
 
 # ---------------------------------------------------------------------------
@@ -616,30 +540,18 @@ def test_normalize_chart_notation(notes: str, expected: str) -> None:
     ("method", "path"),
     [
         ("post", "/api/syllabus/items/"),
-        ("put", "/api/syllabus/items/{item_id}/"),
-        ("patch", "/api/syllabus/items/{item_id}/"),
-        ("delete", "/api/syllabus/items/{item_id}/"),
-        ("post", "/api/syllabus/requirements/"),
-        ("put", "/api/syllabus/requirements/{requirement_id}/"),
-        ("patch", "/api/syllabus/requirements/{requirement_id}/"),
-        ("delete", "/api/syllabus/requirements/{requirement_id}/"),
+        ("put", "/api/syllabus/items/"),
+        ("patch", "/api/syllabus/items/"),
+        ("delete", "/api/syllabus/items/"),
+        ("post", "/api/syllabus/requirements/effective/"),
+        ("delete", "/api/syllabus/requirements/effective/"),
+        ("post", "/api/syllabus/age-bands/"),
     ],
 )
 def test_syllabus_api_rejects_write_methods(method: str, path: str) -> None:
     client = auth_client("syllabus-writer@example.com")
-    item = SyllabusItem.objects.get(code="KI_BOHN_SOO")
-    requirement = SyllabusRequirement.objects.get(
-        rank__code="YELLOW",
-        age_band=AgeBand.AGE_9_TO_12,
-        item=item,
-    )
 
-    request = getattr(client, method)
-    response = request(
-        path.format(item_id=item.id, requirement_id=requirement.id),
-        {"code": "API_ITEM"},
-        format="json",
-    )
+    response = getattr(client, method)(path, {"code": "API_ITEM"}, format="json")
 
     assert response.status_code == 405
 

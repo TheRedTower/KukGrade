@@ -457,13 +457,10 @@ def test_instructor_cannot_upload_preview_commit_or_cancel() -> None:
     cancel_response = client.post(f"/api/data-imports/batches/{batch.pk}/cancel/")
     assert cancel_response.status_code == 403
 
-    list_response = client.get("/api/data-imports/batches/")
-    assert list_response.status_code == 403
-
 
 def test_anonymous_user_is_denied() -> None:
     client = APIClient()
-    response = client.get("/api/data-imports/batches/")
+    response = client.post("/api/data-imports/batches/", {}, format="json")
     assert response.status_code in (401, 403)
 
 

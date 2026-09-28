@@ -1493,9 +1493,9 @@ def bulk_register_candidates(
 ]:
     """Register every row against `session`, independently of the others.
 
-    This is adding candidates one at a time through the single-item endpoint,
-    just in one request: a batch of ten students does not fail all ten
-    because one of them was already registered.
+    The only registration path in the API. Each row registers on its own, so
+    a batch of ten students does not fail all ten because one of them was
+    already registered.
 
     A row's `testing_for_rank` is optional: when omitted it resolves to that
     student's own next active rank, so a mixed-belt group (some blue belts,

@@ -122,29 +122,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAuditEventList'
           description: ''
-  /api/audit-events/{id}/:
-    get:
-      operationId: audit_events_retrieve
-      description: 'Read-only by construction: the model refuses writes from every
-        path.'
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this audit event.
-        required: true
-      tags:
-      - audit-events
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuditEvent'
-          description: ''
   /api/auth/change-password/:
     post:
       operationId: auth_change_password_create
@@ -242,37 +219,6 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
   /api/data-imports/batches/:
-    get:
-      operationId: data_imports_batches_list
-      description: |-
-        Administrator-only bulk data import (import Decision 1).
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      tags:
-      - data-imports
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedImportBatchList'
-          description: ''
     post:
       operationId: data_imports_batches_create
       description: |-
@@ -302,32 +248,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportBatchCreated'
-          description: ''
-  /api/data-imports/batches/{id}/:
-    get:
-      operationId: data_imports_batches_retrieve
-      description: |-
-        Administrator-only bulk data import (import Decision 1).
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this import batch.
-        required: true
-      tags:
-      - data-imports
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ImportBatch'
           description: ''
   /api/data-imports/batches/{id}/cancel/:
     post:
@@ -510,27 +430,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedCandidateAssessmentItemList'
           description: ''
   /api/gradings/assessment-items/{id}/:
-    get:
-      operationId: gradings_assessment_items_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate assessment
-          item.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateAssessmentItem'
-          description: ''
     patch:
       operationId: gradings_assessment_items_partial_update
       parameters:
@@ -625,26 +524,6 @@ paths:
                 $ref: '#/components/schemas/PaginatedCandidateAssessmentList'
           description: ''
   /api/gradings/assessments/{id}/:
-    get:
-      operationId: gradings_assessments_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate assessment.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateAssessment'
-          description: ''
     patch:
       operationId: gradings_assessments_partial_update
       parameters:
@@ -774,6 +653,9 @@ paths:
   /api/gradings/candidates/:
     get:
       operationId: gradings_candidates_list
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - name: age_band
         required: false
@@ -837,34 +719,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedGradingCandidateList'
           description: ''
-    post:
-      operationId: gradings_candidates_create
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GradingCandidate'
-          description: ''
   /api/gradings/candidates/{id}/:
     get:
       operationId: gradings_candidates_retrieve
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -885,6 +745,9 @@ paths:
           description: ''
     patch:
       operationId: gradings_candidates_partial_update
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -916,6 +779,9 @@ paths:
           description: ''
     delete:
       operationId: gradings_candidates_destroy
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -933,6 +799,9 @@ paths:
   /api/gradings/candidates/{id}/create-outcome/:
     post:
       operationId: gradings_candidates_create_outcome_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -954,6 +823,9 @@ paths:
   /api/gradings/candidates/{id}/generate-assessment/:
     post:
       operationId: gradings_candidates_generate_assessment_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -975,6 +847,9 @@ paths:
   /api/gradings/candidates/{id}/withdraw/:
     post:
       operationId: gradings_candidates_withdraw_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       parameters:
       - in: path
         name: id
@@ -1008,6 +883,9 @@ paths:
   /api/gradings/candidates/bulk-generate-assessments/:
     post:
       operationId: gradings_candidates_bulk_generate_assessments_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       tags:
       - gradings
       requestBody:
@@ -1034,6 +912,9 @@ paths:
   /api/gradings/candidates/bulk-register/:
     post:
       operationId: gradings_candidates_bulk_register_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       tags:
       - gradings
       requestBody:
@@ -1060,6 +941,9 @@ paths:
   /api/gradings/candidates/bulk-update-status/:
     post:
       operationId: gradings_candidates_bulk_update_status_create
+      description: |-
+        Registrations are created by bulk-register only. PATCH and DELETE
+        change or remove one while its session is draft or open.
       tags:
       - gradings
       requestBody:
@@ -1145,33 +1029,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
-          description: ''
-  /api/gradings/legacy-records/{id}/:
-    get:
-      operationId: gradings_legacy_records_retrieve
-      description: |-
-        Historical import records - read for both roles, reconciliation
-        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-        and 15). No ordinary create/update/delete: rows are only ever
-        created by data_imports.services.commit_legacy_grading_import, and only
-        ever changed through the five gradings.legacy_services functions.
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this legacy grading record.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
   /api/gradings/legacy-records/{id}/link-student/:
     post:
@@ -1451,27 +1308,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedCandidateOutcomeList'
           description: ''
-  /api/gradings/outcomes/{id}/:
-    get:
-      operationId: gradings_outcomes_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate outcome.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateOutcome'
-          description: ''
   /api/gradings/outcomes/{id}/finalise/:
     patch:
       operationId: gradings_outcomes_finalise_partial_update
@@ -1679,27 +1515,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedPromotionList'
           description: ''
-  /api/gradings/promotions/{id}/:
-    get:
-      operationId: gradings_promotions_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this promotion.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Promotion'
-          description: ''
   /api/gradings/sessions/:
     get:
       operationId: gradings_sessions_list
@@ -1900,27 +1715,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedRankList'
-          description: ''
-  /api/ranks/{id}/:
-    get:
-      operationId: ranks_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this rank.
-        required: true
-      tags:
-      - ranks
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Rank'
           description: ''
   /api/ready/:
     get:
@@ -2186,92 +1980,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedSyllabusItemList'
-          description: ''
-  /api/syllabus/items/{id}/:
-    get:
-      operationId: syllabus_items_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this syllabus item.
-        required: true
-      tags:
-      - syllabus
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SyllabusItem'
-          description: ''
-  /api/syllabus/requirements/:
-    get:
-      operationId: syllabus_requirements_list
-      parameters:
-      - name: age_band
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - AGE_13_TO_17
-          - AGE_18_AND_OVER
-          - AGE_8_AND_UNDER
-          - AGE_9_TO_12
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      tags:
-      - syllabus
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedSyllabusRequirementList'
-          description: ''
-  /api/syllabus/requirements/{id}/:
-    get:
-      operationId: syllabus_requirements_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this syllabus requirement.
-        required: true
-      tags:
-      - syllabus
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SyllabusRequirement'
           description: ''
   /api/syllabus/requirements/effective/:
     get:
@@ -3547,8 +3255,7 @@ components:
 
         Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
         the effective (latest applicable) `SyllabusRequirement` row, so most
-        fields are simple dotted lookups into it, same shape as
-        `SyllabusRequirementSerializer` where they overlap. `introduced_rank`,
+        fields are simple dotted lookups into it. `introduced_rank`,
         `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
         requires the backend to derive.
       properties:
@@ -3728,29 +3435,6 @@ components:
       - withdrawn_by
       - withdrawn_by_email
       - withdrawn_by_name
-    GradingCandidateRequest:
-      type: object
-      properties:
-        session:
-          type: integer
-        student:
-          type: integer
-        testing_for_rank:
-          type: integer
-        status:
-          $ref: '#/components/schemas/GradingCandidateStatusEnum'
-        notes:
-          type: string
-        withdrawal_reason:
-          oneOf:
-          - $ref: '#/components/schemas/WithdrawalReasonEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        withdrawal_note:
-          type: string
-      required:
-      - session
-      - student
-      - testing_for_rank
     GradingCandidateStatusEnum:
       enum:
       - REGISTERED
@@ -4607,29 +4291,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GradingSession'
-    PaginatedImportBatchList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/ImportBatch'
     PaginatedLegacyGradingRecordList:
       type: object
       required:
@@ -4745,29 +4406,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SyllabusItem'
-    PaginatedSyllabusRequirementList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/SyllabusRequirement'
     PaginatedUserManagementList:
       type: object
       required:
@@ -5681,89 +5319,6 @@ components:
         * `FORM` - Form
         * `WEAPONS` - Weapons
         * `OTHER` - Other
-    SyllabusRequirement:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        rank:
-          type: integer
-          readOnly: true
-        rank_code:
-          type: string
-          readOnly: true
-        rank_name:
-          type: string
-          readOnly: true
-        rank_order:
-          type: integer
-          readOnly: true
-        age_band:
-          allOf:
-          - $ref: '#/components/schemas/AgeBandEnum'
-          readOnly: true
-        item:
-          type: integer
-          readOnly: true
-        item_code:
-          type: string
-          readOnly: true
-        item_name:
-          type: string
-          readOnly: true
-        item_korean_name:
-          type: string
-          readOnly: true
-        category:
-          type: string
-          readOnly: true
-        category_display:
-          type: string
-          readOnly: true
-        start_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        end_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        display_range:
-          type: string
-          readOnly: true
-        sequence:
-          type: integer
-          readOnly: true
-        required:
-          type: boolean
-          readOnly: true
-        active:
-          type: boolean
-          readOnly: true
-        notes:
-          type: string
-          readOnly: true
-      required:
-      - active
-      - age_band
-      - category
-      - category_display
-      - display_range
-      - end_number
-      - id
-      - item
-      - item_code
-      - item_korean_name
-      - item_name
-      - notes
-      - rank
-      - rank_code
-      - rank_name
-      - rank_order
-      - required
-      - sequence
-      - start_number
     User:
       type: object
       properties:

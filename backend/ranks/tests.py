@@ -214,36 +214,23 @@ def test_next_rank_skips_inactive_ranks() -> None:
     assert next_rank is not None and next_rank.id == served
 
 
-def test_rank_api_returns_rank_detail() -> None:
-    user = User.objects.create_user(email="rank-detail-reader@example.com")
-    rank = Rank.objects.get(code="DAHN_BO")
-    client = APIClient()
-    client.force_authenticate(user=user)
-
-    response = client.get(f"/api/ranks/{rank.id}/")
-
-    assert response.status_code == 200
-    assert response.json()["code"] == "DAHN_BO"
-
-
 @pytest.mark.parametrize(
     ("method", "path"),
     [
         ("post", "/api/ranks/"),
-        ("put", "/api/ranks/{rank_id}/"),
-        ("patch", "/api/ranks/{rank_id}/"),
-        ("delete", "/api/ranks/{rank_id}/"),
+        ("put", "/api/ranks/"),
+        ("patch", "/api/ranks/"),
+        ("delete", "/api/ranks/"),
     ],
 )
 def test_rank_api_rejects_write_methods(method: str, path: str) -> None:
     user = User.objects.create_user(email="rank-writer@example.com")
-    rank = Rank.objects.get(code="WHITE")
     client = APIClient()
     client.force_authenticate(user=user)
 
     request = getattr(client, method)
     response = request(
-        path.format(rank_id=rank.id),
+        path,
         rank_kwargs(code="API_RANK", name="API Rank", order=20),
         format="json",
     )

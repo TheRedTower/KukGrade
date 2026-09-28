@@ -5,7 +5,7 @@ from typing import cast
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
-from rest_framework import mixins, status
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
@@ -48,11 +48,7 @@ _IMPORT_PREVIEW = PolymorphicProxySerializer(
 )
 
 
-class ImportBatchViewSet(
-    mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    GenericViewSet,
-):
+class ImportBatchViewSet(GenericViewSet):
     """Administrator-only bulk data import (import Decision 1).
 
     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
@@ -63,8 +59,6 @@ class ImportBatchViewSet(
     permission_classes = [HasRequiredPermissions]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_map = {
-        "list": ("data_imports.view_importbatch",),
-        "retrieve": ("data_imports.view_importbatch",),
         "create": ("data_imports.add_importbatch",),
         "cancel": ("data_imports.change_importbatch",),
         "preview": ("data_imports.view_importbatch",),

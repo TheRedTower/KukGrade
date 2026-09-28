@@ -75,7 +75,7 @@ def test_not_found_uses_the_envelope() -> None:
 
 
 def test_method_not_allowed_uses_the_envelope() -> None:
-    response = auth_client("bad-method@example.com").delete("/api/ranks/1/")
+    response = auth_client("bad-method@example.com").delete("/api/ranks/")
 
     error = envelope(response)
     assert response.status_code == 405

@@ -341,7 +341,7 @@ def test_the_log_is_read_only_over_http() -> None:
     client.force_authenticate(user=master("audit-readonly@example.com"))
 
     assert client.post("/api/audit-events/", {}, format="json").status_code == 405
-    assert client.delete("/api/audit-events/1/").status_code == 405
+    assert client.delete("/api/audit-events/").status_code == 405
 
 
 def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> None:
@@ -395,17 +395,11 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     client.force_authenticate(user=master("audit-instructor-reader@example.com"))
 
     listing = client.get("/api/audit-events/")
-    event_id = AuditEvent.objects.get(
-        action=AuditAction.USER_CREATED,
-        entity_id=str(created.pk),
-    ).pk
-    detail = client.get(f"/api/audit-events/{event_id}/")
-    filtered = client.get("/api/audit-events/?action=USER_CREATED")
+    filtered = client.get(f"/api/audit-events/?entity_id={created.pk}")
 
     assert AuditAction.USER_CREATED not in {
         row["action"] for row in listing.json()["results"]
     }
-    assert detail.status_code == 404
     assert filtered.json()["count"] == 0
 
 
@@ -413,7 +407,7 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     from accounts.services import create_platform_user
 
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
-    created = create_platform_user(
+    create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
         password="Str0ng-Passphrase!42",
         actor=admin_actor,
@@ -422,16 +416,10 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     client.force_authenticate(user=administrator("audit-admin-reader@example.com"))
 
     listing = client.get("/api/audit-events/")
-    event_id = AuditEvent.objects.get(
-        action=AuditAction.USER_CREATED,
-        entity_id=str(created.pk),
-    ).pk
-    detail = client.get(f"/api/audit-events/{event_id}/")
 
     assert AuditAction.USER_CREATED in {
         row["action"] for row in listing.json()["results"]
     }
-    assert detail.status_code == 200
 
 
 def test_master_authority_instructor_still_sees_every_other_action_in_the_log() -> None:

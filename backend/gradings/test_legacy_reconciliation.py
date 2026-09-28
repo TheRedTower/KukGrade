@@ -22,17 +22,16 @@ def instructor(email: str = "legacy-recon-instructor@example.com") -> User:
     return user(email, role=User.Role.INSTRUCTOR)
 
 
-def test_instructor_can_list_and_retrieve_legacy_records() -> None:
-    record = legacy_record()
+def test_instructor_can_list_legacy_records() -> None:
+    legacy_record()
     client = APIClient()
     client.force_authenticate(user=instructor())
 
     list_response = client.get("/api/gradings/legacy-records/")
     assert list_response.status_code == 200
-
-    detail_response = client.get(f"/api/gradings/legacy-records/{record.pk}/")
-    assert detail_response.status_code == 200
-    assert detail_response.json()["source_name"] == "A. Example"
+    assert [row["source_name"] for row in list_response.json()["results"]] == [
+        "A. Example"
+    ]
 
 
 def test_instructor_cannot_link_unlink_resolve_or_void() -> None:

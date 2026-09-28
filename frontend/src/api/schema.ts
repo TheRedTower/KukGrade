@@ -21,23 +21,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/audit-events/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Read-only by construction: the model refuses writes from every path. */
-        get: operations["audit_events_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/change-password/": {
         parameters: {
             query?: never;
@@ -109,13 +92,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-         */
-        get: operations["data_imports_batches_list"];
+        get?: never;
         put?: never;
         /**
          * @description Administrator-only bulk data import (import Decision 1).
@@ -124,28 +101,6 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-         */
-        get: operations["data_imports_batches_retrieve"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -241,7 +196,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["gradings_assessment_items_retrieve"];
+        get?: never;
         put?: never;
         post?: never;
         delete?: never;
@@ -273,7 +228,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["gradings_assessments_retrieve"];
+        get?: never;
         put?: never;
         post?: never;
         delete: operations["gradings_assessments_destroy"];
@@ -348,9 +303,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         get: operations["gradings_candidates_list"];
         put?: never;
-        post: operations["gradings_candidates_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -364,12 +323,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         get: operations["gradings_candidates_retrieve"];
         put?: never;
         post?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         delete: operations["gradings_candidates_destroy"];
         options?: never;
         head?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         patch: operations["gradings_candidates_partial_update"];
         trace?: never;
     };
@@ -382,6 +353,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_create_outcome_create"];
         delete?: never;
         options?: never;
@@ -398,6 +373,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_generate_assessment_create"];
         delete?: never;
         options?: never;
@@ -414,6 +393,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_withdraw_create"];
         delete?: never;
         options?: never;
@@ -430,6 +413,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_generate_assessments_create"];
         delete?: never;
         options?: never;
@@ -446,6 +433,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_register_create"];
         delete?: never;
         options?: never;
@@ -462,6 +453,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_update_status_create"];
         delete?: never;
         options?: never;
@@ -484,29 +479,6 @@ export interface paths {
          *     ever changed through the five gradings.legacy_services functions.
          */
         get: operations["gradings_legacy_records_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
-         */
-        get: operations["gradings_legacy_records_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -646,22 +618,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/outcomes/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_outcomes_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/outcomes/{id}/finalise/": {
         parameters: {
             query?: never;
@@ -742,22 +698,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/promotions/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_promotions_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/sessions/": {
         parameters: {
             query?: never;
@@ -814,22 +754,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["ranks_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/ranks/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ranks_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -943,54 +867,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["syllabus_items_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/items/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_items_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/requirements/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_requirements_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/requirements/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_requirements_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1536,8 +1412,7 @@ export interface components {
          *
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
          *     the effective (latest applicable) `SyllabusRequirement` row, so most
-         *     fields are simple dotted lookups into it, same shape as
-         *     `SyllabusRequirementSerializer` where they overlap. `introduced_rank`,
+         *     fields are simple dotted lookups into it. `introduced_rank`,
          *     `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
          *     requires the backend to derive.
          */
@@ -1591,15 +1466,6 @@ export interface components {
             readonly created_at: string;
             /** Format: date-time */
             readonly updated_at: string;
-        };
-        GradingCandidateRequest: {
-            session: number;
-            student: number;
-            testing_for_rank: number;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
-            withdrawal_note?: string;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -1970,21 +1836,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
         };
-        PaginatedImportBatchList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["ImportBatch"][];
-        };
         PaginatedLegacyGradingRecordList: {
             /** @example 123 */
             count: number;
@@ -2059,21 +1910,6 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["SyllabusItem"][];
-        };
-        PaginatedSyllabusRequirementList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["SyllabusRequirement"][];
         };
         PaginatedUserManagementList: {
             /** @example 123 */
@@ -2474,27 +2310,6 @@ export interface components {
          * @enum {string}
          */
         SyllabusItemCategoryEnum: "ETIQUETTE" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "FALLING" | "BREAKING" | "TECHNIQUE_SET" | "FORM" | "WEAPONS" | "OTHER";
-        SyllabusRequirement: {
-            readonly id: number;
-            readonly rank: number;
-            readonly rank_code: string;
-            readonly rank_name: string;
-            readonly rank_order: number;
-            readonly age_band: components["schemas"]["AgeBandEnum"];
-            readonly item: number;
-            readonly item_code: string;
-            readonly item_name: string;
-            readonly item_korean_name: string;
-            readonly category: string;
-            readonly category_display: string;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
-            readonly display_range: string;
-            readonly sequence: number;
-            readonly required: boolean;
-            readonly active: boolean;
-            readonly notes: string;
-        };
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -2629,28 +2444,6 @@ export interface operations {
             };
         };
     };
-    audit_events_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this audit event. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditEvent"];
-                };
-            };
-        };
-    };
     auth_change_password_create: {
         parameters: {
             query?: never;
@@ -2762,30 +2555,6 @@ export interface operations {
             };
         };
     };
-    data_imports_batches_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedImportBatchList"];
-                };
-            };
-        };
-    };
     data_imports_batches_create: {
         parameters: {
             query?: never;
@@ -2807,28 +2576,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatchCreated"];
-                };
-            };
-        };
-    };
-    data_imports_batches_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -2941,28 +2688,6 @@ export interface operations {
             };
         };
     };
-    gradings_assessment_items_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate assessment item. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessmentItem"];
-                };
-            };
-        };
-    };
     gradings_assessment_items_partial_update: {
         parameters: {
             query?: never;
@@ -3016,28 +2741,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedCandidateAssessmentList"];
-                };
-            };
-        };
-    };
-    gradings_assessments_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate assessment. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessment"];
                 };
             };
         };
@@ -3185,31 +2888,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedGradingCandidateList"];
-                };
-            };
-        };
-    };
-    gradings_candidates_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
-                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
                 };
             };
         };
@@ -3461,28 +3139,6 @@ export interface operations {
             };
         };
     };
-    gradings_legacy_records_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this legacy grading record. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"];
-                };
-            };
-        };
-    };
     gradings_legacy_records_link_student_create: {
         parameters: {
             query?: never;
@@ -3650,28 +3306,6 @@ export interface operations {
             };
         };
     };
-    gradings_outcomes_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
-                };
-            };
-        };
-    };
     gradings_outcomes_finalise_partial_update: {
         parameters: {
             query?: never;
@@ -3810,28 +3444,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedPromotionList"];
-                };
-            };
-        };
-    };
-    gradings_promotions_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this promotion. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Promotion"];
                 };
             };
         };
@@ -4000,28 +3612,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedRankList"];
-                };
-            };
-        };
-    };
-    ranks_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this rank. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Rank"];
                 };
             };
         };
@@ -4258,76 +3848,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedSyllabusItemList"];
-                };
-            };
-        };
-    };
-    syllabus_items_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this syllabus item. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyllabusItem"];
-                };
-            };
-        };
-    };
-    syllabus_requirements_list: {
-        parameters: {
-            query?: {
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                rank_code?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedSyllabusRequirementList"];
-                };
-            };
-        };
-    };
-    syllabus_requirements_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this syllabus requirement. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyllabusRequirement"];
                 };
             };
         };

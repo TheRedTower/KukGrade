@@ -8,7 +8,6 @@ from rest_framework import serializers
 from accounts.models import User
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
-    CANDIDATE_REGISTERED_ON_CREATION_MESSAGE,
     CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -26,7 +25,6 @@ from gradings.services import (
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
-    register_candidate,
     transition_grading_session,
     update_candidate_assessment,
     update_candidate_assessment_item,
@@ -158,16 +156,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
         return value
 
-    def validate_status(self, value: str) -> str:
-        if self.instance is None and value != GradingCandidate.Status.REGISTERED:
-            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
-        return value
-
-    def validate_withdrawal_reason(self, value: str) -> str:
-        if self.instance is None and value:
-            raise serializers.ValidationError(CANDIDATE_REGISTERED_ON_CREATION_MESSAGE)
-        return value
-
     def get_withdrawn_by_email(self, instance: GradingCandidate) -> str:
         return instance.withdrawn_by.email if instance.withdrawn_by else ""
 
@@ -226,21 +214,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
-    def create(self, validated_data: dict[str, Any]) -> GradingCandidate:
-        try:
-            candidate = register_candidate(
-                session=cast(GradingSession, validated_data["session"]),
-                student=cast(Student, validated_data["student"]),
-                testing_for_rank=cast(Rank, validated_data["testing_for_rank"]),
-                notes=str(validated_data.get("notes", "")),
-                actor=cast(User, self.context["request"].user),
-            )
-        except IntegrityError as exc:
-            raise serializers.ValidationError(
-                {"student": ["Student is already registered for this session."]},
-            ) from exc
-        return candidate
-
     def update(
         self,
         instance: GradingCandidate,
@@ -272,8 +245,8 @@ class BulkCandidateRegistrationItemSerializer(serializers.Serializer):
     # Optional: students in one batch are usually a mix of belts (a group of
     # blue belts plus a couple of white belts plus one brown stripe, say), so
     # there is no single rank to default the batch to. Omitting it resolves
-    # to that student's own next active rank - the same rank the single-item
-    # endpoint would insist on anyway - so the common case needs no rank
+    # to that student's own next active rank - the same rank registration
+    # would insist on anyway - so the common case needs no rank
     # picked at all; it is only needed to catch an out-of-turn request early.
     testing_for_rank = serializers.PrimaryKeyRelatedField(
         queryset=Rank.objects.all(),

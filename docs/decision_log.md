@@ -48,6 +48,14 @@ Removed `GET /api/gradings/outcomes/{id}/summary/`, the `PATCH` stub on
 `/api/gradings/outcomes/{id}/`, `PUT` on grading sessions and candidates, and
 the assessment serializer's `item_counts`. `can_be_graded` moved from the
 student detail to the student list, and the cohort builder filters on it.
+Confirmed the same day: every single-record `GET` the application never
+calls is removed too (audit event, import batch list and detail, assessment,
+assessment item, outcome, promotion, legacy record, rank, syllabus item),
+along with the syllabus requirement list and detail - requirements are read
+only through `/effective/`. Candidates are registered only through
+`bulk-register`; the single `POST /api/gradings/candidates/` is gone.
+Candidate `PATCH` and `DELETE` stay, and the session screen now offers them
+as "Move to session" and "Remove registration".
 
 Context:
 After slice 6 nothing called the outcome summary: it returned the same

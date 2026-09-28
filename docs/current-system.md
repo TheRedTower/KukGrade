@@ -267,13 +267,14 @@ checks on each push and pull request.
   `can_view_grading_audit_log` holder who is not an administrator still
   cannot see them; the existing `accounts.view_user` exclusion filter scopes
   the new permission automatically, with no separate filtering logic needed.
-- **Master authority is administrator-exclusive by design**: granting
-  `can_make_final_grading_decision` to an administrator is refused
+- **An administrator can never hold Master authority (2026-09-16)**:
+  granting `can_make_final_grading_decision` to an administrator is refused
   (`PATCH /api/users/{id}/authority/`), and promoting a user who already
-  holds it to administrator is refused too
-  (`PATCH /api/users/{id}/`, `role`). Confirmed policy is exactly one
-  designated Master, never an administrator; administrators hold every
-  other capability, including the other two sensitive permissions.
+  holds it to administrator is refused too (`PATCH /api/users/{id}/`,
+  `role`). Any number of instructors may hold it at once - a second Master
+  is a normal outcome, not an exception (2026-09-25) - but an administrator
+  never can; administrators hold every other capability, including the
+  other two sensitive permissions.
 - **The UI never decides from role (2026-09-26)**: `/api/auth/me/` reports
   each administrator capability from the permission its action checks, and
   whether the audit log is readable from the backend rule itself. Routes

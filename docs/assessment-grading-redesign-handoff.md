@@ -102,7 +102,8 @@ and `assessed_at` both null; `MET`/`NOT_MET` ⇒ both non-null. **Clearing a
 result wipes attribution, irreversibly.**
 Uniqueness: `(assessment, source_requirement)` and
 `(assessment, source_age_band, item_code, requirement_sequence)`.
-Properties: `has_numbered_range`, `display_range` (`"3"` or `"3-5"`).
+Properties: `display_range` (`"3"` or `"3-5"`) - `has_numbered_range` was
+removed as dead code in the 2026-09-24 coherence audit.
 Default ordering is `requirement_sequence, item_name, pk` — **category is not
 an ordering key, so grouping by category is a client concern.**
 
@@ -215,14 +216,17 @@ The redesign should spend these rather than recomputing or omitting them:
 - `GET /outcomes/{id}/summary/` — carries the full overall and per-category
   breakdown including `required_met`, `required_not_met`,
   `required_not_assessed`, `all_required_assessed` and `all_required_met`, but
-  is consumed only by `MasterFinalDecisionDrawer.tsx`, and only
-  `categories[].all_required_met` and `overall.required_met`/`overall.required`.
-  **It is reachable only once a `CandidateOutcome` exists**, which requires
-  session `LOCKED` and assessment `COMPLETED` — so it is unavailable during
-  scoring and at completion review, which is why the scoring screen cannot call
-  it. The underlying service, `candidate_assessment_summary(assessment)`, takes
-  an assessment and works at any status; the outcome view is a two-line wrapper
-  over it (`views.py:714`). See §6.1.
+  at doc-authoring time was consumed only by `MasterFinalDecisionDrawer.tsx`,
+  and only `categories[].all_required_met` and
+  `overall.required_met`/`overall.required`. **It is reachable only once a
+  `CandidateOutcome` exists**, which requires session `LOCKED` and assessment
+  `COMPLETED` — so it is unavailable during scoring and at completion review.
+  The underlying service, `candidate_assessment_summary(assessment)`, takes
+  an assessment and works at any status; the outcome view is a two-line
+  wrapper over it (`gradings/views.py`, `CandidateOutcomeViewSet.summary`).
+  **Resolved by slice 2**: the same service is now also exposed on the
+  assessment resource (`GET /assessments/{id}/summary/`), which the scoring
+  and completion screens call instead. See §6.1.
 - `started_at`, `completed_at`, `generated_at` — never rendered.
 - `generated_by` / `generated_by_email` — never rendered.
 - Per-item `assessor_email` and `assessed_at` — rendered only in the not-met
@@ -333,16 +337,20 @@ One commit per slice. Each must pass the §7 commands before the next begins.
 1. **Selection and register.** *Done, 2026-09-23.* FDR-042 to FDR-047 and
    SCR-026 to SCR-028 recorded; SCR-019, SCR-020 and SCR-022 superseded;
    decision-log entries written.
-2. **Serve the counts (FDR-046).** Two parts, backend first.
-   *Backend:* expose the existing `candidate_assessment_summary` service on the
-   assessment resource — `GET /api/gradings/assessments/{id}/summary/`, a
-   two-line action mirroring the outcome one at `views.py:714`, plus contract
-   documentation and permission tests. No model, migration or service change.
-   *Frontend:* replace the client-side stat derivation in
-   `CandidateAssessmentScreen.tsx` with that response, and remove the
-   per-category percentage. Regenerate the OpenAPI schema and frontend types.
-   Behaviour-preserving apart from the percentage. Do this before any layout
-   change so the diff stays readable. See §6.1 — accepted.
+2. **Serve the counts (FDR-046).** *Done, 2026-09-23.* Two parts, backend
+   first.
+   *Backend:* the existing `candidate_assessment_summary` service is exposed
+   on the assessment resource — `GET /api/gradings/assessments/{id}/summary/`,
+   a two-line action mirroring the outcome one, plus contract documentation
+   and permission tests (`gradings/tests.py`:
+   `test_assessment_summary_is_served_while_the_assessment_is_in_progress`,
+   `test_assessment_summary_requires_the_view_permission`,
+   `test_assessment_summary_rejects_a_write`). No model, migration or service
+   change.
+   *Frontend:* the client-side stat derivation in `CandidateAssessmentScreen.tsx`
+   was replaced with that response (`candidateAssessmentData.ts`), and the
+   per-category percentage removed. Schema and frontend types regenerated.
+   See §6.1 — accepted.
 3. **Split the screen.** *Done, 2026-09-23.* Completion review moved out of
    `CandidateAssessmentScreen.tsx`'s `isReviewMode` branch into
    `AssessmentCompletionScreen.tsx` on
@@ -406,27 +414,10 @@ Mirrored in `decision_log.md`.
 
 ## 7. Verification
 
-Backend (from `backend/`), required if any open decision is answered "add the
-field":
-
-```
-uv run python manage.py makemigrations --check --dry-run
-uv run python manage.py migrate
-uv run pytest
-uv run ruff check .
-uv run ruff format --check .
-uv run mypy kukgrade health accounts audit ranks students syllabus gradings
-```
-
-Frontend (from `frontend/`):
-
-```
-npm ci
-npm run test
-npm run lint
-npm run typecheck
-npm run build
-```
+Run the full command set in `docs/development-workflow.md` - the one
+canonical list, so it cannot drift from what is duplicated here. Backend
+migration checks are required if any open decision is answered "add the
+field".
 
 Regenerate the OpenAPI schema and frontend types if the API contract changes.
 Do not hand-write response types.

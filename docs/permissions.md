@@ -93,9 +93,11 @@ grant mechanism.
 
 Final-decision authority is administrator-exclusive by decision (2026-09-16,
 see `decision_log.md`): granting it to an administrator, or promoting a
-holder to administrator, is refused outright. Exactly one designated Master
-holds it; administrators hold the other three sensitive permissions and
-every other capability instead. The audit log follows the same
+holder to administrator, is refused outright. Any number of instructors may
+hold it - a second Master is a normal outcome, not an exception (2026-09-25,
+see `decision_log.md`) - but an administrator never can. Administrators hold
+the other three sensitive permissions and every other capability instead.
+The audit log follows the same
 administrator-or-Master-or-grantee line, unlike every other capability above
 where Master access "via group" already covers it - a plain instructor
 holding none of the three is refused. The rule is stated once, in

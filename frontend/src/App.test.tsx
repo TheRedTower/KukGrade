@@ -1124,7 +1124,6 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
         completed_at: "2026-05-15T11:00:00Z",
-        item_counts: { total: 10, completed: 10 },
         created_at: "2026-05-15T09:30:00Z",
         updated_at: "2026-05-15T11:00:00Z",
       },
@@ -1144,7 +1143,6 @@ describe("Overview screen (Operational Ledger)", () => {
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
         completed_at: null,
-        item_counts: { total: 12, completed: 5 },
         created_at: "2026-05-15T09:30:00Z",
         updated_at: "2026-05-15T10:30:00Z",
       },
@@ -1804,7 +1802,6 @@ describe("Student detail screen (/students/:id)", () => {
     current_rank_name: "Yellow Stripe",
     status: "ACTIVE",
     status_display: "Active",
-    can_be_graded: true,
     age_band: "AGE_13_TO_17",
     age_band_display: "13-17",
     created_at: "2021-01-08T10:00:00Z",
@@ -3053,7 +3050,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       started_at: "2026-09-15T09:10:00Z",
       completed_at: null,
       notes: "",
-      item_counts: { total: 10, required: 10, met: 5, not_met: 0, not_assessed: 5 },
       created_at: "2026-09-15T09:00:00Z",
       updated_at: "2026-09-15T09:10:00Z",
     },
@@ -3074,7 +3070,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       started_at: "2026-09-15T09:10:00Z",
       completed_at: "2026-09-15T10:00:00Z",
       notes: "",
-      item_counts: { total: 12, required: 12, met: 12, not_met: 0, not_assessed: 0 },
       created_at: "2026-09-15T09:00:00Z",
       updated_at: "2026-09-15T10:00:00Z",
     },
@@ -3095,7 +3090,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       started_at: null,
       completed_at: null,
       notes: "",
-      item_counts: { total: 14, required: 14, met: 0, not_met: 0, not_assessed: 14 },
       created_at: "2026-09-15T09:00:00Z",
       updated_at: "2026-09-15T09:00:00Z",
     },
@@ -4231,6 +4225,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4244,6 +4239,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "INACTIVE",
+      can_be_graded: true,
       status_display: "Inactive",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4257,6 +4253,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "YELLOW_STRIPE",
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_13_TO_17",
       age_band_display: "13-17",
@@ -4270,6 +4267,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "LEFT",
+      can_be_graded: false,
       status_display: "Left",
       age_band: "AGE_8_AND_UNDER",
       age_band_display: "8 and under",
@@ -4283,6 +4281,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "YELLOW_STRIPE",
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4761,6 +4760,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     age_band: "AGE_9_TO_12",
     age_band_display: "Junior (9–12)",
     status: "ACTIVE",
+    can_be_graded: true,
     status_display: "Active",
   };
 
@@ -4781,7 +4781,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     started_at: "2026-09-18T10:05:00Z",
     completed_at: null,
     notes: "",
-    item_counts: { total: 3, required: 3, met: 1, not_met: 1, not_assessed: 1 },
     created_at: "2026-09-18T10:00:00Z",
     updated_at: "2026-09-18T10:05:00Z",
   };
@@ -4988,7 +4987,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("reports unassessed optional items rather than calling the category all met", async () => {
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
@@ -5804,7 +5802,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // Assessment with all 3 items assessed (2 Met, 1 Not Met, 0 Not Assessed)
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
@@ -5907,7 +5904,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("keeps draft assessment notes when returning to scoring and back", async () => {
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
@@ -5981,7 +5977,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status: "NOT_STARTED",
       status_display: "Not started",
       started_at: null,
-      item_counts: { total: 3, required: 3, met: 0, not_met: 0, not_assessed: 3 },
     };
 
     let startPayload: Record<string, unknown> | null = null;

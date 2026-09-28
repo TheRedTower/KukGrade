@@ -445,20 +445,23 @@ def test_status_filter_and_search_and_rank_filter_work() -> None:
     assert unknown_status["count"] == 0
 
 
-def test_can_be_graded_reflects_status_in_the_api_response() -> None:
+def test_can_be_graded_reflects_status_in_the_student_list() -> None:
+    # The cohort builder reads eligibility from the list, so the rule is
+    # stated once, on the model, rather than re-derived from status in React.
     client = auth_client("can-be-graded@example.com")
     created = create_via_api(client, wksa_id="GRADABLE-001")
-    assert client.get(f"/api/students/{created['id']}/").json()["can_be_graded"] is True
 
+    def listed() -> bool:
+        body = client.get("/api/students/?search=GRADABLE-001").json()
+        return bool(body["results"][0]["can_be_graded"])
+
+    assert listed() is True
     client.patch(
         f"/api/students/{created['id']}/",
         {"status": Student.Status.LEFT},
         format="json",
     )
-
-    assert (
-        client.get(f"/api/students/{created['id']}/").json()["can_be_graded"] is False
-    )
+    assert listed() is False
 
 
 def test_only_students_view_student_can_read() -> None:

@@ -406,7 +406,6 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         source="generated_by.email",
         read_only=True,
     )
-    item_counts = serializers.SerializerMethodField()
 
     class Meta:
         model = CandidateAssessment
@@ -427,7 +426,6 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "started_at",
             "completed_at",
             "notes",
-            "item_counts",
             "created_at",
             "updated_at",
         )
@@ -446,30 +444,9 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "generated_at",
             "started_at",
             "completed_at",
-            "item_counts",
             "created_at",
             "updated_at",
         )
-
-    def get_item_counts(self, obj: CandidateAssessment) -> dict[str, int]:
-        items = list(obj.items.all())
-        return {
-            "total": len(items),
-            "required": sum(1 for item in items if item.required),
-            "met": sum(
-                1 for item in items if item.result == CandidateAssessmentItem.Result.MET
-            ),
-            "not_met": sum(
-                1
-                for item in items
-                if item.result == CandidateAssessmentItem.Result.NOT_MET
-            ),
-            "not_assessed": sum(
-                1
-                for item in items
-                if item.result == CandidateAssessmentItem.Result.NOT_ASSESSED
-            ),
-        }
 
     def update(
         self,

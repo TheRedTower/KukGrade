@@ -2751,12 +2751,9 @@ def test_assessment_api_generation_lists_and_filters() -> None:
     assert duplicate_response.status_code == 400
     payload = generate_response.json()
     assert payload["candidate"] == built.id
-    assert (
-        payload["item_counts"]["total"]
-        == CandidateAssessmentItem.objects.filter(
-            assessment_id=payload["id"],
-        ).count()
-    )
+    assert CandidateAssessmentItem.objects.filter(
+        assessment_id=payload["id"],
+    ).exists()
     assert "outcome" not in payload
 
     list_response = client.get(
@@ -2809,7 +2806,6 @@ def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> N
     assert labels == [
         SyllabusItem.Category(row["category"]).label for row in payload["categories"]
     ]
-    # The required-split is what item_counts cannot provide.
     assert payload["overall"]["met"] == 1
     assert payload["overall"]["not_met"] == 1
     assert payload["overall"]["required_not_assessed"] == (
@@ -3550,7 +3546,7 @@ def test_session_completion_requires_finalised_outcomes_for_active_candidates() 
     assert not hasattr(withdrawn, "outcome")
 
 
-def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
+def test_candidate_outcome_api_workflow_and_filters() -> None:
     built, _generated = locked_completed_candidate()
     actor = user("outcome-api-actor@example.com")
     master_user = master("outcome-api-master@example.com")
@@ -3606,7 +3602,6 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
         },
         format="json",
     )
-    summary_response = client.get(f"/api/gradings/outcomes/{outcome_id}/summary/")
     list_response = client.get(
         "/api/gradings/outcomes/"
         f"?session={built.session_id}&candidate={built.id}"
@@ -3633,8 +3628,6 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
     assert finalise_response.status_code == 200
     assert finalise_response.json()["decided_by"] == str(master_user.id)
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
-    assert summary_response.status_code == 200
-    assert "final_outcome" not in summary_response.json()
     assert [item["id"] for item in results(list_response)] == [outcome_id]
     assert delete_response.status_code == 405
     assert finalised_patch.status_code == 405
@@ -4269,8 +4262,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     assessment_body = generate_response.json()
     assessment_id = assessment_body["id"]
     assert assessment_body["status"] == CandidateAssessment.Status.NOT_STARTED
-    assert assessment_body["item_counts"]["total"] > 0
-    assert assessment_body["item_counts"]["required"] > 0
+    assert CandidateAssessmentItem.objects.filter(
+        assessment_id=assessment_id,
+        required=True,
+    ).exists()
 
     start_response = instructor.patch(
         f"/api/gradings/assessments/{assessment_id}/",

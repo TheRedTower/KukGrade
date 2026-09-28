@@ -365,7 +365,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["gradings_candidates_retrieve"];
-        put: operations["gradings_candidates_update"];
+        put?: never;
         post?: never;
         delete: operations["gradings_candidates_destroy"];
         options?: never;
@@ -659,7 +659,7 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch: operations["gradings_outcomes_partial_update"];
+        patch?: never;
         trace?: never;
     };
     "/api/gradings/outcomes/{id}/finalise/": {
@@ -708,22 +708,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["gradings_outcomes_propose_partial_update"];
-        trace?: never;
-    };
-    "/api/gradings/outcomes/{id}/summary/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_outcomes_summary_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/api/gradings/outcomes/bulk-promote/": {
@@ -798,7 +782,7 @@ export interface paths {
             cookie?: never;
         };
         get: operations["gradings_sessions_retrieve"];
-        put: operations["gradings_sessions_update"];
+        put?: never;
         post?: never;
         delete: operations["gradings_sessions_destroy"];
         options?: never;
@@ -1379,9 +1363,6 @@ export interface components {
             /** Format: date-time */
             readonly completed_at: string | null;
             notes?: string;
-            readonly item_counts: {
-                [key: string]: number;
-            };
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date-time */
@@ -2312,7 +2293,6 @@ export interface components {
             readonly current_rank_name: string;
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
-            readonly can_be_graded: boolean;
             readonly age_band: string;
             readonly age_band_display: string;
             /** Format: date-time */
@@ -2388,6 +2368,7 @@ export interface components {
             readonly current_rank_name: string;
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
+            readonly can_be_graded: boolean;
             readonly age_band: string;
             readonly age_band_display: string;
         };
@@ -3209,34 +3190,6 @@ export interface operations {
             };
         };
     };
-    gradings_candidates_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this grading candidate. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
-                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
-                };
-            };
-        };
-    };
     gradings_candidates_destroy: {
         parameters: {
             query?: never;
@@ -3673,28 +3626,6 @@ export interface operations {
             };
         };
     };
-    gradings_outcomes_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
-                };
-            };
-        };
-    };
     gradings_outcomes_finalise_partial_update: {
         parameters: {
             query?: never;
@@ -3775,28 +3706,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CandidateOutcome"];
-                };
-            };
-        };
-    };
-    gradings_outcomes_summary_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessmentSummary"];
                 };
             };
         };
@@ -3946,34 +3855,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingSession"];
-                };
-            };
-        };
-    };
-    gradings_sessions_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this grading session. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingSessionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingSessionRequest"];
-                "multipart/form-data": components["schemas"]["GradingSessionRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {

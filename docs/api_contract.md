@@ -141,7 +141,8 @@ List, retrieve, create, update, and an administrator-only delete.
 | GET   | /api/students/{id}/grading-history/         | Finalised native outcomes + linked, non-voided legacy records, source-labelled |
 
 The list representation omits `date_of_birth`; the detail representation
-includes it. `wksa_id` is writable on create and read-only afterwards. See
+includes it. The list carries `can_be_graded` (false only for `LEFT`), which
+the cohort builder filters on rather than re-deriving the rule. `wksa_id` is writable on create and read-only afterwards. See
 `docs/current-system.md` for the rationale.
 
 `DELETE` (2026-09-22) is deliberately routine, not a rare erasure path -
@@ -230,13 +231,13 @@ Promotion is never automatic - see section 8.
 | GET   | /api/gradings/sessions/                | List grading sessions; filters `status`, `grading_date_from`, `grading_date_to`, `search` (title/location) |
 | POST  | /api/gradings/sessions/                | Create a grading session                         |
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
-| PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |
+| PUT   | /api/gradings/sessions/{id}/           | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH | /api/gradings/sessions/{id}/           | Update a grading session                         |
 | DELETE| /api/gradings/sessions/{id}/           | Instructor: only DRAFT or CANCELLED, and a CANCELLED session with recorded assessment work is refused. Administrator: any status, including LOCKED/COMPLETED - cascades through finalised outcomes and promotions, reverting affected students' ranks, pre-flight validated all-or-nothing |
 | GET   | /api/gradings/candidates/              | List grading candidates                          |
 | POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
-| PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
+| PUT   | /api/gradings/candidates/{id}/         | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH | /api/gradings/candidates/{id}/         | Update session, testing-for rank, status or notes; `student` is fixed after registration |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
@@ -438,11 +439,11 @@ snapshot rows.
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
 | GET   | /api/gradings/assessments/                            | List generated candidate assessments                 |
-| GET   | /api/gradings/assessments/{id}/                       | Retrieve assessment detail and informational counts  |
+| GET   | /api/gradings/assessments/{id}/                       | Retrieve assessment detail                           |
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
-| GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Same service and response shape as `/api/gradings/outcomes/{id}/summary/`, but reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
+| GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
 | DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
 | GET   | /api/gradings/assessment-items/{id}/                  | Retrieve assessment item snapshot and result         |
@@ -506,9 +507,8 @@ Assessment-item list filters:
 
 Assessment detail includes candidate id, student name, WKSA ID, testing-for
 rank code and name, candidate age-band snapshot, lifecycle timestamps, notes,
-generator attribution, and informational item counts. Counts report total,
-required, met, not met, and not assessed items only; no pass/fail/conditional
-outcome is produced.
+and generator attribution. Counts are served by the summary action below; no
+pass/fail/conditional outcome is produced.
 
 ## 8. Outcomes and Promotions
 
@@ -521,7 +521,6 @@ outcome is produced.
 | DELETE | /api/gradings/outcomes/{id}/                  | 405; correction workflow deferred            |
 | PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
-| GET    | /api/gradings/outcomes/{id}/summary/          | Informational assessment summaries. Identical payload to `/api/gradings/assessments/{id}/summary/`; both now declare `CandidateAssessmentSummary` rather than the viewset's own serializer. |
 | POST   | /api/gradings/outcomes/{id}/promote/          | Promote a finalised PASS; requires `gradings.can_promote_student` |
 | POST   | /api/gradings/outcomes/bulk-promote/           | Promote several finalised PASS outcomes in one request |
 | GET    | /api/gradings/promotions/                     | List promotion records (rank history)        |
@@ -564,7 +563,7 @@ assessment status, proposed decision, final decision, timestamps, attribution,
 notes, and conditional requirements. Clients cannot write `status`, candidate,
 assessment, actor, or timestamp fields directly.
 
-The summary action groups `CandidateAssessmentItem` rows by copied snapshot
+The assessment summary action groups `CandidateAssessmentItem` rows by copied snapshot
 category, in the syllabus chart's category order. It returns `overall` and
 per-category counts for total, required, met, not met, not assessed,
 required-met, required-not-met, required-not-assessed, all-required-assessed,

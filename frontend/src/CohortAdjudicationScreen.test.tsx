@@ -136,7 +136,6 @@ function assessment(id: number, candidateId: number): CandidateAssessment {
     started_at: "2026-11-12T09:05:00Z",
     completed_at: "2026-11-12T11:00:00Z",
     notes: "",
-    item_counts: { total: 3, required: 3, met: 3, not_met: 0, not_assessed: 0 },
     created_at: "2026-11-12T09:00:00Z",
     updated_at: "2026-11-12T11:00:00Z",
   };

@@ -89,6 +89,7 @@ const studentResult: StudentListItem = {
   current_rank_code: "YELLOW",
   current_rank_name: "Yellow",
   status: "ACTIVE",
+  can_be_graded: true,
   status_display: "Active",
   age_band: "AGE_9_TO_12",
   age_band_display: "9-12",

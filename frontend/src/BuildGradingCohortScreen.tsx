@@ -120,10 +120,10 @@ export function BuildGradingCohortScreen() {
     return new Set<number>(existing.map((c) => c.student));
   }, [candidatesQuery.data]);
 
-  // Eligible students: exclude LEFT (domain rule) and exclude already registered in this session
+  // Eligible students: the server's can_be_graded rule, less anyone already registered
   const eligibleStudents = useMemo(() => {
     const all = studentsQuery.data?.results ?? [];
-    return all.filter((s) => s.status !== "LEFT" && !registeredStudentIds.has(s.id));
+    return all.filter((s) => s.can_be_graded && !registeredStudentIds.has(s.id));
   }, [studentsQuery.data, registeredStudentIds]);
 
   // Filtered eligible students based on toolbar controls

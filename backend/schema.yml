@@ -883,38 +883,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/GradingCandidate'
           description: ''
-    put:
-      operationId: gradings_candidates_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this grading candidate.
-        required: true
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GradingCandidateRequest'
-        required: true
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GradingCandidate'
-          description: ''
     patch:
       operationId: gradings_candidates_partial_update
       parameters:
@@ -1504,26 +1472,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/CandidateOutcome'
           description: ''
-    patch:
-      operationId: gradings_outcomes_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate outcome.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateOutcome'
-          description: ''
   /api/gradings/outcomes/{id}/finalise/:
     patch:
       operationId: gradings_outcomes_finalise_partial_update
@@ -1619,27 +1567,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CandidateOutcome'
-          description: ''
-  /api/gradings/outcomes/{id}/summary/:
-    get:
-      operationId: gradings_outcomes_summary_retrieve
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this candidate outcome.
-        required: true
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CandidateAssessmentSummary'
           description: ''
   /api/gradings/outcomes/bulk-promote/:
     post:
@@ -1876,38 +1803,6 @@ paths:
         required: true
       tags:
       - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GradingSession'
-          description: ''
-    put:
-      operationId: gradings_sessions_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        description: A unique integer value identifying this grading session.
-        required: true
-      tags:
-      - gradings
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GradingSessionRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/GradingSessionRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/GradingSessionRequest'
-        required: true
       security:
       - cookieAuth: []
       responses:
@@ -3173,11 +3068,6 @@ components:
           nullable: true
         notes:
           type: string
-        item_counts:
-          type: object
-          additionalProperties:
-            type: integer
-          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -3198,7 +3088,6 @@ components:
       - generated_by
       - generated_by_email
       - id
-      - item_counts
       - started_at
       - status_display
       - testing_for_rank_code
@@ -5362,9 +5251,6 @@ components:
         status_display:
           type: string
           readOnly: true
-        can_be_graded:
-          type: boolean
-          readOnly: true
         age_band:
           type: string
           readOnly: true
@@ -5382,7 +5268,6 @@ components:
       required:
       - age_band
       - age_band_display
-      - can_be_graded
       - created_at
       - current_rank
       - current_rank_code
@@ -5549,6 +5434,9 @@ components:
         status_display:
           type: string
           readOnly: true
+        can_be_graded:
+          type: boolean
+          readOnly: true
         age_band:
           type: string
           readOnly: true
@@ -5558,6 +5446,7 @@ components:
       required:
       - age_band
       - age_band_display
+      - can_be_graded
       - current_rank
       - current_rank_code
       - current_rank_name

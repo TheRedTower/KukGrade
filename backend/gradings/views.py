@@ -6,7 +6,6 @@ from django.db.models import QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
@@ -78,13 +77,14 @@ from syllabus.models import AgeBand, SyllabusItem
 
 
 class GradingSessionViewSet(ModelViewSet):
+    # No PUT: partial_update covers every real edit.
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     serializer_class = GradingSessionSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingsession",),
         "retrieve": ("gradings.view_gradingsession",),
         "create": ("gradings.add_gradingsession",),
-        "update": ("gradings.change_gradingsession",),
         "partial_update": ("gradings.change_gradingsession",),
         "destroy": ("gradings.delete_gradingsession",),
     }
@@ -110,13 +110,14 @@ class GradingSessionViewSet(ModelViewSet):
 
 
 class GradingCandidateViewSet(ModelViewSet):
+    # No PUT: partial_update covers every real edit.
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     serializer_class = GradingCandidateSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingcandidate",),
         "retrieve": ("gradings.view_gradingcandidate",),
         "create": ("gradings.add_gradingcandidate",),
-        "update": ("gradings.change_gradingcandidate",),
         "partial_update": ("gradings.change_gradingcandidate",),
         "destroy": ("gradings.delete_gradingcandidate",),
         # These create other models, so they are named for what they make
@@ -325,19 +326,15 @@ class CandidateAssessmentViewSet(
     )
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
-        return (
-            CandidateAssessment.objects.select_related(
-                "candidate__session",
-                "candidate__student",
-                "candidate__testing_for_rank",
-                "generated_by",
-            )
-            .prefetch_related("items")
-            .order_by(
-                "candidate__session__grading_date",
-                "candidate__student__last_name",
-                "candidate__student__first_name",
-            )
+        return CandidateAssessment.objects.select_related(
+            "candidate__session",
+            "candidate__student",
+            "candidate__testing_for_rank",
+            "generated_by",
+        ).order_by(
+            "candidate__session__grading_date",
+            "candidate__student__last_name",
+            "candidate__student__first_name",
         )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
@@ -449,7 +446,6 @@ class CandidateAssessmentItemViewSet(
 class CandidateOutcomeViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
     GenericViewSet,
 ):
     serializer_class = CandidateOutcomeSerializer
@@ -458,9 +454,7 @@ class CandidateOutcomeViewSet(
     permission_map = {
         "list": ("gradings.view_candidateoutcome",),
         "retrieve": ("gradings.view_candidateoutcome",),
-        "partial_update": ("gradings.change_candidateoutcome",),
         "propose": ("gradings.change_candidateoutcome",),
-        "summary": ("gradings.view_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
         # permission class on the action, which also gives a better message.
         "finalise": ("gradings.view_candidateoutcome",),
@@ -492,24 +486,6 @@ class CandidateOutcomeViewSet(
             "candidate__session__grading_date",
             "candidate__student__last_name",
             "candidate__student__first_name",
-        )
-
-    def partial_update(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        # PATCH is routed here by the router but is only meaningful on the
-        # propose and finalise actions, so the method genuinely is not
-        # allowed on the detail route. 405 rather than 400, and it flows
-        # through the shared error envelope.
-        raise MethodNotAllowed(
-            "PATCH",
-            detail=(
-                "Candidate outcomes are read-only except through the propose "
-                "and finalise actions."
-            ),
         )
 
     @extend_schema(
@@ -567,18 +543,6 @@ class CandidateOutcomeViewSet(
             context={"request": request},
         )
         return Response(response_serializer.data)
-
-    @extend_schema(responses=CandidateAssessmentSummarySerializer)
-    @action(detail=True, methods=["get"])
-    def summary(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        outcome = self.get_object()
-        summary = candidate_assessment_summary(outcome.assessment)
-        return Response(CandidateAssessmentSummarySerializer(summary).data)
 
     @extend_schema(
         request=CandidatePromotionSerializer,

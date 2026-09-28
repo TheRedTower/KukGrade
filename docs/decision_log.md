@@ -18,6 +18,30 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - The API serves what the application uses
+
+Status: Accepted
+
+Decision:
+Removed `GET /api/gradings/outcomes/{id}/summary/`, the `PATCH` stub on
+`/api/gradings/outcomes/{id}/`, `PUT` on grading sessions and candidates, and
+the assessment serializer's `item_counts`. `can_be_graded` moved from the
+student detail to the student list, and the cohort builder filters on it.
+
+Context:
+After slice 6 nothing called the outcome summary: it returned the same
+payload as the assessment summary, which every screen now reads.
+`item_counts` had no reader and lacked the required-split the screens need.
+The outcome `PATCH` stub existed only to answer 405, but it made the schema
+advertise a write that does not exist. `PUT` duplicated `PATCH` on the two
+viewsets that had not already excluded it. The cohort builder re-derived
+grading eligibility from `status !== "LEFT"` while the server already served
+the rule on a representation the builder did not read.
+
+Consequences:
+Contract, schema and generated types updated. `/api/students/{id}/` no
+longer carries `can_be_graded`; the list does.
+
 ### 2026-09-28 - The frontend derives no authority and no rank progression
 
 Status: Accepted

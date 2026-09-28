@@ -201,6 +201,12 @@ async function collectAllPages<T>(
   return { count: total, next: null, previous: null, results };
 }
 
+export type SiteSettings = Schemas["SiteSettings"];
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  return apiRequest<SiteSettings>("/api/site/");
+}
+
 export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
 }

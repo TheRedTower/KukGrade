@@ -836,6 +836,21 @@ describe("Instructor profile menu and Master capabilities", () => {
     expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
   });
 
+  it("shows the club name the server is configured with", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) =>
+        url.includes("/api/site/")
+          ? jsonResponse(200, { club_name: "Kuk Sool Won Testville" })
+          : jsonResponse(200, authUser),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Kuk Sool Won Testville")).toBeVisible();
+  });
+
   it("saves the user's own name and shows it straight away", async () => {
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/") && init?.method === "PATCH") {

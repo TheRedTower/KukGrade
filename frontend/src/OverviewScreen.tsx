@@ -334,9 +334,7 @@ export function OverviewScreen() {
                   Open
                 </span>
               </div>
-              <p className="session-location">
-                {openSession.location || "Colchester Dojang"}
-              </p>
+              {openSession.location && <p className="session-location">{openSession.location}</p>}
 
               <div className="metrics-row">
                 <div className="metric-box">
@@ -463,9 +461,9 @@ export function OverviewScreen() {
                 <span className="upcoming-session-date">
                   {formatSessionDate(upcomingSession.grading_date)}
                 </span>
-                <span className="upcoming-session-location">
-                  {upcomingSession.location || "Colchester Dojang"}
-                </span>
+                {upcomingSession.location && (
+                  <span className="upcoming-session-location">{upcomingSession.location}</span>
+                )}
               </div>
               <span aria-hidden="true" className="chevron-icon">
                 &rsaquo;

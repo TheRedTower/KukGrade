@@ -5,13 +5,14 @@ from __future__ import annotations
 from django.contrib import admin
 from django.urls import include, path, re_path
 
-from kukgrade.views import frontend
+from kukgrade.views import frontend, site_settings
 
 # Django looks this up by name on the root URLconf.
 handler500 = "kukgrade.exceptions.server_error"
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/site/", site_settings, name="site-settings"),
     path("api/", include("accounts.urls")),
     path("api/", include("health.urls")),
     path("api/", include("ranks.urls")),

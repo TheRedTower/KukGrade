@@ -23,7 +23,8 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    existing database deployment.
 4. Copy `.env.production.example` to `.env.production` on the deployment
    host. Fill in the PostgreSQL network, alias, database, role, password and
-   a fresh `DJANGO_SECRET_KEY`. Set mode
+   a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
+   name as it should appear in the top bar. Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
 5. Verify that Traefik overwrites client-supplied `X-Forwarded-Proto` and
    appends the true remote address to `X-Forwarded-For` before keeping

@@ -1731,6 +1731,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
           description: ''
+  /api/site/:
+    get:
+      operationId: site_retrieve
+      description: |-
+        Deployment settings the frontend shows, such as the club's name.
+
+        Public, like the health check: the sign-in screen may show them too, and
+        nothing here is personal data.
+      tags:
+      - site
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteSettings'
+          description: ''
   /api/students/:
     get:
       operationId: students_list
@@ -4957,6 +4977,13 @@ components:
           minLength: 1
       required:
       - password
+    SiteSettings:
+      type: object
+      properties:
+        club_name:
+          type: string
+      required:
+      - club_name
     SourceEnum:
       enum:
       - KUKGRADE

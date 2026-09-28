@@ -37,6 +37,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_SECURE_HSTS_SECONDS",
         "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
+        "KUKGRADE_CLUB_NAME",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -207,3 +208,15 @@ def test_test_settings_module_forces_development_values() -> None:
     # that was computed at import time instead.
     assert active.SESSION_COOKIE_SECURE is False
     assert active.SECURE_SSL_REDIRECT is False
+
+
+def test_club_name_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    configured = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        KUKGRADE_CLUB_NAME="  Kuk Sool Won Colchester ",
+    )
+    unset = load_settings(monkeypatch, **PRODUCTION_ENV)
+
+    assert configured.CLUB_NAME == "Kuk Sool Won Colchester"
+    assert unset.CLUB_NAME == "Kuk Sool Won"

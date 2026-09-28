@@ -267,6 +267,9 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
+# The club this deployment serves, shown in the application's top bar.
+CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
+
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
     "http://localhost:5173",

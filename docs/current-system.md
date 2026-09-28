@@ -24,6 +24,9 @@ checks on each push and pull request.
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
   health; the public `/api/health/` remains a process liveness endpoint.
+  The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
+  the public `/api/site/`; a session with no location shows none rather than
+  an assumed venue.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and

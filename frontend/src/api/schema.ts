@@ -778,6 +778,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/site/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Deployment settings the frontend shows, such as the club's name.
+         *
+         *     Public, like the health check: the sign-in screen may show them too, and
+         *     nothing here is personal data.
+         */
+        get: operations["site_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/students/": {
         parameters: {
             query?: never;
@@ -2161,6 +2183,9 @@ export interface components {
          */
         SetPasswordRequest: {
             password: string;
+        };
+        SiteSettings: {
+            club_name: string;
         };
         /**
          * @description * `KUKGRADE` - KUKGRADE
@@ -3643,6 +3668,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    site_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteSettings"];
                 };
             };
         };

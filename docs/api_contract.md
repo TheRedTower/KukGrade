@@ -58,12 +58,13 @@ Django's `handler500`, returns the same `{"error": {...}}` shape with code
 `server_error` and no detail about the cause - that belongs in the logs,
 not the response.
 
-## 0c. Health and readiness
+## 0c. Health, readiness and site settings
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
+| GET | /api/site/ | Anonymous site settings; returns `{"club_name": "..."}` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"). Shown in the top bar. |
 
 ## 1. Authentication
 

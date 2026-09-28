@@ -6,12 +6,12 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
-import { ApiError, type AuthUser } from "./api";
+import { ApiError, type AuthUser, getSiteSettings } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import {
   AuditIcon,
@@ -340,6 +340,7 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 function ApplicationShell() {
   const { user, logout, updateName } = useAuth();
   const navigate = useNavigate();
+  const siteQuery = useQuery({ queryKey: ["siteSettings"], queryFn: getSiteSettings });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -368,7 +369,7 @@ function ApplicationShell() {
       <div className="app-main">
         <header className="top-bar">
           <div className="location-summary">
-            <span className="location-name">Kuk Sool Won Colchester</span>
+            <span className="location-name">{siteQuery.data?.club_name}</span>
           </div>
           <div className="top-bar-controls">
             <ProfileMenu

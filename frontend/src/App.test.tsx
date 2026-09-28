@@ -1361,9 +1361,9 @@ describe("Students registry screen (/students)", () => {
 
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+      { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
+      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
+      { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
     ];
 
     const testStudents = [
@@ -1478,7 +1478,7 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true }],
+          results: [{ id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null }],
         });
       }
       if (url.includes("/api/students/")) {
@@ -1531,9 +1531,9 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
+    { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
   ];
 
   beforeEach(() => {
@@ -1788,9 +1788,9 @@ describe("Add student screen (/students/new)", () => {
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, category: "COLOUR_BELT", category_display: "Colour Belt", active: true },
+    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 3 },
+    { id: 3, code: "Y", name: "Yellow Belt", order: 3, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
   ];
 
   const testStudent = {
@@ -4197,6 +4197,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       category: "COLOURED_BELT",
       category_display: "Coloured belt",
       active: true,
+      next_rank: 2,
     },
     {
       id: 2,
@@ -4206,6 +4207,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       category: "COLOURED_BELT",
       category_display: "Coloured belt",
       active: true,
+      next_rank: 3,
     },
     {
       id: 3,
@@ -4215,6 +4217,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       category: "COLOURED_BELT",
       category_display: "Coloured belt",
       active: true,
+      next_rank: null,
     },
   ];
 

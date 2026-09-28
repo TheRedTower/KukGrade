@@ -8,7 +8,9 @@ from ranks.serializers import RankSerializer
 
 
 class RankViewSet(ReadOnlyModelViewSet):
-    queryset = Rank.objects.filter(active=True).order_by("order")
+    queryset = (
+        Rank.objects.filter(active=True).with_next_active_rank().order_by("order")
+    )
     serializer_class = RankSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {

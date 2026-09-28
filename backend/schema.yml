@@ -5208,6 +5208,10 @@ components:
         active:
           type: boolean
           readOnly: true
+        next_rank:
+          type: integer
+          readOnly: true
+          nullable: true
       required:
       - active
       - category
@@ -5215,6 +5219,7 @@ components:
       - code
       - id
       - name
+      - next_rank
       - order
     RankCategoryEnum:
       enum:

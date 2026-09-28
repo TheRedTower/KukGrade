@@ -170,6 +170,11 @@ The seeded, read-only rank catalogue; ranks are maintained by migration.
 | GET    | /api/ranks/                                | List active ranks in progression order            |
 | GET    | /api/ranks/{id}/                           | Retrieve one rank                                 |
 
+Each rank carries `next_rank`: the id of the rank a student at this rank is
+graded for next (the next active rank by order), or `null` at the top. It is
+the same rule the grading services use (`RankQuerySet.next_active_after`), so
+the frontend never works out rank progression itself.
+
 ## 5. Syllabus Catalogue
 
 Read-only lookup of the seeded WKSA Version 2014 syllabus. Syllabus writes

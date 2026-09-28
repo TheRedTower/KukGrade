@@ -14,6 +14,7 @@ const mockRanks: Rank[] = [
     category: "COLOURED_BELT",
     category_display: "Coloured Belt",
     active: true,
+    next_rank: 2,
   },
   {
     id: 2,
@@ -23,6 +24,7 @@ const mockRanks: Rank[] = [
     category: "COLOURED_BELT",
     category_display: "Coloured Belt",
     active: true,
+    next_rank: 3,
   },
   {
     id: 3,
@@ -32,6 +34,7 @@ const mockRanks: Rank[] = [
     category: "COLOURED_BELT",
     category_display: "Coloured Belt",
     active: true,
+    next_rank: 4,
   },
   {
     id: 4,
@@ -41,6 +44,7 @@ const mockRanks: Rank[] = [
     category: "COLOURED_BELT",
     category_display: "Coloured Belt",
     active: true,
+    next_rank: 5,
   },
   {
     id: 5,
@@ -50,6 +54,7 @@ const mockRanks: Rank[] = [
     category: "COLOURED_BELT",
     category_display: "Coloured Belt",
     active: true,
+    next_rank: null,
   },
 ];
 

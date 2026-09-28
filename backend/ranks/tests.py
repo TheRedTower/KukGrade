@@ -191,7 +191,27 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "category": Rank.Category.COLOURED_BELT,
         "category_display": "Coloured belt",
         "active": True,
+        "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
     }
+    assert payload[-1]["next_rank"] is None
+
+
+def test_next_rank_skips_inactive_ranks() -> None:
+    # The served next rank and the grading services share one rule.
+    from gradings.services import get_next_active_rank
+
+    Rank.objects.filter(code="YELLOW_STRIPE").update(active=False)
+    white = Rank.objects.get(code="WHITE")
+    client = APIClient()
+    client.force_authenticate(
+        user=User.objects.create_user(email="rank-next@example.com")
+    )
+
+    served = results(client.get("/api/ranks/"))[0]["next_rank"]
+
+    assert served == Rank.objects.get(code="YELLOW").id
+    next_rank = get_next_active_rank(white)
+    assert next_rank is not None and next_rank.id == served
 
 
 def test_rank_api_returns_rank_detail() -> None:

@@ -103,14 +103,11 @@ export function BuildGradingCohortScreen() {
     const nextMap = new Map<number, Rank>();
 
     ranks.forEach((r) => map.set(r.id, r));
-
-    const activeRanks = ranks.filter((r) => r.active);
-    for (let i = 0; i < activeRanks.length; i++) {
-      const cur = activeRanks[i];
-      if (i + 1 < activeRanks.length) {
-        nextMap.set(cur.id, activeRanks[i + 1]);
-      }
-    }
+    // Each rank's next rank as the server defines it (Rank.next_rank).
+    ranks.forEach((r) => {
+      const next = r.next_rank === null ? undefined : map.get(r.next_rank);
+      if (next) nextMap.set(r.id, next);
+    });
 
     return { rankMap: map, nextRankMap: nextMap };
   }, [ranks]);

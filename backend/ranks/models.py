@@ -4,7 +4,24 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import OuterRef, Q, Subquery
+
+
+class RankQuerySet(models.QuerySet["Rank"]):
+    def next_active_after(self, order: Any) -> RankQuerySet:
+        """Active ranks above `order`, lowest first: the first is the next rank.
+
+        The one statement of that rule. `order` may be an `OuterRef`, which is
+        how `with_next_active_rank` applies it per row in a single query.
+        """
+        return self.filter(active=True, order__gt=order).order_by("order")
+
+    def with_next_active_rank(self) -> RankQuerySet:
+        return self.annotate(
+            next_rank_id=Subquery(
+                Rank.objects.next_active_after(OuterRef("order")).values("pk")[:1],
+            ),
+        )
 
 
 class Rank(models.Model):
@@ -20,6 +37,8 @@ class Rank(models.Model):
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = RankQuerySet.as_manager()
 
     class Meta:
         ordering = ["order"]

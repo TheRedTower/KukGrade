@@ -2232,6 +2232,7 @@ export interface components {
             readonly category: components["schemas"]["RankCategoryEnum"];
             readonly category_display: string;
             readonly active: boolean;
+            readonly next_rank: number | null;
         };
         /**
          * @description * `COLOURED_BELT` - Coloured belt

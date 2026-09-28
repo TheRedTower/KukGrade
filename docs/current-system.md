@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-26. This document
+Describes the implementation on `dev` as verified on 2026-09-28. This document
 takes precedence over every other document for what exists now.
 
-Verified on 2026-09-26 with 658 backend tests and 211 frontend tests passing
+Verified on 2026-09-28 with 661 backend tests and 209 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production

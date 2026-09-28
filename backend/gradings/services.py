@@ -189,11 +189,7 @@ def age_band_birth_date_bounds(
 
 
 def get_next_active_rank(current_rank: Rank) -> Rank | None:
-    return (
-        Rank.objects.filter(active=True, order__gt=current_rank.order)
-        .order_by("order")
-        .first()
-    )
+    return Rank.objects.next_active_after(current_rank.order).first()
 
 
 def validate_student_can_be_graded(student: Student) -> None:

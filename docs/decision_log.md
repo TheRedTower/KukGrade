@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - The frontend derives no authority and no rank progression
+
+Status: Accepted
+
+Decision:
+`/api/auth/me/` reports each administrator capability from the permission
+its action checks, and `can_read_audit_log` from the backend rule itself;
+routes and controls read those flags and never `role`. Each rank carries
+`next_rank` from the one next-rank rule the grading services use. Audited
+entity types are declared (`AuditEntity`) and published as an enum.
+
+Context:
+The UI mirrored backend rules in the browser - role checks for
+administrator actions after the backend had moved to permissions, a copy
+of the audit-log rule, the next rank computed three different ways, and a
+hand-kept entity list - each of which could drift from the server, and one
+already had (a dead `"Candidate"` comparison).
+
+Consequences:
+`permissions.ts` is removed. `role` is read in the UI only where the rule is
+about the role (whether a managed user is an administrator).
+
 ### 2026-09-26 - List filters are declared once and published in the schema
 
 Status: Accepted

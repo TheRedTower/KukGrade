@@ -160,16 +160,10 @@ export function StudentDetailScreen() {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
   }, [ranksQuery.data]);
 
-  // Calculate Next Rank
-
+  // The next rank as the server defines it (Rank.next_rank).
   const nextRank = useMemo(() => {
-    if (!student || ranks.length === 0) return null;
-    const currentOrder = ranks.find((r) => r.id === student.current_rank)?.order;
-    if (currentOrder === undefined) return null;
-    const higherRanks = ranks
-      .filter((r) => r.active && r.order > currentOrder)
-      .sort((a, b) => a.order - b.order);
-    return higherRanks.length > 0 ? higherRanks[0] : null;
+    const current = ranks.find((r) => r.id === student?.current_rank);
+    return ranks.find((r) => r.id === current?.next_rank) ?? null;
   }, [student, ranks]);
 
   async function handleSaveStatus(e: FormEvent) {

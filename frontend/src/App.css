@@ -1376,32 +1376,6 @@ h2 {
   }
 }
 
-@keyframes mfdFadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes mfdSlideIn {
-  from {
-    transform: translateX(100%);
-  }
-
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes mfdSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes plSlideUp {
   from {
     opacity: 0;

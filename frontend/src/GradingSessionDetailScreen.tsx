@@ -25,7 +25,6 @@ import {
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
-import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankVisual } from "./RankVisual";
 import { formatSessionDate } from "./dates";
@@ -168,7 +167,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // Drawer state for SCR-021 Instructor Outcome Proposal
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
   // Drawer state for SCR-022 Master Final Decision
-  const [decisionDrawerItem, setDecisionDrawerItem] = useState<EnrichedCandidate | null>(null);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
@@ -638,6 +636,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <div className="gsd-header-actions">
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
+              to={`/gradings/${session.id}/decisions`}
+              className="btn btn-secondary gsd-promotion-ledger-btn"
+              data-testid="gsd-final-decisions-btn"
+            >
+              Final decisions →
+            </Link>
+          )}
+          {(session.status === "LOCKED" || session.status === "COMPLETED") && (
+            <Link
               to={`/gradings/${session.id}/promotions`}
               className="btn btn-secondary gsd-promotion-ledger-btn"
               data-testid="gsd-promotion-ledger-btn"
@@ -714,6 +721,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                 {session.status === "LOCKED" && (
                   <>
+                    <Link
+                      to={`/gradings/${session.id}/decisions`}
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      Final decisions
+                    </Link>
                     <Link
                       to={`/gradings/${session.id}/promotions`}
                       role="menuitem"
@@ -1007,7 +1022,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     : "Prepare assessment →";
                   let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   let isProposalDrawerTrigger = false;
-                  let isDecisionDrawerTrigger = false;
+                  const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
 
                   if (assessmentStatus === "IN_PROGRESS") {
                     nextActionLabel = "Continue assessment →";
@@ -1019,12 +1034,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         nextActionUrl = `/gradings/${session.id}/promotions`;
                       } else {
                         nextActionLabel = "View record →";
-                        isDecisionDrawerTrigger = true;
+                        nextActionUrl = decisionsUrl;
                       }
                     } else if (outcomeStatus === "PROPOSED") {
                       if (currentUser?.can_make_final_grading_decision) {
                         nextActionLabel = "Review decision →";
-                        isDecisionDrawerTrigger = true;
+                        nextActionUrl = decisionsUrl;
                       } else {
                         nextActionLabel = "Review proposal →";
                         isProposalDrawerTrigger = true;
@@ -1096,15 +1111,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                               className="btn-ghost gsd-row-action-btn"
                               onClick={() => setProposalDrawerItem(item)}
                               data-testid={`propose-outcome-btn-${candidateId}`}
-                            >
-                              {nextActionLabel}
-                            </button>
-                          ) : isDecisionDrawerTrigger ? (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn"
-                              onClick={() => setDecisionDrawerItem(item)}
-                              data-testid={`review-decision-btn-${candidateId}`}
                             >
                               {nextActionLabel}
                             </button>
@@ -1337,26 +1343,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         />
       )}
 
-      {/* ── Master Final Decision Drawer (SCR-022) ────────────────────────── */}
-      {decisionDrawerItem && session && (
-        <MasterFinalDecisionDrawer
-          key={decisionDrawerItem.candidate.id}
-          candidate={decisionDrawerItem.candidate}
-          assessment={decisionDrawerItem.assessment}
-          outcome={decisionDrawerItem.outcome}
-          currentRankName={decisionDrawerItem.currentRankName}
-          targetRankName={decisionDrawerItem.targetRankName}
-          sessionStatus={session.status}
-          isOpen={true}
-          onClose={() => setDecisionDrawerItem(null)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-            setDecisionDrawerItem(null);
-          }}
-        />
-      )}
     </section>
   );
 }

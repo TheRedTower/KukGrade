@@ -378,11 +378,19 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    was assessed. `CORE_CATEGORY_CODES` moved from `SyllabusScreen` to
    `syllabusCategories.ts` so the syllabus and the record cannot disagree
    about what a core area is.
-6. **Build the Cohort Adjudication Board as 3C.** New route over a `LOCKED`
-   session. Rows carry evidence, proposal and an inline decision; detail pane
-   for the row in focus; decisions stage, then write one candidate at a time
-   with per-row failures per FDR-028. Delete `MasterFinalDecisionDrawer.tsx`
-   and its test.
+6. **Build the Cohort Adjudication Board as 3C.** *Done, 2026-09-28.*
+   `/gradings/:id/decisions`: every non-withdrawn candidate is a row carrying
+   the served counts, the instructor proposal and an inline Pass /
+   Conditional / Fail; the detail pane shows the row in focus. Decisions
+   stage, then write one candidate at a time through the existing finalise
+   endpoint; a failed row keeps its error and stays staged, and only failed
+   rows retry (FDR-028). A Conditional cannot be recorded without re-test
+   requirements. The board is read-only unless the session is `LOCKED` and
+   the user holds `can_make_final_grading_decision`. One deliberate deviation
+   from the board, as in slice 5: the detail pane shows every recorded
+   `assessor_notes` value, not only shortfalls. `MasterFinalDecisionDrawer`,
+   its test and its `mfd-` styles are deleted, and the session screen's
+   decision actions link to the board.
 7. **Restyle the proposal drawer (FDR-047).** Give `OutcomeProposalDrawer.tsx`
    the board's evidence presentation so the instructor sees the sealed
    assessment ledger before proposing.

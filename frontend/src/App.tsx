@@ -35,6 +35,7 @@ import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { AssessmentCompletionScreen } from "./AssessmentCompletionScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
+import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
@@ -530,6 +531,7 @@ function App() {
                 path="gradings/legacy-records"
               />
               <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+              <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
               <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
               <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
               <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />

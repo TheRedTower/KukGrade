@@ -526,25 +526,15 @@ export async function proposeCandidateOutcome(
 }
 
 /**
- * Rollup for one assessment, reachable at any assessment status.
- *
- * `getCandidateAssessmentSummary` goes via the outcome, which cannot exist
- * until the session is `LOCKED` and the assessment `COMPLETED`. Scoring and
- * completion review need the same counts before that point. See FDR-046.
+ * Rollup for one assessment, reachable at any assessment status - scoring,
+ * completion review and the adjudication board all read counts from here
+ * (FDR-046).
  */
 export async function getAssessmentSummary(
   assessmentId: number,
 ): Promise<CandidateAssessmentSummary> {
   return apiRequest<CandidateAssessmentSummary>(
     `/api/gradings/assessments/${assessmentId}/summary/`,
-  );
-}
-
-export async function getCandidateAssessmentSummary(
-  outcomeId: number,
-): Promise<CandidateAssessmentSummary> {
-  return apiRequest<CandidateAssessmentSummary>(
-    `/api/gradings/outcomes/${outcomeId}/summary/`,
   );
 }
 

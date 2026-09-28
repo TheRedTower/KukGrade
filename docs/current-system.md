@@ -145,7 +145,7 @@ checks on each push and pull request.
   registration always starts `REGISTERED`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
-- Outcome proposal and final-decision drawers, cohort-exception review, student
+- The outcome proposal drawer, cohort-exception review, student
   status/edit dialogs, single-student promotion confirmation, grading-session
   deletion confirmation, and grading-session lifecycle confirmation
   (open/lock/complete/cancel/delete) move focus to their primary or safest
@@ -365,6 +365,17 @@ checks on each push and pull request.
   `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
   `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
   about which categories are core areas.
+- **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
+  SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
+  (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
+  served counts from `GET /assessments/{id}/summary/`, the instructor
+  proposal and an inline Pass / Conditional / Fail, beside a detail pane for
+  the row in focus (`?candidate=` selects it). Decisions stage and then write
+  one candidate at a time; a failed row keeps its error and stays staged, and
+  only failed rows retry (FDR-028). A Conditional needs re-test requirements.
+  The detail pane shows every recorded `assessor_notes` value, as the proof
+  sheet does. Controls appear only on a `LOCKED` session for a user with
+  `can_make_final_grading_decision`; everyone else gets a read-only board.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into

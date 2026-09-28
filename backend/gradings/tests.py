@@ -3475,8 +3475,8 @@ def test_candidate_assessment_summary_uses_snapshot_categories_and_counts() -> N
     assert summary["overall"]["required_not_assessed"] == 0
     # Regression coverage for the missing overall["required_met"] bug: it
     # was tracked per-category but never rolled up to the overall summary,
-    # which MasterFinalDecisionDrawer.tsx reads directly to show "X of Y
-    # Met" on the final-decision screen - silently NaN before this fix.
+    # which the Cohort Adjudication Board reads directly to show "X of Y
+    # met" - silently NaN before this fix.
     assert (
         summary["overall"]["required_met"]
         == generated.items.filter(

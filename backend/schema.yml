@@ -68,6 +68,17 @@ paths:
         description: ''
         schema:
           type: string
+          enum:
+          - CandidateAssessment
+          - CandidateAssessmentItem
+          - CandidateOutcome
+          - GradingCandidate
+          - GradingSession
+          - ImportBatch
+          - LegacyGradingRecord
+          - Promotion
+          - Student
+          - User
       - name: occurred_from
         required: false
         in: query
@@ -2876,6 +2887,30 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
+    AuditEntityEnum:
+      enum:
+      - GradingSession
+      - GradingCandidate
+      - CandidateAssessment
+      - CandidateAssessmentItem
+      - CandidateOutcome
+      - Promotion
+      - Student
+      - User
+      - ImportBatch
+      - LegacyGradingRecord
+      type: string
+      description: |-
+        * `GradingSession` - Grading session
+        * `GradingCandidate` - Candidate
+        * `CandidateAssessment` - Assessment
+        * `CandidateAssessmentItem` - Assessment item
+        * `CandidateOutcome` - Outcome
+        * `Promotion` - Promotion
+        * `Student` - Student
+        * `User` - User
+        * `ImportBatch` - Import batch
+        * `LegacyGradingRecord` - Historical grading record
     AuditEvent:
       type: object
       properties:
@@ -2894,7 +2929,8 @@ components:
           type: string
           readOnly: true
         entity_type:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/AuditEntityEnum'
           readOnly: true
         entity_id:
           type: string

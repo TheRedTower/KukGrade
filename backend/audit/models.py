@@ -70,6 +70,21 @@ class AuditAction(models.TextChoices):
     LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Legacy grading record voided"
 
 
+class AuditEntity(models.TextChoices):
+    """What an event is about: the model name `record()` stores."""
+
+    GRADING_SESSION = "GradingSession", "Grading session"
+    GRADING_CANDIDATE = "GradingCandidate", "Candidate"
+    CANDIDATE_ASSESSMENT = "CandidateAssessment", "Assessment"
+    CANDIDATE_ASSESSMENT_ITEM = "CandidateAssessmentItem", "Assessment item"
+    CANDIDATE_OUTCOME = "CandidateOutcome", "Outcome"
+    PROMOTION = "Promotion", "Promotion"
+    STUDENT = "Student", "Student"
+    USER = "User", "User"
+    IMPORT_BATCH = "ImportBatch", "Import batch"
+    LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
+
+
 # Logistics - who runs the roster - is an administrator concern, the same
 # boundary the Users API itself draws. A Master or a holder of
 # can_view_grading_audit_log who cannot open /api/users/ must not read who
@@ -115,7 +130,7 @@ class AuditEvent(models.Model):
     actor_email = models.EmailField(blank=True)
     actor_name = models.CharField(max_length=301, blank=True)
     action = models.CharField(max_length=64, choices=AuditAction.choices)
-    entity_type = models.CharField(max_length=64)
+    entity_type = models.CharField(max_length=64, choices=AuditEntity.choices)
     entity_id = models.CharField(max_length=64)
     occurred_at = models.DateTimeField(auto_now_add=True)
     summary = models.TextField()

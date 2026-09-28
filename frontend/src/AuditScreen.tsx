@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 
 import {
   type AuditAction,
+  type AuditEntity,
   type AuditEvent,
   ApiError,
   getAuditEvents,
@@ -55,20 +56,21 @@ const ACTION_OPTIONS = (Object.entries(ACTION_LABELS) as [AuditAction, string][]
   ([value, label]) => ({ value, label }),
 );
 
-const ENTITY_OPTIONS = [
-  ["GradingSession", "Grading session"],
-  ["GradingCandidate", "Candidate"],
-  ["CandidateAssessment", "Assessment"],
-  ["CandidateAssessmentItem", "Assessment item"],
-  ["CandidateOutcome", "Outcome"],
-  ["Promotion", "Promotion"],
-  ["Student", "Student"],
-  ["User", "User"],
-  ["ImportBatch", "Import batch"],
-  ["LegacyGradingRecord", "Historical grading record"],
-] as const;
+// A Record over the generated entity enum, for the same reason as actions.
+const ENTITY_LABELS: Record<AuditEntity, string> = {
+  GradingSession: "Grading session",
+  GradingCandidate: "Candidate",
+  CandidateAssessment: "Assessment",
+  CandidateAssessmentItem: "Assessment item",
+  CandidateOutcome: "Outcome",
+  Promotion: "Promotion",
+  Student: "Student",
+  User: "User",
+  ImportBatch: "Import batch",
+  LegacyGradingRecord: "Historical grading record",
+};
 
-const ENTITY_LABELS = new Map<string, string>(ENTITY_OPTIONS);
+const ENTITY_OPTIONS = Object.entries(ENTITY_LABELS) as [AuditEntity, string][];
 
 function eventTime(value: string): { date: string; time: string } {
   const daysAgo = calendarDaysAgo(value);
@@ -123,7 +125,7 @@ export function AuditScreen(): React.ReactElement {
 
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const action = (searchParams.get("action") ?? "") as AuditAction | "";
-  const entityType = searchParams.get("entity_type") ?? "";
+  const entityType = (searchParams.get("entity_type") ?? "") as AuditEntity | "";
   const occurredFrom = searchParams.get("occurred_from") ?? "";
   const occurredTo = searchParams.get("occurred_to") ?? "";
   const appliedSearch = searchParams.get("search") ?? "";
@@ -322,7 +324,7 @@ export function AuditScreen(): React.ReactElement {
                         <td>{actorLabel(event)}</td>
                         <td>
                           <span className="audit-entity-type">
-                            {ENTITY_LABELS.get(event.entity_type) ?? event.entity_type}
+                            {ENTITY_LABELS[event.entity_type]}
                           </span>
                           <span className="audit-entity-id">#{event.entity_id}</span>
                         </td>
@@ -424,7 +426,7 @@ export function AuditScreen(): React.ReactElement {
             <dl className="audit-detail-grid">
               <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
               <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-              <div><dt>Entity</dt><dd>{ENTITY_LABELS.get(selectedEvent.entity_type) ?? selectedEvent.entity_type} #{selectedEvent.entity_id}</dd></div>
+              <div><dt>Entity</dt><dd>{ENTITY_LABELS[selectedEvent.entity_type]} #{selectedEvent.entity_id}</dd></div>
               <div><dt>Action code</dt><dd><code>{selectedEvent.action}</code></dd></div>
             </dl>
             <div className="audit-detail-section">

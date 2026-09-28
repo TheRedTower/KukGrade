@@ -259,6 +259,7 @@ SPECTACULAR_SETTINGS = {
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
         "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": (
             "data_imports.services.StudentImportRowOutcome"
         ),

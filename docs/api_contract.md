@@ -656,7 +656,7 @@ and `actor_name` are untouched, so the event still names who acted. The
 Filters:
 
 - `action`
-- `entity_type`
+- `entity_type` - one of `AuditEntity` (`audit/models.py`): the model name of what the event is about. Recording an event about any other model is refused, so the list is complete.
 - `entity_id`
 - `actor`
 - `occurred_from`

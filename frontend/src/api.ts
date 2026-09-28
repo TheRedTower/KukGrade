@@ -34,6 +34,7 @@ export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
 export type CandidateAssessmentSummary = Schemas["CandidateAssessmentSummary"];
 export type AuditEvent = components["schemas"]["AuditEvent"];
 export type AuditAction = components["schemas"]["ActionEnum"];
+export type AuditEntity = components["schemas"]["AuditEntityEnum"];
 export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];

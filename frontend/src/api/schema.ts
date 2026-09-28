@@ -1268,13 +1268,27 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
+        /**
+         * @description * `GradingSession` - Grading session
+         *     * `GradingCandidate` - Candidate
+         *     * `CandidateAssessment` - Assessment
+         *     * `CandidateAssessmentItem` - Assessment item
+         *     * `CandidateOutcome` - Outcome
+         *     * `Promotion` - Promotion
+         *     * `Student` - Student
+         *     * `User` - User
+         *     * `ImportBatch` - Import batch
+         *     * `LegacyGradingRecord` - Historical grading record
+         * @enum {string}
+         */
+        AuditEntityEnum: "GradingSession" | "GradingCandidate" | "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "Promotion" | "Student" | "User" | "ImportBatch" | "LegacyGradingRecord";
         AuditEvent: {
             readonly id: number;
             /** Format: date-time */
             readonly occurred_at: string;
             readonly action: components["schemas"]["ActionEnum"];
             readonly action_display: string;
-            readonly entity_type: string;
+            readonly entity_type: components["schemas"]["AuditEntityEnum"];
             readonly entity_id: string;
             /** Format: uuid */
             readonly actor: string | null;
@@ -2562,7 +2576,7 @@ export interface operations {
                 action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 actor?: string;
                 entity_id?: string;
-                entity_type?: string;
+                entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
                 occurred_to?: string;
                 /** @description A page number within the paginated result set. */

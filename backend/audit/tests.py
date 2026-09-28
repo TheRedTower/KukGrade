@@ -100,6 +100,19 @@ def test_entity_reference_is_stored_as_plain_strings() -> None:
     assert event.entity_id == str(actor.pk)
 
 
+def test_an_event_about_an_undeclared_entity_type_is_refused() -> None:
+    # AuditEntity is what the audit screen's filter is generated from; an
+    # audited model missing from it would silently never be filterable.
+    from ranks.models import Rank
+
+    with pytest.raises(ValidationError):
+        record(
+            AuditAction.STUDENT_UPDATED,
+            Rank.objects.get(code="WHITE"),
+            "Not audited.",
+        )
+
+
 # ---------------------------------------------------------------------------
 # The revision case, which is the whole point
 # ---------------------------------------------------------------------------

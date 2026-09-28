@@ -83,5 +83,24 @@ class Migration(migrations.Migration):
                 max_length=64,
             ),
         ),
+        migrations.AlterField(
+            model_name="auditevent",
+            name="entity_type",
+            field=models.CharField(
+                choices=[
+                    ("GradingSession", "Grading session"),
+                    ("GradingCandidate", "Candidate"),
+                    ("CandidateAssessment", "Assessment"),
+                    ("CandidateAssessmentItem", "Assessment item"),
+                    ("CandidateOutcome", "Outcome"),
+                    ("Promotion", "Promotion"),
+                    ("Student", "Student"),
+                    ("User", "User"),
+                    ("ImportBatch", "Import batch"),
+                    ("LegacyGradingRecord", "Historical grading record"),
+                ],
+                max_length=64,
+            ),
+        ),
         migrations.RunPython(snapshot_existing_actors, migrations.RunPython.noop),
     ]

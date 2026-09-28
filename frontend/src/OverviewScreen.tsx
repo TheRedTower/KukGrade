@@ -174,7 +174,7 @@ function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
 
   // Target extraction: prefer actor_name or entity info from summary
   let targetName = event.actor_name || "System";
-  if (event.entity_type === "Student" || event.entity_type === "Candidate") {
+  if (event.entity_type === "Student" || event.entity_type === "GradingCandidate") {
     // If summary starts with or mentions a student/candidate name
     const match = event.summary.match(/^([^:]+):/);
     if (match) {

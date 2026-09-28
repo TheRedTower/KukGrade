@@ -4863,7 +4863,7 @@ def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
 
     withdrawn = withdraw_locked_candidate(
         built,
-        reason=GradingCandidate.WithdrawalReason.ADMIN_ERROR,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
         note="Registered against the wrong session.",
         actor=override_master("clears-proposal@example.com"),
     )
@@ -5432,3 +5432,58 @@ def test_an_inactive_student_can_still_be_registered() -> None:
     built.save()
 
     assert built.pk is not None
+
+
+def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
+    response = auth_client("withdrawal-reasons@example.com").get(
+        "/api/gradings/withdrawal-reasons/",
+    )
+
+    assert response.status_code == 200
+    assert results(response) == [
+        {"code": "INJURY", "name": "Injured during grading", "note_required": False},
+        {"code": "WITHDREW", "name": "Withdrew voluntarily", "note_required": False},
+        {"code": "ABSENT", "name": "Did not attend", "note_required": False},
+        {"code": "OTHER", "name": "Other", "note_required": True},
+    ]
+
+
+def test_an_other_withdrawal_needs_a_note() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    client = auth_client("other-withdrawal@example.com")
+    url = f"/api/gradings/candidates/{built.pk}/"
+
+    refused = client.patch(
+        url,
+        {"status": "WITHDRAWN", "withdrawal_reason": "OTHER", "withdrawal_note": "  "},
+        format="json",
+    )
+    accepted = client.patch(
+        url,
+        {
+            "status": "WITHDRAWN",
+            "withdrawal_reason": "OTHER",
+            "withdrawal_note": "Family emergency",
+        },
+        format="json",
+    )
+
+    assert refused.status_code == 400
+    assert "withdrawal_note" in refused.json()["error"]["fields"]
+    assert accepted.status_code == 200
+    built.refresh_from_db()
+    assert built.withdrawal_note == "Family emergency"
+
+
+def test_a_locked_other_withdrawal_needs_a_note() -> None:
+    built, _generated = locked_completed_candidate()
+
+    with pytest.raises(ValidationError) as exc_info:
+        withdraw_locked_candidate(
+            built,
+            reason=GradingCandidate.WithdrawalReason.OTHER,
+            note="",
+            actor=override_master("other-locked@example.com"),
+        )
+
+    assert "withdrawal_note" in exc_info.value.message_dict

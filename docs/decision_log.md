@@ -18,6 +18,26 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - Three withdrawal reasons and Other, served
+
+Status: Accepted
+
+Decision:
+Withdrawal reasons are Injured during grading, Withdrew voluntarily, Did not
+attend, and Other, which requires a note (model check and database
+constraint). `GET /api/gradings/withdrawal-reasons/` serves them with
+`note_required`; the locked-withdrawal dialog lists them as radio buttons.
+
+Context:
+The user asked for three reasons and an Other, easy to pick, read from the
+server. "Registered in error" is covered by Remove registration before lock;
+after lock it is Other with a note. Existing `ADMIN_ERROR` rows are migrated
+to `OTHER` with "Registered in error." kept in the note.
+
+Consequences:
+Audit events written before the change keep the old reason code in their
+metadata; they are immutable.
+
 ### 2026-09-28 - Each rank carries its belt colours
 
 Status: Accepted

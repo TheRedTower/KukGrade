@@ -730,6 +730,26 @@ export interface paths {
         patch: operations["gradings_sessions_partial_update"];
         trace?: never;
     };
+    "/api/gradings/withdrawal-reasons/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The reasons a candidate can be withdrawn for, as every withdrawal
+         *     control lists them.
+         */
+        get: operations["gradings_withdrawal_reasons_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health/": {
         parameters: {
             query?: never;
@@ -1958,6 +1978,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
         };
+        PaginatedWithdrawalReasonList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["WithdrawalReason"][];
+        };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
             assessor_notes?: string;
@@ -2433,14 +2468,20 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
+        /** @description One withdrawal reason, from its code, and whether it needs a note. */
+        WithdrawalReason: {
+            readonly code: components["schemas"]["WithdrawalReasonEnum"];
+            readonly name: string;
+            readonly note_required: boolean;
+        };
         /**
          * @description * `INJURY` - Injured during grading
          *     * `WITHDREW` - Withdrew voluntarily
          *     * `ABSENT` - Did not attend
-         *     * `ADMIN_ERROR` - Registered in error
+         *     * `OTHER` - Other
          * @enum {string}
          */
-        WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "ADMIN_ERROR";
+        WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "OTHER";
     };
     responses: never;
     parameters: never;
@@ -3606,6 +3647,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GradingSession"];
+                };
+            };
+        };
+    };
+    gradings_withdrawal_reasons_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedWithdrawalReasonList"];
                 };
             };
         };

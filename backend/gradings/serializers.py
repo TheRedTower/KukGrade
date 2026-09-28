@@ -968,3 +968,21 @@ class VoidLegacyRecordSerializer(serializers.Serializer):
             reason=str(validated_data["reason"]),
             actor=cast(User, request.user),
         )
+
+
+class WithdrawalReasonSerializer(serializers.Serializer[str]):
+    """One withdrawal reason, from its code, and whether it needs a note."""
+
+    code = serializers.ChoiceField(
+        choices=GradingCandidate.WithdrawalReason.choices,
+        source="*",
+        read_only=True,
+    )
+    name = serializers.SerializerMethodField()
+    note_required = serializers.SerializerMethodField()
+
+    def get_name(self, code: str) -> str:
+        return str(GradingCandidate.WithdrawalReason(code).label)
+
+    def get_note_required(self, code: str) -> bool:
+        return code == GradingCandidate.WithdrawalReason.OTHER

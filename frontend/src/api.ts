@@ -439,6 +439,12 @@ export async function bulkUpdateCandidateStatus(
   });
 }
 
+export type WithdrawalReason = Schemas["WithdrawalReason"];
+
+export async function getWithdrawalReasons(): Promise<PaginatedResponse<WithdrawalReason>> {
+  return apiRequest<PaginatedResponse<WithdrawalReason>>("/api/gradings/withdrawal-reasons/");
+}
+
 export type LockedCandidateWithdrawal =
   Schemas["LockedCandidateWithdrawalRequest"];
 

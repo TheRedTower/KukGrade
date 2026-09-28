@@ -30,6 +30,7 @@ LIST_ENDPOINTS = [
     "/api/gradings/assessment-items/",
     "/api/gradings/outcomes/",
     "/api/gradings/promotions/",
+    "/api/gradings/withdrawal-reasons/",
 ]
 
 

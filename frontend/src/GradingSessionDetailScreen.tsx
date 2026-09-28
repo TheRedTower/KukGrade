@@ -16,6 +16,7 @@ import {
   getAllGradingCandidates,
   getAllGradingSessions,
   getGradingSession,
+  getWithdrawalReasons,
   moveGradingCandidate,
   updateGradingSession,
   deleteGradingSession,
@@ -387,6 +388,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         err instanceof ApiError ? err.message : "Failed to withdraw the candidate.",
       );
     },
+  });
+
+  const withdrawalReasonsQuery = useQuery({
+    queryKey: ["withdrawalReasons"],
+    queryFn: getWithdrawalReasons,
+    enabled: withdrawalCandidate !== null,
   });
 
   // Sessions a registration can move to; loaded only when the move dialog opens.
@@ -1387,6 +1394,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {withdrawalCandidate && (
         <LockedWithdrawalDialog
           candidate={toAttendanceCandidate(withdrawalCandidate)}
+          reasons={withdrawalReasonsQuery.data?.results ?? []}
           pending={withdrawalMutation.isPending}
           error={withdrawalError}
           onClose={() => {

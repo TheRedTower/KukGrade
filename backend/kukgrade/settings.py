@@ -252,6 +252,7 @@ SPECTACULAR_SETTINGS = {
         "StudentStatusEnum": "students.models.Student.Status",
         "GradingSessionStatusEnum": "gradings.models.GradingSession.Status",
         "GradingCandidateStatusEnum": "gradings.models.GradingCandidate.Status",
+        "WithdrawalReasonEnum": "gradings.models.GradingCandidate.WithdrawalReason",
         "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
         "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
         "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",

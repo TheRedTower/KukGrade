@@ -108,7 +108,7 @@ Default ordering is `requirement_sequence, item_name, pk` — **category is not
 an ordering key, so grouping by category is a client concern.**
 
 **`GradingCandidate`** — `Status`: `REGISTERED` / `WITHDRAWN` / `COMPLETED`.
-`WithdrawalReason`: `INJURY` / `WITHDREW` / `ABSENT` / `ADMIN_ERROR`.
+`WithdrawalReason`: `INJURY` / `WITHDREW` / `ABSENT` / `OTHER` (with a note).
 `AgeBand`: `AGE_8_AND_UNDER` / `AGE_9_TO_12` / `AGE_13_TO_17` /
 `AGE_18_AND_OVER`. Unique `(session, student)`. Reverse accessors
 `.assessment`, `.outcome`, `.promotion`.

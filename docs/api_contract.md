@@ -247,6 +247,7 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
 | POST  | /api/gradings/candidates/{id}/withdraw/ | Withdraw from a *locked* session with a reason; requires `gradings.can_override_locked_session` |
+| GET   | /api/gradings/withdrawal-reasons/      | The withdrawal reasons in order: `code`, `name`, `note_required` |
 | POST  | /api/gradings/candidates/bulk-register/ | Register several candidates against one session in a single request, optionally generating their assessments too |
 | POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
 | POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
@@ -257,12 +258,15 @@ the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
 candidate actually started.
 
-A candidate is always created `REGISTERED`: a `POST` with any other `status`,
-or with a `withdrawal_reason`, is a `400`. A registration's `student` never
+A candidate is always created `REGISTERED`; `bulk-register` rows carry no
+status or withdrawal fields. A registration's `student` never
 changes: sending a different one is a `400` (remove the candidate and
 register the right student instead). Setting
 `status` to `WITHDRAWN` requires `withdrawal_reason` (`INJURY`, `WITHDREW`,
-`ABSENT`, `ADMIN_ERROR`) and accepts an optional `withdrawal_note`; the
+`ABSENT`, `OTHER`) and accepts a `withdrawal_note`, which `OTHER` requires -
+the same rule holds on the locked-session `withdraw` action. The reasons, with
+their labels and which needs a note, are served by
+`GET /api/gradings/withdrawal-reasons/`; the
 withdrawal records who made it and when, and is audited as
 `CANDIDATE_WITHDRAWN`. Setting a withdrawn candidate back to `REGISTERED`
 clears all four withdrawal fields.

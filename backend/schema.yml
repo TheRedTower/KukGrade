@@ -1674,6 +1674,36 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/gradings/withdrawal-reasons/:
+    get:
+      operationId: gradings_withdrawal_reasons_list
+      description: |-
+        The reasons a candidate can be withdrawn for, as every withdrawal
+        control lists them.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWithdrawalReasonList'
+          description: ''
   /api/health/:
     get:
       operationId: health_retrieve
@@ -4465,6 +4495,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/UserManagement'
+    PaginatedWithdrawalReasonList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/WithdrawalReason'
     PatchedCandidateAssessmentItemRequest:
       type: object
       properties:
@@ -5590,18 +5643,36 @@ components:
           minLength: 1
       required:
       - reason
+    WithdrawalReason:
+      type: object
+      description: One withdrawal reason, from its code, and whether it needs a note.
+      properties:
+        code:
+          allOf:
+          - $ref: '#/components/schemas/WithdrawalReasonEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        note_required:
+          type: boolean
+          readOnly: true
+      required:
+      - code
+      - name
+      - note_required
     WithdrawalReasonEnum:
       enum:
       - INJURY
       - WITHDREW
       - ABSENT
-      - ADMIN_ERROR
+      - OTHER
       type: string
       description: |-
         * `INJURY` - Injured during grading
         * `WITHDREW` - Withdrew voluntarily
         * `ABSENT` - Did not attend
-        * `ADMIN_ERROR` - Registered in error
+        * `OTHER` - Other
   securitySchemes:
     cookieAuth:
       type: apiKey

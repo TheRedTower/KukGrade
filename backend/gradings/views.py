@@ -57,6 +57,7 @@ from gradings.serializers import (
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     VoidLegacyRecordSerializer,
+    WithdrawalReasonSerializer,
 )
 from gradings.services import (
     bulk_generate_candidate_assessments,
@@ -74,6 +75,22 @@ from gradings.services import (
 )
 from kukgrade.filtering import boolean, by_id, by_uuid, choice, exact, on_date, search
 from syllabus.models import AgeBand, SyllabusItem
+
+
+class WithdrawalReasonViewSet(GenericViewSet):
+    """The reasons a candidate can be withdrawn for, as every withdrawal
+    control lists them."""
+
+    serializer_class = WithdrawalReasonSerializer
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {"list": ("gradings.view_gradingcandidate",)}
+
+    def list(self, request: Request) -> Response:
+        # Paginated like every list endpoint, as the syllabus age bands are.
+        page: list[str] | None = self.paginate_queryset(
+            GradingCandidate.WithdrawalReason.values,  # type: ignore[arg-type]
+        )
+        return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
 class GradingSessionViewSet(ModelViewSet):

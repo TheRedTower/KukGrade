@@ -3267,6 +3267,19 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
+      if (url.includes("/api/gradings/withdrawal-reasons/")) {
+        return jsonResponse(200, {
+          count: 4,
+          next: null,
+          previous: null,
+          results: [
+            { code: "INJURY", name: "Injured during grading", note_required: false },
+            { code: "WITHDREW", name: "Withdrew voluntarily", note_required: false },
+            { code: "ABSENT", name: "Did not attend", note_required: false },
+            { code: "OTHER", name: "Other", note_required: true },
+          ],
+        });
+      }
       if (
         url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
         init?.method === "POST"
@@ -3469,6 +3482,24 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(await screen.findByText("2 candidates marked as no-show.")).toBeVisible();
   });
 
+  it("requires a note before an Other withdrawal can be recorded", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
+    const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
+    await user.click(await within(dialog).findByRole("radio", { name: "Other" }));
+    const submit = within(dialog).getByRole("button", { name: "Withdraw candidate" });
+
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/What happened/), "Family emergency.");
+    expect(submit).toBeEnabled();
+  });
+
   it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
     vi.stubGlobal("fetch", fetchMock);
@@ -3479,7 +3510,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const row = await screen.findByTestId("candidate-row-101");
     await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
     const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
-    await user.selectOptions(within(dialog).getByLabelText("Reason"), "INJURY");
+    await user.click(await within(dialog).findByRole("radio", { name: "Injured during grading" }));
     await user.type(
       within(dialog).getByLabelText(/Additional note/),
       "Unable to continue safely.",

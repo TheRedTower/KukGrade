@@ -10,10 +10,13 @@ import {
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
   bulkUpdateCandidateStatus,
+  deleteGradingCandidate,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
+  getAllGradingSessions,
   getGradingSession,
+  moveGradingCandidate,
   updateGradingSession,
   deleteGradingSession,
   withdrawLockedCandidate,
@@ -21,7 +24,9 @@ import {
 import { useAuth } from "./auth";
 import {
   LockedWithdrawalDialog,
+  MoveRegistrationDialog,
   NoShowDialog,
+  RemoveRegistrationDialog,
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
@@ -156,6 +161,14 @@ interface EnrichedCandidate {
   outcome?: CandidateOutcome;
 }
 
+function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
+  return {
+    id: item.candidate.id,
+    name: item.candidate.student_display_name,
+    wksaId: item.candidate.student_wksa_id,
+  };
+}
+
 export function GradingSessionDetailScreen(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -170,6 +183,11 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const [registrationAction, setRegistrationAction] = useState<{
+    kind: "move" | "remove";
+    item: EnrichedCandidate;
+  } | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -371,6 +389,55 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
   });
 
+  // Sessions a registration can move to; loaded only when the move dialog opens.
+  const moveTargetsQuery = useQuery({
+    queryKey: ["gradingSessions", "all"],
+    queryFn: () => getAllGradingSessions(),
+    enabled: registrationAction?.kind === "move",
+  });
+  const moveTargets = (moveTargetsQuery.data?.results ?? [])
+    .filter((target) => target.id !== sessionId && (target.status === "DRAFT" || target.status === "OPEN"))
+    .map((target) => ({
+      id: target.id,
+      label: `${target.title} · ${formatSessionDate(target.grading_date)}`,
+    }));
+
+  const closeRegistrationAction = () => {
+    setRegistrationAction(null);
+    setRegistrationError(null);
+  };
+
+  const registrationMutation = useMutation({
+    mutationFn: async ({ kind, candidateId, targetSessionId }: {
+      kind: "move" | "remove";
+      candidateId: number;
+      targetSessionId?: number;
+    }) => {
+      if (kind === "move") {
+        await moveGradingCandidate(candidateId, targetSessionId as number);
+      } else {
+        await deleteGradingCandidate(candidateId);
+      }
+    },
+    onSuccess: (_result, { kind }) => {
+      const name = registrationAction?.item.candidate.student_display_name ?? "The candidate";
+      refreshCandidateWork();
+      void queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      closeRegistrationAction();
+      setActionError(null);
+      setActionMessage(
+        kind === "move"
+          ? `${name} was moved to another session.`
+          : `${name} was removed from this session.`,
+      );
+    },
+    onError: (err: unknown) => {
+      setRegistrationError(
+        err instanceof ApiError ? err.message : "Failed to change the registration.",
+      );
+    },
+  });
+
   // Combine data into EnrichedCandidate list
   const enrichedCandidates: EnrichedCandidate[] = useMemo(() => {
     const rawCandidates: GradingCandidate[] = candidatesQuery.data?.results ?? [];
@@ -444,11 +511,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     .map((item) => item.assessment!.id);
   const attendanceCandidates: AttendanceCandidate[] = enrichedCandidates
     .filter((item) => item.candidate.status === "REGISTERED")
-    .map((item) => ({
-      id: item.candidate.id,
-      name: item.candidate.student_display_name,
-      wksaId: item.candidate.student_wksa_id,
-    }));
+    .map(toAttendanceCandidate);
 
   // Lifecycle stage statuses
   const lifecycle = useMemo(() => {
@@ -1122,6 +1185,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                               {nextActionLabel}
                             </Link>
                           )}
+                          {(session.status === "DRAFT" || session.status === "OPEN") && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn-ghost gsd-row-action-btn"
+                                onClick={() => setRegistrationAction({ kind: "move", item })}
+                                aria-label={`Move ${item.candidate.student_display_name} to another session`}
+                              >
+                                Move…
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                                onClick={() => setRegistrationAction({ kind: "remove", item })}
+                                aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
+                              >
+                                Remove
+                              </button>
+                            </>
+                          )}
                           {canWithdrawLocked && (
                             <button
                               type="button"
@@ -1303,11 +1386,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {withdrawalCandidate && (
         <LockedWithdrawalDialog
-          candidate={{
-            id: withdrawalCandidate.candidate.id,
-            name: withdrawalCandidate.candidate.student_display_name,
-            wksaId: withdrawalCandidate.candidate.student_wksa_id,
-          }}
+          candidate={toAttendanceCandidate(withdrawalCandidate)}
           pending={withdrawalMutation.isPending}
           error={withdrawalError}
           onClose={() => {
@@ -1318,6 +1397,38 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             withdrawalMutation.mutate({
               candidateId: withdrawalCandidate.candidate.id,
               payload,
+            })
+          }
+        />
+      )}
+
+      {registrationAction?.kind === "move" && (
+        <MoveRegistrationDialog
+          candidate={toAttendanceCandidate(registrationAction.item)}
+          sessions={moveTargets}
+          pending={registrationMutation.isPending}
+          error={registrationError}
+          onClose={closeRegistrationAction}
+          onConfirm={(targetSessionId) =>
+            registrationMutation.mutate({
+              kind: "move",
+              candidateId: registrationAction.item.candidate.id,
+              targetSessionId,
+            })
+          }
+        />
+      )}
+
+      {registrationAction?.kind === "remove" && (
+        <RemoveRegistrationDialog
+          candidate={toAttendanceCandidate(registrationAction.item)}
+          pending={registrationMutation.isPending}
+          error={registrationError}
+          onClose={closeRegistrationAction}
+          onConfirm={() =>
+            registrationMutation.mutate({
+              kind: "remove",
+              candidateId: registrationAction.item.candidate.id,
             })
           }
         />

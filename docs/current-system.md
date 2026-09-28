@@ -129,12 +129,18 @@ checks on each push and pull request.
   withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
-  the same domain service as its single-item endpoint inside its own
-  savepoint, and one row's failure never blocks the others. Every response
+  its row through the domain service inside its own savepoint, and one row's failure never blocks the others. Every response
   lists what succeeded plus an `errors` map keyed by row index for what
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
   mixed-belt group registers in one request with no rank picked at all.
+- **Registrations (2026-09-28)**: `bulk-register` is the only way to register
+  a candidate - there is no single-item create. While a session is `DRAFT`
+  or `OPEN`, each roster row offers "Move…" (`PATCH` the registration's
+  `session` to another draft or open session; refused once an assessment has
+  been prepared) and "Remove" (`DELETE`, which also removes any assessment
+  work and is audited). Withdrawing stays the way to record that a candidate
+  did not grade.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments

@@ -208,3 +208,120 @@ export function LockedWithdrawalDialog({
     </DialogFrame>
   );
 }
+
+type MoveRegistrationDialogProps = {
+  candidate: AttendanceCandidate;
+  sessions: { id: number; label: string }[];
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: (sessionId: number) => void;
+};
+
+export function MoveRegistrationDialog({
+  candidate,
+  sessions,
+  pending,
+  error,
+  onClose,
+  onConfirm,
+}: MoveRegistrationDialogProps) {
+  const [sessionId, setSessionId] = useState("");
+
+  return (
+    <DialogFrame
+      title={`Move ${candidate.name}`}
+      eyebrow="Registration"
+      pending={pending}
+      onClose={onClose}
+    >
+      <p className="attendance-dialog-copy">
+        Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (sessionId) onConfirm(Number(sessionId));
+        }}
+      >
+        <label className="attendance-field">
+          <span>Move to</span>
+          <select
+            required
+            data-dialog-autofocus="true"
+            value={sessionId}
+            onChange={(event) => setSessionId(event.target.value)}
+          >
+            <option value="">Select a session</option>
+            {sessions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {sessions.length === 0 && (
+          <p className="attendance-dialog-copy">No other draft or open session to move to.</p>
+        )}
+        {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+        <div className="attendance-dialog-actions">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={pending || !sessionId}>
+            {pending ? "Moving…" : "Move registration"}
+          </button>
+        </div>
+      </form>
+    </DialogFrame>
+  );
+}
+
+type RemoveRegistrationDialogProps = {
+  candidate: AttendanceCandidate;
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+export function RemoveRegistrationDialog({
+  candidate,
+  pending,
+  error,
+  onClose,
+  onConfirm,
+}: RemoveRegistrationDialogProps) {
+  return (
+    <DialogFrame
+      title={`Remove ${candidate.name}`}
+      eyebrow="Registration"
+      pending={pending}
+      onClose={onClose}
+    >
+      <p className="attendance-dialog-copy">
+        Removes this registration and any assessment work recorded for it. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
+      </p>
+      {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+      <div className="attendance-dialog-actions">
+        <button
+          type="button"
+          className="btn-ghost"
+          data-dialog-autofocus="true"
+          onClick={onClose}
+          disabled={pending}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn-primary attendance-danger-button"
+          onClick={onConfirm}
+          disabled={pending}
+        >
+          {pending ? "Removing…" : "Remove registration"}
+        </button>
+      </div>
+    </DialogFrame>
+  );
+}

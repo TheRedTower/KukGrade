@@ -1,19 +1,21 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GradingSessionDetailScreen } from "./GradingSessionDetailScreen";
-import type { AuthUser, GradingSession } from "./api";
+import { ApiError, type AuthUser, type GradingCandidate, type GradingSession } from "./api";
 
 let currentUser: AuthUser;
 const mockGetGradingSession = vi.fn();
 const mockGetAllGradingCandidates = vi.fn();
 const mockGetAllCandidateAssessments = vi.fn();
 const mockGetAllCandidateOutcomes = vi.fn();
-const mockGetAllStudents = vi.fn();
 const mockDeleteGradingSession = vi.fn();
+const mockGetAllGradingSessions = vi.fn();
+const mockMoveGradingCandidate = vi.fn();
+const mockDeleteGradingCandidate = vi.fn();
 
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: currentUser, status: "authenticated" }),
@@ -30,9 +32,11 @@ vi.mock("./api", async () => {
       mockGetAllCandidateAssessments(...args),
     getAllCandidateOutcomes: (...args: unknown[]) =>
       mockGetAllCandidateOutcomes(...args),
-    getAllStudents: (...args: unknown[]) => mockGetAllStudents(...args),
     deleteGradingSession: (...args: unknown[]) =>
       mockDeleteGradingSession(...args),
+    getAllGradingSessions: (...args: unknown[]) => mockGetAllGradingSessions(...args),
+    moveGradingCandidate: (...args: unknown[]) => mockMoveGradingCandidate(...args),
+    deleteGradingCandidate: (...args: unknown[]) => mockDeleteGradingCandidate(...args),
   };
 });
 
@@ -123,7 +127,6 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     mockGetAllGradingCandidates.mockReset().mockResolvedValue(emptyPage());
     mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
     mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
-    mockGetAllStudents.mockReset().mockResolvedValue(emptyPage());
     mockDeleteGradingSession.mockReset().mockResolvedValue(undefined);
   });
 
@@ -172,5 +175,113 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     await waitFor(() =>
       expect(screen.getByText("Gradings list")).toBeInTheDocument(),
     );
+  });
+});
+
+function openSession(overrides: Partial<GradingSession> = {}): GradingSession {
+  return { ...lockedSession(), status: "OPEN", status_display: "Open", ...overrides };
+}
+
+function registeredCandidate(): GradingCandidate {
+  return {
+    id: 31,
+    session: 7,
+    student: 131,
+    student_display_name: "Mia Okafor",
+    student_wksa_id: "KG-31",
+    from_rank_name: "White",
+    testing_for_rank_name: "Yellow Stripe",
+    status: "REGISTERED",
+    status_display: "Registered",
+  } as unknown as GradingCandidate;
+}
+
+describe("GradingSessionDetailScreen registration actions", () => {
+  beforeEach(() => {
+    currentUser = instructorUser;
+    mockGetGradingSession.mockReset().mockResolvedValue(openSession());
+    mockGetAllGradingCandidates
+      .mockReset()
+      .mockResolvedValue({ ...emptyPage(), count: 1, results: [registeredCandidate()] });
+    mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
+    mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
+    mockGetAllGradingSessions.mockReset().mockResolvedValue({
+      ...emptyPage(),
+      count: 4,
+      results: [
+        openSession(),
+        openSession({ id: 8, title: "April Grading", status: "DRAFT", grading_date: "2027-04-17" }),
+        openSession({ id: 9, title: "Old Grading", status: "COMPLETED" }),
+        openSession({ id: 10, title: "May Grading", grading_date: "2027-05-15" }),
+      ],
+    });
+    mockMoveGradingCandidate.mockReset().mockResolvedValue(registeredCandidate());
+    mockDeleteGradingCandidate.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("moves a registration to another draft or open session", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Move Mia Okafor to another session" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
+    const select = within(dialog).getByLabelText("Move to");
+    await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
+    // Only other sessions that accept candidates are offered.
+    expect(within(select).queryByRole("option", { name: /Old Grading/ })).toBeNull();
+    expect(within(select).queryByRole("option", { name: /March 2027/ })).toBeNull();
+
+    await user.selectOptions(select, "10");
+    await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
+
+    await waitFor(() => expect(mockMoveGradingCandidate).toHaveBeenCalledWith(31, 10));
+    expect(await screen.findByText("Mia Okafor was moved to another session.")).toBeVisible();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps the move dialog open with the server's reason when it is refused", async () => {
+    mockMoveGradingCandidate.mockRejectedValue(
+      new ApiError("Session and testing-for rank cannot be changed after an assessment snapshot has been generated.", 400),
+    );
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Move Mia Okafor to another session" }),
+    );
+    const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
+    await waitFor(() =>
+      expect(within(dialog).getAllByRole("option").length).toBeGreaterThan(1),
+    );
+    await user.selectOptions(within(dialog).getByLabelText("Move to"), "8");
+    await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "cannot be changed after an assessment snapshot",
+    );
+  });
+
+  it("removes a registration after confirming", async () => {
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByRole("button", { name: "Remove Mia Okafor's registration" }));
+    const dialog = screen.getByRole("dialog", { name: "Remove Mia Okafor" });
+    expect(dialog).toHaveTextContent("any assessment work recorded for it");
+    await user.click(within(dialog).getByRole("button", { name: "Remove registration" }));
+
+    await waitFor(() => expect(mockDeleteGradingCandidate).toHaveBeenCalledWith(31));
+    expect(await screen.findByText("Mia Okafor was removed from this session.")).toBeVisible();
+  });
+
+  it("offers no move or remove once the session is locked", async () => {
+    mockGetGradingSession.mockResolvedValue(lockedSession());
+    renderScreen();
+
+    await screen.findByText("Mia Okafor");
+    expect(screen.queryByRole("button", { name: /to another session/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /registration$/ })).toBeNull();
   });
 });

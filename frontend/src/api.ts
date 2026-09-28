@@ -372,6 +372,24 @@ export async function getAllGradingCandidates(
   );
 }
 
+/** Move a registration to another draft or open session. */
+export async function moveGradingCandidate(
+  id: number,
+  sessionId: number,
+): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ session: sessionId }),
+  });
+}
+
+/** Remove a registration while its session is draft or open. */
+export async function deleteGradingCandidate(id: number): Promise<void> {
+  await apiRequest<void>(`/api/gradings/candidates/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistrationRequest"];
 export type BulkCandidateRegistrationResponse =
   Schemas["BulkCandidateRegistrationResult"];

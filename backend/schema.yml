@@ -2132,6 +2132,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/StudentRankHistory'
           description: ''
+  /api/syllabus/age-bands/:
+    get:
+      operationId: syllabus_age_bands_list
+      description: The age bands in order, as reference data for every age-band control.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - syllabus
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgeBandList'
+          description: ''
   /api/syllabus/items/:
     get:
       operationId: syllabus_items_list
@@ -2649,6 +2677,33 @@ components:
         * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
         * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
         * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
+    AgeBand:
+      type: object
+      description: 'One age band, from its code: label, description and programme.'
+      properties:
+        code:
+          allOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        programme:
+          allOf:
+          - $ref: '#/components/schemas/ProgrammeEnum'
+          readOnly: true
+        programme_display:
+          type: string
+          readOnly: true
+      required:
+      - code
+      - description
+      - name
+      - programme
+      - programme_display
     AgeBandEnum:
       enum:
       - AGE_8_AND_UNDER
@@ -4368,6 +4423,29 @@ components:
     NullEnum:
       enum:
       - null
+    PaginatedAgeBandList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgeBand'
     PaginatedAuditEventList:
       type: object
       required:
@@ -4872,6 +4950,14 @@ components:
           type: string
           writeOnly: true
           minLength: 1
+    ProgrammeEnum:
+      enum:
+      - JUNIOR
+      - ADULT
+      type: string
+      description: |-
+        * `JUNIOR` - Junior & Little Dragon
+        * `ADULT` - Adult & Youth
     Promotion:
       type: object
       properties:

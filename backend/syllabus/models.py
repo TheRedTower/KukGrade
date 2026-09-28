@@ -50,6 +50,29 @@ class AgeBand(models.TextChoices):
     AGE_18_AND_OVER = "AGE_18_AND_OVER", "18+"
 
 
+class Programme(models.TextChoices):
+    """The curriculum an age band is taught from."""
+
+    JUNIOR = "JUNIOR", "Junior & Little Dragon"
+    ADULT = "ADULT", "Adult & Youth"
+
+
+# Each age band's programme and the name the syllabus gives its students -
+# served by /api/syllabus/age-bands/ so no screen restates them.
+AGE_BAND_PROGRAMME: dict[str, Programme] = {
+    AgeBand.AGE_8_AND_UNDER: Programme.JUNIOR,
+    AgeBand.AGE_9_TO_12: Programme.JUNIOR,
+    AgeBand.AGE_13_TO_17: Programme.ADULT,
+    AgeBand.AGE_18_AND_OVER: Programme.ADULT,
+}
+AGE_BAND_DESCRIPTION: dict[str, str] = {
+    AgeBand.AGE_8_AND_UNDER: "Little Dragon ages 8 and under",
+    AgeBand.AGE_9_TO_12: "Junior ages 9-12",
+    AgeBand.AGE_13_TO_17: "Youth ages 13-17",
+    AgeBand.AGE_18_AND_OVER: "Adult ages 18+",
+}
+
+
 class SyllabusItem(models.Model):
     class Category(models.TextChoices):
         ETIQUETTE = "ETIQUETTE", "Etiquette"

@@ -43,6 +43,8 @@ export type SyllabusItem = components["schemas"]["SyllabusItem"];
 export type EffectiveSyllabusRequirement =
   components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
+export type AgeBand = components["schemas"]["AgeBand"];
+export type Programme = components["schemas"]["ProgrammeEnum"];
 
 /**
  * The error envelope is hand-written: `custom_exception_handler` builds it
@@ -573,6 +575,10 @@ export async function getRanks(params?: ListQuery<"ranks_list">): Promise<Pagina
   return apiRequest<PaginatedResponse<Rank>>(
     withQuery("/api/ranks/", params),
   );
+}
+
+export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
+  return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
 }
 
 export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">): Promise<PaginatedResponse<SyllabusItem>> {

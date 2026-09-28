@@ -183,6 +183,7 @@ and version management are deferred.
 
 | Method | Endpoint                              | Description                                      |
 |--------|----------------------------------------|--------------------------------------------------|
+| GET    | /api/syllabus/age-bands/               | The four age bands in order: `code`, `name`, `description`, `programme`, `programme_display` |
 | GET    | /api/syllabus/items/                   | List active syllabus items                       |
 | GET    | /api/syllabus/items/{id}/              | Retrieve a syllabus item                         |
 | GET    | /api/syllabus/requirements/            | List active requirements, attached directly to one rank |
@@ -220,6 +221,12 @@ grading areas (Etiquette, Fundamentals, Hand techniques, Kicking, Falling,
 Breaking) are not part of this endpoint - they come from
 `/api/syllabus/items/`, ordered to match the WKSA chart's own category
 sequence rather than alphabetically.
+
+`/api/syllabus/age-bands/` is reference data: each band's label, the
+syllabus's name for its students, and the programme it is taught from
+(`JUNIOR` - Junior & Little Dragon, `ADULT` - Adult & Youth). Every age-band
+control reads it rather than restating the bands. It is gated to
+`syllabus.view_syllabusrequirement`.
 
 ## 6. Grading Sessions
 

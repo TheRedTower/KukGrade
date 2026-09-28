@@ -12,6 +12,7 @@ import {
   getAllGradingCandidates,
   getAllStudents,
   getGradingSession,
+  getAgeBands,
   getRanks,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
@@ -79,6 +80,12 @@ export function BuildGradingCohortScreen() {
     queryKey: ["ranks"],
     queryFn: () => getRanks({ page_size: 100 }),
   });
+
+  const ageBandsQuery = useQuery({
+    queryKey: ["ageBands"],
+    queryFn: getAgeBands,
+  });
+  const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
   const studentsQuery = useQuery({
     queryKey: ["students", "all"],
@@ -165,9 +172,13 @@ export function BuildGradingCohortScreen() {
       students: StudentListItem[];
       activeCount: number;
       inactiveCount: number;
-      kidsCount: number;
-      adultsCount: number;
+      programmeCounts: { label: string; count: number }[];
     }[] = [];
+
+    // One count per programme, in the order the server lists the age bands
+    const programmes = ageBands.filter(
+      (band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index,
+    );
 
     // Group filtered eligible students by current_rank
     const studentsByRank = new Map<number, StudentListItem[]>();
@@ -184,26 +195,25 @@ export function BuildGradingCohortScreen() {
         const dest = nextRankMap.get(r.id) || null;
         const activeCount = students.filter((s) => s.status === "ACTIVE").length;
         const inactiveCount = students.filter((s) => s.status === "INACTIVE").length;
-        const kidsCount = students.filter(
-          (s) => s.age_band === "AGE_8_AND_UNDER" || s.age_band === "AGE_9_TO_12"
-        ).length;
-        const adultsCount = students.filter(
-          (s) => s.age_band === "AGE_13_TO_17" || s.age_band === "AGE_18_AND_OVER"
-        ).length;
+        const programmeCounts = programmes.map((band) => ({
+          label: band.programme_display,
+          count: students.filter((s) =>
+            ageBands.some((b) => b.code === s.age_band && b.programme === band.programme),
+          ).length,
+        }));
         groups.push({
           rank: r,
           destinationRank: dest,
           students,
           activeCount,
           inactiveCount,
-          kidsCount,
-          adultsCount,
+          programmeCounts,
         });
       }
     }
 
     return groups;
-  }, [ranks, filteredEligibleStudents, nextRankMap]);
+  }, [ranks, filteredEligibleStudents, nextRankMap, ageBands]);
 
   // Cohort breakdown by rank group for the right-hand panel
   const cohortBreakdown = useMemo(() => {
@@ -765,10 +775,11 @@ export function BuildGradingCohortScreen() {
                   data-testid="bgc-age-filter"
                 >
                   <option value="ALL">All ages</option>
-                  <option value="AGE_8_AND_UNDER">8 and under</option>
-                  <option value="AGE_9_TO_12">9-12</option>
-                  <option value="AGE_13_TO_17">13-17</option>
-                  <option value="AGE_18_AND_OVER">18+</option>
+                  {ageBands.map((band) => (
+                    <option key={band.code} value={band.code}>
+                      {band.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -970,7 +981,9 @@ export function BuildGradingCohortScreen() {
                           </td>
                           <td className="bgc-td-agemix">
                             <span className="bgc-agemix-badge">
-                              Kids {group.kidsCount} | Adults {group.adultsCount}
+                              {group.programmeCounts
+                                .map((entry) => `${entry.label} ${entry.count}`)
+                                .join(" | ")}
                             </span>
                           </td>
                           <td className="bgc-td-eligible">

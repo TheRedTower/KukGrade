@@ -3,7 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyllabusScreen } from "./SyllabusScreen";
-import type { EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+import type { AgeBand, EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+
+const mockAgeBands: AgeBand[] = [
+  { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+  { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+  { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
+  { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+];
 
 const mockRanks: Rank[] = [
   {
@@ -257,6 +264,9 @@ function stubFetch(effectiveByRank: Record<string, EffectiveSyllabusRequirement[
     "fetch",
     vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/syllabus/age-bands/")) {
+        return Promise.resolve(jsonResponse(200, paginated(mockAgeBands)));
+      }
       if (url.includes("/api/ranks/")) {
         return Promise.resolve(jsonResponse(200, paginated(mockRanks)));
       }
@@ -290,7 +300,8 @@ describe("SyllabusScreen", () => {
     expect(screen.getByText("Teaching and grading requirements")).toBeVisible();
 
     // Filters
-    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR_LITTLE_DRAGON");
+    expect(await screen.findByRole("option", { name: "Junior & Little Dragon" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR");
     expect(screen.getByLabelText("Age group")).toHaveValue("AGE_9_TO_12");
     await waitFor(() => {
       expect(screen.getByLabelText("Testing for")).toHaveValue("YELLOW");
@@ -305,7 +316,7 @@ describe("SyllabusScreen", () => {
 
     // Rank title, subtitle and the "everything examinable" note
     expect(screen.getByRole("heading", { name: "Yellow", level: 2 })).toBeVisible();
-    expect(screen.getByText("Junior ages 9 – 12")).toBeVisible();
+    expect(screen.getByText("Junior ages 9-12")).toBeVisible();
     expect(screen.getByText("Everything examinable through Yellow.")).toBeVisible();
 
     // Next rank button
@@ -408,17 +419,18 @@ describe("SyllabusScreen", () => {
     // Initial values
     const curriculumSelect = await screen.findByLabelText("Curriculum");
     const ageSelect = screen.getByLabelText("Age group");
-    expect(curriculumSelect).toHaveValue("JUNIOR_LITTLE_DRAGON");
+    await screen.findByRole("option", { name: "Adult & Youth" });
+    expect(curriculumSelect).toHaveValue("JUNIOR");
     expect(ageSelect).toHaveValue("AGE_9_TO_12");
 
     // Change Curriculum to Adult & Youth
-    await user.selectOptions(curriculumSelect, "ADULT_YOUTH");
+    await user.selectOptions(curriculumSelect, "ADULT");
     expect(ageSelect).toHaveValue("AGE_18_AND_OVER");
     expect(screen.getByText("Adult ages 18+")).toBeVisible();
 
     // Change Age group to 8 and under
     await user.selectOptions(ageSelect, "AGE_8_AND_UNDER");
-    expect(curriculumSelect).toHaveValue("JUNIOR_LITTLE_DRAGON");
+    expect(curriculumSelect).toHaveValue("JUNIOR");
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
   });
 

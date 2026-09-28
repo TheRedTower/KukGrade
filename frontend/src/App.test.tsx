@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import type {
+  AgeBand,
   CandidateAssessment,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
@@ -4328,6 +4329,13 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
+  const mockAgeBands: AgeBand[] = [
+    { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+    { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+    { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
+    { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+  ];
+
   function setupCohortMock(options?: {
     bulkRegisterHandler?: (body: unknown) => Response;
   }) {
@@ -4340,6 +4348,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         return jsonResponse(200, { created: [], errors: {} });
       }
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/syllabus/age-bands/")) {
+        return jsonResponse(200, { count: 4, next: null, previous: null, results: mockAgeBands });
+      }
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, {
           count: mockRanks.length,
@@ -4496,10 +4507,10 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-student-row-103")).toHaveTextContent("Charlie Brown");
     expect(screen.queryByTestId("bgc-student-row-101")).not.toBeInTheDocument();
 
-    // Section 2 rank groups reflect the filtered student (Yellow stripe, Kids 0 | Adults 1)
+    // Section 2 rank groups reflect the filtered student (Yellow stripe, one adult-programme student)
     expect(screen.getByTestId("bgc-add-group-2")).toBeVisible();
     expect(screen.queryByTestId("bgc-add-group-1")).not.toBeInTheDocument();
-    expect(screen.getByText("Kids 0 | Adults 1")).toBeVisible();
+    expect(screen.getByText("Junior & Little Dragon 0 | Adult & Youth 1")).toBeVisible();
 
     // Filter back to "All ages"
     await user.selectOptions(ageSelect, "ALL");

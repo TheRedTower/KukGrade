@@ -1,8 +1,16 @@
 from __future__ import annotations
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from syllabus.models import SyllabusItem, SyllabusRequirement
+from syllabus.models import (
+    AGE_BAND_DESCRIPTION,
+    AGE_BAND_PROGRAMME,
+    AgeBand,
+    Programme,
+    SyllabusItem,
+    SyllabusRequirement,
+)
 from syllabus.services import EffectiveSyllabusRequirement, normalize_chart_notation
 
 
@@ -132,3 +140,26 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
 
     def get_notation(self, obj: EffectiveSyllabusRequirement) -> str:
         return normalize_chart_notation(obj.requirement.notes)
+
+
+class AgeBandSerializer(serializers.Serializer[str]):
+    """One age band, from its code: label, description and programme."""
+
+    code = serializers.ChoiceField(choices=AgeBand.choices, source="*", read_only=True)
+    name = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    programme = serializers.SerializerMethodField()
+    programme_display = serializers.SerializerMethodField()
+
+    def get_name(self, code: str) -> str:
+        return AgeBand(code).label
+
+    def get_description(self, code: str) -> str:
+        return AGE_BAND_DESCRIPTION[code]
+
+    @extend_schema_field(serializers.ChoiceField(choices=Programme.choices))
+    def get_programme(self, code: str) -> str:
+        return AGE_BAND_PROGRAMME[code].value
+
+    def get_programme_display(self, code: str) -> str:
+        return AGE_BAND_PROGRAMME[code].label

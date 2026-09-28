@@ -6,13 +6,14 @@ from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet, ReadOnlyModelViewSet
 
 from accounts.permissions import HasRequiredPermissions
 from kukgrade.filtering import choice, exact
 from ranks.models import Rank
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
 from syllabus.serializers import (
+    AgeBandSerializer,
     EffectiveSyllabusRequirementSerializer,
     SyllabusItemSerializer,
     SyllabusRequirementSerializer,
@@ -35,6 +36,21 @@ _CATEGORY_DISPLAY_ORDER = Case(
     ],
     output_field=IntegerField(),
 )
+
+
+class AgeBandViewSet(GenericViewSet):
+    """The age bands in order, as reference data for every age-band control."""
+
+    serializer_class = AgeBandSerializer
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {"list": ("syllabus.view_syllabusrequirement",)}
+
+    def list(self, request: Request) -> Response:
+        # Paginated like every list endpoint, as `effective` is below.
+        page: list[str] | None = self.paginate_queryset(
+            AgeBand.values,  # type: ignore[arg-type]
+        )
+        return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
 class SyllabusItemViewSet(ReadOnlyModelViewSet):

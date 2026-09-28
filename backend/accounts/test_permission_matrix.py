@@ -34,6 +34,7 @@ pytestmark = pytest.mark.django_db
 
 READ_ENDPOINTS = [
     "/api/ranks/",
+    "/api/syllabus/age-bands/",
     "/api/syllabus/items/",
     "/api/syllabus/requirements/",
     "/api/gradings/sessions/",

@@ -18,6 +18,27 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-28 - Age bands and their programmes are served
+
+Status: Accepted
+
+Decision:
+`GET /api/syllabus/age-bands/` lists the four age bands with their label,
+description and programme (`JUNIOR` or `ADULT`). The syllabus and
+cohort-builder screens read it; neither restates the bands.
+
+Context:
+The syllabus screen held its own table of bands, labels, descriptions and a
+junior/adult "track"; the cohort builder repeated the labels and split
+"Kids"/"Adults" by listing band codes. That is syllabus data held in React,
+twice, in two vocabularies. The programme and description now sit beside
+`AgeBand` in `syllabus/models.py`, with a test that every band has both.
+
+Consequences:
+The cohort builder's age mix reads "Junior & Little Dragon n | Adult & Youth
+n" rather than "Kids n | Adults n", and the syllabus labels use the
+backend's "9-12" rather than "9 – 12".
+
 ### 2026-09-28 - The API serves what the application uses
 
 Status: Accepted

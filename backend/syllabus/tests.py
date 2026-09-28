@@ -14,7 +14,13 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
-from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.models import (
+    AGE_BAND_DESCRIPTION,
+    AGE_BAND_PROGRAMME,
+    AgeBand,
+    SyllabusItem,
+    SyllabusRequirement,
+)
 from syllabus.services import effective_syllabus_requirements, normalize_chart_notation
 
 pytestmark = pytest.mark.django_db
@@ -718,3 +724,44 @@ def test_seed_migration_has_no_duplicate_in_memory_tuples() -> None:
     ]
 
     assert len(keys) == len(set(keys))
+
+
+def test_age_bands_are_served_in_order_with_their_programme() -> None:
+    response = auth_client("age-bands@example.com").get("/api/syllabus/age-bands/")
+
+    assert response.status_code == 200
+    assert results(response) == [
+        {
+            "code": "AGE_8_AND_UNDER",
+            "name": "8 and under",
+            "description": "Little Dragon ages 8 and under",
+            "programme": "JUNIOR",
+            "programme_display": "Junior & Little Dragon",
+        },
+        {
+            "code": "AGE_9_TO_12",
+            "name": "9-12",
+            "description": "Junior ages 9-12",
+            "programme": "JUNIOR",
+            "programme_display": "Junior & Little Dragon",
+        },
+        {
+            "code": "AGE_13_TO_17",
+            "name": "13-17",
+            "description": "Youth ages 13-17",
+            "programme": "ADULT",
+            "programme_display": "Adult & Youth",
+        },
+        {
+            "code": "AGE_18_AND_OVER",
+            "name": "18+",
+            "description": "Adult ages 18+",
+            "programme": "ADULT",
+            "programme_display": "Adult & Youth",
+        },
+    ]
+
+
+def test_every_age_band_has_a_programme_and_description() -> None:
+    assert set(AGE_BAND_PROGRAMME) == set(AgeBand.values)
+    assert set(AGE_BAND_DESCRIPTION) == set(AgeBand.values)

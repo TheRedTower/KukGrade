@@ -18,6 +18,7 @@ pytestmark = pytest.mark.django_db
 
 LIST_ENDPOINTS = [
     "/api/ranks/",
+    "/api/syllabus/age-bands/",
     "/api/syllabus/items/",
     "/api/syllabus/requirements/",
     "/api/gradings/sessions/",

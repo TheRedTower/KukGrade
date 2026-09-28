@@ -918,6 +918,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/syllabus/age-bands/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The age bands in order, as reference data for every age-band control. */
+        get: operations["syllabus_age_bands_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/syllabus/items/": {
         parameters: {
             query?: never;
@@ -1195,6 +1212,14 @@ export interface components {
          * @enum {string}
          */
         ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        /** @description One age band, from its code: label, description and programme. */
+        AgeBand: {
+            readonly code: components["schemas"]["AgeBandEnum"];
+            readonly name: string;
+            readonly description: string;
+            readonly programme: components["schemas"]["ProgrammeEnum"];
+            readonly programme_display: string;
+        };
         /**
          * @description * `AGE_8_AND_UNDER` - 8 and under
          *     * `AGE_9_TO_12` - 9-12
@@ -1825,6 +1850,21 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
+        PaginatedAgeBandList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["AgeBand"][];
+        };
         PaginatedAuditEventList: {
             /** @example 123 */
             count: number;
@@ -2144,6 +2184,12 @@ export interface components {
             is_active?: boolean;
             password?: string;
         };
+        /**
+         * @description * `JUNIOR` - Junior & Little Dragon
+         *     * `ADULT` - Adult & Youth
+         * @enum {string}
+         */
+        ProgrammeEnum: "JUNIOR" | "ADULT";
         Promotion: {
             readonly id: number;
             readonly student: number;
@@ -4164,6 +4210,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StudentRankHistory"];
+                };
+            };
+        };
+    };
+    syllabus_age_bands_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAgeBandList"];
                 };
             };
         };

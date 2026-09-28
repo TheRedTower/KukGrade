@@ -384,7 +384,9 @@ checks on each push and pull request.
   reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
-  is the API's own `age_band_display`, never recomputed in the browser. CI
+  is the API's own `age_band_display`, never recomputed in the browser, and
+  the age-band controls on the syllabus and cohort-builder screens read their
+  bands and programmes from `/api/syllabus/age-bands/`. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
   the UTC runner cannot observe this class of bug: with the defect
   reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen

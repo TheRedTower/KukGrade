@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db import IntegrityError, transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -29,9 +28,9 @@ from gradings.services import (
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
-    transition_grading_session,
     update_candidate_assessment,
     update_candidate_assessment_item,
+    update_grading_session,
     validate_session_grading_date_change,
     validate_session_transition,
     withdraw_locked_candidate,
@@ -94,20 +93,13 @@ class GradingSessionSerializer(serializers.ModelSerializer):
     ) -> GradingSession:
         target_status = cast(str | None, validated_data.pop("status", None))
         reason = cast(str, validated_data.pop("cancellation_reason", ""))
-        with transaction.atomic():
-            if validated_data:
-                instance = cast(
-                    GradingSession,
-                    super().update(instance, validated_data),
-                )
-            if target_status is not None and target_status != instance.status:
-                instance = transition_grading_session(
-                    instance,
-                    target_status,
-                    actor=self.context["request"].user,
-                    reason=reason,
-                )
-            return instance
+        return update_grading_session(
+            instance,
+            changes=validated_data,
+            target_status=target_status,
+            reason=reason,
+            actor=self.context["request"].user,
+        )
 
 
 class GradingCandidateSerializer(serializers.ModelSerializer):
@@ -187,25 +179,19 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         instance: GradingCandidate,
         validated_data: dict[str, Any],
     ) -> GradingCandidate:
-        try:
-            candidate = apply_candidate_update(
-                instance,
-                session=cast(GradingSession | None, validated_data.get("session")),
-                testing_for_rank=cast(
-                    Rank | None,
-                    validated_data.get("testing_for_rank"),
-                ),
-                status=cast(str | None, validated_data.get("status")),
-                notes=cast(str | None, validated_data.get("notes")),
-                withdrawal_reason=validated_data.get("withdrawal_reason"),
-                withdrawal_note=validated_data.get("withdrawal_note"),
-                actor=cast(User, self.context["request"].user),
-            )
-        except IntegrityError as exc:
-            raise serializers.ValidationError(
-                {"student": ["Student is already registered for this session."]},
-            ) from exc
-        return candidate
+        return apply_candidate_update(
+            instance,
+            session=cast(GradingSession | None, validated_data.get("session")),
+            testing_for_rank=cast(
+                Rank | None,
+                validated_data.get("testing_for_rank"),
+            ),
+            status=cast(str | None, validated_data.get("status")),
+            notes=cast(str | None, validated_data.get("notes")),
+            withdrawal_reason=validated_data.get("withdrawal_reason"),
+            withdrawal_note=validated_data.get("withdrawal_note"),
+            actor=cast(User, self.context["request"].user),
+        )
 
 
 class BulkCandidateRegistrationItemSerializer(serializers.Serializer):

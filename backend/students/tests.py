@@ -332,10 +332,11 @@ def test_wksa_id_cannot_be_changed_after_creation() -> None:
     assert student.wksa_id == "IMMUTABLE-001"
 
 
-def test_a_no_op_patch_writes_no_audit_event() -> None:
+def test_a_no_op_patch_writes_nothing() -> None:
     client = auth_client("no-op-patch@example.com")
     created = create_via_api(client, wksa_id="NOOP-001")
     before = AuditEvent.objects.count()
+    written_at = Student.objects.get(pk=created["id"]).updated_at
 
     response = client.patch(
         f"/api/students/{created['id']}/",
@@ -345,6 +346,8 @@ def test_a_no_op_patch_writes_no_audit_event() -> None:
 
     assert response.status_code == 200
     assert AuditEvent.objects.count() == before
+    # Not just no event: no row update either (KG-A12).
+    assert Student.objects.get(pk=created["id"]).updated_at == written_at
 
 
 def test_a_status_change_alongside_other_edits_writes_exactly_one_event() -> None:

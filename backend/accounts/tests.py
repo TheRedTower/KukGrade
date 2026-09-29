@@ -1506,21 +1506,23 @@ def test_admin_user_update_is_audited() -> None:
     assert event.actor == request.user
 
 
-def test_admin_is_staff_only_change_is_not_blocked_by_the_service() -> None:
-    # update_platform_user()'s no-op check only tracks the five API-writable
-    # fields; is_staff is not one of them, so this must still persist even
-    # though none of those five changed.
-    target = User.objects.create_user(email="admin-staff-toggle@example.com")
-    assert target.is_staff is False
+@pytest.mark.parametrize("field", ["is_staff", "is_superuser"])
+def test_admin_only_access_change_is_not_blocked_by_the_service(field: str) -> None:
+    # update_platform_user() only applies the five API-writable fields, onto
+    # a locked copy of the row; Django admin access is not one of them, so
+    # admin must still persist a change to it even though none of those five
+    # changed.
+    target = User.objects.create_user(email=f"admin-{field}-toggle@example.com")
+    assert getattr(target, field) is False
     model_admin = UserAdmin(User, admin.site)
-    target.is_staff = True
-    request = admin_operator_request("user-admin-staff-toggler@example.com")
-    form = cast(ModelForm, SimpleNamespace(changed_data=["is_staff"]))
+    setattr(target, field, True)
+    request = admin_operator_request(f"user-admin-{field}-toggler@example.com")
+    form = cast(ModelForm, SimpleNamespace(changed_data=[field]))
 
     model_admin.save_model(request, target, form, True)
 
     target.refresh_from_db()
-    assert target.is_staff is True
+    assert getattr(target, field) is True
 
 
 # ---------------------------------------------------------------------------

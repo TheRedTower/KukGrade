@@ -16,6 +16,11 @@ from django.utils.translation import gettext_lazy as _
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import create_platform_user, update_platform_user
 
+# Editable on the admin change form but not through update_platform_user():
+# Django admin access, which KukGrade itself never hands out, and the two
+# dates Django's own UserAdmin exposes.
+ADMIN_ONLY_FIELDS = ("is_staff", "is_superuser", "last_login", "date_joined")
+
 
 class UserCreationForm(forms.ModelForm):
     password1 = forms.CharField(label="Password", widget=forms.PasswordInput)
@@ -195,3 +200,16 @@ class UserAdmin(DjangoUserAdmin):
             is_active=obj.is_active if "is_active" in changed_data else None,
             actor=cast(User, request.user),
         )
+        # The service writes only its own five fields, onto a locked copy of
+        # the row. Admin-only fields are applied here as the explicit second
+        # step they are on create, and only when the form changed them -
+        # never by saving this form's copy whole, which would write back
+        # whatever the service just changed.
+        admin_only = {
+            field: getattr(obj, field)
+            for field in ADMIN_ONLY_FIELDS
+            if field in changed_data
+        }
+        if admin_only:
+            User.objects.filter(pk=obj.pk).update(**admin_only)
+        obj.refresh_from_db()

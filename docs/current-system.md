@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-29.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 694 backend tests and 237 frontend tests passing
+Verified on 2026-09-29 with 716 backend tests and 237 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -139,7 +139,8 @@ checks on each push and pull request.
   withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
-  its row through the domain service inside its own savepoint, and one row's failure never blocks the others. Every response
+  its row through the domain service inside its own savepoint, and one row's refusal never blocks the others
+  (an unexpected error is not a refusal: it still fails the whole request, KG-A11). Every response
   lists what succeeded plus an `errors` map keyed by row index for what
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
@@ -226,10 +227,27 @@ checks on each push and pull request.
   PROTECT. `Promotion` and a finalised `CandidateOutcome` refuse
   `QuerySet.update()` as well as `save()`/`delete()` - the one path that
   could previously rewrite an immutable record from a shell.
-- **Row locking is consistent**: every `select_for_update()` in
-  `gradings/services.py` locks only its own row (`of=("self",)`), never a
-  joined session, student or rank row picked up incidentally through
-  `select_related`.
+- **One grading lock protocol** (`gradings/locking.py`, 2026-09-29, KG-A03,
+  KG-A04, KG-A12): every grading write locks its session first - that lock
+  coordinates everything inside the session - then any students, in
+  ascending id, and validates against rows re-read under those locks. This
+  covers transitions, the session-details edit (`update_grading_session`,
+  which the API and admin both use and which writes only the changed
+  fields), registration, candidate updates and moves (both sessions),
+  withdrawal, generation, assessment and item edits, outcomes, promotion,
+  and all three cleanup paths; `delete_student` locks the student's sessions
+  before the student. Bulk endpoints take every lock before their first
+  row's savepoint, since a lock first taken inside a rolled-back savepoint is
+  released. Locks are taken by join-free queries: a waiting
+  `FOR UPDATE` re-checks its joins against the row as the other transaction
+  left it, and PostgreSQL silently dropped a student whose rank had just
+  moved (previously a 500 in `promote_candidate`). Student and user edits
+  lock their row, apply only the requested fields, and write nothing for a
+  no-op; the user-row lock also makes a role change and a Master grant
+  mutually exclusive. Only the uniqueness race a create expects becomes a
+  `ValidationError` - identified by the table the violated constraint is on
+  - and anything else propagates rather than being reported as a
+  duplicate (KG-A11).
 - **Users API**: list, retrieve, create, partial update, plus two dedicated
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
@@ -512,10 +530,20 @@ checks on each push and pull request.
   proposal, finalisation and promotion, rank history - taking every
   identifier from the previous response, the way a real frontend must.
 - **Concurrency tests** (`gradings/test_concurrency.py`, marked
-  `concurrency`) prove five locking guarantees under a genuine multi-thread
-  race rather than by reading the code: exactly one snapshot, one outcome,
-  one finalisation and one promotion survive a race, and two competing
-  session transitions never leave a mixed state.
+  `concurrency`) prove the locking guarantees under a genuine multi-thread
+  race on PostgreSQL rather than by reading the code. Five race one
+  operation against itself: exactly one snapshot, one outcome, one
+  finalisation and one promotion survive, and competing session transitions
+  never leave a mixed state. Sixteen force a specific cross-operation
+  schedule with `interleave()`, which holds the first operation just before
+  it commits - no sleeps decide the order - and assert the one serial result
+  the protocol allows: item edit against completion, reopen and registration
+  and a candidate move against locking, withdrawal against finalisation,
+  cancellation against promotion, a details edit against cancellation,
+  assessment, session and student cleanup against a later promotion, bulk
+  promotion against session cleanup (previously a PostgreSQL deadlock), two
+  promotions of one student, and concurrent student, candidate and user
+  edits including a password change and a Master grant.
 - **Login is rate-limited**: `ScopedRateThrottle` at 10/min, scoped so no
   other endpoint is affected. A failed attempt is logged with the email
   only; no log line in the codebase ever includes a password or a raw

@@ -5,6 +5,7 @@ import itertools
 from datetime import date
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from django.apps import apps
@@ -51,6 +52,7 @@ from gradings.services import (
     applicable_syllabus_requirements,
     apply_candidate_update,
     build_candidate,
+    bulk_register_candidates,
     candidate_assessment_summary,
     create_candidate_outcome,
     delete_candidate_assessment,
@@ -59,6 +61,7 @@ from gradings.services import (
     generate_candidate_assessment,
     promote_candidate,
     propose_candidate_outcome,
+    register_candidate,
     reopen_candidate_assessment,
     resolve_age_band,
     student_rank_timeline,
@@ -2138,20 +2141,24 @@ def test_duplicate_assessment_is_prevented_at_database_level() -> None:
         )
 
 
-def test_generation_is_atomic_if_item_creation_fails(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_generation_is_atomic_if_item_creation_fails() -> None:
     built = candidate()
+    requirement = applicable_syllabus_requirements(built).first()
+    assert requirement is not None
 
-    def fail_bulk_create(*args: object, **kwargs: object) -> None:
-        raise IntegrityError("forced item failure")
-
-    monkeypatch.setattr(
-        CandidateAssessmentItem.objects, "bulk_create", fail_bulk_create
-    )
-
-    with pytest.raises(ValidationError):
-        assessment(candidate=built)
+    # The same requirement twice breaks the item snapshot's own uniqueness: a
+    # defect in the data, not a second assessment. It surfaces as the
+    # integrity error it is rather than as "already has an assessment"
+    # (KG-A11), and takes the half-built assessment with it.
+    with (
+        patch(
+            "gradings.services.applicable_syllabus_requirements",
+            return_value=[requirement, requirement],
+        ),
+        pytest.raises(IntegrityError),
+        transaction.atomic(),
+    ):
+        generate_candidate_assessment(built, user("snapshot-defect@example.com"))
 
     assert not CandidateAssessment.objects.filter(candidate=built).exists()
 
@@ -5559,3 +5566,121 @@ def test_a_locked_other_withdrawal_needs_a_note() -> None:
         )
 
     assert "withdrawal_note" in exc_info.value.message_dict
+
+
+# ---------------------------------------------------------------------------
+# KG-A11/KG-A12: expected constraint races, stale callers and no-op writes
+# ---------------------------------------------------------------------------
+
+
+def test_bulk_registration_reports_a_duplicate_insert_and_keeps_the_other_rows() -> (
+    None
+):
+    session = grading_session(status=GradingSession.Status.OPEN)
+    first, second = student(), student()
+    registrar = user("bulk-duplicate-registrar@example.com")
+
+    # Take full_clean()'s duplicate check out of the way so the second row
+    # really reaches the INSERT and the database refuses it - what a
+    # registration that somehow bypassed the session lock would meet.
+    with patch.object(
+        GradingCandidate,
+        "validate_constraints",
+        lambda self, exclude=None: None,
+    ):
+        created, errors = bulk_register_candidates(
+            session=session,
+            rows=[{"student": first}, {"student": first}, {"student": second}],
+            actor=registrar,
+        )
+
+    assert [registered.student_id for registered, _ in created] == [first.pk, second.pk]
+    assert errors == {"1": ["Student is already registered for this session."]}
+    registered_events = AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_REGISTERED,
+    ).values_list("entity_id", flat=True)
+    assert sorted(registered_events) == sorted(
+        str(registered.pk) for registered, _ in created
+    )
+
+
+def test_a_move_onto_an_existing_registration_is_refused_by_the_service() -> None:
+    # The duplicate is translated where the save happens, so Django admin -
+    # which calls the service directly - gets the same refusal the API did,
+    # instead of an IntegrityError (KG-A11).
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    both = student()
+    moving = candidate(session=source, student=both)
+    candidate(session=target, student=both)
+
+    with (
+        patch.object(
+            GradingCandidate,
+            "validate_constraints",
+            lambda self, exclude=None: None,
+        ),
+        pytest.raises(ValidationError) as refusal,
+    ):
+        apply_candidate_update(
+            moving,
+            session=target,
+            actor=user("duplicate-mover@example.com"),
+        )
+
+    assert refusal.value.message_dict == {
+        "student": ["Student is already registered for this session."],
+    }
+    moving.refresh_from_db()
+    assert moving.session_id == source.pk
+
+
+def test_registration_decides_on_the_student_as_stored_not_as_passed() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registered_before = student()
+    stale = Student.objects.get(pk=registered_before.pk)
+    Student.objects.filter(pk=registered_before.pk).update(status=Student.Status.LEFT)
+
+    with pytest.raises(ValidationError):
+        register_candidate(
+            session=session,
+            student=stale,
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=user("stale-registrar@example.com"),
+        )
+
+    assert not GradingCandidate.objects.filter(student=registered_before).exists()
+
+
+def test_a_no_op_candidate_update_writes_nothing() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    written_at = GradingCandidate.objects.get(pk=built.pk).updated_at
+
+    apply_candidate_update(
+        built,
+        notes=built.notes,
+        status=built.status,
+        actor=user("no-op-candidate-editor@example.com"),
+    )
+
+    assert GradingCandidate.objects.get(pk=built.pk).updated_at == written_at
+    assert not AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_UPDATED,
+        entity_id=str(built.pk),
+    ).exists()
+
+
+def test_admin_candidate_delete_goes_through_the_service() -> None:
+    session = grading_session(status=GradingSession.Status.DRAFT)
+    built = candidate(session=session)
+    request = admin_request("candidate-admin-deleter@example.com")
+    model_admin = GradingCandidateAdmin(GradingCandidate, admin.site)
+
+    model_admin.delete_model(request, built)
+
+    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
+    deleted = AuditEvent.objects.get(
+        action=AuditAction.CANDIDATE_DELETED,
+        entity_id=str(built.pk),
+    )
+    assert deleted.actor == request.user

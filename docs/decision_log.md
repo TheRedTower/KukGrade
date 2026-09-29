@@ -18,6 +18,47 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - One grading lock protocol: session, then students
+
+Status: Accepted
+
+Decision:
+Every grading write takes its row locks in one order (`gradings/locking.py`):
+the grading session first, then the session's own rows and any students,
+students in ascending id. A session's lock coordinates everything inside it.
+Validation runs only against rows re-read under the locks, and services apply
+the requested fields to the locked row instead of saving the instance they
+were handed. Bulk operations take every lock before their first row's
+savepoint. Locks are taken by join-free queries.
+
+Context:
+The 2026-09-29 independent audit (KG-A03, KG-A04, KG-A11, KG-A12) found that
+row locks on individual rows could not make cross-row rules atomic, and each
+schedule it described was reproduced on PostgreSQL before the fix: an item
+cleared while its assessment completed, a reopen or registration landing in a
+session that had just locked, a withdrawal deleting a decision finalised
+moments before, cleanup rolling a rank back over a newer promotion, bulk
+promotion and session cleanup deadlocking, and stale full-row saves undoing a
+cancellation, a status change, a note or a password change. A role change and
+a Master grant could both succeed. Separately, a lock query that joined the
+student's rank dropped a student whose rank had just moved, a 500 in
+`promote_candidate`.
+
+This does not reverse KG-021 (2026-09-13), which removed session and student
+locks picked up *incidentally* through `select_related`, in no order - the
+contention and deadlock surface it warned about came from that. These locks
+are deliberate, explicit and ordered.
+
+Consequences:
+Writes inside one session run one at a time. Each is a single-row edit that
+takes milliseconds, so live grading by several instructors is unaffected at
+this club's scale; revisit if a session ever holds long-running work.
+`delete_student` locks the student's sessions before the student, and asks
+for a retry in the rare case they register elsewhere in between. Hard-deleting
+a user still reassigns attribution rows without session locks; it touches
+attribution columns only, and PostgreSQL would resolve any deadlock by
+refusing one side.
+
 ### 2026-09-29 - Opening a grading session is confirmed
 
 Status: Accepted
@@ -954,6 +995,7 @@ is Administrator-group-only, mirroring `_DATA_CLEANUP_PERMISSIONS`.
 Five deliberate deviations from the reference spec (`KukGrade_Data_Import_
 Legacy_Migration_Definitive_Implementation_Spec.md`), each with concrete
 evidence/reasoning:
+
 1. **Tablib directly, not `django-import-export`.** PyPI/changelog evidence
    at decision time: Tablib 3.10.0 explicitly supports Python 3.14 (and even
    3.15); `django-import-export` 4.4.1 (latest stable) only classified

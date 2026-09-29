@@ -31,6 +31,14 @@ call those services, so the rules and the audit trail are identical however
 a change arrives. Models additionally refuse illegal states themselves, so the
 shell and bulk querysets cannot bypass them.
 
+Concurrent grading writes follow one lock protocol, `gradings/locking.py`:
+a grading session's row lock is taken first and coordinates everything inside
+that session; students, the one row two sessions share, are locked after it in
+ascending id; validation runs only against rows re-read under those locks. A
+service never saves the instance it was handed - it applies the requested
+fields to the locked row. Student and user edits lock their own row the same
+way.
+
 ## Frontend
 
 React with React Router and TanStack Query. API types are generated from

@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
 from django.db.models import Q, QuerySet
 from django.utils import timezone
+from psycopg import errors as pg_errors
 
 from accounts.models import User
 from accounts.permissions import (
@@ -18,6 +19,15 @@ from accounts.permissions import (
 )
 from audit.models import AuditAction
 from audit.recording import record
+from gradings.locking import (
+    STUDENT_GONE_MESSAGE,
+    lock_in_session,
+    lock_session,
+    lock_sessions_of,
+    lock_student,
+    lock_students,
+    require_pinned,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -123,11 +133,13 @@ def _each_independently[T, R](
 ) -> tuple[list[R], dict[str, list[str]]]:
     """Apply `action` to every row, each in its own savepoint.
 
-    The shared shape of every bulk endpoint: one row's failure - including an
-    IntegrityError it would otherwise leave poisoning the transaction - never
-    blocks the others. Returns what succeeded plus a map of row index to that
-    row's error messages. `.messages` flattens dict- and list-shaped
-    ValidationErrors alike.
+    The shared shape of every bulk endpoint: one row's refusal never blocks
+    the others. A refusal is a ValidationError - including the one uniqueness
+    race a service expects, which that service translates itself - and the
+    savepoint rolls back whatever the row had written. Any other exception is
+    a real failure and aborts the whole batch (KG-A11). Returns what
+    succeeded plus a map of row index to that row's error messages.
+    `.messages` flattens dict- and list-shaped ValidationErrors alike.
     """
     done: list[R] = []
     errors: dict[str, list[str]] = {}
@@ -138,6 +150,21 @@ def _each_independently[T, R](
         except ValidationError as exc:
             errors[str(index)] = exc.messages
     return done, errors
+
+
+def _unique_violation_on(exc: IntegrityError, model: type[models.Model]) -> bool:
+    """Whether `exc` broke a unique constraint on `model`'s own table.
+
+    That is the one integrity error a create expects - another request
+    creating the same record first - so it becomes a domain error. Anything
+    else is a real defect and propagates as itself rather than being
+    reported as a duplicate (KG-A11).
+    """
+    cause = exc.__cause__
+    return (
+        isinstance(cause, pg_errors.UniqueViolation)
+        and cause.diag.table_name == model._meta.db_table
+    )
 
 
 def calculate_age_on(date_of_birth: date, on_date: date) -> int:
@@ -302,9 +329,7 @@ def transition_grading_session(
         raise ValidationError(
             {"status": ["Unsaved grading sessions cannot be transitioned."]},
         )
-    locked_session = GradingSession.objects.select_for_update(of=("self",)).get(
-        pk=session.pk
-    )
+    locked_session = lock_session(session.pk)
     if locked_session.status == target_status:
         return locked_session
 
@@ -359,6 +384,39 @@ def transition_grading_session(
 
 
 @transaction.atomic
+def update_grading_session(
+    session: GradingSession,
+    *,
+    changes: Mapping[str, object],
+    target_status: str | None = None,
+    reason: str = "",
+    actor: User | None = None,
+) -> GradingSession:
+    """Edit a session's details and, if asked, move its status.
+
+    Only the fields in `changes` are written, onto the locked row. Saving the
+    caller's copy whole wrote back its status and cancellation reason too, so
+    a transition committed while the edit waited was silently undone
+    (KG-A12). The API and Django admin both edit through here - admin's form
+    has more editable fields than the API, which is why `changes` is a
+    mapping.
+    """
+    locked = lock_session(session.pk)
+    if changes:
+        for field, value in changes.items():
+            setattr(locked, field, value)
+        locked.save(update_fields=[*changes, "updated_at"])
+    if target_status is not None and target_status != locked.status:
+        locked = transition_grading_session(
+            locked,
+            target_status,
+            actor=actor,
+            reason=reason,
+        )
+    return locked
+
+
+@transaction.atomic
 def withdraw_locked_candidate(
     candidate: GradingCandidate,
     reason: str,
@@ -372,10 +430,11 @@ def withdraw_locked_candidate(
     exactly as recorded.
     """
     validate_locked_session_override_actor(actor)
-    locked_candidate = (
-        GradingCandidate.objects.select_for_update(of=("self",))
-        .select_related("session", "student")
-        .get(pk=candidate.pk)
+    locked_candidate = lock_in_session(
+        GradingCandidate.objects.select_related("session", "student"),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
     )
 
     if locked_candidate.session.status != GradingSession.Status.LOCKED:
@@ -686,10 +745,13 @@ def create_candidate_outcome(
     candidate: GradingCandidate,
     actor: User | None = None,
 ) -> CandidateOutcome:
-    locked_candidate = (
-        GradingCandidate.objects.select_for_update(of=("self",))
-        .select_related("session", "student", "testing_for_rank")
-        .get(pk=candidate.pk)
+    locked_candidate = lock_in_session(
+        GradingCandidate.objects.select_related(
+            "session", "student", "testing_for_rank"
+        ),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
     )
     validate_candidate_outcome_creation(locked_candidate)
     assessment = locked_candidate.assessment
@@ -698,17 +760,19 @@ def create_candidate_outcome(
             candidate=locked_candidate,
             assessment=assessment,
         )
-        record(
-            AuditAction.OUTCOME_CREATED,
-            outcome,
-            f"Outcome record opened for {locked_candidate.student}.",
-            actor=actor,
-        )
-        return outcome
     except IntegrityError as exc:
+        if not _unique_violation_on(exc, CandidateOutcome):
+            raise
         raise ValidationError(
             {"candidate": ["Candidate already has an outcome."]},
         ) from exc
+    record(
+        AuditAction.OUTCOME_CREATED,
+        outcome,
+        f"Outcome record opened for {locked_candidate.student}.",
+        actor=actor,
+    )
+    return outcome
 
 
 def _validate_outcome_choice(value: str, field_name: str) -> None:
@@ -723,10 +787,16 @@ def propose_candidate_outcome(
     proposal_notes: str,
     actor: User,
 ) -> CandidateOutcome:
-    locked_outcome = (
-        CandidateOutcome.objects.select_for_update(of=("self",))
-        .select_related("candidate__session", "assessment", "proposed_by", "decided_by")
-        .get(pk=outcome.pk)
+    locked_outcome = lock_in_session(
+        CandidateOutcome.objects.select_related(
+            "candidate__session",
+            "assessment",
+            "proposed_by",
+            "decided_by",
+        ),
+        outcome.pk,
+        session_path="candidate__session_id",
+        name="outcome",
     )
     validate_outcome_assessment_state(locked_outcome)
     if locked_outcome.status == CandidateOutcome.Status.FINALISED:
@@ -811,10 +881,16 @@ def finalise_candidate_outcome(
     actor: User,
 ) -> CandidateOutcome:
     validate_final_decision_actor(actor)
-    locked_outcome = (
-        CandidateOutcome.objects.select_for_update(of=("self",))
-        .select_related("candidate__session", "assessment", "proposed_by", "decided_by")
-        .get(pk=outcome.pk)
+    locked_outcome = lock_in_session(
+        CandidateOutcome.objects.select_related(
+            "candidate__session",
+            "assessment",
+            "proposed_by",
+            "decided_by",
+        ),
+        outcome.pk,
+        session_path="candidate__session_id",
+        name="outcome",
     )
     validate_outcome_assessment_state(locked_outcome)
     if locked_outcome.status != CandidateOutcome.Status.PROPOSED:
@@ -978,24 +1054,27 @@ def promote_candidate(
     rejected when not.
     """
     validate_promotion_actor(actor)
-    locked_outcome = (
-        CandidateOutcome.objects.select_for_update(of=("self",))
-        .select_related("candidate", "assessment")
-        .get(pk=outcome.pk)
+    locked_outcome = lock_in_session(
+        CandidateOutcome.objects.select_related("candidate", "assessment"),
+        outcome.pk,
+        session_path="candidate__session_id",
+        name="outcome",
     )
-    locked_candidate = (
-        GradingCandidate.objects.select_for_update(of=("self",))
-        .select_related("session", "student", "testing_for_rank")
-        .get(pk=locked_outcome.candidate_id)
+    locked_candidate = lock_in_session(
+        GradingCandidate.objects.select_related(
+            "session", "student", "testing_for_rank"
+        ),
+        locked_outcome.candidate_id,
+        session_path="session_id",
+        name="candidate",
     )
-    locked_assessment = CandidateAssessment.objects.select_for_update(of=("self",)).get(
-        pk=locked_outcome.assessment_id,
+    locked_assessment = lock_in_session(
+        CandidateAssessment.objects.all(),
+        locked_outcome.assessment_id,
+        session_path="candidate__session_id",
+        name="assessment",
     )
-    locked_student = (
-        Student.objects.select_for_update(of=("self",))
-        .select_related("current_rank")
-        .get(pk=locked_candidate.student_id)
-    )
+    locked_student = lock_student(locked_candidate.student_id)
     candidate_effective_date = locked_candidate.session.grading_date
     from_rank, to_rank = validate_promotion_eligibility(
         outcome=locked_outcome,
@@ -1017,6 +1096,8 @@ def promote_candidate(
             notes=notes,
         )
     except IntegrityError as exc:
+        if not _unique_violation_on(exc, Promotion):
+            raise
         raise ValidationError(
             {"promotion": ["Outcome or grading candidate already has a promotion."]},
         ) from exc
@@ -1061,11 +1142,29 @@ def bulk_promote_candidates(
     finalised PASS outcomes, from one to an entire session, promoted in a
     single request. One outcome that is not eligible (not finalised, not a
     PASS, already promoted) does not block the rest.
+
+    Every session and student is locked before the first row: taken row by
+    row, the students would be locked in row order, which is how two
+    batches - or a batch and a session cleanup - came to hold each other's
+    students (KG-A04).
     """
-    return _each_independently(
-        outcomes,
-        lambda outcome: promote_candidate(outcome, actor=actor),
+    pinned = lock_sessions_of(
+        CandidateOutcome,
+        [outcome.pk for outcome in outcomes],
+        "candidate__session_id",
     )
+    lock_students(
+        CandidateOutcome.objects.filter(pk__in=pinned).values_list(
+            "candidate__student_id",
+            flat=True,
+        ),
+    )
+
+    def promote(outcome: CandidateOutcome) -> Promotion:
+        require_pinned(outcome.pk, pinned, "outcome")
+        return promote_candidate(outcome, actor=actor)
+
+    return _each_independently(outcomes, promote)
 
 
 def student_rank_timeline(student: Student) -> StudentRankTimeline:
@@ -1345,23 +1444,31 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
     # *before* anything is mutated, so a promotion a later, different
     # session has already superseded refuses the whole deletion rather than
     # leaving the session half-erased.
+    locked = lock_session(session.pk)
+    validate_session_can_be_deleted(locked, actor=actor)
     reverted_student_ranks: list[dict[str, object]] = []
     if actor is not None and actor.has_perm(DELETE_ANY_SESSION_PERMISSION):
-        candidates = list(
-            session.candidates.select_related(
-                "student",
-                "outcome__promotion__from_rank",
-                "outcome__promotion__to_rank",
+        promotions = list(
+            Promotion.objects.filter(grading_candidate__session=locked)
+            .select_related("from_rank", "to_rank")
+            .order_by(
+                "grading_candidate__student__last_name",
+                "grading_candidate__student__first_name",
+                "pk",
             ),
         )
-        promotions_to_delete = []
-        for candidate in candidates:
-            outcome = getattr(candidate, "outcome", None)
-            promotion = getattr(outcome, "promotion", None) if outcome else None
-            if promotion is not None:
-                validate_assessment_deletion_promotion(promotion, candidate.student)
-                promotions_to_delete.append((candidate.student, promotion))
-        for student, promotion in promotions_to_delete:
+        # Checked against each student as they are now, under the student's
+        # lock, not as a join read them: a promotion from another session can
+        # move a student on at any moment, and rolling back to this one's
+        # from_rank would then overwrite it (KG-A04).
+        students = lock_students(promotion.student_id for promotion in promotions)
+        for promotion in promotions:
+            validate_assessment_deletion_promotion(
+                promotion,
+                students[promotion.student_id],
+            )
+        for promotion in promotions:
+            student = students[promotion.student_id]
             reverted_student_ranks.append(
                 {
                     "student_id": student.pk,
@@ -1374,7 +1481,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
                 current_rank=promotion.from_rank,
             )
             models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
-        CandidateOutcome.objects.filter(candidate__session=session).delete()
+        CandidateOutcome.objects.filter(candidate__session=locked).delete()
 
     # Recorded before the row goes, so the event still carries its identity.
     #
@@ -1383,13 +1490,13 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
     # captured here rather than emitting one event per candidate, which on a
     # twenty-candidate session would bury the deletion that caused it.
     cascaded = list(
-        session.candidates.values_list("id", "student__wksa_id"),
+        locked.candidates.values_list("id", "student__wksa_id"),
     )
     record(
         AuditAction.SESSION_DELETED,
-        session,
+        locked,
         (
-            f"Grading session '{session.title}' deleted while {session.status}"
+            f"Grading session '{locked.title}' deleted while {locked.status}"
             + (
                 f", removing {len(cascaded)} registered candidate(s)."
                 if cascaded
@@ -1398,8 +1505,8 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
         ),
         actor=actor,
         metadata={
-            "status": session.status,
-            "title": session.title,
+            "status": locked.status,
+            "title": locked.title,
             "cascaded_candidates": [
                 {"id": candidate_id, "student_wksa_id": wksa_id}
                 for candidate_id, wksa_id in cascaded
@@ -1407,7 +1514,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
             "reverted_student_ranks": reverted_student_ranks,
         },
     )
-    session.delete(actor=actor)
+    locked.delete(actor=actor)
 
 
 @transaction.atomic
@@ -1419,24 +1526,47 @@ def register_candidate(
     notes: str = "",
     actor: User | None = None,
 ) -> GradingCandidate:
+    # The student is locked and re-read, not taken as passed: eligibility,
+    # the next rank and the from_rank snapshot are all decided on it, and the
+    # caller's copy was loaded before this transaction began.
+    locked_session = lock_session(session.pk)
+    locked_student = lock_student(student.pk)
     candidate = build_candidate(
-        session=session,
-        student=student,
+        session=locked_session,
+        student=locked_student,
         testing_for_rank=testing_for_rank,
         notes=notes,
     )
-    candidate.save()
+    _save_candidate(candidate)
     record(
         AuditAction.CANDIDATE_REGISTERED,
         candidate,
         (
-            f"{student} registered for '{session.title}' testing for "
-            f"{testing_for_rank.name}."
+            f"{locked_student} registered for '{locked_session.title}' testing "
+            f"for {testing_for_rank.name}."
         ),
         actor=actor,
         metadata={"age_band": candidate.age_band},
     )
     return candidate
+
+
+ALREADY_REGISTERED_MESSAGE = "Student is already registered for this session."
+
+
+def _save_candidate(candidate: GradingCandidate) -> None:
+    """Save, turning the one expected constraint race into a domain error.
+
+    The session lock already stops two registrations of one student racing,
+    and full_clean() refuses a duplicate it can see; this is the backstop if
+    either is ever bypassed (KG-A11).
+    """
+    try:
+        candidate.save()
+    except IntegrityError as exc:
+        if not _unique_violation_on(exc, GradingCandidate):
+            raise
+        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]}) from exc
 
 
 @transaction.atomic
@@ -1469,12 +1599,19 @@ def bulk_register_candidates(
     Returns a (candidate, assessment) pair per created row - assessment is
     `None` unless `generate_assessments` was set - and a map of row index to
     error messages for the rows that failed.
+
+    The session and every student are locked before the first row, so no
+    row's savepoint takes a lock of its own that a failure would release.
     """
+    locked_session = lock_session(session.pk)
+    students = lock_students(cast(Student, row["student"]).pk for row in rows)
 
     def register_row(
         row: Mapping[str, object],
     ) -> tuple[GradingCandidate, CandidateAssessment | None]:
-        row_student = cast(Student, row["student"])
+        row_student = students.get(cast(Student, row["student"]).pk)
+        if row_student is None:
+            raise ValidationError({"student": [STUDENT_GONE_MESSAGE]})
         testing_for_rank = cast(Rank | None, row.get("testing_for_rank"))
         if testing_for_rank is None:
             testing_for_rank = get_next_active_rank(row_student.current_rank)
@@ -1483,7 +1620,7 @@ def bulk_register_candidates(
                     {"testing_for_rank": ["Student has no next active rank."]},
                 )
         registered = register_candidate(
-            session=session,
+            session=locked_session,
             student=row_student,
             testing_for_rank=testing_for_rank,
             notes=cast(str, row.get("notes", "")),
@@ -1524,17 +1661,24 @@ def apply_candidate_update(
     withdrawal_note: str | None = None,
     actor: User | None = None,
 ) -> GradingCandidate:
-    # Read fresh from the database rather than snapshotting the `candidate`
-    # argument as received: Django admin's own save flow constructs the new
-    # field values onto this exact instance before save_model() ever runs,
-    # so by the time this function saw it here it could already carry the
-    # new values - which would make every real admin edit look like a no-op
-    # and go unrecorded. The API path is unaffected either way, since DRF
-    # passes the unmodified instance.
-    before = _candidate_snapshot(GradingCandidate.objects.get(pk=candidate.pk))
+    # Only `candidate`'s id is used. The API loaded it before this
+    # transaction began, and Django admin has already written its form onto
+    # it, so saving it as received wrote back whatever another edit changed
+    # in the meantime (KG-A12). The requested changes go onto the locked row,
+    # and a move locks the destination session in the same ascending pass.
+    locked = lock_in_session(
+        GradingCandidate.objects.select_related(
+            "session", "student", "testing_for_rank"
+        ),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
+        also_lock=[session.pk] if session is not None else [],
+    )
+    before = _candidate_snapshot(locked)
     updated = update_candidate(
-        candidate,
-        session=session,
+        locked,
+        session=lock_session(session.pk) if session is not None else None,
         testing_for_rank=testing_for_rank,
         status=status,
         notes=notes,
@@ -1542,13 +1686,15 @@ def apply_candidate_update(
         withdrawal_note=withdrawal_note,
         actor=actor,
     )
-    updated.save()
-
+    # The same normalising clean() that save() runs, so a resent value that
+    # only differs by surrounding whitespace still counts as unchanged.
+    updated.full_clean()
     after = _candidate_snapshot(updated)
     if before == after:
-        # A no-op PATCH (resending the same values) writes nothing: an audit
-        # trail exists to show what changed, and nothing did.
+        # A no-op PATCH (resending the same values) writes nothing at all -
+        # no row update and no audit event.
         return updated
+    _save_candidate(updated)
 
     withdrawn = (
         before["status"] != GradingCandidate.Status.WITHDRAWN
@@ -1570,14 +1716,21 @@ def apply_candidate_update(
 
 @transaction.atomic
 def delete_candidate(candidate: GradingCandidate, actor: User | None = None) -> None:
+    locked = lock_in_session(
+        GradingCandidate.objects.select_related("session", "student"),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
+    )
+    validate_candidate_can_be_deleted(locked)
     record(
         AuditAction.CANDIDATE_DELETED,
-        candidate,
-        f"{candidate.student} removed from '{candidate.session.title}'.",
+        locked,
+        f"{locked.student} removed from '{locked.session.title}'.",
         actor=actor,
-        metadata={"status": candidate.status},
+        metadata={"status": locked.status},
     )
-    candidate.delete()
+    locked.delete()
 
 
 def validate_assessment_deletion_promotion(
@@ -1621,17 +1774,24 @@ def delete_candidate_assessment(
       unbound base implementation - bypassing `PromotionQuerySet.delete()`
       on purpose rather than by omission.
     """
-    locked = (
-        CandidateAssessment.objects.select_for_update(of=("self",))
-        .select_related("candidate__student", "candidate__session")
-        .get(pk=assessment.pk)
+    locked = lock_in_session(
+        CandidateAssessment.objects.select_related(
+            "candidate__student",
+            "candidate__session",
+        ),
+        assessment.pk,
+        session_path="candidate__session_id",
+        name="assessment",
     )
     outcome = getattr(locked, "outcome", None)
     promotion = getattr(outcome, "promotion", None) if outcome else None
 
     reverted_rank: dict[str, str] | None = None
     if promotion is not None:
-        student = locked.candidate.student
+        # Locked and re-read, not taken from the join above: a promotion from
+        # another session can move the student on at any moment, and rolling
+        # back to this one's from_rank would then overwrite it (KG-A04).
+        student = lock_student(locked.candidate.student_id)
         validate_assessment_deletion_promotion(promotion, student)
         reverted_rank = {"from": promotion.to_rank.code, "to": promotion.from_rank.code}
         Student.objects.filter(pk=student.pk).update(current_rank=promotion.from_rank)
@@ -1717,10 +1877,13 @@ def generate_candidate_assessment(
     candidate: GradingCandidate,
     generated_by: User,
 ) -> CandidateAssessment:
-    locked_candidate = (
-        GradingCandidate.objects.select_for_update(of=("self",))
-        .select_related("session", "student", "testing_for_rank")
-        .get(pk=candidate.pk)
+    locked_candidate = lock_in_session(
+        GradingCandidate.objects.select_related(
+            "session", "student", "testing_for_rank"
+        ),
+        candidate.pk,
+        session_path="session_id",
+        name="candidate",
     )
     validate_assessment_generation_candidate(locked_candidate)
     if hasattr(locked_candidate, "assessment"):
@@ -1746,6 +1909,11 @@ def generate_candidate_assessment(
             ],
         )
     except IntegrityError as exc:
+        # Only a second assessment for this candidate is expected here. A
+        # clash inside the item snapshot is a defect in the syllabus data
+        # and propagates as one.
+        if not _unique_violation_on(exc, CandidateAssessment):
+            raise
         raise ValidationError(
             {"candidate": ["Candidate already has an assessment snapshot."]},
         ) from exc
@@ -1773,10 +1941,17 @@ def bulk_generate_candidate_assessments(
     One candidate's assessment already existing does not block generation
     for the rest of the batch.
     """
-    return _each_independently(
-        candidates,
-        lambda candidate: generate_candidate_assessment(candidate, generated_by),
+    pinned = lock_sessions_of(
+        GradingCandidate,
+        [candidate.pk for candidate in candidates],
+        "session_id",
     )
+
+    def generate(candidate: GradingCandidate) -> CandidateAssessment:
+        require_pinned(candidate.pk, pinned, "candidate")
+        return generate_candidate_assessment(candidate, generated_by)
+
+    return _each_independently(candidates, generate)
 
 
 @transaction.atomic
@@ -1794,16 +1969,23 @@ def bulk_update_candidate_status(
     show up, set WITHDRAWN, and confirm - the rest are left untouched. One
     candidate's session already being locked does not block the others.
     """
-    return _each_independently(
-        candidates,
-        lambda candidate: apply_candidate_update(
+    pinned = lock_sessions_of(
+        GradingCandidate,
+        [candidate.pk for candidate in candidates],
+        "session_id",
+    )
+
+    def update_status(candidate: GradingCandidate) -> GradingCandidate:
+        require_pinned(candidate.pk, pinned, "candidate")
+        return apply_candidate_update(
             candidate,
             status=new_status,
             withdrawal_reason=withdrawal_reason,
             withdrawal_note=withdrawal_note,
             actor=actor,
-        ),
-    )
+        )
+
+    return _each_independently(candidates, update_status)
 
 
 def validate_assessment_can_start(assessment: CandidateAssessment) -> None:
@@ -1857,10 +2039,14 @@ def update_candidate_assessment(
     notes: str | None = None,
     actor: User | None = None,
 ) -> CandidateAssessment:
-    locked_assessment = (
-        CandidateAssessment.objects.select_for_update(of=("self",))
-        .select_related("candidate__session")
-        .get(pk=assessment.pk)
+    locked_assessment = lock_in_session(
+        CandidateAssessment.objects.select_related(
+            "candidate__session",
+            "candidate__student",
+        ),
+        assessment.pk,
+        session_path="candidate__session_id",
+        name="assessment",
     )
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
         raise ValidationError({"status": ["Completed assessments are immutable."]})
@@ -1920,10 +2106,14 @@ def reopen_candidate_assessment(
     assessment is completed again. Item results and their attribution are
     kept exactly as recorded.
     """
-    locked_assessment = (
-        CandidateAssessment.objects.select_for_update(of=("self",))
-        .select_related("candidate__session", "candidate__student")
-        .get(pk=assessment.pk)
+    locked_assessment = lock_in_session(
+        CandidateAssessment.objects.select_related(
+            "candidate__session",
+            "candidate__student",
+        ),
+        assessment.pk,
+        session_path="candidate__session_id",
+        name="assessment",
     )
     if locked_assessment.status != CandidateAssessment.Status.COMPLETED:
         raise ValidationError(
@@ -1973,14 +2163,21 @@ def bulk_start_candidate_assessments(
     their snapshots. One assessment already started, or its session having
     since locked, does not block the rest.
     """
-    return _each_independently(
-        assessments,
-        lambda assessment: update_candidate_assessment(
+    pinned = lock_sessions_of(
+        CandidateAssessment,
+        [assessment.pk for assessment in assessments],
+        "candidate__session_id",
+    )
+
+    def start(assessment: CandidateAssessment) -> CandidateAssessment:
+        require_pinned(assessment.pk, pinned, "assessment")
+        return update_candidate_assessment(
             assessment,
             status=CandidateAssessment.Status.IN_PROGRESS,
             actor=actor,
-        ),
-    )
+        )
+
+    return _each_independently(assessments, start)
 
 
 def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
@@ -2013,10 +2210,13 @@ def update_candidate_assessment_item(
     assessor_notes: str | None = None,
     assessor: User,
 ) -> CandidateAssessmentItem:
-    locked_item = (
-        CandidateAssessmentItem.objects.select_for_update(of=("self",))
-        .select_related("assessment__candidate__session")
-        .get(pk=item.pk)
+    locked_item = lock_in_session(
+        CandidateAssessmentItem.objects.select_related(
+            "assessment__candidate__session",
+        ),
+        item.pk,
+        session_path="assessment__candidate__session_id",
+        name="item",
     )
     validate_assessment_item_can_be_changed(locked_item)
     previous_result = locked_item.result

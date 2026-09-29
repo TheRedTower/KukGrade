@@ -300,13 +300,17 @@ clears all four withdrawal fields.
 
 Bulk endpoints process every row **independently**, not all-or-nothing: each
 row is validated and saved through the same domain service a single change
-would use, in its own savepoint. One row failing does not stop
+would use, in its own savepoint. One row being refused does not stop
 the others - registering ten students does not fail all ten because one of
 them was already registered. Every bulk endpoint returns `200` with the same
 two-key shape: the list of what succeeded, and an `errors` map keyed by the
 zero-based index of each row that failed (e.g.
 `{"1": ["Student is already registered for this session."]}`). A caller
-always knows exactly which rows landed and which did not, and why.
+always knows exactly which rows landed and which did not, and why. A refusal
+is a validation error; an unexpected server error is not one, and still
+fails the whole request with `500`, saving nothing. A row whose candidate,
+assessment or outcome was removed or moved to another session while the
+batch was starting is refused with a message saying so.
 
 `POST /api/gradings/candidates/bulk-register/` body:
 

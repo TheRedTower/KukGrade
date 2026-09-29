@@ -4,7 +4,6 @@ from typing import Any, cast
 
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
 from django.forms import ModelForm
 from django.http import HttpRequest
 
@@ -20,15 +19,15 @@ from gradings.models import (
 from gradings.services import (
     apply_candidate_update,
     create_grading_session,
+    delete_candidate,
     delete_grading_session,
     register_candidate,
-    transition_grading_session,
     update_candidate_assessment,
     update_candidate_assessment_item,
+    update_grading_session,
     validate_candidate_can_be_deleted,
     validate_grading_session_transition,
     validate_session_can_be_deleted,
-    validate_session_grading_date_change,
 )
 
 
@@ -86,6 +85,10 @@ class StateGatedDeleteMixin:
     """
 
     deletion_validator: Any
+    # The service that performs the delete - taking its locks, re-checking
+    # the rule on the locked row and recording the deletion, none of which a
+    # bare obj.delete() does (KG-036, KG-A03).
+    deletion_service: Any
 
     def has_delete_permission(
         self,
@@ -124,12 +127,7 @@ class StateGatedDeleteMixin:
         self._perform_delete(request, obj)
 
     def _perform_delete(self, request: HttpRequest, obj: Any) -> None:
-        # Default: the model's own delete(). GradingSessionAdmin overrides
-        # this to route through delete_grading_session() instead, the same
-        # way save_model() above routes through the service rather than a
-        # bare save() (KG-036) - a raw obj.delete() would neither pass an
-        # actor nor strip Promotion/CandidateOutcome rows first.
-        obj.delete()
+        type(self).deletion_service(obj, actor=cast(User, request.user))
 
     def _is_deletable(self, obj: Any, actor: User | None = None) -> bool:
         try:
@@ -142,6 +140,7 @@ class StateGatedDeleteMixin:
 @admin.register(GradingSession)
 class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     deletion_validator = staticmethod(validate_session_can_be_deleted)
+    deletion_service = staticmethod(delete_grading_session)
     form = GradingSessionAdminForm
     list_display = (
         "title",
@@ -154,9 +153,6 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     search_fields = ("title", "location")
     ordering = ("-grading_date", "created_at")
     list_select_related = ("created_by",)
-
-    def _perform_delete(self, request: HttpRequest, obj: GradingSession) -> None:
-        delete_grading_session(obj, actor=cast(User, request.user))
 
     def save_model(
         self,
@@ -179,31 +175,18 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
             obj.refresh_from_db()
             return
 
+        # The same service the API edits through: only the changed fields are
+        # written, onto the locked row, and a status change becomes a
+        # transition rather than a plain field write (KG-A12).
         changed_data = set(form.changed_data)
-        if "status" not in changed_data:
-            if "grading_date" in changed_data:
-                validate_session_grading_date_change(obj)
-            super().save_model(request, obj, form, change)
-            return
-
-        target_status = obj.status
-        persisted_status = GradingSession.objects.values_list(
-            "status",
-            flat=True,
-        ).get(pk=obj.pk)
-        obj.status = persisted_status
-        with transaction.atomic():
-            if changed_data - {"status"}:
-                if "grading_date" in changed_data:
-                    validate_session_grading_date_change(obj)
-                super().save_model(request, obj, form, change)
-            transitioned = transition_grading_session(
-                obj,
-                target_status,
-                actor=cast(User, request.user),
-                reason=obj.cancellation_reason,
-            )
-        obj.status = transitioned.status
+        update_grading_session(
+            obj,
+            changes={field: getattr(obj, field) for field in changed_data - {"status"}},
+            target_status=obj.status if "status" in changed_data else None,
+            reason=obj.cancellation_reason,
+            actor=cast(User, request.user),
+        )
+        obj.refresh_from_db()
 
 
 @admin.register(CandidateAssessment)
@@ -392,6 +375,7 @@ class GradingCandidateAdminForm(ModelForm):
 @admin.register(GradingCandidate)
 class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     deletion_validator = staticmethod(validate_candidate_can_be_deleted)
+    deletion_service = staticmethod(delete_candidate)
     form = GradingCandidateAdminForm
     list_display = (
         "session",

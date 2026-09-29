@@ -1166,6 +1166,8 @@ describe("Overview screen (Operational Ledger)", () => {
         age_band_display: "18+",
         status: "REGISTERED",
         withdrawal_reason_display: "",
+        can_be_moved: false,
+        can_be_removed: false,
       },
       {
         id: 202,
@@ -1180,6 +1182,8 @@ describe("Overview screen (Operational Ledger)", () => {
         age_band_display: "18+",
         status: "REGISTERED",
         withdrawal_reason_display: "",
+        can_be_moved: false,
+        can_be_removed: false,
       },
     ] satisfies GradingCandidate[];
 
@@ -2964,6 +2968,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
     },
     {
@@ -2981,6 +2987,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
     },
     {
@@ -2998,6 +3006,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
     },
   ];
@@ -3176,6 +3186,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           status_display: "Withdrawn",
           withdrawal_reason: "INJURY",
           withdrawal_reason_display: "Injured during grading",
+          can_be_moved: false,
+          can_be_removed: false,
           withdrawal_note: "Unable to continue safely.",
           withdrawn_by: authenticatedUser.id,
           withdrawn_by_email: authenticatedUser.email,
@@ -3413,6 +3425,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         status: "WITHDRAWN" as const,
         withdrawal_reason: "INJURY" as const,
         withdrawal_reason_display: "Injured during grading",
+        can_be_moved: false,
+        can_be_removed: false,
         withdrawal_note: "Unable to continue safely.",
       },
       ...testCandidates.slice(1),
@@ -4342,6 +4356,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   };
 
@@ -4768,6 +4784,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   };
 

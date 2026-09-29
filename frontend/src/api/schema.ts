@@ -1425,6 +1425,8 @@ export interface components {
             withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
             withdrawal_note?: string;
+            readonly can_be_moved: boolean;
+            readonly can_be_removed: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered

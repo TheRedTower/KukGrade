@@ -1582,6 +1582,37 @@ def test_candidate_api_delete_rules_work() -> None:
     )
 
 
+def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+    draft_session = grading_session(
+        status=GradingSession.Status.DRAFT,
+        title="Draft grading",
+    )
+    unassessed = candidate(session=open_session, student=student(wksa_id="FLAG001"))
+    started = candidate(session=open_session, student=student(wksa_id="FLAG002"))
+    start_assessment(assessment(candidate=started))
+    prepared = candidate(session=draft_session, student=student(wksa_id="FLAG003"))
+    assessment(candidate=prepared)
+    client = auth_client("candidate-flags@example.com")
+
+    rows = {row["id"]: row for row in results(client.get("/api/gradings/candidates/"))}
+
+    assert [
+        (rows[c.id]["can_be_moved"], rows[c.id]["can_be_removed"])
+        for c in (unassessed, started, prepared)
+    ] == [(True, True), (False, False), (False, True)]
+    assert client.delete(f"/api/gradings/candidates/{started.id}/").status_code == 400
+    assert client.delete(f"/api/gradings/candidates/{prepared.id}/").status_code == 204
+    assert (
+        client.patch(
+            f"/api/gradings/candidates/{unassessed.id}/",
+            {"session": draft_session.id},
+            format="json",
+        ).status_code
+        == 200
+    )
+
+
 def test_bulk_register_creates_every_candidate_in_one_request() -> None:
     session = grading_session()
     first_student = student(wksa_id="BULKREG001")

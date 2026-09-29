@@ -88,6 +88,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
   {
@@ -105,6 +107,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
   {
@@ -122,6 +126,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
   {
@@ -139,6 +145,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
   {
@@ -156,6 +164,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
   {
@@ -173,6 +183,8 @@ const mockCandidates: GradingCandidate[] = [
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
   },
 ];

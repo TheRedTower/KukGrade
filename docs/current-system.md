@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-29.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 678 backend tests and 231 frontend tests passing
+Verified on 2026-09-29 with 679 backend tests and 231 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -145,12 +145,14 @@ checks on each push and pull request.
   resolves to that student's own next active rank when omitted, so a
   mixed-belt group registers in one request with no rank picked at all.
 - **Registrations (2026-09-28)**: `bulk-register` is the only way to register
-  a candidate - there is no single-item create. While a session is `DRAFT`
-  or `OPEN`, each roster row offers "Move…" (`PATCH` the registration's
-  `session` to another draft or open session; refused once an assessment has
-  been prepared) and "Remove" (`DELETE`, which also removes any assessment
-  work and is audited). Withdrawing stays the way to record that a candidate
-  did not grade.
+  a candidate - there is no single-item create. Each roster row offers
+  "Move…" (`PATCH` the registration's `session` to another draft or open
+  session) and "Remove" (`DELETE`, audited) only when the server says the
+  registration allows it: every candidate carries `can_be_moved` (no assessment
+  yet, session draft or open) and `can_be_removed` (session draft or open, and
+  any assessment not started; only a draft session may hold one), computed from
+  the same validators the write endpoints use. Withdrawing stays the way to
+  record that a candidate did not grade.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments

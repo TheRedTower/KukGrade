@@ -173,7 +173,7 @@ function openSession(overrides: Partial<GradingSession> = {}): GradingSession {
   return { ...lockedSession(), status: "OPEN", status_display: "Open", ...overrides };
 }
 
-function registeredCandidate(): GradingCandidate {
+function registeredCandidate(overrides: Partial<GradingCandidate> = {}): GradingCandidate {
   return {
     id: 31,
     session: 7,
@@ -189,7 +189,10 @@ function registeredCandidate(): GradingCandidate {
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: true,
+    can_be_removed: true,
     withdrawal_note: "",
+    ...overrides,
   };
 }
 
@@ -266,19 +269,33 @@ describe("GradingSessionDetailScreen registration actions", () => {
 
     await user.click(await screen.findByRole("button", { name: "Remove Mia Okafor's registration" }));
     const dialog = screen.getByRole("dialog", { name: "Remove Mia Okafor" });
-    expect(dialog).toHaveTextContent("any assessment work recorded for it");
+    expect(dialog).toHaveTextContent("its assessment, which has not been started");
     await user.click(within(dialog).getByRole("button", { name: "Remove registration" }));
 
     await waitFor(() => expect(mockDeleteGradingCandidate).toHaveBeenCalledWith(31));
     expect(await screen.findByText("Mia Okafor was removed from this session.")).toBeVisible();
   });
 
-  it("offers no move or remove once the session is locked", async () => {
-    mockGetGradingSession.mockResolvedValue(lockedSession());
+  it("offers only the actions the server says the registration allows", async () => {
+    mockGetAllGradingCandidates.mockResolvedValue({
+      ...emptyPage(),
+      count: 2,
+      results: [
+        registeredCandidate({ can_be_moved: false }),
+        registeredCandidate({
+          id: 32,
+          student: 132,
+          student_display_name: "Ben Hall",
+          can_be_moved: false,
+          can_be_removed: false,
+        }),
+      ],
+    });
     renderScreen();
 
-    await screen.findByText("Mia Okafor");
+    await screen.findByText("Ben Hall");
     expect(screen.queryByRole("button", { name: /to another session/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /registration$/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Remove Mia Okafor's registration" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Remove Ben Hall's registration" })).toBeNull();
   });
 });

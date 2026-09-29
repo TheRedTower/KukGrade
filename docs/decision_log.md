@@ -18,6 +18,31 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - The server says whether a registration can be moved or removed
+
+Status: Accepted
+
+Decision:
+Every candidate carries `can_be_moved` and `can_be_removed`, computed by
+`candidate_can_change_session` and `candidate_can_be_deleted` from the same
+validators the `PATCH` and `DELETE` use. The session screen shows "Move…" and
+"Remove" only when they are true, and the Remove dialog no longer claims it
+removes recorded assessment work. The write rules themselves are unchanged: a
+candidate with an assessment cannot change session, and can be removed only
+while the session is `DRAFT` and the assessment is `NOT_STARTED`.
+
+Context:
+Code review of PR #8 found that the roster offered Remove in every `OPEN`
+session, but assessments are normally generated at registration, so the
+common case ended in a 400. Move had the same fault. Gating on session status
+in React would have restated a grading rule the backend owns.
+
+Consequences:
+A registration made in error in an `OPEN` session that already has an
+assessment cannot be removed from the roster; the administrator-only
+assessment delete is the way out. Relaxing the rule to allow removing an
+unstarted assessment in an `OPEN` session is a separate decision.
+
 ### 2026-09-29 - Cancellation reason is write-only; the redesign handoff is retired
 
 Status: Accepted

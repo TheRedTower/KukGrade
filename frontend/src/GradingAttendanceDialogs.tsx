@@ -308,7 +308,7 @@ export function RemoveRegistrationDialog({
       onClose={onClose}
     >
       <p className="attendance-dialog-copy">
-        Removes this registration and any assessment work recorded for it. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
+        Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
       </p>
       {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
       <div className="attendance-dialog-actions">

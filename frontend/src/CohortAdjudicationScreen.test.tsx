@@ -94,6 +94,8 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
     ...overrides,
   };

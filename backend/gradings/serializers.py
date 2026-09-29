@@ -23,6 +23,8 @@ from gradings.services import (
     OverallAssessmentSummary,
     apply_candidate_update,
     candidate_assessment_summary,
+    candidate_can_be_deleted,
+    candidate_can_change_session,
     create_grading_session,
     finalise_candidate_outcome,
     promote_candidate,
@@ -131,8 +133,17 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         read_only=True,
     )
 
+    can_be_moved = serializers.SerializerMethodField()
+    can_be_removed = serializers.SerializerMethodField()
+
     def get_student_display_name(self, instance: GradingCandidate) -> str:
         return f"{instance.student.first_name} {instance.student.last_name}".strip()
+
+    def get_can_be_moved(self, instance: GradingCandidate) -> bool:
+        return candidate_can_change_session(instance)
+
+    def get_can_be_removed(self, instance: GradingCandidate) -> bool:
+        return candidate_can_be_deleted(instance)
 
     def validate_student(self, value: Student) -> Student:
         if self.instance is not None and value.pk != self.instance.student_id:
@@ -157,6 +168,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "withdrawal_reason",
             "withdrawal_reason_display",
             "withdrawal_note",
+            "can_be_moved",
+            "can_be_removed",
         )
         read_only_fields = (
             "id",

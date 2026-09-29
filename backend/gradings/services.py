@@ -625,6 +625,23 @@ def validate_candidate_can_be_deleted(
         )
 
 
+def candidate_can_be_deleted(candidate: GradingCandidate) -> bool:
+    try:
+        validate_candidate_can_be_deleted(candidate)
+    except ValidationError:
+        return False
+    return True
+
+
+def candidate_can_change_session(candidate: GradingCandidate) -> bool:
+    try:
+        validate_candidate_can_be_changed(candidate)
+        validate_candidate_assessment_changes(candidate, session_changed=True)
+    except ValidationError:
+        return False
+    return True
+
+
 def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
     if outcome.assessment.status != CandidateAssessment.Status.COMPLETED:
         raise ValidationError(

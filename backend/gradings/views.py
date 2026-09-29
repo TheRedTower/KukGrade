@@ -159,6 +159,9 @@ class GradingCandidateViewSet(
             "student",
             "from_rank",
             "testing_for_rank",
+            "session",
+            "assessment",
+            "outcome",
         ).order_by(
             "session__grading_date",
             "student__last_name",

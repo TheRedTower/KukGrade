@@ -1186,25 +1186,25 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                               {nextActionLabel}
                             </Link>
                           )}
-                          {(session.status === "DRAFT" || session.status === "OPEN") && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn-ghost gsd-row-action-btn"
-                                onClick={() => setRegistrationAction({ kind: "move", item })}
-                                aria-label={`Move ${item.candidate.student_display_name} to another session`}
-                              >
-                                Move…
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
-                                onClick={() => setRegistrationAction({ kind: "remove", item })}
-                                aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
-                              >
-                                Remove
-                              </button>
-                            </>
+                          {item.candidate.can_be_moved && (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn"
+                              onClick={() => setRegistrationAction({ kind: "move", item })}
+                              aria-label={`Move ${item.candidate.student_display_name} to another session`}
+                            >
+                              Move…
+                            </button>
+                          )}
+                          {item.candidate.can_be_removed && (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                              onClick={() => setRegistrationAction({ kind: "remove", item })}
+                              aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
+                            >
+                              Remove
+                            </button>
                           )}
                           {canWithdrawLocked && (
                             <button

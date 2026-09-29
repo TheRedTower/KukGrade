@@ -265,6 +265,10 @@ the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
 candidate actually started.
 
+Every candidate response also carries `can_be_moved` and `can_be_removed`,
+read-only booleans computed by the same validators as `PATCH` of `session` and
+`DELETE`, so a client offers only what the server would accept.
+
 A candidate is always created `REGISTERED`; `bulk-register` rows carry no
 status or withdrawal fields. A registration's `student` never
 changes: sending a different one is a `400` (remove the candidate and

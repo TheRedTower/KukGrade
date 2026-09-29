@@ -2929,8 +2929,16 @@ components:
           readOnly: true
         withdrawal_note:
           type: string
+        can_be_moved:
+          type: boolean
+          readOnly: true
+        can_be_removed:
+          type: boolean
+          readOnly: true
       required:
       - age_band_display
+      - can_be_moved
+      - can_be_removed
       - from_rank
       - from_rank_name
       - id

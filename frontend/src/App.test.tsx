@@ -4150,6 +4150,51 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.getByTestId("outcome-proposal-drawer")).toBeVisible();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose/"))).toBe(false);
   });
+
+  it("retries a refused proposal against the outcome it already created", async () => {
+    const user = userEvent.setup();
+    let proposeAttempts = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        return jsonResponse(201, { ...testOutcomes[0], id: 401, proposed_outcome: null });
+      }
+      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+        proposeAttempts += 1;
+        if (proposeAttempts === 1) {
+          return jsonResponse(400, {
+            error: { code: "validation_error", message: "Try again shortly." },
+          });
+        }
+        return jsonResponse(200, { ...testOutcomes[0], id: 401, proposed_outcome: "PASS" });
+      }
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent("Try again shortly.");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    await waitFor(() => expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument());
+
+    const creates = fetchMock.mock.calls.filter(
+      ([url, init]) => String(url).includes("/create-outcome/") && init?.method === "POST",
+    );
+    expect(creates).toHaveLength(1);
+    expect(proposeAttempts).toBe(2);
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

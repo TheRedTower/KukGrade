@@ -35,12 +35,27 @@ export function SealedAssessmentEvidence({
   const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
   const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
   const overall = summaryQuery.data?.overall;
+  const failed = summaryQuery.isError || itemsQuery.isError;
 
   return (
     <section className={`evd ${className}`} aria-labelledby={titleId}>
       <h3 id={titleId}>Sealed assessment</h3>
       {assessmentId === undefined ? (
         <p className="evd-muted">No assessment recorded.</p>
+      ) : failed ? (
+        <p className="evd-error" role="alert">
+          The sealed assessment could not be loaded.{" "}
+          <button
+            type="button"
+            className="evd-retry"
+            onClick={() => {
+              void summaryQuery.refetch();
+              void itemsQuery.refetch();
+            }}
+          >
+            Try again
+          </button>
+        </p>
       ) : overall ? (
         <p className="evd-counts">
           {overall.required_met} / {overall.required} required met

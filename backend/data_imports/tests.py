@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
-from data_imports.mappings import STANDARD_STUDENT_HEADERS, suggest_column_mapping
+from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
@@ -41,6 +41,16 @@ def instructor_user(email: str = "import-instructor@example.com") -> User:
     return User.objects.create_user(email=email, role=User.Role.INSTRUCTOR)
 
 
+# The header row of the frontend's "Download standard template" file
+# (ImportStudentsScreen), which suggest_column_mapping must recognise.
+STANDARD_STUDENT_HEADERS = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "date_of_birth": "Date of Birth",
+    "current_rank": "Current Rank",
+    "status": "Status",
+}
 STANDARD_MAPPING = {field: header for field, header in STANDARD_STUDENT_HEADERS.items()}
 
 

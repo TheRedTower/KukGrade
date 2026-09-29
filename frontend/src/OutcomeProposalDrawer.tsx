@@ -41,6 +41,9 @@ export function OutcomeProposalDrawer({
     existingOutcome?.proposed_outcome ?? "PASS",
   );
   const [proposalNotes, setProposalNotes] = useState(existingOutcome?.proposal_notes ?? "");
+  // Kept in state so a retry after a refused proposal reuses the outcome the
+  // first attempt created instead of creating a second one.
+  const [outcomeId, setOutcomeId] = useState(existingOutcome?.id);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -57,8 +60,12 @@ export function OutcomeProposalDrawer({
     setSubmitError(null);
     try {
       // A candidate has no outcome record until the first proposal creates it.
-      const outcomeId = existingOutcome?.id ?? (await createCandidateOutcome(candidate.id)).id;
-      const updated = await proposeCandidateOutcome(outcomeId, {
+      let id = outcomeId;
+      if (id === undefined) {
+        id = (await createCandidateOutcome(candidate.id)).id;
+        setOutcomeId(id);
+      }
+      const updated = await proposeCandidateOutcome(id, {
         proposed_outcome: selectedOutcome,
         proposal_notes: proposalNotes.trim() || undefined,
       });

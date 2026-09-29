@@ -20,8 +20,8 @@ import "./ImportStudents.css";
 
 type Step = "upload" | "map" | "preview" | "result";
 
-// Mirrors data_imports/mappings.py's STANDARD_STUDENT_HEADERS - the backend
-// is the source of truth; this is only the client-side template download.
+// The client-side template download. Every header must be one that
+// data_imports/mappings.py's suggest_column_mapping recognises.
 const STANDARD_TEMPLATE_HEADERS = [
   "WKSA ID",
   "First Name",

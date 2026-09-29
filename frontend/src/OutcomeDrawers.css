@@ -7,7 +7,7 @@
   z-index: 120;
   display: flex;
   justify-content: flex-end;
-  background: rgb(15 23 42 / 62%);
+  background: var(--color-scrim);
   backdrop-filter: blur(3px);
 }
 

@@ -59,6 +59,10 @@
   --color-warning-surface: #fbead0;
   --color-danger: #b42318;
   --color-danger-surface: #fff1ef;
+  --color-info: #1d4ed8;
+  --color-info-surface: #eff6ff;
+  --color-info-border: #bfdbfe;
+  --color-scrim: rgb(15 23 42 / 62%);
 
   --color-scrollbar-track: #eae4d7;
   --color-scrollbar-thumb: #9e9381;
@@ -120,6 +124,10 @@
     --color-warning-surface: #3a2e17;
     --color-danger: #e5584b;
     --color-danger-surface: #3a1f1b;
+    --color-info: #93c5fd;
+    --color-info-surface: #1b2a44;
+    --color-info-border: #2c4470;
+    --color-scrim: rgb(15 23 42 / 62%);
 
     --color-scrollbar-track: #181511;
     --color-scrollbar-thumb: #786650;
@@ -165,6 +173,10 @@
   --color-warning-surface: #3a2e17;
   --color-danger: #e5584b;
   --color-danger-surface: #3a1f1b;
+  --color-info: #93c5fd;
+  --color-info-surface: #1b2a44;
+  --color-info-border: #2c4470;
+  --color-scrim: rgb(15 23 42 / 62%);
 
   --color-scrollbar-track: #181511;
   --color-scrollbar-thumb: #786650;

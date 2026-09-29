@@ -1254,9 +1254,9 @@ h2 {
 }
 
 .gsd-status-locked {
-  background: #eff6ff;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
+  background: var(--color-info-surface);
+  color: var(--color-info);
+  border: 1px solid var(--color-info-border);
 }
 
 .gsd-status-completed {
@@ -1275,12 +1275,6 @@ h2 {
   background: rgba(5, 150, 105, 0.2);
   color: #6ee7b7;
   border-color: rgba(5, 150, 105, 0.4);
-}
-
-[data-theme="dark"] .gsd-status-locked {
-  background: rgba(37, 99, 235, 0.2);
-  color: #93c5fd;
-  border-color: rgba(37, 99, 235, 0.4);
 }
 
 [data-theme="dark"] .gsd-status-completed {

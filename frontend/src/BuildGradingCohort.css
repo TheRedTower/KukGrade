@@ -976,8 +976,8 @@
   margin-left: auto;
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  background: var(--color-info-surface);
+  color: var(--color-info);
   border-radius: 4px;
 }
 

@@ -268,6 +268,10 @@ The redesign should spend these rather than recomputing or omitting them:
 
 ## 3. What is wrong with the current screens
 
+This section records the screens as they were at the baseline commit above.
+Slices 1 to 7 have since replaced them; `docs/current-system.md` describes
+the present state.
+
 Read off the implementation at the baseline commit, and the reason this
 redesign exists.
 

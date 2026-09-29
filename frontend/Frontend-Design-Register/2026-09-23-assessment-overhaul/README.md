@@ -104,6 +104,9 @@ readable as-is, and the colour tokens are copied verbatim from
 
 ## 2. Why the current screens are being replaced
 
+This section records the screens as they were on 2026-09-23. Slices 1 to 7
+have since replaced them; `docs/current-system.md` describes the present state.
+
 Read off the implementation, not from taste:
 
 **`CandidateAssessmentScreen.tsx`**

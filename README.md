@@ -24,7 +24,8 @@ implements the main
 instructor workflow: overview, student records, syllabus browsing,
 grading-session and cohort management, assessment preparation and marking,
 outcome decisions, and promotion. Session detail includes bulk no-show
-confirmation before locking and reasoned, authority-gated candidate
+confirmation before locking, moving or removing a registration while the
+session is draft or open, and reasoned, authority-gated candidate
 withdrawal after locking. The Audit route provides a paginated, filterable
 event browser with event detail for administrators and the designated
 Master. The Users route is an administrator-only staff-account workspace for

@@ -26,17 +26,6 @@ STUDENT_REQUIRED_TARGET_FIELDS: tuple[str, ...] = (
     "current_rank",
 )
 
-# The standard template's header row, in column order. The frontend's
-# "Download standard template" link (ImportStudentsScreen) must match it.
-STANDARD_STUDENT_HEADERS: dict[str, str] = {
-    "wksa_id": "WKSA ID",
-    "first_name": "First Name",
-    "last_name": "Last Name",
-    "date_of_birth": "Date of Birth",
-    "current_rank": "Current Rank",
-    "status": "Status",
-}
-
 _HEADER_ALIASES: dict[str, tuple[str, ...]] = {
     "wksa_id": ("wksa id", "wksa_id", "member no", "member number", "id"),
     "first_name": ("first name", "first_name", "forename", "given name"),

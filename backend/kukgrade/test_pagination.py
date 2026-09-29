@@ -7,25 +7,30 @@ enveloped, and no endpoint can quietly grow into an unbounded response.
 
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from kukgrade.pagination import DefaultPagination
-from syllabus.models import SyllabusRequirement
+from ranks.models import Rank
+from students.models import Student
 
 pytestmark = pytest.mark.django_db
 
 LIST_ENDPOINTS = [
     "/api/ranks/",
+    "/api/syllabus/age-bands/",
     "/api/syllabus/items/",
-    "/api/syllabus/requirements/",
+    "/api/syllabus/requirements/effective/?rank_code=YELLOW&age_band=AGE_18_AND_OVER",
     "/api/gradings/sessions/",
     "/api/gradings/candidates/",
     "/api/gradings/assessments/",
     "/api/gradings/assessment-items/",
     "/api/gradings/outcomes/",
     "/api/gradings/promotions/",
+    "/api/gradings/withdrawal-reasons/",
 ]
 
 
@@ -37,7 +42,7 @@ def client(email: str = "pagination@example.com") -> APIClient:
 
 @pytest.mark.parametrize("endpoint", LIST_ENDPOINTS)
 def test_every_list_endpoint_returns_a_page_envelope(endpoint: str) -> None:
-    slug = endpoint.strip("/").replace("/", "-")
+    slug = endpoint.split("?")[0].strip("/").replace("/", "-")
     response = client(f"envelope-{slug}@example.com").get(endpoint)
 
     assert response.status_code == 200
@@ -47,22 +52,38 @@ def test_every_list_endpoint_returns_a_page_envelope(endpoint: str) -> None:
     assert isinstance(payload["count"], int)
 
 
-def test_count_reflects_the_whole_collection_not_the_page() -> None:
-    total = SyllabusRequirement.objects.filter(active=True, item__active=True).count()
-    assert total > DefaultPagination.page_size, "fixture too small to prove paging"
+@pytest.fixture
+def many_students() -> int:
+    """More students than the maximum page size, so every paging rule shows."""
+    rank = Rank.objects.order_by("order").first()
+    assert rank is not None
+    total = DefaultPagination.max_page_size + 10
+    Student.objects.bulk_create(
+        Student(
+            wksa_id=f"PAGE-{index:04d}",
+            first_name="Page",
+            last_name=f"Student {index:04d}",
+            date_of_birth=date(2000, 1, 1),
+            current_rank=rank,
+        )
+        for index in range(total)
+    )
+    return total
 
-    payload = client().get("/api/syllabus/requirements/").json()
 
-    assert payload["count"] == total
+def test_count_reflects_the_whole_collection_not_the_page(many_students: int) -> None:
+    payload = client().get("/api/students/").json()
+
+    assert payload["count"] == many_students
     assert len(payload["results"]) == DefaultPagination.page_size
     assert payload["next"] is not None
     assert payload["previous"] is None
 
 
-def test_pages_are_disjoint_and_cover_the_collection() -> None:
+def test_pages_are_disjoint_and_cover_the_collection(many_students: int) -> None:
     api = client()
-    first = api.get("/api/syllabus/requirements/?page=1").json()
-    second = api.get("/api/syllabus/requirements/?page=2").json()
+    first = api.get("/api/students/?page=1").json()
+    second = api.get("/api/students/?page=2").json()
 
     first_ids = [row["id"] for row in first["results"]]
     second_ids = [row["id"] for row in second["results"]]
@@ -78,9 +99,8 @@ def test_page_size_is_client_overridable() -> None:
     assert payload["count"] == 16
 
 
-def test_page_size_is_capped_at_the_maximum() -> None:
-    # 373 seeded requirements, so an uncapped request would return them all.
-    payload = client().get("/api/syllabus/requirements/?page_size=1000").json()
+def test_page_size_is_capped_at_the_maximum(many_students: int) -> None:
+    payload = client().get("/api/students/?page_size=1000").json()
 
     assert len(payload["results"]) == DefaultPagination.max_page_size
     assert payload["count"] > DefaultPagination.max_page_size

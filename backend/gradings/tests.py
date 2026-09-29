@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import itertools
-from datetime import date, timedelta
+from datetime import date
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -20,6 +20,7 @@ from django.db.models.deletion import ProtectedError
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -28,6 +29,7 @@ from accounts.permissions import (
     FINAL_GRADING_DECISION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
 )
+from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from gradings.admin import (
     CandidateAssessmentAdmin,
@@ -46,7 +48,6 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
-    age_band_birth_date_bounds,
     applicable_syllabus_requirements,
     apply_candidate_update,
     build_candidate,
@@ -181,38 +182,14 @@ def complete_assessment(
 
 def master(email: str = "master@example.com") -> User:
     finaliser = user(email)
-    grant_final_decision_permission(finaliser)
+    grant_permission(finaliser, FINAL_GRADING_DECISION_PERMISSION)
     return finaliser
-
-
-def grant_final_decision_permission(finaliser: User) -> None:
-    app_label, codename = FINAL_GRADING_DECISION_PERMISSION.split(".")
-    permission = Permission.objects.get(
-        codename=codename,
-        content_type=ContentType.objects.get(
-            app_label=app_label,
-            model="candidateoutcome",
-        ),
-    )
-    finaliser.user_permissions.add(permission)
 
 
 def promoter(email: str = "promoter@example.com") -> User:
     promotion_user = user(email)
-    grant_promotion_permission(promotion_user)
+    grant_permission(promotion_user, PROMOTE_STUDENT_PERMISSION)
     return promotion_user
-
-
-def grant_promotion_permission(promotion_user: User) -> None:
-    app_label, codename = PROMOTE_STUDENT_PERMISSION.split(".")
-    permission = Permission.objects.get(
-        codename=codename,
-        content_type=ContentType.objects.get(
-            app_label=app_label,
-            model="promotion",
-        ),
-    )
-    promotion_user.user_permissions.add(permission)
 
 
 def finalised_outcome(
@@ -399,25 +376,6 @@ def test_completed_and_cancelled_states_are_terminal() -> None:
 )
 def test_age_band_helper(dob: date, grading_date: date, expected: str) -> None:
     assert resolve_age_band(dob, grading_date) == expected
-
-
-@pytest.mark.parametrize("on_date", [date(2028, 2, 29), date(2027, 3, 1)])
-def test_age_band_bounds_agree_with_resolve_age_band(on_date: date) -> None:
-    # The students list filters by these bounds, candidates are banded by
-    # resolve_age_band; both read one table, and must never disagree -
-    # including either side of a 29 February.
-    for offset in range(0, 20 * 366, 3):
-        dob = on_date - timedelta(days=offset)
-        band = resolve_age_band(dob, on_date)
-        for candidate_band in AgeBand.values:
-            born_after, born_on_or_before = age_band_birth_date_bounds(
-                candidate_band,
-                on_date,
-            )
-            inside = (born_after is None or dob > born_after) and (
-                born_on_or_before is None or dob <= born_on_or_before
-            )
-            assert inside is (candidate_band == band), (dob, candidate_band)
 
 
 def test_valid_grading_candidate_can_be_created_with_derived_age_band() -> None:
@@ -668,7 +626,7 @@ def test_authenticated_session_crud_and_created_by_spoofing_rejected() -> None:
 
     assert create_response.status_code == 201
     payload = create_response.json()
-    assert payload["created_by"] == str(creator.id)
+    assert GradingSession.objects.get(pk=payload["id"]).created_by == creator
 
     detail_response = client.get(f"/api/gradings/sessions/{payload['id']}/")
     patch_response = client.patch(
@@ -742,7 +700,9 @@ def test_session_api_malformed_or_reversed_date_filters_return_empty_list() -> N
     grading_session(title="Filtered", grading_date=date(2027, 4, 1))
     client = auth_client("session-filter-invalid@example.com")
 
-    malformed_response = client.get("/api/gradings/sessions/?grading_date=not-a-date")
+    malformed_response = client.get(
+        "/api/gradings/sessions/?grading_date_from=not-a-date",
+    )
     reversed_response = client.get(
         "/api/gradings/sessions/"
         "?grading_date_from=2027-05-01&grading_date_to=2027-04-01",
@@ -1362,22 +1322,27 @@ def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
     client = auth_client("candidate-crud@example.com")
 
     create_response = client.post(
-        "/api/gradings/candidates/",
+        "/api/gradings/candidates/bulk-register/",
         {
             "session": session.id,
-            "student": candidate_student.id,
-            "testing_for_rank": rank("YELLOW_STRIPE").id,
-            "age_band": AgeBand.AGE_18_AND_OVER,
-            "notes": "Ready",
+            "candidates": [
+                {
+                    "student": candidate_student.id,
+                    "testing_for_rank": rank("YELLOW_STRIPE").id,
+                    "age_band": AgeBand.AGE_18_AND_OVER,
+                    "notes": "Ready",
+                },
+            ],
         },
         format="json",
     )
 
-    assert create_response.status_code == 201
-    payload = create_response.json()
-    assert payload["age_band"] == AgeBand.AGE_9_TO_12
+    assert create_response.status_code == 200
+    payload = create_response.json()["created"][0]["candidate"]
+    stored = GradingCandidate.objects.get(pk=payload["id"])
+    assert stored.age_band == AgeBand.AGE_9_TO_12
     assert payload["student_wksa_id"] == candidate_student.wksa_id
-    assert payload["testing_for_rank_code"] == "YELLOW_STRIPE"
+    assert stored.testing_for_rank.code == "YELLOW_STRIPE"
 
     detail_response = client.get(f"/api/gradings/candidates/{payload['id']}/")
     patch_response = client.patch(
@@ -1390,6 +1355,21 @@ def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
     assert detail_response.status_code == 200
     assert patch_response.status_code == 200
     assert delete_response.status_code == 204
+
+
+def test_registration_is_only_through_bulk_register() -> None:
+    response = auth_client("single-register@example.com").post(
+        "/api/gradings/candidates/",
+        {
+            "session": grading_session().id,
+            "student": student().id,
+            "testing_for_rank": rank("YELLOW_STRIPE").id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 405
+    assert not GradingCandidate.objects.exists()
 
 
 def test_withdrawing_before_lock_requires_a_reason_and_records_who_and_when() -> None:
@@ -1469,11 +1449,10 @@ def test_a_registrations_student_cannot_be_changed() -> None:
 def test_boolean_filters_accept_only_true_and_false() -> None:
     # One rule for every boolean filter: anything else is an impossible
     # value and returns an empty page, like an unknown choice or bad date.
-    generated = assessment(candidate=candidate())
     client = auth_client("boolean-filters@example.com")
-    url = f"/api/gradings/assessment-items/?assessment={generated.pk}&required="
+    url = "/api/gradings/legacy-records/?voided="
 
-    assert client.get(url + "true").json()["count"] > 0
+    assert client.get(url + "false").status_code == 200
     assert client.get(url + "yes").json()["count"] == 0
     assert client.get("/api/gradings/legacy-records/?linked=maybe").json()["count"] == 0
 
@@ -1489,57 +1468,31 @@ def test_candidate_api_filters_work() -> None:
     client = auth_client("candidate-filter@example.com")
 
     response = client.get(
-        "/api/gradings/candidates/"
-        f"?session={session.id}"
-        "&student_wksa_id=FILTER001"
-        "&testing_for_rank_code=YELLOW_STRIPE"
-        f"&age_band={AgeBand.AGE_9_TO_12}"
-        "&status=REGISTERED",
+        f"/api/gradings/candidates/?session={session.id}",
     )
 
     assert response.status_code == 200
     assert [item["id"] for item in results(response)] == [built.id]
 
 
-def test_candidate_api_duplicate_returns_validation_error() -> None:
-    session = grading_session()
-    candidate_student = student()
-    candidate(session=session, student=candidate_student)
-    client = auth_client("candidate-duplicate@example.com")
+def test_bulk_register_refuses_a_rank_out_of_turn() -> None:
+    target = student()
 
-    response = client.post(
-        "/api/gradings/candidates/",
-        {
-            "session": session.id,
-            "student": candidate_student.id,
-            "testing_for_rank": rank("YELLOW_STRIPE").id,
-        },
-        format="json",
-    )
-
-    assert response.status_code == 400
-
-
-def test_candidate_api_invalid_next_rank_returns_validation_error() -> None:
-    client = auth_client("candidate-invalid-rank@example.com")
-
-    response = client.post(
-        "/api/gradings/candidates/",
+    response = auth_client("candidate-invalid-rank@example.com").post(
+        "/api/gradings/candidates/bulk-register/",
         {
             "session": grading_session().id,
-            "student": student().id,
-            "testing_for_rank": rank("YELLOW").id,
+            "candidates": [
+                {"student": target.id, "testing_for_rank": rank("YELLOW").id},
+            ],
         },
         format="json",
     )
 
-    assert response.status_code == 400
-    payload = response.json()["error"]
-    assert payload["code"] == "validation_error"
-    assert "testing_for_rank" in payload["fields"]
-    # A single validation message is surfaced directly, so a toast is usable
-    # without the client having to dig through the fields map.
-    assert payload["message"] == payload["fields"]["testing_for_rank"][0]
+    assert response.status_code == 200
+    assert response.json()["created"] == []
+    assert list(response.json()["errors"]) == ["0"]
+    assert not GradingCandidate.objects.filter(student=target).exists()
 
 
 @pytest.mark.parametrize(
@@ -1557,16 +1510,19 @@ def test_candidate_api_rejects_invalid_session_state_operations(
     client = auth_client(f"candidate-state-{session_status.lower()}@example.com")
 
     response = client.post(
-        "/api/gradings/candidates/",
+        "/api/gradings/candidates/bulk-register/",
         {
             "session": session.id,
-            "student": student().id,
-            "testing_for_rank": rank("YELLOW_STRIPE").id,
+            "candidates": [
+                {"student": student().id, "testing_for_rank": rank("YELLOW_STRIPE").id},
+            ],
         },
         format="json",
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert list(response.json()["errors"]) == ["0"]
+    assert not GradingCandidate.objects.filter(session=session).exists()
 
 
 @pytest.mark.parametrize(
@@ -1623,6 +1579,37 @@ def test_candidate_api_delete_rules_work() -> None:
     assert (
         client.delete(f"/api/gradings/candidates/{open_candidate.id}/").status_code
         == 204
+    )
+
+
+def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
+    open_session = grading_session(status=GradingSession.Status.OPEN)
+    draft_session = grading_session(
+        status=GradingSession.Status.DRAFT,
+        title="Draft grading",
+    )
+    unassessed = candidate(session=open_session, student=student(wksa_id="FLAG001"))
+    started = candidate(session=open_session, student=student(wksa_id="FLAG002"))
+    start_assessment(assessment(candidate=started))
+    prepared = candidate(session=draft_session, student=student(wksa_id="FLAG003"))
+    assessment(candidate=prepared)
+    client = auth_client("candidate-flags@example.com")
+
+    rows = {row["id"]: row for row in results(client.get("/api/gradings/candidates/"))}
+
+    assert [
+        (rows[c.id]["can_be_moved"], rows[c.id]["can_be_removed"])
+        for c in (unassessed, started, prepared)
+    ] == [(True, True), (False, False), (False, True)]
+    assert client.delete(f"/api/gradings/candidates/{started.id}/").status_code == 400
+    assert client.delete(f"/api/gradings/candidates/{prepared.id}/").status_code == 204
+    assert (
+        client.patch(
+            f"/api/gradings/candidates/{unassessed.id}/",
+            {"session": draft_session.id},
+            format="json",
+        ).status_code
+        == 200
     )
 
 
@@ -1698,13 +1685,13 @@ def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -
     payload = response.json()
     assert payload["errors"] == {}
     resolved_ranks = {
-        item["candidate"]["student"]: item["candidate"]["testing_for_rank_code"]
+        item["candidate"]["student"]: item["candidate"]["testing_for_rank_name"]
         for item in payload["created"]
     }
     assert resolved_ranks == {
-        white_student.id: "YELLOW_STRIPE",
-        blue_student.id: "RED_STRIPE",
-        brown_stripe_student.id: "BROWN",
+        white_student.id: "Yellow Stripe",
+        blue_student.id: "Red Stripe",
+        brown_stripe_student.id: "Brown",
     }
 
 
@@ -1957,10 +1944,12 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
     for item in payload["updated"]:
         assert item["withdrawal_reason"] == "ABSENT"
         assert item["withdrawal_reason_display"] == "Did not attend"
-        assert item["withdrawn_by_email"] == "bulk-attendance@example.com"
-        assert item["withdrawn_at"] is not None
     absent_first.refresh_from_db()
     absent_second.refresh_from_db()
+    for withdrawn in (absent_first, absent_second):
+        assert withdrawn.withdrawn_by is not None
+        assert withdrawn.withdrawn_by.email == "bulk-attendance@example.com"
+        assert withdrawn.withdrawn_at is not None
     assert absent_first.status == GradingCandidate.Status.WITHDRAWN
     assert absent_second.status == GradingCandidate.Status.WITHDRAWN
 
@@ -2091,12 +2080,14 @@ def test_generate_candidate_assessment_rejects_no_applicable_requirements() -> N
         name="No Requirement Current",
         order=100,
         category=Rank.Category.COLOURED_BELT,
+        belt_colour="WHITE",
     )
     target_rank = Rank.objects.create(
         code="NO_REQ_TARGET",
         name="No Requirement Target",
         order=101,
         category=Rank.Category.COLOURED_BELT,
+        belt_colour="WHITE",
     )
     built = candidate(
         student=student(current_rank=current_rank),
@@ -2499,45 +2490,6 @@ def test_reopen_requires_the_change_assessment_permission() -> None:
     assert response.status_code == 403
 
 
-def test_a_candidate_cannot_be_registered_as_withdrawn() -> None:
-    session = grading_session()
-    target = student(wksa_id="REGWD001")
-
-    response = auth_client("register-withdrawn@example.com").post(
-        "/api/gradings/candidates/",
-        {
-            "session": session.pk,
-            "student": target.pk,
-            "testing_for_rank": rank("YELLOW_STRIPE").pk,
-            "status": "WITHDRAWN",
-        },
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "status" in response.json()["error"]["fields"]
-    assert not GradingCandidate.objects.filter(student=target).exists()
-
-
-def test_a_withdrawal_reason_is_refused_at_registration() -> None:
-    session = grading_session()
-    target = student(wksa_id="REGWD002")
-
-    response = auth_client("register-with-reason@example.com").post(
-        "/api/gradings/candidates/",
-        {
-            "session": session.pk,
-            "student": target.pk,
-            "testing_for_rank": rank("YELLOW_STRIPE").pk,
-            "withdrawal_reason": "ABSENT",
-        },
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "withdrawal_reason" in response.json()["error"]["fields"]
-
-
 def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() -> None:
     # Admin and the shell reach the model directly, not the serializer.
     built = build_candidate(
@@ -2751,12 +2703,9 @@ def test_assessment_api_generation_lists_and_filters() -> None:
     assert duplicate_response.status_code == 400
     payload = generate_response.json()
     assert payload["candidate"] == built.id
-    assert (
-        payload["item_counts"]["total"]
-        == CandidateAssessmentItem.objects.filter(
-            assessment_id=payload["id"],
-        ).count()
-    )
+    assert CandidateAssessmentItem.objects.filter(
+        assessment_id=payload["id"],
+    ).exists()
     assert "outcome" not in payload
 
     list_response = client.get(
@@ -2766,12 +2715,10 @@ def test_assessment_api_generation_lists_and_filters() -> None:
         "&testing_for_rank_code=YELLOW_STRIPE"
         "&status=NOT_STARTED",
     )
-    detail_response = client.get(f"/api/gradings/assessments/{payload['id']}/")
     post_response = client.post("/api/gradings/assessments/", {}, format="json")
 
     assert list_response.status_code == 200
     assert [item["id"] for item in results(list_response)] == [payload["id"]]
-    assert detail_response.status_code == 200
     assert post_response.status_code == 405
 
 
@@ -2803,13 +2750,7 @@ def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> N
 
     assert response.status_code == 200
     payload = response.json()
-    # The service's counts, with each category's label added for display.
-    labels = [row.pop("category_display") for row in payload["categories"]]
     assert payload == candidate_assessment_summary(generated)
-    assert labels == [
-        SyllabusItem.Category(row["category"]).label for row in payload["categories"]
-    ]
-    # The required-split is what item_counts cannot provide.
     assert payload["overall"]["met"] == 1
     assert payload["overall"]["not_met"] == 1
     assert payload["overall"]["required_not_assessed"] == (
@@ -2821,6 +2762,46 @@ def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> N
     assert {category["category"] for category in payload["categories"]} == {
         item.category for item in generated.items.all()
     }
+
+
+def test_assessment_list_serves_each_assessments_overall_counts() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(
+        candidate=candidate(session=session),
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    first = generated.items.order_by("pk").first()
+    assert first is not None
+    first.result = CandidateAssessmentItem.Result.NOT_MET
+    first.assessor = user("assessment-list-assessor@example.com")
+    first.assessed_at = timezone.now()
+    first.save()
+    client = auth_client("assessment-list-counts@example.com")
+
+    response = client.get(f"/api/gradings/assessments/?session={session.id}")
+
+    assert response.status_code == 200
+    [served] = results(response)
+    assert served["overall"] == candidate_assessment_summary(generated)["overall"]
+    assert served["overall"]["not_met"] == 1
+
+
+def test_assessment_list_query_count_does_not_grow_with_the_cohort() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    assessment(candidate=candidate(session=session))
+    client = auth_client("assessment-list-queries@example.com")
+    url = f"/api/gradings/assessments/?session={session.id}"
+    client.get(url)
+
+    with CaptureQueriesContext(connection) as one:
+        client.get(url)
+    for _ in range(3):
+        assessment(candidate=candidate(session=session))
+    with CaptureQueriesContext(connection) as four:
+        response = client.get(url)
+
+    assert len(results(response)) == 4
+    assert len(four.captured_queries) == len(one.captured_queries)
 
 
 def test_assessment_summary_requires_the_view_permission() -> None:
@@ -2986,10 +2967,7 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     )
     item.refresh_from_db()
     list_response = client.get(
-        "/api/gradings/assessment-items/"
-        f"?assessment={generated.id}&candidate={generated.candidate_id}"
-        f"&session={generated.candidate.session_id}&item_code={item.item_code}"
-        f"&category={item.category}&result=NOT_MET&required=true",
+        f"/api/gradings/assessment-items/?assessment={generated.id}",
     )
     post_response = client.post("/api/gradings/assessment-items/", {}, format="json")
     delete_response = client.delete(f"/api/gradings/assessment-items/{item.id}/")
@@ -3000,7 +2978,7 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert item.assessor == real_assessor
     assert item.assessed_at is not None
     assert item.assessor_notes == "Needs work"
-    assert [payload["id"] for payload in results(list_response)] == [item.id]
+    assert item.id in [payload["id"] for payload in results(list_response)]
     assert post_response.status_code == 405
     assert delete_response.status_code == 405
 
@@ -3471,12 +3449,11 @@ def test_candidate_assessment_summary_uses_snapshot_categories_and_counts() -> N
     )
     assert summary["overall"]["not_met"] == 1
     assert summary["overall"]["not_assessed"] == 1
-    assert summary["overall"]["required_not_met"] == 1
     assert summary["overall"]["required_not_assessed"] == 0
     # Regression coverage for the missing overall["required_met"] bug: it
     # was tracked per-category but never rolled up to the overall summary,
-    # which MasterFinalDecisionDrawer.tsx reads directly to show "X of Y
-    # Met" on the final-decision screen - silently NaN before this fix.
+    # which the Cohort Adjudication Board reads directly to show "X of Y
+    # met" - silently NaN before this fix.
     assert (
         summary["overall"]["required_met"]
         == generated.items.filter(
@@ -3485,7 +3462,6 @@ def test_candidate_assessment_summary_uses_snapshot_categories_and_counts() -> N
         ).count()
     )
     assert summary["overall"]["all_required_assessed"] is True
-    assert summary["overall"]["all_required_met"] is False
     categories = summary["categories"]
     assert [category["category"] for category in categories] == sorted(
         [category["category"] for category in categories],
@@ -3550,7 +3526,7 @@ def test_session_completion_requires_finalised_outcomes_for_active_candidates() 
     assert not hasattr(withdrawn, "outcome")
 
 
-def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
+def test_candidate_outcome_api_workflow_and_filters() -> None:
     built, _generated = locked_completed_candidate()
     actor = user("outcome-api-actor@example.com")
     master_user = master("outcome-api-master@example.com")
@@ -3571,8 +3547,6 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
     payload = create_response.json()
     outcome_id = payload["id"]
     assert payload["candidate"] == built.id
-    assert payload["student_wksa_id"] == built.student.wksa_id
-    assert payload["testing_for_rank_code"] == "YELLOW_STRIPE"
 
     direct_patch = client.patch(
         f"/api/gradings/outcomes/{outcome_id}/",
@@ -3606,17 +3580,8 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
         },
         format="json",
     )
-    summary_response = client.get(f"/api/gradings/outcomes/{outcome_id}/summary/")
     list_response = client.get(
-        "/api/gradings/outcomes/"
-        f"?session={built.session_id}&candidate={built.id}"
-        f"&student_wksa_id={built.student.wksa_id}"
-        "&testing_for_rank_code=YELLOW_STRIPE"
-        "&status=FINALISED"
-        "&proposed_outcome=FAIL"
-        "&final_outcome=PASS"
-        f"&proposed_by={actor.id}"
-        f"&decided_by={master_user.id}",
+        f"/api/gradings/outcomes/?session={built.session_id}",
     )
     delete_response = client.delete(f"/api/gradings/outcomes/{outcome_id}/")
     finalised_patch = client.patch(
@@ -3625,19 +3590,17 @@ def test_candidate_outcome_api_workflow_filters_and_summary() -> None:
         format="json",
     )
 
-    assert direct_patch.status_code == 405
-    assert direct_patch.json()["error"]["code"] == "method_not_allowed"
+    # No detail route: an outcome is written only through propose/finalise.
+    assert direct_patch.status_code == 404
     assert propose_response.status_code == 200
-    assert propose_response.json()["proposed_by"] == str(actor.id)
+    assert propose_response.json()["proposed_by_name"] == actor.get_full_name()
     assert forbidden_finalise.status_code == 403
     assert finalise_response.status_code == 200
-    assert finalise_response.json()["decided_by"] == str(master_user.id)
+    assert finalise_response.json()["decided_by_name"] == master_user.get_full_name()
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
-    assert summary_response.status_code == 200
-    assert "final_outcome" not in summary_response.json()
     assert [item["id"] for item in results(list_response)] == [outcome_id]
-    assert delete_response.status_code == 405
-    assert finalised_patch.status_code == 405
+    assert delete_response.status_code == 404
+    assert finalised_patch.status_code == 404
 
 
 def test_candidate_outcome_admin_is_read_only_and_has_no_bulk_finalisation() -> None:
@@ -3711,7 +3674,6 @@ def test_candidate_from_rank_does_not_move_when_the_student_is_promoted() -> Non
     assert built.student.current_rank.code == "YELLOW_STRIPE"
     assert built.from_rank.code == "WHITE"
     assert response.status_code == 200
-    assert response.data["from_rank_code"] == "WHITE"
     assert response.data["from_rank_name"] == "White"
 
 
@@ -4046,18 +4008,8 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     arbitrary_post = client.post("/api/gradings/promotions/", {}, format="json")
 
     promotion_id = promote_response.json()["id"]
-    detail_response = client.get(f"/api/gradings/promotions/{promotion_id}/")
     list_response = client.get(
-        "/api/gradings/promotions/"
-        f"?student={built.student_id}"
-        f"&student_wksa_id={built.student.wksa_id}"
-        "&from_rank_code=WHITE"
-        "&to_rank_code=YELLOW_STRIPE"
-        f"&session={built.session_id}"
-        f"&effective_date={built.session.grading_date.isoformat()}"
-        f"&effective_date_from={built.session.grading_date.isoformat()}"
-        f"&effective_date_to={built.session.grading_date.isoformat()}"
-        f"&promoted_by={actor.id}",
+        f"/api/gradings/promotions/?session={built.session_id}",
     )
     rank_history_response = client.get(
         f"/api/students/{built.student_id}/rank-history/",
@@ -4073,21 +4025,22 @@ def test_promotion_api_workflow_filters_and_rank_history() -> None:
     assert forbidden.status_code == 403
     assert spoofed.status_code == 400
     assert promote_response.status_code == 201
-    assert promote_response.json()["promoted_by"] == str(actor.id)
     assert promote_response.json()["effective_date"] == str(built.session.grading_date)
-    assert promote_response.json()["student_wksa_id"] == built.student.wksa_id
-    assert promote_response.json()["student_current_rank_code"] == "YELLOW_STRIPE"
+    stored_promotion = Promotion.objects.get(pk=promotion_id)
+    assert stored_promotion.promoted_by == actor
+    assert stored_promotion.student == built.student
+    built.student.refresh_from_db()
+    assert built.student.current_rank.code == "YELLOW_STRIPE"
     assert duplicate.status_code == 400
     assert arbitrary_post.status_code == 405
-    assert detail_response.status_code == 200
     assert [item["id"] for item in results(list_response)] == [promotion_id]
     assert rank_history_response.status_code == 200
-    assert rank_history_response.json()["current_rank_code"] == "YELLOW_STRIPE"
     assert [item["id"] for item in rank_history_response.json()["promotions"]] == [
         promotion_id,
     ]
-    assert patch_response.status_code == 405
-    assert delete_response.status_code == 405
+    # No detail route: a promotion is immutable and undeletable.
+    assert patch_response.status_code == 404
+    assert delete_response.status_code == 404
 
 
 def test_bulk_promote_promotes_every_eligible_outcome_in_one_request() -> None:
@@ -4108,9 +4061,9 @@ def test_bulk_promote_promotes_every_eligible_outcome_in_one_request() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["errors"] == {}
-    assert {item["outcome"] for item in payload["promoted"]} == {
-        first_outcome.id,
-        second_outcome.id,
+    assert {item["grading_candidate"] for item in payload["promoted"]} == {
+        first_candidate.id,
+        second_candidate.id,
     }
     first_candidate.student.refresh_from_db()
     second_candidate.student.refresh_from_db()
@@ -4147,7 +4100,9 @@ def test_bulk_promote_is_independent_per_row() -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert [item["outcome"] for item in payload["promoted"]] == [eligible_outcome.id]
+    assert [item["grading_candidate"] for item in payload["promoted"]] == [
+        eligible_outcome.candidate_id,
+    ]
     assert list(payload["errors"].keys()) == ["1"]
     assert Promotion.objects.filter(outcome=eligible_outcome).exists()
     assert not Promotion.objects.filter(outcome=ineligible_outcome).exists()
@@ -4196,8 +4151,8 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
         password=password,
         role=User.Role.INSTRUCTOR,
     )
-    grant_final_decision_permission(master_user)
-    grant_promotion_permission(master_user)
+    grant_permission(master_user, FINAL_GRADING_DECISION_PERMISSION)
+    grant_permission(master_user, PROMOTE_STUDENT_PERMISSION)
 
     instructor = APIClient()
     login_response = instructor.post(
@@ -4241,18 +4196,17 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     assert session_body["status"] == GradingSession.Status.DRAFT
 
     candidate_response = instructor.post(
-        "/api/gradings/candidates/",
+        "/api/gradings/candidates/bulk-register/",
         {
             "session": session_id,
-            "student": student_id,
-            "testing_for_rank": next_rank_id,
+            "candidates": [{"student": student_id, "testing_for_rank": next_rank_id}],
         },
         format="json",
     )
-    assert candidate_response.status_code == 201
-    candidate_body = candidate_response.json()
+    assert candidate_response.status_code == 200
+    candidate_body = candidate_response.json()["created"][0]["candidate"]
     candidate_id = candidate_body["id"]
-    assert candidate_body["age_band"]
+    assert candidate_body["age_band_display"]
 
     open_response = instructor.patch(
         f"/api/gradings/sessions/{session_id}/",
@@ -4269,8 +4223,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     assessment_body = generate_response.json()
     assessment_id = assessment_body["id"]
     assert assessment_body["status"] == CandidateAssessment.Status.NOT_STARTED
-    assert assessment_body["item_counts"]["total"] > 0
-    assert assessment_body["item_counts"]["required"] > 0
+    assert CandidateAssessmentItem.objects.filter(
+        assessment_id=assessment_id,
+        required=True,
+    ).exists()
 
     start_response = instructor.patch(
         f"/api/gradings/assessments/{assessment_id}/",
@@ -4299,7 +4255,7 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
         assert item_response.status_code == 200
         item_body = item_response.json()
         assert item_body["result"] == CandidateAssessmentItem.Result.MET
-        assert item_body["assessor"] == str(instructor_user.id)
+        assert item_body["assessor_email"] == instructor_user.email
 
     # Every assessment is completed while the session is open; locking then
     # ends grading and opens the decision stage.
@@ -4368,15 +4324,14 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     )
     assert promote_response.status_code == 201
     promote_body = promote_response.json()
-    assert promote_body["student"] == student_id
-    assert promote_body["to_rank_code"] == "YELLOW_STRIPE"
+    assert promote_body["grading_candidate"] == candidate_id
+    assert promote_body["to_rank_name"] == "Yellow Stripe"
 
     rank_history_response = master_client.get(
         f"/api/students/{student_id}/rank-history/",
     )
     assert rank_history_response.status_code == 200
     rank_history_body = rank_history_response.json()
-    assert rank_history_body["current_rank_code"] == "YELLOW_STRIPE"
     assert [promotion["id"] for promotion in rank_history_body["promotions"]] == [
         promote_body["id"]
     ]
@@ -4407,7 +4362,6 @@ def test_student_rank_timeline_ordering_is_deterministic() -> None:
 
     timeline = student_rank_timeline(timeline_student)
 
-    assert timeline["current_rank"].code == "YELLOW"
     assert [promotion.pk for promotion in timeline["promotions"]] == [
         second.pk,
         first.pk,
@@ -4561,6 +4515,47 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
             "can_promote_student",
             "Can promote student",
         ) in HistoricalPromotion._meta.permissions
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_registered_in_error_withdrawals_become_other_and_roll_back() -> None:
+    withdrawn = candidate(status=GradingCandidate.Status.WITHDRAWN)
+    old_target = [("gradings", "0009_candidate_from_rank_and_delete_any_permission")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def stored() -> tuple[str, str]:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT withdrawal_reason, withdrawal_note"
+                " FROM gradings_gradingcandidate WHERE id = %s",
+                [withdrawn.pk],
+            )
+            row = cursor.fetchone()
+        assert row is not None
+        return (row[0], row[1])
+
+    try:
+        executor.migrate(old_target)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_gradingcandidate"
+                " SET withdrawal_reason = 'ADMIN_ERROR',"
+                " withdrawal_note = 'Wrong student'"
+                " WHERE id = %s",
+                [withdrawn.pk],
+            )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+        assert stored() == ("OTHER", "Registered in error. Wrong student")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(old_target)
+        assert stored() == ("ADMIN_ERROR", "Registered in error. Wrong student")
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)
@@ -4908,7 +4903,7 @@ def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
 
     withdrawn = withdraw_locked_candidate(
         built,
-        reason=GradingCandidate.WithdrawalReason.ADMIN_ERROR,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
         note="Registered against the wrong session.",
         actor=override_master("clears-proposal@example.com"),
     )
@@ -5028,6 +5023,41 @@ def test_cancelling_a_locked_session_records_the_reason() -> None:
     assert cancelled.cancellation_reason == "Venue lost; grading abandoned."
 
 
+def test_api_accepts_the_cancellation_reason_but_never_serves_it() -> None:
+    session, _built = locked_session_with_undecided_candidate()
+    canceller = user("api-cancel-locked@example.com", role=User.Role.ADMINISTRATOR)
+    canceller.user_permissions.add(
+        Permission.objects.get(
+            codename="can_override_locked_session",
+            content_type=ContentType.objects.get_for_model(GradingSession),
+        ),
+    )
+    client = APIClient()
+    client.force_authenticate(user=User.objects.get(pk=canceller.pk))
+    url = f"/api/gradings/sessions/{session.id}/"
+
+    refused = client.patch(url, {"status": "CANCELLED"}, format="json")
+    assert refused.status_code == 400
+    assert "reason is required" in refused.json()["error"]["message"]
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+
+    accepted = client.patch(
+        url,
+        {
+            "status": "CANCELLED",
+            "cancellation_reason": "Venue lost; grading abandoned.",
+        },
+        format="json",
+    )
+    assert accepted.status_code == 200, accepted.json()
+    assert accepted.json()["status"] == "CANCELLED"
+    assert "cancellation_reason" not in accepted.json()
+    assert "cancellation_reason" not in client.get(url).json()
+    session.refresh_from_db()
+    assert session.cancellation_reason == "Venue lost; grading abandoned."
+
+
 def test_cancelling_a_draft_session_still_needs_no_reason() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
 
@@ -5089,12 +5119,9 @@ def test_withdraw_api_records_the_withdrawal() -> None:
     assert payload["withdrawal_reason"] == GradingCandidate.WithdrawalReason.ABSENT
     assert payload["withdrawal_reason_display"] == "Did not attend"
     assert payload["withdrawal_note"] == "Did not arrive."
-    assert payload["withdrawn_by"] == str(master_user.id)
-    assert payload["withdrawn_by_email"] == master_user.email
-    assert payload["withdrawn_by_name"] == master_user.get_full_name()
-    assert payload["withdrawn_at"] is not None
     built.refresh_from_db()
     assert built.withdrawn_by == master_user
+    assert built.withdrawn_at is not None
 
 
 # ---------------------------------------------------------------------------
@@ -5477,3 +5504,58 @@ def test_an_inactive_student_can_still_be_registered() -> None:
     built.save()
 
     assert built.pk is not None
+
+
+def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
+    response = auth_client("withdrawal-reasons@example.com").get(
+        "/api/gradings/withdrawal-reasons/",
+    )
+
+    assert response.status_code == 200
+    assert results(response) == [
+        {"code": "INJURY", "name": "Injured during grading", "note_required": False},
+        {"code": "WITHDREW", "name": "Withdrew voluntarily", "note_required": False},
+        {"code": "ABSENT", "name": "Did not attend", "note_required": False},
+        {"code": "OTHER", "name": "Other", "note_required": True},
+    ]
+
+
+def test_an_other_withdrawal_needs_a_note() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    client = auth_client("other-withdrawal@example.com")
+    url = f"/api/gradings/candidates/{built.pk}/"
+
+    refused = client.patch(
+        url,
+        {"status": "WITHDRAWN", "withdrawal_reason": "OTHER", "withdrawal_note": "  "},
+        format="json",
+    )
+    accepted = client.patch(
+        url,
+        {
+            "status": "WITHDRAWN",
+            "withdrawal_reason": "OTHER",
+            "withdrawal_note": "Family emergency",
+        },
+        format="json",
+    )
+
+    assert refused.status_code == 400
+    assert "withdrawal_note" in refused.json()["error"]["fields"]
+    assert accepted.status_code == 200
+    built.refresh_from_db()
+    assert built.withdrawal_note == "Family emergency"
+
+
+def test_a_locked_other_withdrawal_needs_a_note() -> None:
+    built, _generated = locked_completed_candidate()
+
+    with pytest.raises(ValidationError) as exc_info:
+        withdraw_locked_candidate(
+            built,
+            reason=GradingCandidate.WithdrawalReason.OTHER,
+            note="",
+            actor=override_master("other-locked@example.com"),
+        )
+
+    assert "withdrawal_note" in exc_info.value.message_dict

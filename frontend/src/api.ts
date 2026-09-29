@@ -43,6 +43,8 @@ export type SyllabusItem = components["schemas"]["SyllabusItem"];
 export type EffectiveSyllabusRequirement =
   components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
+export type AgeBand = components["schemas"]["AgeBand"];
+export type Programme = components["schemas"]["ProgrammeEnum"];
 
 /**
  * The error envelope is hand-written: `custom_exception_handler` builds it
@@ -55,7 +57,7 @@ export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
  */
 export type FieldErrors = { [field: string]: string[] | FieldErrors };
 
-export type ApiErrorBody = {
+type ApiErrorBody = {
   error?: {
     code?: string;
     message?: string;
@@ -199,8 +201,24 @@ async function collectAllPages<T>(
   return { count: total, next: null, previous: null, results };
 }
 
+export type SiteSettings = Schemas["SiteSettings"];
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  return apiRequest<SiteSettings>("/api/site/");
+}
+
 export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
+}
+
+export type SelfProfilePayload = Schemas["PatchedSelfProfileRequest"];
+
+/** Your own first and last name - the only things a user edits about themselves. */
+export async function updateCurrentUser(data: SelfProfilePayload): Promise<AuthUser> {
+  return apiRequest<AuthUser>("/api/auth/me/", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
 export async function loginUser(
@@ -360,6 +378,24 @@ export async function getAllGradingCandidates(
   );
 }
 
+/** Move a registration to another draft or open session. */
+export async function moveGradingCandidate(
+  id: number,
+  sessionId: number,
+): Promise<GradingCandidate> {
+  return apiRequest<GradingCandidate>(`/api/gradings/candidates/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify({ session: sessionId }),
+  });
+}
+
+/** Remove a registration while its session is draft or open. */
+export async function deleteGradingCandidate(id: number): Promise<void> {
+  await apiRequest<void>(`/api/gradings/candidates/${id}/`, {
+    method: "DELETE",
+  });
+}
+
 export type BulkCandidateRegistrationPayload = Schemas["BulkCandidateRegistrationRequest"];
 export type BulkCandidateRegistrationResponse =
   Schemas["BulkCandidateRegistrationResult"];
@@ -401,6 +437,12 @@ export async function bulkUpdateCandidateStatus(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export type WithdrawalReason = Schemas["WithdrawalReason"];
+
+export async function getWithdrawalReasons(): Promise<PaginatedResponse<WithdrawalReason>> {
+  return apiRequest<PaginatedResponse<WithdrawalReason>>("/api/gradings/withdrawal-reasons/");
 }
 
 export type LockedCandidateWithdrawal =
@@ -460,7 +502,7 @@ export async function bulkStartCandidateAssessments(
   });
 }
 
-export async function getCandidateAssessmentItems(
+async function getCandidateAssessmentItems(
   params?: ListQuery<"gradings_assessment_items_list">,
 ): Promise<PaginatedResponse<CandidateAssessmentItem>> {
   return apiRequest<PaginatedResponse<CandidateAssessmentItem>>(
@@ -493,7 +535,7 @@ export async function updateCandidateAssessmentItem(
   });
 }
 
-export async function getCandidateOutcomes(
+async function getCandidateOutcomes(
   params?: ListQuery<"gradings_outcomes_list">,
 ): Promise<PaginatedResponse<CandidateOutcome>> {
   return apiRequest<PaginatedResponse<CandidateOutcome>>(
@@ -526,25 +568,15 @@ export async function proposeCandidateOutcome(
 }
 
 /**
- * Rollup for one assessment, reachable at any assessment status.
- *
- * `getCandidateAssessmentSummary` goes via the outcome, which cannot exist
- * until the session is `LOCKED` and the assessment `COMPLETED`. Scoring and
- * completion review need the same counts before that point. See FDR-046.
+ * Rollup for one assessment, reachable at any assessment status - scoring,
+ * completion review and the adjudication board all read counts from here
+ * (FDR-046).
  */
 export async function getAssessmentSummary(
   assessmentId: number,
 ): Promise<CandidateAssessmentSummary> {
   return apiRequest<CandidateAssessmentSummary>(
     `/api/gradings/assessments/${assessmentId}/summary/`,
-  );
-}
-
-export async function getCandidateAssessmentSummary(
-  outcomeId: number,
-): Promise<CandidateAssessmentSummary> {
-  return apiRequest<CandidateAssessmentSummary>(
-    `/api/gradings/outcomes/${outcomeId}/summary/`,
   );
 }
 
@@ -585,13 +617,17 @@ export async function getRanks(params?: ListQuery<"ranks_list">): Promise<Pagina
   );
 }
 
+export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
+  return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
+}
+
 export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">): Promise<PaginatedResponse<SyllabusItem>> {
   return apiRequest<PaginatedResponse<SyllabusItem>>(
     withQuery("/api/syllabus/items/", params),
   );
 }
 
-export async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
+async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
     withQuery("/api/syllabus/requirements/effective/", {
       ...params,
@@ -647,7 +683,7 @@ export async function deleteStudent(id: number): Promise<void> {
   });
 }
 
-export async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
+async function getPromotions(params?: ListQuery<"gradings_promotions_list">): Promise<PaginatedResponse<Promotion>> {
   return apiRequest<PaginatedResponse<Promotion>>(
     withQuery("/api/gradings/promotions/", params),
   );

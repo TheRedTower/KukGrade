@@ -15,6 +15,7 @@ import {
 import { useAuth } from "./auth";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
+import { CheckIcon } from "./Icons";
 
 function CalendarIcon() {
   return (
@@ -95,25 +96,6 @@ function AlertIcon() {
       <circle cx="12" cy="12" r="10" />
       <line x1="12" x2="12" y1="8" y2="12" />
       <line x1="12" x2="12.01" y1="16" y2="16" />
-    </svg>
-  );
-}
-
-function SuccessCheckIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="overview-icon"
-      fill="none"
-      height="14"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="14"
-    >
-      <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
@@ -352,9 +334,7 @@ export function OverviewScreen() {
                   Open
                 </span>
               </div>
-              <p className="session-location">
-                {openSession.location || "Colchester Dojang"}
-              </p>
+              {openSession.location && <p className="session-location">{openSession.location}</p>}
 
               <div className="metrics-row">
                 <div className="metric-box">
@@ -481,9 +461,9 @@ export function OverviewScreen() {
                 <span className="upcoming-session-date">
                   {formatSessionDate(upcomingSession.grading_date)}
                 </span>
-                <span className="upcoming-session-location">
-                  {upcomingSession.location || "Colchester Dojang"}
-                </span>
+                {upcomingSession.location && (
+                  <span className="upcoming-session-location">{upcomingSession.location}</span>
+                )}
               </div>
               <span aria-hidden="true" className="chevron-icon">
                 &rsaquo;
@@ -546,7 +526,7 @@ export function OverviewScreen() {
                         className={`status-pill-badge status-pill-${activity.statusType}`}
                       >
                         {activity.statusType === "approved" ? (
-                          <SuccessCheckIcon />
+                          <CheckIcon size={14} className="overview-icon" />
                         ) : activity.statusType === "warning" ? (
                           <AlertIcon />
                         ) : activity.statusType === "in-progress" ? (

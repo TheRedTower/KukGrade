@@ -30,7 +30,7 @@ import {
   updateCandidateAssessment,
   updateCandidateAssessmentItem,
 } from "./api";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import {
   CategoryGroup,
   useCandidateAssessmentData,
@@ -38,42 +38,19 @@ import {
 import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 import { formatDayMonth, formatTime } from "./dates";
+import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
  * chrome, which renders as a different typeface on every platform and carries
  * no consistent weight - an explicit correction already logged in the register.
  */
-function CheckIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
-      <path d="M5 12.5 10 17.5 19 7" />
-    </svg>
-  );
-}
-
-function CrossIcon({ size = 17 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true">
-      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
-    </svg>
-  );
-}
 
 function AssessorIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <circle cx="12" cy="8" r="3.4" />
       <path d="M5 20c0-3.6 3.1-5.8 7-5.8s7 2.2 7 5.8" />
-    </svg>
-  );
-}
-
-function AlertIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <path d="M12 3.5 21.5 20H2.5z" />
-      <path d="M12 10v4.5M12 17.2v.1" />
     </svg>
   );
 }
@@ -278,14 +255,14 @@ export function CandidateAssessmentScreen() {
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
         <span className="caw-rank-tag">
-          {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+          {candidate && <RankBelt rankId={candidate.from_rank} />}
           <span>{candidate?.from_rank_name ?? ""}</span>
         </span>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />
         </svg>
         <span className="caw-rank-tag caw-rank-tag-dest">
-          <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
+          <RankBelt rankId={candidate.testing_for_rank} />
           <span>{candidate.testing_for_rank_name}</span>
         </span>
         <span className="caw-age-pill">{candidate.age_band_display}</span>
@@ -321,7 +298,7 @@ export function CandidateAssessmentScreen() {
 
       {actionError && (
         <div className="caw-action-error" role="alert">
-          <AlertIcon />
+          <WarningIcon size={16} />
           <p>{actionError}</p>
         </div>
       )}
@@ -737,7 +714,7 @@ function AssessmentItemRow({
               data-testid={`btn-met-${item.id}`}
               ref={metButtonRef}
             >
-              <CheckIcon />
+              <CheckIcon size={17} />
               Met
             </button>
             <button
@@ -748,7 +725,7 @@ function AssessmentItemRow({
               aria-pressed={item.result === "NOT_MET"}
               data-testid={`btn-not-met-${item.id}`}
             >
-              <CrossIcon />
+              <CrossIcon size={17} />
               Not met
             </button>
           </div>

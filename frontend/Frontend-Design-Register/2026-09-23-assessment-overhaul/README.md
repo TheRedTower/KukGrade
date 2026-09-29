@@ -104,6 +104,9 @@ readable as-is, and the colour tokens are copied verbatim from
 
 ## 2. Why the current screens are being replaced
 
+This section records the screens as they were on 2026-09-23. Slices 1 to 7
+have since replaced them; `docs/current-system.md` describes the present state.
+
 Read off the implementation, not from taste:
 
 **`CandidateAssessmentScreen.tsx`**
@@ -226,7 +229,7 @@ register is authoritative.
 ### Status edits to existing rows
 
 SCR-019 → superseded by SCR-026 · SCR-020 → superseded by SCR-027 ·
-SCR-021 and SCR-022 → superseded by SCR-028.
+SCR-022 → superseded by SCR-028 · SCR-021 → retained, restyled under FDR-047.
 
 ## 6. Decisions arising from this pass
 
@@ -247,7 +250,7 @@ Recorded in `docs/decision_log.md` on 2026-09-23.
    has no required-split and `/outcomes/{id}/summary/` needs an outcome that
    does not exist during scoring, so the counts the selected screens need are
    not currently served. Proposal: expose `candidate_assessment_summary` on the
-   assessment resource. Blocks slice 2. See the handoff, §6.
+   assessment resource. Accepted 2026-09-23 (decision log) and built in slice 2.
 
 ### Consequences of decision 1 for the 2B proof sheet
 

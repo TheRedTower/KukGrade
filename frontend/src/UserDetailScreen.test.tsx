@@ -44,8 +44,6 @@ const managedUser: ManagedUser = {
   can_override_locked_session: true,
   can_view_grading_audit_log: false,
   must_change_password: false,
-  is_staff: false,
-  is_superuser: false,
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -72,7 +70,6 @@ describe("UserDetailScreen", () => {
       first_name: "Admin",
       last_name: "User",
       full_name: "Admin User",
-      role: "administrator",
       role_display: "Administrator",
       can_make_final_grading_decision: false,
       can_promote_student: true,
@@ -86,8 +83,6 @@ describe("UserDetailScreen", () => {
       can_delete_any_session: true,
       can_read_audit_log: true,
       must_change_password: false,
-      is_staff: false,
-      is_superuser: false,
     };
     mockGetManagedUser.mockReset().mockResolvedValue(managedUser);
     mockGetAuditEvents.mockReset().mockResolvedValue({

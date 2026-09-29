@@ -34,8 +34,7 @@
   padding: 1rem 1.25rem;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: var(--shadow-sm);
+  border-radius: 8px;
 }
 
 .syl-filter-group {
@@ -57,7 +56,7 @@
 .syl-select {
   padding: 0.55rem 0.85rem;
   border-radius: 6px;
-  border: 1px solid var(--color-border-strong);
+  border: 1px solid var(--color-text-muted);
   background: var(--color-surface);
   color: var(--color-text);
   font-size: 0.95rem;
@@ -102,8 +101,8 @@
 }
 
 .syl-nav-arrow:hover {
-  background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
-  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  border-color: var(--color-text-muted);
 }
 
 .syl-belt-track {
@@ -141,8 +140,8 @@
 }
 
 .syl-belt-btn:hover {
-  border-color: var(--color-gold-muted, #d97706);
-  background: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+  border-color: var(--color-accent);
+  background: var(--color-surface-sunken);
 }
 
 .syl-belt-btn-active {
@@ -154,132 +153,6 @@
 
 .syl-belt-label {
   line-height: 1;
-}
-
-/* Belt Swatches */
-
-.syl-swatch {
-  display: inline-block;
-  width: 14px;
-  height: 22px;
-  border-radius: 2px;
-  flex-shrink: 0;
-  position: relative;
-  vertical-align: middle;
-}
-
-.syl-swatch-white {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-}
-
-.syl-swatch-yellow-stripe {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-}
-
-.syl-swatch-yellow-stripe .syl-swatch-stripe {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #eab308;
-}
-
-.syl-swatch-yellow {
-  background: #eab308;
-  border: 1px solid #ca8a04;
-}
-
-.syl-swatch-blue-stripe {
-  background: #2563eb;
-  border: 1px solid #1d4ed8;
-}
-
-.syl-swatch-blue-stripe .syl-swatch-stripe {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #ffffff;
-}
-
-.syl-swatch-blue {
-  background: #2563eb;
-  border: 1px solid #1d4ed8;
-}
-
-.syl-swatch-red-stripe {
-  background: #dc2626;
-  border: 1px solid #b91c1c;
-}
-
-.syl-swatch-red-stripe .syl-swatch-stripe {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #ffffff;
-}
-
-.syl-swatch-red {
-  background: #dc2626;
-  border: 1px solid #b91c1c;
-}
-
-.syl-swatch-brown-stripe {
-  background: #78350f;
-  border: 1px solid #57260a;
-}
-
-.syl-swatch-brown-stripe .syl-swatch-stripe {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #ffffff;
-}
-
-.syl-swatch-brown {
-  background: #78350f;
-  border: 1px solid #57260a;
-}
-
-.syl-swatch-black-stripe {
-  background: #78350f;
-  border: 1px solid #57260a;
-}
-
-.syl-swatch-black-stripe .syl-swatch-stripe {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #0f172a;
-}
-
-.syl-swatch-dahn-bo {
-  background: #0f172a;
-  border: 1px solid #020617;
-}
-
-.syl-swatch-dahn-bo .syl-swatch-stripe-gold {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 7px;
-  height: 6px;
-  background: #f59e0b;
-}
-
-.syl-swatch-black {
-  background: #0f172a;
-  border: 1px solid #020617;
 }
 
 /* Rank Content Section */
@@ -325,7 +198,7 @@
 .syl-next-rank-btn {
   background: transparent;
   border: none;
-  color: var(--color-primary-link, #2563eb);
+  color: var(--color-accent);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -339,7 +212,7 @@
 
 .syl-next-rank-btn:hover {
   text-decoration: underline;
-  background: rgba(37, 99, 235, 0.06);
+  background: var(--color-surface-sunken);
 }
 
 /* Section Blocks */
@@ -386,7 +259,6 @@
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  box-shadow: var(--shadow-sm);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -416,7 +288,6 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: var(--shadow-sm);
 }
 
 .syl-table {
@@ -433,7 +304,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--color-text-muted);
-  background: var(--color-surface-muted, rgba(0, 0, 0, 0.02));
+  background: var(--color-surface-sunken);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -446,7 +317,6 @@
 .syl-table tr:last-child td {
   border-bottom: none;
 }
-
 
 .syl-cell-curriculum {
   display: flex;
@@ -498,7 +368,7 @@
   border-radius: 999px;
   font-size: 0.78rem;
   font-weight: 700;
-  background: var(--color-surface-muted, rgba(0, 0, 0, 0.05));
+  background: var(--color-surface-sunken);
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
 }
@@ -576,7 +446,7 @@
 }
 
 .syl-footer-divider {
-  color: var(--color-border-strong);
+  color: var(--color-text-muted);
 }
 
 .syl-footer-reference {
@@ -590,14 +460,6 @@
   background: rgba(245, 158, 11, 0.16);
   border-color: #fbbf24;
   box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
-}
-
-[data-theme="dark"] .syl-next-rank-btn {
-  color: #60a5fa;
-}
-
-[data-theme="dark"] .syl-next-rank-btn:hover {
-  background: rgba(96, 165, 250, 0.12);
 }
 
 [data-theme="dark"] .syl-badge-required {
@@ -654,14 +516,6 @@
     background: rgba(245, 158, 11, 0.16);
     border-color: #fbbf24;
     box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
-  }
-
-  :root:not([data-theme="light"]) .syl-next-rank-btn {
-    color: #60a5fa;
-  }
-
-  :root:not([data-theme="light"]) .syl-next-rank-btn:hover {
-    background: rgba(96, 165, 250, 0.12);
   }
 
   :root:not([data-theme="light"]) .syl-badge-required {

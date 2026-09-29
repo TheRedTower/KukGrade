@@ -37,6 +37,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_SECURE_HSTS_SECONDS",
         "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
+        "KUKGRADE_CLUB_NAME",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -87,7 +88,8 @@ def test_production_settings_are_hardened(
     assert settings.SECURE_SSL_REDIRECT is True
     assert settings.SECURE_HSTS_SECONDS == 31536000
     assert settings.SECURE_HSTS_INCLUDE_SUBDOMAINS is True
-    assert settings.SECURE_HSTS_PRELOAD is True
+    # Preload is a deliberate opt-in: it is close to permanent for the domain.
+    assert settings.SECURE_HSTS_PRELOAD is False
     # Unlike every other transport setting above, this one is not implied by
     # DEBUG=false: trusting a proxy header is only safe when the deployment
     # guarantees the proxy strips it, which is not something this code can
@@ -136,12 +138,12 @@ def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(
     assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
 
 
-def test_one_trusted_proxy_can_be_configured_for_traefik(
+def test_the_trusted_proxy_count_is_configurable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="1")
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="2")
 
-    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 1
+    assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 2
 
 
 def test_browsable_api_is_not_exposed_in_production(
@@ -207,3 +209,15 @@ def test_test_settings_module_forces_development_values() -> None:
     # that was computed at import time instead.
     assert active.SESSION_COOKIE_SECURE is False
     assert active.SECURE_SSL_REDIRECT is False
+
+
+def test_club_name_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    configured = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        KUKGRADE_CLUB_NAME="  Kuk Sool Won Colchester ",
+    )
+    unset = load_settings(monkeypatch, **PRODUCTION_ENV)
+
+    assert configured.CLUB_NAME == "Kuk Sool Won Colchester"
+    assert unset.CLUB_NAME == "Kuk Sool Won"

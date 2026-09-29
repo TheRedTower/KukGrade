@@ -19,11 +19,9 @@
   --color-page-bg: #f5f1e8;
   --color-surface: #ffffff;
   --color-surface-sunken: #f5f1e8;
-  --color-ink: #15130f;
-  /* The structural ink panel (nav rail, login brand panel). Distinct from
-     --color-ink in dark mode, where ink and the page background would
-     otherwise be the same colour and the panel would read as a seamless
-     void instead of its own object - see FDR-004 and FDR-012. */
+  /* The structural ink panel (nav rail, login brand panel). In dark mode it
+     must differ from the page background, or the panel would read as a
+     seamless void instead of its own object - see FDR-004 and FDR-012. */
   --color-rail: #15130f;
   --color-rail-border: transparent;
   --color-border: #e1dbcb;
@@ -53,16 +51,32 @@
 
   /* Reserved for operational meaning (FDR-003) - never the sole carrier of
      it, always paired with text or an icon. */
-  --color-success: #1e7d4b;
+  --color-success: #1a6e42;
   --color-success-surface: #e1f3e7;
-  --color-warning: #b9760a;
+  --color-warning: #8f5a00;
   --color-warning-surface: #fbead0;
   --color-danger: #b42318;
   --color-danger-surface: #fff1ef;
+  /* Text on a filled status colour. */
+  --color-on-success: #ffffff;
+  --color-on-danger: #ffffff;
+  --color-info: #1d4ed8;
+  --color-info-surface: #eff6ff;
+  --color-info-border: #bfdbfe;
+  --color-scrim: rgb(15 23 42 / 62%);
 
   --color-scrollbar-track: #eae4d7;
   --color-scrollbar-thumb: #9e9381;
   --color-scrollbar-thumb-hover: #6e6352;
+
+  /* Belt colours are the physical belts, so they do not change with the
+     theme; each belt carries a border so white and black stay visible. */
+  --belt-white: #ffffff;
+  --belt-yellow: #eab308;
+  --belt-blue: #2563eb;
+  --belt-red: #dc2626;
+  --belt-brown: #78350f;
+  --belt-black: #0f172a;
 
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -77,7 +91,6 @@
     --color-page-bg: #16130f;
     --color-surface: #221e18;
     --color-surface-sunken: #1c1914;
-    --color-ink: #16130f;
     --color-rail: #241f18;
     --color-rail-border: #3a3226;
     --color-border: #332d24;
@@ -105,12 +118,19 @@
     --btn-primary-hover-text: #0e0c08;
     --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
 
-    --color-success: #33a06b;
+    --color-success: #4cbf84;
     --color-success-surface: #1d3227;
     --color-warning: #e8a93b;
     --color-warning-surface: #3a2e17;
-    --color-danger: #e5584b;
+    --color-danger: #f27a6e;
     --color-danger-surface: #3a1f1b;
+    /* Text on a filled status colour. */
+    --color-on-success: #14110c;
+    --color-on-danger: #14110c;
+    --color-info: #93c5fd;
+    --color-info-surface: #1b2a44;
+    --color-info-border: #2c4470;
+    --color-scrim: rgb(15 23 42 / 62%);
 
     --color-scrollbar-track: #181511;
     --color-scrollbar-thumb: #786650;
@@ -122,7 +142,6 @@
   --color-page-bg: #16130f;
   --color-surface: #221e18;
   --color-surface-sunken: #1c1914;
-  --color-ink: #16130f;
   --color-rail: #241f18;
   --color-rail-border: #3a3226;
   --color-border: #332d24;
@@ -150,12 +169,19 @@
   --btn-primary-hover-text: #0e0c08;
   --btn-primary-shadow: 0 2px 12px rgb(232 168 56 / 25%);
 
-  --color-success: #33a06b;
+  --color-success: #4cbf84;
   --color-success-surface: #1d3227;
   --color-warning: #e8a93b;
   --color-warning-surface: #3a2e17;
-  --color-danger: #e5584b;
+  --color-danger: #f27a6e;
   --color-danger-surface: #3a1f1b;
+  /* Text on a filled status colour. */
+  --color-on-success: #14110c;
+  --color-on-danger: #14110c;
+  --color-info: #93c5fd;
+  --color-info-surface: #1b2a44;
+  --color-info-border: #2c4470;
+  --color-scrim: rgb(15 23 42 / 62%);
 
   --color-scrollbar-track: #181511;
   --color-scrollbar-thumb: #786650;

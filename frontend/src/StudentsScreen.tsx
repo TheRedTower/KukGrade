@@ -6,31 +6,12 @@ import {
   type Rank,
   type StudentListItem,
   type StudentStatus,
-  getRanks,
   getStudents,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import "./StudentScreens.css";
-
-function SearchIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="filter-icon"
-      fill="none"
-      height="18"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="18"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" x2="16.65" y1="21" y2="16.65" />
-    </svg>
-  );
-}
+import { SearchIcon } from "./Icons";
 
 function ClearIcon() {
   return (
@@ -126,10 +107,7 @@ export function StudentsScreen() {
   const canImportStudents = Boolean(user?.can_import_data);
 
   // 1. Fetch available ranks for filter dropdown
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
@@ -238,7 +216,7 @@ export function StudentsScreen() {
       {/* Filter and Search Bar */}
       <div className="students-filter-bar" role="search" aria-label="Student filters">
         <div className="search-input-wrapper">
-          <SearchIcon />
+          <SearchIcon size={18} className="filter-icon" />
           <input
             type="text"
             className="student-search-input"

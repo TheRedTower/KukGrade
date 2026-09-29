@@ -18,6 +18,248 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - Opening a grading session is confirmed
+
+Status: Accepted
+
+Decision:
+"Open session" opens the same confirmation dialog as Lock, Complete, Cancel
+and Delete. It states how many non-withdrawn candidates are registered, that
+an open session cannot go back to draft (`DRAFT -> OPEN` is one-way in
+`ALLOWED_SESSION_TRANSITIONS`), and that a candidate who already has an
+assessment can no longer be moved or removed. Nothing changes in the API or
+the transition rules.
+
+Context:
+Agreed with the user 2026-09-29 after the PR #8 review finding: the roster is
+meant to be registered and checked in `DRAFT`, and `OPEN` should mean it is
+confirmed. Opening was the only lifecycle transition made with one click.
+
+### 2026-09-29 - The server says whether a registration can be moved or removed
+
+Status: Accepted
+
+Decision:
+Every candidate carries `can_be_moved` and `can_be_removed`, computed by
+`candidate_can_change_session` and `candidate_can_be_deleted` from the same
+validators the `PATCH` and `DELETE` use. The session screen shows "Move…" and
+"Remove" only when they are true, and the Remove dialog no longer claims it
+removes recorded assessment work. The write rules themselves are unchanged: a
+candidate with an assessment cannot change session, and can be removed only
+while the session is `DRAFT` and the assessment is `NOT_STARTED`.
+
+Context:
+Code review of PR #8 found that the roster offered Remove in every `OPEN`
+session, but assessments are normally generated at registration, so the
+common case ended in a 400. Move had the same fault. Gating on session status
+in React would have restated a grading rule the backend owns.
+
+Consequences:
+A registration made in error in an `OPEN` session that already has an
+assessment cannot be removed from the roster; the administrator-only
+assessment delete is the way out. Relaxing the rule to allow removing an
+unstarted assessment in an `OPEN` session is a separate decision.
+
+### 2026-09-29 - Cancellation reason is write-only; the redesign handoff is retired
+
+Status: Accepted
+
+Decision:
+`GradingSession.cancellation_reason` is accepted when a session is cancelled
+but is never served: no screen reads it, so it is `write_only` in the
+serializer and absent from `schema.yml`. The database column and the audit
+event keep the reason. The final-decision board shows a failure with a retry
+control, not an empty cohort, when any of its four requests fails. The
+unused `percent` and `remainingRequiredCount` helpers and the `--color-ink`
+token were deleted. `docs/assessment-grading-redesign-handoff.md` was
+deleted: every decision it carried is recorded here and in the design
+register.
+
+Context:
+Completes the "API serves what the app uses" rule for the last field the
+app never read, and removes a stale planning document that had begun to
+disagree with the code.
+
+### 2026-09-29 - Assessment list serves overall counts; measured contrast tokens
+
+Status: Accepted
+
+Decision:
+Each `CandidateAssessment` in the API carries `overall`, the counts block
+`candidate_assessment_summary` already produces, and the list prefetches
+items so its query count is constant. The board reads it instead of one
+summary request per candidate. Status colours were adjusted until text meets
+4.5:1 on its own surface in both themes, filled status colours gained
+`--color-on-success` / `--color-on-danger`, and focus outlines use the solid
+`--color-accent-strong`.
+
+Context:
+Slice 8. A 40-candidate cohort made 40 summary requests on opening the
+board. The browser measurement found warning text at 3.1:1 in light, white
+on the dark success fill at 3.3:1, and a translucent focus outline near
+1.3:1 against white.
+
+Consequences:
+The counts have one implementation (the service) and one schema shape. The
+token changes apply everywhere those tokens are used, not only on the four
+grading surfaces.
+
+### 2026-09-29 - The API serves what the app uses
+
+Status: Accepted
+
+Decision:
+Every list filter and every response field is kept only while a screen reads
+it. Unused filters, duplicated fields (a code alongside its name, a display
+label the client can derive, a denormalised id), attribution ids, and preview
+rows the UI never renders were removed from the serializers, the views and
+`schema.yml`. A field is added back, with a test, when a screen needs it.
+Database columns that hold audit or business data are not removed with the
+response field: attribution, cancellation and withdrawal reasons and the
+import provenance stay, and attribution is read from the database and the
+audit log. `ImportBatch.error_summary`, which nothing wrote or read, was
+dropped by migration.
+
+Context:
+Unused API surface is untested behaviour that still has to be kept correct,
+reviewed and secured, and duplicated fields can disagree. The frontend's types
+are generated from the schema, so `tsc -b` shows exactly which removed field a
+screen still reads.
+
+Consequences:
+Removing a field is a contract change: regenerate `schema.yml` and the
+frontend types, and update `docs/api_contract.md`. Health and readiness
+responses are kept as they are because monitors read them.
+
+### 2026-09-28 - HSTS without preload
+
+Status: Accepted
+
+Decision:
+Production sends HSTS for one year including subdomains, without the
+preload token. `DJANGO_SECURE_HSTS_PRELOAD=true` opts in; the `check
+--deploy` warning for a missing preload (`security.W021`) is silenced only
+while preload is off.
+
+Context:
+Preloading puts kukgrade.co.uk and every subdomain into browsers as
+HTTPS-only, which takes months to undo, and the token alone lets anyone
+submit the domain. The only gain is protecting a first-ever visit, which
+Cloudflare's HTTPS redirect already covers. Agreed with the user 2026-09-28.
+
+### 2026-09-28 - Two-hour idle sign-out; two trusted proxies
+
+Status: Accepted
+
+Decision:
+A session ends after two hours with no request; each request restarts the
+two hours. Production trusts two proxy hops, Cloudflare then Traefik.
+
+Context:
+Confirmed by the user 2026-09-28: "if the session is idle for 2 hours ...
+it's logged out", and the site will sit behind Cloudflare and Traefik.
+
+Consequences:
+The frontend signs the viewer out as soon as any request reports the session
+has ended and drops everything it had cached. The proxy count is only correct if Traefik trusts Cloudflare's
+ranges and the host takes web traffic only from Cloudflare - see
+`deployment.md`.
+
+### 2026-09-28 - Three withdrawal reasons and Other, served
+
+Status: Accepted
+
+Decision:
+Withdrawal reasons are Injured during grading, Withdrew voluntarily, Did not
+attend, and Other, which requires a note (model check and database
+constraint). `GET /api/gradings/withdrawal-reasons/` serves them with
+`note_required`; the locked-withdrawal dialog lists them as radio buttons.
+
+Context:
+The user asked for three reasons and an Other, easy to pick, read from the
+server. "Registered in error" is covered by Remove registration before lock;
+after lock it is Other with a note. Existing `ADMIN_ERROR` rows are migrated
+to `OTHER` with "Registered in error." kept in the note.
+
+Consequences:
+Audit events written before the change keep the old reason code in their
+metadata; they are immutable.
+
+### 2026-09-28 - Each rank carries its belt colours
+
+Status: Accepted
+
+Decision:
+`Rank` has `belt_colour` and `stripe_colour`, seeded by migration and served
+on `/api/ranks/`. One frontend `BeltSwatch` draws every rank from them.
+
+Context:
+Two belt icons guessed colours from rank names and disagreed with each other
+and with the belts. A stripe rank is the belt below with a stripe of the
+colour it is working towards: Yellow stripe is white with yellow, Blue stripe
+is yellow with blue, through Black stripe, brown with black. Confirmed by the
+user 2026-09-28.
+
+Consequences:
+`RankVisual` and the syllabus screen's own swatch are deleted, with their
+per-screen CSS. A `stripe_count` carries Dahn Bo: a brown belt with two black
+stripes (the user, same day; it can be more, and two is the symbol). PSBN and
+above wear a thicker belt; until the black-belt titles' appearance is decided
+they are served as plain black.
+
+### 2026-09-28 - Age bands and their programmes are served
+
+Status: Accepted
+
+Decision:
+`GET /api/syllabus/age-bands/` lists the four age bands with their label,
+description and programme (`JUNIOR` or `ADULT`). The syllabus and
+cohort-builder screens read it; neither restates the bands.
+
+Context:
+The syllabus screen held its own table of bands, labels, descriptions and a
+junior/adult "track"; the cohort builder repeated the labels and split
+"Kids"/"Adults" by listing band codes. That is syllabus data held in React,
+twice, in two vocabularies. The programme and description now sit beside
+`AgeBand` in `syllabus/models.py`, with a test that every band has both.
+
+Consequences:
+The cohort builder's age mix reads "Junior & Little Dragon n | Adult & Youth
+n" rather than "Kids n | Adults n", and the syllabus labels use the
+backend's "9-12" rather than "9 – 12".
+
+### 2026-09-28 - The API serves what the application uses
+
+Status: Accepted
+
+Decision:
+Removed `GET /api/gradings/outcomes/{id}/summary/`, the `PATCH` stub on
+`/api/gradings/outcomes/{id}/`, `PUT` on grading sessions and candidates, and
+the assessment serializer's `item_counts`. `can_be_graded` moved from the
+student detail to the student list, and the cohort builder filters on it.
+Confirmed the same day: every single-record `GET` the application never
+calls is removed too (audit event, import batch list and detail, assessment,
+assessment item, outcome, promotion, legacy record, rank, syllabus item),
+along with the syllabus requirement list and detail - requirements are read
+only through `/effective/`. Candidates are registered only through
+`bulk-register`; the single `POST /api/gradings/candidates/` is gone.
+Candidate `PATCH` and `DELETE` stay, and the session screen now offers them
+as "Move to session" and "Remove registration".
+
+Context:
+After slice 6 nothing called the outcome summary: it returned the same
+payload as the assessment summary, which every screen now reads.
+`item_counts` had no reader and lacked the required-split the screens need.
+The outcome `PATCH` stub existed only to answer 405, but it made the schema
+advertise a write that does not exist. `PUT` duplicated `PATCH` on the two
+viewsets that had not already excluded it. The cohort builder re-derived
+grading eligibility from `status !== "LEFT"` while the server already served
+the rule on a representation the builder did not read.
+
+Consequences:
+Contract, schema and generated types updated. `/api/students/{id}/` no
+longer carries `can_be_graded`; the list does.
+
 ### 2026-09-28 - The frontend derives no authority and no rank progression
 
 Status: Accepted
@@ -1756,5 +1998,6 @@ local PostgreSQL only - is still the current setup.
 ## Open decisions
 
 None. Every decision arising from the 2026-09-23 assessment grading redesign
-is recorded above. See `assessment-grading-redesign-handoff.md` and
-`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`.
+is recorded above. See
+`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
+for the nine proposed directions.

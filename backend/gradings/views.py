@@ -6,10 +6,9 @@ from django.db.models import QuerySet
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from accounts.models import User
 from accounts.permissions import (
@@ -58,6 +57,7 @@ from gradings.serializers import (
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     VoidLegacyRecordSerializer,
+    WithdrawalReasonSerializer,
 )
 from gradings.services import (
     bulk_generate_candidate_assessments,
@@ -73,35 +73,47 @@ from gradings.services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from kukgrade.filtering import boolean, by_id, by_uuid, choice, exact, on_date, search
-from syllabus.models import AgeBand, SyllabusItem
+from kukgrade.filtering import boolean, by_id, choice, on_date, search
+
+
+class WithdrawalReasonViewSet(GenericViewSet):
+    """The reasons a candidate can be withdrawn for, as every withdrawal
+    control lists them."""
+
+    serializer_class = WithdrawalReasonSerializer
+    permission_classes = [HasRequiredPermissions]
+    permission_map = {"list": ("gradings.view_gradingcandidate",)}
+
+    def list(self, request: Request) -> Response:
+        # Paginated like every list endpoint, as the syllabus age bands are.
+        page: list[str] | None = self.paginate_queryset(
+            GradingCandidate.WithdrawalReason.values,  # type: ignore[arg-type]
+        )
+        return self.get_paginated_response(self.get_serializer(page, many=True).data)
 
 
 class GradingSessionViewSet(ModelViewSet):
+    # No PUT: partial_update covers every real edit.
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     serializer_class = GradingSessionSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingsession",),
         "retrieve": ("gradings.view_gradingsession",),
         "create": ("gradings.add_gradingsession",),
-        "update": ("gradings.change_gradingsession",),
         "partial_update": ("gradings.change_gradingsession",),
         "destroy": ("gradings.delete_gradingsession",),
     }
 
     query_filters = (
         choice("status", "status", GradingSession.Status.values),
-        on_date("grading_date", "grading_date"),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
         search("search", ("title", "location")),
     )
 
     def get_queryset(self) -> QuerySet[GradingSession]:
-        return GradingSession.objects.select_related("created_by").order_by(
-            "-grading_date",
-            "created_at",
-        )
+        return GradingSession.objects.order_by("-grading_date", "created_at")
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
@@ -109,14 +121,23 @@ class GradingSessionViewSet(ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class GradingCandidateViewSet(ModelViewSet):
+class GradingCandidateViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    GenericViewSet,
+):
+    """Registrations are created by bulk-register only. PATCH and DELETE
+    change or remove one while its session is draft or open."""
+
+    # No PUT: partial_update covers every real edit.
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
     serializer_class = GradingCandidateSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_gradingcandidate",),
         "retrieve": ("gradings.view_gradingcandidate",),
-        "create": ("gradings.add_gradingcandidate",),
-        "update": ("gradings.change_gradingcandidate",),
         "partial_update": ("gradings.change_gradingcandidate",),
         "destroy": ("gradings.delete_gradingcandidate",),
         # These create other models, so they are named for what they make
@@ -131,21 +152,16 @@ class GradingCandidateViewSet(ModelViewSet):
         "withdraw": ("gradings.change_gradingcandidate",),
     }
 
-    query_filters = (
-        by_id("session", "session_id"),
-        exact("student_wksa_id", "student__wksa_id"),
-        exact("testing_for_rank_code", "testing_for_rank__code"),
-        choice("age_band", "age_band", AgeBand.values),
-        choice("status", "status", GradingCandidate.Status.values),
-    )
+    query_filters = (by_id("session", "session_id"),)
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
         return GradingCandidate.objects.select_related(
-            "session",
             "student",
             "from_rank",
             "testing_for_rank",
-            "withdrawn_by",
+            "session",
+            "assessment",
+            "outcome",
         ).order_by(
             "session__grading_date",
             "student__last_name",
@@ -299,7 +315,6 @@ class GradingCandidateViewSet(ModelViewSet):
 
 class CandidateAssessmentViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     GenericViewSet,
 ):
@@ -308,7 +323,6 @@ class CandidateAssessmentViewSet(
     http_method_names = ["get", "patch", "post", "delete", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessment",),
-        "retrieve": ("gradings.view_candidateassessment",),
         "partial_update": ("gradings.change_candidateassessment",),
         "bulk_start": ("gradings.change_candidateassessment",),
         "reopen": ("gradings.change_candidateassessment",),
@@ -319,17 +333,13 @@ class CandidateAssessmentViewSet(
     query_filters = (
         by_id("candidate", "candidate_id"),
         by_id("session", "candidate__session_id"),
-        exact("student_wksa_id", "candidate__student__wksa_id"),
-        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
         choice("status", "status", CandidateAssessment.Status.values),
     )
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
         return (
             CandidateAssessment.objects.select_related(
-                "candidate__session",
                 "candidate__student",
-                "candidate__testing_for_rank",
                 "generated_by",
             )
             .prefetch_related("items")
@@ -375,12 +385,8 @@ class CandidateAssessmentViewSet(
     ) -> Response:
         """Category and overall rollup for one assessment, at any status.
 
-        The same service and response shape as the outcome endpoint's
-        `summary`, reached by assessment rather than by outcome. A
-        `CandidateOutcome` cannot exist until the session is `LOCKED` and the
-        assessment `COMPLETED`, so the outcome route is unreachable while an
-        assessment is being scored or reviewed - which is exactly when the
-        scoring and completion screens need these counts. See FDR-046.
+        Served here rather than recounted by the client, so scoring, review
+        and the final-decision board all read the same counts. See FDR-046.
         """
         summary = candidate_assessment_summary(self.get_object())
         return Response(CandidateAssessmentSummarySerializer(summary).data)
@@ -411,7 +417,6 @@ class CandidateAssessmentViewSet(
 
 class CandidateAssessmentItemViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
     GenericViewSet,
 ):
@@ -420,36 +425,19 @@ class CandidateAssessmentItemViewSet(
     http_method_names = ["get", "patch", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateassessmentitem",),
-        "retrieve": ("gradings.view_candidateassessmentitem",),
         "partial_update": ("gradings.change_candidateassessmentitem",),
     }
 
-    query_filters = (
-        by_id("assessment", "assessment_id"),
-        by_id("candidate", "assessment__candidate_id"),
-        by_id("session", "assessment__candidate__session_id"),
-        exact("item_code", "item_code"),
-        choice("category", "category", SyllabusItem.Category.values),
-        choice("result", "result", CandidateAssessmentItem.Result.values),
-        boolean("required", "required"),
-    )
+    query_filters = (by_id("assessment", "assessment_id"),)
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return CandidateAssessmentItem.objects.select_related(
-            "assessment__candidate__session",
-            "assessment__candidate__student",
-            "assessment__candidate__testing_for_rank",
-            "source_requirement",
-            "source_item",
-            "source_rank",
             "assessor",
         ).order_by("requirement_sequence", "item_name", "pk")
 
 
 class CandidateOutcomeViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
     GenericViewSet,
 ):
     serializer_class = CandidateOutcomeSerializer
@@ -457,10 +445,7 @@ class CandidateOutcomeViewSet(
     http_method_names = ["get", "patch", "post", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateoutcome",),
-        "retrieve": ("gradings.view_candidateoutcome",),
-        "partial_update": ("gradings.change_candidateoutcome",),
         "propose": ("gradings.change_candidateoutcome",),
-        "summary": ("gradings.view_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
         # permission class on the action, which also gives a better message.
         "finalise": ("gradings.view_candidateoutcome",),
@@ -468,48 +453,16 @@ class CandidateOutcomeViewSet(
         "bulk_promote": ("gradings.view_candidateoutcome",),
     }
 
-    query_filters = (
-        by_id("session", "candidate__session_id"),
-        by_id("candidate", "candidate_id"),
-        exact("student_wksa_id", "candidate__student__wksa_id"),
-        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
-        choice("status", "status", CandidateOutcome.Status.values),
-        choice("proposed_outcome", "proposed_outcome", CandidateOutcome.Outcome.values),
-        choice("final_outcome", "final_outcome", CandidateOutcome.Outcome.values),
-        by_uuid("proposed_by", "proposed_by_id"),
-        by_uuid("decided_by", "decided_by_id"),
-    )
+    query_filters = (by_id("session", "candidate__session_id"),)
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         return CandidateOutcome.objects.select_related(
-            "candidate__session",
-            "candidate__student",
-            "candidate__testing_for_rank",
-            "assessment",
             "proposed_by",
             "decided_by",
         ).order_by(
             "candidate__session__grading_date",
             "candidate__student__last_name",
             "candidate__student__first_name",
-        )
-
-    def partial_update(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        # PATCH is routed here by the router but is only meaningful on the
-        # propose and finalise actions, so the method genuinely is not
-        # allowed on the detail route. 405 rather than 400, and it flows
-        # through the shared error envelope.
-        raise MethodNotAllowed(
-            "PATCH",
-            detail=(
-                "Candidate outcomes are read-only except through the propose "
-                "and finalise actions."
-            ),
         )
 
     @extend_schema(
@@ -567,18 +520,6 @@ class CandidateOutcomeViewSet(
             context={"request": request},
         )
         return Response(response_serializer.data)
-
-    @extend_schema(responses=CandidateAssessmentSummarySerializer)
-    @action(detail=True, methods=["get"])
-    def summary(
-        self,
-        request: Request,
-        *args: object,
-        **kwargs: object,
-    ) -> Response:
-        outcome = self.get_object()
-        summary = candidate_assessment_summary(outcome.assessment)
-        return Response(CandidateAssessmentSummarySerializer(summary).data)
 
     @extend_schema(
         request=CandidatePromotionSerializer,
@@ -639,40 +580,24 @@ class CandidateOutcomeViewSet(
         return Response(result.data)
 
 
-class PromotionViewSet(ReadOnlyModelViewSet):
+class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
     serializer_class = PromotionSerializer
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_promotion",),
-        "retrieve": ("gradings.view_promotion",),
     }
 
-    query_filters = (
-        by_id("student", "student_id"),
-        exact("student_wksa_id", "student__wksa_id"),
-        exact("from_rank_code", "from_rank__code"),
-        exact("to_rank_code", "to_rank__code"),
-        by_id("session", "grading_candidate__session_id"),
-        on_date("effective_date", "effective_date"),
-        on_date("effective_date_from", "effective_date__gte"),
-        on_date("effective_date_to", "effective_date__lte"),
-        by_uuid("promoted_by", "promoted_by_id"),
-    )
+    query_filters = (by_id("session", "grading_candidate__session_id"),)
 
     def get_queryset(self) -> QuerySet[Promotion]:
         return Promotion.objects.select_related(
-            "student__current_rank",
-            "outcome",
-            "grading_candidate__session",
-            "from_rank",
+            "student",
             "to_rank",
-            "promoted_by",
         ).order_by("-effective_date", "-promoted_at", "-pk")
 
 
 class LegacyGradingRecordViewSet(
     mixins.ListModelMixin,
-    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
@@ -685,7 +610,6 @@ class LegacyGradingRecordViewSet(
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_legacygradingrecord",),
-        "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
         "resolve_current_rank": ("gradings.can_reconcile_imported_history",),
@@ -694,11 +618,8 @@ class LegacyGradingRecordViewSet(
     }
 
     query_filters = (
-        by_id("student", "student_id"),
         boolean("linked", "student__isnull", invert=True),
         boolean("voided", "is_void"),
-        exact("record_kind", "record_kind"),
-        by_id("source_batch", "source_batch_id"),
     )
 
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
@@ -706,8 +627,6 @@ class LegacyGradingRecordViewSet(
             "student",
             "current_rank",
             "testing_for_rank",
-            "voided_by",
-            "source_batch",
         ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
 
     @extend_schema(

@@ -15,6 +15,7 @@ import {
   getCurrentUser,
   loginUser,
   logoutUser,
+  updateCurrentUser,
 } from "./api";
 
 type AuthStatus = "loading" | "authenticated" | "anonymous" | "error";
@@ -27,6 +28,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateName: (firstName: string, lastName: string) => Promise<void>;
   /** Re-run the session check after a transport failure. */
   retry: () => void;
 };
@@ -76,6 +78,15 @@ function describeAuthFailure(error: unknown): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
+  // Ending a session drops everything fetched under it, so the next person
+  // on this browser never sees the previous person's students or gradings.
+  const forgetSession = useCallback(() => {
+    queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== CURRENT_USER_QUERY_KEY[0],
+    });
+  }, [queryClient]);
+
   const currentUserQuery = useQuery({
     queryKey: CURRENT_USER_QUERY_KEY,
     queryFn: getCurrentUser,
@@ -94,9 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // signed-out UI while the session cookie was still valid.
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
-    onSuccess: () => {
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
-    },
+    onSuccess: forgetSession,
   });
 
   const changePasswordMutation = useMutation({
@@ -111,6 +120,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await currentUserQuery.refetch();
     },
   });
+
+  const updateNameMutation = useMutation({
+    mutationFn: ({ firstName, lastName }: { firstName: string; lastName: string }) =>
+      updateCurrentUser({ first_name: firstName, last_name: lastName }),
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updatedUser);
+    },
+  });
+
+  // A session that expired - two hours without a request - answers every
+  // call with "not signed in". Whichever request hears it first signs the
+  // viewer out here, so the next action lands on sign-in rather than an
+  // error on whatever screen was open.
+  useEffect(() => {
+    function signOutIfSessionEnded(error: unknown) {
+      if (isAnonymousResponse(error)) {
+        forgetSession();
+      }
+    }
+    const stopQueries = queryClient.getQueryCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    const stopMutations = queryClient.getMutationCache().subscribe((event) => {
+      if (event.type === "updated" && event.action.type === "error") {
+        signOutIfSessionEnded(event.action.error);
+      }
+    });
+    return () => {
+      stopQueries();
+      stopMutations();
+    };
+  }, [queryClient, forgetSession]);
 
   const user = currentUserQuery.data ?? null;
 
@@ -168,9 +211,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [changePasswordMutation],
   );
 
+  const updateName = useCallback(
+    async (firstName: string, lastName: string) => {
+      await updateNameMutation.mutateAsync({ firstName, lastName });
+    },
+    [updateNameMutation],
+  );
+
   const value = useMemo(
-    () => ({ user, status, error, login, logout, changePassword, retry }),
-    [changePassword, error, login, logout, retry, status, user],
+    () => ({ user, status, error, login, logout, changePassword, updateName, retry }),
+    [changePassword, error, login, logout, retry, status, updateName, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

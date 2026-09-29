@@ -3,16 +3,17 @@ from __future__ import annotations
 from typing import cast
 
 from django.db.models import QuerySet
-from rest_framework.viewsets import ReadOnlyModelViewSet
+from rest_framework import mixins
+from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
 from audit.models import AuditAction, AuditEntity, AuditEvent
 from audit.serializers import AuditEventSerializer
-from kukgrade.filtering import by_uuid, choice, exact, on_date, search
+from kukgrade.filtering import choice, exact, on_date, search
 
 
-class AuditEventViewSet(ReadOnlyModelViewSet):
+class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
     """Read-only by construction: the model refuses writes from every path."""
 
     serializer_class = AuditEventSerializer
@@ -25,14 +26,12 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
     permission_classes = [HasRequiredPermissions, CanViewAuditLog]
     permission_map = {
         "list": (),
-        "retrieve": (),
     }
 
     query_filters = (
         choice("action", "action", AuditAction.values),
         choice("entity_type", "entity_type", AuditEntity.values),
         exact("entity_id", "entity_id"),
-        by_uuid("actor", "actor_id"),
         on_date("occurred_from", "occurred_at__date__gte"),
         on_date("occurred_to", "occurred_at__date__lte"),
         search(
@@ -44,8 +43,7 @@ class AuditEventViewSet(ReadOnlyModelViewSet):
     def get_queryset(self) -> QuerySet[AuditEvent]:
         # User-management events are excluded per row rather than through
         # permission_map, since it depends on the row's own action, not the
-        # request method. A direct retrieve of an excluded id 404s, same as
-        # any other object outside the caller's queryset.
+        # request method.
         return (
             AuditEvent.objects.visible_to(cast(User, self.request.user))
             .select_related("actor")

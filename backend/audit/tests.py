@@ -7,7 +7,6 @@ from datetime import date
 import pytest
 from django.contrib.admin.sites import site as admin_site
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from django.http import HttpRequest
@@ -15,6 +14,8 @@ from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.testing import grant_permission
 from audit.admin import AuditEventAdmin
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -31,23 +32,13 @@ def user(email: str) -> User:
     return User.objects.create_user(email=email)
 
 
-def grant(actor: User, codename: str, model: str) -> User:
-    actor.user_permissions.add(
-        Permission.objects.get(
-            codename=codename,
-            content_type=ContentType.objects.get(app_label="gradings", model=model),
-        ),
-    )
-    return User.objects.get(pk=actor.pk)
-
-
 def master(email: str) -> User:
     """An instructor holding Master (final-decision) authority.
 
     Distinct from an administrator - CanViewAuditLog grants audit log
     access to either, and several tests need to tell the two paths apart.
     """
-    return grant(user(email), "can_make_final_grading_decision", "candidateoutcome")
+    return grant_permission(user(email), FINAL_GRADING_DECISION_PERMISSION)
 
 
 def events_for(action: str) -> list[AuditEvent]:
@@ -341,7 +332,7 @@ def test_the_log_is_read_only_over_http() -> None:
     client.force_authenticate(user=master("audit-readonly@example.com"))
 
     assert client.post("/api/audit-events/", {}, format="json").status_code == 405
-    assert client.delete("/api/audit-events/1/").status_code == 405
+    assert client.delete("/api/audit-events/").status_code == 405
 
 
 def test_an_unknown_filter_value_returns_nothing_rather_than_everything() -> None:
@@ -395,17 +386,11 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     client.force_authenticate(user=master("audit-instructor-reader@example.com"))
 
     listing = client.get("/api/audit-events/")
-    event_id = AuditEvent.objects.get(
-        action=AuditAction.USER_CREATED,
-        entity_id=str(created.pk),
-    ).pk
-    detail = client.get(f"/api/audit-events/{event_id}/")
-    filtered = client.get("/api/audit-events/?action=USER_CREATED")
+    filtered = client.get(f"/api/audit-events/?entity_id={created.pk}")
 
     assert AuditAction.USER_CREATED not in {
         row["action"] for row in listing.json()["results"]
     }
-    assert detail.status_code == 404
     assert filtered.json()["count"] == 0
 
 
@@ -413,7 +398,7 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     from accounts.services import create_platform_user
 
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
-    created = create_platform_user(
+    create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
         password="Str0ng-Passphrase!42",
         actor=admin_actor,
@@ -422,16 +407,10 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     client.force_authenticate(user=administrator("audit-admin-reader@example.com"))
 
     listing = client.get("/api/audit-events/")
-    event_id = AuditEvent.objects.get(
-        action=AuditAction.USER_CREATED,
-        entity_id=str(created.pk),
-    ).pk
-    detail = client.get(f"/api/audit-events/{event_id}/")
 
     assert AuditAction.USER_CREATED in {
         row["action"] for row in listing.json()["results"]
     }
-    assert detail.status_code == 200
 
 
 def test_master_authority_instructor_still_sees_every_other_action_in_the_log() -> None:
@@ -458,7 +437,7 @@ def test_master_authority_instructor_still_sees_every_other_action_in_the_log() 
 
 def audit_log_reader(email: str) -> User:
     """A plain instructor granted only can_view_grading_audit_log."""
-    return grant(user(email), "can_view_grading_audit_log", "candidateoutcome")
+    return grant_permission(user(email), "gradings.can_view_grading_audit_log")
 
 
 def user_created_event() -> AuditEvent:

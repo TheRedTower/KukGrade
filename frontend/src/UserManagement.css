@@ -74,7 +74,7 @@
 .users-danger-button {
   border: 1px solid var(--color-danger);
   background: var(--color-danger);
-  color: #ffffff;
+  color: var(--color-on-danger);
 }
 
 .users-danger-button:hover:not(:disabled) {
@@ -110,7 +110,7 @@
 .users-form-grid select:focus,
 .users-password-dialog input:focus,
 .user-authority-options input:focus-visible {
-  outline: 3px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }
 

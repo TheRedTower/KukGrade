@@ -45,27 +45,17 @@ const student = {
   date_of_birth: "2015-03-20",
   current_rank: 2,
   current_rank_name: "Yellow Stripe",
-  current_rank_code: "YELLOW_STRIPE",
   status: "ACTIVE",
   status_display: "Active",
+  age_band_display: "9-12",
   created_at: "2025-01-01T00:00:00Z",
-  updated_at: "2025-01-01T00:00:00Z",
-} as unknown as StudentDetail;
+} satisfies StudentDetail;
 
 const rankHistory: StudentRankHistory = {
-  student: 42,
-  student_display_name: "Alex Kim",
-  student_wksa_id: "WKSA0042",
-  current_rank: 2,
-  current_rank_code: "YELLOW_STRIPE",
-  current_rank_name: "Yellow Stripe",
   promotions: [],
 };
 
 const gradingHistory: StudentGradingHistory = {
-  student: 42,
-  student_display_name: "Alex Kim",
-  student_wksa_id: "WKSA0042",
   items: [],
 };
 
@@ -103,7 +93,6 @@ describe("StudentDetailScreen delete action", () => {
       first_name: "Instructor",
       last_name: "User",
       full_name: "Instructor User",
-      role: "instructor",
       role_display: "Instructor",
       can_make_final_grading_decision: false,
       can_promote_student: false,
@@ -117,8 +106,6 @@ describe("StudentDetailScreen delete action", () => {
       can_delete_any_session: false,
       can_read_audit_log: false,
       must_change_password: false,
-      is_staff: false,
-      is_superuser: false,
     };
 
     renderScreen();
@@ -140,7 +127,6 @@ describe("StudentDetailScreen delete action", () => {
       first_name: "Admin",
       last_name: "User",
       full_name: "Admin User",
-      role: "administrator",
       role_display: "Administrator",
       can_make_final_grading_decision: false,
       can_promote_student: true,
@@ -154,8 +140,6 @@ describe("StudentDetailScreen delete action", () => {
       can_delete_any_session: true,
       can_read_audit_log: true,
       must_change_password: false,
-      is_staff: false,
-      is_superuser: false,
     };
     const user = userEvent.setup();
 

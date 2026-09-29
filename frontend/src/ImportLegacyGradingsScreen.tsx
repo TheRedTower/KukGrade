@@ -1,5 +1,4 @@
-import { useMemo, useState, type ChangeEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -10,9 +9,10 @@ import {
   cancelDataImportBatch,
   commitLegacyGradingImport,
   createDataImportBatch,
-  getRanks,
   previewLegacyGradingImport,
 } from "./api";
+import { useRanksQuery } from "./queries";
+import { ImportReviewActions, ImportUploadRow } from "./ImportWizardParts";
 import "./StudentScreens.css";
 import "./ImportStudents.css";
 
@@ -34,10 +34,7 @@ export function ImportLegacyGradingsScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
   const ranks = useMemo<Rank[]>(
     () => (Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : []),
     [ranksQuery.data],
@@ -180,24 +177,14 @@ export function ImportLegacyGradingsScreen() {
         <div className="form-section-card">
           <h2 className="form-section-title">1. Upload a workbook</h2>
           <p className="imp-help-text">Accepts .xlsx only, up to 5 MiB.</p>
-          <div className="imp-upload-row">
-            <input
-              type="file"
-              accept=".xlsx"
-              aria-label="Historical grading workbook file"
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                setFile(event.target.files?.[0] ?? null)
-              }
-            />
-            <button
-              type="button"
-              className="btn-form-submit"
-              disabled={!file || isUploading}
-              onClick={() => void handleUpload()}
-            >
-              {isUploading ? "Uploading…" : "Upload"}
-            </button>
-          </div>
+          <ImportUploadRow
+            accept=".xlsx"
+            ariaLabel="Historical grading workbook file"
+            canUpload={file !== null}
+            isUploading={isUploading}
+            onFile={setFile}
+            onUpload={() => void handleUpload()}
+          />
         </div>
       )}
 
@@ -262,32 +249,16 @@ export function ImportLegacyGradingsScreen() {
             </table>
           )}
 
-          <div className="imp-actions">
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={isCancelling}
-              onClick={() => void handleCancel()}
-            >
-              {isCancelling ? "Cancelling…" : "Cancel import"}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={isChecking}
-              onClick={() => void handleRecheck()}
-            >
-              {isChecking ? "Re-checking…" : "Re-check"}
-            </button>
-            <button
-              type="button"
-              className="btn-form-submit"
-              disabled={isCommitting}
-              onClick={() => void handleCommit()}
-            >
-              {isCommitting ? "Creating…" : `Create ${preview.total} historical record(s)`}
-            </button>
-          </div>
+          <ImportReviewActions
+            isCancelling={isCancelling}
+            isChecking={isChecking}
+            isCommitting={isCommitting}
+            commitDisabled={false}
+            commitLabel={`Create ${preview.total} historical record(s)`}
+            onCancel={() => void handleCancel()}
+            onRecheck={() => void handleRecheck()}
+            onCommit={() => void handleCommit()}
+          />
         </div>
       )}
 

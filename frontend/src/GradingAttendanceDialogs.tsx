@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { LockedCandidateWithdrawal } from "./api";
+import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./GradingAttendance.css";
 
@@ -132,6 +132,7 @@ export function NoShowDialog({
 
 type LockedWithdrawalDialogProps = {
   candidate: AttendanceCandidate;
+  reasons: WithdrawalReason[];
   pending: boolean;
   error: string | null;
   onClose: () => void;
@@ -140,13 +141,15 @@ type LockedWithdrawalDialogProps = {
 
 export function LockedWithdrawalDialog({
   candidate,
+  reasons,
   pending,
   error,
   onClose,
   onConfirm,
 }: LockedWithdrawalDialogProps) {
-  const [reason, setReason] = useState<LockedCandidateWithdrawal["withdrawal_reason"] | "">("");
+  const [reason, setReason] = useState<WithdrawalReason | null>(null);
   const [note, setNote] = useState("");
+  const noteMissing = Boolean(reason?.note_required) && !note.trim();
 
   return (
     <DialogFrame
@@ -161,31 +164,36 @@ export function LockedWithdrawalDialog({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (!reason) return;
-          onConfirm({ withdrawal_reason: reason, withdrawal_note: note.trim() });
+          if (!reason || noteMissing) return;
+          onConfirm({ withdrawal_reason: reason.code, withdrawal_note: note.trim() });
         }}
       >
+        <fieldset className="attendance-candidate-list">
+          <legend className="attendance-field">Reason</legend>
+          {reasons.map((option, index) => (
+            <label key={option.code} className="attendance-candidate-option">
+              <input
+                type="radio"
+                name="withdrawal-reason"
+                value={option.code}
+                data-dialog-autofocus={index === 0 ? "true" : undefined}
+                checked={reason?.code === option.code}
+                onChange={() => setReason(option)}
+              />
+              <span>
+                <strong>{option.name}</strong>
+              </span>
+            </label>
+          ))}
+        </fieldset>
         <label className="attendance-field">
-          <span>Reason</span>
-          <select
-            required
-            data-dialog-autofocus="true"
-            value={reason}
-            onChange={(event) =>
-              setReason(event.target.value as LockedCandidateWithdrawal["withdrawal_reason"] | "")
-            }
-          >
-            <option value="">Select a reason</option>
-            <option value="INJURY">Injured during grading</option>
-            <option value="WITHDREW">Withdrew voluntarily</option>
-            <option value="ABSENT">Did not attend</option>
-            <option value="ADMIN_ERROR">Registered in error</option>
-          </select>
-        </label>
-        <label className="attendance-field">
-          <span>Additional note <small>(optional)</small></span>
+          <span>
+            {reason?.note_required ? "What happened" : "Additional note"}{" "}
+            <small>{reason?.note_required ? "(required)" : "(optional)"}</small>
+          </span>
           <textarea
             rows={4}
+            required={reason?.note_required}
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder="Record any useful context without adding unnecessary personal detail."
@@ -199,12 +207,129 @@ export function LockedWithdrawalDialog({
           <button
             type="submit"
             className="btn-primary attendance-danger-button"
-            disabled={pending || !reason}
+            disabled={pending || !reason || noteMissing}
           >
             {pending ? "Withdrawing…" : "Withdraw candidate"}
           </button>
         </div>
       </form>
+    </DialogFrame>
+  );
+}
+
+type MoveRegistrationDialogProps = {
+  candidate: AttendanceCandidate;
+  sessions: { id: number; label: string }[];
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: (sessionId: number) => void;
+};
+
+export function MoveRegistrationDialog({
+  candidate,
+  sessions,
+  pending,
+  error,
+  onClose,
+  onConfirm,
+}: MoveRegistrationDialogProps) {
+  const [sessionId, setSessionId] = useState("");
+
+  return (
+    <DialogFrame
+      title={`Move ${candidate.name}`}
+      eyebrow="Registration"
+      pending={pending}
+      onClose={onClose}
+    >
+      <p className="attendance-dialog-copy">
+        Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
+      </p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (sessionId) onConfirm(Number(sessionId));
+        }}
+      >
+        <label className="attendance-field">
+          <span>Move to</span>
+          <select
+            required
+            data-dialog-autofocus="true"
+            value={sessionId}
+            onChange={(event) => setSessionId(event.target.value)}
+          >
+            <option value="">Select a session</option>
+            {sessions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {sessions.length === 0 && (
+          <p className="attendance-dialog-copy">No other draft or open session to move to.</p>
+        )}
+        {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+        <div className="attendance-dialog-actions">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+            Cancel
+          </button>
+          <button type="submit" className="btn-primary" disabled={pending || !sessionId}>
+            {pending ? "Moving…" : "Move registration"}
+          </button>
+        </div>
+      </form>
+    </DialogFrame>
+  );
+}
+
+type RemoveRegistrationDialogProps = {
+  candidate: AttendanceCandidate;
+  pending: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+};
+
+export function RemoveRegistrationDialog({
+  candidate,
+  pending,
+  error,
+  onClose,
+  onConfirm,
+}: RemoveRegistrationDialogProps) {
+  return (
+    <DialogFrame
+      title={`Remove ${candidate.name}`}
+      eyebrow="Registration"
+      pending={pending}
+      onClose={onClose}
+    >
+      <p className="attendance-dialog-copy">
+        Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
+      </p>
+      {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+      <div className="attendance-dialog-actions">
+        <button
+          type="button"
+          className="btn-ghost"
+          data-dialog-autofocus="true"
+          onClick={onClose}
+          disabled={pending}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="btn-primary attendance-danger-button"
+          onClick={onConfirm}
+          disabled={pending}
+        >
+          {pending ? "Removing…" : "Remove registration"}
+        </button>
+      </div>
     </DialogFrame>
   );
 }

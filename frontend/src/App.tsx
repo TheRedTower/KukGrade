@@ -12,6 +12,7 @@ import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } 
 import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser } from "./api";
+import { useSiteSettingsQuery } from "./queries";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import {
   AuditIcon,
@@ -35,6 +36,7 @@ import { CandidateAssessmentScreen } from "./CandidateAssessmentScreen";
 import { AssessmentCompletionScreen } from "./AssessmentCompletionScreen";
 import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
+import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
 import { useTheme, type ThemePreference } from "./useTheme";
 
@@ -337,8 +339,9 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 }
 
 function ApplicationShell() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateName } = useAuth();
   const navigate = useNavigate();
+  const siteQuery = useSiteSettingsQuery();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -367,12 +370,13 @@ function ApplicationShell() {
       <div className="app-main">
         <header className="top-bar">
           <div className="location-summary">
-            <span className="location-name">Kuk Sool Won Colchester</span>
+            <span className="location-name">{siteQuery.data?.club_name}</span>
           </div>
           <div className="top-bar-controls">
             <ProfileMenu
               isLoggingOut={isLoggingOut}
               onLogout={handleLogout}
+              onUpdateName={updateName}
               themeToggle={<ThemeToggle />}
               user={user}
             />
@@ -530,6 +534,7 @@ function App() {
                 path="gradings/legacy-records"
               />
               <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+              <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
               <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
               <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
               <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />

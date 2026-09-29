@@ -1,143 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   type AgeBandEnum,
   type EffectiveSyllabusRequirement,
-  type Rank,
+  type Programme,
   type SyllabusItem,
   getAllEffectiveSyllabusRequirements,
-  getRanks,
   getSyllabusItems,
 } from "./api";
+import { BeltSwatch } from "./Belt";
+import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import "./Syllabus.css";
 import { CORE_CATEGORY_CODES } from "./syllabusCategories";
-
-type CurriculumTrack = "JUNIOR_LITTLE_DRAGON" | "ADULT_YOUTH";
-
-interface AgeBandOption {
-  value: AgeBandEnum;
-  label: string;
-  shortLabel: string;
-  track: CurriculumTrack;
-  ageDisplay: string;
-}
-
-const AGE_BAND_OPTIONS: AgeBandOption[] = [
-  {
-    value: "AGE_8_AND_UNDER",
-    label: "8 and under",
-    shortLabel: "≤ 8",
-    track: "JUNIOR_LITTLE_DRAGON",
-    ageDisplay: "Little Dragon ages 8 and under",
-  },
-  {
-    value: "AGE_9_TO_12",
-    label: "9 – 12",
-    shortLabel: "9 – 12",
-    track: "JUNIOR_LITTLE_DRAGON",
-    ageDisplay: "Junior ages 9 – 12",
-  },
-  {
-    value: "AGE_13_TO_17",
-    label: "13 – 17",
-    shortLabel: "13 – 17",
-    track: "ADULT_YOUTH",
-    ageDisplay: "Youth ages 13 – 17",
-  },
-  {
-    value: "AGE_18_AND_OVER",
-    label: "18+",
-    shortLabel: "18+",
-    track: "ADULT_YOUTH",
-    ageDisplay: "Adult ages 18+",
-  },
-];
-
-export function BeltSwatch({ rankCode, rankName }: { rankCode: string; rankName: string }) {
-  const code = rankCode.toUpperCase();
-  const name = rankName.toLowerCase();
-
-  // White
-  if (code === "WHITE" || name === "white") {
-    return <span className="syl-swatch syl-swatch-white" aria-hidden="true" />;
-  }
-
-  // Yellow Stripe
-  if (code === "YELLOW_STRIPE" || (name.includes("yellow") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-yellow-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Yellow
-  if (code === "YELLOW" || name.includes("yellow")) {
-    return <span className="syl-swatch syl-swatch-yellow" aria-hidden="true" />;
-  }
-
-  // Blue Stripe
-  if (code === "BLUE_STRIPE" || (name.includes("blue") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-blue-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Blue
-  if (code === "BLUE" || name.includes("blue")) {
-    return <span className="syl-swatch syl-swatch-blue" aria-hidden="true" />;
-  }
-
-  // Red Stripe
-  if (code === "RED_STRIPE" || (name.includes("red") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-red-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Red
-  if (code === "RED" || name.includes("red")) {
-    return <span className="syl-swatch syl-swatch-red" aria-hidden="true" />;
-  }
-
-  // Brown Stripe
-  if (code === "BROWN_STRIPE" || (name.includes("brown") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-brown-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Brown
-  if (code === "BROWN" || name.includes("brown")) {
-    return <span className="syl-swatch syl-swatch-brown" aria-hidden="true" />;
-  }
-
-  // Black Stripe
-  if (code === "BLACK_STRIPE" || (name.includes("black") && name.includes("stripe"))) {
-    return (
-      <span className="syl-swatch syl-swatch-black-stripe" aria-hidden="true">
-        <span className="syl-swatch-stripe" />
-      </span>
-    );
-  }
-
-  // Dahn Bo / Dahn Bo Nim
-  if (code === "DAHN_BO" || name.includes("dahn")) {
-    return (
-      <span className="syl-swatch syl-swatch-dahn-bo" aria-hidden="true">
-        <span className="syl-swatch-stripe syl-swatch-stripe-gold" />
-      </span>
-    );
-  }
-
-  // Black belt / Master ranks (JKN, KSN, PSBN, SBN, PKJN)
-  return <span className="syl-swatch syl-swatch-black" aria-hidden="true" />;
-}
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -226,60 +99,41 @@ function SyllabusLedgerTable({
 }
 
 export function SyllabusScreen() {
-  const [ranks, setRanks] = useState<Rank[]>([]);
-  const [selectedRankCode, setSelectedRankCode] = useState<string>("YELLOW");
-  const [curriculumTrack, setCurriculumTrack] =
-    useState<CurriculumTrack>("JUNIOR_LITTLE_DRAGON");
-  const [selectedAgeBand, setSelectedAgeBand] =
-    useState<AgeBandEnum>("AGE_9_TO_12");
+  const ranksQuery = useRanksQuery();
+  const ageBandsQuery = useAgeBandsQuery();
+  const ranks = useMemo(() => ranksQuery.data?.results ?? [], [ranksQuery.data]);
+  const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
+
+  // Until the viewer picks, the screen opens on the first rank that has a
+  // syllabus of its own (Yellow, or the first served rank if Yellow is
+  // absent) and the first age band the server lists.
+  const [chosenRankCode, setChosenRankCode] = useState<string | null>(null);
+  const [chosenAgeBand, setChosenAgeBand] = useState<AgeBandEnum | null>(null);
+  const selectedRankCode =
+    chosenRankCode ??
+    (ranks.some((r) => r.code === "YELLOW") ? "YELLOW" : (ranks[0]?.code ?? ""));
+  const selectedAgeBand = chosenAgeBand ?? ageBands[0]?.code ?? null;
+  const programme: Programme =
+    ageBands.find((band) => band.code === selectedAgeBand)?.programme ?? "JUNIOR";
 
   const [coreAreas, setCoreAreas] = useState<SyllabusItem[]>([]);
   const [effectiveRequirements, setEffectiveRequirements] = useState<
     EffectiveSyllabusRequirement[]
   >([]);
-  const [isLoadingRanks, setIsLoadingRanks] = useState(true);
   const [isLoadingCoreAreas, setIsLoadingCoreAreas] = useState(true);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [requirementsError, setError] = useState<string | null>(null);
+
+  const catalogueError = ranksQuery.error ?? ageBandsQuery.error;
+  const error =
+    requirementsError ??
+    (catalogueError
+      ? catalogueError instanceof Error
+        ? catalogueError.message
+        : "Failed to load the syllabus catalogue."
+      : null);
 
   const beltTrackRef = useRef<HTMLDivElement>(null);
-
-  // Load ranks once on mount
-  useEffect(() => {
-    let active = true;
-    async function fetchRanks() {
-      try {
-        setIsLoadingRanks(true);
-        setError(null);
-        const res = await getRanks({ page_size: 100 });
-        if (!active) return;
-        const fetchedRanks = res.results || [];
-        setRanks(fetchedRanks);
-
-        // If YELLOW exists in ranks, default to it, otherwise default to first rank
-        if (fetchedRanks.length > 0) {
-          const hasYellow = fetchedRanks.some((r) => r.code === "YELLOW");
-          if (!hasYellow) {
-            setSelectedRankCode(fetchedRanks[0].code);
-          }
-        }
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load rank catalogue.",
-        );
-      } finally {
-        if (active) {
-          setIsLoadingRanks(false);
-        }
-      }
-    }
-
-    void fetchRanks();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Load the universal core grading areas once - they are not rank-specific.
   useEffect(() => {
@@ -343,27 +197,17 @@ export function SyllabusScreen() {
     };
   }, [selectedRankCode, selectedAgeBand]);
 
-  // Handle curriculum track change
-  function handleCurriculumChange(newTrack: CurriculumTrack) {
-    setCurriculumTrack(newTrack);
-    if (newTrack === "JUNIOR_LITTLE_DRAGON") {
-      if (selectedAgeBand !== "AGE_8_AND_UNDER" && selectedAgeBand !== "AGE_9_TO_12") {
-        setSelectedAgeBand("AGE_9_TO_12");
-      }
-    } else {
-      if (selectedAgeBand !== "AGE_13_TO_17" && selectedAgeBand !== "AGE_18_AND_OVER") {
-        setSelectedAgeBand("AGE_18_AND_OVER");
-      }
+  // A programme change keeps the age band if it belongs to that programme,
+  // otherwise moves to the programme's oldest band.
+  function handleProgrammeChange(newProgramme: Programme) {
+    const bands = ageBands.filter((band) => band.programme === newProgramme);
+    if (bands.length > 0 && !bands.some((band) => band.code === selectedAgeBand)) {
+      setChosenAgeBand(bands[bands.length - 1].code);
     }
   }
 
-  // Handle age band change
   function handleAgeBandChange(newAgeBand: AgeBandEnum) {
-    setSelectedAgeBand(newAgeBand);
-    const option = AGE_BAND_OPTIONS.find((opt) => opt.value === newAgeBand);
-    if (option) {
-      setCurriculumTrack(option.track);
-    }
+    setChosenAgeBand(newAgeBand);
   }
 
   // Scroll belt track
@@ -380,8 +224,9 @@ export function SyllabusScreen() {
   const selectedRank = ranks.find((r) => r.code === selectedRankCode) ?? null;
   const nextRank = ranks.find((r) => r.id === selectedRank?.next_rank) ?? null;
 
-  const currentAgeOption = AGE_BAND_OPTIONS.find(
-    (opt) => opt.value === selectedAgeBand,
+  const currentAgeBand = ageBands.find((band) => band.code === selectedAgeBand);
+  const programmes = ageBands.filter(
+    (band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index,
   );
 
   const techniqueRows = effectiveRequirements.filter((row) => row.category === "TECHNIQUE_SET");
@@ -406,11 +251,14 @@ export function SyllabusScreen() {
           <select
             id="syl-curriculum-select"
             className="syl-select"
-            value={curriculumTrack}
-            onChange={(e) => handleCurriculumChange(e.target.value as CurriculumTrack)}
+            value={programme}
+            onChange={(e) => handleProgrammeChange(e.target.value as Programme)}
           >
-            <option value="JUNIOR_LITTLE_DRAGON">Junior &amp; Little Dragon</option>
-            <option value="ADULT_YOUTH">Adult &amp; Youth</option>
+            {programmes.map((band) => (
+              <option key={band.programme} value={band.programme}>
+                {band.programme_display}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -421,12 +269,12 @@ export function SyllabusScreen() {
           <select
             id="syl-age-select"
             className="syl-select"
-            value={selectedAgeBand}
+            value={selectedAgeBand ?? ""}
             onChange={(e) => handleAgeBandChange(e.target.value as AgeBandEnum)}
           >
-            {AGE_BAND_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
+            {ageBands.map((band) => (
+              <option key={band.code} value={band.code}>
+                {band.name}
               </option>
             ))}
           </select>
@@ -440,8 +288,8 @@ export function SyllabusScreen() {
             id="syl-rank-select"
             className="syl-select"
             value={selectedRankCode}
-            onChange={(e) => setSelectedRankCode(e.target.value)}
-            disabled={isLoadingRanks || ranks.length === 0}
+            onChange={(e) => setChosenRankCode(e.target.value)}
+            disabled={ranksQuery.isLoading || ranks.length === 0}
           >
             {ranks.map((r) => (
               <option key={r.code} value={r.code}>
@@ -477,11 +325,11 @@ export function SyllabusScreen() {
                 key={rank.code}
                 type="button"
                 className={`syl-belt-btn ${isSelected ? "syl-belt-btn-active" : ""}`}
-                onClick={() => setSelectedRankCode(rank.code)}
+                onClick={() => setChosenRankCode(rank.code)}
                 aria-pressed={isSelected}
                 title={`Select ${rank.name}`}
               >
-                <BeltSwatch rankCode={rank.code} rankName={rank.name} />
+                <BeltSwatch rank={rank} />
                 <span className="syl-belt-label">{rank.name}</span>
               </button>
             );
@@ -507,7 +355,7 @@ export function SyllabusScreen() {
               {selectedRank ? selectedRank.name : selectedRankCode}
             </h2>
             <p className="syl-rank-subtitle">
-              {currentAgeOption?.ageDisplay || "Curriculum requirements"}
+              {currentAgeBand?.description || "Curriculum requirements"}
             </p>
             <p className="syl-rank-everything-note">
               Everything examinable through {selectedRank ? selectedRank.name : selectedRankCode}.
@@ -518,7 +366,7 @@ export function SyllabusScreen() {
             <button
               type="button"
               className="syl-next-rank-btn"
-              onClick={() => setSelectedRankCode(nextRank.code)}
+              onClick={() => setChosenRankCode(nextRank.code)}
             >
               Next rank: {nextRank.name} →
             </button>

@@ -1,107 +1,79 @@
-import React, { useState, useId } from "react";
-import { useQuery } from "@tanstack/react-query";
+/**
+ * Instructor outcome proposal (SCR-021), restyled under FDR-047 to the Cohort
+ * Adjudication Board's language: the instructor reads the same sealed
+ * assessment evidence the Master will (`SealedAssessmentEvidence`) and picks
+ * from the same Pass / Conditional / Fail segments before proposing. Counts
+ * are served, never recounted (FDR-046). Proposing never finalises or
+ * promotes; the Master decides on the board.
+ */
+import React, { useId, useState } from "react";
+
 import {
-  CandidateAssessment,
-  CandidateOutcome,
-  CandidateOutcomeOutcome,
-  GradingCandidate,
-  getAllCandidateAssessmentItems,
+  ApiError,
+  type CandidateAssessment,
+  type CandidateOutcome,
+  type CandidateOutcomeOutcome,
+  type GradingCandidate,
   createCandidateOutcome,
   proposeCandidateOutcome,
 } from "./api";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
+import { CheckIcon, CrossIcon } from "./Icons";
+import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import { useDialogFocus } from "./useDialogFocus";
 import "./OutcomeDrawers.css";
-
-export interface OutcomeProposalDrawerProps {
-  candidate: GradingCandidate;
-  assessment?: CandidateAssessment;
-  existingOutcome?: CandidateOutcome | null;
-  currentRankName: string;
-  targetRankName: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: (outcome: CandidateOutcome) => void;
-}
 
 export function OutcomeProposalDrawer({
   candidate,
   assessment,
   existingOutcome,
-  currentRankName,
-  targetRankName,
-  isOpen,
   onClose,
   onSuccess,
-}: OutcomeProposalDrawerProps): React.ReactElement | null {
+}: {
+  candidate: GradingCandidate;
+  assessment?: CandidateAssessment;
+  existingOutcome?: CandidateOutcome | null;
+  onClose: () => void;
+  onSuccess: (outcome: CandidateOutcome) => void;
+}): React.ReactElement {
   const [selectedOutcome, setSelectedOutcome] = useState<CandidateOutcomeOutcome>(
-    (existingOutcome?.proposed_outcome as CandidateOutcomeOutcome) || "PASS",
+    existingOutcome?.proposed_outcome ?? "PASS",
   );
-  const [proposalNotes, setProposalNotes] = useState<string>(
-    existingOutcome?.proposal_notes || "",
-  );
+  const [proposalNotes, setProposalNotes] = useState(existingOutcome?.proposal_notes ?? "");
+  // Kept in state so a retry after a refused proposal reuses the outcome the
+  // first attempt created instead of creating a second one.
+  const [outcomeId, setOutcomeId] = useState(existingOutcome?.id);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const titleId = useId();
-  const notesId = useId();
   const dialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen,
+    isOpen: true,
     onClose,
     canClose: !isSubmitting,
   });
 
-  // Fetch assessment items to calculate completion and met/not-met stats
-  const { data: assessmentItemsData, isLoading: isLoadingItems } = useQuery({
-    queryKey: ["candidateAssessmentItems", assessment?.id],
-    queryFn: () =>
-      getAllCandidateAssessmentItems({ assessment: assessment?.id }),
-    enabled: isOpen && !!assessment?.id,
-    staleTime: 10_000,
-  });
-
-  if (!isOpen) {
-    return null;
-  }
-
-  const items = assessmentItemsData?.results || [];
-  const totalRequired = items.filter((i) => i.required).length;
-  const requiredMet = items.filter((i) => i.required && i.result === "MET").length;
-  const notMet = items.filter((i) => i.result === "NOT_MET").length;
-  const percentMet = totalRequired > 0 ? Math.round((requiredMet / totalRequired) * 100) : 100;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedOutcome) {
-      setSubmitError("Please select a proposed outcome.");
-      return;
-    }
-
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setIsSubmitting(true);
     setSubmitError(null);
-
     try {
-      let outcomeId = existingOutcome?.id;
-
-      // If an outcome record has not yet been initialized for this candidate, create it first
-      if (!outcomeId) {
-        const created = await createCandidateOutcome(candidate.id);
-        outcomeId = created.id;
+      // A candidate has no outcome record until the first proposal creates it.
+      let id = outcomeId;
+      if (id === undefined) {
+        id = (await createCandidateOutcome(candidate.id)).id;
+        setOutcomeId(id);
       }
-
-      const updated = await proposeCandidateOutcome(outcomeId, {
+      const updated = await proposeCandidateOutcome(id, {
         proposed_outcome: selectedOutcome,
         proposal_notes: proposalNotes.trim() || undefined,
       });
-
       onSuccess(updated);
-      onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setSubmitError(err.message);
-      } else {
-        setSubmitError("An unexpected error occurred while submitting the proposal.");
-      }
+      setSubmitError(
+        err instanceof ApiError ? err.message : "The proposal could not be submitted.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -110,11 +82,8 @@ export function OutcomeProposalDrawer({
   return (
     <div
       className="opd-overlay"
-      data-testid="opd-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose();
-        }
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !isSubmitting) onClose();
       }}
     >
       <div
@@ -126,235 +95,92 @@ export function OutcomeProposalDrawer({
         tabIndex={-1}
         data-testid="outcome-proposal-drawer"
       >
-        {/* ── Drawer Header / Candidate Context Banner ───────────────────────── */}
         <header className="opd-header">
-          <div className="opd-header-main">
-            <div className="opd-header-titles">
-              <span className="opd-header-eyebrow">Instructor Proposal (SCR-021)</span>
-              <h2 id={titleId} className="opd-header-title">
-                Propose Candidate Outcome
-              </h2>
-            </div>
-            <button
-              type="button"
-              className="opd-close-btn"
-              onClick={onClose}
-              aria-label="Close proposal drawer"
-              data-testid="opd-close-btn"
-            >
-              ✕
-            </button>
+          <div>
+            <p className="outcome-eyebrow">Instructor proposal</p>
+            <h2 id={titleId}>{candidate.student_display_name}</h2>
+            <p className="opd-sub">{candidate.student_wksa_id}</p>
+            <p className="outcome-rank-line">
+              <RankBelt rankId={candidate.from_rank} />
+              {candidate.from_rank_name}
+              <span aria-hidden="true">→</span>
+              <RankBelt rankId={candidate.testing_for_rank} />
+              {candidate.testing_for_rank_name}
+            </p>
           </div>
-
-          <div className="opd-candidate-banner" data-testid="opd-candidate-banner">
-            <div className="opd-candidate-meta">
-              <span className="opd-candidate-name">
-                {candidate.student_display_name}
-              </span>
-              {candidate.student_wksa_id && (
-                <span className="opd-candidate-wksa">
-                  WKSA: {candidate.student_wksa_id}
-                </span>
-              )}
-            </div>
-
-            <div className="opd-rank-progression" aria-label="Rank progression">
-              <div className="opd-rank-chip" title={`Current Rank: ${currentRankName}`}>
-                <RankVisual classPrefix="gsd" rankName={currentRankName} />
-                <span>{currentRankName}</span>
-              </div>
-              <span className="opd-rank-arrow" aria-hidden="true">→</span>
-              <div className="opd-rank-chip opd-rank-chip-target" title={`Grading for: ${targetRankName}`}>
-                <RankVisual classPrefix="gsd" rankName={targetRankName} />
-                <span>{targetRankName}</span>
-              </div>
-            </div>
-          </div>
+          <button
+            type="button"
+            className="opd-close"
+            onClick={onClose}
+            disabled={isSubmitting}
+            aria-label="Close proposal drawer"
+          >
+            <CrossIcon size={16} />
+          </button>
         </header>
 
-        {/* ── Drawer Content ─────────────────────────────────────────────────── */}
         <form onSubmit={handleSubmit} className="opd-form">
           <div className="opd-body">
-            {submitError && (
-              <div className="opd-error-banner" role="alert" data-testid="opd-error-banner">
-                <span className="opd-error-icon" aria-hidden="true">⚠</span>
-                <span>{submitError}</span>
-              </div>
-            )}
+            <SealedAssessmentEvidence
+              className="opd-section"
+              assessmentId={assessment?.id}
+              sessionId={candidate.session}
+              candidateId={candidate.id}
+            />
 
-            {/* ── Assessment Completion Summary Card ───────────────────────── */}
-            <section
-              className="opd-assessment-card"
-              aria-label="Assessment summary"
-              data-testid="opd-assessment-summary"
-            >
-              <div className="opd-assessment-icon-box" aria-hidden="true">
-                ✓
-              </div>
-              <div className="opd-assessment-content">
-                <div className="opd-assessment-title">Assessment complete</div>
-                <div className="opd-assessment-stats">
-                  {isLoadingItems ? (
-                    <span className="opd-assessment-loading">Calculating requirement stats...</span>
-                  ) : (
-                    <>
-                      <span className="opd-stat-met">
-                        {totalRequired > 0 ? `${requiredMet} of ${totalRequired}` : items.length} Required items met ({percentMet}%)
-                      </span>
-                      <span className="opd-stat-divider" aria-hidden="true">•</span>
-                      <span className={`opd-stat-not-met ${notMet > 0 ? "has-not-met" : ""}`}>
-                        {notMet} Not Met
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ── 3-Option Outcome Selector ─────────────────────────────────── */}
-            <fieldset className="opd-fieldset">
-              <legend className="opd-legend">
-                Proposed outcome <span className="opd-required">*</span>
-              </legend>
-
-              <div
-                className="opd-outcomes-grid"
-                role="radiogroup"
-                aria-label="Proposed outcome"
-              >
-                {/* 1. PASS */}
-                <label
-                  className={`opd-outcome-card opd-outcome-pass ${
-                    selectedOutcome === "PASS" ? "is-selected" : ""
-                  }`}
-                  data-testid="outcome-option-pass"
-                >
-                  <input
-                    type="radio"
-                    name="proposed_outcome"
-                    value="PASS"
-                    checked={selectedOutcome === "PASS"}
-                    onChange={() => setSelectedOutcome("PASS")}
-                    className="opd-radio-input"
-                    data-dialog-autofocus
-                  />
-                  <div className="opd-outcome-card-header">
-                    <span className="opd-outcome-title">
-                      <span className="opd-outcome-indicator" aria-hidden="true" />
-                      Pass
-                    </span>
-                    <span className="opd-outcome-badge opd-badge-pass">Recommend</span>
-                  </div>
-                  <p className="opd-outcome-desc">
-                    Demonstrated proficiency across all required techniques and forms. Recommend promotion to {targetRankName}.
-                  </p>
-                </label>
-
-                {/* 2. CONDITIONAL */}
-                <label
-                  className={`opd-outcome-card opd-outcome-conditional ${
-                    selectedOutcome === "CONDITIONAL" ? "is-selected" : ""
-                  }`}
-                  data-testid="outcome-option-conditional"
-                >
-                  <input
-                    type="radio"
-                    name="proposed_outcome"
-                    value="CONDITIONAL"
-                    checked={selectedOutcome === "CONDITIONAL"}
-                    onChange={() => setSelectedOutcome("CONDITIONAL")}
-                    className="opd-radio-input"
-                  />
-                  <div className="opd-outcome-card-header">
-                    <span className="opd-outcome-title">
-                      <span className="opd-outcome-indicator" aria-hidden="true" />
-                      Conditional
-                    </span>
-                    <span className="opd-outcome-badge opd-badge-conditional">Re-test</span>
-                  </div>
-                  <p className="opd-outcome-desc">
-                    Pass subject to re-testing specific items within a designated time window. Specify re-test requirements below.
-                  </p>
-                </label>
-
-                {/* 3. FAIL */}
-                <label
-                  className={`opd-outcome-card opd-outcome-fail ${
-                    selectedOutcome === "FAIL" ? "is-selected" : ""
-                  }`}
-                  data-testid="outcome-option-fail"
-                >
-                  <input
-                    type="radio"
-                    name="proposed_outcome"
-                    value="FAIL"
-                    checked={selectedOutcome === "FAIL"}
-                    onChange={() => setSelectedOutcome("FAIL")}
-                    className="opd-radio-input"
-                  />
-                  <div className="opd-outcome-card-header">
-                    <span className="opd-outcome-title">
-                      <span className="opd-outcome-indicator" aria-hidden="true" />
-                      Fail
-                    </span>
-                    <span className="opd-outcome-badge opd-badge-fail">Do not promote</span>
-                  </div>
-                  <p className="opd-outcome-desc">
-                    Did not meet required standard. Recommend remaining at current rank and re-grading at a future session.
-                  </p>
-                </label>
+            <fieldset className="opd-section opd-fieldset">
+              <legend>Proposed outcome</legend>
+              <div className="outcome-segments">
+                {OUTCOME_CHOICES.map((option) => (
+                  <label
+                    key={option.value}
+                    className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
+                  >
+                    <input
+                      type="radio"
+                      name="proposed_outcome"
+                      value={option.value}
+                      checked={selectedOutcome === option.value}
+                      onChange={() => setSelectedOutcome(option.value)}
+                      disabled={isSubmitting}
+                      data-dialog-autofocus={option.value === "PASS" || undefined}
+                    />
+                    {selectedOutcome === option.value && <CheckIcon size={14} />}
+                    {option.label}
+                  </label>
+                ))}
               </div>
             </fieldset>
 
-            {/* ── Proposal Notes ────────────────────────────────────────────── */}
-            <div className="opd-field-group">
-              <label htmlFor={notesId} className="opd-label">
-                Proposal notes for Authorised Master
+            <div className="opd-section">
+              <label className="outcome-field">
+                Notes for the Master
+                <textarea
+                  rows={4}
+                  value={proposalNotes}
+                  onChange={(event) => setProposalNotes(event.target.value)}
+                  disabled={isSubmitting}
+                />
               </label>
-              <textarea
-                id={notesId}
-                rows={4}
-                className="opd-textarea"
-                value={proposalNotes}
-                onChange={(e) => setProposalNotes(e.target.value)}
-                placeholder="Detail technical observations, strengths, specific items needing re-testing (if conditional), or rationale for the proposed outcome..."
-                data-testid="opd-notes-textarea"
-              />
-              <span className="opd-field-hint">
-                These notes will be reviewed by the Authorised Master when recording the final outcome decision.
-              </span>
             </div>
 
-            {/* ── Master Review Required Callout ────────────────────────────── */}
-            <div className="opd-callout-info" data-testid="opd-callout-info">
-              <span className="opd-callout-icon" aria-hidden="true">ℹ</span>
-              <div className="opd-callout-text">
-                <span className="opd-callout-title">Master review required</span>
-                <p className="opd-callout-desc">
-                  Submitting this proposal does not finalise the grading result or promote the candidate. An Authorised Master will review this proposal, assessment scores, and notes before recording the final outcome.
-                </p>
-              </div>
-            </div>
+            {submitError && (
+              <p className="opd-error" role="alert">
+                {submitError}
+              </p>
+            )}
           </div>
 
-          {/* ── Drawer Sticky Actions Footer ───────────────────────────────── */}
           <footer className="opd-footer">
-            <button
-              type="button"
-              className="btn-ghost opd-cancel-btn"
-              onClick={onClose}
-              disabled={isSubmitting}
-              data-testid="opd-cancel-btn"
-            >
+            <p className="opd-footer-text">
+              A proposal does not finalise the grading or promote the candidate. An authorised
+              Master records the final decision.
+            </p>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button
-              type="submit"
-              className="btn-primary opd-submit-btn"
-              disabled={isSubmitting}
-              data-testid="opd-submit-btn"
-            >
-              {isSubmitting ? "Submitting proposal..." : "Submit proposal →"}
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting…" : "Submit proposal"}
             </button>
           </footer>
         </form>

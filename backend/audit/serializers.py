@@ -17,7 +17,6 @@ class AuditEventSerializer(serializers.ModelSerializer):
             "action_display",
             "entity_type",
             "entity_id",
-            "actor",
             "actor_email",
             "actor_name",
             "summary",

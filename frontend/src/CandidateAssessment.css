@@ -13,6 +13,7 @@
 
 .caw-breadcrumbs {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.85rem;
@@ -20,6 +21,9 @@
 }
 
 .caw-breadcrumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--color-text-muted);
   text-decoration: none;
   transition: color 0.15s ease;
@@ -53,7 +57,7 @@
 
 .caw-rank-tag-dest {
   border-color: var(--color-gold);
-  background: rgba(242, 167, 27, 0.08);
+  background: color-mix(in srgb, var(--color-gold) 8%, transparent);
 }
 
 .caw-rank-arrow {
@@ -65,10 +69,10 @@
   font-size: 0.8rem;
   padding: 0.3rem 0.6rem;
   border-radius: 4px;
-  background: rgba(37, 99, 235, 0.08);
-  color: #2563eb;
+  background: var(--color-info-surface);
+  color: var(--color-info);
   font-weight: 500;
-  border: 1px solid rgba(37, 99, 235, 0.2);
+  border: 1px solid var(--color-info-border);
 }
 
 .caw-status-pill {
@@ -95,40 +99,15 @@
 }
 
 .caw-status-in_progress {
-  background: rgba(59, 130, 246, 0.1);
-  color: #2563eb;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--color-info-surface);
+  color: var(--color-info);
+  border: 1px solid var(--color-info-border);
 }
 
 .caw-status-completed {
   background: var(--color-success-surface);
   color: var(--color-success);
-  border: 1px solid rgba(30, 125, 75, 0.25);
-}
-
-/* Rank Visual indicators */
-
-.caw-rank-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.caw-rank-stripes {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 12px;
-  flex-shrink: 0;
-}
-
-.caw-stripe-bar {
-  display: block;
-  height: 3px;
-  background-color: var(--rank-color, #94a3b8);
-  border-radius: 1px;
+  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
 .caw-complete-action-btn {
@@ -187,7 +166,6 @@
   color: var(--color-text-muted);
 }
 
-
 /* ── Shared row badges and empty state ───────────────────────────────────── */
 
 .caw-required-badge {
@@ -199,7 +177,7 @@
   border-radius: 4px;
   background: var(--color-warning-surface);
   color: var(--color-warning);
-  border: 1px solid rgba(185, 118, 10, 0.25);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 .caw-optional-badge {
@@ -238,7 +216,7 @@
   padding: 1rem 1.25rem;
   border-radius: 8px;
   background: var(--color-danger-surface);
-  border: 1px solid rgba(180, 35, 24, 0.25);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
   color: var(--color-danger);
   font-size: 0.9rem;
 }
@@ -252,7 +230,7 @@
 .caw-danger-btn {
   border: 1px solid var(--color-danger);
   background: var(--color-danger);
-  color: #ffffff;
+  color: var(--color-on-danger);
 }
 
 .caw-danger-btn:hover:not(:disabled) {
@@ -262,7 +240,7 @@
 .caw-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--color-scrim);
   backdrop-filter: blur(2px);
   z-index: 100;
   display: flex;
@@ -291,7 +269,7 @@
 }
 
 .caw-run > .caw-breadcrumbs {
-  padding: 0.75rem 1.5rem 0;
+  padding: 0.25rem 1.5rem 0;
 }
 
 /* ── One-line identity header ────────────────────────────────────────────── */
@@ -404,11 +382,11 @@
   secondary cue only, never the sole carrier of meaning (FDR-003).
 */
 .caw-row-met {
-  background: rgba(30, 125, 75, 0.035);
+  background: color-mix(in srgb, var(--color-success) 5%, transparent);
 }
 
 .caw-row-not-met {
-  background: rgba(180, 35, 24, 0.04);
+  background: color-mix(in srgb, var(--color-danger) 5%, transparent);
 }
 
 .caw-row-detail {
@@ -519,27 +497,29 @@
 .caw-verdict-met.caw-verdict-active {
   background: var(--color-success);
   border-color: var(--color-success);
-  color: #ffffff;
+  color: var(--color-on-success);
   font-weight: 600;
 }
 
 .caw-verdict-not-met.caw-verdict-active {
   background: var(--color-danger);
   border-color: var(--color-danger);
-  color: #ffffff;
+  color: var(--color-on-danger);
   font-weight: 600;
 }
 
 .caw-row-tools {
   display: flex;
-  gap: 0.85rem;
+  gap: 0.35rem;
   align-items: center;
 }
 
 .caw-row-tool {
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
-  padding: 0.25rem 0;
+  padding: 0 0.25rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
   text-decoration: underline;
@@ -774,11 +754,12 @@
   gap: 0.45rem;
   min-height: 44px;
   font-size: 0.82rem;
-  color: var(--color-accent-strong);
+  color: var(--color-text-muted);
   text-decoration: none;
 }
 
 .acp-back:hover {
+  color: var(--color-text);
   text-decoration: underline;
 }
 

@@ -7,7 +7,6 @@ import {
   type LegacyGradingRecord,
   type StudentListItem,
   getLegacyGradingRecords,
-  getRanks,
   getStudents,
   linkLegacyGradingRecord,
   resolveLegacyCurrentRank,
@@ -15,6 +14,7 @@ import {
   unlinkLegacyGradingRecord,
   voidLegacyGradingRecord,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import "./StudentScreens.css";
 import "./LegacyReconciliation.css";
 
@@ -97,7 +97,7 @@ export function LegacyReconciliationScreen() {
         page_size: PAGE_SIZE,
       }),
   });
-  const ranksQuery = useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: 100 }) });
+  const ranksQuery = useRanksQuery();
   const ranks = ranksQuery.data?.results ?? [];
 
   const records = recordsQuery.data?.results ?? [];

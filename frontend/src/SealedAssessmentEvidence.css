@@ -1,0 +1,101 @@
+.evd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.evd h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.evd-counts {
+  margin: 0;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.evd-muted,
+.evd-note-by {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.evd-error {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.evd-retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.evd-retry:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
+.evd-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evd-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-left: 0.65rem;
+  border-left: 2px solid var(--color-border);
+}
+
+.evd-note-shortfall {
+  border-left-color: var(--color-danger);
+}
+
+.evd-note-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.evd-note-shortfall .evd-note-title {
+  color: var(--color-danger);
+}
+
+.evd-note q {
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.evd-link {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration-color: var(--color-accent);
+  text-underline-offset: 3px;
+}
+
+.evd-link:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}

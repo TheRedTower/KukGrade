@@ -4,13 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import type {
+  AgeBand,
+  AuditEvent,
+  AuthUser,
   CandidateAssessment,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
+  CandidateAssessmentSummary,
+  CandidateOutcome,
   GradingCandidate,
   GradingSession,
   Rank,
+  StudentDetail,
   StudentListItem,
+  StudentRankHistory,
 } from "./api";
 
 const authUser = {
@@ -19,7 +26,6 @@ const authUser = {
   first_name: "Casey",
   last_name: "Instructor",
   full_name: "Casey Instructor",
-  role: "instructor",
   role_display: "Instructor",
   can_make_final_grading_decision: false,
   can_promote_student: false,
@@ -33,9 +39,7 @@ const authUser = {
   can_delete_any_session: false,
   can_read_audit_log: false,
   must_change_password: false,
-  is_staff: false,
-  is_superuser: false,
-};
+} satisfies AuthUser;
 
 // What /api/auth/me/ reports for an account in the Administrator group.
 const ADMINISTRATOR_CAPABILITIES = {
@@ -46,7 +50,7 @@ const ADMINISTRATOR_CAPABILITIES = {
   can_delete_assessments: true,
   can_delete_any_session: true,
   can_read_audit_log: true,
-};
+} satisfies Partial<AuthUser>;
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -86,24 +90,21 @@ afterEach(() => {
 
 // Mirrors gradings.services.candidate_assessment_summary so each test's item
 // fixture stays the single source of truth for its own counts.
-function assessmentSummaryFor(items: CandidateAssessmentItem[]) {
-  const block = (subset: CandidateAssessmentItem[]) => {
+function assessmentSummaryFor(items: CandidateAssessmentItem[]): CandidateAssessmentSummary {
+  const block = (subset: CandidateAssessmentItem[]): CandidateAssessmentSummary["overall"] => {
     const required = subset.filter((item) => item.required);
     const requiredNotAssessed = required.filter(
       (item) => item.result === "NOT_ASSESSED",
     ).length;
-    const requiredMet = required.filter((item) => item.result === "MET").length;
     return {
       total: subset.length,
       required: required.length,
       met: subset.filter((item) => item.result === "MET").length,
       not_met: subset.filter((item) => item.result === "NOT_MET").length,
       not_assessed: subset.filter((item) => item.result === "NOT_ASSESSED").length,
-      required_met: requiredMet,
-      required_not_met: required.filter((item) => item.result === "NOT_MET").length,
+      required_met: required.filter((item) => item.result === "MET").length,
       required_not_assessed: requiredNotAssessed,
       all_required_assessed: requiredNotAssessed === 0,
-      all_required_met: requiredMet === required.length,
     };
   };
   const categories = Array.from(new Set(items.map((item) => item.category))).map(
@@ -147,6 +148,22 @@ describe("App authentication", () => {
       "http://localhost:8000/api/auth/me/",
       expect.objectContaining({ credentials: "include" }),
     );
+  });
+
+  it("returns to sign-in when a screen's request finds the session has ended", async () => {
+    window.history.replaceState({}, "", "/students");
+    // Signed in when the app loads; the session then expires, so the
+    // students request is the first to hear it.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) =>
+        url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : authRequiredResponse(),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
   it("protects authenticated routes from anonymous users", async () => {
@@ -552,7 +569,7 @@ describe("Navigation rail and role-gated routes", () => {
     ...authUser,
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
-  };
+  } satisfies AuthUser;
 
   const adminUser = {
     ...authUser,
@@ -561,13 +578,12 @@ describe("Navigation rail and role-gated routes", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_promote_student: true,
     can_override_locked_session: true,
-    is_staff: true,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -714,7 +730,8 @@ describe("Instructor profile menu and Master capabilities", () => {
     can_read_audit_log: true,
     can_promote_student: false,
     can_override_locked_session: false,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   const adminUser = {
     ...authUser,
@@ -723,14 +740,13 @@ describe("Instructor profile menu and Master capabilities", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: false,
     can_promote_student: true,
     can_override_locked_session: true,
-    is_staff: true,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -834,13 +850,93 @@ describe("Instructor profile menu and Master capabilities", () => {
     await user.click(screen.getByRole("heading", { name: "Overview" }));
     expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
   });
+
+  it("shows the club name the server is configured with", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) =>
+        url.includes("/api/site/")
+          ? jsonResponse(200, { club_name: "Kuk Sool Won Testville" })
+          : jsonResponse(200, authUser),
+      ),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Kuk Sool Won Testville")).toBeVisible();
+  });
+
+  it("saves the user's own name and shows it straight away", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/") && init?.method === "PATCH") {
+        return jsonResponse(200, {
+          ...authUser,
+          first_name: "Casey",
+          last_name: "Park",
+          full_name: "Casey Park",
+        });
+      }
+      return jsonResponse(200, authUser);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Edit your name" }));
+    const lastName = screen.getByLabelText("Last name");
+    await user.clear(lastName);
+    await user.type(lastName, "  Park ");
+    await user.click(screen.getByRole("button", { name: "Save name" }));
+
+    expect(await screen.findByRole("button", { name: "Casey Park, Instructor" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Save name" })).not.toBeInTheDocument();
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
+    expect(patch?.[0]).toContain("/api/auth/me/");
+    expect(JSON.parse(patch?.[1]?.body as string)).toEqual({
+      first_name: "Casey",
+      last_name: "Park",
+    });
+  });
+
+  it("keeps the name form open with the server's message when saving fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        if (init?.method === "PATCH") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "Last name is too long.",
+              fields: { last_name: ["Last name is too long."] },
+            },
+          });
+        }
+        return jsonResponse(200, authUser);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Edit your name" }));
+    await user.click(screen.getByRole("button", { name: "Save name" }));
+
+    const menu = screen.getByLabelText("User account menu");
+    expect(await within(menu).findByRole("alert")).toHaveTextContent("Last name is too long.");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeEnabled();
+  });
 });
 
 describe("Mandatory password change", () => {
   const forcedUser = {
     ...authUser,
     must_change_password: true,
-  };
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -1045,11 +1141,7 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "OPEN",
       status_display: "Open",
       location: "Colchester Dojang",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-15T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const upcomingSession = {
       id: 102,
@@ -1058,107 +1150,78 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "DRAFT",
       status_display: "Draft",
       location: "Ipswich Central",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-01T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const candidates = [
       {
         id: 201,
         session: 101,
-        session_title: "Spring Grading 2026",
         student: 301,
         student_display_name: "Student One",
         student_wksa_id: "UK12345",
         from_rank: 1,
-        from_rank_code: "WHITE",
         from_rank_name: "White",
         testing_for_rank: 2,
-        testing_for_rank_code: "YS",
         testing_for_rank_name: "Yellow Stripe",
-        age_band: "ADULT",
         age_band_display: "18+",
         status: "REGISTERED",
-        status_display: "Registered",
-        created_at: "2026-05-10T10:00:00Z",
-        updated_at: "2026-05-10T10:00:00Z",
+        withdrawal_reason_display: "",
+        can_be_moved: false,
+        can_be_removed: false,
       },
       {
         id: 202,
         session: 101,
-        session_title: "Spring Grading 2026",
         student: 302,
         student_display_name: "Student Two",
         student_wksa_id: "UK12346",
         from_rank: 2,
-        from_rank_code: "YS",
         from_rank_name: "Yellow Stripe",
         testing_for_rank: 3,
-        testing_for_rank_code: "Y",
         testing_for_rank_name: "Yellow Belt",
-        age_band: "ADULT",
         age_band_display: "18+",
         status: "REGISTERED",
-        status_display: "Registered",
-        created_at: "2026-05-10T10:00:00Z",
-        updated_at: "2026-05-10T10:00:00Z",
+        withdrawal_reason_display: "",
+        can_be_moved: false,
+        can_be_removed: false,
       },
-    ];
+    ] satisfies GradingCandidate[];
 
     const assessments = [
       {
         id: 401,
         candidate: 201,
         candidate_student_name: "Student One",
-        candidate_student_wksa_id: "UK12345",
-        testing_for_rank_code: "YS",
-        testing_for_rank_name: "Yellow Stripe",
-        age_band: "ADULT",
-        age_band_display: "18+",
         status: "COMPLETED",
         status_display: "Completed",
-        generated_by: authUser.id,
         generated_by_email: authUser.email,
+        overall: assessmentSummaryFor([]).overall,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
         completed_at: "2026-05-15T11:00:00Z",
-        item_counts: { total: 10, completed: 10 },
-        created_at: "2026-05-15T09:30:00Z",
-        updated_at: "2026-05-15T11:00:00Z",
       },
       {
         id: 402,
         candidate: 202,
         candidate_student_name: "Student Two",
-        candidate_student_wksa_id: "UK12346",
-        testing_for_rank_code: "Y",
-        testing_for_rank_name: "Yellow Belt",
-        age_band: "ADULT",
-        age_band_display: "18+",
         status: "IN_PROGRESS",
         status_display: "In Progress",
-        generated_by: authUser.id,
         generated_by_email: authUser.email,
+        overall: assessmentSummaryFor([]).overall,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
         completed_at: null,
-        item_counts: { total: 12, completed: 5 },
-        created_at: "2026-05-15T09:30:00Z",
-        updated_at: "2026-05-15T10:30:00Z",
       },
-    ];
+    ] satisfies CandidateAssessment[];
 
     const auditEvents = [
       {
         id: 501,
         occurred_at: new Date().toISOString(),
-        action: "candidate_assessment.completed",
+        action: "ASSESSMENT_COMPLETED",
         action_display: "Assessment Completed",
         entity_type: "CandidateAssessment",
         entity_id: "401",
-        actor: authUser.id,
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment complete (ready for review)",
@@ -1167,21 +1230,20 @@ describe("Overview screen (Operational Ledger)", () => {
       {
         id: 502,
         occurred_at: new Date().toISOString(),
-        action: "candidate_assessment.started",
+        action: "ASSESSMENT_STARTED",
         action_display: "Assessment Started",
         entity_type: "CandidateAssessment",
         entity_id: "402",
-        actor: authUser.id,
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment started on the mat",
         metadata: {},
       },
-    ];
+    ] satisfies AuditEvent[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
+        return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, {
@@ -1245,7 +1307,7 @@ describe("Overview screen (Operational Ledger)", () => {
   });
 
   it("offers the audit feed by audit-log grant, not by staff flags", async () => {
-    async function auditRequested(user: Record<string, unknown>): Promise<boolean> {
+    async function auditRequested(user: AuthUser): Promise<boolean> {
       const fetchMock = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, user);
@@ -1265,7 +1327,7 @@ describe("Overview screen (Operational Ledger)", () => {
     }
 
     expect(await auditRequested({ ...authUser, can_read_audit_log: true })).toBe(true);
-    expect(await auditRequested({ ...authUser, can_read_audit_log: false, is_staff: true })).toBe(false);
+    expect(await auditRequested({ ...authUser, can_read_audit_log: false })).toBe(false);
   });
 
   it("navigates to gradings and audit when action links are clicked", async () => {
@@ -1276,15 +1338,11 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "OPEN",
       status_display: "Open",
       location: "Colchester Dojang",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-15T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
+        return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [openSession] });
@@ -1361,10 +1419,10 @@ describe("Students registry screen (/students)", () => {
 
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-    ];
+      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
+      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+    ] satisfies Rank[];
 
     const testStudents = [
       {
@@ -1377,6 +1435,9 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "White Belt",
         status: "ACTIVE",
         status_display: "Active",
+        can_be_graded: true,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
       {
         id: 2,
@@ -1388,6 +1449,9 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "Yellow Stripe",
         status: "INACTIVE",
         status_display: "Inactive",
+        can_be_graded: true,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
       {
         id: 3,
@@ -1399,8 +1463,11 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "Blue Belt",
         status: "LEFT",
         status_display: "Left",
+        can_be_graded: false,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
-    ];
+    ] satisfies StudentListItem[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
@@ -1500,6 +1567,9 @@ describe("Students registry screen (/students)", () => {
             current_rank_name: "White Belt",
             status: "ACTIVE",
             status_display: "Active",
+            can_be_graded: true,
+            age_band: "AGE_18_AND_OVER",
+            age_band_display: "18+",
           }],
         });
       }
@@ -1531,10 +1601,10 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-  ];
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
+    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+  ] satisfies Rank[];
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/students/new");
@@ -1659,6 +1729,9 @@ describe("Add student screen (/students/new)", () => {
           current_rank_name: "Yellow Stripe",
           status: "ACTIVE",
           status_display: "Active",
+          can_be_graded: true,
+          age_band: "AGE_18_AND_OVER",
+          age_band_display: "18+",
           attendance_count: 0,
           eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
@@ -1677,6 +1750,9 @@ describe("Add student screen (/students/new)", () => {
           current_rank_name: "Yellow Stripe",
           status: "ACTIVE",
           status_display: "Active",
+          can_be_graded: true,
+          age_band: "AGE_18_AND_OVER",
+          age_band_display: "18+",
           attendance_count: 0,
           eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
@@ -1788,10 +1864,10 @@ describe("Add student screen (/students/new)", () => {
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 3 },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-  ];
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3 },
+    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null },
+  ] satisfies Rank[];
 
   const testStudent = {
     id: 10,
@@ -1800,16 +1876,12 @@ describe("Student detail screen (/students/:id)", () => {
     last_name: "Carter",
     date_of_birth: "2012-04-24",
     current_rank: 2,
-    current_rank_code: "YS",
     current_rank_name: "Yellow Stripe",
     status: "ACTIVE",
     status_display: "Active",
-    can_be_graded: true,
-    age_band: "AGE_13_TO_17",
     age_band_display: "13-17",
     created_at: "2021-01-08T10:00:00Z",
-    updated_at: "2021-01-08T10:00:00Z",
-  };
+  } satisfies StudentDetail;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/students/10");
@@ -1890,26 +1962,13 @@ describe("Student detail screen (/students/:id)", () => {
     const testPromotions = [
       {
         id: 101,
-        from_rank: 1,
-        from_rank_code: "W",
         from_rank_name: "White Belt",
-        to_rank: 2,
-        to_rank_code: "YS",
         to_rank_name: "Yellow Stripe",
-        session: 5,
         session_title: "Winter Grading",
-        grading_date: "2025-12-12",
-        outcome: 12,
-        outcome_status: "CONFIRMED",
-        final_outcome: "PASS",
-        promoted_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-        promoted_by_email: "master@example.com",
-        promoted_by_name: "Master Tan",
         promoted_at: "2025-12-12T14:30:00Z",
         effective_date: "2025-12-12",
-        notes: "Excellent forms and techniques.",
       },
-    ];
+    ] satisfies StudentRankHistory["promotions"];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
@@ -2221,11 +2280,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Open",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-09-01T10:00:00Z",
-      updated_at: "2026-09-15T10:00:00Z",
     },
     {
       id: 2,
@@ -2235,11 +2289,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Locked",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-06-01T10:00:00Z",
-      updated_at: "2026-06-20T10:00:00Z",
     },
     {
       id: 3,
@@ -2249,13 +2298,8 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Completed",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-03-01T10:00:00Z",
-      updated_at: "2026-03-21T10:00:00Z",
     },
-  ];
+  ] satisfies GradingSession[];
 
   function makeFetch(sessions = testSessions) {
     return vi.fn().mockImplementation(async (url: string) => {
@@ -2360,13 +2404,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   it("renders both Create grading buttons with coherent primary styling in empty state for admin", async () => {
     const adminUser = {
       ...authUser,
-      role: "administrator" as const,
       ...ADMINISTRATOR_CAPABILITIES,
     ...ADMINISTRATOR_CAPABILITIES,
       role_display: "Administrator",
-      is_staff: true,
-      is_superuser: true,
-    };
+    } satisfies AuthUser;
     const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
@@ -2429,12 +2470,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2485,12 +2521,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2551,12 +2582,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2604,12 +2630,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     let resolveDelete: (() => void) | undefined;
     const deletePending = new Promise<void>((resolve) => {
@@ -2669,17 +2690,15 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/new");
@@ -2696,11 +2715,8 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     const instructorUser = {
       ...adminUser,
       email: "instructor@example.com",
-      role: "instructor" as const,
       role_display: "Instructor",
-      is_staff: false,
-      is_superuser: false,
-    };
+    } satisfies AuthUser;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
@@ -2804,12 +2820,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       status_display: "Draft",
       location: "Colchester Central Dojang",
       notes: "High rank candidates expected",
-      cancellation_reason: "",
-      created_by: adminUser.id,
-      created_by_email: adminUser.email,
-      created_at: "2026-09-17T22:00:00Z",
-      updated_at: "2026-09-17T22:00:00Z",
-    };
+    } satisfies GradingSession;
 
     let postBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -2921,17 +2932,15 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   const testSession = {
     id: 10,
@@ -2941,97 +2950,65 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     status_display: "Open",
     location: "Colchester Dojang",
     notes: "Please arrive 15 minutes before the start time.",
-    cancellation_reason: "",
-    created_by: adminUser.id,
-    created_by_email: adminUser.email,
-    created_at: "2026-09-01T10:00:00Z",
-    updated_at: "2026-09-01T10:00:00Z",
-  };
+  } satisfies GradingSession;
 
   const testCandidates: GradingCandidate[] = [
     {
       id: 101,
       session: 10,
-      session_title: "Autumn Grading",
       student: 1,
       student_display_name: "Alex Carter",
       student_wksa_id: "UK-1001",
       from_rank: 2,
-      from_rank_code: "YS",
       from_rank_name: "Yellow Stripe",
       testing_for_rank: 3,
-      testing_for_rank_code: "Y",
       testing_for_rank_name: "Yellow",
-      age_band: "ADULT",
       age_band_display: "18+",
       status: "REGISTERED" as const,
-      status_display: "Registered",
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
-      withdrawn_by: null,
-      withdrawn_by_email: "",
-      withdrawn_by_name: "",
-      withdrawn_at: null,
-      created_at: "2026-09-01T10:00:00Z",
-      updated_at: "2026-09-01T10:00:00Z",
     },
     {
       id: 102,
       session: 10,
-      session_title: "Autumn Grading",
       student: 2,
       student_display_name: "Brooke Ellis",
       student_wksa_id: "UK-1002",
       from_rank: 5,
-      from_rank_code: "B",
       from_rank_name: "Blue",
       testing_for_rank: 6,
-      testing_for_rank_code: "RS",
       testing_for_rank_name: "Red stripe",
-      age_band: "ADULT",
       age_band_display: "18+",
       status: "REGISTERED" as const,
-      status_display: "Registered",
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
-      withdrawn_by: null,
-      withdrawn_by_email: "",
-      withdrawn_by_name: "",
-      withdrawn_at: null,
-      created_at: "2026-09-01T10:00:00Z",
-      updated_at: "2026-09-01T10:00:00Z",
     },
     {
       id: 103,
       session: 10,
-      session_title: "Autumn Grading",
       student: 3,
       student_display_name: "Casey Nguyen",
       student_wksa_id: "UK-1003",
       from_rank: 6,
-      from_rank_code: "RS",
       from_rank_name: "Red stripe",
       testing_for_rank: 7,
-      testing_for_rank_code: "R",
       testing_for_rank_name: "Red",
-      age_band: "ADULT",
       age_band_display: "18+",
       status: "REGISTERED" as const,
-      status_display: "Registered",
       notes: "",
       withdrawal_reason: "",
       withdrawal_reason_display: "",
+      can_be_moved: false,
+      can_be_removed: false,
       withdrawal_note: "",
-      withdrawn_by: null,
-      withdrawn_by_email: "",
-      withdrawn_by_name: "",
-      withdrawn_at: null,
-      created_at: "2026-09-01T10:00:00Z",
-      updated_at: "2026-09-01T10:00:00Z",
     },
   ];
 
@@ -3040,102 +3017,61 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       id: 201,
       candidate: 101,
       candidate_student_name: "Alex Carter",
-      candidate_student_wksa_id: "UK-1001",
-      testing_for_rank_code: "Y",
-      testing_for_rank_name: "Yellow",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "IN_PROGRESS" as const,
       status_display: "In progress",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: null,
       notes: "",
-      item_counts: { total: 10, required: 10, met: 5, not_met: 0, not_assessed: 5 },
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T09:10:00Z",
     },
     {
       id: 202,
       candidate: 102,
       candidate_student_name: "Brooke Ellis",
-      candidate_student_wksa_id: "UK-1002",
-      testing_for_rank_code: "RS",
-      testing_for_rank_name: "Red stripe",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "COMPLETED" as const,
       status_display: "Completed",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: "2026-09-15T10:00:00Z",
       notes: "",
-      item_counts: { total: 12, required: 12, met: 12, not_met: 0, not_assessed: 0 },
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T10:00:00Z",
     },
     {
       id: 203,
       candidate: 103,
       candidate_student_name: "Casey Nguyen",
-      candidate_student_wksa_id: "UK-1003",
-      testing_for_rank_code: "R",
-      testing_for_rank_name: "Red",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "NOT_STARTED" as const,
       status_display: "Not started",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
       completed_at: null,
       notes: "",
-      item_counts: { total: 14, required: 14, met: 0, not_met: 0, not_assessed: 14 },
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T09:00:00Z",
     },
-  ];
+  ] satisfies CandidateAssessment[];
 
   const testOutcomes = [
     {
       id: 302,
       candidate: 102,
-      assessment: 202,
-      assessment_status: "COMPLETED",
-      student: 2,
-      student_display_name: "Brooke Ellis",
-      student_wksa_id: "UK-1002",
-      session: 10,
-      session_title: "Autumn Grading",
-      testing_for_rank: 6,
-      testing_for_rank_code: "RS",
-      testing_for_rank_name: "Red stripe",
       status: "PROPOSED" as const,
-      status_display: "Proposed",
       proposed_outcome: "PASS" as const,
       proposed_outcome_display: "Pass",
-      proposed_by: adminUser.id,
-      proposed_by_email: adminUser.email,
       proposed_by_name: "Alex Admin",
       proposed_at: "2026-09-15T10:05:00Z",
       proposal_notes: "Strong stances throughout.",
       final_outcome: null,
       final_outcome_display: "",
-      decided_by: null,
-      decided_by_email: "",
       decided_by_name: "",
       decided_at: null,
       decision_notes: "",
       conditional_requirements: "",
-      created_at: "2026-09-15T10:05:00Z",
-      updated_at: "2026-09-15T10:05:00Z",
     },
-  ];
+  ] satisfies CandidateOutcome[];
 
   const testStudentsList = [
     {
@@ -3148,6 +3084,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Yellow stripe",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 2,
@@ -3159,6 +3098,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Blue",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 3,
@@ -3170,8 +3112,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Red stripe",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
-  ];
+  ] satisfies StudentListItem[];
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/10");
@@ -3187,11 +3132,24 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   function setupStandardMock(
     sessionOverrides = {},
     assessments = testAssessments,
-    authenticatedUser: typeof adminUser | (Omit<typeof adminUser, "role"> & { role: string }) = adminUser,
+    authenticatedUser: AuthUser = adminUser,
     candidates: GradingCandidate[] = testCandidates,
   ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
+      if (url.includes("/api/gradings/withdrawal-reasons/")) {
+        return jsonResponse(200, {
+          count: 4,
+          next: null,
+          previous: null,
+          results: [
+            { code: "INJURY", name: "Injured during grading", note_required: false },
+            { code: "WITHDREW", name: "Withdrew voluntarily", note_required: false },
+            { code: "ABSENT", name: "Did not attend", note_required: false },
+            { code: "OTHER", name: "Other", note_required: true },
+          ],
+        });
+      }
       if (
         url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
         init?.method === "POST"
@@ -3228,6 +3186,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           status_display: "Withdrawn",
           withdrawal_reason: "INJURY",
           withdrawal_reason_display: "Injured during grading",
+          can_be_moved: false,
+          can_be_removed: false,
           withdrawal_note: "Unable to continue safely.",
           withdrawn_by: authenticatedUser.id,
           withdrawn_by_email: authenticatedUser.email,
@@ -3394,6 +3354,24 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(await screen.findByText("2 candidates marked as no-show.")).toBeVisible();
   });
 
+  it("requires a note before an Other withdrawal can be recorded", async () => {
+    const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const row = await screen.findByTestId("candidate-row-101");
+    await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
+    const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
+    await user.click(await within(dialog).findByRole("radio", { name: "Other" }));
+    const submit = within(dialog).getByRole("button", { name: "Withdraw candidate" });
+
+    expect(submit).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/What happened/), "Family emergency.");
+    expect(submit).toBeEnabled();
+  });
+
   it("allows an authorised Master to record a reasoned locked-session withdrawal", async () => {
     const fetchMock = setupStandardMock({ status: "LOCKED", status_display: "Locked" });
     vi.stubGlobal("fetch", fetchMock);
@@ -3404,7 +3382,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const row = await screen.findByTestId("candidate-row-101");
     await user.click(within(row).getByRole("button", { name: "Withdraw candidate" }));
     const dialog = screen.getByRole("dialog", { name: "Withdraw Alex Carter" });
-    await user.selectOptions(within(dialog).getByLabelText("Reason"), "INJURY");
+    await user.click(await within(dialog).findByRole("radio", { name: "Injured during grading" }));
     await user.type(
       within(dialog).getByLabelText(/Additional note/),
       "Unable to continue safely.",
@@ -3445,17 +3423,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       {
         ...testCandidates[0],
         status: "WITHDRAWN" as const,
-        status_display: "Withdrawn",
         withdrawal_reason: "INJURY" as const,
         withdrawal_reason_display: "Injured during grading",
+        can_be_moved: false,
+        can_be_removed: false,
         withdrawal_note: "Unable to continue safely.",
-        withdrawn_by: adminUser.id,
-        withdrawn_by_email: adminUser.email,
-        withdrawn_by_name: adminUser.full_name,
-        withdrawn_at: "2026-09-20T11:00:00Z",
       },
       ...testCandidates.slice(1),
-    ];
+    ] satisfies GradingCandidate[];
     const fetchMock = setupStandardMock(
       { status: "LOCKED", status_display: "Locked" },
       testAssessments,
@@ -3930,7 +3905,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
-    const instructorUser = { ...authUser, role: "instructor" as const, is_superuser: false };
+    const instructorUser: AuthUser = authUser;
     const fetchMock = setupStandardMock(
       { status: "CANCELLED", status_display: "Cancelled" },
       testAssessments,
@@ -3947,13 +3922,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 
-  it("opens SCR-021 Instructor Outcome Proposal Drawer, displays candidate context and assessment stats, and submits proposal", async () => {
+  it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, {
           ...adminUser,
-          role: "INSTRUCTOR",
           can_make_final_grading_decision: false,
         });
       }
@@ -3997,10 +3971,17 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           results: Array.from({ length: 24 }, (_, i) => ({
             id: 1000 + i,
             item_code: `ITEM-${i}`,
+            item_name: `Item ${i}`,
             category: "TECHNIQUE",
+            category_display: "Techniques",
             required: true,
             result: "MET",
+            result_display: "Met",
             requirement_sequence: i,
+            assessor_email: "coach@example.com",
+            assessed_at: null,
+            // A positive observation on a met item must reach the proposer too.
+            assessor_notes: i === 0 ? "Crisp, confident footwork" : "",
           })),
         });
       }
@@ -4055,38 +4036,34 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const drawer = await screen.findByTestId("outcome-proposal-drawer");
     expect(drawer).toBeVisible();
 
-    // Verify candidate context banner
-    expect(within(drawer).getByText("Brooke Ellis")).toBeVisible();
-    expect(within(drawer).getByText("WKSA: UK-1002")).toBeVisible();
-    expect(within(drawer).getByText("Blue")).toBeVisible();
-    expect(within(drawer).getByText("Red stripe")).toBeVisible();
+    // Candidate and the rank transition, from the candidate's own fields
+    expect(within(drawer).getByRole("heading", { name: "Brooke Ellis" })).toBeVisible();
+    expect(within(drawer).getByText("UK-1002")).toBeVisible();
+    expect(drawer).toHaveTextContent(/Blue\s*→\s*Red stripe/);
 
-    // Verify assessment completion summary
-    expect(await within(drawer).findByText("Assessment complete")).toBeVisible();
-    expect(within(drawer).getByText(/24 of 24 Required items met \(100%\)/)).toBeVisible();
-    expect(within(drawer).getByText("0 Not Met")).toBeVisible();
+    // The same served evidence the Master sees on the board - no percentage
+    expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();
+    expect(within(drawer).queryByText(/%/)).not.toBeInTheDocument();
+    expect(await within(drawer).findByText("Crisp, confident footwork")).toBeVisible();
+    expect(
+      within(drawer).getByRole("link", { name: "Open the full assessment record" }),
+    ).toHaveAttribute("href", "/gradings/10/assessments/102/review");
 
-    // Verify 3-option proposed outcome selector cards
-    expect(within(drawer).getByTestId("outcome-option-pass")).toBeVisible();
-    expect(within(drawer).getByTestId("outcome-option-conditional")).toBeVisible();
-    expect(within(drawer).getByTestId("outcome-option-fail")).toBeVisible();
+    // Pass / Conditional / Fail, Pass selected by default
+    expect(within(drawer).getByRole("radio", { name: "Pass" })).toBeChecked();
+    await user.click(within(drawer).getByRole("radio", { name: "Conditional" }));
+    expect(within(drawer).getByRole("radio", { name: "Conditional" })).toBeChecked();
+    expect(within(drawer).getByRole("radio", { name: "Fail" })).not.toBeChecked();
 
-    // Switch selection to CONDITIONAL
-    await user.click(within(drawer).getByTestId("outcome-option-conditional"));
-    const conditionalCard = within(drawer).getByTestId("outcome-option-conditional");
-    expect(conditionalCard).toHaveClass("is-selected");
+    await user.type(
+      within(drawer).getByLabelText("Notes for the Master"),
+      "Recommend re-testing form 3 within 2 weeks.",
+    );
+    expect(
+      within(drawer).getByText(/A proposal does not finalise the grading or promote the candidate/),
+    ).toBeVisible();
 
-    // Enter proposal notes
-    const notesTextarea = within(drawer).getByTestId("opd-notes-textarea");
-    await user.type(notesTextarea, "Recommend re-testing form 3 within 2 weeks.");
-
-    // Verify informational callout
-    expect(within(drawer).getByTestId("opd-callout-info")).toBeVisible();
-    expect(within(drawer).getByText("Master review required")).toBeVisible();
-
-    // Submit proposal
-    const submitBtn = within(drawer).getByTestId("opd-submit-btn");
-    await user.click(submitBtn);
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
     // Verify create-outcome and propose endpoints were called
     await waitFor(() => {
@@ -4105,7 +4082,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     });
   });
 
-  it("dismisses SCR-021 Outcome Proposal Drawer on Cancel button and Escape key", async () => {
+  it("dismisses the proposal drawer on Cancel and Escape", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
@@ -4136,8 +4113,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     ).toHaveFocus();
 
     // Dismiss via Cancel button
-    const cancelBtn = screen.getByTestId("opd-cancel-btn");
-    await user.click(cancelBtn);
+    await user.click(within(reopenedDrawer).getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
 
@@ -4148,6 +4124,84 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
     expect(proposeBtn).toHaveFocus();
+  });
+
+  it("keeps the proposal drawer open with the server's reason when a proposal is refused", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        return jsonResponse(400, {
+          error: { code: "validation_error", message: "The assessment is not completed." },
+        });
+      }
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent(
+      "The assessment is not completed.",
+    );
+    expect(screen.getByTestId("outcome-proposal-drawer")).toBeVisible();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose/"))).toBe(false);
+  });
+
+  it("retries a refused proposal against the outcome it already created", async () => {
+    const user = userEvent.setup();
+    let proposeAttempts = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        return jsonResponse(201, { ...testOutcomes[0], id: 401, proposed_outcome: null });
+      }
+      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+        proposeAttempts += 1;
+        if (proposeAttempts === 1) {
+          return jsonResponse(400, {
+            error: { code: "validation_error", message: "Try again shortly." },
+          });
+        }
+        return jsonResponse(200, { ...testOutcomes[0], id: 401, proposed_outcome: "PASS" });
+      }
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent("Try again shortly.");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+    await waitFor(() => expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument());
+
+    const creates = fetchMock.mock.calls.filter(
+      ([url, init]) => String(url).includes("/create-outcome/") && init?.method === "POST",
+    );
+    expect(creates).toHaveLength(1);
+    expect(proposeAttempts).toBe(2);
   });
 });
 
@@ -4161,17 +4215,15 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   const testSession: GradingSession = {
     id: 10,
@@ -4181,11 +4233,6 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     status: "DRAFT",
     status_display: "Draft",
     notes: "",
-    cancellation_reason: "",
-    created_at: "2026-09-01T10:00:00Z",
-    updated_at: "2026-09-01T10:00:00Z",
-    created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-    created_by_email: "master.tan@example.com",
   };
 
   const mockRanks: Rank[] = [
@@ -4194,9 +4241,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       code: "WHITE",
       name: "White",
       order: 1,
-      category: "COLOURED_BELT",
-      category_display: "Coloured belt",
-      active: true,
+      belt_colour: "WHITE",
+      stripe_colour: "",
+      stripe_count: 0,
       next_rank: 2,
     },
     {
@@ -4204,9 +4251,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       code: "YELLOW_STRIPE",
       name: "Yellow stripe",
       order: 2,
-      category: "COLOURED_BELT",
-      category_display: "Coloured belt",
-      active: true,
+      belt_colour: "WHITE",
+      stripe_colour: "YELLOW",
+      stripe_count: 1,
       next_rank: 3,
     },
     {
@@ -4214,9 +4261,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       code: "YELLOW",
       name: "Yellow",
       order: 3,
-      category: "COLOURED_BELT",
-      category_display: "Coloured belt",
-      active: true,
+      belt_colour: "YELLOW",
+      stripe_colour: "",
+      stripe_count: 0,
       next_rank: null,
     },
   ];
@@ -4231,6 +4278,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4244,6 +4292,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "INACTIVE",
+      can_be_graded: true,
       status_display: "Inactive",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4257,6 +4306,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "YELLOW_STRIPE",
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_13_TO_17",
       age_band_display: "13-17",
@@ -4270,6 +4320,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "WHITE",
       current_rank_name: "White",
       status: "LEFT",
+      can_be_graded: false,
       status_display: "Left",
       age_band: "AGE_8_AND_UNDER",
       age_band_display: "8 and under",
@@ -4283,6 +4334,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       current_rank_code: "YELLOW_STRIPE",
       current_rank_name: "Yellow stripe",
       status: "ACTIVE",
+      can_be_graded: true,
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
@@ -4292,30 +4344,21 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   const mockExistingCandidate: GradingCandidate = {
     id: 501,
     session: 10,
-    session_title: "Autumn Grading",
     student: 105,
     student_display_name: "Eve Existing",
     student_wksa_id: "KG-0105",
     from_rank: 2,
-    from_rank_code: "YELLOW_STRIPE",
     from_rank_name: "Yellow stripe",
     testing_for_rank: 3,
-    testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
-    age_band: "18+",
     age_band_display: "18+",
     status: "REGISTERED",
-    status_display: "Registered",
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
-    withdrawn_by: null,
-    withdrawn_by_email: "",
-    withdrawn_by_name: "",
-    withdrawn_at: null,
-    created_at: "2026-09-02T10:00:00Z",
-    updated_at: "2026-09-02T10:00:00Z",
   };
 
   beforeEach(() => {
@@ -4329,6 +4372,13 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
+  const mockAgeBands: AgeBand[] = [
+    { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+    { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+    { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
+    { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+  ];
+
   function setupCohortMock(options?: {
     bulkRegisterHandler?: (body: unknown) => Response;
   }) {
@@ -4341,6 +4391,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         return jsonResponse(200, { created: [], errors: {} });
       }
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/syllabus/age-bands/")) {
+        return jsonResponse(200, { count: 4, next: null, previous: null, results: mockAgeBands });
+      }
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, {
           count: mockRanks.length,
@@ -4497,10 +4550,10 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-student-row-103")).toHaveTextContent("Charlie Brown");
     expect(screen.queryByTestId("bgc-student-row-101")).not.toBeInTheDocument();
 
-    // Section 2 rank groups reflect the filtered student (Yellow stripe, Kids 0 | Adults 1)
+    // Section 2 rank groups reflect the filtered student (Yellow stripe, one adult-programme student)
     expect(screen.getByTestId("bgc-add-group-2")).toBeVisible();
     expect(screen.queryByTestId("bgc-add-group-1")).not.toBeInTheDocument();
-    expect(screen.getByText("Kids 0 | Adults 1")).toBeVisible();
+    expect(screen.getByText("Junior & Little Dragon 0 | Adult & Youth 1")).toBeVisible();
 
     // Filter back to "All ages"
     await user.selectOptions(ageSelect, "ALL");
@@ -4714,40 +4767,26 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "OPEN",
     status_display: "Open",
     notes: "",
-    cancellation_reason: "",
-    created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-    created_by_email: "casey@example.com",
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:00:00Z",
   };
 
   const mockCandidate: GradingCandidate = {
     id: 101,
     session: 10,
-    session_title: "Autumn Grading",
     student: 1,
     student_display_name: "Alex Carter",
     student_wksa_id: "KG-0264",
     from_rank: 1,
-    from_rank_code: "YELLOW_STRIPE",
     from_rank_name: "Yellow stripe",
     testing_for_rank: 2,
-    testing_for_rank_code: "YELLOW",
     testing_for_rank_name: "Yellow",
-    age_band: "AGE_9_TO_12",
     age_band_display: "Junior (9–12)",
     status: "REGISTERED",
-    status_display: "Registered",
     notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
+    can_be_moved: false,
+    can_be_removed: false,
     withdrawal_note: "",
-    withdrawn_by: null,
-    withdrawn_by_email: "",
-    withdrawn_by_name: "",
-    withdrawn_at: null,
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:00:00Z",
   };
 
   const mockStudent: StudentListItem = {
@@ -4761,6 +4800,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     age_band: "AGE_9_TO_12",
     age_band_display: "Junior (9–12)",
     status: "ACTIVE",
+    can_be_graded: true,
     status_display: "Active",
   };
 
@@ -4768,106 +4808,65 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     id: 501,
     candidate: 101,
     candidate_student_name: "Alex Carter",
-    candidate_student_wksa_id: "KG-0264",
-    testing_for_rank_code: "YELLOW",
-    testing_for_rank_name: "Yellow",
-    age_band: "AGE_9_TO_12",
-    age_band_display: "Junior (9–12)",
     status: "IN_PROGRESS",
     status_display: "In progress",
-    generated_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
     generated_by_email: "casey@example.com",
+    overall: assessmentSummaryFor([]).overall,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
     completed_at: null,
     notes: "",
-    item_counts: { total: 3, required: 3, met: 1, not_met: 1, not_assessed: 1 },
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:05:00Z",
   };
 
   const mockItem1: CandidateAssessmentItem = {
     id: 1001,
-    assessment: 501,
-    source_requirement: 1,
-    source_item: 1,
-    source_rank: 2,
-    source_age_band: "AGE_9_TO_12",
-    item_code: "ETIQUETTE_01",
     item_name: "Etiquette & Bowing",
     korean_name: "예의",
     category: "ETIQUETTE",
     category_display: "Etiquette",
     requirement_sequence: 1,
     required: true,
-    start_number: null,
-    end_number: null,
     display_range: "",
     requirement_notes: "Proper bow, respect for flags and instructors",
     result: "MET",
     result_display: "Met",
-    assessor: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:10:00Z",
     assessor_notes: "",
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:10:00Z",
   };
 
   const mockItem2: CandidateAssessmentItem = {
     id: 1002,
-    assessment: 501,
-    source_requirement: 2,
-    source_item: 2,
-    source_rank: 2,
-    source_age_band: "AGE_9_TO_12",
-    item_code: "KICKING_01",
     item_name: "Ap Cha Gi (Front Kick)",
     korean_name: "앞차기",
     category: "KICKING",
     category_display: "Kicking",
     requirement_sequence: 2,
     required: true,
-    start_number: null,
-    end_number: null,
     display_range: "",
     requirement_notes: "Full chamber, ball of foot contact",
     result: "NOT_MET",
     result_display: "Not Met",
-    assessor: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
     assessor_email: "casey@example.com",
     assessed_at: "2026-09-18T10:15:00Z",
     assessor_notes: "Guard dropped on turn",
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:15:00Z",
   };
 
   const mockItem3: CandidateAssessmentItem = {
     id: 1003,
-    assessment: 501,
-    source_requirement: 3,
-    source_item: 3,
-    source_rank: 2,
-    source_age_band: "AGE_9_TO_12",
-    item_code: "KICKING_02",
     item_name: "Yup Cha Gi (Side Kick)",
     korean_name: "옆차기",
     category: "KICKING",
     category_display: "Kicking",
     requirement_sequence: 3,
     required: true,
-    start_number: null,
-    end_number: null,
     display_range: "",
     requirement_notes: "Pivot on base foot, blade of foot strike",
     result: "NOT_ASSESSED",
     result_display: "Not Assessed",
-    assessor: null,
     assessor_email: "",
     assessed_at: null,
     assessor_notes: "",
-    created_at: "2026-09-18T10:00:00Z",
-    updated_at: "2026-09-18T10:00:00Z",
   };
 
   beforeEach(() => {
@@ -4988,12 +4987,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("reports unassessed optional items rather than calling the category all met", async () => {
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5009,18 +5006,16 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         return jsonResponse(200, {
           overall: {
             total: 3, required: 2, met: 2, not_met: 0, not_assessed: 1,
-            required_met: 2, required_not_met: 0, required_not_assessed: 0,
-            all_required_assessed: true, all_required_met: true,
+            required_met: 2, required_not_assessed: 0, all_required_assessed: true,
           },
           categories: [
             {
               category: "ETIQUETTE",
               total: 2, required: 1, met: 1, not_met: 0, not_assessed: 1,
-              required_met: 1, required_not_met: 0, required_not_assessed: 0,
-              all_required_assessed: true, all_required_met: true,
+              required_met: 1, required_not_assessed: 0, all_required_assessed: true,
             },
           ],
-        });
+        } satisfies CandidateAssessmentSummary);
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [completedItemsAssessment] });
@@ -5064,7 +5059,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5117,7 +5111,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5164,7 +5157,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5173,6 +5165,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville" });
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return jsonResponse(200, mockCandidate);
@@ -5195,6 +5188,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Assessment record" });
 
     expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Sealed");
+    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".acp-org" })).toBeVisible();
     expect(screen.getByTestId("acp-seal-applied")).toBeVisible();
     expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
 
@@ -5274,7 +5268,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const weaponsItem: CandidateAssessmentItem = {
       ...mockItem3,
       id: 1004,
-      item_code: "WEAPONS_01",
       item_name: "Jung Bong basics",
       korean_name: "중봉",
       category: "WEAPONS",
@@ -5282,14 +5275,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       requirement_sequence: 4,
       display_range: "1–5",
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:25:00Z",
     };
     const assessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5435,13 +5426,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             not_met: 1,
             not_assessed: 3,
             required_met: 5,
-            required_not_met: 1,
             required_not_assessed: 1,
             all_required_assessed: false,
-            all_required_met: false,
           },
           categories: [],
-        });
+        } satisfies CandidateAssessmentSummary);
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
@@ -5804,12 +5793,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // Assessment with all 3 items assessed (2 Met, 1 Not Met, 0 Not Assessed)
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5907,12 +5894,10 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
   it("keeps draft assessment notes when returning to scoring and back", async () => {
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
-      item_counts: { total: 3, required: 3, met: 2, not_met: 1, not_assessed: 0 },
     };
     const allAssessedItem3: CandidateAssessmentItem = {
       ...mockItem3,
       result: "MET",
-      assessor: authUser.id,
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
@@ -5981,7 +5966,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       status: "NOT_STARTED",
       status_display: "Not started",
       started_at: null,
-      item_counts: { total: 3, required: 3, met: 0, not_met: 0, not_assessed: 3 },
     };
 
     let startPayload: Record<string, unknown> | null = null;
@@ -6055,7 +6039,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       ...mockSession,
       status: "DRAFT" as const,
       status_display: "Draft",
-    };
+    } satisfies GradingSession;
     const generatedAssessment: CandidateAssessment = {
       ...mockAssessment,
       status: "NOT_STARTED",

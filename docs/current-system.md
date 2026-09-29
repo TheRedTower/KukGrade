@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-28. This document
-takes precedence over every other document for what exists now.
+Describes the implementation on `dev` as verified on 2026-09-29.
+This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-28 with 661 backend tests and 209 frontend tests passing
+Verified on 2026-09-29 with 679 backend tests and 235 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -24,10 +24,14 @@ checks on each push and pull request.
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
   health; the public `/api/health/` remains a process liveness endpoint.
+  The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
+  the public `/api/site/`; a session with no location shows none rather than
+  an assumed venue.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
-  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS, SSL redirect and
-  secure cookies default on. The one exception is the reverse-proxy header
+  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
+  subdomains included), SSL redirect and secure cookies default on; HSTS
+  preload defaults off and is an explicit opt-in. The one exception is the reverse-proxy header
   (`DJANGO_BEHIND_TLS_PROXY`), which defaults **off** even in production and
   must be opted into explicitly - trusting it without a proxy that actually
   strips it lets a client spoof an already-secure request. The browsable API
@@ -47,8 +51,14 @@ checks on each push and pull request.
 - Rank catalogue seeded White through PKJN, read-only - in Django admin as
   well as the API since 2026-09-26, for superusers too, so an unaudited edit
   cannot change how past records read. The syllabus catalogue is the same.
-- Syllabus catalogue for WKSA Version 2014, read-only. Beyond the plain
-  per-rank requirement list, `GET /api/syllabus/requirements/effective/`
+  Each rank carries its belt: `belt_colour`, plus `stripe_colour` for a
+  stripe rank, which is the belt below with a stripe towards the next (Blue
+  stripe is a yellow belt with a blue stripe). Every screen draws ranks with
+  one `BeltSwatch` from these fields and `stripe_count`. Dahn Bo is a brown
+  belt with two black stripes; the black-belt titles are plain black until
+  their appearance is decided.
+- Syllabus catalogue for WKSA Version 2014, read-only. Requirements are read
+  through `GET /api/syllabus/requirements/effective/`
   (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
   item examinable through a selected rank: the latest applicable mapping at
   or before that rank supplies the effective range, the earliest supplies
@@ -129,12 +139,23 @@ checks on each push and pull request.
   withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
-  the same domain service as its single-item endpoint inside its own
-  savepoint, and one row's failure never blocks the others. Every response
+  its row through the domain service inside its own savepoint, and one row's failure never blocks the others. Every response
   lists what succeeded plus an `errors` map keyed by row index for what
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
   mixed-belt group registers in one request with no rank picked at all.
+- **Registrations (2026-09-28)**: `bulk-register` is the only way to register
+  a candidate - there is no single-item create. Each roster row offers
+  "Move…" (`PATCH` the registration's `session` to another draft or open
+  session) and "Remove" (`DELETE`, audited) only when the server says the
+  registration allows it: every candidate carries `can_be_moved` (no assessment
+  yet, session draft or open) and `can_be_removed` (session draft or open, and
+  any assessment not started; only a draft session may hold one), computed from
+  the same validators the write endpoints use. Withdrawing stays the way to
+  record that a candidate did not grade. Opening a `DRAFT` session asks for
+  confirmation that states how many candidates are registered and that an
+  open session cannot return to draft, so the roster is checked while it can
+  still be edited freely.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments
@@ -145,7 +166,7 @@ checks on each push and pull request.
   registration always starts `REGISTERED`.
 - Candidate outcomes: `DRAFT` / `PROPOSED` / `FINALISED`, `PASS` / `FAIL` /
   `CONDITIONAL`. Finalised outcomes are immutable.
-- Outcome proposal and final-decision drawers, cohort-exception review, student
+- The outcome proposal drawer, cohort-exception review, student
   status/edit dialogs, single-student promotion confirmation, grading-session
   deletion confirmation, and grading-session lifecycle confirmation
   (open/lock/complete/cancel/delete) move focus to their primary or safest
@@ -177,8 +198,9 @@ checks on each push and pull request.
   every route in light/dark at 1280px and 390px, and at the 640px viewport
   WCAG 1.4.10 treats as equivalent to 200% zoom on a 1280px display. Icon-only
   buttons, input/radio-group labelling, and colour-alone status indicators
-  were audited app-wide with no violations found. Not yet done: per-element
-  contrast measurement (checked visually, not measured).
+  were audited app-wide with no violations found. Per-element contrast was
+  measured for the four grading surfaces in slice 8 (below); elsewhere it has
+  been checked visually only.
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a
@@ -214,7 +236,7 @@ checks on each push and pull request.
   returns them, and refuses a user changing their own authority.
   `POST /api/users/{id}/set-password/` resets a password, validated by
   Django's configured password validators. `is_staff` and `is_superuser`
-  are never writable through the API.
+  are not part of the API.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -238,7 +260,8 @@ checks on each push and pull request.
   can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
-  stay administrator-only. `POST /api/auth/change-password/` lets a user
+  stay administrator-only; the account menu's "Edit your name" form calls it
+  and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one; throttled the same
   way login is, validated by the same password validators as every other
   password path, and never logs the value. Both are audited as the user's
@@ -365,6 +388,43 @@ checks on each push and pull request.
   `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
   `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
   about which categories are core areas.
+- **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
+  SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
+  (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
+  served counts from each assessment's `overall` on the assessment list (one
+  request for the cohort; only the row in focus fetches its full summary), the instructor
+  proposal and an inline Pass / Conditional / Fail, beside a detail pane for
+  the row in focus (`?candidate=` selects it). Decisions stage and then write
+  one candidate at a time; a failed row keeps its error and stays staged, and
+  only failed rows retry (FDR-028). A Conditional needs re-test requirements.
+  If any of the four requests fails, the board says so and offers a retry
+  rather than rendering an empty cohort. The detail pane shows every recorded `assessor_notes` value, as the proof
+  sheet does. Controls appear only on a `LOCKED` session for a user with
+  `can_make_final_grading_decision`; everyone else gets a read-only board.
+- **The proposal drawer shows the board's evidence (2026-09-29)**: FDR-047
+  restyled `OutcomeProposalDrawer` to the board's language. The "Sealed
+  assessment" section is one component, `SealedAssessmentEvidence`, rendered
+  by both the drawer and the board's detail pane, so the proposing instructor
+  and the Master read the same served counts and every recorded note. The
+  Pass / Conditional / Fail choice (`OUTCOME_CHOICES`) and its styles
+  (`OutcomeControls.css`) are shared the same way. The drawer no longer
+  recounts items or shows a percentage (FDR-046). The summary and item
+  queries live once in `queries.ts`.
+- **Dark, responsive and accessibility pass (2026-09-29)**: slice 8 measured
+  the four grading surfaces (mat-side scoring, completion proof, the board and
+  the proposal drawer) in a browser in light and dark at desktop, tablet and
+  phone widths: text contrast per element, target sizes, horizontal overflow
+  and every keyboard focus stop. Status text now meets 4.5:1 on its surface in
+  both themes (`--color-warning` and `--color-success` darker in light,
+  `--color-success` and `--color-danger` lighter in dark); filled status
+  buttons use `--color-on-success` / `--color-on-danger`; focus outlines are
+  the solid `--color-accent-strong` (at least 3:1 on every surface) rather
+  than the translucent `--color-focus-ring`, which stays for input halos.
+  Mat-side row tools and breadcrumbs are 44px targets. The chosen Pass /
+  Conditional / Fail segment carries a check mark, not colour alone. On a
+  phone the board's rows become cards so the decision controls stay on
+  screen; choosing a row there moves focus to the detail pane, and after
+  recording, focus moves to the result message.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
@@ -373,7 +433,9 @@ checks on each push and pull request.
   reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
-  is the API's own `age_band_display`, never recomputed in the browser. CI
+  is the API's own `age_band_display`, never recomputed in the browser, and
+  the age-band controls on the syllabus and cohort-builder screens read their
+  bands and programmes from `/api/syllabus/age-bands/`. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
   the UTC runner cannot observe this class of bug: with the defect
   reintroduced, UTC passes and the non-UTC run fails 5 tests. Every screen
@@ -393,7 +455,8 @@ checks on each push and pull request.
   `--font-sans`) - see `frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md`,
   FDR-001 through FDR-004 and FDR-012. Styling is one stylesheet per feature
   area on those tokens, with `App.css` holding only the shell and shared
-  primitives; a few literal colours remain (belt colours, status tints). Dark
+  primitives; a few literal colours remain (status tints). Belt colours are
+  the `--belt-*` tokens, fixed across themes because they are physical belts. Dark
   mode follows `prefers-color-scheme` by default; an
   explicit Light/Dark/System choice sets
   `[data-theme]` on `<html>` instead, applied before first paint by an inline
@@ -448,6 +511,16 @@ checks on each push and pull request.
   bound holds as stated. If that ever becomes multi-process, the throttle
   needs a shared cache (Redis) or the bound loosens to 10/min per process;
   see the 2026-09-15 decision log entry.
+  Production sits behind Cloudflare and then Traefik, so the throttle trusts
+  two proxy hops (`DJANGO_NUM_PROXIES=2`) to find the visitor's address.
+- **Sessions end after two hours without a request** (`SESSION_COOKIE_AGE`,
+  with `SESSION_SAVE_EVERY_REQUEST` sliding it forward). Nothing in the
+  frontend polls, so an idle tab does not keep a session alive. Any request
+  answered "not signed in" returns the viewer to sign-in (`AuthProvider`
+  watches every query and mutation), not only the startup session check.
+  Signing out, or being signed out, also drops every cached response, so
+  the next person on that browser never sees the previous person's students
+  or gradings.
 - **Password validation is consistent everywhere an account can be
   created**: the users API, `SetPasswordSerializer`, and the Django admin
   add-user form all run the full configured validator set, including
@@ -459,9 +532,11 @@ checks on each push and pull request.
 
 ## Known Gaps
 
-- Per-element contrast has been checked visually in both themes, not
-  measured.
-- `frontend/src/App.test.tsx` still holds about 5,000 lines of screen tests
+- Per-element contrast, target sizes and focus were measured on the four
+  grading surfaces only; the rest of the app has been checked visually. The
+  session screen's breadcrumb, banner button, search and filter are under
+  44px.
+- `frontend/src/App.test.tsx` still holds about 6,000 lines of screen tests
   that belong in per-screen files.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required

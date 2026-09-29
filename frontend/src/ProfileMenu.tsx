@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import type { AuthUser } from "./api";
+import { type AuthUser, errorMessage } from "./api";
 
 function CheckCircleIcon() {
   return (
@@ -115,17 +115,73 @@ function getInitials(user: AuthUser): string {
 export interface ProfileMenuProps {
   user: AuthUser;
   onLogout: () => void;
+  onUpdateName: (firstName: string, lastName: string) => Promise<void>;
   isLoggingOut?: boolean;
   themeToggle?: ReactNode;
+}
+
+/** Your own first and last name, edited in place in the account menu. */
+function NameForm({
+  user,
+  onUpdateName,
+  onDone,
+}: {
+  user: AuthUser;
+  onUpdateName: (firstName: string, lastName: string) => Promise<void>;
+  onDone: () => void;
+}) {
+  const [firstName, setFirstName] = useState(user.first_name);
+  const [lastName, setLastName] = useState(user.last_name);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <form
+      className="profile-name-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        setIsSaving(true);
+        setError(null);
+        try {
+          await onUpdateName(firstName.trim(), lastName.trim());
+          onDone();
+        } catch (err) {
+          setError(errorMessage(err, "Could not save your name."));
+        } finally {
+          setIsSaving(false);
+        }
+      }}
+    >
+      <label>
+        <span>First name</span>
+        <input value={firstName} onChange={(event) => setFirstName(event.target.value)} />
+      </label>
+      <label>
+        <span>Last name</span>
+        <input value={lastName} onChange={(event) => setLastName(event.target.value)} />
+      </label>
+      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      <div className="profile-name-actions">
+        <button className="profile-name-button" disabled={isSaving} onClick={onDone} type="button">
+          Cancel
+        </button>
+        <button className="profile-name-button primary" disabled={isSaving} type="submit">
+          {isSaving ? "Saving…" : "Save name"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 export function ProfileMenu({
   user,
   onLogout,
+  onUpdateName,
   isLoggingOut = false,
   themeToggle,
 }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const initials = getInitials(user);
 
@@ -136,12 +192,14 @@ export function ProfileMenu({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
+        setIsEditingName(false);
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
+        setIsEditingName(false);
       }
     }
 
@@ -162,7 +220,10 @@ export function ProfileMenu({
         aria-haspopup="menu"
         aria-label={`${user.full_name}, ${user.role_display}`}
         className="profile-trigger"
-        onClick={() => setIsOpen((previous) => !previous)}
+        onClick={() => {
+          setIsOpen((previous) => !previous);
+          setIsEditingName(false);
+        }}
         type="button"
       >
         <div className="profile-trigger-info">
@@ -191,6 +252,24 @@ export function ProfileMenu({
               <p className="profile-dropdown-email">{user.email}</p>
               <span className="profile-dropdown-role">{user.role_display}</span>
             </div>
+          </div>
+
+          <div className="profile-dropdown-section">
+            {isEditingName ? (
+              <NameForm
+                onDone={() => setIsEditingName(false)}
+                onUpdateName={onUpdateName}
+                user={user}
+              />
+            ) : (
+              <button
+                className="profile-name-button"
+                onClick={() => setIsEditingName(true)}
+                type="button"
+              >
+                Edit your name
+              </button>
+            )}
           </div>
 
           <div className="profile-dropdown-section">

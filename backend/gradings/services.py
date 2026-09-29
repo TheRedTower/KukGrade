@@ -73,10 +73,8 @@ class OverallAssessmentSummary(TypedDict):
     not_met: int
     not_assessed: int
     required_met: int
-    required_not_met: int
     required_not_assessed: int
     all_required_assessed: bool
-    all_required_met: bool
 
 
 class CategoryAssessmentSummary(OverallAssessmentSummary):
@@ -89,8 +87,6 @@ class CandidateAssessmentSummary(TypedDict):
 
 
 class StudentRankTimeline(TypedDict):
-    student: Student
-    current_rank: Rank
     promotions: list[Promotion]
 
 
@@ -101,27 +97,23 @@ class GradingHistoryItem(TypedDict):
     cycle_year: int | None
     cycle_month: int | None
     date_precision: str  # "DAY" | "MONTH"
-    testing_for_rank_code: str | None
     testing_for_rank_name: str | None
     source_testing_for_rank_text: str
     outcome: str | None
     attendance_status: str
     comments: str
-    promotion_id: int | None
 
 
 class StudentGradingHistory(TypedDict):
-    student: Student
     items: list[GradingHistoryItem]
 
 
-# Each age band's inclusive age range - the single statement of the rule,
-# read in both directions below. None means unbounded.
-_AGE_BAND_RANGES: dict[str, tuple[int, int | None]] = {
-    AgeBand.AGE_8_AND_UNDER: (0, 8),
-    AgeBand.AGE_9_TO_12: (9, 12),
-    AgeBand.AGE_13_TO_17: (13, 17),
-    AgeBand.AGE_18_AND_OVER: (18, None),
+# Each age band's oldest age, in ascending order. None means unbounded.
+_AGE_BAND_MAX_AGE: dict[str, int | None] = {
+    AgeBand.AGE_8_AND_UNDER: 8,
+    AgeBand.AGE_9_TO_12: 12,
+    AgeBand.AGE_13_TO_17: 17,
+    AgeBand.AGE_18_AND_OVER: None,
 }
 
 
@@ -163,29 +155,10 @@ def resolve_age_band(date_of_birth: date | None, grading_date: date) -> str:
     if date_of_birth is None:
         raise ValidationError({"student": ["Student date of birth is required."]})
     age = calculate_age_on(date_of_birth, grading_date)
-    for band, (_youngest, oldest) in _AGE_BAND_RANGES.items():
+    for band, oldest in _AGE_BAND_MAX_AGE.items():
         if oldest is None or age <= oldest:
             return band
-    raise AssertionError("_AGE_BAND_RANGES has no open-ended band")
-
-
-def _years_before(on_date: date, years: int) -> date:
-    try:
-        return on_date.replace(year=on_date.year - years)
-    except ValueError:  # 29 February in a non-leap year
-        return on_date.replace(year=on_date.year - years, day=28)
-
-
-def age_band_birth_date_bounds(
-    band: str,
-    on_date: date,
-) -> tuple[date | None, date | None]:
-    """`(born_after, born_on_or_before)` for everyone in `band` on `on_date`,
-    so a queryset can filter by age band without computing each age."""
-    youngest, oldest = _AGE_BAND_RANGES[band]
-    born_after = _years_before(on_date, oldest + 1) if oldest is not None else None
-    born_on_or_before = _years_before(on_date, youngest) if youngest else None
-    return born_after, born_on_or_before
+    raise AssertionError("_AGE_BAND_MAX_AGE has no open-ended band")
 
 
 def get_next_active_rank(current_rank: Rank) -> Rank | None:
@@ -652,6 +625,23 @@ def validate_candidate_can_be_deleted(
         )
 
 
+def candidate_can_be_deleted(candidate: GradingCandidate) -> bool:
+    try:
+        validate_candidate_can_be_deleted(candidate)
+    except ValidationError:
+        return False
+    return True
+
+
+def candidate_can_change_session(candidate: GradingCandidate) -> bool:
+    try:
+        validate_candidate_can_be_changed(candidate)
+        validate_candidate_assessment_changes(candidate, session_changed=True)
+    except ValidationError:
+        return False
+    return True
+
+
 def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
     if outcome.assessment.status != CandidateAssessment.Status.COMPLETED:
         raise ValidationError(
@@ -1079,24 +1069,12 @@ def bulk_promote_candidates(
 
 
 def student_rank_timeline(student: Student) -> StudentRankTimeline:
-    timeline_student = Student.objects.select_related("current_rank").get(pk=student.pk)
     promotions = list(
-        Promotion.objects.filter(student=timeline_student)
-        .select_related(
-            "student__current_rank",
-            "outcome",
-            "grading_candidate__session",
-            "from_rank",
-            "to_rank",
-            "promoted_by",
-        )
+        Promotion.objects.filter(student=student)
+        .select_related("grading_candidate__session", "from_rank", "to_rank")
         .order_by("-effective_date", "-promoted_at", "-pk"),
     )
-    return {
-        "student": timeline_student,
-        "current_rank": timeline_student.current_rank,
-        "promotions": promotions,
-    }
+    return {"promotions": promotions}
 
 
 def unified_student_grading_history(student: Student) -> StudentGradingHistory:
@@ -1118,7 +1096,6 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
     ).select_related("candidate__session", "candidate__testing_for_rank")
     for outcome in finalised_outcomes:
         session = outcome.candidate.session
-        promotion = getattr(outcome, "promotion", None)
         testing_for_rank = outcome.candidate.testing_for_rank
         native_item: GradingHistoryItem = {
             "source": "KUKGRADE",
@@ -1127,13 +1104,11 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "cycle_year": session.grading_date.year,
             "cycle_month": session.grading_date.month,
             "date_precision": "DAY",
-            "testing_for_rank_code": testing_for_rank.code,
             "testing_for_rank_name": testing_for_rank.name,
             "source_testing_for_rank_text": "",
             "outcome": outcome.final_outcome,
             "attendance_status": "ATTENDED",
             "comments": outcome.decision_notes,
-            "promotion_id": promotion.pk if promotion else None,
         }
         dated_items.append((session.grading_date, native_item))
 
@@ -1154,9 +1129,6 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "cycle_year": legacy.cycle_year,
             "cycle_month": legacy.cycle_month,
             "date_precision": legacy.date_precision,
-            "testing_for_rank_code": (
-                legacy.testing_for_rank.code if legacy.testing_for_rank else None
-            ),
             "testing_for_rank_name": (
                 legacy.testing_for_rank.name if legacy.testing_for_rank else None
             ),
@@ -1164,15 +1136,11 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "outcome": legacy.outcome,
             "attendance_status": legacy.attendance_status,
             "comments": legacy.comments,
-            "promotion_id": None,
         }
         dated_items.append((sort_date, legacy_item))
 
     dated_items.sort(key=lambda pair: pair[0], reverse=True)
-    return {
-        "student": student,
-        "items": [item for _sort_date, item in dated_items],
-    }
+    return {"items": [item for _sort_date, item in dated_items]}
 
 
 def _empty_summary() -> OverallAssessmentSummary:
@@ -1183,19 +1151,17 @@ def _empty_summary() -> OverallAssessmentSummary:
         "not_met": 0,
         "not_assessed": 0,
         "required_met": 0,
-        "required_not_met": 0,
         "required_not_assessed": 0,
         "all_required_assessed": True,
-        "all_required_met": True,
     }
 
 
 def candidate_assessment_summary(
     assessment: CandidateAssessment,
 ) -> CandidateAssessmentSummary:
-    items = list(
-        assessment.items.all().order_by("category", "requirement_sequence", "pk"),
-    )
+    # Unordered, so a list view's prefetched items are used as they are; the
+    # counts do not depend on order and the categories are sorted below.
+    items = list(assessment.items.all())
     category_order = {
         category: index for index, category in enumerate(SyllabusItem.Category.values)
     }
@@ -1222,23 +1188,15 @@ def candidate_assessment_summary(
         elif item.result == CandidateAssessmentItem.Result.NOT_MET:
             summary["not_met"] += 1
             overall["not_met"] += 1
-            if item.required:
-                summary["required_not_met"] += 1
-                summary["all_required_met"] = False
-                overall["required_not_met"] += 1
         else:
             summary["not_assessed"] += 1
             overall["not_assessed"] += 1
             if item.required:
                 summary["required_not_assessed"] += 1
                 summary["all_required_assessed"] = False
-                summary["all_required_met"] = False
                 overall["required_not_assessed"] += 1
 
     overall["all_required_assessed"] = overall["required_not_assessed"] == 0
-    overall["all_required_met"] = (
-        overall["required_not_assessed"] == 0 and overall["required_not_met"] == 0
-    )
 
     return {
         "overall": overall,
@@ -1493,9 +1451,9 @@ def bulk_register_candidates(
 ]:
     """Register every row against `session`, independently of the others.
 
-    This is adding candidates one at a time through the single-item endpoint,
-    just in one request: a batch of ten students does not fail all ten
-    because one of them was already registered.
+    The only registration path in the API. Each row registers on its own, so
+    a batch of ten students does not fail all ten because one of them was
+    already registered.
 
     A row's `testing_for_rank` is optional: when omitted it resolves to that
     student's own next active rank, so a mixed-belt group (some blue belts,

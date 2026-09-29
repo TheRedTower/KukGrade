@@ -14,7 +14,13 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from kukgrade.testing import results
 from ranks.models import Rank
-from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.models import (
+    AGE_BAND_DESCRIPTION,
+    AGE_BAND_PROGRAMME,
+    AgeBand,
+    SyllabusItem,
+    SyllabusRequirement,
+)
 from syllabus.services import effective_syllabus_requirements, normalize_chart_notation
 
 pytestmark = pytest.mark.django_db
@@ -172,6 +178,7 @@ def test_deleting_referenced_rank_is_blocked_by_protect() -> None:
         name="Protected Rank",
         order=99,
         category=Rank.Category.COLOURED_BELT,
+        belt_colour="WHITE",
     )
     SyllabusRequirement.objects.create(**requirement_kwargs(rank=rank))
 
@@ -321,22 +328,11 @@ def test_syllabus_item_api_requires_authentication() -> None:
     assert response.status_code == 403
 
 
-def test_syllabus_requirement_api_requires_authentication() -> None:
-    response = APIClient().get("/api/syllabus/requirements/")
+def test_syllabus_item_api_lists_items() -> None:
+    response = auth_client().get("/api/syllabus/items/?page_size=200")
 
-    assert response.status_code == 403
-
-
-def test_syllabus_item_api_get_list_and_detail() -> None:
-    client = auth_client()
-    item = SyllabusItem.objects.get(code="KI_BOHN_SOO")
-
-    list_response = client.get("/api/syllabus/items/")
-    detail_response = client.get(f"/api/syllabus/items/{item.id}/")
-
-    assert list_response.status_code == 200
-    assert detail_response.status_code == 200
-    assert detail_response.json()["code"] == "KI_BOHN_SOO"
+    assert response.status_code == 200
+    assert "Ki Bohn Soo" in {row["name"] for row in results(response)}
 
 
 def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
@@ -381,71 +377,6 @@ def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
         category in {"TECHNIQUE_SET", "FORM", "WEAPONS", "OTHER"}
         for category in categories[last_core_index + 1 :]
     )
-
-
-def test_syllabus_requirement_api_get_list_and_detail() -> None:
-    client = auth_client()
-    requirement = SyllabusRequirement.objects.get(
-        rank__code="YELLOW",
-        age_band=AgeBand.AGE_9_TO_12,
-        item__code="KI_BOHN_SOO",
-    )
-
-    list_response = client.get("/api/syllabus/requirements/")
-    detail_response = client.get(f"/api/syllabus/requirements/{requirement.id}/")
-
-    assert list_response.status_code == 200
-    assert detail_response.status_code == 200
-    assert detail_response.json()["rank_code"] == "YELLOW"
-    assert detail_response.json()["item_code"] == "KI_BOHN_SOO"
-    assert detail_response.json()["display_range"] == "1-10"
-
-
-def test_syllabus_requirement_api_filters_by_rank_code() -> None:
-    client = auth_client()
-
-    response = client.get("/api/syllabus/requirements/?rank_code=YELLOW")
-
-    assert response.status_code == 200
-    assert {item["rank_code"] for item in results(response)} == {"YELLOW"}
-
-
-def test_syllabus_requirement_api_filters_by_age_band() -> None:
-    client = auth_client()
-
-    response = client.get(
-        f"/api/syllabus/requirements/?age_band={AgeBand.AGE_8_AND_UNDER}",
-    )
-
-    assert response.status_code == 200
-    assert {item["age_band"] for item in results(response)} == {AgeBand.AGE_8_AND_UNDER}
-
-
-def test_syllabus_requirement_api_combined_filtering() -> None:
-    client = auth_client()
-
-    response = client.get(
-        f"/api/syllabus/requirements/?rank_code=YELLOW&age_band={AgeBand.AGE_9_TO_12}",
-    )
-
-    assert response.status_code == 200
-    payload = results(response)
-    assert payload
-    assert {item["rank_code"] for item in payload} == {"YELLOW"}
-    assert {item["age_band"] for item in payload} == {AgeBand.AGE_9_TO_12}
-
-
-def test_syllabus_requirement_api_ordering_is_deterministic() -> None:
-    client = auth_client()
-
-    response = client.get(
-        "/api/syllabus/requirements/"
-        f"?rank_code=YELLOW_STRIPE&age_band={AgeBand.AGE_8_AND_UNDER}",
-    )
-
-    assert response.status_code == 200
-    sequences = [item["sequence"] for item in results(response)]
-    assert sequences == sorted(sequences)
 
 
 # ---------------------------------------------------------------------------
@@ -572,9 +503,15 @@ def test_effective_syllabus_requirement_ordering_is_deterministic() -> None:
     )
 
     assert response.status_code == 200
-    payload = results(response)
-    keys = [(row["category"], row["sequence"], row["item_name"]) for row in payload]
-    assert keys == sorted(keys)
+    served = [(row["category"], row["item_name"]) for row in results(response)]
+    rank = Rank.objects.get(code="BLUE_STRIPE")
+    expected = [
+        (row.requirement.item.category, row.requirement.item.name)
+        for row in effective_syllabus_requirements(
+            rank=rank, age_band=AgeBand.AGE_13_TO_17
+        )
+    ]
+    assert served == expected
 
 
 def test_effective_syllabus_requirement_domain_function_matches_api() -> None:
@@ -610,30 +547,18 @@ def test_normalize_chart_notation(notes: str, expected: str) -> None:
     ("method", "path"),
     [
         ("post", "/api/syllabus/items/"),
-        ("put", "/api/syllabus/items/{item_id}/"),
-        ("patch", "/api/syllabus/items/{item_id}/"),
-        ("delete", "/api/syllabus/items/{item_id}/"),
-        ("post", "/api/syllabus/requirements/"),
-        ("put", "/api/syllabus/requirements/{requirement_id}/"),
-        ("patch", "/api/syllabus/requirements/{requirement_id}/"),
-        ("delete", "/api/syllabus/requirements/{requirement_id}/"),
+        ("put", "/api/syllabus/items/"),
+        ("patch", "/api/syllabus/items/"),
+        ("delete", "/api/syllabus/items/"),
+        ("post", "/api/syllabus/requirements/effective/"),
+        ("delete", "/api/syllabus/requirements/effective/"),
+        ("post", "/api/syllabus/age-bands/"),
     ],
 )
 def test_syllabus_api_rejects_write_methods(method: str, path: str) -> None:
     client = auth_client("syllabus-writer@example.com")
-    item = SyllabusItem.objects.get(code="KI_BOHN_SOO")
-    requirement = SyllabusRequirement.objects.get(
-        rank__code="YELLOW",
-        age_band=AgeBand.AGE_9_TO_12,
-        item=item,
-    )
 
-    request = getattr(client, method)
-    response = request(
-        path.format(item_id=item.id, requirement_id=requirement.id),
-        {"code": "API_ITEM"},
-        format="json",
-    )
+    response = getattr(client, method)(path, {"code": "API_ITEM"}, format="json")
 
     assert response.status_code == 405
 
@@ -652,7 +577,7 @@ def test_syllabus_migrations_apply_from_zero_and_seed_deterministic_records() ->
         executor = MigrationExecutor(connection)
         executor.migrate(
             [
-                ("ranks", "0002_seed_rank_catalogue"),
+                ("ranks", "0003_belt_colours"),
                 ("syllabus", "0002_seed_wksa_2014_syllabus"),
             ],
         )
@@ -718,3 +643,44 @@ def test_seed_migration_has_no_duplicate_in_memory_tuples() -> None:
     ]
 
     assert len(keys) == len(set(keys))
+
+
+def test_age_bands_are_served_in_order_with_their_programme() -> None:
+    response = auth_client("age-bands@example.com").get("/api/syllabus/age-bands/")
+
+    assert response.status_code == 200
+    assert results(response) == [
+        {
+            "code": "AGE_8_AND_UNDER",
+            "name": "8 and under",
+            "description": "Little Dragon ages 8 and under",
+            "programme": "JUNIOR",
+            "programme_display": "Junior & Little Dragon",
+        },
+        {
+            "code": "AGE_9_TO_12",
+            "name": "9-12",
+            "description": "Junior ages 9-12",
+            "programme": "JUNIOR",
+            "programme_display": "Junior & Little Dragon",
+        },
+        {
+            "code": "AGE_13_TO_17",
+            "name": "13-17",
+            "description": "Youth ages 13-17",
+            "programme": "ADULT",
+            "programme_display": "Adult & Youth",
+        },
+        {
+            "code": "AGE_18_AND_OVER",
+            "name": "18+",
+            "description": "Adult ages 18+",
+            "programme": "ADULT",
+            "programme_display": "Adult & Youth",
+        },
+    ]
+
+
+def test_every_age_band_has_a_programme_and_description() -> None:
+    assert set(AGE_BAND_PROGRAMME) == set(AgeBand.values)
+    assert set(AGE_BAND_DESCRIPTION) == set(AgeBand.values)

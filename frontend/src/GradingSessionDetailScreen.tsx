@@ -10,10 +10,14 @@ import {
   bulkGenerateCandidateAssessments,
   bulkStartCandidateAssessments,
   bulkUpdateCandidateStatus,
+  deleteGradingCandidate,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
+  getAllGradingSessions,
   getGradingSession,
+  getWithdrawalReasons,
+  moveGradingCandidate,
   updateGradingSession,
   deleteGradingSession,
   withdrawLockedCandidate,
@@ -21,13 +25,14 @@ import {
 import { useAuth } from "./auth";
 import {
   LockedWithdrawalDialog,
+  MoveRegistrationDialog,
   NoShowDialog,
+  RemoveRegistrationDialog,
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
-import { MasterFinalDecisionDrawer } from "./MasterFinalDecisionDrawer";
 import { useDialogFocus } from "./useDialogFocus";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 
@@ -151,10 +156,16 @@ function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome }) {
 
 interface EnrichedCandidate {
   candidate: GradingCandidate;
-  currentRankName: string;
-  targetRankName: string;
   assessment?: CandidateAssessment;
   outcome?: CandidateOutcome;
+}
+
+function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
+  return {
+    id: item.candidate.id,
+    name: item.candidate.student_display_name,
+    wksaId: item.candidate.student_wksa_id,
+  };
 }
 
 export function GradingSessionDetailScreen(): React.ReactElement {
@@ -167,11 +178,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Drawer state for SCR-021 Instructor Outcome Proposal
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
-  // Drawer state for SCR-022 Master Final Decision
-  const [decisionDrawerItem, setDecisionDrawerItem] = useState<EnrichedCandidate | null>(null);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);
+  const [registrationAction, setRegistrationAction] = useState<{
+    kind: "move" | "remove";
+    item: EnrichedCandidate;
+  } | null>(null);
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
 
   // Search & Filter state
   const [search, setSearch] = useState("");
@@ -373,6 +387,61 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
   });
 
+  const withdrawalReasonsQuery = useQuery({
+    queryKey: ["withdrawalReasons"],
+    queryFn: getWithdrawalReasons,
+    enabled: withdrawalCandidate !== null,
+  });
+
+  // Sessions a registration can move to; loaded only when the move dialog opens.
+  const moveTargetsQuery = useQuery({
+    queryKey: ["gradingSessions", "all"],
+    queryFn: () => getAllGradingSessions(),
+    enabled: registrationAction?.kind === "move",
+  });
+  const moveTargets = (moveTargetsQuery.data?.results ?? [])
+    .filter((target) => target.id !== sessionId && (target.status === "DRAFT" || target.status === "OPEN"))
+    .map((target) => ({
+      id: target.id,
+      label: `${target.title} · ${formatSessionDate(target.grading_date)}`,
+    }));
+
+  const closeRegistrationAction = () => {
+    setRegistrationAction(null);
+    setRegistrationError(null);
+  };
+
+  const registrationMutation = useMutation({
+    mutationFn: async ({ kind, candidateId, targetSessionId }: {
+      kind: "move" | "remove";
+      candidateId: number;
+      targetSessionId?: number;
+    }) => {
+      if (kind === "move") {
+        await moveGradingCandidate(candidateId, targetSessionId as number);
+      } else {
+        await deleteGradingCandidate(candidateId);
+      }
+    },
+    onSuccess: (_result, { kind }) => {
+      const name = registrationAction?.item.candidate.student_display_name ?? "The candidate";
+      refreshCandidateWork();
+      void queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      closeRegistrationAction();
+      setActionError(null);
+      setActionMessage(
+        kind === "move"
+          ? `${name} was moved to another session.`
+          : `${name} was removed from this session.`,
+      );
+    },
+    onError: (err: unknown) => {
+      setRegistrationError(
+        err instanceof ApiError ? err.message : "Failed to change the registration.",
+      );
+    },
+  });
+
   // Combine data into EnrichedCandidate list
   const enrichedCandidates: EnrichedCandidate[] = useMemo(() => {
     const rawCandidates: GradingCandidate[] = candidatesQuery.data?.results ?? [];
@@ -388,11 +457,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       return {
         candidate: c,
-        // The rank held at registration (GradingCandidate.from_rank_name),
-        // not the student's live current rank - see the 2026-09-25 decision
-        // log entry. Never moves if the student is promoted elsewhere.
-        currentRankName: c.from_rank_name,
-        targetRankName: c.testing_for_rank_name || "Next rank",
         assessment,
         outcome,
       };
@@ -446,11 +510,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     .map((item) => item.assessment!.id);
   const attendanceCandidates: AttendanceCandidate[] = enrichedCandidates
     .filter((item) => item.candidate.status === "REGISTERED")
-    .map((item) => ({
-      id: item.candidate.id,
-      name: item.candidate.student_display_name,
-      wksaId: item.candidate.student_wksa_id,
-    }));
+    .map(toAttendanceCandidate);
 
   // Lifecycle stage statuses
   const lifecycle = useMemo(() => {
@@ -555,7 +615,19 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         actionType: "COMPLETE",
       });
     } else if (actionType === "OPEN") {
-      updateSessionMutation.mutate({ status: "OPEN" });
+      const registered = enrichedCandidates.filter(
+        (item) => item.candidate.status !== "WITHDRAWN",
+      ).length;
+      setConfirmModal({
+        open: true,
+        title: "Open Grading Session",
+        message: `Opening starts the grading and cannot be undone: an open session does not go back to draft. ${
+          registered === 0
+            ? "No candidates are registered."
+            : `${registered} candidate${registered === 1 ? " is" : "s are"} registered.`
+        } Check the roster first. Once open, a candidate who already has an assessment can no longer be moved or removed; one who cannot attend can still be marked as a no-show.`,
+        actionType: "OPEN",
+      });
     }
   };
 
@@ -569,6 +641,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         status: "CANCELLED",
         cancellation_reason: cancellationReason,
       });
+    } else if (confirmModal.actionType === "OPEN") {
+      updateSessionMutation.mutate({ status: "OPEN" });
     } else if (confirmModal.actionType === "LOCK") {
       updateSessionMutation.mutate({ status: "LOCKED" });
     } else if (confirmModal.actionType === "COMPLETE") {
@@ -636,6 +710,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         </div>
 
         <div className="gsd-header-actions">
+          {(session.status === "LOCKED" || session.status === "COMPLETED") && (
+            <Link
+              to={`/gradings/${session.id}/decisions`}
+              className="btn btn-secondary gsd-promotion-ledger-btn"
+              data-testid="gsd-final-decisions-btn"
+            >
+              Final decisions →
+            </Link>
+          )}
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
               to={`/gradings/${session.id}/promotions`}
@@ -714,6 +797,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                 {session.status === "LOCKED" && (
                   <>
+                    <Link
+                      to={`/gradings/${session.id}/decisions`}
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      Final decisions
+                    </Link>
                     <Link
                       to={`/gradings/${session.id}/promotions`}
                       role="menuitem"
@@ -1007,7 +1098,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     : "Prepare assessment →";
                   let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
                   let isProposalDrawerTrigger = false;
-                  let isDecisionDrawerTrigger = false;
+                  const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
 
                   if (assessmentStatus === "IN_PROGRESS") {
                     nextActionLabel = "Continue assessment →";
@@ -1019,12 +1110,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         nextActionUrl = `/gradings/${session.id}/promotions`;
                       } else {
                         nextActionLabel = "View record →";
-                        isDecisionDrawerTrigger = true;
+                        nextActionUrl = decisionsUrl;
                       }
                     } else if (outcomeStatus === "PROPOSED") {
                       if (currentUser?.can_make_final_grading_decision) {
                         nextActionLabel = "Review decision →";
-                        isDecisionDrawerTrigger = true;
+                        nextActionUrl = decisionsUrl;
                       } else {
                         nextActionLabel = "Review proposal →";
                         isProposalDrawerTrigger = true;
@@ -1049,14 +1140,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                       </td>
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
-                          <RankVisual classPrefix="gsd" rankName={item.currentRankName} />
-                          <span>{item.currentRankName}</span>
+                          <RankBelt rankId={item.candidate.from_rank} />
+                          {/* The rank held at registration, not the live current rank - see the
+                              2026-09-25 decision log entry. */}
+                          <span>{item.candidate.from_rank_name}</span>
                         </div>
                       </td>
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
-                          <RankVisual classPrefix="gsd" rankName={item.targetRankName} />
-                          <span>{item.targetRankName}</span>
+                          <RankBelt rankId={item.candidate.testing_for_rank} />
+                          <span>{item.candidate.testing_for_rank_name}</span>
                         </div>
                       </td>
                       <td className="gsd-cell-assessment">
@@ -1099,15 +1192,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                             >
                               {nextActionLabel}
                             </button>
-                          ) : isDecisionDrawerTrigger ? (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn"
-                              onClick={() => setDecisionDrawerItem(item)}
-                              data-testid={`review-decision-btn-${candidateId}`}
-                            >
-                              {nextActionLabel}
-                            </button>
                           ) : (
                             <Link
                               to={nextActionUrl}
@@ -1115,6 +1199,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                             >
                               {nextActionLabel}
                             </Link>
+                          )}
+                          {item.candidate.can_be_moved && (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn"
+                              onClick={() => setRegistrationAction({ kind: "move", item })}
+                              aria-label={`Move ${item.candidate.student_display_name} to another session`}
+                            >
+                              Move…
+                            </button>
+                          )}
+                          {item.candidate.can_be_removed && (
+                            <button
+                              type="button"
+                              className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                              onClick={() => setRegistrationAction({ kind: "remove", item })}
+                              aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
+                            >
+                              Remove
+                            </button>
                           )}
                           {canWithdrawLocked && (
                             <button
@@ -1297,11 +1401,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {withdrawalCandidate && (
         <LockedWithdrawalDialog
-          candidate={{
-            id: withdrawalCandidate.candidate.id,
-            name: withdrawalCandidate.candidate.student_display_name,
-            wksaId: withdrawalCandidate.candidate.student_wksa_id,
-          }}
+          candidate={toAttendanceCandidate(withdrawalCandidate)}
+          reasons={withdrawalReasonsQuery.data?.results ?? []}
           pending={withdrawalMutation.isPending}
           error={withdrawalError}
           onClose={() => {
@@ -1317,6 +1418,38 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         />
       )}
 
+      {registrationAction?.kind === "move" && (
+        <MoveRegistrationDialog
+          candidate={toAttendanceCandidate(registrationAction.item)}
+          sessions={moveTargets}
+          pending={registrationMutation.isPending}
+          error={registrationError}
+          onClose={closeRegistrationAction}
+          onConfirm={(targetSessionId) =>
+            registrationMutation.mutate({
+              kind: "move",
+              candidateId: registrationAction.item.candidate.id,
+              targetSessionId,
+            })
+          }
+        />
+      )}
+
+      {registrationAction?.kind === "remove" && (
+        <RemoveRegistrationDialog
+          candidate={toAttendanceCandidate(registrationAction.item)}
+          pending={registrationMutation.isPending}
+          error={registrationError}
+          onClose={closeRegistrationAction}
+          onConfirm={() =>
+            registrationMutation.mutate({
+              kind: "remove",
+              candidateId: registrationAction.item.candidate.id,
+            })
+          }
+        />
+      )}
+
       {/* ── Instructor Outcome Proposal Drawer (SCR-021) ────────────────────── */}
       {proposalDrawerItem && session && (
         <OutcomeProposalDrawer
@@ -1324,9 +1457,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           candidate={proposalDrawerItem.candidate}
           assessment={proposalDrawerItem.assessment}
           existingOutcome={proposalDrawerItem.outcome}
-          currentRankName={proposalDrawerItem.currentRankName}
-          targetRankName={proposalDrawerItem.targetRankName}
-          isOpen={true}
           onClose={() => setProposalDrawerItem(null)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
@@ -1337,26 +1467,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         />
       )}
 
-      {/* ── Master Final Decision Drawer (SCR-022) ────────────────────────── */}
-      {decisionDrawerItem && session && (
-        <MasterFinalDecisionDrawer
-          key={decisionDrawerItem.candidate.id}
-          candidate={decisionDrawerItem.candidate}
-          assessment={decisionDrawerItem.assessment}
-          outcome={decisionDrawerItem.outcome}
-          currentRankName={decisionDrawerItem.currentRankName}
-          targetRankName={decisionDrawerItem.targetRankName}
-          sessionStatus={session.status}
-          isOpen={true}
-          onClose={() => setDecisionDrawerItem(null)}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-            setDecisionDrawerItem(null);
-          }}
-        />
-      )}
     </section>
   );
 }

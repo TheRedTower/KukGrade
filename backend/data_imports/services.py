@@ -271,8 +271,6 @@ class StudentImportRowResult:
     current_rank_code: str | None
     status: str
     issues: list[str] = field(default_factory=list)
-    existing_student_id: int | None = None
-    existing_student_display: str | None = None
 
 
 @dataclass(frozen=True)
@@ -390,8 +388,6 @@ def _classify_student_row(
         current_rank_code=rank.code if rank else None,
         status=status_text,
         issues=issues,
-        existing_student_id=existing.id if existing else None,
-        existing_student_display=str(existing) if existing else None,
     )
 
 
@@ -502,7 +498,6 @@ def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
 @dataclass(frozen=True)
 class RankMappingSuggestion:
     source_text: str
-    suggested_rank_id: int | None
     suggested_rank_code: str | None
 
 
@@ -517,7 +512,6 @@ class LegacyImportPreview:
     unresolved_outcome: int
     warnings: list[str]
     rank_suggestions: list[RankMappingSuggestion]
-    rows: list[CanonicalLegacyRow]
 
 
 def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
@@ -603,7 +597,6 @@ def preview_legacy_grading_import(
         suggestions.append(
             RankMappingSuggestion(
                 source_text=text,
-                suggested_rank_id=suggested.id if suggested else None,
                 suggested_rank_code=suggested.code if suggested else None,
             ),
         )
@@ -624,7 +617,6 @@ def preview_legacy_grading_import(
         unresolved_outcome=unresolved_outcome,
         warnings=parsed.warnings,
         rank_suggestions=suggestions,
-        rows=rows,
     )
 
 

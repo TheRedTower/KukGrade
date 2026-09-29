@@ -490,7 +490,7 @@
 
 .btn-ghost-sm:hover {
   background: var(--color-surface-sunken);
-  border-color: var(--color-border-strong);
+  border-color: var(--color-text-muted);
   text-decoration: none;
 }
 
@@ -625,7 +625,7 @@
 
 .gs-page-btn:hover:not(:disabled) {
   background: var(--color-surface-sunken);
-  border-color: var(--color-border-strong);
+  border-color: var(--color-text-muted);
 }
 
 .gs-page-btn:disabled {
@@ -687,7 +687,7 @@
 }
 
 .cgs-breadcrumb-sep {
-  color: var(--color-border-strong);
+  color: var(--color-text-muted);
   user-select: none;
 }
 
@@ -992,7 +992,7 @@
 }
 
 .gsd-breadcrumb-sep {
-  color: var(--color-border-strong);
+  color: var(--color-text-muted);
   user-select: none;
 }
 
@@ -1042,13 +1042,14 @@
 }
 
 .gsd-meta-sep {
-  color: var(--color-border-strong);
+  color: var(--color-text-muted);
 }
 
 /* ── Header Actions & Dropdown ───────────────────────────────────────────── */
 
 .gsd-header-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
 }
@@ -1071,8 +1072,8 @@
 }
 
 .gsd-actions-btn:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  border-color: var(--color-text-muted);
 }
 
 .gsd-chevron-down {
@@ -1088,7 +1089,6 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  box-shadow: var(--shadow-md);
   padding: 0.35rem 0;
   z-index: 50;
   display: flex;
@@ -1111,7 +1111,7 @@
 }
 
 .gsd-dropdown-item:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-sunken);
 }
 
 .gsd-danger-text {
@@ -1167,7 +1167,7 @@
   justify-content: center;
   font-size: 0.8rem;
   font-weight: 800;
-  border: 2px solid var(--color-border-strong);
+  border: 2px solid var(--color-text-muted);
   color: transparent;
   transition: all 150ms ease;
 }
@@ -1187,7 +1187,7 @@
 
 .gsd-step-upcoming .gsd-step-circle {
   background: transparent;
-  border-color: var(--color-border-strong);
+  border-color: var(--color-text-muted);
 }
 
 .gsd-step-content {
@@ -1404,7 +1404,7 @@
 
 .gsd-table td {
   padding: 0.95rem 1rem;
-  border-bottom: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
   vertical-align: middle;
 }
@@ -1414,7 +1414,7 @@
 }
 
 .gsd-table-row:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-sunken);
 }
 
 .gsd-cell-candidate {
@@ -1443,28 +1443,6 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.gsd-rank-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.gsd-rank-stripes {
-  display: inline-flex;
-  gap: 2px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.gsd-stripe-bar {
-  width: 3.5px;
-  height: 13px;
-  border-radius: 1px;
-  background: var(--rank-color, #eab308);
 }
 
 /* ── Badges ──────────────────────────────────────────────────────────────── */
@@ -1587,8 +1565,8 @@
 }
 
 .gsd-row-action-btn:hover {
-  background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
+  background: var(--color-surface-sunken);
+  border-color: var(--color-text-muted);
 }
 
 /* ── Empty states ────────────────────────────────────────────────────────── */
@@ -1667,7 +1645,7 @@
 }
 
 .gsd-edit-notes-btn:hover {
-  background: var(--color-surface-hover);
+  background: var(--color-surface-sunken);
 }
 
 .gsd-notes-text {

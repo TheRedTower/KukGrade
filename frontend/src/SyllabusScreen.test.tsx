@@ -1,9 +1,26 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyllabusScreen } from "./SyllabusScreen";
-import type { EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+import type { AgeBand, EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+
+function renderScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SyllabusScreen />
+    </QueryClientProvider>,
+  );
+}
+
+const mockAgeBands: AgeBand[] = [
+  { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+  { code: "AGE_9_TO_12", name: "9-12", description: "Junior ages 9-12", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
+  { code: "AGE_13_TO_17", name: "13-17", description: "Youth ages 13-17", programme: "ADULT", programme_display: "Adult & Youth" },
+  { code: "AGE_18_AND_OVER", name: "18+", description: "Adult ages 18+", programme: "ADULT", programme_display: "Adult & Youth" },
+];
 
 const mockRanks: Rank[] = [
   {
@@ -11,9 +28,9 @@ const mockRanks: Rank[] = [
     code: "WHITE",
     name: "White",
     order: 1,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
+    belt_colour: "WHITE",
+    stripe_colour: "",
+    stripe_count: 0,
     next_rank: 2,
   },
   {
@@ -21,9 +38,9 @@ const mockRanks: Rank[] = [
     code: "YELLOW_STRIPE",
     name: "Yellow Stripe",
     order: 2,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
+    belt_colour: "WHITE",
+    stripe_colour: "YELLOW",
+    stripe_count: 1,
     next_rank: 3,
   },
   {
@@ -31,9 +48,9 @@ const mockRanks: Rank[] = [
     code: "YELLOW",
     name: "Yellow",
     order: 3,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
+    belt_colour: "YELLOW",
+    stripe_colour: "",
+    stripe_count: 0,
     next_rank: 4,
   },
   {
@@ -41,9 +58,9 @@ const mockRanks: Rank[] = [
     code: "BLUE_STRIPE",
     name: "Blue Stripe",
     order: 4,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
+    belt_colour: "YELLOW",
+    stripe_colour: "BLUE",
+    stripe_count: 1,
     next_rank: 5,
   },
   {
@@ -51,9 +68,9 @@ const mockRanks: Rank[] = [
     code: "BLUE",
     name: "Blue",
     order: 5,
-    category: "COLOURED_BELT",
-    category_display: "Coloured Belt",
-    active: true,
+    belt_colour: "BLUE",
+    stripe_colour: "",
+    stripe_count: 0,
     next_rank: null,
   },
 ];
@@ -61,75 +78,54 @@ const mockRanks: Rank[] = [
 const mockCoreAreas: SyllabusItem[] = [
   {
     id: 101,
-    code: "YEA_EUE",
     name: "Yea Eue",
     korean_name: "예의",
     category: "ETIQUETTE",
     category_display: "Etiquette",
-    description: "",
-    active: true,
   },
   {
     id: 102,
-    code: "KI_CHO_JAH_KI",
     name: "Ki Cho Jah Ki",
     korean_name: "기초짜기",
     category: "FUNDAMENTALS",
     category_display: "Fundamentals",
-    description: "",
-    active: true,
   },
   {
     id: 103,
-    code: "SOO_KI",
     name: "Soo Ki",
     korean_name: "수기",
     category: "HAND_TECHNIQUES",
     category_display: "Hand techniques",
-    description: "",
-    active: true,
   },
   {
     id: 104,
-    code: "JOHK_SOOL",
     name: "Johk Sool",
     korean_name: "족술",
     category: "KICKING",
     category_display: "Kicking",
-    description: "",
-    active: true,
   },
   {
     id: 105,
-    code: "NAHK_BUP",
     name: "Nahk Bup",
     korean_name: "낙법",
     category: "FALLING",
     category_display: "Falling",
-    description: "",
-    active: true,
   },
   {
     id: 106,
-    code: "KYUK_PAH",
     name: "Kyuk Pah",
     korean_name: "격파",
     category: "BREAKING",
     category_display: "Breaking",
-    description: "",
-    active: true,
   },
   // A non-core item, present in the same catalogue response, must not leak
   // into the core grading areas strip.
   {
     id: 107,
-    code: "KI_BOHN_SOO",
     name: "Ki Bohn Soo",
     korean_name: "기본수",
     category: "TECHNIQUE_SET",
     category_display: "Technique set",
-    description: "",
-    active: true,
   },
 ];
 
@@ -141,11 +137,7 @@ function effectiveRow(
     item_name: "Ki Bohn Soo",
     item_korean_name: "기본수",
     category: "TECHNIQUE_SET",
-    category_display: "Technique set",
     required: true,
-    sequence: 7,
-    start_number: 1,
-    end_number: 10,
     display_range: "1-10",
     notation: "",
     notes: "",
@@ -163,8 +155,6 @@ const mockYellowEffective: EffectiveSyllabusRequirement[] = [
     item_code: "KI_BOHN_SOO",
     item_name: "Ki Bohn Soo",
     category: "TECHNIQUE_SET",
-    category_display: "Technique set",
-    sequence: 7,
     display_range: "1-10",
     introduced_rank_code: "YELLOW",
     introduced_rank_name: "Yellow",
@@ -177,8 +167,6 @@ const mockYellowEffective: EffectiveSyllabusRequirement[] = [
     item_name: "Ki Cho Hyung",
     item_korean_name: "기초형",
     category: "FORM",
-    category_display: "Form",
-    sequence: 8,
     display_range: "1-6",
     introduced_rank_code: "YELLOW",
     introduced_rank_name: "Yellow",
@@ -193,11 +181,7 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_code: "KI_BOHN_SOO",
     item_name: "Ki Bohn Soo",
     category: "TECHNIQUE_SET",
-    category_display: "Technique set",
-    sequence: 7,
     display_range: "1-15",
-    start_number: 1,
-    end_number: 15,
     introduced_rank_code: "YELLOW_STRIPE",
     introduced_rank_name: "Yellow Stripe",
     effective_since_rank_code: "YELLOW",
@@ -209,11 +193,7 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_name: "Sohn Mohk Soo",
     item_korean_name: "손목수",
     category: "TECHNIQUE_SET",
-    category_display: "Technique set",
-    sequence: 9,
     display_range: "1-5",
-    start_number: 1,
-    end_number: 5,
     introduced_rank_code: "BLUE_STRIPE",
     introduced_rank_name: "Blue Stripe",
     effective_since_rank_code: "BLUE_STRIPE",
@@ -225,10 +205,6 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_name: "Cho Geup Hyung",
     item_korean_name: "초급형",
     category: "FORM",
-    category_display: "Form",
-    sequence: 10,
-    start_number: null,
-    end_number: null,
     display_range: "",
     notation: "Part 1 of 2",
     notes: "Chart notation: (1/2).",
@@ -257,6 +233,9 @@ function stubFetch(effectiveByRank: Record<string, EffectiveSyllabusRequirement[
     "fetch",
     vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.includes("/api/syllabus/age-bands/")) {
+        return Promise.resolve(jsonResponse(200, paginated(mockAgeBands)));
+      }
       if (url.includes("/api/ranks/")) {
         return Promise.resolve(jsonResponse(200, paginated(mockRanks)));
       }
@@ -283,15 +262,16 @@ describe("SyllabusScreen", () => {
   it("renders header, filters, belt rail, core areas and the two cumulative ledgers", async () => {
     stubFetch({ YELLOW: mockYellowEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     // Header
     expect(await screen.findByRole("heading", { name: "Syllabus" })).toBeVisible();
     expect(screen.getByText("Teaching and grading requirements")).toBeVisible();
 
     // Filters
-    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR_LITTLE_DRAGON");
-    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_9_TO_12");
+    expect(await screen.findByRole("option", { name: "Junior & Little Dragon" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR");
+    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_8_AND_UNDER");
     await waitFor(() => {
       expect(screen.getByLabelText("Testing for")).toHaveValue("YELLOW");
     });
@@ -305,7 +285,7 @@ describe("SyllabusScreen", () => {
 
     // Rank title, subtitle and the "everything examinable" note
     expect(screen.getByRole("heading", { name: "Yellow", level: 2 })).toBeVisible();
-    expect(screen.getByText("Junior ages 9 – 12")).toBeVisible();
+    expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
     expect(screen.getByText("Everything examinable through Yellow.")).toBeVisible();
 
     // Next rank button
@@ -344,7 +324,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const blueStripeBtn = await screen.findByRole("button", { name: "Blue Stripe" });
     await user.click(blueStripeBtn);
@@ -370,7 +350,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const blueStripeBtn = await screen.findByRole("button", { name: "Blue Stripe" });
     await user.click(blueStripeBtn);
@@ -388,7 +368,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const nextRankBtn = await screen.findByRole("button", {
       name: "Next rank: Blue Stripe →",
@@ -403,29 +383,30 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({});
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     // Initial values
     const curriculumSelect = await screen.findByLabelText("Curriculum");
     const ageSelect = screen.getByLabelText("Age group");
-    expect(curriculumSelect).toHaveValue("JUNIOR_LITTLE_DRAGON");
-    expect(ageSelect).toHaveValue("AGE_9_TO_12");
+    await screen.findByRole("option", { name: "Adult & Youth" });
+    expect(curriculumSelect).toHaveValue("JUNIOR");
+    expect(ageSelect).toHaveValue("AGE_8_AND_UNDER");
 
     // Change Curriculum to Adult & Youth
-    await user.selectOptions(curriculumSelect, "ADULT_YOUTH");
+    await user.selectOptions(curriculumSelect, "ADULT");
     expect(ageSelect).toHaveValue("AGE_18_AND_OVER");
     expect(screen.getByText("Adult ages 18+")).toBeVisible();
 
     // Change Age group to 8 and under
     await user.selectOptions(ageSelect, "AGE_8_AND_UNDER");
-    expect(curriculumSelect).toHaveValue("JUNIOR_LITTLE_DRAGON");
+    expect(curriculumSelect).toHaveValue("JUNIOR");
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
   });
 
   it("renders empty state when rank has no cumulative requirements", async () => {
     stubFetch({});
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     expect(
       await screen.findByText("No techniques are listed for this rank in the current syllabus."),
@@ -450,7 +431,7 @@ describe("SyllabusScreen", () => {
       }),
     );
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(screen.getByText("Network connection lost")).toBeVisible();

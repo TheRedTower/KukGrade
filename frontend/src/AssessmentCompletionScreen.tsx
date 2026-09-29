@@ -33,7 +33,8 @@ import {
   reopenCandidateAssessment,
   updateCandidateAssessment,
 } from "./api";
-import { RankVisual } from "./RankVisual";
+import { RankBelt } from "./Belt";
+import { useSiteSettingsQuery } from "./queries";
 import {
   CategoryGroup,
   useAssessmentNotesDraft,
@@ -42,22 +43,7 @@ import {
 import { isCoreCategory } from "./syllabusCategories";
 import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
-
-function CheckIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
-      <path d="M5 12.5 10 17.5 19 7" />
-    </svg>
-  );
-}
-
-function CrossIcon({ size = 13 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" aria-hidden="true">
-      <path d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5" />
-    </svg>
-  );
-}
+import { CheckIcon, CrossIcon } from "./Icons";
 
 function SealIcon() {
   return (
@@ -73,7 +59,7 @@ function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "MET") {
     return (
       <span className="acp-result acp-result-met">
-        <CheckIcon />
+        <CheckIcon size={13} />
         Met
       </span>
     );
@@ -81,7 +67,7 @@ function ResultMark({ result }: { result: CandidateAssessmentItem["result"] }) {
   if (result === "NOT_MET") {
     return (
       <span className="acp-result acp-result-not-met">
-        <CrossIcon />
+        <CrossIcon size={13} />
         Not met
       </span>
     );
@@ -93,6 +79,7 @@ export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const clubName = useSiteSettingsQuery().data?.club_name;
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -276,7 +263,7 @@ export function AssessmentCompletionScreen() {
           <div className="acp-sheet-head">
             <div>
               <div className="acp-org">
-                Kuk Sool Won{session.location && ` · ${session.location}`}
+                {clubName}{session.location && ` · ${session.location}`}
               </div>
               <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
             </div>
@@ -298,14 +285,14 @@ export function AssessmentCompletionScreen() {
               <div className="acp-label">Assessed for</div>
               <div className="acp-rank-line">
                 <span className="acp-rank">
-                  {candidate && <RankVisual classPrefix="caw" rankName={candidate.from_rank_name} />}
+                  {candidate && <RankBelt rankId={candidate.from_rank} />}
                   <span>{candidate?.from_rank_name ?? ""}</span>
                 </span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
                   <path d="M4 12h15M14 7l5 5-5 5" />
                 </svg>
                 <span className="acp-rank acp-rank-dest">
-                  <RankVisual classPrefix="caw" rankName={candidate.testing_for_rank_name} />
+                  <RankBelt rankId={candidate.testing_for_rank} />
                   <span>{candidate.testing_for_rank_name}</span>
                 </span>
               </div>
@@ -469,11 +456,11 @@ export function AssessmentCompletionScreen() {
             </div>
             <div className="acp-count-tallies">
               <span className="acp-result acp-result-met">
-                <CheckIcon />
+                <CheckIcon size={13} />
                 {`${stats.metCount} met`}
               </span>
               <span className="acp-result acp-result-not-met">
-                <CrossIcon />
+                <CrossIcon size={13} />
                 {`${stats.notMetCount} not met`}
               </span>
             </div>
@@ -556,7 +543,7 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
   if (group.notMetCount > 0) {
     return (
       <span className="acp-core-mark acp-core-mark-not-met" aria-hidden="true">
-        <CrossIcon />
+        <CrossIcon size={13} />
       </span>
     );
   }
@@ -569,7 +556,7 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
   }
   return (
     <span className="acp-core-mark acp-core-mark-met" aria-hidden="true">
-      <CheckIcon />
+      <CheckIcon size={13} />
     </span>
   );
 }

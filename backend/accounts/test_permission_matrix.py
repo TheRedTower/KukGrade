@@ -34,14 +34,16 @@ pytestmark = pytest.mark.django_db
 
 READ_ENDPOINTS = [
     "/api/ranks/",
+    "/api/syllabus/age-bands/",
     "/api/syllabus/items/",
-    "/api/syllabus/requirements/",
+    "/api/syllabus/requirements/effective/?rank_code=YELLOW&age_band=AGE_18_AND_OVER",
     "/api/gradings/sessions/",
     "/api/gradings/candidates/",
     "/api/gradings/assessments/",
     "/api/gradings/assessment-items/",
     "/api/gradings/outcomes/",
     "/api/gradings/promotions/",
+    "/api/gradings/withdrawal-reasons/",
 ]
 
 
@@ -105,7 +107,7 @@ def test_health_stays_public() -> None:
 
 @pytest.mark.parametrize("endpoint", READ_ENDPOINTS)
 def test_instructor_can_read_every_grading_endpoint(endpoint: str) -> None:
-    slug = endpoint.strip("/").replace("/", "-")
+    slug = endpoint.split("?")[0].strip("/").replace("/", "-")
     assert instructor(f"read-{slug}@example.com").get(endpoint).status_code == 200
 
 

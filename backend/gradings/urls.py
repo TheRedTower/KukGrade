@@ -10,9 +10,15 @@ from gradings.views import (
     GradingSessionViewSet,
     LegacyGradingRecordViewSet,
     PromotionViewSet,
+    WithdrawalReasonViewSet,
 )
 
 router = SimpleRouter()
+router.register(
+    "gradings/withdrawal-reasons",
+    WithdrawalReasonViewSet,
+    basename="withdrawal-reason",
+)
 router.register("gradings/sessions", GradingSessionViewSet, basename="grading-session")
 router.register(
     "gradings/candidates",

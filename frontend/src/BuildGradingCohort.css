@@ -224,7 +224,7 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
-  background: var(--color-surface-raised, rgba(217, 119, 6, 0.05));
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--btn-primary-bg, #d97706);
   border-radius: 6px;
@@ -301,7 +301,7 @@
 }
 
 .bgc-table tbody tr:hover {
-  background: var(--color-surface-raised, rgba(0, 0, 0, 0.02));
+  background: var(--color-surface-sunken);
 }
 
 .bgc-rank-cell {
@@ -313,29 +313,6 @@
 .bgc-rank-label {
   font-weight: 600;
   color: var(--color-text);
-}
-
-.bgc-rank-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.bgc-rank-stripes {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.bgc-stripe-bar {
-  display: inline-block;
-  width: 14px;
-  height: 4px;
-  background: var(--rank-color, #eab308);
-  border-radius: 1px;
 }
 
 .bgc-td-arrow {
@@ -851,7 +828,7 @@
 }
 
 .bgc-td-wksa {
-  font-family: var(--font-mono, monospace);
+  font-family: monospace;
   font-size: 0.82rem;
   color: var(--color-text-muted);
 }
@@ -999,8 +976,8 @@
   margin-left: auto;
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
-  background: rgba(37, 99, 235, 0.1);
-  color: #2563eb;
+  background: var(--color-info-surface);
+  color: var(--color-info);
   border-radius: 4px;
 }
 

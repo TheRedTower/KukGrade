@@ -7,9 +7,8 @@
  * here rather than being duplicated across both files.
  *
  * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
- * recounting rows here (FDR-046). `item_counts` carries no required-split and
- * the outcome summary needs a `CandidateOutcome` that cannot exist while an
- * assessment is being scored, which is why that endpoint was added.
+ * recounting rows here (FDR-046). It works at any assessment status, so it
+ * serves scoring as well as review.
  *
  * The client still groups items by category for rendering, because the backend
  * orders by requirement sequence and category is not an ordering key. It no
@@ -22,11 +21,10 @@ import {
   CategoryAssessmentSummary,
   GradingCandidate,
   getGradingCandidate,
-  getAssessmentSummary,
   getCandidateAssessments,
-  getAllCandidateAssessmentItems,
   getGradingSession,
 } from "./api";
+import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 
 export interface CategoryGroup {
   category: string;
@@ -35,7 +33,6 @@ export interface CategoryGroup {
   totalCount: number;
   requiredCount: number;
   requiredAssessedCount: number;
-  remainingRequiredCount: number;
   metCount: number;
   notMetCount: number;
   notAssessedCount: number;
@@ -80,11 +77,7 @@ export function useCandidateAssessmentData(
   const assessment = assessmentQuery.data;
 
   // 4. The immutable syllabus snapshot rows
-  const itemsQuery = useQuery({
-    queryKey: ["candidateAssessmentItems", assessment?.id],
-    queryFn: () => getAllCandidateAssessmentItems({ assessment: assessment!.id }),
-    enabled: !!assessment?.id,
-  });
+  const itemsQuery = useAssessmentItemsQuery(assessment?.id);
 
   const items = useMemo(() => {
     return itemsQuery.data?.results ?? [];
@@ -92,11 +85,7 @@ export function useCandidateAssessmentData(
 
   // 5. Served rollup. Kept on its own key so a single item PATCH can
   // invalidate it without refetching the whole item list.
-  const summaryQuery = useQuery({
-    queryKey: ["candidateAssessmentSummary", assessment?.id],
-    queryFn: () => getAssessmentSummary(assessment!.id),
-    enabled: !!assessment?.id,
-  });
+  const summaryQuery = useAssessmentSummaryQuery(assessment?.id);
 
   const summary = summaryQuery.data;
 
@@ -136,7 +125,6 @@ export function useCandidateAssessmentData(
         totalCount: served?.total ?? 0,
         requiredCount,
         requiredAssessedCount: requiredCount - remaining,
-        remainingRequiredCount: remaining,
         metCount: served?.met ?? 0,
         notMetCount: served?.not_met ?? 0,
         notAssessedCount: served?.not_assessed ?? 0,
@@ -160,7 +148,6 @@ export function useCandidateAssessmentData(
       requiredItems,
       requiredAssessed,
       remainingRequired,
-      percent: requiredItems > 0 ? Math.round((requiredAssessed / requiredItems) * 100) : 100,
       metCount: overall?.met ?? 0,
       notMetCount: overall?.not_met ?? 0,
       notAssessedCount: overall?.not_assessed ?? 0,

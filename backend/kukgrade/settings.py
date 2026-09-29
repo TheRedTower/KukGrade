@@ -221,8 +221,9 @@ REST_FRAMEWORK = {
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_change": "10/min"},
-    # One trusted Traefik hop in production. Zero ignores untrusted
-    # X-Forwarded-For in native development.
+    # Production sits behind Cloudflare and then Traefik: two trusted hops,
+    # so the client address is the second-to-last X-Forwarded-For entry.
+    # Zero ignores untrusted X-Forwarded-For in native development.
     "NUM_PROXIES": env_int("DJANGO_NUM_PROXIES", 0),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -252,10 +253,12 @@ SPECTACULAR_SETTINGS = {
         "StudentStatusEnum": "students.models.Student.Status",
         "GradingSessionStatusEnum": "gradings.models.GradingSession.Status",
         "GradingCandidateStatusEnum": "gradings.models.GradingCandidate.Status",
+        "WithdrawalReasonEnum": "gradings.models.GradingCandidate.WithdrawalReason",
         "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
         "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
         "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",
         "RankCategoryEnum": "ranks.models.Rank.Category",
+        "BeltColourEnum": "ranks.models.BeltColour",
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
         "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
@@ -265,6 +268,9 @@ SPECTACULAR_SETTINGS = {
         ),
     },
 }
+
+# The club this deployment serves, shown in the application's top bar.
+CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
 
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",
@@ -279,6 +285,12 @@ CSRF_FAILURE_VIEW = "kukgrade.exceptions.csrf_failure"
 SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
 CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
+# Signed out after two hours with no request. Saving on every request slides
+# the expiry forward, so the two hours count from the last activity, not
+# from sign-in. The frontend never polls, so an idle tab does not keep a
+# session alive on its own.
+SESSION_COOKIE_AGE = 2 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = os.environ.get("DJANGO_SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = os.environ.get("DJANGO_CSRF_COOKIE_SAMESITE", "Lax")
@@ -295,7 +307,14 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
     not DEBUG,
 )
-SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", not DEBUG)
+# Preload is off by default: listing the domain in browsers' preload lists is
+# close to permanent for kukgrade.co.uk and every subdomain, and the header's
+# preload token alone lets anyone submit it. A year of HSTS plus Cloudflare's
+# HTTPS redirect covers the first visit well enough. Opt in deliberately.
+SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
+# check --deploy warns when preload is off; that is the decision above, not an
+# oversight (2026-09-28 decision log entry).
+SILENCED_SYSTEM_CHECKS = [] if SECURE_HSTS_PRELOAD else ["security.W021"]
 
 # Set when TLS terminates at a reverse proxy that forwards the scheme, so
 # Django can tell an already-secure request from one that needs redirecting.

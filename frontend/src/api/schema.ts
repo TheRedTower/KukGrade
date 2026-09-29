@@ -21,23 +21,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/audit-events/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description Read-only by construction: the model refuses writes from every path. */
-        get: operations["audit_events_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/auth/change-password/": {
         parameters: {
             query?: never;
@@ -109,13 +92,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-         */
-        get: operations["data_imports_batches_list"];
+        get?: never;
         put?: never;
         /**
          * @description Administrator-only bulk data import (import Decision 1).
@@ -124,28 +101,6 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/data-imports/batches/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
-         */
-        get: operations["data_imports_batches_retrieve"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -241,7 +196,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["gradings_assessment_items_retrieve"];
+        get?: never;
         put?: never;
         post?: never;
         delete?: never;
@@ -273,7 +228,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["gradings_assessments_retrieve"];
+        get?: never;
         put?: never;
         post?: never;
         delete: operations["gradings_assessments_destroy"];
@@ -309,12 +264,8 @@ export interface paths {
         /**
          * @description Category and overall rollup for one assessment, at any status.
          *
-         *     The same service and response shape as the outcome endpoint's
-         *     `summary`, reached by assessment rather than by outcome. A
-         *     `CandidateOutcome` cannot exist until the session is `LOCKED` and the
-         *     assessment `COMPLETED`, so the outcome route is unreachable while an
-         *     assessment is being scored or reviewed - which is exactly when the
-         *     scoring and completion screens need these counts. See FDR-046.
+         *     Served here rather than recounted by the client, so scoring, review
+         *     and the final-decision board all read the same counts. See FDR-046.
          */
         get: operations["gradings_assessments_summary_retrieve"];
         put?: never;
@@ -348,9 +299,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         get: operations["gradings_candidates_list"];
         put?: never;
-        post: operations["gradings_candidates_create"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -364,12 +319,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         get: operations["gradings_candidates_retrieve"];
-        put: operations["gradings_candidates_update"];
+        put?: never;
         post?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         delete: operations["gradings_candidates_destroy"];
         options?: never;
         head?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         patch: operations["gradings_candidates_partial_update"];
         trace?: never;
     };
@@ -382,6 +349,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_create_outcome_create"];
         delete?: never;
         options?: never;
@@ -398,6 +369,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_generate_assessment_create"];
         delete?: never;
         options?: never;
@@ -414,6 +389,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_withdraw_create"];
         delete?: never;
         options?: never;
@@ -430,6 +409,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_generate_assessments_create"];
         delete?: never;
         options?: never;
@@ -446,6 +429,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_register_create"];
         delete?: never;
         options?: never;
@@ -462,6 +449,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * @description Registrations are created by bulk-register only. PATCH and DELETE
+         *     change or remove one while its session is draft or open.
+         */
         post: operations["gradings_candidates_bulk_update_status_create"];
         delete?: never;
         options?: never;
@@ -484,29 +475,6 @@ export interface paths {
          *     ever changed through the five gradings.legacy_services functions.
          */
         get: operations["gradings_legacy_records_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/gradings/legacy-records/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
-         */
-        get: operations["gradings_legacy_records_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -646,22 +614,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/outcomes/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_outcomes_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch: operations["gradings_outcomes_partial_update"];
-        trace?: never;
-    };
     "/api/gradings/outcomes/{id}/finalise/": {
         parameters: {
             query?: never;
@@ -710,22 +662,6 @@ export interface paths {
         patch: operations["gradings_outcomes_propose_partial_update"];
         trace?: never;
     };
-    "/api/gradings/outcomes/{id}/summary/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_outcomes_summary_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/outcomes/bulk-promote/": {
         parameters: {
             query?: never;
@@ -758,22 +694,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/gradings/promotions/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["gradings_promotions_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/gradings/sessions/": {
         parameters: {
             query?: never;
@@ -798,12 +718,32 @@ export interface paths {
             cookie?: never;
         };
         get: operations["gradings_sessions_retrieve"];
-        put: operations["gradings_sessions_update"];
+        put?: never;
         post?: never;
         delete: operations["gradings_sessions_destroy"];
         options?: never;
         head?: never;
         patch: operations["gradings_sessions_partial_update"];
+        trace?: never;
+    };
+    "/api/gradings/withdrawal-reasons/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The reasons a candidate can be withdrawn for, as every withdrawal
+         *     control lists them.
+         */
+        get: operations["gradings_withdrawal_reasons_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/health/": {
@@ -838,22 +778,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ranks/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ranks_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/ready/": {
         parameters: {
             query?: never;
@@ -862,6 +786,28 @@ export interface paths {
             cookie?: never;
         };
         get: operations["ready_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/site/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Deployment settings the frontend shows, such as the club's name.
+         *
+         *     Public, like the health check: the sign-in screen may show them too, and
+         *     nothing here is personal data.
+         */
+        get: operations["site_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -934,6 +880,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/syllabus/age-bands/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The age bands in order, as reference data for every age-band control. */
+        get: operations["syllabus_age_bands_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/syllabus/items/": {
         parameters: {
             query?: never;
@@ -942,54 +905,6 @@ export interface paths {
             cookie?: never;
         };
         get: operations["syllabus_items_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/items/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_items_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/requirements/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_requirements_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/syllabus/requirements/{id}/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_requirements_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1211,6 +1126,14 @@ export interface components {
          * @enum {string}
          */
         ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        /** @description One age band, from its code: label, description and programme. */
+        AgeBand: {
+            readonly code: components["schemas"]["AgeBandEnum"];
+            readonly name: string;
+            readonly description: string;
+            readonly programme: components["schemas"]["ProgrammeEnum"];
+            readonly programme_display: string;
+        };
         /**
          * @description * `AGE_8_AND_UNDER` - 8 and under
          *     * `AGE_9_TO_12` - 9-12
@@ -1222,10 +1145,10 @@ export interface components {
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
-         *     Declared so the schema tells the truth about what the two `summary`
-         *     endpoints return. Neither of them serializes a model, and without this the
-         *     generated contract claims the viewset's own `serializer_class`. Read-only:
-         *     nothing is deserialized through it.
+         *     Declared so the schema tells the truth about what the assessment `summary`
+         *     endpoint and each assessment's `overall` return. Neither serializes a
+         *     model, and without this the generated contract claims the viewset's own
+         *     `serializer_class`. Read-only: nothing is deserialized through it.
          */
         AssessmentCategorySummary: {
             readonly total: number;
@@ -1234,20 +1157,17 @@ export interface components {
             readonly not_met: number;
             readonly not_assessed: number;
             readonly required_met: number;
-            readonly required_not_met: number;
             readonly required_not_assessed: number;
             readonly all_required_assessed: boolean;
-            readonly all_required_met: boolean;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display: string;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
-         *     Declared so the schema tells the truth about what the two `summary`
-         *     endpoints return. Neither of them serializes a model, and without this the
-         *     generated contract claims the viewset's own `serializer_class`. Read-only:
-         *     nothing is deserialized through it.
+         *     Declared so the schema tells the truth about what the assessment `summary`
+         *     endpoint and each assessment's `overall` return. Neither serializes a
+         *     model, and without this the generated contract claims the viewset's own
+         *     `serializer_class`. Read-only: nothing is deserialized through it.
          */
         AssessmentSummaryCounts: {
             readonly total: number;
@@ -1256,10 +1176,8 @@ export interface components {
             readonly not_met: number;
             readonly not_assessed: number;
             readonly required_met: number;
-            readonly required_not_met: number;
             readonly required_not_assessed: number;
             readonly all_required_assessed: boolean;
-            readonly all_required_met: boolean;
         };
         /**
          * @description * `ATTENDED` - Attended
@@ -1290,14 +1208,22 @@ export interface components {
             readonly action_display: string;
             readonly entity_type: components["schemas"]["AuditEntityEnum"];
             readonly entity_id: string;
-            /** Format: uuid */
-            readonly actor: string | null;
             /** Format: email */
             readonly actor_email: string;
             readonly actor_name: string;
             readonly summary: string;
             readonly metadata: unknown;
         };
+        /**
+         * @description * `WHITE` - White
+         *     * `YELLOW` - Yellow
+         *     * `BLUE` - Blue
+         *     * `RED` - Red
+         *     * `BROWN` - Brown
+         *     * `BLACK` - Black
+         * @enum {string}
+         */
+        BeltColourEnum: "WHITE" | "YELLOW" | "BLUE" | "RED" | "BROWN" | "BLACK";
         /** @enum {unknown} */
         BlankEnum: "";
         BulkAssessmentGenerationRequest: {
@@ -1361,15 +1287,8 @@ export interface components {
             readonly id: number;
             readonly candidate: number;
             readonly candidate_student_name: string;
-            readonly candidate_student_wksa_id: string;
-            readonly testing_for_rank_code: string;
-            readonly testing_for_rank_name: string;
-            readonly age_band: string;
-            readonly age_band_display: string;
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
             readonly status_display: string;
-            /** Format: uuid */
-            readonly generated_by: string;
             /** Format: email */
             readonly generated_by_email: string;
             /** Format: date-time */
@@ -1379,45 +1298,25 @@ export interface components {
             /** Format: date-time */
             readonly completed_at: string | null;
             notes?: string;
-            readonly item_counts: {
-                [key: string]: number;
-            };
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
+            readonly overall: components["schemas"]["AssessmentSummaryCounts"];
         };
         CandidateAssessmentItem: {
             readonly id: number;
-            readonly assessment: number;
-            readonly source_requirement: number | null;
-            readonly source_item: number | null;
-            readonly source_rank: number | null;
-            readonly source_age_band: components["schemas"]["AgeBandEnum"];
-            readonly item_code: string;
             readonly item_name: string;
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
             readonly requirement_sequence: number;
             readonly required: boolean;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
             readonly display_range: string;
             readonly requirement_notes: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
-            /** Format: uuid */
-            readonly assessor: string | null;
             /** Format: email */
             readonly assessor_email: string;
             /** Format: date-time */
             readonly assessed_at: string | null;
             assessor_notes?: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description * `NOT_STARTED` - Not started
@@ -1434,43 +1333,20 @@ export interface components {
         CandidateOutcome: {
             readonly id: number;
             readonly candidate: number;
-            readonly assessment: number;
-            readonly assessment_status: string;
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly session: number;
-            readonly session_title: string;
-            readonly testing_for_rank: number;
-            readonly testing_for_rank_code: string;
-            readonly testing_for_rank_name: string;
             readonly status: components["schemas"]["CandidateOutcomeStatusEnum"];
-            readonly status_display: string;
             readonly proposed_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly proposed_outcome_display: string;
-            /** Format: uuid */
-            readonly proposed_by: string | null;
-            /** Format: email */
-            readonly proposed_by_email: string;
             readonly proposed_by_name: string;
             /** Format: date-time */
             readonly proposed_at: string | null;
             readonly proposal_notes: string;
             readonly final_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly final_outcome_display: string;
-            /** Format: uuid */
-            readonly decided_by: string | null;
-            /** Format: email */
-            readonly decided_by_email: string;
             readonly decided_by_name: string;
             /** Format: date-time */
             readonly decided_at: string | null;
             readonly decision_notes: string;
             readonly conditional_requirements: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description * `PASS` - Pass
@@ -1488,22 +1364,6 @@ export interface components {
         CandidateOutcomeStatusEnum: "DRAFT" | "PROPOSED" | "FINALISED";
         CandidatePromotionRequest: {
             notes?: string;
-        };
-        CanonicalLegacyRow: {
-            source_sheet: string;
-            source_section: string;
-            source_locator: string;
-            cycle_year: number;
-            cycle_month: number;
-            record_kind: components["schemas"]["RecordKindEnum"];
-            source_name: string;
-            source_current_rank_text: string;
-            source_testing_for_rank_text: string;
-            source_outcome_text: string;
-            outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            attendance_status: components["schemas"]["AttendanceStatusEnum"];
-            comments: string;
-            admin_note: string;
         };
         /**
          * @description POST /api/auth/change-password/.
@@ -1530,8 +1390,7 @@ export interface components {
          *
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
          *     the effective (latest applicable) `SyllabusRequirement` row, so most
-         *     fields are simple dotted lookups into it, same shape as
-         *     `SyllabusRequirementSerializer` where they overlap. `introduced_rank`,
+         *     fields are simple dotted lookups into it. `introduced_rank`,
          *     `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
          *     requires the backend to derive.
          */
@@ -1540,11 +1399,7 @@ export interface components {
             readonly item_name: string;
             readonly item_korean_name: string;
             readonly category: string;
-            readonly category_display: string;
             readonly required: boolean;
-            readonly sequence: number;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
             readonly display_range: string;
             readonly notation: string;
             readonly notes: string;
@@ -1557,43 +1412,21 @@ export interface components {
         GradingCandidate: {
             readonly id: number;
             session: number;
-            readonly session_title: string;
             student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
-            readonly from_rank_code: string;
             readonly from_rank_name: string;
             testing_for_rank: number;
-            readonly testing_for_rank_code: string;
             readonly testing_for_rank_name: string;
-            readonly age_band: string;
             readonly age_band_display: string;
             status?: components["schemas"]["GradingCandidateStatusEnum"];
-            readonly status_display: string;
             notes?: string;
             withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
             withdrawal_note?: string;
-            /** Format: uuid */
-            readonly withdrawn_by: string | null;
-            readonly withdrawn_by_email: string;
-            readonly withdrawn_by_name: string;
-            /** Format: date-time */
-            readonly withdrawn_at: string | null;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
-        };
-        GradingCandidateRequest: {
-            session: number;
-            student: number;
-            testing_for_rank: number;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
-            withdrawal_note?: string;
+            readonly can_be_moved: boolean;
+            readonly can_be_removed: boolean;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -1610,13 +1443,11 @@ export interface components {
             cycle_year: number | null;
             cycle_month: number | null;
             date_precision: components["schemas"]["DatePrecisionEnum"];
-            testing_for_rank_code: string | null;
             testing_for_rank_name: string | null;
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
             comments: string;
-            promotion_id: number | null;
         };
         GradingSession: {
             readonly id: number;
@@ -1627,15 +1458,6 @@ export interface components {
             readonly status_display: string;
             location?: string;
             notes?: string;
-            cancellation_reason?: string;
-            /** Format: uuid */
-            readonly created_by: string;
-            /** Format: email */
-            readonly created_by_email: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         GradingSessionRequest: {
             title: string;
@@ -1662,33 +1484,11 @@ export interface components {
         ImportBatch: {
             readonly id: number;
             readonly kind: components["schemas"]["KindEnum"];
-            readonly kind_display: string;
             readonly status: components["schemas"]["ImportBatchStatusEnum"];
             readonly status_display: string;
-            readonly original_filename: string;
-            readonly sha256: string;
-            readonly file_size: number;
-            /** Format: email */
-            readonly uploaded_by_email: string;
-            /** Format: date-time */
-            readonly uploaded_at: string;
-            /** Format: email */
-            readonly committed_by_email: string | null;
-            /** Format: date-time */
-            readonly committed_at: string | null;
-            /** Format: date-time */
-            readonly cancelled_at: string | null;
             readonly summary_json: {
                 [key: string]: number;
             };
-            readonly configuration_json: {
-                [key: string]: unknown;
-            };
-            readonly error_summary: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         ImportBatchCreateRequest: {
             kind: components["schemas"]["KindEnum"];
@@ -1703,33 +1503,11 @@ export interface components {
         ImportBatchCreated: {
             readonly id: number;
             readonly kind: components["schemas"]["KindEnum"];
-            readonly kind_display: string;
             readonly status: components["schemas"]["ImportBatchStatusEnum"];
             readonly status_display: string;
-            readonly original_filename: string;
-            readonly sha256: string;
-            readonly file_size: number;
-            /** Format: email */
-            readonly uploaded_by_email: string;
-            /** Format: date-time */
-            readonly uploaded_at: string;
-            /** Format: email */
-            readonly committed_by_email: string | null;
-            /** Format: date-time */
-            readonly committed_at: string | null;
-            /** Format: date-time */
-            readonly cancelled_at: string | null;
             readonly summary_json: {
                 [key: string]: number;
             };
-            readonly configuration_json: {
-                [key: string]: unknown;
-            };
-            readonly error_summary: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
             readonly already_imported_warning: boolean;
             readonly detected_headers: string[];
             readonly suggested_mapping: {
@@ -1765,19 +1543,9 @@ export interface components {
             readonly id: number;
             readonly student: number | null;
             readonly student_display_name: string | null;
-            readonly student_wksa_id: string | null;
-            readonly source_batch: number;
             readonly record_kind: components["schemas"]["RecordKindEnum"];
-            readonly record_kind_display: string;
-            readonly source_sheet: string;
-            readonly source_section: string;
-            readonly source_locator: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
-            /** Format: date */
-            readonly grading_date: string | null;
-            readonly date_precision: components["schemas"]["DatePrecisionEnum"];
-            readonly date_precision_display: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
             readonly current_rank: number | null;
@@ -1785,25 +1553,12 @@ export interface components {
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
             readonly testing_for_rank_code: string | null;
-            readonly source_outcome_text: string;
-            readonly outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly outcome_display: string | null;
-            readonly attendance_status: components["schemas"]["AttendanceStatusEnum"];
             readonly attendance_status_display: string;
-            readonly comments: string;
-            readonly admin_note: string;
             readonly is_void: boolean;
             readonly void_reason: string;
-            /** Format: uuid */
-            readonly voided_by: string | null;
             /** Format: email */
             readonly voided_by_email: string | null;
-            /** Format: date-time */
-            readonly voided_at: string | null;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         LegacyImportPreview: {
             total: number;
@@ -1815,7 +1570,6 @@ export interface components {
             unresolved_outcome: number;
             warnings: string[];
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
-            rows: components["schemas"]["CanonicalLegacyRow"][];
         };
         /**
          * @description Shared request shape for the historical preview and commit actions.
@@ -1844,6 +1598,21 @@ export interface components {
         };
         /** @enum {unknown} */
         NullEnum: null;
+        PaginatedAgeBandList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["AgeBand"][];
+        };
         PaginatedAuditEventList: {
             /** @example 123 */
             count: number;
@@ -1949,21 +1718,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
         };
-        PaginatedImportBatchList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["ImportBatch"][];
-        };
         PaginatedLegacyGradingRecordList: {
             /** @example 123 */
             count: number;
@@ -2039,21 +1793,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["SyllabusItem"][];
         };
-        PaginatedSyllabusRequirementList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["SyllabusRequirement"][];
-        };
         PaginatedUserManagementList: {
             /** @example 123 */
             count: number;
@@ -2068,6 +1807,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["UserManagement"][];
+        };
+        PaginatedWithdrawalReasonList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["WithdrawalReason"][];
         };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
@@ -2163,87 +1917,42 @@ export interface components {
             is_active?: boolean;
             password?: string;
         };
+        /**
+         * @description * `JUNIOR` - Junior & Little Dragon
+         *     * `ADULT` - Adult & Youth
+         * @enum {string}
+         */
+        ProgrammeEnum: "JUNIOR" | "ADULT";
         Promotion: {
             readonly id: number;
-            readonly student: number;
             readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly student_current_rank: number;
-            readonly student_current_rank_code: string;
-            readonly student_current_rank_name: string;
-            readonly outcome: number;
             readonly grading_candidate: number;
-            readonly session: number;
-            readonly session_title: string;
-            /** Format: date */
-            readonly grading_date: string;
-            readonly from_rank: number;
-            readonly from_rank_code: string;
-            readonly from_rank_name: string;
-            readonly to_rank: number;
-            readonly to_rank_code: string;
             readonly to_rank_name: string;
-            /** Format: uuid */
-            readonly promoted_by: string;
-            /** Format: email */
-            readonly promoted_by_email: string;
-            readonly promoted_by_name: string;
-            /** Format: date-time */
-            readonly promoted_at: string;
             /** Format: date */
             readonly effective_date: string;
-            readonly notes: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         PromotionRankHistory: {
             readonly id: number;
-            readonly from_rank: number;
-            readonly from_rank_code: string;
             readonly from_rank_name: string;
-            readonly to_rank: number;
-            readonly to_rank_code: string;
             readonly to_rank_name: string;
-            readonly session: number;
             readonly session_title: string;
-            /** Format: date */
-            readonly grading_date: string;
-            readonly outcome: number;
-            readonly outcome_status: string;
-            readonly final_outcome: string;
-            /** Format: uuid */
-            readonly promoted_by: string;
-            /** Format: email */
-            readonly promoted_by_email: string;
-            readonly promoted_by_name: string;
             /** Format: date-time */
             readonly promoted_at: string;
             /** Format: date */
             readonly effective_date: string;
-            readonly notes: string;
         };
         Rank: {
             readonly id: number;
             readonly code: string;
             readonly name: string;
             readonly order: number;
-            readonly category: components["schemas"]["RankCategoryEnum"];
-            readonly category_display: string;
-            readonly active: boolean;
+            readonly belt_colour: components["schemas"]["BeltColourEnum"];
+            readonly stripe_colour: components["schemas"]["BeltColourEnum"] | components["schemas"]["BlankEnum"];
+            readonly stripe_count: number;
             readonly next_rank: number | null;
         };
-        /**
-         * @description * `COLOURED_BELT` - Coloured belt
-         *     * `BLACK_BELT_CANDIDATE` - Black belt candidate
-         *     * `BLACK_BELT` - Black belt
-         * @enum {string}
-         */
-        RankCategoryEnum: "COLOURED_BELT" | "BLACK_BELT_CANDIDATE" | "BLACK_BELT";
         RankMappingSuggestion: {
             source_text: string;
-            suggested_rank_id: number | null;
             suggested_rank_code: string | null;
         };
         ReadinessResponse: {
@@ -2287,6 +1996,9 @@ export interface components {
         SetPasswordRequest: {
             password: string;
         };
+        SiteSettings: {
+            club_name: string;
+        };
         /**
          * @description * `KUKGRADE` - KUKGRADE
          *     * `LEGACY` - LEGACY
@@ -2308,17 +2020,12 @@ export interface components {
             /** Format: date */
             date_of_birth: string;
             current_rank: number;
-            readonly current_rank_code: string;
             readonly current_rank_name: string;
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
-            readonly can_be_graded: boolean;
-            readonly age_band: string;
             readonly age_band_display: string;
             /** Format: date-time */
             readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description Combines finalised native outcomes with linked, non-voided legacy
@@ -2327,9 +2034,6 @@ export interface components {
          *     Promotion-only (import Decision 6).
          */
         StudentGradingHistory: {
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
             items: components["schemas"]["GradingHistoryItem"][];
         };
         StudentImportPreview: {
@@ -2365,11 +2069,8 @@ export interface components {
             last_name: string;
             date_of_birth_display: string;
             current_rank_text: string;
-            current_rank_code: string | null;
             status: string;
             issues: string[];
-            existing_student_id: number | null;
-            existing_student_display: string | null;
         };
         /**
          * @description The list representation. Deliberately excludes date of birth.
@@ -2388,16 +2089,11 @@ export interface components {
             readonly current_rank_name: string;
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
-            readonly age_band: string;
+            readonly can_be_graded: boolean;
+            readonly age_band: components["schemas"]["AgeBandEnum"];
             readonly age_band_display: string;
         };
         StudentRankHistory: {
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly current_rank: number;
-            readonly current_rank_code: string;
-            readonly current_rank_name: string;
             readonly promotions: components["schemas"]["PromotionRankHistory"][];
         };
         /**
@@ -2425,13 +2121,10 @@ export interface components {
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
         SyllabusItem: {
             readonly id: number;
-            readonly code: string;
             readonly name: string;
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
-            readonly description: string;
-            readonly active: boolean;
         };
         /**
          * @description * `ETIQUETTE` - Etiquette
@@ -2447,27 +2140,6 @@ export interface components {
          * @enum {string}
          */
         SyllabusItemCategoryEnum: "ETIQUETTE" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "FALLING" | "BREAKING" | "TECHNIQUE_SET" | "FORM" | "WEAPONS" | "OTHER";
-        SyllabusRequirement: {
-            readonly id: number;
-            readonly rank: number;
-            readonly rank_code: string;
-            readonly rank_name: string;
-            readonly rank_order: number;
-            readonly age_band: components["schemas"]["AgeBandEnum"];
-            readonly item: number;
-            readonly item_code: string;
-            readonly item_name: string;
-            readonly item_korean_name: string;
-            readonly category: string;
-            readonly category_display: string;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
-            readonly display_range: string;
-            readonly sequence: number;
-            readonly required: boolean;
-            readonly active: boolean;
-            readonly notes: string;
-        };
         User: {
             /** Format: uuid */
             readonly id: string;
@@ -2476,7 +2148,6 @@ export interface components {
             readonly first_name: string;
             readonly last_name: string;
             readonly full_name: string;
-            readonly role: components["schemas"]["RoleEnum"];
             readonly role_display: string;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
@@ -2490,12 +2161,6 @@ export interface components {
             readonly can_delete_any_session: boolean;
             readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
-            readonly is_staff: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser: boolean;
         };
         /**
          * @description List, retrieve, create and update for the administrator-facing API.
@@ -2522,12 +2187,6 @@ export interface components {
             readonly can_override_locked_session: boolean;
             readonly can_view_grading_audit_log: boolean;
             readonly must_change_password: boolean;
-            readonly is_staff: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser: boolean;
             /** Format: date-time */
             readonly date_joined: string;
             /** Format: date-time */
@@ -2554,14 +2213,20 @@ export interface components {
         VoidLegacyRecordRequest: {
             reason: string;
         };
+        /** @description One withdrawal reason, from its code, and whether it needs a note. */
+        WithdrawalReason: {
+            readonly code: components["schemas"]["WithdrawalReasonEnum"];
+            readonly name: string;
+            readonly note_required: boolean;
+        };
         /**
          * @description * `INJURY` - Injured during grading
          *     * `WITHDREW` - Withdrew voluntarily
          *     * `ABSENT` - Did not attend
-         *     * `ADMIN_ERROR` - Registered in error
+         *     * `OTHER` - Other
          * @enum {string}
          */
-        WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "ADMIN_ERROR";
+        WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "OTHER";
     };
     responses: never;
     parameters: never;
@@ -2575,7 +2240,6 @@ export interface operations {
         parameters: {
             query?: {
                 action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
-                actor?: string;
                 entity_id?: string;
                 entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -2598,28 +2262,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedAuditEventList"];
-                };
-            };
-        };
-    };
-    audit_events_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this audit event. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditEvent"];
                 };
             };
         };
@@ -2735,30 +2377,6 @@ export interface operations {
             };
         };
     };
-    data_imports_batches_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedImportBatchList"];
-                };
-            };
-        };
-    };
     data_imports_batches_create: {
         parameters: {
             query?: never;
@@ -2780,28 +2398,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatchCreated"];
-                };
-            };
-        };
-    };
-    data_imports_batches_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this import batch. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -2887,16 +2483,10 @@ export interface operations {
         parameters: {
             query?: {
                 assessment?: number;
-                candidate?: number;
-                category?: "BREAKING" | "ETIQUETTE" | "FALLING" | "FORM" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "OTHER" | "TECHNIQUE_SET" | "WEAPONS";
-                item_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                required?: boolean;
-                result?: "MET" | "NOT_ASSESSED" | "NOT_MET";
-                session?: number;
             };
             header?: never;
             path?: never;
@@ -2910,28 +2500,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedCandidateAssessmentItemList"];
-                };
-            };
-        };
-    };
-    gradings_assessment_items_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate assessment item. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessmentItem"];
                 };
             };
         };
@@ -2974,8 +2542,6 @@ export interface operations {
                 page_size?: number;
                 session?: number;
                 status?: "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -2989,28 +2555,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedCandidateAssessmentList"];
-                };
-            };
-        };
-    };
-    gradings_assessments_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate assessment. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessment"];
                 };
             };
         };
@@ -3136,15 +2680,11 @@ export interface operations {
     gradings_candidates_list: {
         parameters: {
             query?: {
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 session?: number;
-                status?: "COMPLETED" | "REGISTERED" | "WITHDRAWN";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3162,31 +2702,6 @@ export interface operations {
             };
         };
     };
-    gradings_candidates_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
-                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
-                };
-            };
-        };
-    };
     gradings_candidates_retrieve: {
         parameters: {
             query?: never;
@@ -3198,34 +2713,6 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingCandidate"];
-                };
-            };
-        };
-    };
-    gradings_candidates_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this grading candidate. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingCandidateRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingCandidateRequest"];
-                "multipart/form-data": components["schemas"]["GradingCandidateRequest"];
-            };
-        };
         responses: {
             200: {
                 headers: {
@@ -3441,9 +2928,6 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                record_kind?: string;
-                source_batch?: number;
-                student?: number;
                 voided?: boolean;
             };
             header?: never;
@@ -3458,28 +2942,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this legacy grading record. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LegacyGradingRecord"];
                 };
             };
         };
@@ -3621,19 +3083,11 @@ export interface operations {
     gradings_outcomes_list: {
         parameters: {
             query?: {
-                candidate?: number;
-                decided_by?: string;
-                final_outcome?: "CONDITIONAL" | "FAIL" | "PASS";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                proposed_by?: string;
-                proposed_outcome?: "CONDITIONAL" | "FAIL" | "PASS";
                 session?: number;
-                status?: "DRAFT" | "FINALISED" | "PROPOSED";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3647,50 +3101,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedCandidateOutcomeList"];
-                };
-            };
-        };
-    };
-    gradings_outcomes_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
-                };
-            };
-        };
-    };
-    gradings_outcomes_partial_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateOutcome"];
                 };
             };
         };
@@ -3779,28 +3189,6 @@ export interface operations {
             };
         };
     };
-    gradings_outcomes_summary_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this candidate outcome. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CandidateAssessmentSummary"];
-                };
-            };
-        };
-    };
     gradings_outcomes_bulk_promote_create: {
         parameters: {
             query?: never;
@@ -3829,19 +3217,11 @@ export interface operations {
     gradings_promotions_list: {
         parameters: {
             query?: {
-                effective_date?: string;
-                effective_date_from?: string;
-                effective_date_to?: string;
-                from_rank_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                promoted_by?: string;
                 session?: number;
-                student?: number;
-                student_wksa_id?: string;
-                to_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3859,32 +3239,9 @@ export interface operations {
             };
         };
     };
-    gradings_promotions_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this promotion. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Promotion"];
-                };
-            };
-        };
-    };
     gradings_sessions_list: {
         parameters: {
             query?: {
-                grading_date?: string;
                 grading_date_from?: string;
                 grading_date_to?: string;
                 /** @description A page number within the paginated result set. */
@@ -3957,34 +3314,6 @@ export interface operations {
             };
         };
     };
-    gradings_sessions_update: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this grading session. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GradingSessionRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["GradingSessionRequest"];
-                "multipart/form-data": components["schemas"]["GradingSessionRequest"];
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GradingSession"];
-                };
-            };
-        };
-    };
     gradings_sessions_destroy: {
         parameters: {
             query?: never;
@@ -4034,6 +3363,30 @@ export interface operations {
             };
         };
     };
+    gradings_withdrawal_reasons_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedWithdrawalReasonList"];
+                };
+            };
+        };
+    };
     health_retrieve: {
         parameters: {
             query?: never;
@@ -4077,28 +3430,6 @@ export interface operations {
             };
         };
     };
-    ranks_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this rank. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Rank"];
-                };
-            };
-        };
-    };
     ready_retrieve: {
         parameters: {
             query?: never;
@@ -4118,11 +3449,28 @@ export interface operations {
             };
         };
     };
+    site_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SiteSettings"];
+                };
+            };
+        };
+    };
     students_list: {
         parameters: {
             query?: {
-                /** @description The student's age band today, not at any grading. */
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 current_rank_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
@@ -4287,6 +3635,30 @@ export interface operations {
             };
         };
     };
+    syllabus_age_bands_list: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAgeBandList"];
+                };
+            };
+        };
+    };
     syllabus_items_list: {
         parameters: {
             query?: {
@@ -4307,76 +3679,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedSyllabusItemList"];
-                };
-            };
-        };
-    };
-    syllabus_items_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this syllabus item. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyllabusItem"];
-                };
-            };
-        };
-    };
-    syllabus_requirements_list: {
-        parameters: {
-            query?: {
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-                rank_code?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedSyllabusRequirementList"];
-                };
-            };
-        };
-    };
-    syllabus_requirements_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description A unique integer value identifying this syllabus requirement. */
-                id: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SyllabusRequirement"];
                 };
             };
         };

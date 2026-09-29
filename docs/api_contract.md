@@ -31,6 +31,13 @@ returns an empty page. Each view declares its filters once
 them and publishes them in `backend/schema.yml`, which is the authoritative
 list; the tables below summarise it.
 
+Responses carry only the fields a screen reads. Anything the app does not
+display or act on (a duplicate of another field, a denormalised name, an
+attribution id) is left out and added back when a screen needs it; the
+attribution itself stays in the database and the audit log. `schema.yml` is
+the authoritative field list for every response, and the frontend types are
+generated from it.
+
 ## 0b. Error responses
 
 Every error response uses one envelope:
@@ -58,12 +65,13 @@ Django's `handler500`, returns the same `{"error": {...}}` shape with code
 `server_error` and no detail about the cause - that belongs in the logs,
 not the response.
 
-## 0c. Health and readiness
+## 0c. Health, readiness and site settings
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
+| GET | /api/site/ | Anonymous site settings; returns `{"club_name": "..."}` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"). Shown in the top bar. |
 
 ## 1. Authentication
 
@@ -117,8 +125,8 @@ Administrator group.
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
 | POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
 
-`is_staff` and `is_superuser` are read-only through this API - it cannot hand
-out Django admin access. `role` is `instructor` or `administrator`; changing
+`is_staff` and `is_superuser` are not part of this API - it cannot hand out
+Django admin access. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
 resource. Responses include read-only `date_joined` and nullable `last_login`
@@ -131,17 +139,18 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `age_band`, `search` |
+| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
 | DELETE | /api/students/{id}/                        | Administrator-only hard delete, cascading through every registration/assessment/outcome/promotion involving the student; unlinks (never deletes) a linked legacy record. Requires `students.delete_student`. |
 | PUT   | /api/students/{id}/                         | 405; not exposed                                 |
-| GET   | /api/students/{id}/rank-history/            | Current rank plus every promotion record         |
+| GET   | /api/students/{id}/rank-history/            | Every promotion record, as `{"promotions": [...]}` |
 | GET   | /api/students/{id}/grading-history/         | Finalised native outcomes + linked, non-voided legacy records, source-labelled |
 
 The list representation omits `date_of_birth`; the detail representation
-includes it. `wksa_id` is writable on create and read-only afterwards. See
+includes it. The list carries `can_be_graded` (false only for `LEFT`), which
+the cohort builder filters on rather than re-deriving the rule. `wksa_id` is writable on create and read-only afterwards. See
 `docs/current-system.md` for the rationale.
 
 `DELETE` (2026-09-22) is deliberately routine, not a rare erasure path -
@@ -168,12 +177,17 @@ The seeded, read-only rank catalogue; ranks are maintained by migration.
 | Method | Endpoint                                  | Description                                       |
 |--------|--------------------------------------------|---------------------------------------------------|
 | GET    | /api/ranks/                                | List active ranks in progression order            |
-| GET    | /api/ranks/{id}/                           | Retrieve one rank                                 |
 
 Each rank carries `next_rank`: the id of the rank a student at this rank is
 graded for next (the next active rank by order), or `null` at the top. It is
 the same rule the grading services use (`RankQuerySet.next_active_after`), so
 the frontend never works out rank progression itself.
+
+Each rank also carries its belt: `belt_colour` (`WHITE`, `YELLOW`, `BLUE`,
+`RED`, `BROWN`, `BLACK`), `stripe_colour` (the same colours, or blank for no
+stripe) and `stripe_count`. A stripe rank is the belt below it with one stripe
+of the colour it is working towards - Blue stripe is `YELLOW` with one `BLUE`
+stripe - and Dahn Bo is `BROWN` with two `BLACK` stripes.
 
 ## 5. Syllabus Catalogue
 
@@ -182,17 +196,9 @@ and version management are deferred.
 
 | Method | Endpoint                              | Description                                      |
 |--------|----------------------------------------|--------------------------------------------------|
+| GET    | /api/syllabus/age-bands/               | The four age bands in order: `code`, `name`, `description`, `programme`, `programme_display` |
 | GET    | /api/syllabus/items/                   | List active syllabus items                       |
-| GET    | /api/syllabus/items/{id}/              | Retrieve a syllabus item                         |
-| GET    | /api/syllabus/requirements/            | List active requirements, attached directly to one rank |
-| GET    | /api/syllabus/requirements/{id}/       | Retrieve a syllabus requirement                  |
 | GET    | /api/syllabus/requirements/effective/  | Cumulative Technique/Form requirements examinable through a rank - see below |
-
-Requirement list filters:
-
-- `rank_code`: rank catalogue code, such as `YELLOW` or `DAHN_BO`.
-- `age_band`: one of `AGE_8_AND_UNDER`, `AGE_9_TO_12`, `AGE_13_TO_17`, or
-  `AGE_18_AND_OVER`.
 
 `SyllabusItem` represents the stable assessable item. `SyllabusRequirement`
 maps that item to a target rank and age band, including `required`, `sequence`,
@@ -205,11 +211,12 @@ Form sections or parts from the source charts are currently preserved as notes.
 `GET /api/syllabus/requirements/effective/?rank_code=...&age_band=...`
 (both required) returns one row per `TECHNIQUE_SET`/`FORM` item examinable
 through the selected rank, not just what that rank's own requirement rows
-list. For an item mapped at more than one rank at or before the selection,
+list; it is the only way requirements are read over the API. For an item mapped at more than one rank at or before the selection,
 the highest-order (most recent) mapping supplies the effective range/notes;
 the lowest-order mapping supplies where it was first introduced - see
 `syllabus.services.effective_syllabus_requirements`. Paginated like every
-other list endpoint. Fields beyond the plain-list shape: `notation` (chart
+other list endpoint. Besides the item, category, range and notes it carries
+`notation` (chart
 notation such as `Chart notation: (1/2).` normalised to `Part 1 of 2`),
 `introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
 `effective_since_rank_name`, and `is_new_at_rank` (true when the effective
@@ -219,6 +226,12 @@ grading areas (Etiquette, Fundamentals, Hand techniques, Kicking, Falling,
 Breaking) are not part of this endpoint - they come from
 `/api/syllabus/items/`, ordered to match the WKSA chart's own category
 sequence rather than alphabetically.
+
+`/api/syllabus/age-bands/` is reference data: each band's label, the
+syllabus's name for its students, and the programme it is taught from
+(`JUNIOR` - Junior & Little Dragon, `ADULT` - Adult & Youth). Every age-band
+control reads it rather than restating the bands. It is gated to
+`syllabus.view_syllabusrequirement`.
 
 ## 6. Grading Sessions
 
@@ -230,41 +243,48 @@ Promotion is never automatic - see section 8.
 | GET   | /api/gradings/sessions/                | List grading sessions; filters `status`, `grading_date_from`, `grading_date_to`, `search` (title/location) |
 | POST  | /api/gradings/sessions/                | Create a grading session                         |
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
-| PUT   | /api/gradings/sessions/{id}/           | Replace a grading session                        |
+| PUT   | /api/gradings/sessions/{id}/           | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH | /api/gradings/sessions/{id}/           | Update a grading session                         |
 | DELETE| /api/gradings/sessions/{id}/           | Instructor: only DRAFT or CANCELLED, and a CANCELLED session with recorded assessment work is refused. Administrator: any status, including LOCKED/COMPLETED - cascades through finalised outcomes and promotions, reverting affected students' ranks, pre-flight validated all-or-nothing |
 | GET   | /api/gradings/candidates/              | List grading candidates                          |
-| POST  | /api/gradings/candidates/              | Add a candidate to a draft or open session       |
+| POST  | /api/gradings/candidates/              | 405; register through `bulk-register`            |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
-| PUT   | /api/gradings/candidates/{id}/         | Replace a grading candidate                      |
+| PUT   | /api/gradings/candidates/{id}/         | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH | /api/gradings/candidates/{id}/         | Update session, testing-for rank, status or notes; `student` is fixed after registration |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
 | POST  | /api/gradings/candidates/{id}/withdraw/ | Withdraw from a *locked* session with a reason; requires `gradings.can_override_locked_session` |
+| GET   | /api/gradings/withdrawal-reasons/      | The withdrawal reasons in order: `code`, `name`, `note_required` |
 | POST  | /api/gradings/candidates/bulk-register/ | Register several candidates against one session in a single request, optionally generating their assessments too |
 | POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
 | POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
 
-Every candidate response carries `from_rank`, `from_rank_code` and
-`from_rank_name`: the rank the student held when registered, snapshotted on
+Every candidate response carries `from_rank` and `from_rank_name`: the rank the student held when registered, snapshotted on
 the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
 candidate actually started.
 
-A candidate is always created `REGISTERED`: a `POST` with any other `status`,
-or with a `withdrawal_reason`, is a `400`. A registration's `student` never
+Every candidate response also carries `can_be_moved` and `can_be_removed`,
+read-only booleans computed by the same validators as `PATCH` of `session` and
+`DELETE`, so a client offers only what the server would accept.
+
+A candidate is always created `REGISTERED`; `bulk-register` rows carry no
+status or withdrawal fields. A registration's `student` never
 changes: sending a different one is a `400` (remove the candidate and
 register the right student instead). Setting
 `status` to `WITHDRAWN` requires `withdrawal_reason` (`INJURY`, `WITHDREW`,
-`ABSENT`, `ADMIN_ERROR`) and accepts an optional `withdrawal_note`; the
+`ABSENT`, `OTHER`) and accepts a `withdrawal_note`, which `OTHER` requires -
+the same rule holds on the locked-session `withdraw` action. The reasons, with
+their labels and which needs a note, are served by
+`GET /api/gradings/withdrawal-reasons/`; the
 withdrawal records who made it and when, and is audited as
 `CANDIDATE_WITHDRAWN`. Setting a withdrawn candidate back to `REGISTERED`
 clears all four withdrawal fields.
 
 Bulk endpoints process every row **independently**, not all-or-nothing: each
-row is validated and saved through the same domain service as its
-single-item counterpart, in its own savepoint. One row failing does not stop
+row is validated and saved through the same domain service a single change
+would use, in its own savepoint. One row failing does not stop
 the others - registering ten students does not fail all ten because one of
 them was already registered. Every bulk endpoint returns `200` with the same
 two-key shape: the list of what succeeded, and an `errors` map keyed by the
@@ -287,8 +307,8 @@ always knows exactly which rows landed and which did not, and why.
 ```
 
 A row's `testing_for_rank` is optional. When omitted it resolves to that
-student's own next active rank - the same rank the single-item endpoint would
-insist on anyway - so a mixed-belt group (some blue belts, a couple of white
+student's own next active rank - the same rank registration would insist on
+anyway - so a mixed-belt group (some blue belts, a couple of white
 belts, one brown stripe) registers in one request with no rank picked at all;
 there is no rank that would even apply to the whole batch. It can still be
 set explicitly per row to catch an out-of-turn request early.
@@ -343,7 +363,9 @@ Session fields:
   `DRAFT`.
 - `location`: optional human-readable location.
 - `notes`: optional notes.
-- `created_by`: read-only; assigned from the authenticated user.
+- `cancellation_reason`: write-only. Sent when cancelling a locked session and
+  never returned; it is kept on the record and in the audit log. The creator
+  is recorded from the authenticated user and is not served either.
 
 `grading_date` can be changed only before candidates are added. Once a session
 has candidates, its date is fixed so stored candidate age-band snapshots do not
@@ -379,7 +401,6 @@ sessions start in `DRAFT`; API clients cannot create sessions directly in
 Session filters:
 
 - `status`
-- `grading_date`
 - `grading_date_from`
 - `grading_date_to`
 - `search` (title or location)
@@ -408,10 +429,6 @@ Candidate fields:
 Candidate filters:
 
 - `session`
-- `student_wksa_id`
-- `testing_for_rank_code`
-- `age_band`
-- `status`
 
 Candidate creation rejects locked, completed, and cancelled sessions; duplicate
 student/session pairs; invalid testing-for ranks; and missing student date of
@@ -437,15 +454,13 @@ snapshot rows.
 
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
-| GET   | /api/gradings/assessments/                            | List generated candidate assessments                 |
-| GET   | /api/gradings/assessments/{id}/                       | Retrieve assessment detail and informational counts  |
+| GET   | /api/gradings/assessments/                            | List generated candidate assessments. Each carries `overall`, the same counts block the `summary` action returns, computed from items prefetched in one query so the list's query count does not grow with the cohort. |
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
-| GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Same service and response shape as `/api/gradings/outcomes/{id}/summary/`, but reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
+| GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
 | DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
-| GET   | /api/gradings/assessment-items/{id}/                  | Retrieve assessment item snapshot and result         |
 | PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
 | POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |
 | DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |
@@ -490,25 +505,16 @@ Assessment list filters:
 
 - `candidate`
 - `session`
-- `student_wksa_id`
-- `testing_for_rank_code`
 - `status`
 
 Assessment-item list filters:
 
 - `assessment`
-- `candidate`
-- `session`
-- `item_code`
-- `category`
-- `result`
-- `required`
 
-Assessment detail includes candidate id, student name, WKSA ID, testing-for
-rank code and name, candidate age-band snapshot, lifecycle timestamps, notes,
-generator attribution, and informational item counts. Counts report total,
-required, met, not met, and not assessed items only; no pass/fail/conditional
-outcome is produced.
+An assessment row includes the candidate id and student name, status,
+lifecycle timestamps, notes, generator attribution, and `overall` (the served
+counts). Per-category counts are served by the summary action below; no
+pass/fail/conditional outcome is produced.
 
 ## 8. Outcomes and Promotions
 
@@ -516,17 +522,11 @@ outcome is produced.
 |--------|-----------------------------------------------|----------------------------------------------|
 | GET    | /api/gradings/outcomes/                       | List candidate outcomes                      |
 | POST   | /api/gradings/outcomes/                       | 405; use candidate create-outcome action     |
-| GET    | /api/gradings/outcomes/{id}/                  | Retrieve outcome detail                      |
-| PATCH  | /api/gradings/outcomes/{id}/                  | 405; not a direct-write resource - use propose/finalise |
-| DELETE | /api/gradings/outcomes/{id}/                  | 405; correction workflow deferred            |
 | PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
-| GET    | /api/gradings/outcomes/{id}/summary/          | Informational assessment summaries. Identical payload to `/api/gradings/assessments/{id}/summary/`; both now declare `CandidateAssessmentSummary` rather than the viewset's own serializer. |
 | POST   | /api/gradings/outcomes/{id}/promote/          | Promote a finalised PASS; requires `gradings.can_promote_student` |
 | POST   | /api/gradings/outcomes/bulk-promote/           | Promote several finalised PASS outcomes in one request |
 | GET    | /api/gradings/promotions/                     | List promotion records (rank history)        |
-| GET    | /api/gradings/promotions/{id}/                | Retrieve one promotion record                |
-| PUT, PATCH, DELETE | /api/gradings/promotions/{id}/    | 405; promotions are immutable and undeletable once created |
 
 Outcome status values are `DRAFT`, `PROPOSED`, and `FINALISED`. Outcome values
 are `PASS`, `FAIL`, and `CONDITIONAL`. Outcome creation is explicit after a
@@ -550,27 +550,17 @@ unsupported low-level maintenance path.
 Outcome list filters:
 
 - `session`
-- `candidate`
-- `student_wksa_id`
-- `testing_for_rank_code`
-- `status`
-- `proposed_outcome`
-- `final_outcome`
-- `proposed_by`
-- `decided_by`
 
-Outcome detail exposes candidate, student name, WKSA ID, testing rank, session,
+An outcome row exposes candidate, student name, WKSA ID, testing rank, session,
 assessment status, proposed decision, final decision, timestamps, attribution,
 notes, and conditional requirements. Clients cannot write `status`, candidate,
 assessment, actor, or timestamp fields directly.
 
-The summary action groups `CandidateAssessmentItem` rows by copied snapshot
+The assessment summary action groups `CandidateAssessmentItem` rows by copied snapshot
 category, in the syllabus chart's category order. It returns `overall` and
 per-category counts for total, required, met, not met, not assessed,
-required-met, required-not-met, required-not-assessed, all-required-assessed,
-and all-required-met; each category carries its code and its display label
-(`category`, `category_display`). It does not return an inferred final
-outcome.
+required-met, required-not-assessed and all-required-assessed; each category
+carries its code (`category`). It does not return an inferred final outcome.
 
 ### Promotion
 
@@ -585,11 +575,10 @@ client-supplied value. A second promotion attempt on the same outcome or the
 same grading candidate is rejected - each can be promoted at most once. On
 success it creates a `Promotion` record and updates `Student.current_rank`.
 
-`Promotion` records are immutable and undeletable once created (`PUT`,
-`PATCH`, `DELETE` all 405). `GET /api/gradings/promotions/` and
-`/{id}/` read them back; `GET /api/students/{id}/rank-history/` (section 3)
-returns a student's current rank plus every promotion in one call, which is
-the more convenient read for a single student's history.
+`Promotion` records are immutable and undeletable once created: there is no
+detail route to write to. `GET /api/gradings/promotions/` reads them back; `GET /api/students/{id}/rank-history/` (section 3)
+returns one student's promotions in one call, which is the more convenient
+read for a single student's history.
 
 `POST /api/gradings/outcomes/bulk-promote/` promotes several outcomes in one
 request - any quantity, from one to an entire cohort - independently per
@@ -607,15 +596,7 @@ Returns `200` with `{"promoted": [...promotion records...], "errors": {...}}`.
 
 Promotion list filters:
 
-- `student`
-- `student_wksa_id`
-- `from_rank_code`
-- `to_rank_code`
 - `session`
-- `effective_date`
-- `effective_date_from`
-- `effective_date_to`
-- `promoted_by`
 
 ## 9. Audit
 
@@ -645,7 +626,6 @@ outside the caller's queryset.
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|
 | GET    | /api/audit-events/           | List audit events, newest first       |
-| GET    | /api/audit-events/{id}/      | Retrieve one audit event              |
 
 Every event has `actor` (nullable - null only for a system action),
 `actor_email` and `actor_name` (who acted, copied when the event was written;
@@ -663,7 +643,6 @@ Filters:
 - `action`
 - `entity_type` - one of `AuditEntity` (`audit/models.py`): the model name of what the event is about. Recording an event about any other model is refused, so the list is complete.
 - `entity_id`
-- `actor`
 - `occurred_from`
 - `occurred_to`
 - `search` (summary, entity type/id, or actor name/email)
@@ -682,9 +661,7 @@ Status: implemented for both batch kinds - student-roster import
 
 | Method | Endpoint                                        | Description                                      |
 |--------|--------------------------------------------------|---------------------------------------------------|
-| GET    | /api/data-imports/batches/                        | List import batches, newest first                |
 | POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); requires `data_imports.add_importbatch` |
-| GET    | /api/data-imports/batches/{id}/                   | Retrieve one batch                                |
 | POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify it; nothing is committed; requires `data_imports.view_importbatch` |
 | POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and commit, all-or-nothing; requires `data_imports.can_commit_import` |
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
@@ -703,8 +680,7 @@ best-effort column mapping to pre-fill, never applied automatically).
   optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`)
   for fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
   response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
-  per-row `issues`, and (for `SKIP_EXISTING`) the existing student's
-  identity for comparison - the existing record is never modified.
+  per-row `issues`; a `SKIP_EXISTING` row is never modified.
 - **`LEGACY_GRADINGS`**: request body `rank_mappings`
   (`{"<source rank text>": "<Rank.code or null>"}`, one entry per *distinct*
   value across the batch, not per row - `null`/omitted means "leave
@@ -712,9 +688,8 @@ best-effort column mapping to pre-fill, never applied automatically).
   carries `total`/`grading_result`/`auxiliary_note`/`did_not_attend`
   counts, `unresolved_current_rank`/`unresolved_testing_for_rank`/
   `unresolved_outcome` counts, `warnings` (e.g. an unrecognised sheet),
-  `rank_suggestions` (`source_text`, `suggested_rank_id`,
-  `suggested_rank_code` - an exact-match suggestion only, never applied
-  automatically), and the full parsed `rows` for display. Commit creates
+  and `rank_suggestions` (`source_text`, `suggested_rank_code` - an
+  exact-match suggestion only, never applied automatically). Commit creates
   one `LegacyGradingRecord` per row (see section 11) - never a `Student`, a
   `Promotion`, or a `CandidateOutcome`.
 
@@ -729,8 +704,7 @@ Administrator-only (`gradings.can_reconcile_imported_history`).
 
 | Method | Endpoint                                                    | Description                                      |
 |--------|---------------------------------------------------------------|---------------------------------------------------|
-| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `student`, `linked`, `voided`, `record_kind`, `source_batch` |
-| GET    | /api/gradings/legacy-records/{id}/                              | Retrieve one record                               |
+| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided` |
 | POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>}`; links to a `Student`    |
 | POST   | /api/gradings/legacy-records/{id}/unlink-student/               | No body; refused if not currently linked          |
 | POST   | /api/gradings/legacy-records/{id}/resolve-current-rank/         | Body `{"rank": <id or null>}`                     |

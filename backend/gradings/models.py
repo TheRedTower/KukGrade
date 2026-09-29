@@ -173,6 +173,7 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
     "A registration's student cannot be changed. Remove the candidate and "
     "register the right student instead."
 )
+OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
 CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
     "A candidate is registered as REGISTERED, then withdrawn afterwards with "
     "a reason if they do not grade."
@@ -202,7 +203,9 @@ class GradingCandidate(models.Model):
         INJURY = "INJURY", "Injured during grading"
         WITHDREW = "WITHDREW", "Withdrew voluntarily"
         ABSENT = "ABSENT", "Did not attend"
-        ADMIN_ERROR = "ADMIN_ERROR", "Registered in error"
+        # Anything else, said in the note - an Other with no note records
+        # nothing, so the model refuses it.
+        OTHER = "OTHER", "Other"
 
     session = models.ForeignKey(
         GradingSession,
@@ -305,11 +308,15 @@ class GradingCandidate(models.Model):
                         "INJURY",
                         "WITHDREW",
                         "ABSENT",
-                        "ADMIN_ERROR",
+                        "OTHER",
                     ],
                 )
                 | Q(withdrawal_reason=""),
                 name="grading_candidate_withdrawal_reason_valid",
+            ),
+            models.CheckConstraint(
+                condition=~Q(withdrawal_reason="OTHER", withdrawal_note=""),
+                name="grading_candidate_other_withdrawal_has_note",
             ),
             # Attribution travels together, and only ever on a withdrawal.
             models.CheckConstraint(
@@ -348,6 +355,12 @@ class GradingCandidate(models.Model):
     def clean(self) -> None:
         super().clean()
         self.notes = (self.notes or "").strip()
+        self.withdrawal_note = (self.withdrawal_note or "").strip()
+        if (
+            self.withdrawal_reason == GradingCandidate.WithdrawalReason.OTHER
+            and not self.withdrawal_note
+        ):
+            raise ValidationError({"withdrawal_note": [OTHER_WITHDRAWAL_NOTE_MESSAGE]})
 
         if not self.age_band and self.student_id and self.session_id:
             from gradings.services import resolve_age_band

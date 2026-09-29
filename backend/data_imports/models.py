@@ -94,7 +94,6 @@ class ImportBatch(models.Model):
     summary_json = models.JSONField(default=dict, blank=True)
     # Column mapping / approved rank mappings only - never raw row content.
     configuration_json = models.JSONField(default=dict, blank=True)
-    error_summary = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

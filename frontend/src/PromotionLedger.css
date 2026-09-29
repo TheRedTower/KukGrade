@@ -46,7 +46,7 @@
 }
 
 .pl-title {
-  font-family: var(--font-display, inherit);
+  font-family: inherit;
   font-size: 1.85rem;
   font-weight: 700;
   letter-spacing: -0.02em;

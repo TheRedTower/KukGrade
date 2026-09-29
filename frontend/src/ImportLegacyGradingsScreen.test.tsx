@@ -32,22 +32,9 @@ vi.mock("./api", async () => {
 const batchResponse: DataImportBatch = {
   id: 7,
   kind: "LEGACY_GRADINGS",
-  kind_display: "Legacy grading records",
   status: "UPLOADED",
   status_display: "Uploaded",
-  original_filename: "workbook.xlsx",
-  sha256: "abc",
-  file_size: 2048,
-  uploaded_by_email: "admin@example.com",
-  uploaded_at: "2026-09-22T10:00:00Z",
-  committed_by_email: null,
-  committed_at: null,
-  cancelled_at: null,
   summary_json: {},
-  configuration_json: {},
-  error_summary: "",
-  created_at: "2026-09-22T10:00:00Z",
-  updated_at: "2026-09-22T10:00:00Z",
 };
 
 const initialPreview: LegacyImportPreview = {
@@ -60,9 +47,8 @@ const initialPreview: LegacyImportPreview = {
   unresolved_outcome: 0,
   warnings: [],
   rank_suggestions: [
-    { source_text: "Yellow", suggested_rank_id: 3, suggested_rank_code: "YELLOW" },
+    { source_text: "Yellow",  suggested_rank_code: "YELLOW" },
   ],
-  rows: [],
 };
 
 const committedBatch: DataImportBatch = {

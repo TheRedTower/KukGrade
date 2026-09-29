@@ -1,0 +1,43 @@
+/* One belt swatch for every screen: the belt colour, and a band across its
+   middle for each stripe - one for a stripe rank, two for Dahn Bo. Colours
+   come from the --belt-* tokens. */
+
+.belt {
+  display: inline-flex;
+  justify-content: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.belt-stripe {
+  width: 0.3rem;
+}
+
+.belt-white {
+  background: var(--belt-white);
+}
+
+.belt-yellow {
+  background: var(--belt-yellow);
+}
+
+.belt-blue {
+  background: var(--belt-blue);
+}
+
+.belt-red {
+  background: var(--belt-red);
+}
+
+.belt-brown {
+  background: var(--belt-brown);
+}
+
+.belt-black {
+  background: var(--belt-black);
+}

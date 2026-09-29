@@ -14,7 +14,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from accounts.services import delete_platform_user
 from audit.models import AuditAction, AuditEvent
-from data_imports.mappings import STANDARD_STUDENT_HEADERS, suggest_column_mapping
+from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
@@ -41,6 +41,16 @@ def instructor_user(email: str = "import-instructor@example.com") -> User:
     return User.objects.create_user(email=email, role=User.Role.INSTRUCTOR)
 
 
+# The header row of the frontend's "Download standard template" file
+# (ImportStudentsScreen), which suggest_column_mapping must recognise.
+STANDARD_STUDENT_HEADERS = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "date_of_birth": "Date of Birth",
+    "current_rank": "Current Rank",
+    "status": "Status",
+}
 STANDARD_MAPPING = {field: header for field, header in STANDARD_STUDENT_HEADERS.items()}
 
 
@@ -216,7 +226,6 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
     assert preview.skip_existing == 1
     row = preview.rows[0]
     assert row.outcome == "SKIP_EXISTING"
-    assert row.existing_student_display == "Existing Student (000123)"
 
 
 def test_preview_flags_duplicate_wksa_id_within_file() -> None:
@@ -457,13 +466,10 @@ def test_instructor_cannot_upload_preview_commit_or_cancel() -> None:
     cancel_response = client.post(f"/api/data-imports/batches/{batch.pk}/cancel/")
     assert cancel_response.status_code == 403
 
-    list_response = client.get("/api/data-imports/batches/")
-    assert list_response.status_code == 403
-
 
 def test_anonymous_user_is_denied() -> None:
     client = APIClient()
-    response = client.get("/api/data-imports/batches/")
+    response = client.post("/api/data-imports/batches/", {}, format="json")
     assert response.status_code in (401, 403)
 
 

@@ -26,11 +26,6 @@ what exists today and `decision_log.md` for why.
 - `architecture.md` - the modular monolith, its app boundaries, and
   deployment shape.
 - `action_plan.md` - what remains, in order.
-- `assessment-grading-redesign-handoff.md` - the in-progress rebuild of the
-  assessment grading screens: the verified backend contract, the selected
-  design directions in
-  `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/`, and
-  the implementation slices still to do. Retire it when its last slice lands.
 - `development-workflow.md` - working rules, testing expectations, and the
   one canonical list of verification commands.
 

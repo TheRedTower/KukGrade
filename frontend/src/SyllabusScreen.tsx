@@ -1,16 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   type AgeBandEnum,
   type EffectiveSyllabusRequirement,
   type Programme,
-  type SyllabusItem,
   getAllEffectiveSyllabusRequirements,
-  getSyllabusItems,
 } from "./api";
 import { BeltSwatch } from "./Belt";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import "./Syllabus.css";
-import { CORE_CATEGORY_CODES } from "./syllabusCategories";
+import { isCoreCategory } from "./syllabusCategories";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -25,6 +24,30 @@ function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: 
   };
 }
 
+interface Ledger {
+  category: string;
+  title: string;
+  rows: EffectiveSyllabusRequirement[];
+}
+
+// One ledger per category - Techniques, Forms, Weapons - in the order served.
+function ledgersByCategory(rows: EffectiveSyllabusRequirement[]): Ledger[] {
+  const ledgers = new Map<string, Ledger>();
+  for (const row of rows) {
+    const ledger = ledgers.get(row.category);
+    if (ledger) {
+      ledger.rows.push(row);
+    } else {
+      ledgers.set(row.category, {
+        category: row.category,
+        title: row.category_display,
+        rows: [row],
+      });
+    }
+  }
+  return [...ledgers.values()];
+}
+
 function SyllabusLedgerTable({
   title,
   rows,
@@ -32,14 +55,6 @@ function SyllabusLedgerTable({
   title: string;
   rows: EffectiveSyllabusRequirement[];
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="syl-empty-state">
-        <p>No {title.toLowerCase()} are listed for this rank in the current syllabus.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="syl-table-wrapper">
       <table className="syl-table" aria-label={`${title} for this rank`}>
@@ -116,86 +131,32 @@ export function SyllabusScreen() {
   const programme: Programme =
     ageBands.find((band) => band.code === selectedAgeBand)?.programme ?? "JUNIOR";
 
-  const [coreAreas, setCoreAreas] = useState<SyllabusItem[]>([]);
-  const [effectiveRequirements, setEffectiveRequirements] = useState<
-    EffectiveSyllabusRequirement[]
-  >([]);
-  const [isLoadingCoreAreas, setIsLoadingCoreAreas] = useState(true);
-  const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
-  const [requirementsError, setError] = useState<string | null>(null);
+  // Everything a grading for this rank and age band assesses, in syllabus
+  // order - the same rows assessment generation snapshots.
+  const requirementsQuery = useQuery({
+    queryKey: ["effectiveSyllabus", selectedRankCode, selectedAgeBand],
+    queryFn: () =>
+      getAllEffectiveSyllabusRequirements({
+        rank_code: selectedRankCode,
+        age_band: selectedAgeBand!,
+      }),
+    enabled: !!selectedRankCode && selectedAgeBand !== null,
+  });
+  const requirements = useMemo(
+    () => requirementsQuery.data?.results ?? [],
+    [requirementsQuery.data],
+  );
+  const isLoading =
+    ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
 
-  const catalogueError = ranksQuery.error ?? ageBandsQuery.error;
-  const error =
-    requirementsError ??
-    (catalogueError
-      ? catalogueError instanceof Error
-        ? catalogueError.message
-        : "Failed to load the syllabus catalogue."
-      : null);
+  const loadError = ranksQuery.error ?? ageBandsQuery.error ?? requirementsQuery.error;
+  const error = loadError
+    ? loadError instanceof Error
+      ? loadError.message
+      : "Failed to load the syllabus."
+    : null;
 
   const beltTrackRef = useRef<HTMLDivElement>(null);
-
-  // Load the universal core grading areas once - they are not rank-specific.
-  useEffect(() => {
-    let active = true;
-    async function fetchCoreAreas() {
-      try {
-        setIsLoadingCoreAreas(true);
-        const res = await getSyllabusItems({ page_size: 100 });
-        if (!active) return;
-        setCoreAreas((res.results || []).filter((item) => CORE_CATEGORY_CODES.has(item.category)));
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load core grading areas.",
-        );
-      } finally {
-        if (active) {
-          setIsLoadingCoreAreas(false);
-        }
-      }
-    }
-
-    void fetchCoreAreas();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Load cumulative effective requirements whenever rank or age band changes
-  useEffect(() => {
-    let active = true;
-    async function fetchEffectiveRequirements() {
-      if (!selectedRankCode || !selectedAgeBand) return;
-
-      try {
-        setIsLoadingRequirements(true);
-        setError(null);
-        const res = await getAllEffectiveSyllabusRequirements({
-          rank_code: selectedRankCode,
-          age_band: selectedAgeBand,
-        });
-        if (!active) return;
-        setEffectiveRequirements(res.results || []);
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to load syllabus requirements.",
-        );
-      } finally {
-        if (active) {
-          setIsLoadingRequirements(false);
-        }
-      }
-    }
-
-    void fetchEffectiveRequirements();
-    return () => {
-      active = false;
-    };
-  }, [selectedRankCode, selectedAgeBand]);
 
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
@@ -220,7 +181,6 @@ export function SyllabusScreen() {
     });
   }
 
-  // Determine current selected rank object and next rank
   const selectedRank = ranks.find((r) => r.code === selectedRankCode) ?? null;
   const nextRank = ranks.find((r) => r.id === selectedRank?.next_rank) ?? null;
 
@@ -229,8 +189,12 @@ export function SyllabusScreen() {
     (band, index) => ageBands.findIndex((other) => other.programme === band.programme) === index,
   );
 
-  const techniqueRows = effectiveRequirements.filter((row) => row.category === "TECHNIQUE_SET");
-  const formRows = effectiveRequirements.filter((row) => row.category === "FORM");
+  const rankName = selectedRank ? selectedRank.name : selectedRankCode;
+  const coreAreas = requirements.filter((row) => isCoreCategory(row.category));
+  const ledgers = ledgersByCategory(requirements.filter((row) => !isCoreCategory(row.category)));
+  // A rank with no syllabus of its own gets nothing back, rather than the
+  // earlier ranks' content presented as its whole curriculum.
+  const hasNoSyllabus = requirementsQuery.isSuccess && requirements.length === 0;
 
   return (
     <section aria-labelledby="syllabus-heading" className="ledger-section syl-container">
@@ -351,15 +315,15 @@ export function SyllabusScreen() {
         {/* Rank Chapter Heading */}
         <div className="syl-rank-header">
           <div>
-            <h2 className="syl-rank-title">
-              {selectedRank ? selectedRank.name : selectedRankCode}
-            </h2>
+            <h2 className="syl-rank-title">{rankName}</h2>
             <p className="syl-rank-subtitle">
               {currentAgeBand?.description || "Curriculum requirements"}
             </p>
-            <p className="syl-rank-everything-note">
-              Everything examinable through {selectedRank ? selectedRank.name : selectedRankCode}.
-            </p>
+            {requirements.length > 0 && (
+              <p className="syl-rank-everything-note">
+                Everything examinable through {rankName}, all assessed at every grading.
+              </p>
+            )}
           </div>
 
           {nextRank && (
@@ -381,71 +345,53 @@ export function SyllabusScreen() {
           </div>
         )}
 
-        {/* Universal Core Grading Areas */}
-        <div className="syl-section-block">
-          <div className="syl-section-title-wrap">
-            <h3 className="syl-section-title">Core grading areas</h3>
-            <p className="syl-section-subtitle">
-              Always assessed · all candidates are assessed in the following six areas.
+        {isLoading ? (
+          <div className="syl-loading-state" aria-live="polite">
+            <span className="syl-spinner" aria-hidden="true" />
+            <span>Loading curriculum requirements…</span>
+          </div>
+        ) : hasNoSyllabus ? (
+          <div className="syl-empty-state">
+            <p>
+              No syllabus is recorded for {rankName} in this age group yet, so nobody can be
+              assessed for it.
             </p>
           </div>
-
-          {isLoadingCoreAreas ? (
-            <div className="syl-loading-state" aria-live="polite">
-              <span className="syl-spinner" aria-hidden="true" />
-              <span>Loading core grading areas…</span>
-            </div>
-          ) : (
-            <div className="syl-core-grid">
-              {coreAreas.map((area) => (
-                <div key={area.id} className="syl-core-card">
-                  <div className="syl-core-name">{area.name}</div>
-                  {area.korean_name && <div className="syl-core-korean">{area.korean_name}</div>}
-                  <div className="syl-core-english">{area.category_display}</div>
+        ) : (
+          <>
+            {coreAreas.length > 0 && (
+              <div className="syl-section-block">
+                <div className="syl-section-title-wrap">
+                  <h3 className="syl-section-title">Core grading areas</h3>
+                  <p className="syl-section-subtitle">The same areas at every rank.</p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div className="syl-core-grid">
+                  {coreAreas.map((area) => (
+                    <div key={area.item_code} className="syl-core-card">
+                      <div className="syl-core-name">{area.item_name}</div>
+                      {area.item_korean_name && (
+                        <div className="syl-core-korean">{area.item_korean_name}</div>
+                      )}
+                      <div className="syl-core-english">{area.category_display}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {/* Techniques Ledger */}
-        <div className="syl-section-block">
-          <div className="syl-section-title-wrap">
-            <h3 className="syl-section-title">Techniques</h3>
-            <p className="syl-section-subtitle">
-              Cumulative through {selectedRank ? selectedRank.name : selectedRankCode}, latest
-              range shown when a technique set was extended at a later rank.
-            </p>
-          </div>
-
-          {isLoadingRequirements ? (
-            <div className="syl-loading-state" aria-live="polite">
-              <span className="syl-spinner" aria-hidden="true" />
-              <span>Loading curriculum requirements…</span>
-            </div>
-          ) : (
-            <SyllabusLedgerTable title="Techniques" rows={techniqueRows} />
-          )}
-        </div>
-
-        {/* Forms Ledger */}
-        <div className="syl-section-block">
-          <div className="syl-section-title-wrap">
-            <h3 className="syl-section-title">Forms</h3>
-            <p className="syl-section-subtitle">
-              Cumulative through {selectedRank ? selectedRank.name : selectedRankCode}.
-            </p>
-          </div>
-
-          {isLoadingRequirements ? (
-            <div className="syl-loading-state" aria-live="polite">
-              <span className="syl-spinner" aria-hidden="true" />
-              <span>Loading curriculum requirements…</span>
-            </div>
-          ) : (
-            <SyllabusLedgerTable title="Forms" rows={formRows} />
-          )}
-        </div>
+            {ledgers.map((ledger) => (
+              <div key={ledger.category} className="syl-section-block">
+                <div className="syl-section-title-wrap">
+                  <h3 className="syl-section-title">{ledger.title}</h3>
+                  <p className="syl-section-subtitle">
+                    Where a later rank extended an item, its latest range is shown.
+                  </p>
+                </div>
+                <SyllabusLedgerTable title={ledger.title} rows={ledger.rows} />
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Footer Reference */}

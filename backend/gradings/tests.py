@@ -49,7 +49,6 @@ from gradings.models import (
     Promotion,
 )
 from gradings.services import (
-    applicable_syllabus_requirements,
     apply_candidate_update,
     build_candidate,
     bulk_register_candidates,
@@ -76,6 +75,7 @@ from kukgrade.testing import results
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.services import effective_syllabus_requirements
 
 pytestmark = pytest.mark.django_db
 
@@ -373,8 +373,18 @@ def test_completed_and_cancelled_states_are_terminal() -> None:
         (date(2010, 6, 1), date(2027, 6, 1), AgeBand.AGE_13_TO_17),
         (date(2009, 6, 1), date(2027, 6, 1), AgeBand.AGE_18_AND_OVER),
         (date(2014, 12, 31), date(2027, 6, 1), AgeBand.AGE_9_TO_12),
+        # The day before each band's first birthday is still the band below.
+        (date(2018, 6, 2), date(2027, 6, 1), AgeBand.AGE_8_AND_UNDER),
+        (date(2014, 6, 2), date(2027, 6, 1), AgeBand.AGE_9_TO_12),
+        (date(2009, 6, 2), date(2027, 6, 1), AgeBand.AGE_13_TO_17),
+        # Every band edge of a 29 February birth falls in a common year, where
+        # the birthday counts from 1 March.
         (date(2012, 2, 29), date(2021, 2, 28), AgeBand.AGE_8_AND_UNDER),
         (date(2012, 2, 29), date(2021, 3, 1), AgeBand.AGE_9_TO_12),
+        (date(2012, 2, 29), date(2025, 2, 28), AgeBand.AGE_9_TO_12),
+        (date(2012, 2, 29), date(2025, 3, 1), AgeBand.AGE_13_TO_17),
+        (date(2008, 2, 29), date(2026, 2, 28), AgeBand.AGE_13_TO_17),
+        (date(2008, 2, 29), date(2026, 3, 1), AgeBand.AGE_18_AND_OVER),
     ],
 )
 def test_age_band_helper(dob: date, grading_date: date, expected: str) -> None:
@@ -536,65 +546,43 @@ def test_candidate_update_rejected_for_locked_or_terminal_session(
     assert "session" in exc_info.value.message_dict
 
 
-def test_applicable_syllabus_requirements_helper_returns_rank_age_rows_in_order() -> (
+def test_assessment_covers_earlier_ranks_but_not_later_ranks_or_other_age_bands() -> (
     None
 ):
-    session = grading_session()
-    candidate_student = student(date_of_birth=date(2017, 3, 20))
-    built = candidate(session=session, student=candidate_student)
-
-    first_item = SyllabusItem.objects.create(
-        code="GRADING_HELPER_FIRST",
-        name="A First Helper Item",
-        category=SyllabusItem.Category.TECHNIQUE_SET,
-    )
-    second_item = SyllabusItem.objects.create(
-        code="GRADING_HELPER_SECOND",
-        name="B Second Helper Item",
-        category=SyllabusItem.Category.TECHNIQUE_SET,
+    built = candidate(
+        student=student(date_of_birth=date(2016, 1, 1), current_rank=rank("YELLOW")),
+        testing_for_rank=rank("BLUE_STRIPE"),
     )
     SyllabusRequirement.objects.create(
-        rank=built.testing_for_rank,
-        item=second_item,
-        age_band=built.age_band,
-        sequence=200,
-    )
-    SyllabusRequirement.objects.create(
-        rank=built.testing_for_rank,
-        item=first_item,
+        rank=rank("BLUE"),
+        item=SyllabusItem.objects.create(
+            code="LATER_RANK_ITEM",
+            name="Later Rank Item",
+            category=SyllabusItem.Category.TECHNIQUE_SET,
+        ),
         age_band=built.age_band,
         sequence=100,
     )
     SyllabusRequirement.objects.create(
         rank=rank("YELLOW"),
         item=SyllabusItem.objects.create(
-            code="GRADING_HELPER_OTHER_RANK",
-            name="Other Rank Item",
+            code="OTHER_BAND_ITEM",
+            name="Other Band Item",
             category=SyllabusItem.Category.TECHNIQUE_SET,
         ),
-        age_band=built.age_band,
-        sequence=50,
+        age_band=AgeBand.AGE_18_AND_OVER,
+        sequence=100,
     )
 
-    requirements = list(applicable_syllabus_requirements(built))
-    helper_requirements = [
-        requirement
-        for requirement in requirements
-        if requirement.item.code.startswith("GRADING_HELPER_")
-    ]
+    generated = assessment(candidate=built)
 
-    assert helper_requirements == list(
-        SyllabusRequirement.objects.filter(
-            item__code__in=["GRADING_HELPER_FIRST", "GRADING_HELPER_SECOND"],
-        ).order_by("sequence", "item__name", "item__code"),
-    )
-    assert {requirement.rank for requirement in requirements} == {
-        built.testing_for_rank
+    codes = set(generated.items.values_list("item_code", flat=True))
+    assert "SOHN_PPAE_KI" in codes  # introduced at Yellow Stripe
+    assert "LATER_RANK_ITEM" not in codes
+    assert "OTHER_BAND_ITEM" not in codes
+    assert set(generated.items.values_list("source_age_band", flat=True)) == {
+        built.age_band,
     }
-    assert {requirement.age_band for requirement in requirements} == {built.age_band}
-    assert [requirement.sequence for requirement in requirements] == sorted(
-        requirement.sequence for requirement in requirements
-    )
 
 
 def test_session_api_requires_authentication() -> None:
@@ -1993,7 +1981,10 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
 def test_generate_candidate_assessment_creates_snapshot_items() -> None:
     built = candidate()
     generator = user("assessment-generator@example.com")
-    requirements = list(applicable_syllabus_requirements(built))
+    requirements = effective_syllabus_requirements(
+        rank=built.testing_for_rank,
+        age_band=built.age_band,
+    )
 
     generated = generate_candidate_assessment(built, generator)
 
@@ -2001,8 +1992,13 @@ def test_generate_candidate_assessment_creates_snapshot_items() -> None:
     assert generated.generated_by == generator
     assert generated.status == CandidateAssessment.Status.NOT_STARTED
     assert generated.generated_at is not None
-    assert generated.items.count() == len(requirements)
-    first_requirement = requirements[0]
+    assert [item.source_requirement for item in generated.items.all()] == [
+        row.requirement for row in requirements
+    ]
+    assert [item.position for item in generated.items.all()] == list(
+        range(1, len(requirements) + 1),
+    )
+    first_requirement = requirements[0].requirement
     first_item = generated.items.get(source_requirement=first_requirement)
     assert first_item.source_item == first_requirement.item
     assert first_item.source_rank == built.testing_for_rank
@@ -2016,6 +2012,88 @@ def test_generate_candidate_assessment_creates_snapshot_items() -> None:
     assert first_item.start_number == first_requirement.start_number
     assert first_item.end_number == first_requirement.end_number
     assert first_item.requirement_notes == first_requirement.notes
+
+
+# The rank each worked-example candidate holds, and a birth date in each age
+# band on the default session's grading date (2027-03-20).
+RANK_BEFORE = {"BLUE_STRIPE": "YELLOW", "JKN": "DAHN_BO"}
+BORN_IN_BAND: dict[str, date] = {
+    AgeBand.AGE_8_AND_UNDER: date(2020, 1, 1),
+    AgeBand.AGE_9_TO_12: date(2016, 1, 1),
+    AgeBand.AGE_13_TO_17: date(2012, 1, 1),
+    AgeBand.AGE_18_AND_OVER: date(1990, 1, 1),
+}
+
+
+@pytest.mark.parametrize("testing_for", ["BLUE_STRIPE", "JKN"])
+@pytest.mark.parametrize("age_band", AgeBand.values)
+def test_assessment_snapshots_the_cumulative_syllabus_the_browser_serves(
+    testing_for: str,
+    age_band: str,
+) -> None:
+    # One resolver behind both (KG-A05): what the syllabus screen lists for a
+    # rank and age band is exactly what a grading for them assesses, in the
+    # same order. syllabus/tests.py pins that content for these cases.
+    built = candidate(
+        student=student(
+            date_of_birth=BORN_IN_BAND[age_band],
+            current_rank=rank(RANK_BEFORE[testing_for]),
+        ),
+        testing_for_rank=rank(testing_for),
+    )
+    assert built.age_band == age_band
+
+    generated = assessment(candidate=built)
+    served = auth_client(f"browser-{testing_for}-{age_band}@example.com").get(
+        "/api/syllabus/requirements/effective/",
+        {"rank_code": testing_for, "age_band": age_band, "page_size": "200"},
+    )
+
+    assert [
+        (
+            item.position,
+            item.category,
+            item.item_code,
+            item.display_range,
+            item.requirement_notes,
+            item.required,
+        )
+        for item in generated.items.all()
+    ] == [
+        (
+            position,
+            row["category"],
+            row["item_code"],
+            row["display_range"],
+            row["notes"],
+            row["required"],
+        )
+        for position, row in enumerate(results(served), start=1)
+    ]
+
+
+def test_assessment_item_extended_at_an_earlier_rank_records_that_rank() -> None:
+    built = candidate(
+        student=student(
+            date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
+            current_rank=rank("YELLOW"),
+        ),
+        testing_for_rank=rank("BLUE_STRIPE"),
+    )
+
+    generated = assessment(candidate=built)
+
+    # Ki Bohn Soo was introduced at Yellow Stripe and extended to 1-15 at
+    # Yellow; a Blue Stripe grading still assesses all fifteen.
+    ki_bohn_soo = generated.items.get(item_code="KI_BOHN_SOO")
+    assert ki_bohn_soo.source_rank == rank("YELLOW")
+    assert ki_bohn_soo.source_requirement == SyllabusRequirement.objects.get(
+        rank__code="YELLOW",
+        age_band=AgeBand.AGE_18_AND_OVER,
+        item__code="KI_BOHN_SOO",
+    )
+    assert ki_bohn_soo.display_range == "1-15"
+    assert ki_bohn_soo.required is True
 
 
 def test_generate_candidate_assessment_retains_optional_requirements() -> None:
@@ -2077,30 +2155,27 @@ def test_generate_candidate_assessment_excludes_inactive_requirements_and_items(
     ).exists()
 
 
-def test_generate_candidate_assessment_rejects_no_applicable_requirements() -> None:
-    current_rank = Rank.objects.create(
-        code="NO_REQ_CURRENT",
-        name="No Requirement Current",
-        order=100,
-        category=Rank.Category.COLOURED_BELT,
-        belt_colour="WHITE",
-    )
-    target_rank = Rank.objects.create(
-        code="NO_REQ_TARGET",
-        name="No Requirement Target",
-        order=101,
-        category=Rank.Category.COLOURED_BELT,
-        belt_colour="WHITE",
-    )
+def test_generate_candidate_assessment_refuses_a_rank_with_no_recorded_syllabus() -> (
+    None
+):
+    # Everything through JKN is recorded, but nothing for KSN itself: that is
+    # not KSN's syllabus, so no assessment is generated from it.
     built = candidate(
-        student=student(current_rank=current_rank),
-        testing_for_rank=target_rank,
+        student=student(
+            date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
+            current_rank=rank("JKN"),
+        ),
+        testing_for_rank=rank("KSN"),
     )
 
     with pytest.raises(ValidationError) as exc_info:
         assessment(candidate=built)
 
-    assert "No applicable syllabus requirements exist." in str(exc_info.value)
+    assert exc_info.value.message_dict["candidate"] == [
+        "No syllabus is recorded for KSN (18+), so this candidate cannot be "
+        "assessed yet.",
+    ]
+    assert not CandidateAssessment.objects.filter(candidate=built).exists()
 
 
 @pytest.mark.parametrize(
@@ -2143,8 +2218,10 @@ def test_duplicate_assessment_is_prevented_at_database_level() -> None:
 
 def test_generation_is_atomic_if_item_creation_fails() -> None:
     built = candidate()
-    requirement = applicable_syllabus_requirements(built).first()
-    assert requirement is not None
+    requirement = effective_syllabus_requirements(
+        rank=built.testing_for_rank,
+        age_band=built.age_band,
+    )[0]
 
     # The same requirement twice breaks the item snapshot's own uniqueness: a
     # defect in the data, not a second assessment. It surfaces as the
@@ -2152,7 +2229,7 @@ def test_generation_is_atomic_if_item_creation_fails() -> None:
     # (KG-A11), and takes the half-built assessment with it.
     with (
         patch(
-            "gradings.services.applicable_syllabus_requirements",
+            "gradings.services.effective_syllabus_requirements",
             return_value=[requirement, requirement],
         ),
         pytest.raises(IntegrityError),
@@ -2988,6 +3065,47 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert item.id in [payload["id"] for payload in results(list_response)]
     assert post_response.status_code == 405
     assert delete_response.status_code == 405
+
+
+def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
+    built = candidate(
+        student=student(
+            date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
+            current_rank=rank("DAHN_BO"),
+        ),
+        testing_for_rank=rank("JKN"),
+    )
+    generated = assessment(candidate=built)
+
+    response = auth_client("syllabus-order@example.com").get(
+        "/api/gradings/assessment-items/",
+        {"assessment": generated.id, "page_size": 200},
+    )
+
+    assert response.status_code == 200
+    rows = results(response)
+    assert [row["position"] for row in rows] == list(range(1, len(rows) + 1))
+    assert "requirement_sequence" not in rows[0]
+    # Core areas first and weapons last, as the chart runs; within a category
+    # items keep the order they were introduced in, not alphabetical order.
+    assert [row["category"] for row in rows[:6]] == [
+        "ETIQUETTE",
+        "FUNDAMENTALS",
+        "HAND_TECHNIQUES",
+        "KICKING",
+        "FALLING",
+        "BREAKING",
+    ]
+    assert [row["item_name"] for row in rows if row["category"] == "WEAPONS"] == [
+        "Sword Techs",
+        "Bohng Dol-li-ki",
+    ]
+    assert rows[-1]["category"] == "WEAPONS"
+    techniques = [
+        row["item_name"] for row in rows if row["category"] == "TECHNIQUE_SET"
+    ]
+    assert techniques[:3] == ["Sohn Ppae Ki", "Ki Bohn Soo", "Sohn Mohk Soo"]
+    assert techniques[-2:] == ["Mohk Joh Leu Ki", "Bahng Too Ki"]
 
 
 def locked_completed_candidate() -> tuple[GradingCandidate, CandidateAssessment]:
@@ -4419,6 +4537,7 @@ def test_assessment_database_constraints_are_enforced() -> None:
                     item_name="Bad Age",
                     category=SyllabusItem.Category.OTHER,
                     requirement_sequence=1,
+                    position=1000,
                 ),
             ],
         )
@@ -4433,11 +4552,25 @@ def test_assessment_database_constraints_are_enforced() -> None:
                     item_name="Bad Range",
                     category=SyllabusItem.Category.OTHER,
                     requirement_sequence=1,
+                    position=1000,
                     start_number=5,
                     end_number=1,
                 ),
             ],
         )
+
+    # An item's place is its own: never zero, never shared within one
+    # assessment.
+    first = generated.items.get(position=1)
+    for position in (0, 2):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            CandidateAssessmentItem.objects.filter(pk=first.pk).update(
+                position=position,
+            )
+    first.position = 0
+    with pytest.raises(ValidationError) as exc_info:
+        first.full_clean()
+    assert exc_info.value.message_dict["position"] == ["Position must be positive."]
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
@@ -4563,6 +4696,50 @@ def test_registered_in_error_withdrawals_become_other_and_roll_back() -> None:
         executor = MigrationExecutor(connection)
         executor.migrate(old_target)
         assert stored() == ("ADMIN_ERROR", "Registered in error. Wrong student")
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_existing_assessment_items_keep_the_order_they_were_listed_in() -> None:
+    generated = assessment()
+    old_target = [("gradings", "0010_withdrawal_reason_other")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def query(columns: str, order_by: str) -> list[tuple[Any, ...]]:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                f"SELECT {columns} FROM gradings_candidateassessmentitem"
+                f" WHERE assessment_id = %s ORDER BY {order_by}",
+                [generated.pk],
+            )
+            return list(cursor.fetchall())
+
+    untouched = "id, item_code, requirement_sequence, result, updated_at"
+
+    try:
+        executor.migrate(old_target)
+        # Before positions existed, items were listed by copied sequence, then
+        # name, then id. Equal sequences leave the name to decide.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_candidateassessmentitem"
+                " SET requirement_sequence = 1 WHERE assessment_id = %s",
+                [generated.pk],
+            )
+        listed = query("id", "requirement_sequence, item_name, id")
+        before = query(untouched, "id")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+        assert query("id", "position") == listed
+        assert [row[0] for row in query("position", "position")] == list(
+            range(1, len(listed) + 1),
+        )
+        assert query(untouched, "id") == before
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)

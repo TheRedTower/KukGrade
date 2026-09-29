@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from django.contrib import admin
@@ -99,6 +100,23 @@ def test_wksa_id_preserves_leading_zeros() -> None:
     assert student.wksa_id == "000045"
 
 
+def test_age_band_turns_over_on_the_club_date_not_the_utc_date() -> None:
+    # 23:30 UTC on 1 June is already 2 June in London, the configured time
+    # zone: a student born on 2 June 2018 is nine there, not eight.
+    student = Student.objects.create(**student_kwargs(date_of_birth=date(2018, 6, 2)))
+
+    with patch(
+        "django.utils.timezone.now",
+        return_value=datetime(2027, 6, 1, 23, 30, tzinfo=UTC),
+    ):
+        assert student.age_band == "AGE_9_TO_12"
+    with patch(
+        "django.utils.timezone.now",
+        return_value=datetime(2027, 6, 1, 22, 30, tzinfo=UTC),
+    ):
+        assert student.age_band == "AGE_8_AND_UNDER"
+
+
 def test_future_date_of_birth_is_rejected() -> None:
     student = Student(
         **student_kwargs(date_of_birth=timezone.localdate() + timedelta(days=1)),
@@ -166,7 +184,7 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
             wksa_id="MIG001",
             first_name="Migration",
             last_name="Student",
-            date_of_birth=timezone.localdate().replace(year=2010),
+            date_of_birth=date(2010, 3, 1),
             # The historical model at students/0001: `status` does not exist
             # yet, and 0005 is what converts this flag.
             is_active=True,

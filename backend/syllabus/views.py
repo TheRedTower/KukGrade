@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from django.db.models import Case, IntegerField, Value, When
 from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import mixins, serializers
+from rest_framework import serializers
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -10,29 +9,14 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.permissions import HasRequiredPermissions
 from ranks.models import Rank
-from syllabus.models import AgeBand, SyllabusItem
+from syllabus.models import AgeBand
 from syllabus.serializers import (
     AgeBandSerializer,
     EffectiveSyllabusRequirementSerializer,
-    SyllabusItemSerializer,
 )
 from syllabus.services import (
     EffectiveSyllabusRequirement,
     effective_syllabus_requirements,
-)
-
-# Alphabetical category order (BREAKING before ETIQUETTE) does not match the
-# WKSA chart's own header sequence - Etiquette, Fundamentals, Hand
-# techniques, Kicking, Falling, Breaking, then Techniques and Forms. This
-# annotation sorts by that declared `Category.values` order instead, so
-# FDR-041's core-grading-areas strip can rely on the API's own ordering
-# rather than a frontend-owned sequence.
-_CATEGORY_DISPLAY_ORDER = Case(
-    *[
-        When(category=code, then=Value(index))
-        for index, code in enumerate(SyllabusItem.Category.values)
-    ],
-    output_field=IntegerField(),
 )
 
 
@@ -49,19 +33,6 @@ class AgeBandViewSet(GenericViewSet):
             AgeBand.values,  # type: ignore[arg-type]
         )
         return self.get_paginated_response(self.get_serializer(page, many=True).data)
-
-
-class SyllabusItemViewSet(mixins.ListModelMixin, GenericViewSet):
-    queryset = (
-        SyllabusItem.objects.filter(active=True)
-        .annotate(_category_order=_CATEGORY_DISPLAY_ORDER)
-        .order_by("_category_order", "name", "code")
-    )
-    serializer_class = SyllabusItemSerializer
-    permission_classes = [HasRequiredPermissions]
-    permission_map = {
-        "list": ("syllabus.view_syllabusitem",),
-    }
 
 
 class SyllabusRequirementViewSet(GenericViewSet):
@@ -84,13 +55,11 @@ class SyllabusRequirementViewSet(GenericViewSet):
     )
     @action(detail=False, methods=["get"])
     def effective(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """Cumulative Technique/Form requirements examinable through a rank.
+        """Everything a grading for this rank and age band assesses, in order.
 
-        FDR-041 / SCR-025: the plain list above only ever returns rows
-        attached directly to one rank, which cannot express that a later
-        rank's mapping for the same item extends or restates an earlier
-        one. This mode does - see `syllabus.services.
-        effective_syllabus_requirements` for the accumulation policy.
+        The same rows assessment generation snapshots - see `syllabus.
+        services.effective_syllabus_requirements` for the accumulation
+        policy. Empty when no syllabus is recorded for the rank.
         """
         rank_code = request.query_params.get("rank_code")
         age_band = request.query_params.get("age_band")

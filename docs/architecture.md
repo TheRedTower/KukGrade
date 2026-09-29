@@ -19,7 +19,7 @@
 | `audit` | The append-only `AuditEvent` log and the one `record()` function that writes it |
 | `ranks` | The seeded rank catalogue |
 | `students` | Students, their status, and their rank and grading history reads |
-| `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative effective-syllabus read model |
+| `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative resolver behind both the syllabus screen and assessment generation |
 | `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, and imported `LegacyGradingRecord`s |
 | `data_imports` | Import batches: student-roster import and the historical-workbook adapter |
 | `health` | Liveness (`/api/health/`) and database readiness (`/api/ready/`) |

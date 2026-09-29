@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-29.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 716 backend tests and 237 frontend tests passing
+Verified on 2026-09-29 with 749 backend tests and 238 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -57,13 +57,16 @@ checks on each push and pull request.
   one `BeltSwatch` from these fields and `stripe_count`. Dahn Bo is a brown
   belt with two black stripes; the black-belt titles are plain black until
   their appearance is decided.
-- Syllabus catalogue for WKSA Version 2014, read-only. Requirements are read
-  through `GET /api/syllabus/requirements/effective/`
-  (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
-  item examinable through a selected rank: the latest applicable mapping at
-  or before that rank supplies the effective range, the earliest supplies
-  where it was introduced. Core grading areas are ordered to match the WKSA
-  chart's own category sequence rather than alphabetically.
+- Syllabus catalogue for WKSA Version 2014, read-only, with adults doing all
+  seven black-belt technique sets at JKN (owner, 2026-09-29). **Every grading
+  assesses the cumulative syllabus (2026-09-29, KG-A05)**:
+  `GET /api/syllabus/requirements/effective/` is the one read of it - one row
+  per item examinable through a rank for an age band, every category (core
+  areas, Techniques, Forms, Weapons) in syllabus order, the latest applicable
+  mapping supplying the range and the earliest where it was introduced. The
+  syllabus screen shows it, and assessment generation snapshots exactly these
+  rows. A rank with no syllabus of its own recorded (White, KSN and above)
+  gets nothing, and the screen says so.
 - Student model with `ACTIVE` / `INACTIVE` / `LEFT`. `LEFT` blocks grading
   registration; both non-active states are reversible and keep history.
 - **Students API**: list, retrieve, create, partial update.
@@ -157,8 +160,12 @@ checks on each push and pull request.
   confirmation that states how many candidates are registered and that an
   open session cannot return to draft, so the roster is checked while it can
   still be edited freely.
-- Assessment generation copies applicable requirements into immutable snapshot
-  rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
+- Assessment generation copies the cumulative syllabus through the testing
+  rank into immutable snapshot rows, each with its `position` in syllabus
+  order, and refuses a rank with no recorded syllabus. Every item is required.
+  Assessments generated before 2026-09-29 keep the testing rank's own
+  requirements they were generated with. Results are `NOT_ASSESSED`, `MET`,
+  `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments
   completed only while the session is `OPEN`, and it cannot lock until every
   non-withdrawn assessment is `COMPLETED`. Until then a completed assessment
@@ -416,9 +423,9 @@ checks on each push and pull request.
   `CandidateAssessment.notes` can be written and the 1A scoring screen has no
   overall-note control. Sealing requires an explicit proofread
   acknowledgement. A sealed record shows its seal and offers no write path.
-  `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
-  `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
-  about which categories are core areas.
+  `isCoreCategory` in `syllabusCategories.ts` is shared with `SyllabusScreen`,
+  so the syllabus and the permanent record cannot disagree about which
+  categories are core areas.
 - **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
   SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
   (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the

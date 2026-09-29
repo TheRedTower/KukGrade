@@ -433,7 +433,7 @@ class CandidateAssessmentItemViewSet(
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return CandidateAssessmentItem.objects.select_related(
             "assessor",
-        ).order_by("requirement_sequence", "item_name", "pk")
+        ).order_by("assessment_id", "position")
 
 
 class CandidateOutcomeViewSet(

@@ -295,7 +295,7 @@ class CandidateAssessmentItemAdmin(admin.ModelAdmin):
         "assessment__candidate__student__last_name",
         "assessment__candidate__student__wksa_id",
     )
-    ordering = ("requirement_sequence", "item_name", "pk")
+    ordering = ("assessment", "position")
     list_select_related = (
         "assessment__candidate__session",
         "assessment__candidate__student",
@@ -312,6 +312,7 @@ class CandidateAssessmentItemAdmin(admin.ModelAdmin):
         "korean_name",
         "category",
         "requirement_sequence",
+        "position",
         "required",
         "start_number",
         "end_number",

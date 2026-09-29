@@ -39,7 +39,6 @@ export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
-export type SyllabusItem = components["schemas"]["SyllabusItem"];
 export type EffectiveSyllabusRequirement =
   components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
@@ -619,12 +618,6 @@ export async function getRanks(params?: ListQuery<"ranks_list">): Promise<Pagina
 
 export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
   return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
-}
-
-export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">): Promise<PaginatedResponse<SyllabusItem>> {
-  return apiRequest<PaginatedResponse<SyllabusItem>>(
-    withQuery("/api/syllabus/items/", params),
-  );
 }
 
 async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {

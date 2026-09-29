@@ -637,7 +637,7 @@ function AssessmentItemRow({
     >
       <div className="caw-row-detail">
         <div className="caw-row-title-line">
-          <span className="caw-row-seq">#{item.requirement_sequence}</span>
+          <span className="caw-row-seq">#{item.position}</span>
           <span className="caw-row-name">{item.item_name}</span>
           {item.korean_name && <span className="caw-row-korean">{item.korean_name}</span>}
           {item.required ? (

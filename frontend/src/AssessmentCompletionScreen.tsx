@@ -340,7 +340,7 @@ export function AssessmentCompletionScreen() {
                 <div key={item.id} className="acp-note" data-testid={`acp-note-${item.id}`}>
                   <div className="acp-note-head">
                     <span className="acp-note-title">
-                      #{item.requirement_sequence} {item.item_name}
+                      #{item.position} {item.item_name}
                       {item.korean_name && ` · ${item.korean_name}`}
                     </span>
                     <ResultMark result={item.result} />

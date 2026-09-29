@@ -6,6 +6,7 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
@@ -1629,7 +1630,7 @@ def signed_in_client(
         "/api/students/",
         "/api/gradings/sessions/",
         "/api/ranks/",
-        "/api/syllabus/items/",
+        "/api/syllabus/age-bands/",
         "/api/audit-events/",
     ],
 )
@@ -1725,6 +1726,13 @@ def test_exempt_url_names_all_resolve() -> None:
     """A renamed or removed URL must not leave a stale exemption behind."""
     known = {name for name in get_resolver().reverse_dict if isinstance(name, str)}
     assert EXEMPT_URL_NAMES <= known, EXEMPT_URL_NAMES - known
+
+
+def test_session_authentication_is_the_only_authentication_class() -> None:
+    """The gate reads the session user; a token class would authenticate past it."""
+    assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
+        "rest_framework.authentication.SessionAuthentication",
+    ]
 
 
 def test_self_service_password_change_is_audited_against_the_user() -> None:

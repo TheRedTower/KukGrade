@@ -213,8 +213,7 @@ and version management are deferred.
 | Method | Endpoint                              | Description                                      |
 |--------|----------------------------------------|--------------------------------------------------|
 | GET    | /api/syllabus/age-bands/               | The four age bands in order: `code`, `name`, `description`, `programme`, `programme_display` |
-| GET    | /api/syllabus/items/                   | List active syllabus items                       |
-| GET    | /api/syllabus/requirements/effective/  | Cumulative Technique/Form requirements examinable through a rank - see below |
+| GET    | /api/syllabus/requirements/effective/  | Everything a grading for a rank and age band assesses, in syllabus order - see below |
 
 `SyllabusItem` represents the stable assessable item. `SyllabusRequirement`
 maps that item to a target rank and age band, including `required`, `sequence`,
@@ -222,26 +221,29 @@ maps that item to a target rank and age band, including `required`, `sequence`,
 ranges are stored on the requirement, not encoded into duplicate item records.
 Form sections or parts from the source charts are currently preserved as notes.
 
-### Effective (cumulative) requirements - FDR-041 / SCR-025
+### Effective (cumulative) requirements - FDR-041 / SCR-025, KG-A05
 
 `GET /api/syllabus/requirements/effective/?rank_code=...&age_band=...`
-(both required) returns one row per `TECHNIQUE_SET`/`FORM` item examinable
-through the selected rank, not just what that rank's own requirement rows
-list; it is the only way requirements are read over the API. For an item mapped at more than one rank at or before the selection,
-the highest-order (most recent) mapping supplies the effective range/notes;
-the lowest-order mapping supplies where it was first introduced - see
+(both required) returns one row per item examinable through the selected
+rank, not just what that rank's own requirement rows list. It is the only way
+requirements are read over the API, and assessment generation snapshots
+exactly these rows (2026-09-29). Every category is included - the six core
+areas (Etiquette, Fundamentals, Hand techniques, Kicking, Falling, Breaking),
+Techniques, Forms and Weapons - in syllabus order: the chart's category
+order, then the order items were introduced. For an item mapped at more than
+one rank at or before the selection, the highest-order (most recent) mapping
+supplies the effective range/notes; the lowest-order mapping supplies where
+it was first introduced - see
 `syllabus.services.effective_syllabus_requirements`. Paginated like every
-other list endpoint. Besides the item, category, range and notes it carries
-`notation` (chart
-notation such as `Chart notation: (1/2).` normalised to `Part 1 of 2`),
+other list endpoint. Besides the item, `category`, `category_display`, range
+and notes it carries `notation` (chart notation such as
+`Chart notation: (1/2).` normalised to `Part 1 of 2`),
 `introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
 `effective_since_rank_name`, and `is_new_at_rank` (true when the effective
-row's rank is the selected rank itself). 400 with `rank_code`/`age_band`
-field errors when either is missing or invalid. The six universal core
-grading areas (Etiquette, Fundamentals, Hand techniques, Kicking, Falling,
-Breaking) are not part of this endpoint - they come from
-`/api/syllabus/items/`, ordered to match the WKSA chart's own category
-sequence rather than alphabetically.
+row's rank is the selected rank itself). An empty page means no syllabus is
+recorded for that rank and age band (White, KSN and above): earlier ranks'
+content is never served as its curriculum. 400 with `rank_code`/`age_band`
+field errors when either is missing or invalid.
 
 `/api/syllabus/age-bands/` is reference data: each band's label, the
 syllabus's name for its students, and the programme it is taught from
@@ -465,10 +467,12 @@ completion and cannot be spoofed through the candidate API. Candidates with
 assessment snapshots can be deleted only while the session is `DRAFT` and the
 assessment is `NOT_STARTED`.
 
-Assessment generation uses active `SyllabusRequirement` rows for the candidate
-testing rank and age-band snapshot in deterministic sequence order, then copies
-the requirement and item display data into immutable candidate-specific
-snapshot rows.
+Assessment generation snapshots the effective (cumulative) requirements for
+the candidate's testing rank and age-band snapshot - exactly the rows
+`GET /api/syllabus/requirements/effective/` serves, in the same order -
+copying the requirement and item display data into immutable
+candidate-specific rows, each with its `position`. A rank with no recorded
+syllabus is refused with a `candidate` error naming the rank and age band.
 
 ## 7. Assessments
 
@@ -480,7 +484,7 @@ snapshot rows.
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
 | GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
 | DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
-| GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items             |
+| GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items, in `position` order - each item's place in the assessment, from 1, in syllabus order |
 | PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
 | POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |
 | DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |

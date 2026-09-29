@@ -162,7 +162,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     korean_name: "",
     category: "KICKING",
     category_display: "Kicking",
-    requirement_sequence: id,
+    position: id,
     required: true,
     display_range: "",
     requirement_notes: "",

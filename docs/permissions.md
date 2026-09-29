@@ -110,10 +110,16 @@ The syllabus catalogue is read-only while syllabus versioning is deferred.
 ## Backend Enforcement
 
 - Every endpoint requires authentication except `/api/health/`,
-  `/api/ready/`, and login.
+  `/api/ready/`, `/api/site/`, and login.
 - Every viewset declares a `permission_map` from action to required Django
   permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
   action is denied, so a new endpoint fails closed.
+- An account whose password somebody else chose (`must_change_password`, set
+  on creation and by an administrator reset) may do nothing but read who it is,
+  change its password, and sign out, whatever permissions it holds
+  (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
+  this to every view at once, so a new endpoint is gated without declaring
+  anything; see `api_contract.md`.
 - Final decisions, promotion, and locked-session withdrawal/cancellation each
   add a per-user authority check on top, pinned by
   `accounts/test_permission_matrix.py`.

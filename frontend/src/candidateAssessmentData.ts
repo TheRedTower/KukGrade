@@ -10,9 +10,8 @@
  * recounting rows here (FDR-046). It works at any assessment status, so it
  * serves scoring as well as review.
  *
- * The client still groups items by category for rendering, because the backend
- * orders by requirement sequence and category is not an ordering key. It no
- * longer decides the counts.
+ * The client groups the served items by category for rendering, since headers
+ * and ledgers are per category. It no longer decides the counts.
  */
 import { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -89,10 +88,9 @@ export function useCandidateAssessmentData(
 
   const summary = summaryQuery.data;
 
-  // Grouped by category for rendering only. The backend orders items by
-  // requirement sequence and category is not an ordering key, so the grouping
-  // is a client concern - but the counts on each group come from the served
-  // summary, not from recounting these rows (FDR-046).
+  // Grouped by category for rendering only, keeping the served syllabus order.
+  // The counts on each group come from the served summary, not from
+  // recounting these rows (FDR-046).
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     if (items.length === 0) return [];
 

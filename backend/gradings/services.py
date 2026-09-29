@@ -6,7 +6,7 @@ from typing import TypedDict, cast
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils import timezone
 from psycopg import errors as pg_errors
 
@@ -39,7 +39,11 @@ from gradings.models import (
 )
 from ranks.models import Rank
 from students.models import Student
-from syllabus.models import AgeBand, SyllabusItem, SyllabusRequirement
+from syllabus.models import CATEGORY_ORDER, AgeBand
+from syllabus.services import (
+    EffectiveSyllabusRequirement,
+    effective_syllabus_requirements,
+)
 
 ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
     GradingSession.Status.DRAFT: {
@@ -1261,9 +1265,6 @@ def candidate_assessment_summary(
     # Unordered, so a list view's prefetched items are used as they are; the
     # counts do not depend on order and the categories are sorted below.
     items = list(assessment.items.all())
-    category_order = {
-        category: index for index, category in enumerate(SyllabusItem.Category.values)
-    }
     category_summaries: dict[str, CategoryAssessmentSummary] = {}
     overall = _empty_summary()
 
@@ -1302,7 +1303,7 @@ def candidate_assessment_summary(
         "categories": sorted(
             category_summaries.values(),
             key=lambda summary: (
-                category_order.get(str(summary["category"]), len(category_order)),
+                CATEGORY_ORDER.get(str(summary["category"]), len(CATEGORY_ORDER)),
                 str(summary["category"]),
             ),
         ),
@@ -1818,21 +1819,6 @@ def delete_candidate_assessment(
     locked.delete()
 
 
-def applicable_syllabus_requirements(
-    candidate: GradingCandidate,
-) -> QuerySet[SyllabusRequirement]:
-    return (
-        SyllabusRequirement.objects.filter(
-            rank=candidate.testing_for_rank,
-            age_band=candidate.age_band,
-            active=True,
-            item__active=True,
-        )
-        .select_related("rank", "item")
-        .order_by("sequence", "item__name", "item__code")
-    )
-
-
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:
     if candidate.session.status not in ASSESSMENT_GENERATION_SESSION_STATUSES:
         raise ValidationError(
@@ -1852,8 +1838,10 @@ def validate_assessment_generation_candidate(candidate: GradingCandidate) -> Non
 def _snapshot_item(
     *,
     assessment: CandidateAssessment,
-    requirement: SyllabusRequirement,
+    effective: EffectiveSyllabusRequirement,
+    position: int,
 ) -> CandidateAssessmentItem:
+    requirement = effective.requirement
     return CandidateAssessmentItem(
         assessment=assessment,
         source_requirement=requirement,
@@ -1865,6 +1853,7 @@ def _snapshot_item(
         korean_name=requirement.item.korean_name,
         category=requirement.item.category,
         requirement_sequence=requirement.sequence,
+        position=position,
         required=requirement.required,
         start_number=requirement.start_number,
         end_number=requirement.end_number,
@@ -1891,10 +1880,22 @@ def generate_candidate_assessment(
             {"candidate": ["Candidate already has an assessment snapshot."]},
         )
 
-    requirements = list(applicable_syllabus_requirements(locked_candidate))
+    # The cumulative syllabus, exactly as the syllabus screen shows it: every
+    # grading assesses everything examinable through the testing rank.
+    requirements = effective_syllabus_requirements(
+        rank=locked_candidate.testing_for_rank,
+        age_band=locked_candidate.age_band,
+    )
     if not requirements:
         raise ValidationError(
-            {"candidate": ["No applicable syllabus requirements exist."]},
+            {
+                "candidate": [
+                    f"No syllabus is recorded for "
+                    f"{locked_candidate.testing_for_rank.name} "
+                    f"({AgeBand(locked_candidate.age_band).label}), so this "
+                    "candidate cannot be assessed yet.",
+                ],
+            },
         )
 
     try:
@@ -1904,8 +1905,12 @@ def generate_candidate_assessment(
         )
         CandidateAssessmentItem.objects.bulk_create(
             [
-                _snapshot_item(assessment=assessment, requirement=requirement)
-                for requirement in requirements
+                _snapshot_item(
+                    assessment=assessment,
+                    effective=effective,
+                    position=position,
+                )
+                for position, effective in enumerate(requirements, start=1)
             ],
         )
     except IntegrityError as exc:

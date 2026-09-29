@@ -1747,44 +1747,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAgeBandList'
           description: ''
-  /api/syllabus/items/:
-    get:
-      operationId: syllabus_items_list
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
-      tags:
-      - syllabus
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedSyllabusItemList'
-          description: ''
   /api/syllabus/requirements/effective/:
     get:
       operationId: syllabus_requirements_effective_list
       description: |-
-        Cumulative Technique/Form requirements examinable through a rank.
+        Everything a grading for this rank and age band assesses, in order.
 
-        FDR-041 / SCR-025: the plain list above only ever returns rows
-        attached directly to one rank, which cannot express that a later
-        rank's mapping for the same item extends or restates an earlier
-        one. This mode does - see `syllabus.services.
-        effective_syllabus_requirements` for the accumulation policy.
+        The same rows assessment generation snapshots - see `syllabus.
+        services.effective_syllabus_requirements` for the accumulation
+        policy. Empty when no syllabus is recorded for the rank.
       parameters:
       - in: query
         name: age_band
@@ -2628,7 +2599,7 @@ components:
         category_display:
           type: string
           readOnly: true
-        requirement_sequence:
+        position:
           type: integer
           readOnly: true
         required:
@@ -2665,9 +2636,9 @@ components:
       - id
       - item_name
       - korean_name
+      - position
       - required
       - requirement_notes
-      - requirement_sequence
       - result_display
     CandidateAssessmentStatusEnum:
       enum:
@@ -2825,7 +2796,7 @@ components:
     EffectiveSyllabusRequirement:
       type: object
       description: |-
-        One cumulative Technique/Form row for a selected rank and age band.
+        One cumulative row for a selected rank and age band, in syllabus order.
 
         Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
         the effective (latest applicable) `SyllabusRequirement` row, so most
@@ -2843,6 +2814,9 @@ components:
           type: string
           readOnly: true
         category:
+          type: string
+          readOnly: true
+        category_display:
           type: string
           readOnly: true
         required:
@@ -2874,6 +2848,7 @@ components:
           readOnly: true
       required:
       - category
+      - category_display
       - display_range
       - effective_since_rank_code
       - effective_since_rank_name
@@ -3651,29 +3626,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StudentList'
-    PaginatedSyllabusItemList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/SyllabusItem'
     PaginatedUserManagementList:
       type: object
       required:
@@ -4340,31 +4292,6 @@ components:
         * `ACTIVE` - Active
         * `INACTIVE` - Inactive
         * `LEFT` - Left
-    SyllabusItem:
-      type: object
-      properties:
-        id:
-          type: integer
-          readOnly: true
-        name:
-          type: string
-          readOnly: true
-        korean_name:
-          type: string
-          readOnly: true
-        category:
-          allOf:
-          - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
-          readOnly: true
-        category_display:
-          type: string
-          readOnly: true
-      required:
-      - category
-      - category_display
-      - id
-      - korean_name
-      - name
     SyllabusItemCategoryEnum:
       enum:
       - ETIQUETTE

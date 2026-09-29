@@ -897,22 +897,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/syllabus/items/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_items_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/syllabus/requirements/effective/": {
         parameters: {
             query?: never;
@@ -921,13 +905,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Cumulative Technique/Form requirements examinable through a rank.
+         * @description Everything a grading for this rank and age band assesses, in order.
          *
-         *     FDR-041 / SCR-025: the plain list above only ever returns rows
-         *     attached directly to one rank, which cannot express that a later
-         *     rank's mapping for the same item extends or restates an earlier
-         *     one. This mode does - see `syllabus.services.
-         *     effective_syllabus_requirements` for the accumulation policy.
+         *     The same rows assessment generation snapshots - see `syllabus.
+         *     services.effective_syllabus_requirements` for the accumulation
+         *     policy. Empty when no syllabus is recorded for the rank.
          */
         get: operations["syllabus_requirements_effective_list"];
         put?: never;
@@ -1306,7 +1288,7 @@ export interface components {
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
-            readonly requirement_sequence: number;
+            readonly position: number;
             readonly required: boolean;
             readonly display_range: string;
             readonly requirement_notes: string;
@@ -1386,7 +1368,7 @@ export interface components {
          */
         DatePrecisionEnum: "MONTH" | "DAY";
         /**
-         * @description One cumulative Technique/Form row for a selected rank and age band.
+         * @description One cumulative row for a selected rank and age band, in syllabus order.
          *
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
          *     the effective (latest applicable) `SyllabusRequirement` row, so most
@@ -1399,6 +1381,7 @@ export interface components {
             readonly item_name: string;
             readonly item_korean_name: string;
             readonly category: string;
+            readonly category_display: string;
             readonly required: boolean;
             readonly display_range: string;
             readonly notation: string;
@@ -1778,21 +1761,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["StudentList"][];
         };
-        PaginatedSyllabusItemList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["SyllabusItem"][];
-        };
         PaginatedUserManagementList: {
             /** @example 123 */
             count: number;
@@ -2119,13 +2087,6 @@ export interface components {
          * @enum {string}
          */
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
-        SyllabusItem: {
-            readonly id: number;
-            readonly name: string;
-            readonly korean_name: string;
-            readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display: string;
-        };
         /**
          * @description * `ETIQUETTE` - Etiquette
          *     * `FUNDAMENTALS` - Fundamentals
@@ -3655,30 +3616,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedAgeBandList"];
-                };
-            };
-        };
-    };
-    syllabus_items_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedSyllabusItemList"];
                 };
             };
         };

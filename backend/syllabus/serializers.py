@@ -8,31 +8,12 @@ from syllabus.models import (
     AGE_BAND_PROGRAMME,
     AgeBand,
     Programme,
-    SyllabusItem,
 )
 from syllabus.services import EffectiveSyllabusRequirement, normalize_chart_notation
 
 
-class SyllabusItemSerializer(serializers.ModelSerializer):
-    category_display = serializers.CharField(
-        source="get_category_display",
-        read_only=True,
-    )
-
-    class Meta:
-        model = SyllabusItem
-        fields = (
-            "id",
-            "name",
-            "korean_name",
-            "category",
-            "category_display",
-        )
-        read_only_fields = fields
-
-
 class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
-    """One cumulative Technique/Form row for a selected rank and age band.
+    """One cumulative row for a selected rank and age band, in syllabus order.
 
     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
     the effective (latest applicable) `SyllabusRequirement` row, so most
@@ -48,6 +29,10 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
         read_only=True,
     )
     category = serializers.CharField(source="requirement.item.category", read_only=True)
+    category_display = serializers.CharField(
+        source="requirement.item.get_category_display",
+        read_only=True,
+    )
     # "required" collides with Field.required (whether the input itself is
     # mandatory) only in the type stubs, not at runtime - DRF serializers
     # commonly have a field named this for exactly this reason.

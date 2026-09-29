@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyllabusScreen } from "./SyllabusScreen";
-import type { AgeBand, EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+import type { AgeBand, EffectiveSyllabusRequirement, Rank } from "./api";
 
 function renderScreen() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -71,61 +71,17 @@ const mockRanks: Rank[] = [
     belt_colour: "BLUE",
     stripe_colour: "",
     stripe_count: 0,
+    next_rank: 6,
+  },
+  {
+    id: 6,
+    code: "JKN",
+    name: "JKN",
+    order: 12,
+    belt_colour: "BLACK",
+    stripe_colour: "",
+    stripe_count: 0,
     next_rank: null,
-  },
-];
-
-const mockCoreAreas: SyllabusItem[] = [
-  {
-    id: 101,
-    name: "Yea Eue",
-    korean_name: "예의",
-    category: "ETIQUETTE",
-    category_display: "Etiquette",
-  },
-  {
-    id: 102,
-    name: "Ki Cho Jah Ki",
-    korean_name: "기초짜기",
-    category: "FUNDAMENTALS",
-    category_display: "Fundamentals",
-  },
-  {
-    id: 103,
-    name: "Soo Ki",
-    korean_name: "수기",
-    category: "HAND_TECHNIQUES",
-    category_display: "Hand techniques",
-  },
-  {
-    id: 104,
-    name: "Johk Sool",
-    korean_name: "족술",
-    category: "KICKING",
-    category_display: "Kicking",
-  },
-  {
-    id: 105,
-    name: "Nahk Bup",
-    korean_name: "낙법",
-    category: "FALLING",
-    category_display: "Falling",
-  },
-  {
-    id: 106,
-    name: "Kyuk Pah",
-    korean_name: "격파",
-    category: "BREAKING",
-    category_display: "Breaking",
-  },
-  // A non-core item, present in the same catalogue response, must not leak
-  // into the core grading areas strip.
-  {
-    id: 107,
-    name: "Ki Bohn Soo",
-    korean_name: "기본수",
-    category: "TECHNIQUE_SET",
-    category_display: "Technique set",
   },
 ];
 
@@ -137,6 +93,7 @@ function effectiveRow(
     item_name: "Ki Bohn Soo",
     item_korean_name: "기본수",
     category: "TECHNIQUE_SET",
+    category_display: "Technique set",
     required: true,
     display_range: "1-10",
     notation: "",
@@ -150,16 +107,33 @@ function effectiveRow(
   };
 }
 
+// The six universal areas, served in the same response as everything else.
+const coreAreas: EffectiveSyllabusRequirement[] = [
+  ["YEA_EUE", "Yea Eue", "예의", "ETIQUETTE", "Etiquette"],
+  ["KI_CHO_JAH_KI", "Ki Cho Jah Ki", "기초짜기", "FUNDAMENTALS", "Fundamentals"],
+  ["SOO_KI", "Soo Ki", "수기", "HAND_TECHNIQUES", "Hand techniques"],
+  ["JOHK_SOOL", "Johk Sool", "족술", "KICKING", "Kicking"],
+  ["NAHK_BUP", "Nahk Bup", "낙법", "FALLING", "Falling"],
+  ["KYUK_PAH", "Kyuk Pah", "격파", "BREAKING", "Breaking"],
+].map(([item_code, item_name, item_korean_name, category, category_display]) =>
+  effectiveRow({
+    item_code,
+    item_name,
+    item_korean_name,
+    category,
+    category_display,
+    display_range: "",
+    introduced_rank_code: "YELLOW_STRIPE",
+    introduced_rank_name: "Yellow Stripe",
+  }),
+);
+
 const mockYellowEffective: EffectiveSyllabusRequirement[] = [
+  ...coreAreas,
   effectiveRow({
     item_code: "KI_BOHN_SOO",
     item_name: "Ki Bohn Soo",
-    category: "TECHNIQUE_SET",
     display_range: "1-10",
-    introduced_rank_code: "YELLOW",
-    introduced_rank_name: "Yellow",
-    effective_since_rank_code: "YELLOW",
-    effective_since_rank_name: "Yellow",
     is_new_at_rank: true,
   }),
   effectiveRow({
@@ -167,20 +141,17 @@ const mockYellowEffective: EffectiveSyllabusRequirement[] = [
     item_name: "Ki Cho Hyung",
     item_korean_name: "기초형",
     category: "FORM",
+    category_display: "Form",
     display_range: "1-6",
-    introduced_rank_code: "YELLOW",
-    introduced_rank_name: "Yellow",
-    effective_since_rank_code: "YELLOW",
-    effective_since_rank_name: "Yellow",
     is_new_at_rank: true,
   }),
 ];
 
 const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
+  ...coreAreas,
   effectiveRow({
     item_code: "KI_BOHN_SOO",
     item_name: "Ki Bohn Soo",
-    category: "TECHNIQUE_SET",
     display_range: "1-15",
     introduced_rank_code: "YELLOW_STRIPE",
     introduced_rank_name: "Yellow Stripe",
@@ -192,7 +163,6 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_code: "SOHN_MOHK_SOO",
     item_name: "Sohn Mohk Soo",
     item_korean_name: "손목수",
-    category: "TECHNIQUE_SET",
     display_range: "1-5",
     introduced_rank_code: "BLUE_STRIPE",
     introduced_rank_name: "Blue Stripe",
@@ -205,6 +175,7 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_name: "Cho Geup Hyung",
     item_korean_name: "초급형",
     category: "FORM",
+    category_display: "Form",
     display_range: "",
     notation: "Part 1 of 2",
     notes: "Chart notation: (1/2).",
@@ -214,6 +185,42 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     effective_since_rank_name: "Blue Stripe",
     is_new_at_rank: true,
   }),
+];
+
+const mockJknEffective: EffectiveSyllabusRequirement[] = [
+  ...coreAreas,
+  effectiveRow({ item_code: "SOHN_PPAE_KI", item_name: "Sohn Ppae Ki", display_range: "1-5" }),
+  effectiveRow({
+    item_code: "GUHM_MOO_HYUNG",
+    item_name: "Guhm Moo Hyung",
+    item_korean_name: "검무형",
+    category: "FORM",
+    category_display: "Form",
+    display_range: "",
+    introduced_rank_code: "JKN",
+    introduced_rank_name: "JKN",
+    effective_since_rank_code: "JKN",
+    effective_since_rank_name: "JKN",
+    is_new_at_rank: true,
+  }),
+  ...[
+    ["SWORD_TECHS", "Sword Techs", "기초검", "1-5"],
+    ["BOHNG_DOL_LI_KI", "Bohng Dol-li-ki", "봉돌리기", "1-15"],
+  ].map(([item_code, item_name, item_korean_name, display_range]) =>
+    effectiveRow({
+      item_code,
+      item_name,
+      item_korean_name,
+      category: "WEAPONS",
+      category_display: "Weapons",
+      display_range,
+      introduced_rank_code: "JKN",
+      introduced_rank_name: "JKN",
+      effective_since_rank_code: "JKN",
+      effective_since_rank_name: "JKN",
+      is_new_at_rank: true,
+    }),
+  ),
 ];
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -228,7 +235,10 @@ function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function stubFetch(effectiveByRank: Record<string, EffectiveSyllabusRequirement[]>) {
+function stubFetch(
+  effectiveByRank: Record<string, EffectiveSyllabusRequirement[]>,
+  { effectiveFails = false }: { effectiveFails?: boolean } = {},
+) {
   vi.stubGlobal(
     "fetch",
     vi.fn().mockImplementation((input: RequestInfo | URL) => {
@@ -239,10 +249,10 @@ function stubFetch(effectiveByRank: Record<string, EffectiveSyllabusRequirement[
       if (url.includes("/api/ranks/")) {
         return Promise.resolve(jsonResponse(200, paginated(mockRanks)));
       }
-      if (url.includes("/api/syllabus/items/")) {
-        return Promise.resolve(jsonResponse(200, paginated(mockCoreAreas)));
-      }
       if (url.includes("/api/syllabus/requirements/effective/")) {
+        if (effectiveFails) {
+          return Promise.reject(new Error("Network connection lost"));
+        }
         const match = /rank_code=([^&]+)/.exec(url);
         const rankCode = match ? match[1] : "";
         return Promise.resolve(
@@ -259,7 +269,7 @@ describe("SyllabusScreen", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders header, filters, belt rail, core areas and the two cumulative ledgers", async () => {
+  it("renders header, filters, belt rail, core areas and a cumulative ledger per category", async () => {
     stubFetch({ YELLOW: mockYellowEffective });
 
     renderScreen();
@@ -286,30 +296,34 @@ describe("SyllabusScreen", () => {
     // Rank title, subtitle and the "everything examinable" note
     expect(screen.getByRole("heading", { name: "Yellow", level: 2 })).toBeVisible();
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
-    expect(screen.getByText("Everything examinable through Yellow.")).toBeVisible();
+    expect(
+      await screen.findByText("Everything examinable through Yellow, all assessed at every grading."),
+    ).toBeVisible();
 
     // Next rank button
     expect(screen.getByRole("button", { name: "Next rank: Blue Stripe →" })).toBeVisible();
 
-    // Core grading areas: only the six core-category items, from the API
+    // Core grading areas: the core-category rows of the same response
     expect(screen.getByRole("heading", { name: "Core grading areas" })).toBeVisible();
     for (const name of ["Yea Eue", "Ki Cho Jah Ki", "Soo Ki", "Johk Sool", "Nahk Bup", "Kyuk Pah"]) {
-      expect(await screen.findByText(name)).toBeVisible();
+      expect(screen.getByText(name)).toBeVisible();
     }
-    // Techniques ledger
-    const techniquesTable = await screen.findByRole("table", { name: "Techniques for this rank" });
+
+    // One ledger per remaining category, headed by its served label
+    const techniquesTable = screen.getByRole("table", { name: "Technique set for this rank" });
     expect(within(techniquesTable).getByText("Ki Bohn Soo")).toBeVisible();
     expect(within(techniquesTable).getByText("1-10")).toBeVisible();
-    // The non-core "Ki Bohn Soo" item from the same items-catalogue response
-    // must appear only in the ledger below, not duplicated into the core
-    // grading areas strip.
-    expect(screen.getAllByText("Ki Bohn Soo")).toHaveLength(1);
     expect(within(techniquesTable).getByText("NEW")).toBeVisible();
+    // Neither a core area in the ledger nor a technique in the core strip.
+    expect(screen.getAllByText("Ki Bohn Soo")).toHaveLength(1);
+    expect(within(techniquesTable).queryByText("Yea Eue")).not.toBeInTheDocument();
 
-    // Forms ledger
-    const formsTable = screen.getByRole("table", { name: "Forms for this rank" });
+    const formsTable = screen.getByRole("table", { name: "Form for this rank" });
     expect(within(formsTable).getByText("Ki Cho Hyung")).toBeVisible();
     expect(within(formsTable).getByText("1-6")).toBeVisible();
+
+    // No weapons are listed before black belt, so no weapons ledger.
+    expect(screen.queryByRole("table", { name: "Weapons for this rank" })).not.toBeInTheDocument();
 
     // Footer
     expect(
@@ -329,7 +343,12 @@ describe("SyllabusScreen", () => {
     const blueStripeBtn = await screen.findByRole("button", { name: "Blue Stripe" });
     await user.click(blueStripeBtn);
 
-    const techniquesTable = await screen.findByRole("table", { name: "Techniques for this rank" });
+    const techniquesTable = await screen.findByRole("table", {
+      name: "Technique set for this rank",
+    });
+    await waitFor(() => {
+      expect(within(techniquesTable).getByText("1-15")).toBeVisible();
+    });
     // Ki Bohn Soo: extended at Yellow, not new at Blue Stripe.
     const kiBohnSooRow = within(techniquesTable).getByText("1-15").closest("tr");
     expect(kiBohnSooRow).not.toBeNull();
@@ -342,8 +361,31 @@ describe("SyllabusScreen", () => {
     expect(sohnMohkSooRow).not.toBeNull();
     expect(within(sohnMohkSooRow as HTMLElement).getByText("NEW")).toBeVisible();
 
-    const formsTable = screen.getByRole("table", { name: "Forms for this rank" });
+    const formsTable = screen.getByRole("table", { name: "Form for this rank" });
     expect(within(formsTable).getByText("Part 1 of 2")).toBeVisible();
+  });
+
+  it("lists weapons in their own ledger where the rank has them", async () => {
+    const user = userEvent.setup();
+    stubFetch({ YELLOW: mockYellowEffective, JKN: mockJknEffective });
+
+    renderScreen();
+
+    await user.click(await screen.findByRole("button", { name: "JKN" }));
+
+    const weaponsTable = await screen.findByRole("table", { name: "Weapons for this rank" });
+    expect(within(weaponsTable).getByText("Sword Techs")).toBeVisible();
+    expect(within(weaponsTable).getByText("1-5")).toBeVisible();
+    expect(within(weaponsTable).getByText("Bohng Dol-li-ki")).toBeVisible();
+    expect(within(weaponsTable).getByText("1-15")).toBeVisible();
+    // Ledgers follow the served order: techniques, forms, then weapons.
+    expect(
+      screen.getAllByRole("table").map((table) => table.getAttribute("aria-label")),
+    ).toEqual([
+      "Technique set for this rank",
+      "Form for this rank",
+      "Weapons for this rank",
+    ]);
   });
 
   it("switches rank when belt button or testing for selector is changed", async () => {
@@ -360,8 +402,10 @@ describe("SyllabusScreen", () => {
     expect(await screen.findByRole("heading", { name: "Blue Stripe", level: 2 })).toBeVisible();
     expect(screen.getByRole("button", { name: "Next rank: Blue →" })).toBeVisible();
 
-    const techniquesTable = await screen.findByRole("table", { name: "Techniques for this rank" });
-    expect(within(techniquesTable).getByText("Sohn Mohk Soo")).toBeVisible();
+    const techniquesTable = await screen.findByRole("table", {
+      name: "Technique set for this rank",
+    });
+    expect(await within(techniquesTable).findByText("Sohn Mohk Soo")).toBeVisible();
   });
 
   it("advances to next rank when clicking 'Next rank: ... →'", async () => {
@@ -403,37 +447,29 @@ describe("SyllabusScreen", () => {
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
   });
 
-  it("renders empty state when rank has no cumulative requirements", async () => {
+  it("says so when no syllabus is recorded for the rank, rather than showing earlier ranks' content", async () => {
     stubFetch({});
 
     renderScreen();
 
     expect(
-      await screen.findByText("No techniques are listed for this rank in the current syllabus."),
+      await screen.findByText(
+        "No syllabus is recorded for Yellow in this age group yet, so nobody can be assessed for it.",
+      ),
     ).toBeVisible();
-    expect(
-      screen.getByText("No forms are listed for this rank in the current syllabus."),
-    ).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Core grading areas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Everything examinable through/)).not.toBeInTheDocument();
   });
 
   it("renders error banner when the effective-requirements fetch fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation((input: RequestInfo | URL) => {
-        const url = String(input);
-        if (url.includes("/api/ranks/")) {
-          return Promise.resolve(jsonResponse(200, paginated(mockRanks)));
-        }
-        if (url.includes("/api/syllabus/items/")) {
-          return Promise.resolve(jsonResponse(200, paginated(mockCoreAreas)));
-        }
-        return Promise.reject(new Error("Network connection lost"));
-      }),
-    );
+    stubFetch({}, { effectiveFails: true });
 
     renderScreen();
 
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(screen.getByText("Network connection lost")).toBeVisible();
+    // A failed load is not "no syllabus recorded".
+    expect(screen.queryByText(/No syllabus is recorded/)).not.toBeInTheDocument();
   });
 });

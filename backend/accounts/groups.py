@@ -31,7 +31,6 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("students", "add_student"),
     ("students", "change_student"),
     ("ranks", "view_rank"),
-    ("syllabus", "view_syllabusitem"),
     ("syllabus", "view_syllabusrequirement"),
     ("gradings", "view_gradingsession"),
     ("gradings", "add_gradingsession"),

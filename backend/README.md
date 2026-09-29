@@ -90,8 +90,10 @@ everywhere:
 Migrations seed the rank catalogue
 (`ranks/migrations/0002_seed_rank_catalogue.py`), the WKSA Version 2014
 syllabus from the Junior and Adult/Youth Testing Requirement Charts
-(`syllabus/migrations/0002_seed_wksa_2014_syllabus.py`), and the "Deleted
-User" placeholder account a hard-deleted user's history is reassigned to
+(`syllabus/migrations/0002_seed_wksa_2014_syllabus.py`, with the adults'
+seven black-belt technique sets completed in `0003_adult_jkn_technique_sets.py`),
+and the "Deleted User" placeholder account a hard-deleted user's history is
+reassigned to
 (`accounts/migrations/0005_seed_deleted_user_placeholder.py`). Numbered
 technique ranges live on `SyllabusRequirement`; form parts remain concise
 notes.

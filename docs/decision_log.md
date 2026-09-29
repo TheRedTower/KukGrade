@@ -18,6 +18,65 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - Every grading assesses the cumulative syllabus
+
+Status: Accepted
+
+Decision:
+A grading assesses everything examinable through the rank being tested for,
+for the candidate's age band - not only the material that rank introduces.
+The owner's words: "we test everything every grading... they have to
+demonstrate knowledge cumulatively." One resolver,
+`syllabus.services.effective_syllabus_requirements`, serves the syllabus
+screen and is what assessment generation snapshots, so the two cannot
+disagree. It covers every category - the six core areas, Techniques, Forms
+and Weapons - in syllabus order: the chart's category order, then the order
+items were introduced. Where a later rank extends an item, its latest range
+applies. Every item stays required: each is marked Met or Not met before the
+assessment can be completed, and a session still locks only when every
+assessment is complete.
+
+A rank with no requirement of its own for an age band has no recorded
+syllabus. The resolver returns nothing for it and generation refuses, naming
+the rank, rather than presenting everything through the rank below as its
+curriculum. Today that is White, and KSN upwards.
+
+Assessment items gain `position`, their place in the assessment in syllabus
+order; items are listed and numbered by it. The copied `requirement_sequence`
+stays on the snapshot as trace data but no longer orders it - it is only an
+item's place among its own rank's requirements - and is no longer served.
+
+Jo Kyo Nim, settled the same day: adults do all seven black-belt technique
+sets, the five the chart marks for 13-17 plus Mohk Joh Leu Ki and Bahng Too
+Ki (`syllabus/0003`). The weapons are Sword Techs 1-5 and Bohng Dol-li-ki
+(staff spinning) 1-15, or 1-10 for 12 and under as the Junior chart says.
+Weapon forms and staff sparring follow JKN, with the 2nd Dahn syllabus, which
+is not recorded yet.
+
+`GET /api/syllabus/items/` is removed: the syllabus screen reads the core
+areas from the effective view with everything else. Supersedes the endpoint
+list in the 2026-06-23 "Syllabus catalogue foundation" entry: the syllabus is
+read only through `GET /api/syllabus/requirements/effective/` and the age
+bands, and no plain item or requirement list remains.
+
+Context:
+The 2026-09-29 independent audit (KG-A05) found generation used only the
+testing rank's own rows while the syllabus screen showed the cumulative view:
+an adult testing for Blue Stripe was assessed on Sohn Mohk Soo and Cho Geup
+Hyung but not Sohn Ppae Ki, Ki Bohn Soo or Ki Cho Hyung. The screen showed no
+weapons, and for KSN and above showed everything through JKN as if it were
+their curriculum. KG-A06, the student list's age-band filter, no longer
+applies: the filter was removed as unused earlier the same day (03a45df).
+Every age band is computed by `resolve_age_band`.
+
+Consequences:
+Assessments are larger and all required: 22-29 items at JKN against 11-14
+before, 9-11 at Blue Stripe. Assessments generated before this change keep
+the content they were generated with - snapshots are never regenerated.
+Their items are numbered in the order they were already listed in, and
+nothing else on them changes. Recording the 2nd Dahn syllabus and above, in
+its own chart version, is future content work.
+
 ### 2026-09-29 - One grading lock protocol: session, then students
 
 Status: Accepted

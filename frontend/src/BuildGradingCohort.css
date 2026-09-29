@@ -224,7 +224,7 @@
   flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
-  background: var(--color-surface-raised, rgba(217, 119, 6, 0.05));
+  background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--btn-primary-bg, #d97706);
   border-radius: 6px;
@@ -301,7 +301,7 @@
 }
 
 .bgc-table tbody tr:hover {
-  background: var(--color-surface-raised, rgba(0, 0, 0, 0.02));
+  background: var(--color-surface-sunken);
 }
 
 .bgc-rank-cell {
@@ -828,7 +828,7 @@
 }
 
 .bgc-td-wksa {
-  font-family: var(--font-mono, monospace);
+  font-family: monospace;
   font-size: 0.82rem;
   color: var(--color-text-muted);
 }

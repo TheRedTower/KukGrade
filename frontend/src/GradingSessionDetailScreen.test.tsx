@@ -86,12 +86,8 @@ function lockedSession(): GradingSession {
     status_display: "Locked",
     location: "Colchester",
     notes: "",
-    created_at: "2027-03-01T00:00:00Z",
-    updated_at: "2027-03-01T00:00:00Z",
-    created_by: 1,
-    created_by_name: "Admin User",
     cancellation_reason: "",
-  } as unknown as GradingSession;
+  };
 }
 
 function emptyPage() {
@@ -185,11 +181,17 @@ function registeredCandidate(): GradingCandidate {
     student: 131,
     student_display_name: "Mia Okafor",
     student_wksa_id: "KG-31",
+    from_rank: 1,
     from_rank_name: "White",
+    testing_for_rank: 2,
     testing_for_rank_name: "Yellow Stripe",
+    age_band_display: "18+",
     status: "REGISTERED",
-    status_display: "Registered",
-  } as unknown as GradingCandidate;
+    notes: "",
+    withdrawal_reason: "",
+    withdrawal_reason_display: "",
+    withdrawal_note: "",
+  };
 }
 
 describe("GradingSessionDetailScreen registration actions", () => {

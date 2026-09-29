@@ -45,12 +45,11 @@ const student = {
   date_of_birth: "2015-03-20",
   current_rank: 2,
   current_rank_name: "Yellow Stripe",
-  current_rank_code: "YELLOW_STRIPE",
   status: "ACTIVE",
   status_display: "Active",
+  age_band_display: "9-12",
   created_at: "2025-01-01T00:00:00Z",
-  updated_at: "2025-01-01T00:00:00Z",
-} as unknown as StudentDetail;
+} satisfies StudentDetail;
 
 const rankHistory: StudentRankHistory = {
   promotions: [],

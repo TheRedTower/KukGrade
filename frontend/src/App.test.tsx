@@ -5,13 +5,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import type {
   AgeBand,
+  AuditEvent,
+  AuthUser,
   CandidateAssessment,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
+  CandidateOutcome,
   GradingCandidate,
   GradingSession,
   Rank,
+  StudentDetail,
   StudentListItem,
+  StudentRankHistory,
 } from "./api";
 
 const authUser = {
@@ -20,7 +25,6 @@ const authUser = {
   first_name: "Casey",
   last_name: "Instructor",
   full_name: "Casey Instructor",
-  role: "instructor",
   role_display: "Instructor",
   can_make_final_grading_decision: false,
   can_promote_student: false,
@@ -34,9 +38,7 @@ const authUser = {
   can_delete_any_session: false,
   can_read_audit_log: false,
   must_change_password: false,
-  is_staff: false,
-  is_superuser: false,
-};
+} satisfies AuthUser;
 
 // What /api/auth/me/ reports for an account in the Administrator group.
 const ADMINISTRATOR_CAPABILITIES = {
@@ -47,7 +49,7 @@ const ADMINISTRATOR_CAPABILITIES = {
   can_delete_assessments: true,
   can_delete_any_session: true,
   can_read_audit_log: true,
-};
+} satisfies Partial<AuthUser>;
 
 function jsonResponse(status: number, body: unknown): Response {
   return {
@@ -569,7 +571,7 @@ describe("Navigation rail and role-gated routes", () => {
     ...authUser,
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
-  };
+  } satisfies AuthUser;
 
   const adminUser = {
     ...authUser,
@@ -578,13 +580,12 @@ describe("Navigation rail and role-gated routes", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_promote_student: true,
     can_override_locked_session: true,
-    is_staff: true,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -731,7 +732,8 @@ describe("Instructor profile menu and Master capabilities", () => {
     can_read_audit_log: true,
     can_promote_student: false,
     can_override_locked_session: false,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   const adminUser = {
     ...authUser,
@@ -740,14 +742,13 @@ describe("Instructor profile menu and Master capabilities", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: false,
     can_promote_student: true,
     can_override_locked_session: true,
-    is_staff: true,
-  };
+    can_view_grading_audit_log: false,
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -937,7 +938,7 @@ describe("Mandatory password change", () => {
   const forcedUser = {
     ...authUser,
     must_change_password: true,
-  };
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -1142,11 +1143,7 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "OPEN",
       status_display: "Open",
       location: "Colchester Dojang",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-15T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const upcomingSession = {
       id: 102,
@@ -1155,105 +1152,72 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "DRAFT",
       status_display: "Draft",
       location: "Ipswich Central",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-01T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const candidates = [
       {
         id: 201,
         session: 101,
-        session_title: "Spring Grading 2026",
         student: 301,
         student_display_name: "Student One",
         student_wksa_id: "UK12345",
         from_rank: 1,
-        from_rank_code: "WHITE",
         from_rank_name: "White",
         testing_for_rank: 2,
-        testing_for_rank_code: "YS",
         testing_for_rank_name: "Yellow Stripe",
-        age_band: "ADULT",
         age_band_display: "18+",
         status: "REGISTERED",
-        status_display: "Registered",
-        created_at: "2026-05-10T10:00:00Z",
-        updated_at: "2026-05-10T10:00:00Z",
+        withdrawal_reason_display: "",
       },
       {
         id: 202,
         session: 101,
-        session_title: "Spring Grading 2026",
         student: 302,
         student_display_name: "Student Two",
         student_wksa_id: "UK12346",
         from_rank: 2,
-        from_rank_code: "YS",
         from_rank_name: "Yellow Stripe",
         testing_for_rank: 3,
-        testing_for_rank_code: "Y",
         testing_for_rank_name: "Yellow Belt",
-        age_band: "ADULT",
         age_band_display: "18+",
         status: "REGISTERED",
-        status_display: "Registered",
-        created_at: "2026-05-10T10:00:00Z",
-        updated_at: "2026-05-10T10:00:00Z",
+        withdrawal_reason_display: "",
       },
-    ];
+    ] satisfies GradingCandidate[];
 
     const assessments = [
       {
         id: 401,
         candidate: 201,
         candidate_student_name: "Student One",
-        candidate_student_wksa_id: "UK12345",
-        testing_for_rank_code: "YS",
-        testing_for_rank_name: "Yellow Stripe",
-        age_band: "ADULT",
-        age_band_display: "18+",
         status: "COMPLETED",
         status_display: "Completed",
-        generated_by: authUser.id,
         generated_by_email: authUser.email,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
         completed_at: "2026-05-15T11:00:00Z",
-        created_at: "2026-05-15T09:30:00Z",
-        updated_at: "2026-05-15T11:00:00Z",
       },
       {
         id: 402,
         candidate: 202,
         candidate_student_name: "Student Two",
-        candidate_student_wksa_id: "UK12346",
-        testing_for_rank_code: "Y",
-        testing_for_rank_name: "Yellow Belt",
-        age_band: "ADULT",
-        age_band_display: "18+",
         status: "IN_PROGRESS",
         status_display: "In Progress",
-        generated_by: authUser.id,
         generated_by_email: authUser.email,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
         completed_at: null,
-        created_at: "2026-05-15T09:30:00Z",
-        updated_at: "2026-05-15T10:30:00Z",
       },
-    ];
+    ] satisfies CandidateAssessment[];
 
     const auditEvents = [
       {
         id: 501,
         occurred_at: new Date().toISOString(),
-        action: "candidate_assessment.completed",
+        action: "ASSESSMENT_COMPLETED",
         action_display: "Assessment Completed",
         entity_type: "CandidateAssessment",
         entity_id: "401",
-        actor: authUser.id,
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment complete (ready for review)",
@@ -1262,21 +1226,20 @@ describe("Overview screen (Operational Ledger)", () => {
       {
         id: 502,
         occurred_at: new Date().toISOString(),
-        action: "candidate_assessment.started",
+        action: "ASSESSMENT_STARTED",
         action_display: "Assessment Started",
         entity_type: "CandidateAssessment",
         entity_id: "402",
-        actor: authUser.id,
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
         summary: "Assessment started on the mat",
         metadata: {},
       },
-    ];
+    ] satisfies AuditEvent[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
+        return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, {
@@ -1340,7 +1303,7 @@ describe("Overview screen (Operational Ledger)", () => {
   });
 
   it("offers the audit feed by audit-log grant, not by staff flags", async () => {
-    async function auditRequested(user: Record<string, unknown>): Promise<boolean> {
+    async function auditRequested(user: AuthUser): Promise<boolean> {
       const fetchMock = vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) {
           return jsonResponse(200, user);
@@ -1360,7 +1323,7 @@ describe("Overview screen (Operational Ledger)", () => {
     }
 
     expect(await auditRequested({ ...authUser, can_read_audit_log: true })).toBe(true);
-    expect(await auditRequested({ ...authUser, can_read_audit_log: false, is_staff: true })).toBe(false);
+    expect(await auditRequested({ ...authUser, can_read_audit_log: false })).toBe(false);
   });
 
   it("navigates to gradings and audit when action links are clicked", async () => {
@@ -1371,15 +1334,11 @@ describe("Overview screen (Operational Ledger)", () => {
       status: "OPEN",
       status_display: "Open",
       location: "Colchester Dojang",
-      created_by: authUser.id,
-      created_by_email: authUser.email,
-      created_at: "2026-05-01T09:00:00Z",
-      updated_at: "2026-05-15T09:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return jsonResponse(200, { ...authUser, role: "administrator", ...ADMINISTRATOR_CAPABILITIES });
+        return jsonResponse(200, { ...authUser, ...ADMINISTRATOR_CAPABILITIES });
       }
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [openSession] });
@@ -1456,10 +1415,10 @@ describe("Students registry screen (/students)", () => {
 
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-    ];
+      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
+      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+    ] satisfies Rank[];
 
     const testStudents = [
       {
@@ -1472,6 +1431,9 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "White Belt",
         status: "ACTIVE",
         status_display: "Active",
+        can_be_graded: true,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
       {
         id: 2,
@@ -1483,6 +1445,9 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "Yellow Stripe",
         status: "INACTIVE",
         status_display: "Inactive",
+        can_be_graded: true,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
       {
         id: 3,
@@ -1494,8 +1459,11 @@ describe("Students registry screen (/students)", () => {
         current_rank_name: "Blue Belt",
         status: "LEFT",
         status_display: "Left",
+        can_be_graded: false,
+        age_band: "AGE_18_AND_OVER",
+        age_band_display: "18+",
       },
-    ];
+    ] satisfies StudentListItem[];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
@@ -1595,6 +1563,9 @@ describe("Students registry screen (/students)", () => {
             current_rank_name: "White Belt",
             status: "ACTIVE",
             status_display: "Active",
+            can_be_graded: true,
+            age_band: "AGE_18_AND_OVER",
+            age_band_display: "18+",
           }],
         });
       }
@@ -1626,10 +1597,10 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 5 },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-  ];
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
+    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+  ] satisfies Rank[];
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/students/new");
@@ -1754,6 +1725,9 @@ describe("Add student screen (/students/new)", () => {
           current_rank_name: "Yellow Stripe",
           status: "ACTIVE",
           status_display: "Active",
+          can_be_graded: true,
+          age_band: "AGE_18_AND_OVER",
+          age_band_display: "18+",
           attendance_count: 0,
           eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
@@ -1772,6 +1746,9 @@ describe("Add student screen (/students/new)", () => {
           current_rank_name: "Yellow Stripe",
           status: "ACTIVE",
           status_display: "Active",
+          can_be_graded: true,
+          age_band: "AGE_18_AND_OVER",
+          age_band_display: "18+",
           attendance_count: 0,
           eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
@@ -1883,10 +1860,10 @@ describe("Add student screen (/students/new)", () => {
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: 3 },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null },
-  ];
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3 },
+    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null },
+  ] satisfies Rank[];
 
   const testStudent = {
     id: 10,
@@ -1895,15 +1872,12 @@ describe("Student detail screen (/students/:id)", () => {
     last_name: "Carter",
     date_of_birth: "2012-04-24",
     current_rank: 2,
-    current_rank_code: "YS",
     current_rank_name: "Yellow Stripe",
     status: "ACTIVE",
     status_display: "Active",
-    age_band: "AGE_13_TO_17",
     age_band_display: "13-17",
     created_at: "2021-01-08T10:00:00Z",
-    updated_at: "2021-01-08T10:00:00Z",
-  };
+  } satisfies StudentDetail;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/students/10");
@@ -1984,26 +1958,13 @@ describe("Student detail screen (/students/:id)", () => {
     const testPromotions = [
       {
         id: 101,
-        from_rank: 1,
-        from_rank_code: "W",
         from_rank_name: "White Belt",
-        to_rank: 2,
-        to_rank_code: "YS",
         to_rank_name: "Yellow Stripe",
-        session: 5,
         session_title: "Winter Grading",
-        grading_date: "2025-12-12",
-        outcome: 12,
-        outcome_status: "CONFIRMED",
-        final_outcome: "PASS",
-        promoted_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-        promoted_by_email: "master@example.com",
-        promoted_by_name: "Master Tan",
         promoted_at: "2025-12-12T14:30:00Z",
         effective_date: "2025-12-12",
-        notes: "Excellent forms and techniques.",
       },
-    ];
+    ] satisfies StudentRankHistory["promotions"];
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
@@ -2316,10 +2277,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-09-01T10:00:00Z",
-      updated_at: "2026-09-15T10:00:00Z",
     },
     {
       id: 2,
@@ -2330,10 +2287,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-06-01T10:00:00Z",
-      updated_at: "2026-06-20T10:00:00Z",
     },
     {
       id: 3,
@@ -2344,12 +2297,8 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2026-03-01T10:00:00Z",
-      updated_at: "2026-03-21T10:00:00Z",
     },
-  ];
+  ] satisfies GradingSession[];
 
   function makeFetch(sessions = testSessions) {
     return vi.fn().mockImplementation(async (url: string) => {
@@ -2454,13 +2403,10 @@ describe("Grading Sessions List Screen (/gradings)", () => {
   it("renders both Create grading buttons with coherent primary styling in empty state for admin", async () => {
     const adminUser = {
       ...authUser,
-      role: "administrator" as const,
       ...ADMINISTRATOR_CAPABILITIES,
     ...ADMINISTRATOR_CAPABILITIES,
       role_display: "Administrator",
-      is_staff: true,
-      is_superuser: true,
-    };
+    } satisfies AuthUser;
     const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
       if (url.includes("/api/gradings/sessions/")) {
@@ -2524,11 +2470,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2580,11 +2522,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2646,11 +2584,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
@@ -2699,11 +2633,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       location: "Colchester Dojang",
       notes: "",
       cancellation_reason: "Venue unavailable",
-      created_by: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
-      created_by_email: "master@example.com",
-      created_at: "2025-09-01T10:00:00Z",
-      updated_at: "2025-09-13T10:00:00Z",
-    };
+    } satisfies GradingSession;
 
     let resolveDelete: (() => void) | undefined;
     const deletePending = new Promise<void>((resolve) => {
@@ -2763,17 +2693,15 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/new");
@@ -2790,11 +2718,8 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     const instructorUser = {
       ...adminUser,
       email: "instructor@example.com",
-      role: "instructor" as const,
       role_display: "Instructor",
-      is_staff: false,
-      is_superuser: false,
-    };
+    } satisfies AuthUser;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
@@ -2899,11 +2824,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       location: "Colchester Central Dojang",
       notes: "High rank candidates expected",
       cancellation_reason: "",
-      created_by: adminUser.id,
-      created_by_email: adminUser.email,
-      created_at: "2026-09-17T22:00:00Z",
-      updated_at: "2026-09-17T22:00:00Z",
-    };
+    } satisfies GradingSession;
 
     let postBody: unknown = null;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -3015,17 +2936,15 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   const testSession = {
     id: 10,
@@ -3036,11 +2955,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     location: "Colchester Dojang",
     notes: "Please arrive 15 minutes before the start time.",
     cancellation_reason: "",
-    created_by: adminUser.id,
-    created_by_email: adminUser.email,
-    created_at: "2026-09-01T10:00:00Z",
-    updated_at: "2026-09-01T10:00:00Z",
-  };
+  } satisfies GradingSession;
 
   const testCandidates: GradingCandidate[] = [
     {
@@ -3101,99 +3016,58 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       id: 201,
       candidate: 101,
       candidate_student_name: "Alex Carter",
-      candidate_student_wksa_id: "UK-1001",
-      testing_for_rank_code: "Y",
-      testing_for_rank_name: "Yellow",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "IN_PROGRESS" as const,
       status_display: "In progress",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: null,
       notes: "",
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T09:10:00Z",
     },
     {
       id: 202,
       candidate: 102,
       candidate_student_name: "Brooke Ellis",
-      candidate_student_wksa_id: "UK-1002",
-      testing_for_rank_code: "RS",
-      testing_for_rank_name: "Red stripe",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "COMPLETED" as const,
       status_display: "Completed",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: "2026-09-15T10:00:00Z",
       notes: "",
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T10:00:00Z",
     },
     {
       id: 203,
       candidate: 103,
       candidate_student_name: "Casey Nguyen",
-      candidate_student_wksa_id: "UK-1003",
-      testing_for_rank_code: "R",
-      testing_for_rank_name: "Red",
-      age_band: "ADULT",
-      age_band_display: "18+",
       status: "NOT_STARTED" as const,
       status_display: "Not started",
-      generated_by: adminUser.id,
       generated_by_email: adminUser.email,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
       completed_at: null,
       notes: "",
-      created_at: "2026-09-15T09:00:00Z",
-      updated_at: "2026-09-15T09:00:00Z",
     },
-  ];
+  ] satisfies CandidateAssessment[];
 
   const testOutcomes = [
     {
       id: 302,
       candidate: 102,
-      assessment: 202,
-      assessment_status: "COMPLETED",
-      student: 2,
-      student_display_name: "Brooke Ellis",
-      student_wksa_id: "UK-1002",
-      session: 10,
-      session_title: "Autumn Grading",
-      testing_for_rank: 6,
-      testing_for_rank_code: "RS",
-      testing_for_rank_name: "Red stripe",
       status: "PROPOSED" as const,
-      status_display: "Proposed",
       proposed_outcome: "PASS" as const,
       proposed_outcome_display: "Pass",
-      proposed_by: adminUser.id,
-      proposed_by_email: adminUser.email,
       proposed_by_name: "Alex Admin",
       proposed_at: "2026-09-15T10:05:00Z",
       proposal_notes: "Strong stances throughout.",
       final_outcome: null,
       final_outcome_display: "",
-      decided_by: null,
-      decided_by_email: "",
       decided_by_name: "",
       decided_at: null,
       decision_notes: "",
       conditional_requirements: "",
-      created_at: "2026-09-15T10:05:00Z",
-      updated_at: "2026-09-15T10:05:00Z",
     },
-  ];
+  ] satisfies CandidateOutcome[];
 
   const testStudentsList = [
     {
@@ -3206,6 +3080,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Yellow stripe",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 2,
@@ -3217,6 +3094,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Blue",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
     {
       id: 3,
@@ -3228,8 +3108,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       current_rank_name: "Red stripe",
       status: "ACTIVE" as const,
       status_display: "Active",
+      can_be_graded: true,
+      age_band: "AGE_18_AND_OVER",
+      age_band_display: "18+",
     },
-  ];
+  ] satisfies StudentListItem[];
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/10");
@@ -3245,7 +3128,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   function setupStandardMock(
     sessionOverrides = {},
     assessments = testAssessments,
-    authenticatedUser: typeof adminUser | (Omit<typeof adminUser, "role"> & { role: string }) = adminUser,
+    authenticatedUser: AuthUser = adminUser,
     candidates: GradingCandidate[] = testCandidates,
   ) {
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -3534,17 +3417,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       {
         ...testCandidates[0],
         status: "WITHDRAWN" as const,
-        status_display: "Withdrawn",
         withdrawal_reason: "INJURY" as const,
         withdrawal_reason_display: "Injured during grading",
         withdrawal_note: "Unable to continue safely.",
-        withdrawn_by: adminUser.id,
-        withdrawn_by_email: adminUser.email,
-        withdrawn_by_name: adminUser.full_name,
-        withdrawn_at: "2026-09-20T11:00:00Z",
       },
       ...testCandidates.slice(1),
-    ];
+    ] satisfies GradingCandidate[];
     const fetchMock = setupStandardMock(
       { status: "LOCKED", status_display: "Locked" },
       testAssessments,
@@ -4019,7 +3897,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   });
 
   it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
-    const instructorUser = { ...authUser, role: "instructor" as const, is_superuser: false };
+    const instructorUser: AuthUser = authUser;
     const fetchMock = setupStandardMock(
       { status: "CANCELLED", status_display: "Cancelled" },
       testAssessments,
@@ -4042,7 +3920,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       if (url.includes("/api/auth/me/")) {
         return jsonResponse(200, {
           ...adminUser,
-          role: "INSTRUCTOR",
           can_make_final_grading_decision: false,
         });
       }
@@ -4285,17 +4162,15 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     first_name: "Alex",
     last_name: "Admin",
     full_name: "Alex Admin",
-    role: "administrator" as const,
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
     can_make_final_grading_decision: true,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
+    can_view_grading_audit_log: false,
     must_change_password: false,
-    is_staff: true,
-    is_superuser: true,
-  };
+  } satisfies AuthUser;
 
   const testSession: GradingSession = {
     id: 10,
@@ -6112,7 +5987,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       ...mockSession,
       status: "DRAFT" as const,
       status_display: "Draft",
-    };
+    } satisfies GradingSession;
     const generatedAssessment: CandidateAssessment = {
       ...mockAssessment,
       status: "NOT_STARTED",

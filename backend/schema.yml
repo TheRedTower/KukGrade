@@ -4258,7 +4258,8 @@ components:
           type: boolean
           readOnly: true
         age_band:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
           readOnly: true
         age_band_display:
           type: string

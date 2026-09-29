@@ -178,7 +178,7 @@ const cohort = [
   candidate(2, "Alex Carter"),
   candidate(3, "Tom Ashby"),
   candidate(4, "Sam Withdrawn", { status: "WITHDRAWN", }),
-];
+] satisfies GradingCandidate[];
 const outcomes = [
   outcome(11, 1),
   outcome(12, 2, {
@@ -193,7 +193,7 @@ const outcomes = [
     decided_by_name: "Lee Tan",
     decided_at: "2026-11-12T16:00:00Z",
   }),
-];
+] satisfies CandidateOutcome[];
 
 function renderBoard(path = "/gradings/10/decisions") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

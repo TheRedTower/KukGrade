@@ -2092,7 +2092,7 @@ export interface components {
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
-            readonly age_band: string;
+            readonly age_band: components["schemas"]["AgeBandEnum"];
             readonly age_band_display: string;
         };
         StudentRankHistory: {

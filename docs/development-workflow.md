@@ -27,7 +27,10 @@
   never in another app's `tests.py`.
 - Frontend tests mock the API at the `./api` module boundary with responses in
   the generated schema's shape, so a contract change breaks the test rather
-  than hiding behind a hand-made fixture.
+  than hiding behind a hand-made fixture. Declare each fixture with
+  `satisfies <GeneratedType>` (or a type annotation), never an `as` cast:
+  `jsonResponse` takes `unknown`, so an untyped fixture is not checked at all
+  and silently keeps fields the API no longer serves.
 
 ## Verification commands
 

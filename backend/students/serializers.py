@@ -17,6 +17,7 @@ from gradings.services import (
 )
 from students.models import Student
 from students.services import create_student, update_student
+from syllabus.models import AgeBand
 
 
 class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
@@ -91,7 +92,7 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
-    age_band = serializers.CharField(read_only=True)
+    age_band = serializers.ChoiceField(choices=AgeBand.choices, read_only=True)
     age_band_display = serializers.CharField(read_only=True)
 
     class Meta:

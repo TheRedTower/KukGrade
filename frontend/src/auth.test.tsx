@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getStudents } from "./api";
 import { AuthProvider, useAuth } from "./auth";
+import type { AuthUser } from "./api";
 
 const authUser = {
   id: "7d3c55f4-e9e7-4b2b-b5d0-5fc9e899df17",
   email: "casey@example.com",
   first_name: "Casey",
   last_name: "Instructor",
-  role: "INSTRUCTOR",
-};
+} satisfies Partial<AuthUser>;
 
 function response(status: number, body: unknown): Response {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response;

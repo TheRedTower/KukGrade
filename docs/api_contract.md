@@ -359,7 +359,9 @@ Session fields:
   `DRAFT`.
 - `location`: optional human-readable location.
 - `notes`: optional notes.
-- `created_by`: read-only; assigned from the authenticated user.
+- `cancellation_reason`: write-only. Sent when cancelling a locked session and
+  never returned; it is kept on the record and in the audit log. The creator
+  is recorded from the authenticated user and is not served either.
 
 `grading_date` can be changed only before candidates are added. Once a session
 has candidates, its date is fixed so stored candidate age-band snapshots do not
@@ -505,9 +507,9 @@ Assessment-item list filters:
 
 - `assessment`
 
-An assessment row includes candidate id, student name, WKSA ID, testing-for
-rank code and name, candidate age-band snapshot, lifecycle timestamps, notes,
-and generator attribution. Counts are served by the summary action below; no
+An assessment row includes the candidate id and student name, status,
+lifecycle timestamps, notes, generator attribution, and `overall` (the served
+counts). Per-category counts are served by the summary action below; no
 pass/fail/conditional outcome is produced.
 
 ## 8. Outcomes and Promotions

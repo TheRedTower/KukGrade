@@ -382,12 +382,8 @@ class CandidateAssessmentViewSet(
     ) -> Response:
         """Category and overall rollup for one assessment, at any status.
 
-        The same service and response shape as the outcome endpoint's
-        `summary`, reached by assessment rather than by outcome. A
-        `CandidateOutcome` cannot exist until the session is `LOCKED` and the
-        assessment `COMPLETED`, so the outcome route is unreachable while an
-        assessment is being scored or reviewed - which is exactly when the
-        scoring and completion screens need these counts. See FDR-046.
+        Served here rather than recounted by the client, so scoring, review
+        and the final-decision board all read the same counts. See FDR-046.
         """
         summary = candidate_assessment_summary(self.get_object())
         return Response(CandidateAssessmentSummarySerializer(summary).data)

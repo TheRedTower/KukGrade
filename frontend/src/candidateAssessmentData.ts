@@ -7,9 +7,8 @@
  * here rather than being duplicated across both files.
  *
  * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
- * recounting rows here (FDR-046). `item_counts` carries no required-split and
- * the outcome summary needs a `CandidateOutcome` that cannot exist while an
- * assessment is being scored, which is why that endpoint was added.
+ * recounting rows here (FDR-046). It works at any assessment status, so it
+ * serves scoring as well as review.
  *
  * The client still groups items by category for rendering, because the backend
  * orders by requirement sequence and category is not an ordering key. It no
@@ -34,7 +33,6 @@ export interface CategoryGroup {
   totalCount: number;
   requiredCount: number;
   requiredAssessedCount: number;
-  remainingRequiredCount: number;
   metCount: number;
   notMetCount: number;
   notAssessedCount: number;
@@ -127,7 +125,6 @@ export function useCandidateAssessmentData(
         totalCount: served?.total ?? 0,
         requiredCount,
         requiredAssessedCount: requiredCount - remaining,
-        remainingRequiredCount: remaining,
         metCount: served?.met ?? 0,
         notMetCount: served?.not_met ?? 0,
         notAssessedCount: served?.not_assessed ?? 0,
@@ -151,7 +148,6 @@ export function useCandidateAssessmentData(
       requiredItems,
       requiredAssessed,
       remainingRequired,
-      percent: requiredItems > 0 ? Math.round((requiredAssessed / requiredItems) * 100) : 100,
       metCount: overall?.met ?? 0,
       notMetCount: overall?.not_met ?? 0,
       notAssessedCount: overall?.not_assessed ?? 0,

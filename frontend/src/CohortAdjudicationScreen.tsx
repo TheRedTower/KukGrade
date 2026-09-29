@@ -229,10 +229,26 @@ export function CohortAdjudicationScreen() {
     );
   }
 
-  if (!session) {
+  // Any of the four requests failing would otherwise render as a real, empty
+  // cohort (no rows, or "No assessment" on every row).
+  const failedQueries = [sessionQuery, candidatesQuery, assessmentsQuery, outcomesQuery].filter(
+    (query) => query.isError,
+  );
+  if (!session || failedQueries.length > 0) {
     return (
       <section aria-label="Final decisions" className="cab-page">
-        <div className="cab-state" role="alert">This grading session could not be loaded.</div>
+        <div className="cab-state" role="alert">
+          <p>The final decisions could not be loaded.</p>
+          {failedQueries.length > 0 && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => failedQueries.forEach((query) => void query.refetch())}
+            >
+              Try again
+            </button>
+          )}
+        </div>
       </section>
     );
   }

@@ -72,6 +72,10 @@
   text-align: center;
 }
 
+.cab-state p {
+  margin: 0 0 0.75rem;
+}
+
 .cab-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);

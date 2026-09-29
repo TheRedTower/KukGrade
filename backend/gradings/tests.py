@@ -4992,6 +4992,41 @@ def test_cancelling_a_locked_session_records_the_reason() -> None:
     assert cancelled.cancellation_reason == "Venue lost; grading abandoned."
 
 
+def test_api_accepts_the_cancellation_reason_but_never_serves_it() -> None:
+    session, _built = locked_session_with_undecided_candidate()
+    canceller = user("api-cancel-locked@example.com", role=User.Role.ADMINISTRATOR)
+    canceller.user_permissions.add(
+        Permission.objects.get(
+            codename="can_override_locked_session",
+            content_type=ContentType.objects.get_for_model(GradingSession),
+        ),
+    )
+    client = APIClient()
+    client.force_authenticate(user=User.objects.get(pk=canceller.pk))
+    url = f"/api/gradings/sessions/{session.id}/"
+
+    refused = client.patch(url, {"status": "CANCELLED"}, format="json")
+    assert refused.status_code == 400
+    assert "reason is required" in refused.json()["error"]["message"]
+    session.refresh_from_db()
+    assert session.status == GradingSession.Status.LOCKED
+
+    accepted = client.patch(
+        url,
+        {
+            "status": "CANCELLED",
+            "cancellation_reason": "Venue lost; grading abandoned.",
+        },
+        format="json",
+    )
+    assert accepted.status_code == 200, accepted.json()
+    assert accepted.json()["status"] == "CANCELLED"
+    assert "cancellation_reason" not in accepted.json()
+    assert "cancellation_reason" not in client.get(url).json()
+    session.refresh_from_db()
+    assert session.cancellation_reason == "Venue lost; grading abandoned."
+
+
 def test_cancelling_a_draft_session_still_needs_no_reason() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
 

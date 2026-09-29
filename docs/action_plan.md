@@ -16,7 +16,7 @@ structural choice records it in `decision_log.md` first.
    surfaces were measured in slice 8; the rest of the app has only been
    checked visually. Known: the session screen's breadcrumb, banner button,
    search and filter are under 44px.
-4. **Split `frontend/src/App.test.tsx`** (about 5,000 lines) into per-screen
+4. **Split `frontend/src/App.test.tsx`** (about 6,000 lines) into per-screen
    test files - a mechanical move that keeps every test name and assertion.
 
 ## Needs a decision first

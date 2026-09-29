@@ -76,7 +76,6 @@ const lockedSession: GradingSession = {
   grading_date: "2026-11-12",
   location: "Colchester",
   notes: "",
-  cancellation_reason: "",
 };
 
 function candidate(id: number, name: string, overrides: Partial<GradingCandidate> = {}): GradingCandidate {
@@ -313,6 +312,25 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(screen.getByRole("button", { name: "Retry 1 failed" }));
     await waitFor(() => expect(mockFinalise).toHaveBeenCalledTimes(1));
     expect(mockFinalise).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }));
+  });
+
+  it.each([
+    ["candidates", () => mockGetCandidates],
+    ["assessments", () => mockGetAssessments],
+    ["outcomes", () => mockGetOutcomes],
+    ["session", () => mockGetGradingSession],
+  ])("shows a failure, not an empty cohort, when the %s request fails, and retries it", async (_name, mock) => {
+    const user = userEvent.setup();
+    mock().mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderBoard();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("The final decisions could not be loaded.");
+    expect(screen.queryByTestId("cab-row-1")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByTestId("cab-row-1")).toBeVisible();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("offers no decision controls without Master authority", async () => {

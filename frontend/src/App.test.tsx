@@ -2276,7 +2276,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Open",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
     },
     {
       id: 2,
@@ -2286,7 +2285,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Locked",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
     },
     {
       id: 3,
@@ -2296,7 +2294,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Completed",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "",
     },
   ] satisfies GradingSession[];
 
@@ -2469,7 +2466,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
     } satisfies GradingSession;
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
@@ -2521,7 +2517,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
     } satisfies GradingSession;
 
     const deleteFetch = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -2583,7 +2578,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
@@ -2632,7 +2626,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       status_display: "Cancelled",
       location: "Colchester Dojang",
       notes: "",
-      cancellation_reason: "Venue unavailable",
     } satisfies GradingSession;
 
     let resolveDelete: (() => void) | undefined;
@@ -2823,7 +2816,6 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       status_display: "Draft",
       location: "Colchester Central Dojang",
       notes: "High rank candidates expected",
-      cancellation_reason: "",
     } satisfies GradingSession;
 
     let postBody: unknown = null;
@@ -2954,7 +2946,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     status_display: "Open",
     location: "Colchester Dojang",
     notes: "Please arrive 15 minutes before the start time.",
-    cancellation_reason: "",
   } satisfies GradingSession;
 
   const testCandidates: GradingCandidate[] = [
@@ -4228,7 +4219,6 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     status: "DRAFT",
     status_display: "Draft",
     notes: "",
-    cancellation_reason: "",
   };
 
   const mockRanks: Rank[] = [
@@ -4761,7 +4751,6 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "OPEN",
     status_display: "Open",
     notes: "",
-    cancellation_reason: "",
   };
 
   const mockCandidate: GradingCandidate = {

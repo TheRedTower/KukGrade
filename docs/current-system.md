@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-28. This document
-takes precedence over every other document for what exists now.
+Describes the implementation on `dev` as verified on 2026-09-29.
+This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-28 with 661 backend tests and 209 frontend tests passing
+Verified on 2026-09-29 with 678 backend tests and 231 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -193,8 +193,9 @@ checks on each push and pull request.
   every route in light/dark at 1280px and 390px, and at the 640px viewport
   WCAG 1.4.10 treats as equivalent to 200% zoom on a 1280px display. Icon-only
   buttons, input/radio-group labelling, and colour-alone status indicators
-  were audited app-wide with no violations found. Not yet done: per-element
-  contrast measurement (checked visually, not measured).
+  were audited app-wide with no violations found. Per-element contrast was
+  measured for the four grading surfaces in slice 8 (below); elsewhere it has
+  been checked visually only.
 - **Promotion and rank history**: a finalised PASS can be promoted, updating
   `Student.current_rank` and writing an immutable `Promotion` record.
 - **Locked sessions have an exit**: authorised post-lock withdrawal with a
@@ -391,7 +392,8 @@ checks on each push and pull request.
   the row in focus (`?candidate=` selects it). Decisions stage and then write
   one candidate at a time; a failed row keeps its error and stays staged, and
   only failed rows retry (FDR-028). A Conditional needs re-test requirements.
-  The detail pane shows every recorded `assessor_notes` value, as the proof
+  If any of the four requests fails, the board says so and offers a retry
+  rather than rendering an empty cohort. The detail pane shows every recorded `assessor_notes` value, as the proof
   sheet does. Controls appear only on a `LOCKED` session for a user with
   `can_make_final_grading_decision`; everyone else gets a read-only board.
 - **The proposal drawer shows the board's evidence (2026-09-29)**: FDR-047
@@ -525,9 +527,11 @@ checks on each push and pull request.
 
 ## Known Gaps
 
-- Per-element contrast has been checked visually in both themes, not
-  measured.
-- `frontend/src/App.test.tsx` still holds about 5,000 lines of screen tests
+- Per-element contrast, target sizes and focus were measured on the four
+  grading surfaces only; the rest of the app has been checked visually. The
+  session screen's breadcrumb, banner button, search and filter are under
+  44px.
+- `frontend/src/App.test.tsx` still holds about 6,000 lines of screen tests
   that belong in per-screen files.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required

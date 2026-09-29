@@ -250,7 +250,7 @@ Recorded in `docs/decision_log.md` on 2026-09-23.
    has no required-split and `/outcomes/{id}/summary/` needs an outcome that
    does not exist during scoring, so the counts the selected screens need are
    not currently served. Proposal: expose `candidate_assessment_summary` on the
-   assessment resource. Blocks slice 2. See the handoff, §6.
+   assessment resource. Accepted 2026-09-23 (decision log) and built in slice 2.
 
 ### Consequences of decision 1 for the 2B proof sheet
 

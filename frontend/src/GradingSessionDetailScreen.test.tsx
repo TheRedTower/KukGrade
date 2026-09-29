@@ -86,7 +86,6 @@ function lockedSession(): GradingSession {
     status_display: "Locked",
     location: "Colchester",
     notes: "",
-    cancellation_reason: "",
   };
 }
 

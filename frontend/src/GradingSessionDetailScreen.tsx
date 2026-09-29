@@ -178,7 +178,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Drawer state for SCR-021 Instructor Outcome Proposal
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
-  // Drawer state for SCR-022 Master Final Decision
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
   const [withdrawalError, setWithdrawalError] = useState<string | null>(null);

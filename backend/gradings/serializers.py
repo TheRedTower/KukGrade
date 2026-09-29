@@ -58,6 +58,9 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "id",
             "status_display",
         )
+        # Sent when cancelling a locked session; no screen reads it back. It
+        # is kept on the model and in the audit log.
+        extra_kwargs = {"cancellation_reason": {"write_only": True}}
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
         if self.instance is not None and "status" in attrs:
@@ -263,10 +266,10 @@ class BulkAssessmentStartSerializer(serializers.Serializer):
 class AssessmentSummaryCountsSerializer(serializers.Serializer):
     """Shape of one rollup block in `candidate_assessment_summary`.
 
-    Declared so the schema tells the truth about what the two `summary`
-    endpoints return. Neither of them serializes a model, and without this the
-    generated contract claims the viewset's own `serializer_class`. Read-only:
-    nothing is deserialized through it.
+    Declared so the schema tells the truth about what the assessment `summary`
+    endpoint and each assessment's `overall` return. Neither serializes a
+    model, and without this the generated contract claims the viewset's own
+    `serializer_class`. Read-only: nothing is deserialized through it.
     """
 
     total = serializers.IntegerField(read_only=True)
@@ -288,7 +291,6 @@ class AssessmentCategorySummarySerializer(AssessmentSummaryCountsSerializer):
         choices=SyllabusItem.Category.choices,
         read_only=True,
     )
-    # The label comes from the backend, so no screen shows a raw code.
 
 
 class CandidateAssessmentSummarySerializer(serializers.Serializer):

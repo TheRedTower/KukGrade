@@ -264,12 +264,8 @@ export interface paths {
         /**
          * @description Category and overall rollup for one assessment, at any status.
          *
-         *     The same service and response shape as the outcome endpoint's
-         *     `summary`, reached by assessment rather than by outcome. A
-         *     `CandidateOutcome` cannot exist until the session is `LOCKED` and the
-         *     assessment `COMPLETED`, so the outcome route is unreachable while an
-         *     assessment is being scored or reviewed - which is exactly when the
-         *     scoring and completion screens need these counts. See FDR-046.
+         *     Served here rather than recounted by the client, so scoring, review
+         *     and the final-decision board all read the same counts. See FDR-046.
          */
         get: operations["gradings_assessments_summary_retrieve"];
         put?: never;
@@ -1149,10 +1145,10 @@ export interface components {
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
-         *     Declared so the schema tells the truth about what the two `summary`
-         *     endpoints return. Neither of them serializes a model, and without this the
-         *     generated contract claims the viewset's own `serializer_class`. Read-only:
-         *     nothing is deserialized through it.
+         *     Declared so the schema tells the truth about what the assessment `summary`
+         *     endpoint and each assessment's `overall` return. Neither serializes a
+         *     model, and without this the generated contract claims the viewset's own
+         *     `serializer_class`. Read-only: nothing is deserialized through it.
          */
         AssessmentCategorySummary: {
             readonly total: number;
@@ -1168,10 +1164,10 @@ export interface components {
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
          *
-         *     Declared so the schema tells the truth about what the two `summary`
-         *     endpoints return. Neither of them serializes a model, and without this the
-         *     generated contract claims the viewset's own `serializer_class`. Read-only:
-         *     nothing is deserialized through it.
+         *     Declared so the schema tells the truth about what the assessment `summary`
+         *     endpoint and each assessment's `overall` return. Neither serializes a
+         *     model, and without this the generated contract claims the viewset's own
+         *     `serializer_class`. Read-only: nothing is deserialized through it.
          */
         AssessmentSummaryCounts: {
             readonly total: number;
@@ -1460,7 +1456,6 @@ export interface components {
             readonly status_display: string;
             location?: string;
             notes?: string;
-            cancellation_reason?: string;
         };
         GradingSessionRequest: {
             title: string;

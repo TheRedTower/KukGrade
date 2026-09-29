@@ -18,6 +18,26 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - Cancellation reason is write-only; the redesign handoff is retired
+
+Status: Accepted
+
+Decision:
+`GradingSession.cancellation_reason` is accepted when a session is cancelled
+but is never served: no screen reads it, so it is `write_only` in the
+serializer and absent from `schema.yml`. The database column and the audit
+event keep the reason. The final-decision board shows a failure with a retry
+control, not an empty cohort, when any of its four requests fails. The
+unused `percent` and `remainingRequiredCount` helpers and the `--color-ink`
+token were deleted. `docs/assessment-grading-redesign-handoff.md` was
+deleted: every decision it carried is recorded here and in the design
+register.
+
+Context:
+Completes the "API serves what the app uses" rule for the last field the
+app never read, and removes a stale planning document that had begun to
+disagree with the code.
+
 ### 2026-09-29 - Assessment list serves overall counts; measured contrast tokens
 
 Status: Accepted
@@ -1936,5 +1956,6 @@ local PostgreSQL only - is still the current setup.
 ## Open decisions
 
 None. Every decision arising from the 2026-09-23 assessment grading redesign
-is recorded above. See `assessment-grading-redesign-handoff.md` and
-`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`.
+is recorded above. See
+`../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
+for the nine proposed directions.

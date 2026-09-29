@@ -9,10 +9,8 @@
  * nothing here is all-or-nothing, and failures stay staged for a retry.
  *
  * One deliberate deviation from the board: the detail pane lists **every**
- * recorded `assessor_notes` value, not only shortfalls. Since the 2026-09-23
- * decision that field carries positive observations as well, so a Master
- * reading only the not-met notes would decide on half the evidence - the same
- * reason the Certificate Proof (FDR-043) renders every note.
+ * recorded `assessor_notes` value, not only shortfalls (see
+ * `SealedAssessmentEvidence`, which the proposal drawer shares).
  *
  * Counts are served (`GET /assessments/{id}/summary/`, FDR-046), never
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
@@ -29,11 +27,9 @@ import {
   type CandidateOutcomeOutcome,
   type GradingCandidate,
   finaliseCandidateOutcome,
-  getAllCandidateAssessmentItems,
   getAllCandidateAssessments,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
-  getAssessmentSummary,
   getGradingSession,
 } from "./api";
 import { useAuth } from "./auth";
@@ -41,7 +37,10 @@ import { formatSessionDate, formatTime } from "./dates";
 import { RankBelt } from "./Belt";
 import "./CandidateAssessment.css";
 import "./CohortAdjudication.css";
-import { CheckIcon, WarningIcon } from "./Icons";
+import { CheckIcon } from "./Icons";
+import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { assessmentSummaryQuery } from "./queries";
+import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 
 type StagedDecision = {
   outcome: CandidateOutcomeOutcome;
@@ -56,12 +55,6 @@ type BoardRow = {
   summary?: CandidateAssessmentSummary;
   decidable: boolean;
 };
-
-const DECISIONS: { value: CandidateOutcomeOutcome; label: string }[] = [
-  { value: "PASS", label: "Pass" },
-  { value: "CONDITIONAL", label: "Conditional" },
-  { value: "FAIL", label: "Fail" },
-];
 
 function outcomeClass(outcome: CandidateOutcomeOutcome | null | undefined): string {
   if (outcome === "PASS") return "cab-pill cab-pill-pass";
@@ -121,10 +114,7 @@ export function CohortAdjudicationScreen() {
   // One served rollup per assessment, sharing the cache key the assessment
   // screens already use.
   const summaryQueries = useQueries({
-    queries: assessments.map((assessment) => ({
-      queryKey: ["candidateAssessmentSummary", assessment.id],
-      queryFn: () => getAssessmentSummary(assessment.id),
-    })),
+    queries: assessments.map((assessment) => assessmentSummaryQuery(assessment.id)),
   });
   const summaryByAssessment = new Map<number, CandidateAssessmentSummary>();
   assessments.forEach((assessment, index) => {
@@ -162,17 +152,6 @@ export function CohortAdjudicationScreen() {
     rows.find((row) => row.candidate.id === focusId) ??
     rows.find((row) => row.decidable) ??
     rows[0];
-
-  const focusItemsQuery = useQuery({
-    queryKey: ["candidateAssessmentItems", focusRow?.assessment?.id],
-    queryFn: () => getAllCandidateAssessmentItems({ assessment: focusRow!.assessment!.id }),
-    enabled: Boolean(focusRow?.assessment?.id),
-  });
-  const notedItems = (focusItemsQuery.data?.results ?? []).filter(
-    (item) => item.result === "NOT_MET" || (item.assessor_notes ?? "").trim() !== "",
-  );
-  const shortfalls = notedItems.filter((item) => item.result === "NOT_MET");
-  const otherNotes = notedItems.filter((item) => item.result !== "NOT_MET");
 
   function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {
     const outcomeId = row.outcome?.id;
@@ -374,15 +353,15 @@ export function CohortAdjudicationScreen() {
                         </span>
                       ) : row.decidable && canDecide && outcome ? (
                         <div
-                          className="cab-segments"
+                          className="outcome-segments"
                           role="group"
                           aria-label={`Final outcome for ${row.candidate.student_display_name}`}
                         >
-                          {DECISIONS.map((option) => (
+                          {OUTCOME_CHOICES.map((option) => (
                             <button
                               key={option.value}
                               type="button"
-                              className={`cab-segment cab-segment-${option.value.toLowerCase()}`}
+                              className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
                               aria-pressed={decision?.outcome === option.value}
                               disabled={isRecording}
                               onClick={() => stage(row, option.value)}
@@ -408,9 +387,9 @@ export function CohortAdjudicationScreen() {
 
         {focusRow && (
           <aside className="cab-detail" aria-labelledby="cab-focus-title" data-testid="cab-detail">
-            <p className="cab-eyebrow">In focus</p>
+            <p className="outcome-eyebrow">In focus</p>
             <h2 id="cab-focus-title">{focusRow.candidate.student_display_name}</h2>
-            <p className="cab-rank-line">
+            <p className="outcome-rank-line">
               <RankBelt rankId={focusRow.candidate.from_rank} />
               {focusRow.candidate.from_rank_name}
               <span aria-hidden="true">→</span>
@@ -418,58 +397,12 @@ export function CohortAdjudicationScreen() {
               {focusRow.candidate.testing_for_rank_name}
             </p>
 
-            <section className="cab-detail-section" aria-labelledby="cab-evidence-title">
-              <h3 id="cab-evidence-title">Sealed assessment</h3>
-              {focusRow.summary ? (
-                <p className="cab-counts">
-                  {focusRow.summary.overall.required_met} / {focusRow.summary.overall.required} required met
-                  {" · "}
-                  {focusRow.summary.overall.not_met > 0
-                    ? `${focusRow.summary.overall.not_met} not met`
-                    : "none not met"}
-                </p>
-              ) : (
-                <p className="cab-flags">No assessment recorded.</p>
-              )}
-              {shortfalls.length > 0 && (
-                <ul className="cab-notes">
-                  {shortfalls.map((item) => (
-                    <li key={item.id} className="cab-note cab-note-shortfall">
-                      <span className="cab-note-title">
-                        <WarningIcon size={14} /> {item.item_name} · {item.category_display}
-                      </span>
-                      {item.assessor_notes && <q>{item.assessor_notes}</q>}
-                      <span className="cab-note-by">
-                        {item.assessor_email}
-                        {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {otherNotes.length > 0 && (
-                <ul className="cab-notes">
-                  {otherNotes.map((item) => (
-                    <li key={item.id} className="cab-note">
-                      <span className="cab-note-title">
-                        {item.item_name} · {item.category_display} · {item.result_display}
-                      </span>
-                      <q>{item.assessor_notes}</q>
-                      <span className="cab-note-by">
-                        {item.assessor_email}
-                        {item.assessed_at ? `, ${formatTime(item.assessed_at)}` : ""}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Link
-                to={`/gradings/${session.id}/assessments/${focusRow.candidate.id}/review`}
-                className="cab-link"
-              >
-                Open the full assessment record
-              </Link>
-            </section>
+            <SealedAssessmentEvidence
+              className="cab-detail-section"
+              assessmentId={focusRow.assessment?.id}
+              sessionId={session.id}
+              candidateId={focusRow.candidate.id}
+            />
 
             <section className="cab-detail-section" aria-labelledby="cab-proposal-title">
               <h3 id="cab-proposal-title">Proposal</h3>
@@ -512,9 +445,9 @@ export function CohortAdjudicationScreen() {
 
             {focusDecision && focusRow.outcome && (
               <section className="cab-detail-section" aria-labelledby="cab-staged-title">
-                <h3 id="cab-staged-title">Staged: {DECISIONS.find((d) => d.value === focusDecision.outcome)?.label}</h3>
+                <h3 id="cab-staged-title">Staged: {OUTCOME_CHOICES.find((d) => d.value === focusDecision.outcome)?.label}</h3>
                 {focusDecision.outcome === "CONDITIONAL" && (
-                  <label className="cab-field">
+                  <label className="outcome-field">
                     Re-test requirements (required)
                     <textarea
                       value={focusDecision.conditionalRequirements}
@@ -526,7 +459,7 @@ export function CohortAdjudicationScreen() {
                     />
                   </label>
                 )}
-                <label className="cab-field">
+                <label className="outcome-field">
                   Decision notes
                   <textarea
                     value={focusDecision.notes}

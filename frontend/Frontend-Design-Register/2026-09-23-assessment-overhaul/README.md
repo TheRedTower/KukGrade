@@ -226,7 +226,7 @@ register is authoritative.
 ### Status edits to existing rows
 
 SCR-019 → superseded by SCR-026 · SCR-020 → superseded by SCR-027 ·
-SCR-021 and SCR-022 → superseded by SCR-028.
+SCR-022 → superseded by SCR-028 · SCR-021 → retained, restyled under FDR-047.
 
 ## 6. Decisions arising from this pass
 

@@ -156,8 +156,6 @@ function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome }) {
 
 interface EnrichedCandidate {
   candidate: GradingCandidate;
-  currentRankName: string;
-  targetRankName: string;
   assessment?: CandidateAssessment;
   outcome?: CandidateOutcome;
 }
@@ -460,11 +458,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       return {
         candidate: c,
-        // The rank held at registration (GradingCandidate.from_rank_name),
-        // not the student's live current rank - see the 2026-09-25 decision
-        // log entry. Never moves if the student is promoted elsewhere.
-        currentRankName: c.from_rank_name,
-        targetRankName: c.testing_for_rank_name || "Next rank",
         assessment,
         outcome,
       };
@@ -1135,13 +1128,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
                           <RankBelt rankId={item.candidate.from_rank} />
-                          <span>{item.currentRankName}</span>
+                          {/* The rank held at registration, not the live current rank - see the
+                              2026-09-25 decision log entry. */}
+                          <span>{item.candidate.from_rank_name}</span>
                         </div>
                       </td>
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
                           <RankBelt rankId={item.candidate.testing_for_rank} />
-                          <span>{item.targetRankName}</span>
+                          <span>{item.candidate.testing_for_rank_name}</span>
                         </div>
                       </td>
                       <td className="gsd-cell-assessment">
@@ -1449,9 +1444,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           candidate={proposalDrawerItem.candidate}
           assessment={proposalDrawerItem.assessment}
           existingOutcome={proposalDrawerItem.outcome}
-          currentRankName={proposalDrawerItem.currentRankName}
-          targetRankName={proposalDrawerItem.targetRankName}
-          isOpen={true}
           onClose={() => setProposalDrawerItem(null)}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });

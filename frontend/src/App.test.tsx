@@ -4036,7 +4036,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 
-  it("opens SCR-021 Instructor Outcome Proposal Drawer, displays candidate context and assessment stats, and submits proposal", async () => {
+  it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) {
@@ -4086,10 +4086,17 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
           results: Array.from({ length: 24 }, (_, i) => ({
             id: 1000 + i,
             item_code: `ITEM-${i}`,
+            item_name: `Item ${i}`,
             category: "TECHNIQUE",
+            category_display: "Techniques",
             required: true,
             result: "MET",
+            result_display: "Met",
             requirement_sequence: i,
+            assessor_email: "coach@example.com",
+            assessed_at: null,
+            // A positive observation on a met item must reach the proposer too.
+            assessor_notes: i === 0 ? "Crisp, confident footwork" : "",
           })),
         });
       }
@@ -4144,38 +4151,34 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const drawer = await screen.findByTestId("outcome-proposal-drawer");
     expect(drawer).toBeVisible();
 
-    // Verify candidate context banner
-    expect(within(drawer).getByText("Brooke Ellis")).toBeVisible();
-    expect(within(drawer).getByText("WKSA: UK-1002")).toBeVisible();
-    expect(within(drawer).getByText("Blue")).toBeVisible();
-    expect(within(drawer).getByText("Red stripe")).toBeVisible();
+    // Candidate and the rank transition, from the candidate's own fields
+    expect(within(drawer).getByRole("heading", { name: "Brooke Ellis" })).toBeVisible();
+    expect(within(drawer).getByText("UK-1002")).toBeVisible();
+    expect(drawer).toHaveTextContent(/Blue\s*→\s*Red stripe/);
 
-    // Verify assessment completion summary
-    expect(await within(drawer).findByText("Assessment complete")).toBeVisible();
-    expect(within(drawer).getByText(/24 of 24 Required items met \(100%\)/)).toBeVisible();
-    expect(within(drawer).getByText("0 Not Met")).toBeVisible();
+    // The same served evidence the Master sees on the board - no percentage
+    expect(await within(drawer).findByText("24 / 24 required met · none not met")).toBeVisible();
+    expect(within(drawer).queryByText(/%/)).not.toBeInTheDocument();
+    expect(await within(drawer).findByText("Crisp, confident footwork")).toBeVisible();
+    expect(
+      within(drawer).getByRole("link", { name: "Open the full assessment record" }),
+    ).toHaveAttribute("href", "/gradings/10/assessments/102/review");
 
-    // Verify 3-option proposed outcome selector cards
-    expect(within(drawer).getByTestId("outcome-option-pass")).toBeVisible();
-    expect(within(drawer).getByTestId("outcome-option-conditional")).toBeVisible();
-    expect(within(drawer).getByTestId("outcome-option-fail")).toBeVisible();
+    // Pass / Conditional / Fail, Pass selected by default
+    expect(within(drawer).getByRole("radio", { name: "Pass" })).toBeChecked();
+    await user.click(within(drawer).getByRole("radio", { name: "Conditional" }));
+    expect(within(drawer).getByRole("radio", { name: "Conditional" })).toBeChecked();
+    expect(within(drawer).getByRole("radio", { name: "Fail" })).not.toBeChecked();
 
-    // Switch selection to CONDITIONAL
-    await user.click(within(drawer).getByTestId("outcome-option-conditional"));
-    const conditionalCard = within(drawer).getByTestId("outcome-option-conditional");
-    expect(conditionalCard).toHaveClass("is-selected");
+    await user.type(
+      within(drawer).getByLabelText("Notes for the Master"),
+      "Recommend re-testing form 3 within 2 weeks.",
+    );
+    expect(
+      within(drawer).getByText(/A proposal does not finalise the grading or promote the candidate/),
+    ).toBeVisible();
 
-    // Enter proposal notes
-    const notesTextarea = within(drawer).getByTestId("opd-notes-textarea");
-    await user.type(notesTextarea, "Recommend re-testing form 3 within 2 weeks.");
-
-    // Verify informational callout
-    expect(within(drawer).getByTestId("opd-callout-info")).toBeVisible();
-    expect(within(drawer).getByText("Master review required")).toBeVisible();
-
-    // Submit proposal
-    const submitBtn = within(drawer).getByTestId("opd-submit-btn");
-    await user.click(submitBtn);
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
     // Verify create-outcome and propose endpoints were called
     await waitFor(() => {
@@ -4194,7 +4197,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     });
   });
 
-  it("dismisses SCR-021 Outcome Proposal Drawer on Cancel button and Escape key", async () => {
+  it("dismisses the proposal drawer on Cancel and Escape", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
@@ -4225,8 +4228,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     ).toHaveFocus();
 
     // Dismiss via Cancel button
-    const cancelBtn = screen.getByTestId("opd-cancel-btn");
-    await user.click(cancelBtn);
+    await user.click(within(reopenedDrawer).getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
 
@@ -4237,6 +4239,39 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
     expect(proposeBtn).toHaveFocus();
+  });
+
+  it("keeps the proposal drawer open with the server's reason when a proposal is refused", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        return jsonResponse(400, {
+          error: { code: "validation_error", message: "The assessment is not completed." },
+        });
+      }
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+
+    expect(await within(drawer).findByRole("alert")).toHaveTextContent(
+      "The assessment is not completed.",
+    );
+    expect(screen.getByTestId("outcome-proposal-drawer")).toBeVisible();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose/"))).toBe(false);
   });
 });
 

@@ -393,6 +393,15 @@ checks on each push and pull request.
   The detail pane shows every recorded `assessor_notes` value, as the proof
   sheet does. Controls appear only on a `LOCKED` session for a user with
   `can_make_final_grading_decision`; everyone else gets a read-only board.
+- **The proposal drawer shows the board's evidence (2026-09-29)**: FDR-047
+  restyled `OutcomeProposalDrawer` to the board's language. The "Sealed
+  assessment" section is one component, `SealedAssessmentEvidence`, rendered
+  by both the drawer and the board's detail pane, so the proposing instructor
+  and the Master read the same served counts and every recorded note. The
+  Pass / Conditional / Fail choice (`OUTCOME_CHOICES`) and its styles
+  (`OutcomeControls.css`) are shared the same way. The drawer no longer
+  recounts items or shows a percentage (FDR-046). The summary and item
+  queries live once in `queries.ts`.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into

@@ -391,9 +391,16 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    `assessor_notes` value, not only shortfalls. `MasterFinalDecisionDrawer`,
    its test and its `mfd-` styles are deleted, and the session screen's
    decision actions link to the board.
-7. **Restyle the proposal drawer (FDR-047).** Give `OutcomeProposalDrawer.tsx`
-   the board's evidence presentation so the instructor sees the sealed
-   assessment ledger before proposing.
+7. **Restyle the proposal drawer (FDR-047).** *Done, 2026-09-29.* The board's
+   "Sealed assessment" section became `SealedAssessmentEvidence`, which the
+   drawer and the board both render, so the instructor sees exactly the
+   evidence the Master will: served counts and every recorded note with its
+   attribution. The drawer uses the board's heading, rank line and Pass /
+   Conditional / Fail segments (`OUTCOME_CHOICES`, `OutcomeControls.css`),
+   takes its rank names from the candidate rather than separate props, and
+   no longer recounts items or shows a percentage (FDR-046).
+   `OutcomeDrawers.css` went from 864 lines of hard-coded colours with two
+   copies of every dark override to theme tokens only.
 8. **Dark, responsive and accessibility parity pass** across all four surfaces.
 
 ## 6. Open decisions

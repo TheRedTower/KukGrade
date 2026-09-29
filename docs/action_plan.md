@@ -6,9 +6,9 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-1. **Finish the assessment grading redesign**: slices 7-8 of
-   `assessment-grading-redesign-handoff.md` (the proposal drawer restyle and
-   the dark/responsive/accessibility pass).
+1. **Finish the assessment grading redesign**: slice 8 of
+   `assessment-grading-redesign-handoff.md` (the dark/responsive/accessibility
+   pass).
 2. **Go live.** Connect the production image to the real Traefik and
    PostgreSQL host, then verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).

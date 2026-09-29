@@ -22,11 +22,10 @@ import {
   CategoryAssessmentSummary,
   GradingCandidate,
   getGradingCandidate,
-  getAssessmentSummary,
   getCandidateAssessments,
-  getAllCandidateAssessmentItems,
   getGradingSession,
 } from "./api";
+import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 
 export interface CategoryGroup {
   category: string;
@@ -80,11 +79,7 @@ export function useCandidateAssessmentData(
   const assessment = assessmentQuery.data;
 
   // 4. The immutable syllabus snapshot rows
-  const itemsQuery = useQuery({
-    queryKey: ["candidateAssessmentItems", assessment?.id],
-    queryFn: () => getAllCandidateAssessmentItems({ assessment: assessment!.id }),
-    enabled: !!assessment?.id,
-  });
+  const itemsQuery = useAssessmentItemsQuery(assessment?.id);
 
   const items = useMemo(() => {
     return itemsQuery.data?.results ?? [];
@@ -92,11 +87,7 @@ export function useCandidateAssessmentData(
 
   // 5. Served rollup. Kept on its own key so a single item PATCH can
   // invalidate it without refetching the whole item list.
-  const summaryQuery = useQuery({
-    queryKey: ["candidateAssessmentSummary", assessment?.id],
-    queryFn: () => getAssessmentSummary(assessment!.id),
-    enabled: !!assessment?.id,
-  });
+  const summaryQuery = useAssessmentSummaryQuery(assessment?.id);
 
   const summary = summaryQuery.data;
 

@@ -230,7 +230,7 @@ checks on each push and pull request.
   returns them, and refuses a user changing their own authority.
   `POST /api/users/{id}/set-password/` resets a password, validated by
   Django's configured password validators. `is_staff` and `is_superuser`
-  are never writable through the API.
+  are not part of the API.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to

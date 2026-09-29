@@ -73,10 +73,8 @@ class OverallAssessmentSummary(TypedDict):
     not_met: int
     not_assessed: int
     required_met: int
-    required_not_met: int
     required_not_assessed: int
     all_required_assessed: bool
-    all_required_met: bool
 
 
 class CategoryAssessmentSummary(OverallAssessmentSummary):
@@ -89,8 +87,6 @@ class CandidateAssessmentSummary(TypedDict):
 
 
 class StudentRankTimeline(TypedDict):
-    student: Student
-    current_rank: Rank
     promotions: list[Promotion]
 
 
@@ -101,17 +97,14 @@ class GradingHistoryItem(TypedDict):
     cycle_year: int | None
     cycle_month: int | None
     date_precision: str  # "DAY" | "MONTH"
-    testing_for_rank_code: str | None
     testing_for_rank_name: str | None
     source_testing_for_rank_text: str
     outcome: str | None
     attendance_status: str
     comments: str
-    promotion_id: int | None
 
 
 class StudentGradingHistory(TypedDict):
-    student: Student
     items: list[GradingHistoryItem]
 
 
@@ -1059,24 +1052,12 @@ def bulk_promote_candidates(
 
 
 def student_rank_timeline(student: Student) -> StudentRankTimeline:
-    timeline_student = Student.objects.select_related("current_rank").get(pk=student.pk)
     promotions = list(
-        Promotion.objects.filter(student=timeline_student)
-        .select_related(
-            "student__current_rank",
-            "outcome",
-            "grading_candidate__session",
-            "from_rank",
-            "to_rank",
-            "promoted_by",
-        )
+        Promotion.objects.filter(student=student)
+        .select_related("grading_candidate__session", "from_rank", "to_rank")
         .order_by("-effective_date", "-promoted_at", "-pk"),
     )
-    return {
-        "student": timeline_student,
-        "current_rank": timeline_student.current_rank,
-        "promotions": promotions,
-    }
+    return {"promotions": promotions}
 
 
 def unified_student_grading_history(student: Student) -> StudentGradingHistory:
@@ -1098,7 +1079,6 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
     ).select_related("candidate__session", "candidate__testing_for_rank")
     for outcome in finalised_outcomes:
         session = outcome.candidate.session
-        promotion = getattr(outcome, "promotion", None)
         testing_for_rank = outcome.candidate.testing_for_rank
         native_item: GradingHistoryItem = {
             "source": "KUKGRADE",
@@ -1107,13 +1087,11 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "cycle_year": session.grading_date.year,
             "cycle_month": session.grading_date.month,
             "date_precision": "DAY",
-            "testing_for_rank_code": testing_for_rank.code,
             "testing_for_rank_name": testing_for_rank.name,
             "source_testing_for_rank_text": "",
             "outcome": outcome.final_outcome,
             "attendance_status": "ATTENDED",
             "comments": outcome.decision_notes,
-            "promotion_id": promotion.pk if promotion else None,
         }
         dated_items.append((session.grading_date, native_item))
 
@@ -1134,9 +1112,6 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "cycle_year": legacy.cycle_year,
             "cycle_month": legacy.cycle_month,
             "date_precision": legacy.date_precision,
-            "testing_for_rank_code": (
-                legacy.testing_for_rank.code if legacy.testing_for_rank else None
-            ),
             "testing_for_rank_name": (
                 legacy.testing_for_rank.name if legacy.testing_for_rank else None
             ),
@@ -1144,15 +1119,11 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "outcome": legacy.outcome,
             "attendance_status": legacy.attendance_status,
             "comments": legacy.comments,
-            "promotion_id": None,
         }
         dated_items.append((sort_date, legacy_item))
 
     dated_items.sort(key=lambda pair: pair[0], reverse=True)
-    return {
-        "student": student,
-        "items": [item for _sort_date, item in dated_items],
-    }
+    return {"items": [item for _sort_date, item in dated_items]}
 
 
 def _empty_summary() -> OverallAssessmentSummary:
@@ -1163,10 +1134,8 @@ def _empty_summary() -> OverallAssessmentSummary:
         "not_met": 0,
         "not_assessed": 0,
         "required_met": 0,
-        "required_not_met": 0,
         "required_not_assessed": 0,
         "all_required_assessed": True,
-        "all_required_met": True,
     }
 
 
@@ -1202,23 +1171,15 @@ def candidate_assessment_summary(
         elif item.result == CandidateAssessmentItem.Result.NOT_MET:
             summary["not_met"] += 1
             overall["not_met"] += 1
-            if item.required:
-                summary["required_not_met"] += 1
-                summary["all_required_met"] = False
-                overall["required_not_met"] += 1
         else:
             summary["not_assessed"] += 1
             overall["not_assessed"] += 1
             if item.required:
                 summary["required_not_assessed"] += 1
                 summary["all_required_assessed"] = False
-                summary["all_required_met"] = False
                 overall["required_not_assessed"] += 1
 
     overall["all_required_assessed"] = overall["required_not_assessed"] == 0
-    overall["all_required_met"] = (
-        overall["required_not_assessed"] == 0 and overall["required_not_met"] == 0
-    )
 
     return {
         "overall": overall,

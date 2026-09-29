@@ -575,5 +575,3 @@ export function GradingSessionsScreen() {
     </section>
   );
 }
-
-export default GradingSessionsScreen;

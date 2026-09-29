@@ -332,7 +332,7 @@ def test_syllabus_item_api_lists_items() -> None:
     response = auth_client().get("/api/syllabus/items/?page_size=200")
 
     assert response.status_code == 200
-    assert "KI_BOHN_SOO" in {row["code"] for row in results(response)}
+    assert "Ki Bohn Soo" in {row["name"] for row in results(response)}
 
 
 def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
@@ -503,9 +503,15 @@ def test_effective_syllabus_requirement_ordering_is_deterministic() -> None:
     )
 
     assert response.status_code == 200
-    payload = results(response)
-    keys = [(row["category"], row["sequence"], row["item_name"]) for row in payload]
-    assert keys == sorted(keys)
+    served = [(row["category"], row["item_name"]) for row in results(response)]
+    rank = Rank.objects.get(code="BLUE_STRIPE")
+    expected = [
+        (row.requirement.item.category, row.requirement.item.name)
+        for row in effective_syllabus_requirements(
+            rank=rank, age_band=AgeBand.AGE_13_TO_17
+        )
+    ]
+    assert served == expected
 
 
 def test_effective_syllabus_requirement_domain_function_matches_api() -> None:

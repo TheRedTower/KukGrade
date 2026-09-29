@@ -1161,12 +1161,9 @@ export interface components {
             readonly not_met: number;
             readonly not_assessed: number;
             readonly required_met: number;
-            readonly required_not_met: number;
             readonly required_not_assessed: number;
             readonly all_required_assessed: boolean;
-            readonly all_required_met: boolean;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display: string;
         };
         /**
          * @description Shape of one rollup block in `candidate_assessment_summary`.
@@ -1183,10 +1180,8 @@ export interface components {
             readonly not_met: number;
             readonly not_assessed: number;
             readonly required_met: number;
-            readonly required_not_met: number;
             readonly required_not_assessed: number;
             readonly all_required_assessed: boolean;
-            readonly all_required_met: boolean;
         };
         /**
          * @description * `ATTENDED` - Attended
@@ -1217,8 +1212,6 @@ export interface components {
             readonly action_display: string;
             readonly entity_type: components["schemas"]["AuditEntityEnum"];
             readonly entity_id: string;
-            /** Format: uuid */
-            readonly actor: string | null;
             /** Format: email */
             readonly actor_email: string;
             readonly actor_name: string;
@@ -1298,15 +1291,8 @@ export interface components {
             readonly id: number;
             readonly candidate: number;
             readonly candidate_student_name: string;
-            readonly candidate_student_wksa_id: string;
-            readonly testing_for_rank_code: string;
-            readonly testing_for_rank_name: string;
-            readonly age_band: string;
-            readonly age_band_display: string;
             status?: components["schemas"]["CandidateAssessmentStatusEnum"];
             readonly status_display: string;
-            /** Format: uuid */
-            readonly generated_by: string;
             /** Format: email */
             readonly generated_by_email: string;
             /** Format: date-time */
@@ -1316,42 +1302,24 @@ export interface components {
             /** Format: date-time */
             readonly completed_at: string | null;
             notes?: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         CandidateAssessmentItem: {
             readonly id: number;
-            readonly assessment: number;
-            readonly source_requirement: number | null;
-            readonly source_item: number | null;
-            readonly source_rank: number | null;
-            readonly source_age_band: components["schemas"]["AgeBandEnum"];
-            readonly item_code: string;
             readonly item_name: string;
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
             readonly requirement_sequence: number;
             readonly required: boolean;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
             readonly display_range: string;
             readonly requirement_notes: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
-            /** Format: uuid */
-            readonly assessor: string | null;
             /** Format: email */
             readonly assessor_email: string;
             /** Format: date-time */
             readonly assessed_at: string | null;
             assessor_notes?: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description * `NOT_STARTED` - Not started
@@ -1368,43 +1336,20 @@ export interface components {
         CandidateOutcome: {
             readonly id: number;
             readonly candidate: number;
-            readonly assessment: number;
-            readonly assessment_status: string;
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly session: number;
-            readonly session_title: string;
-            readonly testing_for_rank: number;
-            readonly testing_for_rank_code: string;
-            readonly testing_for_rank_name: string;
             readonly status: components["schemas"]["CandidateOutcomeStatusEnum"];
-            readonly status_display: string;
             readonly proposed_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly proposed_outcome_display: string;
-            /** Format: uuid */
-            readonly proposed_by: string | null;
-            /** Format: email */
-            readonly proposed_by_email: string;
             readonly proposed_by_name: string;
             /** Format: date-time */
             readonly proposed_at: string | null;
             readonly proposal_notes: string;
             readonly final_outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly final_outcome_display: string;
-            /** Format: uuid */
-            readonly decided_by: string | null;
-            /** Format: email */
-            readonly decided_by_email: string;
             readonly decided_by_name: string;
             /** Format: date-time */
             readonly decided_at: string | null;
             readonly decision_notes: string;
             readonly conditional_requirements: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description * `PASS` - Pass
@@ -1422,22 +1367,6 @@ export interface components {
         CandidateOutcomeStatusEnum: "DRAFT" | "PROPOSED" | "FINALISED";
         CandidatePromotionRequest: {
             notes?: string;
-        };
-        CanonicalLegacyRow: {
-            source_sheet: string;
-            source_section: string;
-            source_locator: string;
-            cycle_year: number;
-            cycle_month: number;
-            record_kind: components["schemas"]["RecordKindEnum"];
-            source_name: string;
-            source_current_rank_text: string;
-            source_testing_for_rank_text: string;
-            source_outcome_text: string;
-            outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
-            attendance_status: components["schemas"]["AttendanceStatusEnum"];
-            comments: string;
-            admin_note: string;
         };
         /**
          * @description POST /api/auth/change-password/.
@@ -1473,11 +1402,7 @@ export interface components {
             readonly item_name: string;
             readonly item_korean_name: string;
             readonly category: string;
-            readonly category_display: string;
             readonly required: boolean;
-            readonly sequence: number;
-            readonly start_number: number | null;
-            readonly end_number: number | null;
             readonly display_range: string;
             readonly notation: string;
             readonly notes: string;
@@ -1490,34 +1415,19 @@ export interface components {
         GradingCandidate: {
             readonly id: number;
             session: number;
-            readonly session_title: string;
             student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
-            readonly from_rank_code: string;
             readonly from_rank_name: string;
             testing_for_rank: number;
-            readonly testing_for_rank_code: string;
             readonly testing_for_rank_name: string;
-            readonly age_band: string;
             readonly age_band_display: string;
             status?: components["schemas"]["GradingCandidateStatusEnum"];
-            readonly status_display: string;
             notes?: string;
             withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
             withdrawal_note?: string;
-            /** Format: uuid */
-            readonly withdrawn_by: string | null;
-            readonly withdrawn_by_email: string;
-            readonly withdrawn_by_name: string;
-            /** Format: date-time */
-            readonly withdrawn_at: string | null;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description * `REGISTERED` - Registered
@@ -1534,13 +1444,11 @@ export interface components {
             cycle_year: number | null;
             cycle_month: number | null;
             date_precision: components["schemas"]["DatePrecisionEnum"];
-            testing_for_rank_code: string | null;
             testing_for_rank_name: string | null;
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
             comments: string;
-            promotion_id: number | null;
         };
         GradingSession: {
             readonly id: number;
@@ -1552,14 +1460,6 @@ export interface components {
             location?: string;
             notes?: string;
             cancellation_reason?: string;
-            /** Format: uuid */
-            readonly created_by: string;
-            /** Format: email */
-            readonly created_by_email: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         GradingSessionRequest: {
             title: string;
@@ -1586,33 +1486,11 @@ export interface components {
         ImportBatch: {
             readonly id: number;
             readonly kind: components["schemas"]["KindEnum"];
-            readonly kind_display: string;
             readonly status: components["schemas"]["ImportBatchStatusEnum"];
             readonly status_display: string;
-            readonly original_filename: string;
-            readonly sha256: string;
-            readonly file_size: number;
-            /** Format: email */
-            readonly uploaded_by_email: string;
-            /** Format: date-time */
-            readonly uploaded_at: string;
-            /** Format: email */
-            readonly committed_by_email: string | null;
-            /** Format: date-time */
-            readonly committed_at: string | null;
-            /** Format: date-time */
-            readonly cancelled_at: string | null;
             readonly summary_json: {
                 [key: string]: number;
             };
-            readonly configuration_json: {
-                [key: string]: unknown;
-            };
-            readonly error_summary: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         ImportBatchCreateRequest: {
             kind: components["schemas"]["KindEnum"];
@@ -1627,33 +1505,11 @@ export interface components {
         ImportBatchCreated: {
             readonly id: number;
             readonly kind: components["schemas"]["KindEnum"];
-            readonly kind_display: string;
             readonly status: components["schemas"]["ImportBatchStatusEnum"];
             readonly status_display: string;
-            readonly original_filename: string;
-            readonly sha256: string;
-            readonly file_size: number;
-            /** Format: email */
-            readonly uploaded_by_email: string;
-            /** Format: date-time */
-            readonly uploaded_at: string;
-            /** Format: email */
-            readonly committed_by_email: string | null;
-            /** Format: date-time */
-            readonly committed_at: string | null;
-            /** Format: date-time */
-            readonly cancelled_at: string | null;
             readonly summary_json: {
                 [key: string]: number;
             };
-            readonly configuration_json: {
-                [key: string]: unknown;
-            };
-            readonly error_summary: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
             readonly already_imported_warning: boolean;
             readonly detected_headers: string[];
             readonly suggested_mapping: {
@@ -1689,19 +1545,9 @@ export interface components {
             readonly id: number;
             readonly student: number | null;
             readonly student_display_name: string | null;
-            readonly student_wksa_id: string | null;
-            readonly source_batch: number;
             readonly record_kind: components["schemas"]["RecordKindEnum"];
-            readonly record_kind_display: string;
-            readonly source_sheet: string;
-            readonly source_section: string;
-            readonly source_locator: string;
             readonly cycle_year: number;
             readonly cycle_month: number;
-            /** Format: date */
-            readonly grading_date: string | null;
-            readonly date_precision: components["schemas"]["DatePrecisionEnum"];
-            readonly date_precision_display: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
             readonly current_rank: number | null;
@@ -1709,25 +1555,12 @@ export interface components {
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
             readonly testing_for_rank_code: string | null;
-            readonly source_outcome_text: string;
-            readonly outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             readonly outcome_display: string | null;
-            readonly attendance_status: components["schemas"]["AttendanceStatusEnum"];
             readonly attendance_status_display: string;
-            readonly comments: string;
-            readonly admin_note: string;
             readonly is_void: boolean;
             readonly void_reason: string;
-            /** Format: uuid */
-            readonly voided_by: string | null;
             /** Format: email */
             readonly voided_by_email: string | null;
-            /** Format: date-time */
-            readonly voided_at: string | null;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         LegacyImportPreview: {
             total: number;
@@ -1739,7 +1572,6 @@ export interface components {
             unresolved_outcome: number;
             warnings: string[];
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
-            rows: components["schemas"]["CanonicalLegacyRow"][];
         };
         /**
          * @description Shared request shape for the historical preview and commit actions.
@@ -2095,88 +1927,34 @@ export interface components {
         ProgrammeEnum: "JUNIOR" | "ADULT";
         Promotion: {
             readonly id: number;
-            readonly student: number;
             readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly student_current_rank: number;
-            readonly student_current_rank_code: string;
-            readonly student_current_rank_name: string;
-            readonly outcome: number;
             readonly grading_candidate: number;
-            readonly session: number;
-            readonly session_title: string;
-            /** Format: date */
-            readonly grading_date: string;
-            readonly from_rank: number;
-            readonly from_rank_code: string;
-            readonly from_rank_name: string;
-            readonly to_rank: number;
-            readonly to_rank_code: string;
             readonly to_rank_name: string;
-            /** Format: uuid */
-            readonly promoted_by: string;
-            /** Format: email */
-            readonly promoted_by_email: string;
-            readonly promoted_by_name: string;
-            /** Format: date-time */
-            readonly promoted_at: string;
             /** Format: date */
             readonly effective_date: string;
-            readonly notes: string;
-            /** Format: date-time */
-            readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         PromotionRankHistory: {
             readonly id: number;
-            readonly from_rank: number;
-            readonly from_rank_code: string;
             readonly from_rank_name: string;
-            readonly to_rank: number;
-            readonly to_rank_code: string;
             readonly to_rank_name: string;
-            readonly session: number;
             readonly session_title: string;
-            /** Format: date */
-            readonly grading_date: string;
-            readonly outcome: number;
-            readonly outcome_status: string;
-            readonly final_outcome: string;
-            /** Format: uuid */
-            readonly promoted_by: string;
-            /** Format: email */
-            readonly promoted_by_email: string;
-            readonly promoted_by_name: string;
             /** Format: date-time */
             readonly promoted_at: string;
             /** Format: date */
             readonly effective_date: string;
-            readonly notes: string;
         };
         Rank: {
             readonly id: number;
             readonly code: string;
             readonly name: string;
             readonly order: number;
-            readonly category: components["schemas"]["RankCategoryEnum"];
-            readonly category_display: string;
             readonly belt_colour: components["schemas"]["BeltColourEnum"];
             readonly stripe_colour: components["schemas"]["BeltColourEnum"] | components["schemas"]["BlankEnum"];
             readonly stripe_count: number;
-            readonly active: boolean;
             readonly next_rank: number | null;
         };
-        /**
-         * @description * `COLOURED_BELT` - Coloured belt
-         *     * `BLACK_BELT_CANDIDATE` - Black belt candidate
-         *     * `BLACK_BELT` - Black belt
-         * @enum {string}
-         */
-        RankCategoryEnum: "COLOURED_BELT" | "BLACK_BELT_CANDIDATE" | "BLACK_BELT";
         RankMappingSuggestion: {
             source_text: string;
-            suggested_rank_id: number | null;
             suggested_rank_code: string | null;
         };
         ReadinessResponse: {
@@ -2244,16 +2022,12 @@ export interface components {
             /** Format: date */
             date_of_birth: string;
             current_rank: number;
-            readonly current_rank_code: string;
             readonly current_rank_name: string;
             status?: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
-            readonly age_band: string;
             readonly age_band_display: string;
             /** Format: date-time */
             readonly created_at: string;
-            /** Format: date-time */
-            readonly updated_at: string;
         };
         /**
          * @description Combines finalised native outcomes with linked, non-voided legacy
@@ -2262,9 +2036,6 @@ export interface components {
          *     Promotion-only (import Decision 6).
          */
         StudentGradingHistory: {
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
             items: components["schemas"]["GradingHistoryItem"][];
         };
         StudentImportPreview: {
@@ -2300,11 +2071,8 @@ export interface components {
             last_name: string;
             date_of_birth_display: string;
             current_rank_text: string;
-            current_rank_code: string | null;
             status: string;
             issues: string[];
-            existing_student_id: number | null;
-            existing_student_display: string | null;
         };
         /**
          * @description The list representation. Deliberately excludes date of birth.
@@ -2328,12 +2096,6 @@ export interface components {
             readonly age_band_display: string;
         };
         StudentRankHistory: {
-            readonly student: number;
-            readonly student_display_name: string;
-            readonly student_wksa_id: string;
-            readonly current_rank: number;
-            readonly current_rank_code: string;
-            readonly current_rank_name: string;
             readonly promotions: components["schemas"]["PromotionRankHistory"][];
         };
         /**
@@ -2361,13 +2123,10 @@ export interface components {
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
         SyllabusItem: {
             readonly id: number;
-            readonly code: string;
             readonly name: string;
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
-            readonly description: string;
-            readonly active: boolean;
         };
         /**
          * @description * `ETIQUETTE` - Etiquette
@@ -2391,7 +2150,6 @@ export interface components {
             readonly first_name: string;
             readonly last_name: string;
             readonly full_name: string;
-            readonly role: components["schemas"]["RoleEnum"];
             readonly role_display: string;
             readonly can_make_final_grading_decision: boolean;
             readonly can_promote_student: boolean;
@@ -2405,12 +2163,6 @@ export interface components {
             readonly can_delete_any_session: boolean;
             readonly can_read_audit_log: boolean;
             readonly must_change_password: boolean;
-            readonly is_staff: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser: boolean;
         };
         /**
          * @description List, retrieve, create and update for the administrator-facing API.
@@ -2437,12 +2189,6 @@ export interface components {
             readonly can_override_locked_session: boolean;
             readonly can_view_grading_audit_log: boolean;
             readonly must_change_password: boolean;
-            readonly is_staff: boolean;
-            /**
-             * Superuser status
-             * @description Designates that this user has all permissions without explicitly assigning them.
-             */
-            readonly is_superuser: boolean;
             /** Format: date-time */
             readonly date_joined: string;
             /** Format: date-time */

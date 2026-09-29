@@ -216,7 +216,6 @@ def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> 
     assert preview.skip_existing == 1
     row = preview.rows[0]
     assert row.outcome == "SKIP_EXISTING"
-    assert row.existing_student_display == "Existing Student (000123)"
 
 
 def test_preview_flags_duplicate_wksa_id_within_file() -> None:

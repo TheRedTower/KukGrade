@@ -24,7 +24,6 @@ const auditEvent: AuditEvent = {
   action_display: "Outcome finalised",
   entity_type: "CandidateOutcome",
   entity_id: "103",
-  actor: "e7659aa9-dace-4baf-8c64-f335804902bc",
   actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
   summary: "Finalised Carlos Rivera's grading outcome as Pass.",

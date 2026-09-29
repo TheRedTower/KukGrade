@@ -7,7 +7,6 @@ from datetime import date
 import pytest
 from django.contrib.admin.sites import site as admin_site
 from django.contrib.auth.models import Permission
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.deletion import ProtectedError
 from django.http import HttpRequest
@@ -15,6 +14,8 @@ from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
+from accounts.testing import grant_permission
 from audit.admin import AuditEventAdmin
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -31,23 +32,13 @@ def user(email: str) -> User:
     return User.objects.create_user(email=email)
 
 
-def grant(actor: User, codename: str, model: str) -> User:
-    actor.user_permissions.add(
-        Permission.objects.get(
-            codename=codename,
-            content_type=ContentType.objects.get(app_label="gradings", model=model),
-        ),
-    )
-    return User.objects.get(pk=actor.pk)
-
-
 def master(email: str) -> User:
     """An instructor holding Master (final-decision) authority.
 
     Distinct from an administrator - CanViewAuditLog grants audit log
     access to either, and several tests need to tell the two paths apart.
     """
-    return grant(user(email), "can_make_final_grading_decision", "candidateoutcome")
+    return grant_permission(user(email), FINAL_GRADING_DECISION_PERMISSION)
 
 
 def events_for(action: str) -> list[AuditEvent]:
@@ -446,7 +437,7 @@ def test_master_authority_instructor_still_sees_every_other_action_in_the_log() 
 
 def audit_log_reader(email: str) -> User:
     """A plain instructor granted only can_view_grading_audit_log."""
-    return grant(user(email), "can_view_grading_audit_log", "candidateoutcome")
+    return grant_permission(user(email), "gradings.can_view_grading_audit_log")
 
 
 def user_created_event() -> AuditEvent:

@@ -7,49 +7,24 @@ from rest_framework import serializers
 from data_imports.mappings import STUDENT_REQUIRED_TARGET_FIELDS, STUDENT_TARGET_FIELDS
 from data_imports.models import ImportBatch
 from data_imports.services import CreateImportBatchResult, StudentImportRowOutcome
-from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 
 class ImportBatchSerializer(serializers.ModelSerializer):
-    kind_display = serializers.CharField(source="get_kind_display", read_only=True)
-    # Declared rather than inferred from JSONField, which would type them as
-    # "anything": summary_json only ever holds safe counts, and
-    # configuration_json the confirmed column or rank mappings.
+    # Declared rather than inferred from JSONField, which would type it as
+    # "anything": summary_json only ever holds safe counts.
     summary_json = serializers.DictField(
         child=serializers.IntegerField(), read_only=True
     )
-    configuration_json = serializers.DictField(read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    uploaded_by_email = serializers.EmailField(
-        source="uploaded_by.email", read_only=True
-    )
-    committed_by_email = serializers.EmailField(
-        source="committed_by.email",
-        read_only=True,
-        allow_null=True,
-    )
 
     class Meta:
         model = ImportBatch
         fields = [
             "id",
             "kind",
-            "kind_display",
             "status",
             "status_display",
-            "original_filename",
-            "sha256",
-            "file_size",
-            "uploaded_by_email",
-            "uploaded_at",
-            "committed_by_email",
-            "committed_at",
-            "cancelled_at",
             "summary_json",
-            "configuration_json",
-            "error_summary",
-            "created_at",
-            "updated_at",
         ]
         read_only_fields = fields
 
@@ -128,11 +103,8 @@ class StudentImportRowResultSerializer(serializers.Serializer):
     last_name = serializers.CharField()
     date_of_birth_display = serializers.CharField()
     current_rank_text = serializers.CharField()
-    current_rank_code = serializers.CharField(allow_null=True)
     status = serializers.CharField()
     issues = serializers.ListField(child=serializers.CharField())
-    existing_student_id = serializers.IntegerField(allow_null=True)
-    existing_student_display = serializers.CharField(allow_null=True)
 
 
 class StudentImportPreviewSerializer(serializers.Serializer):
@@ -161,25 +133,7 @@ class LegacyImportSerializer(serializers.Serializer):
 
 class RankMappingSuggestionSerializer(serializers.Serializer):
     source_text = serializers.CharField()
-    suggested_rank_id = serializers.IntegerField(allow_null=True)
     suggested_rank_code = serializers.CharField(allow_null=True)
-
-
-class CanonicalLegacyRowSerializer(serializers.Serializer):
-    source_sheet = serializers.CharField()
-    source_section = serializers.CharField()
-    source_locator = serializers.CharField()
-    cycle_year = serializers.IntegerField()
-    cycle_month = serializers.IntegerField()
-    record_kind = serializers.ChoiceField(choices=LegacyRecordKind.choices)
-    source_name = serializers.CharField()
-    source_current_rank_text = serializers.CharField()
-    source_testing_for_rank_text = serializers.CharField()
-    source_outcome_text = serializers.CharField()
-    outcome = serializers.ChoiceField(choices=LegacyOutcome.choices, allow_null=True)
-    attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
-    comments = serializers.CharField()
-    admin_note = serializers.CharField()
 
 
 class LegacyImportPreviewSerializer(serializers.Serializer):
@@ -192,4 +146,3 @@ class LegacyImportPreviewSerializer(serializers.Serializer):
     unresolved_outcome = serializers.IntegerField()
     warnings = serializers.ListField(child=serializers.CharField())
     rank_suggestions = RankMappingSuggestionSerializer(many=True)
-    rows = CanonicalLegacyRowSerializer(many=True)

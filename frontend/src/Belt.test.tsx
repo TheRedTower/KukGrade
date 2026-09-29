@@ -16,12 +16,9 @@ const blueStripe: Rank = {
   code: "BLUE_STRIPE",
   name: "Blue Stripe",
   order: 4,
-  category: "COLOURED_BELT",
-  category_display: "Coloured belt",
   belt_colour: "YELLOW",
   stripe_colour: "BLUE",
   stripe_count: 1,
-  active: true,
   next_rank: 5,
 };
 

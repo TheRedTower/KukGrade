@@ -2249,37 +2249,25 @@ components:
         required_met:
           type: integer
           readOnly: true
-        required_not_met:
-          type: integer
-          readOnly: true
         required_not_assessed:
           type: integer
           readOnly: true
         all_required_assessed:
           type: boolean
           readOnly: true
-        all_required_met:
-          type: boolean
-          readOnly: true
         category:
           allOf:
           - $ref: '#/components/schemas/SyllabusItemCategoryEnum'
           readOnly: true
-        category_display:
-          type: string
-          readOnly: true
       required:
       - all_required_assessed
-      - all_required_met
       - category
-      - category_display
       - met
       - not_assessed
       - not_met
       - required
       - required_met
       - required_not_assessed
-      - required_not_met
       - total
     AssessmentSummaryCounts:
       type: object
@@ -2309,28 +2297,20 @@ components:
         required_met:
           type: integer
           readOnly: true
-        required_not_met:
-          type: integer
-          readOnly: true
         required_not_assessed:
           type: integer
           readOnly: true
         all_required_assessed:
           type: boolean
           readOnly: true
-        all_required_met:
-          type: boolean
-          readOnly: true
       required:
       - all_required_assessed
-      - all_required_met
       - met
       - not_assessed
       - not_met
       - required
       - required_met
       - required_not_assessed
-      - required_not_met
       - total
     AttendanceStatusEnum:
       enum:
@@ -2390,11 +2370,6 @@ components:
         entity_id:
           type: string
           readOnly: true
-        actor:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
         actor_email:
           type: string
           format: email
@@ -2410,7 +2385,6 @@ components:
       required:
       - action
       - action_display
-      - actor
       - actor_email
       - actor_name
       - entity_id
@@ -2600,29 +2574,10 @@ components:
         candidate_student_name:
           type: string
           readOnly: true
-        candidate_student_wksa_id:
-          type: string
-          readOnly: true
-        testing_for_rank_code:
-          type: string
-          readOnly: true
-        testing_for_rank_name:
-          type: string
-          readOnly: true
-        age_band:
-          type: string
-          readOnly: true
-        age_band_display:
-          type: string
-          readOnly: true
         status:
           $ref: '#/components/schemas/CandidateAssessmentStatusEnum'
         status_display:
           type: string
-          readOnly: true
-        generated_by:
-          type: string
-          format: uuid
           readOnly: true
         generated_by_email:
           type: string
@@ -2644,58 +2599,20 @@ components:
           nullable: true
         notes:
           type: string
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - age_band
-      - age_band_display
       - candidate
       - candidate_student_name
-      - candidate_student_wksa_id
       - completed_at
-      - created_at
       - generated_at
-      - generated_by
       - generated_by_email
       - id
       - started_at
       - status_display
-      - testing_for_rank_code
-      - testing_for_rank_name
-      - updated_at
     CandidateAssessmentItem:
       type: object
       properties:
         id:
           type: integer
-          readOnly: true
-        assessment:
-          type: integer
-          readOnly: true
-        source_requirement:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_item:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_rank:
-          type: integer
-          readOnly: true
-          nullable: true
-        source_age_band:
-          allOf:
-          - $ref: '#/components/schemas/AgeBandEnum'
-          readOnly: true
-        item_code:
-          type: string
           readOnly: true
         item_name:
           type: string
@@ -2716,14 +2633,6 @@ components:
         required:
           type: boolean
           readOnly: true
-        start_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        end_number:
-          type: integer
-          readOnly: true
-          nullable: true
         display_range:
           type: string
           readOnly: true
@@ -2735,11 +2644,6 @@ components:
         result_display:
           type: string
           readOnly: true
-        assessor:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
         assessor_email:
           type: string
           format: email
@@ -2751,38 +2655,19 @@ components:
           nullable: true
         assessor_notes:
           type: string
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
       - assessed_at
-      - assessment
-      - assessor
       - assessor_email
       - category
       - category_display
-      - created_at
       - display_range
-      - end_number
       - id
-      - item_code
       - item_name
       - korean_name
       - required
       - requirement_notes
       - requirement_sequence
       - result_display
-      - source_age_band
-      - source_item
-      - source_rank
-      - source_requirement
-      - start_number
-      - updated_at
     CandidateAssessmentStatusEnum:
       enum:
       - NOT_STARTED
@@ -2818,42 +2703,9 @@ components:
         candidate:
           type: integer
           readOnly: true
-        assessment:
-          type: integer
-          readOnly: true
-        assessment_status:
-          type: string
-          readOnly: true
-        student:
-          type: integer
-          readOnly: true
-        student_display_name:
-          type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
-        session:
-          type: integer
-          readOnly: true
-        session_title:
-          type: string
-          readOnly: true
-        testing_for_rank:
-          type: integer
-          readOnly: true
-        testing_for_rank_code:
-          type: string
-          readOnly: true
-        testing_for_rank_name:
-          type: string
-          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/CandidateOutcomeStatusEnum'
-          readOnly: true
-        status_display:
-          type: string
           readOnly: true
         proposed_outcome:
           readOnly: true
@@ -2863,15 +2715,6 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         proposed_outcome_display:
           type: string
-          readOnly: true
-        proposed_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        proposed_by_email:
-          type: string
-          format: email
           readOnly: true
         proposed_by_name:
           type: string
@@ -2893,15 +2736,6 @@ components:
         final_outcome_display:
           type: string
           readOnly: true
-        decided_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        decided_by_email:
-          type: string
-          format: email
-          readOnly: true
         decided_by_name:
           type: string
           readOnly: true
@@ -2916,23 +2750,10 @@ components:
         conditional_requirements:
           type: string
           readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - assessment
-      - assessment_status
       - candidate
       - conditional_requirements
-      - created_at
       - decided_at
-      - decided_by
-      - decided_by_email
       - decided_by_name
       - decision_notes
       - final_outcome
@@ -2940,22 +2761,10 @@ components:
       - id
       - proposal_notes
       - proposed_at
-      - proposed_by
-      - proposed_by_email
       - proposed_by_name
       - proposed_outcome
       - proposed_outcome_display
-      - session
-      - session_title
       - status
-      - status_display
-      - student
-      - student_display_name
-      - student_wksa_id
-      - testing_for_rank
-      - testing_for_rank_code
-      - testing_for_rank_name
-      - updated_at
     CandidateOutcomeOutcomeEnum:
       enum:
       - PASS
@@ -2981,55 +2790,6 @@ components:
       properties:
         notes:
           type: string
-    CanonicalLegacyRow:
-      type: object
-      properties:
-        source_sheet:
-          type: string
-        source_section:
-          type: string
-        source_locator:
-          type: string
-        cycle_year:
-          type: integer
-        cycle_month:
-          type: integer
-        record_kind:
-          $ref: '#/components/schemas/RecordKindEnum'
-        source_name:
-          type: string
-        source_current_rank_text:
-          type: string
-        source_testing_for_rank_text:
-          type: string
-        source_outcome_text:
-          type: string
-        outcome:
-          nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-          - $ref: '#/components/schemas/NullEnum'
-        attendance_status:
-          $ref: '#/components/schemas/AttendanceStatusEnum'
-        comments:
-          type: string
-        admin_note:
-          type: string
-      required:
-      - admin_note
-      - attendance_status
-      - comments
-      - cycle_month
-      - cycle_year
-      - outcome
-      - record_kind
-      - source_current_rank_text
-      - source_locator
-      - source_name
-      - source_outcome_text
-      - source_section
-      - source_sheet
-      - source_testing_for_rank_text
     ChangePasswordRequest:
       type: object
       description: |-
@@ -3084,23 +2844,9 @@ components:
         category:
           type: string
           readOnly: true
-        category_display:
-          type: string
-          readOnly: true
         required:
           type: boolean
           readOnly: true
-        sequence:
-          type: integer
-          readOnly: true
-        start_number:
-          type: integer
-          readOnly: true
-          nullable: true
-        end_number:
-          type: integer
-          readOnly: true
-          nullable: true
         display_range:
           type: string
           readOnly: true
@@ -3127,11 +2873,9 @@ components:
           readOnly: true
       required:
       - category
-      - category_display
       - display_range
       - effective_since_rank_code
       - effective_since_rank_name
-      - end_number
       - introduced_rank_code
       - introduced_rank_name
       - is_new_at_rank
@@ -3141,8 +2885,6 @@ components:
       - notation
       - notes
       - required
-      - sequence
-      - start_number
     GradingCandidate:
       type: object
       properties:
@@ -3151,9 +2893,6 @@ components:
           readOnly: true
         session:
           type: integer
-        session_title:
-          type: string
-          readOnly: true
         student:
           type: integer
         student_display_name:
@@ -3165,21 +2904,12 @@ components:
         from_rank:
           type: integer
           readOnly: true
-        from_rank_code:
-          type: string
-          readOnly: true
         from_rank_name:
           type: string
           readOnly: true
         testing_for_rank:
           type: integer
-        testing_for_rank_code:
-          type: string
-          readOnly: true
         testing_for_rank_name:
-          type: string
-          readOnly: true
-        age_band:
           type: string
           readOnly: true
         age_band_display:
@@ -3187,9 +2917,6 @@ components:
           readOnly: true
         status:
           $ref: '#/components/schemas/GradingCandidateStatusEnum'
-        status_display:
-          type: string
-          readOnly: true
         notes:
           type: string
         withdrawal_reason:
@@ -3201,53 +2928,18 @@ components:
           readOnly: true
         withdrawal_note:
           type: string
-        withdrawn_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
-        withdrawn_by_email:
-          type: string
-          readOnly: true
-        withdrawn_by_name:
-          type: string
-          readOnly: true
-        withdrawn_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - age_band
       - age_band_display
-      - created_at
       - from_rank
-      - from_rank_code
       - from_rank_name
       - id
       - session
-      - session_title
-      - status_display
       - student
       - student_display_name
       - student_wksa_id
       - testing_for_rank
-      - testing_for_rank_code
       - testing_for_rank_name
-      - updated_at
       - withdrawal_reason_display
-      - withdrawn_at
-      - withdrawn_by
-      - withdrawn_by_email
-      - withdrawn_by_name
     GradingCandidateStatusEnum:
       enum:
       - REGISTERED
@@ -3277,9 +2969,6 @@ components:
           nullable: true
         date_precision:
           $ref: '#/components/schemas/DatePrecisionEnum'
-        testing_for_rank_code:
-          type: string
-          nullable: true
         testing_for_rank_name:
           type: string
           nullable: true
@@ -3294,9 +2983,6 @@ components:
           $ref: '#/components/schemas/AttendanceStatusEnum'
         comments:
           type: string
-        promotion_id:
-          type: integer
-          nullable: true
       required:
       - attendance_status
       - comments
@@ -3305,11 +2991,9 @@ components:
       - date
       - date_precision
       - outcome
-      - promotion_id
       - record_id
       - source
       - source_testing_for_rank_text
-      - testing_for_rank_code
       - testing_for_rank_name
     GradingSession:
       type: object
@@ -3335,31 +3019,11 @@ components:
           type: string
         cancellation_reason:
           type: string
-        created_by:
-          type: string
-          format: uuid
-          readOnly: true
-        created_by_email:
-          type: string
-          format: email
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - created_at
-      - created_by
-      - created_by_email
       - grading_date
       - id
       - status_display
       - title
-      - updated_at
     GradingSessionRequest:
       type: object
       properties:
@@ -3416,9 +3080,6 @@ components:
           allOf:
           - $ref: '#/components/schemas/KindEnum'
           readOnly: true
-        kind_display:
-          type: string
-          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/ImportBatchStatusEnum'
@@ -3426,77 +3087,17 @@ components:
         status_display:
           type: string
           readOnly: true
-        original_filename:
-          type: string
-          readOnly: true
-        sha256:
-          type: string
-          readOnly: true
-        file_size:
-          type: integer
-          readOnly: true
-        uploaded_by_email:
-          type: string
-          format: email
-          readOnly: true
-        uploaded_at:
-          type: string
-          format: date-time
-          readOnly: true
-        committed_by_email:
-          type: string
-          format: email
-          readOnly: true
-          nullable: true
-        committed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        cancelled_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
         summary_json:
           type: object
           additionalProperties:
             type: integer
           readOnly: true
-        configuration_json:
-          type: object
-          additionalProperties: {}
-          readOnly: true
-        error_summary:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - cancelled_at
-      - committed_at
-      - committed_by_email
-      - configuration_json
-      - created_at
-      - error_summary
-      - file_size
       - id
       - kind
-      - kind_display
-      - original_filename
-      - sha256
       - status
       - status_display
       - summary_json
-      - updated_at
-      - uploaded_at
-      - uploaded_by_email
     ImportBatchCreateRequest:
       type: object
       properties:
@@ -3522,9 +3123,6 @@ components:
           allOf:
           - $ref: '#/components/schemas/KindEnum'
           readOnly: true
-        kind_display:
-          type: string
-          readOnly: true
         status:
           allOf:
           - $ref: '#/components/schemas/ImportBatchStatusEnum'
@@ -3532,57 +3130,10 @@ components:
         status_display:
           type: string
           readOnly: true
-        original_filename:
-          type: string
-          readOnly: true
-        sha256:
-          type: string
-          readOnly: true
-        file_size:
-          type: integer
-          readOnly: true
-        uploaded_by_email:
-          type: string
-          format: email
-          readOnly: true
-        uploaded_at:
-          type: string
-          format: date-time
-          readOnly: true
-        committed_by_email:
-          type: string
-          format: email
-          readOnly: true
-          nullable: true
-        committed_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        cancelled_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
         summary_json:
           type: object
           additionalProperties:
             type: integer
-          readOnly: true
-        configuration_json:
-          type: object
-          additionalProperties: {}
-          readOnly: true
-        error_summary:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
           readOnly: true
         already_imported_warning:
           type: boolean
@@ -3599,26 +3150,13 @@ components:
           readOnly: true
       required:
       - already_imported_warning
-      - cancelled_at
-      - committed_at
-      - committed_by_email
-      - configuration_json
-      - created_at
       - detected_headers
-      - error_summary
-      - file_size
       - id
       - kind
-      - kind_display
-      - original_filename
-      - sha256
       - status
       - status_display
       - suggested_mapping
       - summary_json
-      - updated_at
-      - uploaded_at
-      - uploaded_by_email
     ImportBatchStatusEnum:
       enum:
       - UPLOADED
@@ -3673,46 +3211,15 @@ components:
           type: string
           readOnly: true
           nullable: true
-        student_wksa_id:
-          type: string
-          readOnly: true
-          nullable: true
-        source_batch:
-          type: integer
-          readOnly: true
         record_kind:
           allOf:
           - $ref: '#/components/schemas/RecordKindEnum'
-          readOnly: true
-        record_kind_display:
-          type: string
-          readOnly: true
-        source_sheet:
-          type: string
-          readOnly: true
-        source_section:
-          type: string
-          readOnly: true
-        source_locator:
-          type: string
           readOnly: true
         cycle_year:
           type: integer
           readOnly: true
         cycle_month:
           type: integer
-          readOnly: true
-        grading_date:
-          type: string
-          format: date
-          readOnly: true
-          nullable: true
-        date_precision:
-          allOf:
-          - $ref: '#/components/schemas/DatePrecisionEnum'
-          readOnly: true
-        date_precision_display:
-          type: string
           readOnly: true
         source_name:
           type: string
@@ -3739,30 +3246,11 @@ components:
           type: string
           readOnly: true
           nullable: true
-        source_outcome_text:
-          type: string
-          readOnly: true
-        outcome:
-          readOnly: true
-          nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
-          - $ref: '#/components/schemas/NullEnum'
         outcome_display:
           type: string
           readOnly: true
           nullable: true
-        attendance_status:
-          allOf:
-          - $ref: '#/components/schemas/AttendanceStatusEnum'
-          readOnly: true
         attendance_status_display:
-          type: string
-          readOnly: true
-        comments:
-          type: string
-          readOnly: true
-        admin_note:
           type: string
           readOnly: true
         is_void:
@@ -3771,65 +3259,29 @@ components:
         void_reason:
           type: string
           readOnly: true
-        voided_by:
-          type: string
-          format: uuid
-          readOnly: true
-          nullable: true
         voided_by_email:
           type: string
           format: email
           readOnly: true
           nullable: true
-        voided_at:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - admin_note
-      - attendance_status
       - attendance_status_display
-      - comments
-      - created_at
       - current_rank
       - current_rank_code
       - cycle_month
       - cycle_year
-      - date_precision
-      - date_precision_display
-      - grading_date
       - id
       - is_void
-      - outcome
       - outcome_display
       - record_kind
-      - record_kind_display
-      - source_batch
       - source_current_rank_text
-      - source_locator
       - source_name
-      - source_outcome_text
-      - source_section
-      - source_sheet
       - source_testing_for_rank_text
       - student
       - student_display_name
-      - student_wksa_id
       - testing_for_rank
       - testing_for_rank_code
-      - updated_at
       - void_reason
-      - voided_at
-      - voided_by
       - voided_by_email
     LegacyImportPreview:
       type: object
@@ -3856,16 +3308,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RankMappingSuggestion'
-        rows:
-          type: array
-          items:
-            $ref: '#/components/schemas/CanonicalLegacyRow'
       required:
       - auxiliary_note
       - did_not_attend
       - grading_result
       - rank_suggestions
-      - rows
       - total
       - unresolved_current_rank
       - unresolved_outcome
@@ -4438,167 +3885,38 @@ components:
         id:
           type: integer
           readOnly: true
-        student:
-          type: integer
-          readOnly: true
         student_display_name:
           type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
-        student_current_rank:
-          type: integer
-          readOnly: true
-        student_current_rank_code:
-          type: string
-          readOnly: true
-        student_current_rank_name:
-          type: string
-          readOnly: true
-        outcome:
-          type: integer
           readOnly: true
         grading_candidate:
           type: integer
           readOnly: true
-        session:
-          type: integer
-          readOnly: true
-        session_title:
-          type: string
-          readOnly: true
-        grading_date:
-          type: string
-          format: date
-          readOnly: true
-        from_rank:
-          type: integer
-          readOnly: true
-        from_rank_code:
-          type: string
-          readOnly: true
-        from_rank_name:
-          type: string
-          readOnly: true
-        to_rank:
-          type: integer
-          readOnly: true
-        to_rank_code:
-          type: string
-          readOnly: true
         to_rank_name:
           type: string
-          readOnly: true
-        promoted_by:
-          type: string
-          format: uuid
-          readOnly: true
-        promoted_by_email:
-          type: string
-          format: email
-          readOnly: true
-        promoted_by_name:
-          type: string
-          readOnly: true
-        promoted_at:
-          type: string
-          format: date-time
           readOnly: true
         effective_date:
           type: string
           format: date
           readOnly: true
-        notes:
-          type: string
-          readOnly: true
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - created_at
       - effective_date
-      - from_rank
-      - from_rank_code
-      - from_rank_name
       - grading_candidate
-      - grading_date
       - id
-      - notes
-      - outcome
-      - promoted_at
-      - promoted_by
-      - promoted_by_email
-      - promoted_by_name
-      - session
-      - session_title
-      - student
-      - student_current_rank
-      - student_current_rank_code
-      - student_current_rank_name
       - student_display_name
-      - student_wksa_id
-      - to_rank
-      - to_rank_code
       - to_rank_name
-      - updated_at
     PromotionRankHistory:
       type: object
       properties:
         id:
           type: integer
           readOnly: true
-        from_rank:
-          type: integer
-          readOnly: true
-        from_rank_code:
-          type: string
-          readOnly: true
         from_rank_name:
-          type: string
-          readOnly: true
-        to_rank:
-          type: integer
-          readOnly: true
-        to_rank_code:
           type: string
           readOnly: true
         to_rank_name:
           type: string
           readOnly: true
-        session:
-          type: integer
-          readOnly: true
         session_title:
-          type: string
-          readOnly: true
-        grading_date:
-          type: string
-          format: date
-          readOnly: true
-        outcome:
-          type: integer
-          readOnly: true
-        outcome_status:
-          type: string
-          readOnly: true
-        final_outcome:
-          type: string
-          readOnly: true
-        promoted_by:
-          type: string
-          format: uuid
-          readOnly: true
-        promoted_by_email:
-          type: string
-          format: email
-          readOnly: true
-        promoted_by_name:
           type: string
           readOnly: true
         promoted_at:
@@ -4609,28 +3927,12 @@ components:
           type: string
           format: date
           readOnly: true
-        notes:
-          type: string
-          readOnly: true
       required:
       - effective_date
-      - final_outcome
-      - from_rank
-      - from_rank_code
       - from_rank_name
-      - grading_date
       - id
-      - notes
-      - outcome
-      - outcome_status
       - promoted_at
-      - promoted_by
-      - promoted_by_email
-      - promoted_by_name
-      - session
       - session_title
-      - to_rank
-      - to_rank_code
       - to_rank_name
     Rank:
       type: object
@@ -4647,13 +3949,6 @@ components:
         order:
           type: integer
           readOnly: true
-        category:
-          allOf:
-          - $ref: '#/components/schemas/RankCategoryEnum'
-          readOnly: true
-        category_display:
-          type: string
-          readOnly: true
         belt_colour:
           allOf:
           - $ref: '#/components/schemas/BeltColourEnum'
@@ -4666,18 +3961,12 @@ components:
         stripe_count:
           type: integer
           readOnly: true
-        active:
-          type: boolean
-          readOnly: true
         next_rank:
           type: integer
           readOnly: true
           nullable: true
       required:
-      - active
       - belt_colour
-      - category
-      - category_display
       - code
       - id
       - name
@@ -4685,31 +3974,17 @@ components:
       - order
       - stripe_colour
       - stripe_count
-    RankCategoryEnum:
-      enum:
-      - COLOURED_BELT
-      - BLACK_BELT_CANDIDATE
-      - BLACK_BELT
-      type: string
-      description: |-
-        * `COLOURED_BELT` - Coloured belt
-        * `BLACK_BELT_CANDIDATE` - Black belt candidate
-        * `BLACK_BELT` - Black belt
     RankMappingSuggestion:
       type: object
       properties:
         source_text:
           type: string
-        suggested_rank_id:
-          type: integer
-          nullable: true
         suggested_rank_code:
           type: string
           nullable: true
       required:
       - source_text
       - suggested_rank_code
-      - suggested_rank_id
     ReadinessResponse:
       type: object
       properties:
@@ -4822,18 +4097,12 @@ components:
           format: date
         current_rank:
           type: integer
-        current_rank_code:
-          type: string
-          readOnly: true
         current_rank_name:
           type: string
           readOnly: true
         status:
           $ref: '#/components/schemas/StudentStatusEnum'
         status_display:
-          type: string
-          readOnly: true
-        age_band:
           type: string
           readOnly: true
         age_band_display:
@@ -4843,23 +4112,16 @@ components:
           type: string
           format: date-time
           readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
       required:
-      - age_band
       - age_band_display
       - created_at
       - current_rank
-      - current_rank_code
       - current_rank_name
       - date_of_birth
       - first_name
       - id
       - last_name
       - status_display
-      - updated_at
       - wksa_id
     StudentGradingHistory:
       type: object
@@ -4869,24 +4131,12 @@ components:
         StudentRankHistorySerializer/`/rank-history/`, which remains
         Promotion-only (import Decision 6).
       properties:
-        student:
-          type: integer
-          readOnly: true
-        student_display_name:
-          type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
         items:
           type: array
           items:
             $ref: '#/components/schemas/GradingHistoryItem'
       required:
       - items
-      - student
-      - student_display_name
-      - student_wksa_id
     StudentImportPreview:
       type: object
       properties:
@@ -4951,27 +4201,15 @@ components:
           type: string
         current_rank_text:
           type: string
-        current_rank_code:
-          type: string
-          nullable: true
         status:
           type: string
         issues:
           type: array
           items:
             type: string
-        existing_student_id:
-          type: integer
-          nullable: true
-        existing_student_display:
-          type: string
-          nullable: true
       required:
-      - current_rank_code
       - current_rank_text
       - date_of_birth_display
-      - existing_student_display
-      - existing_student_id
       - first_name
       - issues
       - last_name
@@ -5041,37 +4279,13 @@ components:
     StudentRankHistory:
       type: object
       properties:
-        student:
-          type: integer
-          readOnly: true
-        student_display_name:
-          type: string
-          readOnly: true
-        student_wksa_id:
-          type: string
-          readOnly: true
-        current_rank:
-          type: integer
-          readOnly: true
-        current_rank_code:
-          type: string
-          readOnly: true
-        current_rank_name:
-          type: string
-          readOnly: true
         promotions:
           type: array
           items:
             $ref: '#/components/schemas/PromotionRankHistory'
           readOnly: true
       required:
-      - current_rank
-      - current_rank_code
-      - current_rank_name
       - promotions
-      - student
-      - student_display_name
-      - student_wksa_id
     StudentRequest:
       type: object
       description: |-
@@ -5122,9 +4336,6 @@ components:
         id:
           type: integer
           readOnly: true
-        code:
-          type: string
-          readOnly: true
         name:
           type: string
           readOnly: true
@@ -5138,18 +4349,9 @@ components:
         category_display:
           type: string
           readOnly: true
-        description:
-          type: string
-          readOnly: true
-        active:
-          type: boolean
-          readOnly: true
       required:
-      - active
       - category
       - category_display
-      - code
-      - description
       - id
       - korean_name
       - name
@@ -5197,10 +4399,6 @@ components:
         full_name:
           type: string
           readOnly: true
-        role:
-          allOf:
-          - $ref: '#/components/schemas/RoleEnum'
-          readOnly: true
         role_display:
           type: string
           readOnly: true
@@ -5240,15 +4438,6 @@ components:
         must_change_password:
           type: boolean
           readOnly: true
-        is_staff:
-          type: boolean
-          readOnly: true
-        is_superuser:
-          type: boolean
-          readOnly: true
-          title: Superuser status
-          description: Designates that this user has all permissions without explicitly
-            assigning them.
       required:
       - can_delete_any_session
       - can_delete_assessments
@@ -5265,11 +4454,8 @@ components:
       - first_name
       - full_name
       - id
-      - is_staff
-      - is_superuser
       - last_name
       - must_change_password
-      - role
       - role_display
     UserManagement:
       type: object
@@ -5321,15 +4507,6 @@ components:
         must_change_password:
           type: boolean
           readOnly: true
-        is_staff:
-          type: boolean
-          readOnly: true
-        is_superuser:
-          type: boolean
-          readOnly: true
-          title: Superuser status
-          description: Designates that this user has all permissions without explicitly
-            assigning them.
         date_joined:
           type: string
           format: date-time
@@ -5348,8 +4525,6 @@ components:
       - email
       - full_name
       - id
-      - is_staff
-      - is_superuser
       - last_login
       - must_change_password
       - role_display

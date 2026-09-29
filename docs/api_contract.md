@@ -31,6 +31,13 @@ returns an empty page. Each view declares its filters once
 them and publishes them in `backend/schema.yml`, which is the authoritative
 list; the tables below summarise it.
 
+Responses carry only the fields a screen reads. Anything the app does not
+display or act on (a duplicate of another field, a denormalised name, an
+attribution id) is left out and added back when a screen needs it; the
+attribution itself stays in the database and the audit log. `schema.yml` is
+the authoritative field list for every response, and the frontend types are
+generated from it.
+
 ## 0b. Error responses
 
 Every error response uses one envelope:
@@ -118,8 +125,8 @@ Administrator group.
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
 | POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
 
-`is_staff` and `is_superuser` are read-only through this API - it cannot hand
-out Django admin access. `role` is `instructor` or `administrator`; changing
+`is_staff` and `is_superuser` are not part of this API - it cannot hand out
+Django admin access. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
 resource. Responses include read-only `date_joined` and nullable `last_login`
@@ -138,7 +145,7 @@ List, retrieve, create, update, and an administrator-only delete.
 | PATCH | /api/students/{id}/                         | Update student details                          |
 | DELETE | /api/students/{id}/                        | Administrator-only hard delete, cascading through every registration/assessment/outcome/promotion involving the student; unlinks (never deletes) a linked legacy record. Requires `students.delete_student`. |
 | PUT   | /api/students/{id}/                         | 405; not exposed                                 |
-| GET   | /api/students/{id}/rank-history/            | Current rank plus every promotion record         |
+| GET   | /api/students/{id}/rank-history/            | Every promotion record, as `{"promotions": [...]}` |
 | GET   | /api/students/{id}/grading-history/         | Finalised native outcomes + linked, non-voided legacy records, source-labelled |
 
 The list representation omits `date_of_birth`; the detail representation
@@ -253,8 +260,7 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/bulk-generate-assessments/ | Generate assessment snapshots for several candidates in a single request |
 | POST  | /api/gradings/candidates/bulk-update-status/ | Set status (e.g. confirm attendance) on several candidates in a single request |
 
-Every candidate response carries `from_rank`, `from_rank_code` and
-`from_rank_name`: the rank the student held when registered, snapshotted on
+Every candidate response carries `from_rank` and `from_rank_name`: the rank the student held when registered, snapshotted on
 the candidate and read-only. It does not move when the student is later
 promoted, so a sealed assessment or a promotion ledger always shows where the
 candidate actually started.
@@ -547,10 +553,8 @@ assessment, actor, or timestamp fields directly.
 The assessment summary action groups `CandidateAssessmentItem` rows by copied snapshot
 category, in the syllabus chart's category order. It returns `overall` and
 per-category counts for total, required, met, not met, not assessed,
-required-met, required-not-met, required-not-assessed, all-required-assessed,
-and all-required-met; each category carries its code and its display label
-(`category`, `category_display`). It does not return an inferred final
-outcome.
+required-met, required-not-assessed and all-required-assessed; each category
+carries its code (`category`). It does not return an inferred final outcome.
 
 ### Promotion
 
@@ -567,8 +571,8 @@ success it creates a `Promotion` record and updates `Student.current_rank`.
 
 `Promotion` records are immutable and undeletable once created: there is no
 detail route to write to. `GET /api/gradings/promotions/` reads them back; `GET /api/students/{id}/rank-history/` (section 3)
-returns a student's current rank plus every promotion in one call, which is
-the more convenient read for a single student's history.
+returns one student's promotions in one call, which is the more convenient
+read for a single student's history.
 
 `POST /api/gradings/outcomes/bulk-promote/` promotes several outcomes in one
 request - any quantity, from one to an entire cohort - independently per
@@ -670,8 +674,7 @@ best-effort column mapping to pre-fill, never applied automatically).
   optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`)
   for fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
   response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
-  per-row `issues`, and (for `SKIP_EXISTING`) the existing student's
-  identity for comparison - the existing record is never modified.
+  per-row `issues`; a `SKIP_EXISTING` row is never modified.
 - **`LEGACY_GRADINGS`**: request body `rank_mappings`
   (`{"<source rank text>": "<Rank.code or null>"}`, one entry per *distinct*
   value across the batch, not per row - `null`/omitted means "leave
@@ -679,9 +682,8 @@ best-effort column mapping to pre-fill, never applied automatically).
   carries `total`/`grading_result`/`auxiliary_note`/`did_not_attend`
   counts, `unresolved_current_rank`/`unresolved_testing_for_rank`/
   `unresolved_outcome` counts, `warnings` (e.g. an unrecognised sheet),
-  `rank_suggestions` (`source_text`, `suggested_rank_id`,
-  `suggested_rank_code` - an exact-match suggestion only, never applied
-  automatically), and the full parsed `rows` for display. Commit creates
+  and `rank_suggestions` (`source_text`, `suggested_rank_code` - an
+  exact-match suggestion only, never applied automatically). Commit creates
   one `LegacyGradingRecord` per row (see section 11) - never a `Student`, a
   `Promotion`, or a `CandidateOutcome`.
 

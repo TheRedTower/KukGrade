@@ -91,7 +91,6 @@ class UserSerializer(AuthorityFields, serializers.ModelSerializer):
             "first_name",
             "last_name",
             "full_name",
-            "role",
             "role_display",
             "can_make_final_grading_decision",
             "can_promote_student",
@@ -105,8 +104,6 @@ class UserSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_delete_any_session",
             "can_read_audit_log",
             "must_change_password",
-            "is_staff",
-            "is_superuser",
         )
         read_only_fields: tuple[str, ...] = fields
 
@@ -200,16 +197,14 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_override_locked_session",
             "can_view_grading_audit_log",
             "must_change_password",
-            "is_staff",
-            "is_superuser",
             "date_joined",
             "last_login",
             "password",
         )
-        # is_staff and is_superuser are never writable through this API:
-        # Django admin access is not something it should be able to hand
-        # out. Role and is_active are writable; role decides group
-        # membership via the post_save signal in accounts/apps.py.
+        # is_staff and is_superuser are not in this API at all: Django admin
+        # access is not something it should be able to hand out. Role and
+        # is_active are writable; role decides group membership via the
+        # post_save signal in accounts/apps.py.
         read_only_fields = (
             "id",
             "full_name",
@@ -219,8 +214,6 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_override_locked_session",
             "can_view_grading_audit_log",
             "must_change_password",
-            "is_staff",
-            "is_superuser",
             "date_joined",
             "last_login",
         )

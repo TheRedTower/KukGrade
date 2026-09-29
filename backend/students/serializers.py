@@ -20,32 +20,10 @@ from students.services import create_student, update_student
 
 
 class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
-    from_rank_code = serializers.CharField(source="from_rank.code", read_only=True)
     from_rank_name = serializers.CharField(source="from_rank.name", read_only=True)
-    to_rank_code = serializers.CharField(source="to_rank.code", read_only=True)
     to_rank_name = serializers.CharField(source="to_rank.name", read_only=True)
-    session = serializers.IntegerField(
-        source="grading_candidate.session_id",
-        read_only=True,
-    )
     session_title = serializers.CharField(
         source="grading_candidate.session.title",
-        read_only=True,
-    )
-    grading_date = serializers.DateField(
-        source="grading_candidate.session.grading_date",
-        read_only=True,
-    )
-    outcome_status = serializers.CharField(source="outcome.status", read_only=True)
-    final_outcome = serializers.CharField(
-        source="outcome.final_outcome", read_only=True
-    )
-    promoted_by_email = serializers.EmailField(
-        source="promoted_by.email",
-        read_only=True,
-    )
-    promoted_by_name = serializers.CharField(
-        source="promoted_by.get_full_name",
         read_only=True,
     )
 
@@ -53,54 +31,17 @@ class PromotionRankHistorySerializer(serializers.ModelSerializer[Promotion]):
         model = Promotion
         fields = (
             "id",
-            "from_rank",
-            "from_rank_code",
             "from_rank_name",
-            "to_rank",
-            "to_rank_code",
             "to_rank_name",
-            "session",
             "session_title",
-            "grading_date",
-            "outcome",
-            "outcome_status",
-            "final_outcome",
-            "promoted_by",
-            "promoted_by_email",
-            "promoted_by_name",
             "promoted_at",
             "effective_date",
-            "notes",
         )
         read_only_fields = fields
 
 
 class StudentRankHistorySerializer(serializers.Serializer[StudentRankTimeline]):
-    student = serializers.SerializerMethodField()
-    student_display_name = serializers.SerializerMethodField()
-    student_wksa_id = serializers.SerializerMethodField()
-    current_rank = serializers.SerializerMethodField()
-    current_rank_code = serializers.SerializerMethodField()
-    current_rank_name = serializers.SerializerMethodField()
     promotions = PromotionRankHistorySerializer(many=True, read_only=True)
-
-    def get_student(self, obj: StudentRankTimeline) -> int:
-        return obj["student"].pk
-
-    def get_student_display_name(self, obj: StudentRankTimeline) -> str:
-        return str(obj["student"])
-
-    def get_student_wksa_id(self, obj: StudentRankTimeline) -> str:
-        return obj["student"].wksa_id
-
-    def get_current_rank(self, obj: StudentRankTimeline) -> int:
-        return obj["current_rank"].pk
-
-    def get_current_rank_code(self, obj: StudentRankTimeline) -> str:
-        return obj["current_rank"].code
-
-    def get_current_rank_name(self, obj: StudentRankTimeline) -> str:
-        return obj["current_rank"].name
 
 
 class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
@@ -115,7 +56,6 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     cycle_year = serializers.IntegerField(allow_null=True)
     cycle_month = serializers.IntegerField(allow_null=True)
     date_precision = serializers.ChoiceField(choices=LegacyDatePrecision.choices)
-    testing_for_rank_code = serializers.CharField(allow_null=True)
     testing_for_rank_name = serializers.CharField(allow_null=True)
     source_testing_for_rank_text = serializers.CharField()
     outcome = serializers.ChoiceField(
@@ -124,7 +64,6 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
     )
     attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
     comments = serializers.CharField()
-    promotion_id = serializers.IntegerField(allow_null=True)
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
@@ -133,19 +72,7 @@ class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHisto
     StudentRankHistorySerializer/`/rank-history/`, which remains
     Promotion-only (import Decision 6)."""
 
-    student = serializers.SerializerMethodField()
-    student_display_name = serializers.SerializerMethodField()
-    student_wksa_id = serializers.SerializerMethodField()
     items = GradingHistoryItemSerializer(many=True)
-
-    def get_student(self, obj: StudentGradingHistory) -> int:
-        return obj["student"].pk
-
-    def get_student_display_name(self, obj: StudentGradingHistory) -> str:
-        return str(obj["student"])
-
-    def get_student_wksa_id(self, obj: StudentGradingHistory) -> str:
-        return obj["student"].wksa_id
 
 
 class StudentListSerializer(serializers.ModelSerializer[Student]):
@@ -194,14 +121,10 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     fields copied into different classes.
     """
 
-    current_rank_code = serializers.CharField(
-        source="current_rank.code", read_only=True
-    )
     current_rank_name = serializers.CharField(
         source="current_rank.name", read_only=True
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    age_band = serializers.CharField(read_only=True)
     age_band_display = serializers.CharField(read_only=True)
 
     class Meta:
@@ -213,24 +136,18 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "last_name",
             "date_of_birth",
             "current_rank",
-            "current_rank_code",
             "current_rank_name",
             "status",
             "status_display",
-            "age_band",
             "age_band_display",
             "created_at",
-            "updated_at",
         )
         read_only_fields = (
             "id",
-            "current_rank_code",
             "current_rank_name",
             "status_display",
-            "age_band",
             "age_band_display",
             "created_at",
-            "updated_at",
         )
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

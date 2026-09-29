@@ -23,13 +23,10 @@ class SyllabusItemSerializer(serializers.ModelSerializer):
         model = SyllabusItem
         fields = (
             "id",
-            "code",
             "name",
             "korean_name",
             "category",
             "category_display",
-            "description",
-            "active",
         )
         read_only_fields = fields
 
@@ -51,27 +48,12 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
         read_only=True,
     )
     category = serializers.CharField(source="requirement.item.category", read_only=True)
-    category_display = serializers.CharField(
-        source="requirement.item.get_category_display",
-        read_only=True,
-    )
     # "required" collides with Field.required (whether the input itself is
     # mandatory) only in the type stubs, not at runtime - DRF serializers
     # commonly have a field named this for exactly this reason.
     required = serializers.BooleanField(  # type: ignore[assignment]
         source="requirement.required",
         read_only=True,
-    )
-    sequence = serializers.IntegerField(source="requirement.sequence", read_only=True)
-    start_number = serializers.IntegerField(
-        source="requirement.start_number",
-        read_only=True,
-        allow_null=True,
-    )
-    end_number = serializers.IntegerField(
-        source="requirement.end_number",
-        read_only=True,
-        allow_null=True,
     )
     display_range = serializers.CharField(
         source="requirement.display_range", read_only=True

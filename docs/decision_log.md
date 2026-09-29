@@ -18,6 +18,33 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - The API serves what the app uses
+
+Status: Accepted
+
+Decision:
+Every list filter and every response field is kept only while a screen reads
+it. Unused filters, duplicated fields (a code alongside its name, a display
+label the client can derive, a denormalised id), attribution ids, and preview
+rows the UI never renders were removed from the serializers, the views and
+`schema.yml`. A field is added back, with a test, when a screen needs it.
+Database columns that hold audit or business data are not removed with the
+response field: attribution, cancellation and withdrawal reasons and the
+import provenance stay, and attribution is read from the database and the
+audit log. `ImportBatch.error_summary`, which nothing wrote or read, was
+dropped by migration.
+
+Context:
+Unused API surface is untested behaviour that still has to be kept correct,
+reviewed and secured, and duplicated fields can disagree. The frontend's types
+are generated from the schema, so `tsc -b` shows exactly which removed field a
+screen still reads.
+
+Consequences:
+Removing a field is a contract change: regenerate `schema.yml` and the
+frontend types, and update `docs/api_contract.md`. Health and readiness
+responses are kept as they are because monitors read them.
+
 ### 2026-09-28 - HSTS without preload
 
 Status: Accepted

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type ChangeEvent } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -14,6 +14,7 @@ import {
   createDataImportBatch,
   previewStudentImport,
 } from "./api";
+import { ImportReviewActions, ImportUploadRow } from "./ImportWizardParts";
 import "./StudentScreens.css";
 import "./ImportStudents.css";
 
@@ -271,24 +272,14 @@ export function ImportStudentsScreen() {
           <button type="button" className="btn-secondary imp-template-link" onClick={downloadStandardTemplate}>
             Download standard template
           </button>
-          <div className="imp-upload-row">
-            <input
-              type="file"
-              accept=".xlsx,.csv"
-              aria-label="Student roster file"
-              onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                setFile(event.target.files?.[0] ?? null)
-              }
-            />
-            <button
-              type="button"
-              className="btn-form-submit"
-              disabled={!file || isUploading}
-              onClick={() => void handleUpload()}
-            >
-              {isUploading ? "Uploading…" : "Upload"}
-            </button>
-          </div>
+          <ImportUploadRow
+            accept=".xlsx,.csv"
+            ariaLabel="Student roster file"
+            canUpload={file !== null}
+            isUploading={isUploading}
+            onFile={setFile}
+            onUpload={() => void handleUpload()}
+          />
         </div>
       )}
 
@@ -427,24 +418,16 @@ export function ImportStudentsScreen() {
             </table>
           )}
 
-          <div className="imp-actions">
-            <button type="button" className="btn-secondary" disabled={isCancelling} onClick={() => void handleCancel()}>
-              {isCancelling ? "Cancelling…" : "Cancel import"}
-            </button>
-            <button type="button" className="btn-secondary" disabled={isChecking} onClick={() => void handleRecheck()}>
-              {isChecking ? "Re-checking…" : "Re-check"}
-            </button>
-            <button
-              type="button"
-              className="btn-form-submit"
-              disabled={preview.ready === 0 || isCommitting}
-              onClick={() => void handleCommit()}
-            >
-              {isCommitting
-                ? "Creating…"
-                : `Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`}
-            </button>
-          </div>
+          <ImportReviewActions
+            isCancelling={isCancelling}
+            isChecking={isChecking}
+            isCommitting={isCommitting}
+            commitDisabled={preview.ready === 0}
+            commitLabel={`Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`}
+            onCancel={() => void handleCancel()}
+            onRecheck={() => void handleRecheck()}
+            onCommit={() => void handleCommit()}
+          />
         </div>
       )}
 

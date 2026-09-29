@@ -113,10 +113,7 @@ class GradingSessionViewSet(ModelViewSet):
     )
 
     def get_queryset(self) -> QuerySet[GradingSession]:
-        return GradingSession.objects.select_related("created_by").order_by(
-            "-grading_date",
-            "created_at",
-        )
+        return GradingSession.objects.order_by("-grading_date", "created_at")
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
@@ -159,11 +156,9 @@ class GradingCandidateViewSet(
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
         return GradingCandidate.objects.select_related(
-            "session",
             "student",
             "from_rank",
             "testing_for_rank",
-            "withdrawn_by",
         ).order_by(
             "session__grading_date",
             "student__last_name",
@@ -340,9 +335,7 @@ class CandidateAssessmentViewSet(
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
         return CandidateAssessment.objects.select_related(
-            "candidate__session",
             "candidate__student",
-            "candidate__testing_for_rank",
             "generated_by",
         ).order_by(
             "candidate__session__grading_date",
@@ -436,12 +429,6 @@ class CandidateAssessmentItemViewSet(
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return CandidateAssessmentItem.objects.select_related(
-            "assessment__candidate__session",
-            "assessment__candidate__student",
-            "assessment__candidate__testing_for_rank",
-            "source_requirement",
-            "source_item",
-            "source_rank",
             "assessor",
         ).order_by("requirement_sequence", "item_name", "pk")
 
@@ -467,10 +454,6 @@ class CandidateOutcomeViewSet(
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         return CandidateOutcome.objects.select_related(
-            "candidate__session",
-            "candidate__student",
-            "candidate__testing_for_rank",
-            "assessment",
             "proposed_by",
             "decided_by",
         ).order_by(
@@ -605,12 +588,8 @@ class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
 
     def get_queryset(self) -> QuerySet[Promotion]:
         return Promotion.objects.select_related(
-            "student__current_rank",
-            "outcome",
-            "grading_candidate__session",
-            "from_rank",
+            "student",
             "to_rank",
-            "promoted_by",
         ).order_by("-effective_date", "-promoted_at", "-pk")
 
 
@@ -645,8 +624,6 @@ class LegacyGradingRecordViewSet(
             "student",
             "current_rank",
             "testing_for_rank",
-            "voided_by",
-            "source_batch",
         ).order_by("-cycle_year", "-cycle_month", "source_sheet", "source_locator")
 
     @extend_schema(

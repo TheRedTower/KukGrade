@@ -46,7 +46,6 @@ const adminUser: AuthUser = {
   first_name: "Admin",
   last_name: "User",
   full_name: "Admin User",
-  role: "administrator",
   role_display: "Administrator",
   can_make_final_grading_decision: false,
   can_promote_student: true,
@@ -60,15 +59,12 @@ const adminUser: AuthUser = {
   can_delete_any_session: true,
   can_read_audit_log: true,
   must_change_password: false,
-  is_staff: false,
-  is_superuser: false,
 };
 
 const instructorUser: AuthUser = {
   ...adminUser,
   id: "instructor-user",
   email: "instructor@example.com",
-  role: "instructor",
   role_display: "Instructor",
   can_promote_student: false,
   can_override_locked_session: false,

@@ -57,7 +57,7 @@ export type Programme = components["schemas"]["ProgrammeEnum"];
  */
 export type FieldErrors = { [field: string]: string[] | FieldErrors };
 
-export type ApiErrorBody = {
+type ApiErrorBody = {
   error?: {
     code?: string;
     message?: string;

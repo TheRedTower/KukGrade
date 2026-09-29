@@ -189,12 +189,9 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "code": "WHITE",
         "name": "White",
         "order": 1,
-        "category": Rank.Category.COLOURED_BELT,
-        "category_display": "Coloured belt",
         "belt_colour": "WHITE",
         "stripe_colour": "",
         "stripe_count": 0,
-        "active": True,
         "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
     }
     assert payload[-1]["next_rank"] is None

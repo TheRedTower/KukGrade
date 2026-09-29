@@ -28,6 +28,7 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
+from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
 
@@ -103,7 +104,7 @@ def test_login_success_sets_session_and_returns_current_user() -> None:
 
     assert response.status_code == 200
     assert response.json()["email"] == "admin@example.com"
-    assert response.json()["role"] == User.Role.ADMINISTRATOR
+    assert response.json()["role_display"] == "Administrator"
     assert "sessionid" in response.cookies
 
 
@@ -239,7 +240,7 @@ def test_current_user_returns_authenticated_user() -> None:
         first_name="Current",
         last_name="User",
     )
-    grant_final_decision_permission(user)
+    grant_permission(user, FINAL_GRADING_DECISION_PERMISSION)
     client = APIClient()
     client.force_authenticate(user=user)
 
@@ -252,7 +253,6 @@ def test_current_user_returns_authenticated_user() -> None:
         "first_name": "Current",
         "last_name": "User",
         "full_name": "Current User",
-        "role": User.Role.INSTRUCTOR,
         "role_display": "Instructor",
         # Computed from the permission, not from a stored flag.
         "can_make_final_grading_decision": True,
@@ -268,8 +268,6 @@ def test_current_user_returns_authenticated_user() -> None:
         # A Master may read the audit log.
         "can_read_audit_log": True,
         "must_change_password": False,
-        "is_staff": False,
-        "is_superuser": False,
     }
 
 
@@ -285,7 +283,6 @@ CAPABILITY_FLAGS = (
 
 
 def test_current_user_capabilities_follow_permissions_not_role() -> None:
-    from django.contrib.auth.models import Permission
 
     administrator = create_user(
         email="capabilities-admin@example.com",
@@ -528,18 +525,6 @@ def permission_result(permission: type, user: User | None) -> bool:
     return bool(permission().has_permission(request, APIView()))
 
 
-def grant_final_decision_permission(user: User) -> None:
-    app_label, codename = FINAL_GRADING_DECISION_PERMISSION.split(".")
-    permission = Permission.objects.get(
-        codename=codename,
-        content_type=ContentType.objects.get(
-            app_label=app_label,
-            model="candidateoutcome",
-        ),
-    )
-    user.user_permissions.add(permission)
-
-
 def test_role_assigns_the_matching_group() -> None:
     instructor = create_user("instructor@example.com", role=User.Role.INSTRUCTOR)
     administrator = create_user(
@@ -637,7 +622,7 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
         "instructor-master@example.com",
         role=User.Role.INSTRUCTOR,
     )
-    grant_final_decision_permission(instructor_master)
+    grant_permission(instructor_master, FINAL_GRADING_DECISION_PERMISSION)
     administrator_without_capability = create_user(
         "administrator-no-capability@example.com",
         role=User.Role.ADMINISTRATOR,
@@ -654,7 +639,7 @@ def test_final_grading_decision_capability_is_independent_of_role() -> None:
 
 def test_inactive_users_fail_every_permission_check() -> None:
     inactive = create_user("inactive@example.com", is_active=False)
-    grant_final_decision_permission(inactive)
+    grant_permission(inactive, FINAL_GRADING_DECISION_PERMISSION)
 
     assert permission_result(CanMakeFinalGradingDecision, inactive) is False
 
@@ -679,7 +664,7 @@ def test_me_capabilities_are_computed_from_permissions() -> None:
     assert before["can_make_final_grading_decision"] is False
     assert before["can_promote_student"] is False
 
-    grant_final_decision_permission(user)
+    grant_permission(user, FINAL_GRADING_DECISION_PERMISSION)
     user = User.objects.get(pk=user.pk)  # drop the permission cache
     client.force_authenticate(user=user)
 
@@ -709,8 +694,6 @@ def test_me_override_locked_session_capability_is_computed_from_its_permission()
     # updated the serializer when it landed, so /api/auth/me/ silently
     # never reported it. Found while building the users API, which reuses
     # this exact response shape.
-    from django.contrib.auth.models import Permission
-    from django.contrib.contenttypes.models import ContentType
 
     from gradings.models import GradingSession
 
@@ -901,8 +884,8 @@ def test_is_staff_and_is_superuser_cannot_be_granted_through_create() -> None:
         is_superuser=True,
     )
 
-    assert created["is_staff"] is False
-    assert created["is_superuser"] is False
+    assert "is_staff" not in created
+    assert "is_superuser" not in created
     stored = User.objects.get(pk=created["id"])
     assert stored.is_staff is False
     assert stored.is_superuser is False

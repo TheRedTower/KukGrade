@@ -1,5 +1,4 @@
 import { useMemo, useState, type ChangeEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -10,9 +9,9 @@ import {
   cancelDataImportBatch,
   commitLegacyGradingImport,
   createDataImportBatch,
-  getRanks,
   previewLegacyGradingImport,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import "./StudentScreens.css";
 import "./ImportStudents.css";
 
@@ -34,10 +33,7 @@ export function ImportLegacyGradingsScreen() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
   const ranks = useMemo<Rank[]>(
     () => (Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : []),
     [ranksQuery.data],

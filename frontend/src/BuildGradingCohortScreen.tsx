@@ -12,9 +12,8 @@ import {
   getAllGradingCandidates,
   getAllStudents,
   getGradingSession,
-  getAgeBands,
-  getRanks,
 } from "./api";
+import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDialogFocus } from "./useDialogFocus";
 import { BeltSwatch } from "./Belt";
 import { formatSessionDate } from "./dates";
@@ -76,15 +75,9 @@ export function BuildGradingCohortScreen() {
     enabled: !isNaN(sessionId),
   });
 
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
 
-  const ageBandsQuery = useQuery({
-    queryKey: ["ageBands"],
-    queryFn: getAgeBands,
-  });
+  const ageBandsQuery = useAgeBandsQuery();
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
   const studentsQuery = useQuery({

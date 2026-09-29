@@ -4521,6 +4521,47 @@ def test_grading_migrations_apply_from_zero_and_constraints_exist() -> None:
         executor.migrate(final_targets)
 
 
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_registered_in_error_withdrawals_become_other_and_roll_back() -> None:
+    withdrawn = candidate(status=GradingCandidate.Status.WITHDRAWN)
+    old_target = [("gradings", "0009_candidate_from_rank_and_delete_any_permission")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def stored() -> tuple[str, str]:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT withdrawal_reason, withdrawal_note"
+                " FROM gradings_gradingcandidate WHERE id = %s",
+                [withdrawn.pk],
+            )
+            row = cursor.fetchone()
+        assert row is not None
+        return (row[0], row[1])
+
+    try:
+        executor.migrate(old_target)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "UPDATE gradings_gradingcandidate"
+                " SET withdrawal_reason = 'ADMIN_ERROR',"
+                " withdrawal_note = 'Wrong student'"
+                " WHERE id = %s",
+                [withdrawn.pk],
+            )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+        assert stored() == ("OTHER", "Registered in error. Wrong student")
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(old_target)
+        assert stored() == ("ADMIN_ERROR", "Registered in error. Wrong student")
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+
 def test_all_new_tests_use_postgresql_backend() -> None:
     assert connection.vendor == "postgresql"
     assert apps.is_installed("gradings")

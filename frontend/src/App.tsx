@@ -6,12 +6,13 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
-import { ApiError, type AuthUser, getSiteSettings } from "./api";
+import { ApiError, type AuthUser } from "./api";
+import { useSiteSettingsQuery } from "./queries";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import {
   AuditIcon,
@@ -340,7 +341,7 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 function ApplicationShell() {
   const { user, logout, updateName } = useAuth();
   const navigate = useNavigate();
-  const siteQuery = useQuery({ queryKey: ["siteSettings"], queryFn: getSiteSettings });
+  const siteQuery = useSiteSettingsQuery();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 

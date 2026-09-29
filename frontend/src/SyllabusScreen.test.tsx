@@ -1,9 +1,19 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyllabusScreen } from "./SyllabusScreen";
 import type { AgeBand, EffectiveSyllabusRequirement, Rank, SyllabusItem } from "./api";
+
+function renderScreen() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SyllabusScreen />
+    </QueryClientProvider>,
+  );
+}
 
 const mockAgeBands: AgeBand[] = [
   { code: "AGE_8_AND_UNDER", name: "8 and under", description: "Little Dragon ages 8 and under", programme: "JUNIOR", programme_display: "Junior & Little Dragon" },
@@ -308,7 +318,7 @@ describe("SyllabusScreen", () => {
   it("renders header, filters, belt rail, core areas and the two cumulative ledgers", async () => {
     stubFetch({ YELLOW: mockYellowEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     // Header
     expect(await screen.findByRole("heading", { name: "Syllabus" })).toBeVisible();
@@ -317,7 +327,7 @@ describe("SyllabusScreen", () => {
     // Filters
     expect(await screen.findByRole("option", { name: "Junior & Little Dragon" })).toBeInTheDocument();
     expect(screen.getByLabelText("Curriculum")).toHaveValue("JUNIOR");
-    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_9_TO_12");
+    expect(screen.getByLabelText("Age group")).toHaveValue("AGE_8_AND_UNDER");
     await waitFor(() => {
       expect(screen.getByLabelText("Testing for")).toHaveValue("YELLOW");
     });
@@ -331,7 +341,7 @@ describe("SyllabusScreen", () => {
 
     // Rank title, subtitle and the "everything examinable" note
     expect(screen.getByRole("heading", { name: "Yellow", level: 2 })).toBeVisible();
-    expect(screen.getByText("Junior ages 9-12")).toBeVisible();
+    expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
     expect(screen.getByText("Everything examinable through Yellow.")).toBeVisible();
 
     // Next rank button
@@ -370,7 +380,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const blueStripeBtn = await screen.findByRole("button", { name: "Blue Stripe" });
     await user.click(blueStripeBtn);
@@ -396,7 +406,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const blueStripeBtn = await screen.findByRole("button", { name: "Blue Stripe" });
     await user.click(blueStripeBtn);
@@ -414,7 +424,7 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({ YELLOW: mockYellowEffective, BLUE_STRIPE: mockBlueStripeEffective });
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     const nextRankBtn = await screen.findByRole("button", {
       name: "Next rank: Blue Stripe →",
@@ -429,14 +439,14 @@ describe("SyllabusScreen", () => {
     const user = userEvent.setup();
     stubFetch({});
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     // Initial values
     const curriculumSelect = await screen.findByLabelText("Curriculum");
     const ageSelect = screen.getByLabelText("Age group");
     await screen.findByRole("option", { name: "Adult & Youth" });
     expect(curriculumSelect).toHaveValue("JUNIOR");
-    expect(ageSelect).toHaveValue("AGE_9_TO_12");
+    expect(ageSelect).toHaveValue("AGE_8_AND_UNDER");
 
     // Change Curriculum to Adult & Youth
     await user.selectOptions(curriculumSelect, "ADULT");
@@ -452,7 +462,7 @@ describe("SyllabusScreen", () => {
   it("renders empty state when rank has no cumulative requirements", async () => {
     stubFetch({});
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     expect(
       await screen.findByText("No techniques are listed for this rank in the current syllabus."),
@@ -477,7 +487,7 @@ describe("SyllabusScreen", () => {
       }),
     );
 
-    render(<SyllabusScreen />);
+    renderScreen();
 
     expect(await screen.findByRole("alert")).toBeVisible();
     expect(screen.getByText("Network connection lost")).toBeVisible();

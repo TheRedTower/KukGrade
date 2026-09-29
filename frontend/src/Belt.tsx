@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 
-import { type Rank, getRanks } from "./api";
+import { type Rank } from "./api";
+import { useRanksQuery } from "./queries";
 import "./Belt.css";
 
 type BeltRank = Pick<Rank, "name" | "belt_colour" | "stripe_colour" | "stripe_count">;
@@ -22,10 +22,7 @@ export function BeltSwatch({ rank }: { rank: BeltRank | null | undefined }) {
 
 /** The belt for a rank id, for records that carry the id but not the rank. */
 export function RankBelt({ rankId }: { rankId: number | null | undefined }) {
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
   const rank = ranksQuery.data?.results.find((candidate) => candidate.id === rankId);
   return <BeltSwatch rank={rank} />;
 }

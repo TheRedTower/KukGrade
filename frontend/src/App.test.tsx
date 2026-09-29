@@ -5318,6 +5318,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville" });
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return jsonResponse(200, mockCandidate);
@@ -5340,6 +5341,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     await screen.findByRole("heading", { name: "Assessment record" });
 
     expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Sealed");
+    expect(screen.getByText(/^Kuk Sool Won Testville/, { selector: ".acp-org" })).toBeVisible();
     expect(screen.getByTestId("acp-seal-applied")).toBeVisible();
     expect(screen.getByTestId("acp-sealed-panel")).toBeVisible();
 

@@ -78,6 +78,15 @@ function describeAuthFailure(error: unknown): string {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
+  // Ending a session drops everything fetched under it, so the next person
+  // on this browser never sees the previous person's students or gradings.
+  const forgetSession = useCallback(() => {
+    queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] !== CURRENT_USER_QUERY_KEY[0],
+    });
+  }, [queryClient]);
+
   const currentUserQuery = useQuery({
     queryKey: CURRENT_USER_QUERY_KEY,
     queryFn: getCurrentUser,
@@ -96,9 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // signed-out UI while the session cookie was still valid.
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
-    onSuccess: () => {
-      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
-    },
+    onSuccess: forgetSession,
   });
 
   const changePasswordMutation = useMutation({
@@ -129,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     function signOutIfSessionEnded(error: unknown) {
       if (isAnonymousResponse(error)) {
-        queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+        forgetSession();
       }
     }
     const stopQueries = queryClient.getQueryCache().subscribe((event) => {
@@ -146,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopQueries();
       stopMutations();
     };
-  }, [queryClient]);
+  }, [queryClient, forgetSession]);
 
   const user = currentUserQuery.data ?? null;
 

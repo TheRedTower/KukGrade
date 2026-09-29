@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  type AgeBand,
   type AgeBandEnum,
   type EffectiveSyllabusRequirement,
   type Programme,
-  type Rank,
   type SyllabusItem,
-  getAgeBands,
   getAllEffectiveSyllabusRequirements,
-  getRanks,
   getSyllabusItems,
 } from "./api";
 import { BeltSwatch } from "./Belt";
+import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import "./Syllabus.css";
 import { CORE_CATEGORY_CODES } from "./syllabusCategories";
 
@@ -102,80 +99,41 @@ function SyllabusLedgerTable({
 }
 
 export function SyllabusScreen() {
-  const [ranks, setRanks] = useState<Rank[]>([]);
-  const [selectedRankCode, setSelectedRankCode] = useState<string>("YELLOW");
-  const [ageBands, setAgeBands] = useState<AgeBand[]>([]);
-  const [programme, setProgramme] = useState<Programme>("JUNIOR");
-  const [selectedAgeBand, setSelectedAgeBand] =
-    useState<AgeBandEnum>("AGE_9_TO_12");
+  const ranksQuery = useRanksQuery();
+  const ageBandsQuery = useAgeBandsQuery();
+  const ranks = useMemo(() => ranksQuery.data?.results ?? [], [ranksQuery.data]);
+  const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
+
+  // Until the viewer picks, the screen opens on the first rank that has a
+  // syllabus of its own (Yellow, or the first served rank if Yellow is
+  // absent) and the first age band the server lists.
+  const [chosenRankCode, setChosenRankCode] = useState<string | null>(null);
+  const [chosenAgeBand, setChosenAgeBand] = useState<AgeBandEnum | null>(null);
+  const selectedRankCode =
+    chosenRankCode ??
+    (ranks.some((r) => r.code === "YELLOW") ? "YELLOW" : (ranks[0]?.code ?? ""));
+  const selectedAgeBand = chosenAgeBand ?? ageBands[0]?.code ?? null;
+  const programme: Programme =
+    ageBands.find((band) => band.code === selectedAgeBand)?.programme ?? "JUNIOR";
 
   const [coreAreas, setCoreAreas] = useState<SyllabusItem[]>([]);
   const [effectiveRequirements, setEffectiveRequirements] = useState<
     EffectiveSyllabusRequirement[]
   >([]);
-  const [isLoadingRanks, setIsLoadingRanks] = useState(true);
   const [isLoadingCoreAreas, setIsLoadingCoreAreas] = useState(true);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [requirementsError, setError] = useState<string | null>(null);
+
+  const catalogueError = ranksQuery.error ?? ageBandsQuery.error;
+  const error =
+    requirementsError ??
+    (catalogueError
+      ? catalogueError instanceof Error
+        ? catalogueError.message
+        : "Failed to load the syllabus catalogue."
+      : null);
 
   const beltTrackRef = useRef<HTMLDivElement>(null);
-
-  // Load ranks once on mount
-  useEffect(() => {
-    let active = true;
-    async function fetchRanks() {
-      try {
-        setIsLoadingRanks(true);
-        setError(null);
-        const res = await getRanks({ page_size: 100 });
-        if (!active) return;
-        const fetchedRanks = res.results || [];
-        setRanks(fetchedRanks);
-
-        // If YELLOW exists in ranks, default to it, otherwise default to first rank
-        if (fetchedRanks.length > 0) {
-          const hasYellow = fetchedRanks.some((r) => r.code === "YELLOW");
-          if (!hasYellow) {
-            setSelectedRankCode(fetchedRanks[0].code);
-          }
-        }
-      } catch (err) {
-        if (!active) return;
-        setError(
-          err instanceof Error ? err.message : "Failed to load rank catalogue.",
-        );
-      } finally {
-        if (active) {
-          setIsLoadingRanks(false);
-        }
-      }
-    }
-
-    void fetchRanks();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Load the age bands once - the server owns their labels and programmes.
-  useEffect(() => {
-    let active = true;
-    async function fetchAgeBands() {
-      try {
-        const res = await getAgeBands();
-        if (!active) return;
-        setAgeBands(res.results || []);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load age bands.");
-      }
-    }
-
-    void fetchAgeBands();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Load the universal core grading areas once - they are not rank-specific.
   useEffect(() => {
@@ -242,19 +200,14 @@ export function SyllabusScreen() {
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
   function handleProgrammeChange(newProgramme: Programme) {
-    setProgramme(newProgramme);
     const bands = ageBands.filter((band) => band.programme === newProgramme);
     if (bands.length > 0 && !bands.some((band) => band.code === selectedAgeBand)) {
-      setSelectedAgeBand(bands[bands.length - 1].code);
+      setChosenAgeBand(bands[bands.length - 1].code);
     }
   }
 
   function handleAgeBandChange(newAgeBand: AgeBandEnum) {
-    setSelectedAgeBand(newAgeBand);
-    const band = ageBands.find((option) => option.code === newAgeBand);
-    if (band) {
-      setProgramme(band.programme);
-    }
+    setChosenAgeBand(newAgeBand);
   }
 
   // Scroll belt track
@@ -316,7 +269,7 @@ export function SyllabusScreen() {
           <select
             id="syl-age-select"
             className="syl-select"
-            value={selectedAgeBand}
+            value={selectedAgeBand ?? ""}
             onChange={(e) => handleAgeBandChange(e.target.value as AgeBandEnum)}
           >
             {ageBands.map((band) => (
@@ -335,8 +288,8 @@ export function SyllabusScreen() {
             id="syl-rank-select"
             className="syl-select"
             value={selectedRankCode}
-            onChange={(e) => setSelectedRankCode(e.target.value)}
-            disabled={isLoadingRanks || ranks.length === 0}
+            onChange={(e) => setChosenRankCode(e.target.value)}
+            disabled={ranksQuery.isLoading || ranks.length === 0}
           >
             {ranks.map((r) => (
               <option key={r.code} value={r.code}>
@@ -372,7 +325,7 @@ export function SyllabusScreen() {
                 key={rank.code}
                 type="button"
                 className={`syl-belt-btn ${isSelected ? "syl-belt-btn-active" : ""}`}
-                onClick={() => setSelectedRankCode(rank.code)}
+                onClick={() => setChosenRankCode(rank.code)}
                 aria-pressed={isSelected}
                 title={`Select ${rank.name}`}
               >
@@ -413,7 +366,7 @@ export function SyllabusScreen() {
             <button
               type="button"
               className="syl-next-rank-btn"
-              onClick={() => setSelectedRankCode(nextRank.code)}
+              onClick={() => setChosenRankCode(nextRank.code)}
             >
               Next rank: {nextRank.name} →
             </button>

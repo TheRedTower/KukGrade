@@ -34,6 +34,7 @@ import {
   updateCandidateAssessment,
 } from "./api";
 import { RankBelt } from "./Belt";
+import { useSiteSettingsQuery } from "./queries";
 import {
   CategoryGroup,
   useAssessmentNotesDraft,
@@ -78,6 +79,7 @@ export function AssessmentCompletionScreen() {
   const { sessionId, candidateId } = useParams<{ sessionId: string; candidateId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const clubName = useSiteSettingsQuery().data?.club_name;
 
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
@@ -261,7 +263,7 @@ export function AssessmentCompletionScreen() {
           <div className="acp-sheet-head">
             <div>
               <div className="acp-org">
-                Kuk Sool Won{session.location && ` · ${session.location}`}
+                {clubName}{session.location && ` · ${session.location}`}
               </div>
               <h1 className="acp-sheet-title" id="acp-title">Assessment record</h1>
             </div>

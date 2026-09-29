@@ -9,12 +9,12 @@ import {
   type Rank,
   type StudentStatus,
   deleteStudent,
-  getRanks,
   getStudent,
   getStudentGradingHistory,
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import "./StudentScreens.css";
@@ -111,10 +111,7 @@ export function StudentDetailScreen() {
   });
 
   // 3. Fetch Ranks Catalogue
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
 
   const student = studentQuery.data;
   const rankHistory = rankHistoryQuery.data;

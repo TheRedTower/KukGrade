@@ -486,6 +486,9 @@ checks on each push and pull request.
   frontend polls, so an idle tab does not keep a session alive. Any request
   answered "not signed in" returns the viewer to sign-in (`AuthProvider`
   watches every query and mutation), not only the startup session check.
+  Signing out, or being signed out, also drops every cached response, so
+  the next person on that browser never sees the previous person's students
+  or gradings.
 - **Password validation is consistent everywhere an account can be
   created**: the users API, `SetPasswordSerializer`, and the Django admin
   add-user form all run the full configured validator set, including

@@ -19,6 +19,15 @@ def admin_error_becomes_other(apps: Any, _schema_editor: Any) -> None:
         candidate.save(update_fields=["withdrawal_reason", "withdrawal_note"])
 
 
+def other_becomes_admin_error(apps: Any, _schema_editor: Any) -> None:
+    """Rolling back: the old reasons have no Other, so those rows fall back to
+    the one that read as a catch-all; the note is kept."""
+    GradingCandidate = apps.get_model("gradings", "GradingCandidate")
+    GradingCandidate.objects.filter(withdrawal_reason="OTHER").update(
+        withdrawal_reason="ADMIN_ERROR"
+    )
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ("gradings", "0009_candidate_from_rank_and_delete_any_permission"),
@@ -29,7 +38,7 @@ class Migration(migrations.Migration):
             model_name="gradingcandidate",
             name="grading_candidate_withdrawal_reason_valid",
         ),
-        migrations.RunPython(admin_error_becomes_other, migrations.RunPython.noop),
+        migrations.RunPython(admin_error_becomes_other, other_becomes_admin_error),
         migrations.AlterField(
             model_name="gradingcandidate",
             name="withdrawal_reason",

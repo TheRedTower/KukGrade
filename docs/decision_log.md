@@ -48,7 +48,7 @@ it's logged out", and the site will sit behind Cloudflare and Traefik.
 
 Consequences:
 The frontend signs the viewer out as soon as any request reports the session
-has ended. The proxy count is only correct if Traefik trusts Cloudflare's
+has ended and drops everything it had cached. The proxy count is only correct if Traefik trusts Cloudflare's
 ranges and the host takes web traffic only from Cloudflare - see
 `deployment.md`.
 

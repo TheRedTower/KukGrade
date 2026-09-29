@@ -1,5 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -8,8 +8,8 @@ import {
   type Rank,
   type StudentStatus,
   createStudent,
-  getRanks,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
 import { LockIcon } from "./Icons";
@@ -32,10 +32,7 @@ export function AddStudentScreen() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // 1. Fetch active ranks
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];

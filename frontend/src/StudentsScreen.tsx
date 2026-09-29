@@ -6,9 +6,9 @@ import {
   type Rank,
   type StudentListItem,
   type StudentStatus,
-  getRanks,
   getStudents,
 } from "./api";
+import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
@@ -107,10 +107,7 @@ export function StudentsScreen() {
   const canImportStudents = Boolean(user?.can_import_data);
 
   // 1. Fetch available ranks for filter dropdown
-  const ranksQuery = useQuery({
-    queryKey: ["ranks"],
-    queryFn: () => getRanks({ page_size: 100 }),
-  });
+  const ranksQuery = useRanksQuery();
 
   const ranks = useMemo<Rank[]>(() => {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];

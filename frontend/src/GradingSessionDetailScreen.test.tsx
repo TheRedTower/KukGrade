@@ -16,6 +16,7 @@ const mockDeleteGradingSession = vi.fn();
 const mockGetAllGradingSessions = vi.fn();
 const mockMoveGradingCandidate = vi.fn();
 const mockDeleteGradingCandidate = vi.fn();
+const mockUpdateGradingSession = vi.fn();
 
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: currentUser, status: "authenticated" }),
@@ -37,6 +38,7 @@ vi.mock("./api", async () => {
     getAllGradingSessions: (...args: unknown[]) => mockGetAllGradingSessions(...args),
     moveGradingCandidate: (...args: unknown[]) => mockMoveGradingCandidate(...args),
     deleteGradingCandidate: (...args: unknown[]) => mockDeleteGradingCandidate(...args),
+    updateGradingSession: (...args: unknown[]) => mockUpdateGradingSession(...args),
   };
 });
 
@@ -297,5 +299,89 @@ describe("GradingSessionDetailScreen registration actions", () => {
     expect(screen.queryByRole("button", { name: /to another session/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Remove Mia Okafor's registration" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Remove Ben Hall's registration" })).toBeNull();
+  });
+});
+
+describe("GradingSessionDetailScreen opening a draft session", () => {
+  const draftSession = () => ({
+    ...lockedSession(),
+    status: "DRAFT" as const,
+    status_display: "Draft",
+  });
+
+  beforeEach(() => {
+    currentUser = instructorUser;
+    mockGetGradingSession.mockReset().mockResolvedValue(draftSession());
+    mockGetAllGradingCandidates.mockReset().mockResolvedValue({
+      ...emptyPage(),
+      count: 2,
+      results: [
+        registeredCandidate(),
+        registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall" }),
+      ],
+    });
+    mockGetAllCandidateAssessments.mockReset().mockResolvedValue(emptyPage());
+    mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
+    mockUpdateGradingSession
+      .mockReset()
+      .mockResolvedValue({ ...draftSession(), status: "OPEN", status_display: "Open" });
+  });
+
+  async function chooseOpenSession(user: ReturnType<typeof userEvent.setup>) {
+    renderScreen();
+    await screen.findByText("Ben Hall");
+    await user.click(screen.getByRole("button", { name: /Session actions/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Open session" }));
+    return screen.findByRole("dialog", { name: "Open Grading Session" });
+  }
+
+  it("asks for confirmation, with the roster count, before opening", async () => {
+    const user = userEvent.setup();
+    const dialog = await chooseOpenSession(user);
+
+    expect(dialog).toHaveTextContent("2 candidates are registered");
+    expect(dialog).toHaveTextContent("cannot be undone");
+    expect(mockUpdateGradingSession).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(mockUpdateGradingSession).toHaveBeenCalledWith(7, { status: "OPEN" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("does not count withdrawn candidates as registered", async () => {
+    mockGetAllGradingCandidates.mockResolvedValue({
+      ...emptyPage(),
+      count: 2,
+      results: [
+        registeredCandidate(),
+        registeredCandidate({ id: 32, student: 132, student_display_name: "Ben Hall", status: "WITHDRAWN" }),
+      ],
+    });
+    const user = userEvent.setup();
+    const dialog = await chooseOpenSession(user);
+
+    expect(dialog).toHaveTextContent("1 candidate is registered");
+  });
+
+  it("leaves the session in draft when the confirmation is cancelled", async () => {
+    const user = userEvent.setup();
+    const dialog = await chooseOpenSession(user);
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(mockUpdateGradingSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps the confirmation open with the server's reason when opening is refused", async () => {
+    mockUpdateGradingSession.mockRejectedValue(new ApiError("Cannot transition grading session from DRAFT to OPEN.", 400));
+    const user = userEvent.setup();
+    const dialog = await chooseOpenSession(user);
+
+    await user.click(within(dialog).getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText(/Cannot transition grading session from DRAFT to OPEN/)).toBeVisible();
+    expect(screen.getByRole("dialog", { name: "Open Grading Session" })).toBeVisible();
   });
 });

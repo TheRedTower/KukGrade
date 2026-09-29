@@ -615,7 +615,19 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         actionType: "COMPLETE",
       });
     } else if (actionType === "OPEN") {
-      updateSessionMutation.mutate({ status: "OPEN" });
+      const registered = enrichedCandidates.filter(
+        (item) => item.candidate.status !== "WITHDRAWN",
+      ).length;
+      setConfirmModal({
+        open: true,
+        title: "Open Grading Session",
+        message: `Opening starts the grading and cannot be undone: an open session does not go back to draft. ${
+          registered === 0
+            ? "No candidates are registered."
+            : `${registered} candidate${registered === 1 ? " is" : "s are"} registered.`
+        } Check the roster first. Once open, a candidate who already has an assessment can no longer be moved or removed; one who cannot attend can still be marked as a no-show.`,
+        actionType: "OPEN",
+      });
     }
   };
 
@@ -629,6 +641,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         status: "CANCELLED",
         cancellation_reason: cancellationReason,
       });
+    } else if (confirmModal.actionType === "OPEN") {
+      updateSessionMutation.mutate({ status: "OPEN" });
     } else if (confirmModal.actionType === "LOCK") {
       updateSessionMutation.mutate({ status: "LOCKED" });
     } else if (confirmModal.actionType === "COMPLETE") {

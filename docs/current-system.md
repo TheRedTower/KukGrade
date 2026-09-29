@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-29.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 679 backend tests and 231 frontend tests passing
+Verified on 2026-09-29 with 679 backend tests and 235 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -152,7 +152,10 @@ checks on each push and pull request.
   yet, session draft or open) and `can_be_removed` (session draft or open, and
   any assessment not started; only a draft session may hold one), computed from
   the same validators the write endpoints use. Withdrawing stays the way to
-  record that a candidate did not grade.
+  record that a candidate did not grade. Opening a `DRAFT` session asks for
+  confirmation that states how many candidates are registered and that an
+  open session cannot return to draft, so the roster is checked while it can
+  still be edited freely.
 - Assessment generation copies applicable requirements into immutable snapshot
   rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments

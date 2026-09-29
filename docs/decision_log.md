@@ -18,6 +18,23 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - Opening a grading session is confirmed
+
+Status: Accepted
+
+Decision:
+"Open session" opens the same confirmation dialog as Lock, Complete, Cancel
+and Delete. It states how many non-withdrawn candidates are registered, that
+an open session cannot go back to draft (`DRAFT -> OPEN` is one-way in
+`ALLOWED_SESSION_TRANSITIONS`), and that a candidate who already has an
+assessment can no longer be moved or removed. Nothing changes in the API or
+the transition rules.
+
+Context:
+Agreed with the user 2026-09-29 after the PR #8 review finding: the roster is
+meant to be registered and checked in `DRAFT`, and `OPEN` should mean it is
+confirmed. Opening was the only lifecycle transition made with one click.
+
 ### 2026-09-29 - The server says whether a registration can be moved or removed
 
 Status: Accepted

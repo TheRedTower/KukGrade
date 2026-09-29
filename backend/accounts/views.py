@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast
 
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, update_session_auth_hash
 from django.db.models import QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
@@ -92,7 +92,12 @@ class ChangePasswordView(APIView):
             context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        updated = serializer.save()
+        # Changing a password rotates the session auth hash, which would sign
+        # the caller straight back out. That is the wrong end of the forced
+        # change on a new account: pick a password, get ejected to the sign-in
+        # screen. Every other session for this user is still invalidated.
+        update_session_auth_hash(request, updated)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

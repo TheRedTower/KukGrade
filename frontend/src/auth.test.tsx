@@ -27,6 +27,16 @@ function SignOutButton() {
   );
 }
 
+function SignInButton() {
+  const { user, login } = useAuth();
+  return (
+    <>
+      <span>{user ? user.email : "anonymous"}</span>
+      <button onClick={() => void login(authUser.email, "StrongPass123!")}>Sign in</button>
+    </>
+  );
+}
+
 function ExpiringRead() {
   useQuery({
     queryKey: ["students", "expiring"],
@@ -86,5 +96,40 @@ describe("ending a session", () => {
 
     await waitFor(() => expect(queryClient.getQueryData(["students", "all"])).toBeUndefined());
     expect(queryClient.getQueryData(["currentUser"])).toBeNull();
+  });
+});
+
+describe("starting a session", () => {
+  it("drops anything the cache still held from before the viewer signed in", async () => {
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return response(200, authUser);
+        }
+        if (url.includes("/api/auth/me/")) {
+          return signedIn ? response(200, authUser) : response(401, {});
+        }
+        return response(200, {});
+      }),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <SignInButton />
+        </AuthProvider>
+      </QueryClientProvider>,
+    );
+    await screen.findByText("anonymous");
+    // What a session that ended without a successful sign-out leaves behind.
+    queryClient.setQueryData(["students", "all"], { results: [{ id: 1 }] });
+
+    await act(async () => screen.getByRole("button", { name: "Sign in" }).click());
+
+    await waitFor(() => expect(screen.getByText(authUser.email)).toBeVisible());
+    expect(queryClient.getQueryData(["students", "all"])).toBeUndefined();
   });
 });

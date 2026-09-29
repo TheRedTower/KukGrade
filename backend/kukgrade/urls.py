@@ -21,5 +21,9 @@ urlpatterns = [
     path("api/", include("gradings.urls")),
     path("api/", include("audit.urls")),
     path("api/", include("data_imports.urls")),
-    re_path(r"^(?!(?:api|admin|static)(?:/|$))(?P<path>.*)$", frontend),
+    re_path(
+        r"^(?!(?:api|admin|static)(?:/|$))(?P<path>.*)$",
+        frontend,
+        name="frontend",
+    ),
 ]

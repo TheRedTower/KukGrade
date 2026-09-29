@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-29.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 679 backend tests and 235 frontend tests passing
+Verified on 2026-09-29 with 694 backend tests and 237 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -237,6 +237,17 @@ checks on each push and pull request.
   `POST /api/users/{id}/set-password/` resets a password, validated by
   Django's configured password validators. `is_staff` and `is_superuser`
   are not part of the API.
+- **Forced password change (enforced server-side)**: creation and an
+  administrator reset both set `must_change_password`. While it is set,
+  `accounts.middleware.ForcePasswordChangeMiddleware` refuses every request
+  but `/api/auth/me/`, `/api/auth/change-password/`, `/api/auth/logout/`,
+  the two health endpoints, `/api/site/` and the frontend shell, answering
+  `403` with `error.code = "password_change_required"`. The browser client
+  already routed the user to the change-password screen, but that was
+  presentation only and a direct API call went straight past it. Django
+  admin is deliberately outside the gate: `is_staff` is not grantable
+  through KukGrade, and admin's own password flow does not clear the flag,
+  so gating it would strand a staff account.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -264,8 +275,10 @@ checks on each push and pull request.
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one; throttled the same
   way login is, validated by the same password validators as every other
-  password path, and never logs the value. Both are audited as the user's
-  own action.
+  password path, and never logs the value. The caller keeps their session -
+  the auth hash is refreshed, so choosing a new password does not eject them
+  to the sign-in screen - while every other session for that account ends.
+  Both are audited as the user's own action.
 - **Audit log**: append-only `audit` app recording session, candidate,
   assessment, item, outcome, promotion, student and user actions. Written
   inside the acting service's transaction, so no event survives a

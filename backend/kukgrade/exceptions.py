@@ -87,7 +87,7 @@ def _validation_payload(detail: Any) -> dict[str, Any]:
     }
 
 
-def _error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
+def error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
     return {"error": {"code": code, "message": message}}
 
 
@@ -126,13 +126,13 @@ def custom_exception_handler(
 
     detail = getattr(exc, "detail", None)
     message = str(detail) if detail is not None else str(exc)
-    response.data = _error_payload(_error_code(exc), message)
+    response.data = error_payload(_error_code(exc), message)
     return response
 
 
 def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:
     return JsonResponse(
-        _error_payload("csrf_failed", "CSRF verification failed."),
+        error_payload("csrf_failed", "CSRF verification failed."),
         status=status.HTTP_403_FORBIDDEN,
     )
 
@@ -149,7 +149,7 @@ def server_error(request: HttpRequest, *args: Any, **kwargs: Any) -> JsonRespons
     belongs in the logs, not in a response.
     """
     return JsonResponse(
-        _error_payload(
+        error_payload(
             "server_error",
             "Something went wrong on the server. Please try again.",
         ),

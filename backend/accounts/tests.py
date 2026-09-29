@@ -15,12 +15,14 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.forms import ModelForm
 from django.test import RequestFactory
+from django.urls import get_resolver
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.admin import UserAdmin, UserCreationForm
 from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
+from accounts.middleware import EXEMPT_URL_NAMES
 from accounts.models import User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
@@ -1587,3 +1589,175 @@ def test_user_changing_password_clears_must_change_password() -> None:
 
     me_after = client.get("/api/auth/me/")
     assert me_after.json()["must_change_password"] is False
+
+
+# ---------------------------------------------------------------------------
+# The forced password change is enforced on every request, not just in the UI
+# ---------------------------------------------------------------------------
+
+
+def signed_in_client(
+    email: str = "forced@example.com",
+    password: str = "kg-TemporaryPass123!",
+    **kwargs: object,
+) -> tuple[APIClient, User]:
+    """A real session login, not force_authenticate.
+
+    ForcePasswordChangeMiddleware reads the session user that Django's
+    AuthenticationMiddleware established; force_authenticate never reaches it,
+    so a test using it would pass whether or not the gate exists.
+    """
+    user = create_user(email=email, password=password, **kwargs)
+    client = APIClient()
+    token = csrf_token(client)
+    response = client.post(
+        "/api/auth/login/",
+        {"email": email, "password": password},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+    assert response.status_code == 200, response.json()
+    return client, user
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/users/",
+        "/api/students/",
+        "/api/gradings/sessions/",
+        "/api/ranks/",
+        "/api/syllabus/items/",
+        "/api/audit-events/",
+    ],
+)
+def test_password_change_required_blocks_every_other_endpoint(path: str) -> None:
+    client, _user = signed_in_client(
+        role=User.Role.ADMINISTRATOR,
+        must_change_password=True,
+    )
+
+    response = client.get(path)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "password_change_required"
+
+
+def test_password_change_required_blocks_writes_too() -> None:
+    client, _user = signed_in_client(
+        role=User.Role.ADMINISTRATOR,
+        must_change_password=True,
+    )
+    token = csrf_token(client)
+
+    response = client.post(
+        "/api/students/",
+        {"first_name": "Blocked", "last_name": "Student"},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "password_change_required"
+
+
+def test_password_change_required_still_allows_taking_the_account_back() -> None:
+    client, user = signed_in_client(must_change_password=True)
+
+    me_response = client.get("/api/auth/me/")
+    assert me_response.status_code == 200
+    assert me_response.json()["must_change_password"] is True
+
+    token = csrf_token(client)
+    change_response = client.post(
+        "/api/auth/change-password/",
+        {
+            "current_password": "kg-TemporaryPass123!",
+            "new_password": "kg-BrandNewSecurePass123!",
+        },
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+    assert change_response.status_code == 204, change_response.json()
+
+    user.refresh_from_db()
+    assert user.must_change_password is False
+    assert client.get("/api/students/").status_code == 200
+
+
+def test_password_change_required_still_allows_signing_out() -> None:
+    client, _user = signed_in_client(must_change_password=True)
+    token = csrf_token(client)
+
+    response = client.post("/api/auth/logout/", format="json", HTTP_X_CSRFTOKEN=token)
+
+    assert response.status_code == 204
+
+
+def test_password_change_required_still_serves_the_frontend_shell() -> None:
+    client, _user = signed_in_client(must_change_password=True)
+
+    for path in ("/api/site/", "/api/health/"):
+        assert client.get(path).status_code == 200, path
+
+
+def test_password_change_not_required_leaves_every_endpoint_reachable() -> None:
+    client, _user = signed_in_client(role=User.Role.ADMINISTRATOR)
+
+    assert client.get("/api/users/").status_code == 200
+    assert client.get("/api/students/").status_code == 200
+
+
+def test_password_change_required_does_not_gate_anonymous_requests() -> None:
+    client = APIClient()
+    create_user(email="stranger@example.com", must_change_password=True)
+
+    response = client.get("/api/students/")
+
+    # Still the ordinary "not signed in" refusal, not the password gate.
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] != "password_change_required"
+
+
+def test_exempt_url_names_all_resolve() -> None:
+    """A renamed or removed URL must not leave a stale exemption behind."""
+    known = {name for name in get_resolver().reverse_dict if isinstance(name, str)}
+    assert EXEMPT_URL_NAMES <= known, EXEMPT_URL_NAMES - known
+
+
+def test_self_service_password_change_is_audited_against_the_user() -> None:
+    """request.user is a SimpleLazyObject; the event must name the real model."""
+    client, user = signed_in_client(must_change_password=True)
+    token = csrf_token(client)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {
+            "current_password": "kg-TemporaryPass123!",
+            "new_password": "kg-BrandNewSecurePass123!",
+        },
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 204, response.json()
+    event = AuditEvent.objects.filter(entity_id=str(user.pk)).latest("occurred_at")
+    assert event.entity_type == "User"
+    assert event.actor_email == user.email
+
+
+def test_self_name_edit_is_audited_against_the_user() -> None:
+    """The same SimpleLazyObject path as change-password, via PATCH me."""
+    client, user = signed_in_client(email="renamer@example.com")
+    token = csrf_token(client)
+
+    response = client.patch(
+        "/api/auth/me/",
+        {"first_name": "Renamed", "last_name": "Person"},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 200, response.json()
+    event = AuditEvent.objects.filter(entity_id=str(user.pk)).latest("occurred_at")
+    assert event.entity_type == "User"

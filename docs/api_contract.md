@@ -50,7 +50,8 @@ Every error response uses one envelope:
 
 - `code` is stable and machine-readable. Current codes: `validation_error`,
   `authentication_required`, `authentication_failed`, `permission_denied`,
-  `not_found`, `method_not_allowed`, `csrf_failed`, `throttled`, `error`.
+  `password_change_required`, `not_found`, `method_not_allowed`,
+  `csrf_failed`, `throttled`, `error`.
 - `message` is human-readable and safe to show. When a validation failure has
   exactly one message it is promoted here, because a lone message is nearly
   always a domain rule rather than a form error and should be usable as a
@@ -92,7 +93,22 @@ No other endpoint is throttled.
 hijacked session alone is not enough to lock the real owner out. The new
 password runs through the same Django password validators as every other
 password path in the app. Returns `204` on success; the value is never
-logged or included in the audit event it writes.
+logged or included in the audit event it writes. The caller stays signed in -
+the session's auth hash is refreshed, so picking a new password does not eject
+them to the sign-in screen. Every *other* session for that account is ended.
+
+### Forced password change
+
+`must_change_password` is set whenever somebody other than the owner chose the
+account's password: creation, and `POST /api/users/{id}/set-password/`. While
+it is set, the account may reach only `/api/auth/me/`,
+`/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`, `/api/ready/`
+and `/api/site/`. Every other endpoint answers `403` with
+`error.code = "password_change_required"`, whatever the method. A successful
+`POST /api/auth/change-password/` clears the flag and restores normal access.
+Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds
+for direct API callers and not only for the browser client. Django admin is
+outside this gate - see the middleware's docstring.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student`, `can_override_locked_session` and

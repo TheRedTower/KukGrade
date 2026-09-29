@@ -331,6 +331,94 @@ describe("App authentication", () => {
       expect(window.location.pathname).toBe("/login");
     });
   });
+
+  it("never shows one account's data to the next person on this browser", async () => {
+    window.history.replaceState({}, "", "/students");
+    const dana = {
+      ...authUser,
+      id: "1a0e2f3c-1111-4222-8333-444455556666",
+      email: "dana@example.com",
+      first_name: "Dana",
+      last_name: "Instructor",
+      full_name: "Dana Instructor",
+    } satisfies AuthUser;
+
+    // Casey's roster request is still in flight when Casey signs out. Without
+    // cancellation it resolves into the emptied cache, and Dana is shown
+    // Casey's students on arrival.
+    let releaseCaseyRoster: (response: Response) => void = () => {};
+    const caseyRosterInFlight = new Promise<Response>((resolve) => {
+      releaseCaseyRoster = resolve;
+    });
+    const rosterOf = (name: string) =>
+      jsonResponse(200, {
+        count: 1,
+        next: null,
+        previous: null,
+        results: [
+          {
+            id: 1,
+            wksa_id: "UK-1001",
+            first_name: name,
+            last_name: "Student",
+            current_rank: 1,
+            current_rank_code: "W",
+            current_rank_name: "White Belt",
+            status: "ACTIVE",
+            status_display: "Active",
+            can_be_graded: true,
+            age_band: "AGE_18_AND_OVER",
+            age_band_display: "18+",
+          },
+        ],
+      });
+
+    let signedInAs: AuthUser | null = authUser;
+    let rosterRequests = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return signedInAs ? jsonResponse(200, signedInAs) : authRequiredResponse();
+      }
+      if (url.includes("/api/auth/logout/")) {
+        signedInAs = null;
+        return emptyResponse(204);
+      }
+      if (url.includes("/api/auth/login/")) {
+        signedInAs = dana;
+        return jsonResponse(200, dana);
+      }
+      if (url.includes("/api/students/")) {
+        rosterRequests += 1;
+        return rosterRequests === 1 ? caseyRosterInFlight : rosterOf("Dana-Only");
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Students" });
+    await user.click(
+      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await screen.findByRole("heading", { name: "Welcome back" });
+
+    // Casey's roster lands after the cache was cleared.
+    releaseCaseyRoster(rosterOf("Casey-Only"));
+
+    await user.type(screen.getByLabelText("Email address"), "dana@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await screen.findByText("Dana Instructor");
+    await user.click(screen.getByRole("link", { name: "Students" }));
+    await screen.findByRole("heading", { name: "Students" });
+
+    expect(await screen.findByText(/Dana-Only/)).toBeVisible();
+    expect(screen.queryByText(/Casey-Only/)).not.toBeInTheDocument();
+  });
 });
 
 describe("Connection failures are not sign-outs", () => {

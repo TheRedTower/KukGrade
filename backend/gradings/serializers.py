@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from django.db import IntegrityError, transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
@@ -19,7 +20,9 @@ from gradings.models import (
 )
 from gradings.services import (
     WITHDRAWAL_REASON_REQUIRED_MESSAGE,
+    OverallAssessmentSummary,
     apply_candidate_update,
+    candidate_assessment_summary,
     create_grading_session,
     finalise_candidate_outcome,
     promote_candidate,
@@ -305,6 +308,9 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         source="generated_by.email",
         read_only=True,
     )
+    # The served overall counts (FDR-046), so a list of assessments needs no
+    # per-assessment summary request.
+    overall = serializers.SerializerMethodField()
 
     class Meta:
         model = CandidateAssessment
@@ -319,6 +325,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "started_at",
             "completed_at",
             "notes",
+            "overall",
         )
         read_only_fields = (
             "id",
@@ -330,6 +337,10 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
             "started_at",
             "completed_at",
         )
+
+    @extend_schema_field(AssessmentSummaryCountsSerializer)
+    def get_overall(self, obj: CandidateAssessment) -> OverallAssessmentSummary:
+        return candidate_assessment_summary(obj)["overall"]
 
     def update(
         self,

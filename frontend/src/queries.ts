@@ -21,16 +21,10 @@ export function useAgeBandsQuery() {
 }
 
 // One key per assessment, so every screen and a scoring PATCH share the cache.
-export function assessmentSummaryQuery(assessmentId: number) {
-  return {
-    queryKey: ["candidateAssessmentSummary", assessmentId],
-    queryFn: () => getAssessmentSummary(assessmentId),
-  };
-}
-
 export function useAssessmentSummaryQuery(assessmentId: number | undefined) {
   return useQuery({
-    ...assessmentSummaryQuery(assessmentId ?? 0),
+    queryKey: ["candidateAssessmentSummary", assessmentId],
+    queryFn: () => getAssessmentSummary(assessmentId!),
     enabled: assessmentId !== undefined,
   });
 }

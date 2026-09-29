@@ -93,7 +93,7 @@
 .audit-dialog-close:focus-visible,
 .audit-state-error button:focus-visible {
   border-color: var(--color-gold-strong);
-  outline: 3px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;
 }
 

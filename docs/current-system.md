@@ -385,7 +385,8 @@ checks on each push and pull request.
 - **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
   SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
   (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
-  served counts from `GET /assessments/{id}/summary/`, the instructor
+  served counts from each assessment's `overall` on the assessment list (one
+  request for the cohort; only the row in focus fetches its full summary), the instructor
   proposal and an inline Pass / Conditional / Fail, beside a detail pane for
   the row in focus (`?candidate=` selects it). Decisions stage and then write
   one candidate at a time; a failed row keeps its error and stays staged, and
@@ -402,6 +403,21 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+- **Dark, responsive and accessibility pass (2026-09-29)**: slice 8 measured
+  the four grading surfaces (mat-side scoring, completion proof, the board and
+  the proposal drawer) in a browser in light and dark at desktop, tablet and
+  phone widths: text contrast per element, target sizes, horizontal overflow
+  and every keyboard focus stop. Status text now meets 4.5:1 on its surface in
+  both themes (`--color-warning` and `--color-success` darker in light,
+  `--color-success` and `--color-danger` lighter in dark); filled status
+  buttons use `--color-on-success` / `--color-on-danger`; focus outlines are
+  the solid `--color-accent-strong` (at least 3:1 on every surface) rather
+  than the translucent `--color-focus-ring`, which stays for input halos.
+  Mat-side row tools and breadcrumbs are 44px targets. The chosen Pass /
+  Conditional / Fail segment carries a check mark, not colour alone. On a
+  phone the board's rows become cards so the decision controls stay on
+  screen; choosing a row there moves focus to the detail pane, and after
+  recording, focus moves to the result message.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into

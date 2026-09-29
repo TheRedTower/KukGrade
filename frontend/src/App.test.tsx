@@ -10,6 +10,7 @@ import type {
   CandidateAssessment,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
+  CandidateAssessmentSummary,
   CandidateOutcome,
   GradingCandidate,
   GradingSession,
@@ -89,24 +90,21 @@ afterEach(() => {
 
 // Mirrors gradings.services.candidate_assessment_summary so each test's item
 // fixture stays the single source of truth for its own counts.
-function assessmentSummaryFor(items: CandidateAssessmentItem[]) {
-  const block = (subset: CandidateAssessmentItem[]) => {
+function assessmentSummaryFor(items: CandidateAssessmentItem[]): CandidateAssessmentSummary {
+  const block = (subset: CandidateAssessmentItem[]): CandidateAssessmentSummary["overall"] => {
     const required = subset.filter((item) => item.required);
     const requiredNotAssessed = required.filter(
       (item) => item.result === "NOT_ASSESSED",
     ).length;
-    const requiredMet = required.filter((item) => item.result === "MET").length;
     return {
       total: subset.length,
       required: required.length,
       met: subset.filter((item) => item.result === "MET").length,
       not_met: subset.filter((item) => item.result === "NOT_MET").length,
       not_assessed: subset.filter((item) => item.result === "NOT_ASSESSED").length,
-      required_met: requiredMet,
-      required_not_met: required.filter((item) => item.result === "NOT_MET").length,
+      required_met: required.filter((item) => item.result === "MET").length,
       required_not_assessed: requiredNotAssessed,
       all_required_assessed: requiredNotAssessed === 0,
-      all_required_met: requiredMet === required.length,
     };
   };
   const categories = Array.from(new Set(items.map((item) => item.category))).map(
@@ -1193,6 +1191,7 @@ describe("Overview screen (Operational Ledger)", () => {
         status: "COMPLETED",
         status_display: "Completed",
         generated_by_email: authUser.email,
+        overall: assessmentSummaryFor([]).overall,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:00:00Z",
         completed_at: "2026-05-15T11:00:00Z",
@@ -1204,6 +1203,7 @@ describe("Overview screen (Operational Ledger)", () => {
         status: "IN_PROGRESS",
         status_display: "In Progress",
         generated_by_email: authUser.email,
+        overall: assessmentSummaryFor([]).overall,
         generated_at: "2026-05-15T09:30:00Z",
         started_at: "2026-05-15T10:30:00Z",
         completed_at: null,
@@ -3019,6 +3019,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "IN_PROGRESS" as const,
       status_display: "In progress",
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: null,
@@ -3031,6 +3032,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "COMPLETED" as const,
       status_display: "Completed",
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: "2026-09-15T09:10:00Z",
       completed_at: "2026-09-15T10:00:00Z",
@@ -3043,6 +3045,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       status: "NOT_STARTED" as const,
       status_display: "Not started",
       generated_by_email: adminUser.email,
+      overall: assessmentSummaryFor([]).overall,
       generated_at: "2026-09-15T09:00:00Z",
       started_at: null,
       completed_at: null,
@@ -4801,6 +4804,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "IN_PROGRESS",
     status_display: "In progress",
     generated_by_email: "casey@example.com",
+    overall: assessmentSummaryFor([]).overall,
     generated_at: "2026-09-18T10:00:00Z",
     started_at: "2026-09-18T10:05:00Z",
     completed_at: null,
@@ -4995,18 +4999,16 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         return jsonResponse(200, {
           overall: {
             total: 3, required: 2, met: 2, not_met: 0, not_assessed: 1,
-            required_met: 2, required_not_met: 0, required_not_assessed: 0,
-            all_required_assessed: true, all_required_met: true,
+            required_met: 2, required_not_assessed: 0, all_required_assessed: true,
           },
           categories: [
             {
               category: "ETIQUETTE",
               total: 2, required: 1, met: 1, not_met: 0, not_assessed: 1,
-              required_met: 1, required_not_met: 0, required_not_assessed: 0,
-              all_required_assessed: true, all_required_met: true,
+              required_met: 1, required_not_assessed: 0, all_required_assessed: true,
             },
           ],
-        });
+        } satisfies CandidateAssessmentSummary);
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [completedItemsAssessment] });
@@ -5417,13 +5419,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
             not_met: 1,
             not_assessed: 3,
             required_met: 5,
-            required_not_met: 1,
             required_not_assessed: 1,
             all_required_assessed: false,
-            all_required_met: false,
           },
           categories: [],
-        });
+        } satisfies CandidateAssessmentSummary);
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });

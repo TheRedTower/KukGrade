@@ -448,7 +448,7 @@ snapshot rows.
 
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
-| GET   | /api/gradings/assessments/                            | List generated candidate assessments                 |
+| GET   | /api/gradings/assessments/                            | List generated candidate assessments. Each carries `overall`, the same counts block the `summary` action returns, computed from items prefetched in one query so the list's query count does not grow with the cohort. |
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |

@@ -20,6 +20,7 @@ from django.db.models.deletion import ProtectedError
 from django.forms import ModelForm
 from django.http import HttpRequest
 from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -2730,6 +2731,46 @@ def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> N
     assert {category["category"] for category in payload["categories"]} == {
         item.category for item in generated.items.all()
     }
+
+
+def test_assessment_list_serves_each_assessments_overall_counts() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    generated = assessment(
+        candidate=candidate(session=session),
+        status=CandidateAssessment.Status.IN_PROGRESS,
+    )
+    first = generated.items.order_by("pk").first()
+    assert first is not None
+    first.result = CandidateAssessmentItem.Result.NOT_MET
+    first.assessor = user("assessment-list-assessor@example.com")
+    first.assessed_at = timezone.now()
+    first.save()
+    client = auth_client("assessment-list-counts@example.com")
+
+    response = client.get(f"/api/gradings/assessments/?session={session.id}")
+
+    assert response.status_code == 200
+    [served] = results(response)
+    assert served["overall"] == candidate_assessment_summary(generated)["overall"]
+    assert served["overall"]["not_met"] == 1
+
+
+def test_assessment_list_query_count_does_not_grow_with_the_cohort() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    assessment(candidate=candidate(session=session))
+    client = auth_client("assessment-list-queries@example.com")
+    url = f"/api/gradings/assessments/?session={session.id}"
+    client.get(url)
+
+    with CaptureQueriesContext(connection) as one:
+        client.get(url)
+    for _ in range(3):
+        assessment(candidate=candidate(session=session))
+    with CaptureQueriesContext(connection) as four:
+        response = client.get(url)
+
+    assert len(results(response)) == 4
+    assert len(four.captured_queries) == len(one.captured_queries)
 
 
 def test_assessment_summary_requires_the_view_permission() -> None:

@@ -188,7 +188,7 @@
 
 .cab-row-name:focus-visible,
 .cab-back:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }
 
@@ -267,6 +267,12 @@
   color: var(--color-text);
 }
 
+.cab-detail h2:focus-visible,
+.cab-bar-result:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
 @media (max-width: 64rem) {
   .cab-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -274,5 +280,47 @@
 
   .cab-detail {
     position: static;
+  }
+}
+
+/* Phone: each row becomes a card so the decision controls stay on screen;
+   the column headings move into each cell. */
+@media (max-width: 40rem) {
+  .cab-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .cab-table tr {
+    display: block;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .cab-table td {
+    display: block;
+    padding: 0.4rem 1rem;
+    border-bottom: 0;
+  }
+
+  .cab-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+  }
+
+  .cab-row-focused td:first-child {
+    box-shadow: none;
+  }
+
+  .cab-row-focused {
+    box-shadow: inset 3px 0 0 var(--color-gold);
   }
 }

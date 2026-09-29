@@ -18,7 +18,7 @@ import {
   proposeCandidateOutcome,
 } from "./api";
 import { RankBelt } from "./Belt";
-import { CrossIcon } from "./Icons";
+import { CheckIcon, CrossIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import { useDialogFocus } from "./useDialogFocus";
@@ -145,6 +145,7 @@ export function OutcomeProposalDrawer({
                       disabled={isSubmitting}
                       data-dialog-autofocus={option.value === "PASS" || undefined}
                     />
+                    {selectedOutcome === option.value && <CheckIcon size={14} />}
                     {option.label}
                   </label>
                 ))}

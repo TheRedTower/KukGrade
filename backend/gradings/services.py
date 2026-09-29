@@ -1142,9 +1142,9 @@ def _empty_summary() -> OverallAssessmentSummary:
 def candidate_assessment_summary(
     assessment: CandidateAssessment,
 ) -> CandidateAssessmentSummary:
-    items = list(
-        assessment.items.all().order_by("category", "requirement_sequence", "pk"),
-    )
+    # Unordered, so a list view's prefetched items are used as they are; the
+    # counts do not depend on order and the categories are sorted below.
+    items = list(assessment.items.all())
     category_order = {
         category: index for index, category in enumerate(SyllabusItem.Category.values)
     }

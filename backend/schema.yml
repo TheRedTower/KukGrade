@@ -2599,6 +2599,10 @@ components:
           nullable: true
         notes:
           type: string
+        overall:
+          allOf:
+          - $ref: '#/components/schemas/AssessmentSummaryCounts'
+          readOnly: true
       required:
       - candidate
       - candidate_student_name
@@ -2606,6 +2610,7 @@ components:
       - generated_at
       - generated_by_email
       - id
+      - overall
       - started_at
       - status_display
     CandidateAssessmentItem:

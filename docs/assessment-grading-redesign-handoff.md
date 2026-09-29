@@ -406,6 +406,11 @@ One commit per slice. Each must pass the §7 commands before the next begins.
    `OutcomeDrawers.css` went from 864 lines of hard-coded colours with two
    copies of every dark override to theme tokens only.
 8. **Dark, responsive and accessibility parity pass** across all four surfaces.
+   *Done, 2026-09-29.* Measured in a browser (light and dark; 1440, 820 and
+   390px wide) for per-element text contrast, 44px targets, horizontal
+   overflow and every focus stop; see `current-system.md` for what changed.
+   The board's per-row summary requests became one `overall` block per
+   assessment on the list.
 
 ## 6. Open decisions
 

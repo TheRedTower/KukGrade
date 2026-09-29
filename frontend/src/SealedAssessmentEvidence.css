@@ -41,7 +41,7 @@
 }
 
 .evd-retry:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }
 
@@ -90,10 +90,12 @@
   display: inline-flex;
   align-items: center;
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-text);
+  text-decoration-color: var(--color-accent);
+  text-underline-offset: 3px;
 }
 
 .evd-link:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }

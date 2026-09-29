@@ -18,6 +18,30 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-29 - Assessment list serves overall counts; measured contrast tokens
+
+Status: Accepted
+
+Decision:
+Each `CandidateAssessment` in the API carries `overall`, the counts block
+`candidate_assessment_summary` already produces, and the list prefetches
+items so its query count is constant. The board reads it instead of one
+summary request per candidate. Status colours were adjusted until text meets
+4.5:1 on its own surface in both themes, filled status colours gained
+`--color-on-success` / `--color-on-danger`, and focus outlines use the solid
+`--color-accent-strong`.
+
+Context:
+Slice 8. A 40-candidate cohort made 40 summary requests on opening the
+board. The browser measurement found warning text at 3.1:1 in light, white
+on the dark success fill at 3.3:1, and a translucent focus outline near
+1.3:1 against white.
+
+Consequences:
+The counts have one implementation (the service) and one schema shape. The
+token changes apply everywhere those tokens are used, not only on the four
+grading surfaces.
+
 ### 2026-09-29 - The API serves what the app uses
 
 Status: Accepted

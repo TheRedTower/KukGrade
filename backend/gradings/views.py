@@ -334,13 +334,17 @@ class CandidateAssessmentViewSet(
     )
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
-        return CandidateAssessment.objects.select_related(
-            "candidate__student",
-            "generated_by",
-        ).order_by(
-            "candidate__session__grading_date",
-            "candidate__student__last_name",
-            "candidate__student__first_name",
+        return (
+            CandidateAssessment.objects.select_related(
+                "candidate__student",
+                "generated_by",
+            )
+            .prefetch_related("items")
+            .order_by(
+                "candidate__session__grading_date",
+                "candidate__student__last_name",
+                "candidate__student__first_name",
+            )
         )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:

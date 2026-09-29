@@ -25,10 +25,8 @@ const counts = {
   not_met: 1,
   not_assessed: 0,
   required_met: 3,
-  required_not_met: 1,
   required_not_assessed: 0,
   all_required_assessed: true,
-  all_required_met: false,
 };
 const summary: CandidateAssessmentSummary = { overall: counts, categories: [] };
 

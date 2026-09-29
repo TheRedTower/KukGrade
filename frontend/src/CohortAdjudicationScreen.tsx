@@ -12,17 +12,16 @@
  * recorded `assessor_notes` value, not only shortfalls (see
  * `SealedAssessmentEvidence`, which the proposal drawer shares).
  *
- * Counts are served (`GET /assessments/{id}/summary/`, FDR-046), never
+ * Counts are served (each assessment's `overall`, FDR-046), never
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
   type CandidateAssessment,
-  type CandidateAssessmentSummary,
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
   type GradingCandidate,
@@ -39,7 +38,6 @@ import "./CandidateAssessment.css";
 import "./CohortAdjudication.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
-import { assessmentSummaryQuery } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 
 type StagedDecision = {
@@ -52,7 +50,6 @@ type BoardRow = {
   candidate: GradingCandidate;
   assessment?: CandidateAssessment;
   outcome?: CandidateOutcome;
-  summary?: CandidateAssessmentSummary;
   decidable: boolean;
 };
 
@@ -81,6 +78,14 @@ export function CohortAdjudicationScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [failures, setFailures] = useState<Record<number, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
+  const resultRef = useRef<HTMLParagraphElement>(null);
+  const detailHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  // Recording unmounts or disables the control that started it, so focus
+  // moves to the outcome message rather than dropping to the page.
+  useEffect(() => {
+    if (lastResult) resultRef.current?.focus();
+  }, [lastResult]);
 
   const enabled = !Number.isNaN(sessionId) && sessionId > 0;
 
@@ -106,25 +111,9 @@ export function CohortAdjudicationScreen() {
   });
 
   const session = sessionQuery.data;
-  const assessments = useMemo(
-    () => assessmentsQuery.data?.results ?? [],
-    [assessmentsQuery.data],
+  const assessmentByCandidate = new Map(
+    (assessmentsQuery.data?.results ?? []).map((a) => [a.candidate, a]),
   );
-
-  // One served rollup per assessment, sharing the cache key the assessment
-  // screens already use.
-  const summaryQueries = useQueries({
-    queries: assessments.map((assessment) => assessmentSummaryQuery(assessment.id)),
-  });
-  const summaryByAssessment = new Map<number, CandidateAssessmentSummary>();
-  assessments.forEach((assessment, index) => {
-    const data = summaryQueries[index]?.data;
-    if (data) summaryByAssessment.set(assessment.id, data);
-  });
-
-  // Rebuilt each render: useQueries returns a new array every time, so a memo
-  // over it would never hold.
-  const assessmentByCandidate = new Map(assessments.map((a) => [a.candidate, a]));
   const outcomeByCandidate = new Map(
     (outcomesQuery.data?.results ?? []).map((o) => [o.candidate, o]),
   );
@@ -137,7 +126,6 @@ export function CohortAdjudicationScreen() {
         candidate,
         assessment,
         outcome,
-        summary: assessment ? summaryByAssessment.get(assessment.id) : undefined,
         decidable: outcome?.status === "PROPOSED",
       };
     });
@@ -228,7 +216,12 @@ export function CohortAdjudicationScreen() {
 
   const failedIds = Object.keys(failures).map(Number).filter((oid) => oid in staged);
 
-  if (sessionQuery.isLoading || candidatesQuery.isLoading || outcomesQuery.isLoading) {
+  if (
+    sessionQuery.isLoading ||
+    candidatesQuery.isLoading ||
+    assessmentsQuery.isLoading ||
+    outcomesQuery.isLoading
+  ) {
     return (
       <section aria-label="Final decisions" className="cab-page">
         <div className="cab-state" role="status">Loading final decisions…</div>
@@ -299,7 +292,7 @@ export function CohortAdjudicationScreen() {
             <tbody>
               {rows.map((row) => {
                 const outcome = row.outcome;
-                const overall = row.summary?.overall;
+                const overall = row.assessment?.overall;
                 const decision = outcome ? staged[outcome.id] : undefined;
                 const isFocused = focusRow?.candidate.id === row.candidate.id;
                 const failure = outcome ? failures[outcome.id] : undefined;
@@ -313,7 +306,15 @@ export function CohortAdjudicationScreen() {
                       <button
                         type="button"
                         className="cab-row-name"
-                        onClick={() => setFocusId(row.candidate.id)}
+                        onClick={() => {
+                          setFocusId(row.candidate.id);
+                          // Below this width the detail pane sits under the
+                          // queue, so a tap would otherwise change nothing
+                          // on screen.
+                          if (window.matchMedia("(max-width: 64rem)").matches) {
+                            requestAnimationFrame(() => detailHeadingRef.current?.focus());
+                          }
+                        }}
                         aria-pressed={isFocused}
                       >
                         {row.candidate.student_display_name}
@@ -323,7 +324,7 @@ export function CohortAdjudicationScreen() {
                         {row.candidate.testing_for_rank_name}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Evidence">
                       {overall ? (
                         <>
                           <span className="cab-counts">
@@ -337,7 +338,7 @@ export function CohortAdjudicationScreen() {
                         <span className="cab-flags">No assessment</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Proposal">
                       {outcome?.proposed_outcome ? (
                         <span className={outcomeClass(outcome.proposed_outcome)}>
                           {outcome.proposed_outcome_display}
@@ -346,7 +347,7 @@ export function CohortAdjudicationScreen() {
                         <span className="cab-flags">Awaiting proposal</span>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Decision">
                       {outcome?.status === "FINALISED" ? (
                         <span className="cab-recorded">
                           <CheckIcon size={14} /> Recorded · {outcome.final_outcome_display}
@@ -366,6 +367,7 @@ export function CohortAdjudicationScreen() {
                               disabled={isRecording}
                               onClick={() => stage(row, option.value)}
                             >
+                              {decision?.outcome === option.value && <CheckIcon size={14} />}
                               {option.label}
                             </button>
                           ))}
@@ -388,7 +390,9 @@ export function CohortAdjudicationScreen() {
         {focusRow && (
           <aside className="cab-detail" aria-labelledby="cab-focus-title" data-testid="cab-detail">
             <p className="outcome-eyebrow">In focus</p>
-            <h2 id="cab-focus-title">{focusRow.candidate.student_display_name}</h2>
+            <h2 id="cab-focus-title" ref={detailHeadingRef} tabIndex={-1}>
+              {focusRow.candidate.student_display_name}
+            </h2>
             <p className="outcome-rank-line">
               <RankBelt rankId={focusRow.candidate.from_rank} />
               {focusRow.candidate.from_rank_name}
@@ -493,7 +497,11 @@ export function CohortAdjudicationScreen() {
               Conditional decisions need re-test requirements before they can be recorded.
             </p>
           )}
-          {lastResult && <p className="cab-bar-result" role="status">{lastResult}</p>}
+          {lastResult && (
+            <p className="cab-bar-result" role="status" ref={resultRef} tabIndex={-1}>
+              {lastResult}
+            </p>
+          )}
           {failedIds.length > 0 && (
             <button
               type="button"

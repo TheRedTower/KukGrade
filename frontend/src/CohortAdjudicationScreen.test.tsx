@@ -100,7 +100,11 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
   };
 }
 
-function assessment(id: number, candidateId: number): CandidateAssessment {
+function assessment(
+  id: number,
+  candidateId: number,
+  overall: CandidateAssessment["overall"],
+): CandidateAssessment {
   return {
     id,
     candidate: candidateId,
@@ -108,6 +112,7 @@ function assessment(id: number, candidateId: number): CandidateAssessment {
     status: "COMPLETED",
     status_display: "Completed",
     generated_by_email: "master@example.com",
+    overall,
     generated_at: "2026-11-12T09:00:00Z",
     started_at: "2026-11-12T09:05:00Z",
     completed_at: "2026-11-12T11:00:00Z",
@@ -143,10 +148,8 @@ function summary(required: number, met: number, notMet: number): CandidateAssess
     not_met: notMet,
     not_assessed: 0,
     required_met: met,
-    required_not_met: notMet,
     required_not_assessed: 0,
     all_required_assessed: true,
-    all_required_met: notMet === 0,
   };
   return { overall: counts, categories: [] };
 }
@@ -214,8 +217,15 @@ describe("CohortAdjudicationScreen", () => {
     mockCurrentUser = masterUser;
     mockGetGradingSession.mockResolvedValue(lockedSession);
     mockGetCandidates.mockResolvedValue(page(cohort));
-    mockGetAssessments.mockResolvedValue(page([assessment(1001, 1), assessment(1002, 2), assessment(1003, 3)]));
+    mockGetAssessments.mockResolvedValue(
+      page([
+        assessment(1001, 1, summary(18, 18, 0).overall),
+        assessment(1002, 2, summary(24, 22, 2).overall),
+        assessment(1003, 3, summary(18, 18, 0).overall),
+      ]),
+    );
     mockGetOutcomes.mockResolvedValue(page(outcomes));
+    // Only the row in focus fetches its full summary, for the evidence pane.
     mockGetSummary.mockImplementation(async (assessmentId: number) =>
       assessmentId === 1002 ? summary(24, 22, 2) : summary(18, 18, 0),
     );
@@ -243,6 +253,10 @@ describe("CohortAdjudicationScreen", () => {
     expect(screen.queryByTestId("cab-row-4")).toBeNull();
     expect(screen.getByText("1 withdrawn candidate is not shown.")).toBeVisible();
     expect(screen.getByText("finalised", { exact: false })).toHaveTextContent("1 / 3 finalised");
+    // Row counts come with the assessment list; only the row in focus asks
+    // for its full summary, for the evidence pane.
+    await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
+    expect(mockGetSummary).toHaveBeenCalledWith(1001);
   });
 
   it("stages decisions, then records each one on its own", async () => {
@@ -275,6 +289,9 @@ describe("CohortAdjudicationScreen", () => {
       conditional_requirements: "Re-test Dwi Cha Gi.",
     });
     expect(await screen.findByText("2 decisions recorded.")).toBeVisible();
+    // The record button is disabled once nothing is staged, so focus moves to
+    // the result rather than dropping to the page.
+    expect(screen.getByText("2 decisions recorded.")).toHaveFocus();
   });
 
   it("keeps a failed row staged and retries only that row", async () => {
@@ -315,6 +332,32 @@ describe("CohortAdjudicationScreen", () => {
     await screen.findByTestId("cab-row-1");
     expect(screen.getByText(/Final decisions open once the session is locked/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "Pass" })).toBeNull();
+  });
+
+  it("moves focus to the detail pane when a row is chosen on a narrow screen", async () => {
+    const user = userEvent.setup();
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) => ({ matches: query === "(max-width: 64rem)", media: query }) as MediaQueryList,
+    );
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" }));
+
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toHaveFocus(),
+    );
+    matchMedia.mockRestore();
+  });
+
+  it("leaves focus on the row when a row is chosen on a wide screen", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const name = within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" });
+    await user.click(name);
+
+    expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toBeVisible();
+    expect(name).toHaveFocus();
   });
 
   it("focuses the requested candidate and shows every recorded note, not only shortfalls", async () => {

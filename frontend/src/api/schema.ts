@@ -1302,6 +1302,7 @@ export interface components {
             /** Format: date-time */
             readonly completed_at: string | null;
             notes?: string;
+            readonly overall: components["schemas"]["AssessmentSummaryCounts"];
         };
         CandidateAssessmentItem: {
             readonly id: number;

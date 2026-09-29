@@ -2496,7 +2496,6 @@ export interface operations {
         parameters: {
             query?: {
                 action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
-                actor?: string;
                 entity_id?: string;
                 entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -2740,16 +2739,10 @@ export interface operations {
         parameters: {
             query?: {
                 assessment?: number;
-                candidate?: number;
-                category?: "BREAKING" | "ETIQUETTE" | "FALLING" | "FORM" | "FUNDAMENTALS" | "HAND_TECHNIQUES" | "KICKING" | "OTHER" | "TECHNIQUE_SET" | "WEAPONS";
-                item_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                required?: boolean;
-                result?: "MET" | "NOT_ASSESSED" | "NOT_MET";
-                session?: number;
             };
             header?: never;
             path?: never;
@@ -2805,8 +2798,6 @@ export interface operations {
                 page_size?: number;
                 session?: number;
                 status?: "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -2945,15 +2936,11 @@ export interface operations {
     gradings_candidates_list: {
         parameters: {
             query?: {
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 session?: number;
-                status?: "COMPLETED" | "REGISTERED" | "WITHDRAWN";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3197,9 +3184,6 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                record_kind?: string;
-                source_batch?: number;
-                student?: number;
                 voided?: boolean;
             };
             header?: never;
@@ -3355,19 +3339,11 @@ export interface operations {
     gradings_outcomes_list: {
         parameters: {
             query?: {
-                candidate?: number;
-                decided_by?: string;
-                final_outcome?: "CONDITIONAL" | "FAIL" | "PASS";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                proposed_by?: string;
-                proposed_outcome?: "CONDITIONAL" | "FAIL" | "PASS";
                 session?: number;
-                status?: "DRAFT" | "FINALISED" | "PROPOSED";
-                student_wksa_id?: string;
-                testing_for_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3497,19 +3473,11 @@ export interface operations {
     gradings_promotions_list: {
         parameters: {
             query?: {
-                effective_date?: string;
-                effective_date_from?: string;
-                effective_date_to?: string;
-                from_rank_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                promoted_by?: string;
                 session?: number;
-                student?: number;
-                student_wksa_id?: string;
-                to_rank_code?: string;
             };
             header?: never;
             path?: never;
@@ -3530,7 +3498,6 @@ export interface operations {
     gradings_sessions_list: {
         parameters: {
             query?: {
-                grading_date?: string;
                 grading_date_from?: string;
                 grading_date_to?: string;
                 /** @description A page number within the paginated result set. */
@@ -3760,8 +3727,6 @@ export interface operations {
     students_list: {
         parameters: {
             query?: {
-                /** @description The student's age band today, not at any grading. */
-                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 current_rank_code?: string;
                 /** @description A page number within the paginated result set. */
                 page?: number;

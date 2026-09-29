@@ -132,7 +132,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `age_band`, `search` |
+| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -389,7 +389,6 @@ sessions start in `DRAFT`; API clients cannot create sessions directly in
 Session filters:
 
 - `status`
-- `grading_date`
 - `grading_date_from`
 - `grading_date_to`
 - `search` (title or location)
@@ -418,10 +417,6 @@ Candidate fields:
 Candidate filters:
 
 - `session`
-- `student_wksa_id`
-- `testing_for_rank_code`
-- `age_band`
-- `status`
 
 Candidate creation rejects locked, completed, and cancelled sessions; duplicate
 student/session pairs; invalid testing-for ranks; and missing student date of
@@ -498,19 +493,11 @@ Assessment list filters:
 
 - `candidate`
 - `session`
-- `student_wksa_id`
-- `testing_for_rank_code`
 - `status`
 
 Assessment-item list filters:
 
 - `assessment`
-- `candidate`
-- `session`
-- `item_code`
-- `category`
-- `result`
-- `required`
 
 An assessment row includes candidate id, student name, WKSA ID, testing-for
 rank code and name, candidate age-band snapshot, lifecycle timestamps, notes,
@@ -551,14 +538,6 @@ unsupported low-level maintenance path.
 Outcome list filters:
 
 - `session`
-- `candidate`
-- `student_wksa_id`
-- `testing_for_rank_code`
-- `status`
-- `proposed_outcome`
-- `final_outcome`
-- `proposed_by`
-- `decided_by`
 
 An outcome row exposes candidate, student name, WKSA ID, testing rank, session,
 assessment status, proposed decision, final decision, timestamps, attribution,
@@ -607,15 +586,7 @@ Returns `200` with `{"promoted": [...promotion records...], "errors": {...}}`.
 
 Promotion list filters:
 
-- `student`
-- `student_wksa_id`
-- `from_rank_code`
-- `to_rank_code`
 - `session`
-- `effective_date`
-- `effective_date_from`
-- `effective_date_to`
-- `promoted_by`
 
 ## 9. Audit
 
@@ -662,7 +633,6 @@ Filters:
 - `action`
 - `entity_type` - one of `AuditEntity` (`audit/models.py`): the model name of what the event is about. Recording an event about any other model is refused, so the list is complete.
 - `entity_id`
-- `actor`
 - `occurred_from`
 - `occurred_to`
 - `search` (summary, entity type/id, or actor name/email)
@@ -726,7 +696,7 @@ Administrator-only (`gradings.can_reconcile_imported_history`).
 
 | Method | Endpoint                                                    | Description                                      |
 |--------|---------------------------------------------------------------|---------------------------------------------------|
-| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `student`, `linked`, `voided`, `record_kind`, `source_batch` |
+| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided` |
 | POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>}`; links to a `Student`    |
 | POST   | /api/gradings/legacy-records/{id}/unlink-student/               | No body; refused if not currently linked          |
 | POST   | /api/gradings/legacy-records/{id}/resolve-current-rank/         | Body `{"rank": <id or null>}`                     |

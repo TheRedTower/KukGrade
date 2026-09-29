@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import cast
 
 from django.db.models import QuerySet
-from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -13,11 +12,10 @@ from rest_framework.viewsets import GenericViewSet
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from gradings.services import (
-    age_band_birth_date_bounds,
     student_rank_timeline,
     unified_student_grading_history,
 )
-from kukgrade.filtering import QueryFilter, choice, exact, search
+from kukgrade.filtering import choice, exact, search
 from students.models import Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -26,21 +24,6 @@ from students.serializers import (
     StudentSerializer,
 )
 from students.services import delete_student
-from syllabus.models import AgeBand
-
-
-def _filter_age_band(queryset: QuerySet[Student], value: str) -> QuerySet[Student]:
-    if value not in AgeBand.values:
-        return queryset.none()
-    born_after, born_on_or_before = age_band_birth_date_bounds(
-        value,
-        timezone.localdate(),
-    )
-    if born_after is not None:
-        return queryset.filter(date_of_birth__gt=born_after)
-    if born_on_or_before is not None:
-        queryset = queryset.filter(date_of_birth__lte=born_on_or_before)
-    return queryset
 
 
 class StudentViewSet(
@@ -87,12 +70,6 @@ class StudentViewSet(
     query_filters = (
         choice("status", "status", Student.Status.values),
         exact("current_rank_code", "current_rank__code"),
-        QueryFilter(
-            "age_band",
-            lambda queryset, value: _filter_age_band(queryset, value),
-            {"type": "string", "enum": sorted(AgeBand.values)},
-            "The student's age band today, not at any grading.",
-        ),
         search("search", ("first_name", "last_name", "wksa_id")),
     )
 

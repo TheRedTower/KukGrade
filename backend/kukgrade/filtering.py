@@ -8,13 +8,12 @@ generated from the same declaration.
 
 Every filter follows one rule: an absent or blank parameter does not filter,
 and a value that cannot possibly match - a non-numeric id, an unknown choice,
-a malformed UUID or date, a boolean other than `true`/`false` - returns an
+a malformed date, a boolean other than `true`/`false` - returns an
 empty page rather than a 400 or being silently ignored.
 """
 
 from __future__ import annotations
 
-import uuid
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from datetime import date
@@ -85,17 +84,6 @@ def choice(
     return QueryFilter(
         name, apply, {"type": "string", "enum": sorted(choices)}, description
     )
-
-
-def by_uuid(name: str, lookup: str, description: str = "") -> QueryFilter:
-    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-        try:
-            parsed = uuid.UUID(value)
-        except ValueError:
-            return queryset.none()
-        return queryset.filter(**{lookup: parsed})
-
-    return QueryFilter(name, apply, {"type": "string", "format": "uuid"}, description)
 
 
 def on_date(name: str, lookup: str, description: str = "") -> QueryFilter:

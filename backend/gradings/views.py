@@ -73,8 +73,7 @@ from gradings.services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from kukgrade.filtering import boolean, by_id, by_uuid, choice, exact, on_date, search
-from syllabus.models import AgeBand, SyllabusItem
+from kukgrade.filtering import boolean, by_id, choice, on_date, search
 
 
 class WithdrawalReasonViewSet(GenericViewSet):
@@ -108,7 +107,6 @@ class GradingSessionViewSet(ModelViewSet):
 
     query_filters = (
         choice("status", "status", GradingSession.Status.values),
-        on_date("grading_date", "grading_date"),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
         search("search", ("title", "location")),
@@ -157,13 +155,7 @@ class GradingCandidateViewSet(
         "withdraw": ("gradings.change_gradingcandidate",),
     }
 
-    query_filters = (
-        by_id("session", "session_id"),
-        exact("student_wksa_id", "student__wksa_id"),
-        exact("testing_for_rank_code", "testing_for_rank__code"),
-        choice("age_band", "age_band", AgeBand.values),
-        choice("status", "status", GradingCandidate.Status.values),
-    )
+    query_filters = (by_id("session", "session_id"),)
 
     def get_queryset(self) -> QuerySet[GradingCandidate]:
         return GradingCandidate.objects.select_related(
@@ -343,8 +335,6 @@ class CandidateAssessmentViewSet(
     query_filters = (
         by_id("candidate", "candidate_id"),
         by_id("session", "candidate__session_id"),
-        exact("student_wksa_id", "candidate__student__wksa_id"),
-        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
         choice("status", "status", CandidateAssessment.Status.values),
     )
 
@@ -442,15 +432,7 @@ class CandidateAssessmentItemViewSet(
         "partial_update": ("gradings.change_candidateassessmentitem",),
     }
 
-    query_filters = (
-        by_id("assessment", "assessment_id"),
-        by_id("candidate", "assessment__candidate_id"),
-        by_id("session", "assessment__candidate__session_id"),
-        exact("item_code", "item_code"),
-        choice("category", "category", SyllabusItem.Category.values),
-        choice("result", "result", CandidateAssessmentItem.Result.values),
-        boolean("required", "required"),
-    )
+    query_filters = (by_id("assessment", "assessment_id"),)
 
     def get_queryset(self) -> QuerySet[CandidateAssessmentItem]:
         return CandidateAssessmentItem.objects.select_related(
@@ -481,17 +463,7 @@ class CandidateOutcomeViewSet(
         "bulk_promote": ("gradings.view_candidateoutcome",),
     }
 
-    query_filters = (
-        by_id("session", "candidate__session_id"),
-        by_id("candidate", "candidate_id"),
-        exact("student_wksa_id", "candidate__student__wksa_id"),
-        exact("testing_for_rank_code", "candidate__testing_for_rank__code"),
-        choice("status", "status", CandidateOutcome.Status.values),
-        choice("proposed_outcome", "proposed_outcome", CandidateOutcome.Outcome.values),
-        choice("final_outcome", "final_outcome", CandidateOutcome.Outcome.values),
-        by_uuid("proposed_by", "proposed_by_id"),
-        by_uuid("decided_by", "decided_by_id"),
-    )
+    query_filters = (by_id("session", "candidate__session_id"),)
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         return CandidateOutcome.objects.select_related(
@@ -629,17 +601,7 @@ class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
         "list": ("gradings.view_promotion",),
     }
 
-    query_filters = (
-        by_id("student", "student_id"),
-        exact("student_wksa_id", "student__wksa_id"),
-        exact("from_rank_code", "from_rank__code"),
-        exact("to_rank_code", "to_rank__code"),
-        by_id("session", "grading_candidate__session_id"),
-        on_date("effective_date", "effective_date"),
-        on_date("effective_date_from", "effective_date__gte"),
-        on_date("effective_date_to", "effective_date__lte"),
-        by_uuid("promoted_by", "promoted_by_id"),
-    )
+    query_filters = (by_id("session", "grading_candidate__session_id"),)
 
     def get_queryset(self) -> QuerySet[Promotion]:
         return Promotion.objects.select_related(
@@ -674,11 +636,8 @@ class LegacyGradingRecordViewSet(
     }
 
     query_filters = (
-        by_id("student", "student_id"),
         boolean("linked", "student__isnull", invert=True),
         boolean("voided", "is_void"),
-        exact("record_kind", "record_kind"),
-        by_id("source_batch", "source_batch_id"),
     )
 
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:

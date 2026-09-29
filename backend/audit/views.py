@@ -10,7 +10,7 @@ from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
 from audit.models import AuditAction, AuditEntity, AuditEvent
 from audit.serializers import AuditEventSerializer
-from kukgrade.filtering import by_uuid, choice, exact, on_date, search
+from kukgrade.filtering import choice, exact, on_date, search
 
 
 class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
@@ -32,7 +32,6 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
         choice("action", "action", AuditAction.values),
         choice("entity_type", "entity_type", AuditEntity.values),
         exact("entity_id", "entity_id"),
-        by_uuid("actor", "actor_id"),
         on_date("occurred_from", "occurred_at__date__gte"),
         on_date("occurred_to", "occurred_at__date__lte"),
         search(

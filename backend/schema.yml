@@ -49,13 +49,6 @@ paths:
           - USER_CREATED
           - USER_DELETED
           - USER_UPDATED
-      - name: actor
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: uuid
       - name: entity_id
         required: false
         in: query
@@ -355,35 +348,6 @@ paths:
         description: ''
         schema:
           type: integer
-      - name: candidate
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      - name: category
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - BREAKING
-          - ETIQUETTE
-          - FALLING
-          - FORM
-          - FUNDAMENTALS
-          - HAND_TECHNIQUES
-          - KICKING
-          - OTHER
-          - TECHNIQUE_SET
-          - WEAPONS
-      - name: item_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       - name: page
         required: false
         in: query
@@ -394,28 +358,6 @@ paths:
         required: false
         in: query
         description: Number of results to return per page.
-        schema:
-          type: integer
-      - name: required
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: boolean
-      - name: result
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - MET
-          - NOT_ASSESSED
-          - NOT_MET
-      - name: session
-        required: false
-        in: query
-        description: ''
         schema:
           type: integer
       tags:
@@ -500,18 +442,6 @@ paths:
           - COMPLETED
           - IN_PROGRESS
           - NOT_STARTED
-      - name: student_wksa_id
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      - name: testing_for_rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       tags:
       - gradings
       security:
@@ -657,17 +587,6 @@ paths:
         Registrations are created by bulk-register only. PATCH and DELETE
         change or remove one while its session is draft or open.
       parameters:
-      - name: age_band
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - AGE_13_TO_17
-          - AGE_18_AND_OVER
-          - AGE_8_AND_UNDER
-          - AGE_9_TO_12
       - name: page
         required: false
         in: query
@@ -686,28 +605,6 @@ paths:
         description: ''
         schema:
           type: integer
-      - name: status
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - COMPLETED
-          - REGISTERED
-          - WITHDRAWN
-      - name: student_wksa_id
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      - name: testing_for_rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       tags:
       - gradings
       security:
@@ -995,24 +892,6 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - name: record_kind
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      - name: source_batch
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      - name: student
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
       - name: voided
         required: false
         in: query
@@ -1217,29 +1096,6 @@ paths:
     get:
       operationId: gradings_outcomes_list
       parameters:
-      - name: candidate
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      - name: decided_by
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: uuid
-      - name: final_outcome
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - CONDITIONAL
-          - FAIL
-          - PASS
       - name: page
         required: false
         in: query
@@ -1252,51 +1108,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - name: proposed_by
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: uuid
-      - name: proposed_outcome
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - CONDITIONAL
-          - FAIL
-          - PASS
       - name: session
         required: false
         in: query
         description: ''
         schema:
           type: integer
-      - name: status
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          enum:
-          - DRAFT
-          - FINALISED
-          - PROPOSED
-      - name: student_wksa_id
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      - name: testing_for_rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       tags:
       - gradings
       security:
@@ -1434,33 +1251,6 @@ paths:
     get:
       operationId: gradings_promotions_list
       parameters:
-      - name: effective_date
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: date
-      - name: effective_date_from
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: date
-      - name: effective_date_to
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: date
-      - name: from_rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       - name: page
         required: false
         in: query
@@ -1473,37 +1263,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
-      - name: promoted_by
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: uuid
       - name: session
         required: false
         in: query
         description: ''
         schema:
           type: integer
-      - name: student
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: integer
-      - name: student_wksa_id
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-      - name: to_rank_code
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
       tags:
       - gradings
       security:
@@ -1519,13 +1284,6 @@ paths:
     get:
       operationId: gradings_sessions_list
       parameters:
-      - name: grading_date
-        required: false
-        in: query
-        description: ''
-        schema:
-          type: string
-          format: date
       - name: grading_date_from
         required: false
         in: query
@@ -1785,17 +1543,6 @@ paths:
     get:
       operationId: students_list
       parameters:
-      - name: age_band
-        required: false
-        in: query
-        description: The student's age band today, not at any grading.
-        schema:
-          type: string
-          enum:
-          - AGE_13_TO_17
-          - AGE_18_AND_OVER
-          - AGE_8_AND_UNDER
-          - AGE_9_TO_12
       - name: current_rank_code
         required: false
         in: query

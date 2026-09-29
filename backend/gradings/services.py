@@ -115,13 +115,12 @@ class StudentGradingHistory(TypedDict):
     items: list[GradingHistoryItem]
 
 
-# Each age band's inclusive age range - the single statement of the rule,
-# read in both directions below. None means unbounded.
-_AGE_BAND_RANGES: dict[str, tuple[int, int | None]] = {
-    AgeBand.AGE_8_AND_UNDER: (0, 8),
-    AgeBand.AGE_9_TO_12: (9, 12),
-    AgeBand.AGE_13_TO_17: (13, 17),
-    AgeBand.AGE_18_AND_OVER: (18, None),
+# Each age band's oldest age, in ascending order. None means unbounded.
+_AGE_BAND_MAX_AGE: dict[str, int | None] = {
+    AgeBand.AGE_8_AND_UNDER: 8,
+    AgeBand.AGE_9_TO_12: 12,
+    AgeBand.AGE_13_TO_17: 17,
+    AgeBand.AGE_18_AND_OVER: None,
 }
 
 
@@ -163,29 +162,10 @@ def resolve_age_band(date_of_birth: date | None, grading_date: date) -> str:
     if date_of_birth is None:
         raise ValidationError({"student": ["Student date of birth is required."]})
     age = calculate_age_on(date_of_birth, grading_date)
-    for band, (_youngest, oldest) in _AGE_BAND_RANGES.items():
+    for band, oldest in _AGE_BAND_MAX_AGE.items():
         if oldest is None or age <= oldest:
             return band
-    raise AssertionError("_AGE_BAND_RANGES has no open-ended band")
-
-
-def _years_before(on_date: date, years: int) -> date:
-    try:
-        return on_date.replace(year=on_date.year - years)
-    except ValueError:  # 29 February in a non-leap year
-        return on_date.replace(year=on_date.year - years, day=28)
-
-
-def age_band_birth_date_bounds(
-    band: str,
-    on_date: date,
-) -> tuple[date | None, date | None]:
-    """`(born_after, born_on_or_before)` for everyone in `band` on `on_date`,
-    so a queryset can filter by age band without computing each age."""
-    youngest, oldest = _AGE_BAND_RANGES[band]
-    born_after = _years_before(on_date, oldest + 1) if oldest is not None else None
-    born_on_or_before = _years_before(on_date, youngest) if youngest else None
-    return born_after, born_on_or_before
+    raise AssertionError("_AGE_BAND_MAX_AGE has no open-ended band")
 
 
 def get_next_active_rank(current_rank: Rank) -> Rank | None:

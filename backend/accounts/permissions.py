@@ -12,7 +12,11 @@ carries the permissions. See `accounts/groups.py`.
 
 from __future__ import annotations
 
-from django.contrib.auth.models import AnonymousUser
+from collections import defaultdict
+from collections.abc import Iterable
+
+from django.contrib.auth.models import AnonymousUser, Permission
+from django.db.models import F
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -36,6 +40,39 @@ AUTHORITY_PERMISSIONS: dict[str, str] = {
     "can_override_locked_session": OVERRIDE_LOCKED_SESSION_PERMISSION,
     "can_view_grading_audit_log": GRADING_AUDIT_LOG_PERMISSION,
 }
+
+
+def prime_permission_cache(users: Iterable[User]) -> None:
+    """Load the listed users' permissions in two queries, not two each.
+
+    `has_perm` asks the auth backend, which reads a user's direct and group
+    permissions on first use and keeps them on the instance as `_perm_cache`.
+    Serialising a page of users asks for several flags each, so this fills
+    that cache up front with the same two reads for everyone. Active
+    superusers and inactive users never reach the backend (`has_perm`
+    answers them itself), so they are skipped.
+    """
+    pending = {
+        user.pk: user
+        for user in users
+        if user.is_active and not user.is_superuser and not hasattr(user, "_perm_cache")
+    }
+    if not pending:
+        return
+    granted: defaultdict[object, set[str]] = defaultdict(set)
+    sources = (
+        ("user", Permission.objects.filter(user__in=pending)),
+        ("group__user", Permission.objects.filter(group__user__in=pending)),
+    )
+    for owner, permissions in sources:
+        for user_id, app_label, codename in permissions.values_list(
+            F(owner),
+            "content_type__app_label",
+            "codename",
+        ):
+            granted[user_id].add(f"{app_label}.{codename}")
+    for user_id, user in pending.items():
+        user._perm_cache = granted[user_id]  # type: ignore[attr-defined]
 
 
 def can_view_audit_log(user: User) -> bool:

@@ -19,6 +19,10 @@ from accounts.permissions import (
     PROMOTE_STUDENT_PERMISSION,
 )
 from accounts.testing import grant_permission
+from gradings.assessment_services import (
+    generate_candidate_assessment,
+    update_candidate_assessment,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -26,15 +30,15 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
+from gradings.outcome_services import (
+    create_candidate_outcome,
+    finalise_candidate_outcome,
+    propose_candidate_outcome,
+)
 from gradings.services import (
     apply_candidate_update,
     build_candidate,
-    create_candidate_outcome,
-    finalise_candidate_outcome,
-    generate_candidate_assessment,
-    propose_candidate_outcome,
     transition_grading_session,
-    update_candidate_assessment,
 )
 from ranks.models import Rank
 from students.models import Student

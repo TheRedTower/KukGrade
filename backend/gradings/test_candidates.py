@@ -21,6 +21,7 @@ from audit.models import AuditAction, AuditEvent
 from gradings.admin import (
     GradingCandidateAdmin,
 )
+from gradings.age import resolve_age_band
 from gradings.models import (
     CandidateAssessment,
     GradingCandidate,
@@ -31,7 +32,6 @@ from gradings.services import (
     build_candidate,
     bulk_register_candidates,
     register_candidate,
-    resolve_age_band,
 )
 from gradings.testing import (
     admin_request,

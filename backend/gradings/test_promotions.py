@@ -26,14 +26,14 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.services import (
+from gradings.outcome_services import (
     create_candidate_outcome,
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
-    student_rank_timeline,
-    transition_grading_session,
 )
+from gradings.read_models import student_rank_timeline
+from gradings.services import transition_grading_session
 from gradings.testing import (
     admin_request,
     assessment,

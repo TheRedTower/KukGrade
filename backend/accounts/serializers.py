@@ -17,6 +17,7 @@ from accounts.permissions import (
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
     can_view_audit_log,
+    prime_permission_cache,
 )
 from accounts.services import (
     change_own_password,
@@ -161,6 +162,13 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
+    def to_representation(self, data: Any) -> list[Any]:
+        users = list(data)
+        prime_permission_cache(users)
+        return super().to_representation(users)
+
+
 class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
@@ -184,6 +192,7 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     class Meta:
         model = User
+        list_serializer_class = PermissionPrimedListSerializer
         fields = (
             "id",
             "email",

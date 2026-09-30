@@ -12,6 +12,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
+from gradings.assessment_services import update_candidate_assessment_item
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -19,10 +20,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.services import (
-    create_candidate_outcome,
-    update_candidate_assessment_item,
-)
+from gradings.outcome_services import create_candidate_outcome
 from gradings.testing import (
     assessment,
     candidate,

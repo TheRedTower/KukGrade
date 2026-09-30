@@ -48,7 +48,9 @@ uv run pytest
 Each app is described in `../docs/architecture.md`. The conventions that hold
 everywhere:
 
-- **Services own every state change.** `<app>/services.py` validates a
+- **Services own every state change.** `<app>/services.py` (`gradings` also has
+  `assessment_services.py`, `outcome_services.py` and `legacy_services.py`)
+  validates a
   change, writes it in a transaction, and records its audit event with
   `audit.recording.record()` in that same transaction. Views, serializers,
   and Django admin all call the services, so a change is validated and
@@ -82,7 +84,7 @@ everywhere:
   `schema.yml` after any serializer change; CI fails if it is stale, and the
   frontend's types are generated from it.
 - **Bulk endpoints process rows independently**
-  (`gradings.services._each_independently`): each row runs the single-item
+  (`gradings.service_support.each_independently`): each row runs the single-item
   service in its own savepoint, and the response lists what succeeded plus
   an `errors` map from row index to that row's messages.
 - **Test builders live in `testing.py`** in their own app

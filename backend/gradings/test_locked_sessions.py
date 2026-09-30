@@ -28,12 +28,11 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.services import (
+from gradings.outcome_services import (
     create_candidate_outcome,
     propose_candidate_outcome,
-    transition_grading_session,
-    withdraw_locked_candidate,
 )
+from gradings.services import transition_grading_session, withdraw_locked_candidate
 from gradings.testing import (
     auth_client,
     candidate,

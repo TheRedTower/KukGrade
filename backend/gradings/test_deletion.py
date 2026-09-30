@@ -26,11 +26,8 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.services import (
-    delete_grading_session,
-    promote_candidate,
-    transition_grading_session,
-)
+from gradings.outcome_services import promote_candidate
+from gradings.services import delete_grading_session, transition_grading_session
 from gradings.testing import (
     assessment,
     auth_client,

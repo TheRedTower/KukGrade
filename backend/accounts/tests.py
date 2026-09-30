@@ -13,9 +13,11 @@ from django.contrib.auth.models import AnonymousUser, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache as django_cache
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.db.models.signals import post_save
 from django.forms import ModelForm
 from django.test import Client, RequestFactory
+from django.test.utils import CaptureQueriesContext
 from django.urls import get_resolver
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
@@ -792,6 +794,46 @@ def test_administrators_can_list_and_retrieve() -> None:
     assert any(row["email"] == "list-target@example.com" for row in listing["results"])
     assert detail["email"] == "list-target@example.com"
     assert "last_login" in detail
+
+
+def test_user_list_reads_permissions_in_bulk_not_per_user() -> None:
+    client, _admin = admin_client("bulk-permission-admin@example.com")
+    create_user("bulk-permission-first@example.com")
+    client.get("/api/users/")
+
+    with CaptureQueriesContext(connection) as one:
+        assert client.get("/api/users/").status_code == 200
+    for index in range(6):
+        create_user(f"bulk-permission-{index}@example.com")
+    with CaptureQueriesContext(connection) as many:
+        response = client.get("/api/users/")
+
+    assert response.json()["count"] >= 8
+    assert len(many.captured_queries) == len(one.captured_queries)
+
+
+def test_user_list_flags_match_each_users_own_permission_check() -> None:
+    client, _admin = admin_client("flags-admin@example.com")
+    granted = grant_permission(
+        create_user("flags-granted@example.com"),
+        FINAL_GRADING_DECISION_PERMISSION,
+    )
+    instructor = create_user("flags-instructor@example.com", role=User.Role.INSTRUCTOR)
+    inactive = create_user("flags-inactive@example.com", is_active=False)
+    grant_permission(inactive, FINAL_GRADING_DECISION_PERMISSION)
+    superuser = create_user("flags-super@example.com", is_superuser=True)
+
+    rows = {row["email"]: row for row in client.get("/api/users/").json()["results"]}
+
+    for person in (granted, instructor, inactive, superuser):
+        fresh = User.objects.get(pk=person.pk)
+        for flag, permission in AUTHORITY_PERMISSIONS.items():
+            assert rows[person.email][flag] == fresh.has_perm(permission), (
+                person.email,
+                flag,
+            )
+    assert rows["flags-granted@example.com"]["can_make_final_grading_decision"]
+    assert not rows["flags-inactive@example.com"]["can_make_final_grading_decision"]
 
 
 def test_weak_password_is_rejected_with_a_field_error() -> None:

@@ -586,3 +586,101 @@ def test_admin_cannot_change_wksa_id_after_creation() -> None:
         )
         == ()
     )
+
+
+# ---------------------------------------------------------------------------
+# Roster filters the cohort builder relies on (KG-A20).
+# ---------------------------------------------------------------------------
+
+
+def roster_names(client: APIClient, query: str) -> list[str]:
+    response = client.get(f"/api/students/?{query}&page_size=200")
+    assert response.status_code == 200
+    return [row["wksa_id"] for row in response.json()["results"]]
+
+
+def test_students_filter_by_several_statuses_a_rank_and_a_search_term() -> None:
+    yellow = Rank.objects.get(code="YELLOW")
+    kept = Student.objects.create(**student_kwargs(wksa_id="K-1", first_name="Mina"))
+    Student.objects.create(**student_kwargs(wksa_id="K-2", status="INACTIVE"))
+    Student.objects.create(**student_kwargs(wksa_id="K-3", status="LEFT"))
+    Student.objects.create(**student_kwargs(wksa_id="K-4", current_rank=yellow))
+    client = auth_client("roster-filters@example.com")
+
+    assert sorted(roster_names(client, "status=ACTIVE,INACTIVE")) == [
+        "K-1",
+        "K-2",
+        "K-4",
+    ]
+    assert roster_names(client, "status=LEFT") == ["K-3"]
+    assert roster_names(client, "status=ACTIVE,NOPE") == []
+    assert sorted(roster_names(client, f"current_rank={yellow.pk}")) == ["K-4"]
+    assert roster_names(client, "current_rank=abc") == []
+    assert roster_names(client, "search=mina") == [kept.wksa_id]
+
+
+def test_students_filter_by_age_band_agrees_with_the_age_band_they_are_served() -> None:
+    today = timezone.localdate()
+    born = {
+        "AGE_8_AND_UNDER": today - timedelta(days=365 * 5),
+        "AGE_9_TO_12": today - timedelta(days=365 * 11),
+        "AGE_13_TO_17": today - timedelta(days=365 * 15),
+        "AGE_18_AND_OVER": today - timedelta(days=365 * 40),
+    }
+    for band, dob in born.items():
+        Student.objects.create(**student_kwargs(wksa_id=band, date_of_birth=dob))
+    nine_today = date(today.year - 9, today.month, min(today.day, 28))
+    Student.objects.create(**student_kwargs(wksa_id="NINE", date_of_birth=nine_today))
+    client = auth_client("roster-age-band@example.com")
+    served = {
+        row["wksa_id"]: row["age_band"]
+        for row in client.get("/api/students/?page_size=200").json()["results"]
+    }
+
+    for band in born:
+        expected = sorted(
+            wksa for wksa, served_band in served.items() if served_band == band
+        )
+        assert expected
+        assert sorted(roster_names(client, f"age_band={band}")) == expected
+    assert roster_names(client, "age_band=NOPE") == []
+
+
+def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
+    from gradings.age import calculate_age_on, students_in_age_band
+
+    Student.objects.create(
+        **student_kwargs(wksa_id="LEAP", date_of_birth=date(2016, 2, 29))
+    )
+
+    for on_date, band in (
+        (date(2025, 2, 28), "AGE_8_AND_UNDER"),
+        (date(2025, 3, 1), "AGE_9_TO_12"),
+    ):
+        assert calculate_age_on(date(2016, 2, 29), on_date) == (
+            8 if on_date.month == 2 else 9
+        )
+        assert students_in_age_band(Student.objects.all(), band, on_date).count() == 1
+    assert not students_in_age_band(
+        Student.objects.all(), "AGE_9_TO_12", date(2025, 2, 28)
+    ).exists()
+
+
+def test_eligible_for_session_leaves_out_left_and_already_registered_students() -> None:
+    from gradings.testing import candidate, grading_session
+
+    session = grading_session(status="OPEN")
+    other_session = grading_session(title="Another", status="OPEN")
+    Student.objects.create(**student_kwargs(wksa_id="FREE"))
+    Student.objects.create(**student_kwargs(wksa_id="BREAK", status="INACTIVE"))
+    Student.objects.create(**student_kwargs(wksa_id="GONE", status="LEFT"))
+    registered = Student.objects.create(**student_kwargs(wksa_id="IN"))
+    elsewhere = Student.objects.create(**student_kwargs(wksa_id="ELSEWHERE"))
+    candidate(session=session, student=registered)
+    candidate(session=other_session, student=elsewhere)
+    client = auth_client("roster-eligible@example.com")
+
+    mine = {"FREE", "BREAK", "GONE", "IN", "ELSEWHERE"}
+    eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
+    assert eligible & mine == {"FREE", "BREAK", "ELSEWHERE"}
+    assert roster_names(client, "eligible_for_session=abc") == []

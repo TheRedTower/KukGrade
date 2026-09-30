@@ -53,6 +53,13 @@ from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from accounts.serializers import ChangePasswordSerializer
 from accounts.services import set_user_authority, update_platform_user
 from audit.models import AuditAction, AuditEvent
+from gradings.assessment_services import (
+    delete_candidate_assessment,
+    generate_candidate_assessment,
+    reopen_candidate_assessment,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -61,22 +68,19 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
+from gradings.outcome_services import (
+    bulk_promote_candidates,
+    create_candidate_outcome,
+    finalise_candidate_outcome,
+    promote_candidate,
+    propose_candidate_outcome,
+)
 from gradings.serializers import GradingSessionSerializer
 from gradings.services import (
     apply_candidate_update,
-    bulk_promote_candidates,
-    create_candidate_outcome,
-    delete_candidate_assessment,
     delete_grading_session,
-    finalise_candidate_outcome,
-    generate_candidate_assessment,
-    promote_candidate,
-    propose_candidate_outcome,
     register_candidate,
-    reopen_candidate_assessment,
     transition_grading_session,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
     withdraw_locked_candidate,
 )
 from gradings.testing import (
@@ -399,7 +403,7 @@ def test_item_edit_and_completion_cannot_interleave() -> None:
             status=CandidateAssessment.Status.COMPLETED,
             actor=completer,
         ),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.assessment_services.record",
     )
 
     assert isinstance(clearing, CandidateAssessmentItem)
@@ -433,7 +437,7 @@ def test_reopen_and_session_lock_cannot_interleave() -> None:
             GradingSession.Status.LOCKED,
             actor=locker,
         ),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.assessment_services.record",
     )
 
     assert isinstance(reopening, CandidateAssessment)
@@ -546,7 +550,7 @@ def test_withdrawal_and_finalisation_cannot_interleave() -> None:
             "",
             withdrawer,
         ),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
     assert isinstance(finalising, CandidateOutcome)
@@ -651,7 +655,7 @@ def test_assessment_cleanup_refuses_after_a_later_promotion() -> None:
     promoting, cleaning = interleave(
         lambda: promote_candidate(stale_outcome, promoting_actor),
         lambda: delete_candidate_assessment(earlier_assessment, cleaner),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
     assert isinstance(promoting, Promotion)
@@ -677,7 +681,7 @@ def test_session_cleanup_refuses_after_a_later_promotion() -> None:
     promoting, cleaning = interleave(
         lambda: promote_candidate(stale_outcome, promoting_actor),
         lambda: delete_grading_session(stale_earlier, actor=cleaner),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
     assert isinstance(promoting, Promotion)
@@ -737,7 +741,7 @@ def test_bulk_promotion_and_session_cleanup_do_not_deadlock() -> None:
     promoting, cleaning = interleave(
         lambda: bulk_promote_candidates(outcomes=higher_first, actor=promoting_actor),
         lambda: delete_grading_session(stale_earlier, actor=cleaner),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
     assert not isinstance(promoting, BaseException), promoting
@@ -910,7 +914,7 @@ def test_promotions_of_one_student_from_two_gradings_serialise() -> None:
             CandidateOutcome.objects.get(pk=second_outcome.pk),
             second_promoter,
         ),
-        pause_first_at="gradings.services.record",
+        pause_first_at="gradings.outcome_services.record",
     )
 
     assert isinstance(promoting, Promotion)

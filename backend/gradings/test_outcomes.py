@@ -24,11 +24,13 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.services import (
-    candidate_assessment_summary,
+from gradings.outcome_services import (
     create_candidate_outcome,
     finalise_candidate_outcome,
     propose_candidate_outcome,
+)
+from gradings.read_models import candidate_assessment_summary
+from gradings.services import (
     transition_grading_session,
     validate_candidate_can_be_deleted,
 )
@@ -638,6 +640,10 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     list_response = client.get(
         f"/api/gradings/outcomes/?session={built.session_id}",
     )
+    by_candidate = client.get(f"/api/gradings/outcomes/?candidate={built.id}")
+    by_other_candidate = client.get(
+        f"/api/gradings/outcomes/?candidate={built.id + 1000}"
+    )
     delete_response = client.delete(f"/api/gradings/outcomes/{outcome_id}/")
     finalised_patch = client.patch(
         f"/api/gradings/outcomes/{outcome_id}/",
@@ -654,6 +660,8 @@ def test_candidate_outcome_api_workflow_and_filters() -> None:
     assert finalise_response.json()["decided_by_name"] == master_user.get_full_name()
     assert finalise_response.json()["final_outcome"] == CandidateOutcome.Outcome.PASS
     assert [item["id"] for item in results(list_response)] == [outcome_id]
+    assert [item["id"] for item in results(by_candidate)] == [outcome_id]
+    assert results(by_other_candidate) == []
     assert delete_response.status_code == 404
     assert finalised_patch.status_code == 404
 

@@ -16,6 +16,8 @@ from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext
 from rest_framework.test import APIClient
 
+from accounts.permissions import DELETE_ANY_SESSION_PERMISSION
+from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from gradings.admin import (
     CandidateAssessmentAdmin,
@@ -28,10 +30,12 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
 )
-from gradings.services import (
-    apply_candidate_update,
+from gradings.outcome_services import (
     create_candidate_outcome,
     propose_candidate_outcome,
+)
+from gradings.services import (
+    apply_candidate_update,
     transition_grading_session,
     validate_session_transition,
 )
@@ -261,6 +265,58 @@ def test_session_api_filters_work() -> None:
 
     assert response.status_code == 200
     assert [item["id"] for item in results(response)] == [draft.id]
+
+
+def test_session_api_status_takes_several_values_and_orders_either_way() -> None:
+    early = grading_session(title="Early", grading_date=date(2027, 4, 1))
+    opened = grading_session(
+        title="Open",
+        grading_date=date(2027, 5, 1),
+        status=GradingSession.Status.OPEN,
+    )
+    grading_session(
+        title="Done",
+        grading_date=date(2027, 4, 15),
+        status=GradingSession.Status.COMPLETED,
+    )
+    client = auth_client("session-filter-multi@example.com")
+
+    either = client.get(
+        "/api/gradings/sessions/?status=DRAFT,OPEN&ordering=grading_date",
+    )
+    newest_first = client.get("/api/gradings/sessions/?status=DRAFT,OPEN")
+    unknown_status = client.get("/api/gradings/sessions/?status=DRAFT,NOPE")
+    unknown_ordering = client.get("/api/gradings/sessions/?ordering=title")
+
+    assert [item["id"] for item in results(either)] == [early.id, opened.id]
+    assert [item["id"] for item in results(newest_first)] == [opened.id, early.id]
+    assert results(unknown_status) == []
+    assert results(unknown_ordering) == []
+
+
+def test_session_years_lists_each_year_once_newest_first() -> None:
+    for year, month in ((2025, 1), (2027, 3), (2027, 9), (2026, 6)):
+        grading_session(grading_date=date(year, month, 1))
+    client = auth_client("session-years@example.com")
+
+    response = client.get("/api/gradings/sessions/years/")
+
+    assert response.status_code == 200
+    assert response.json() == {"years": [2027, 2026, 2025]}
+
+
+def test_session_years_requires_authentication_and_the_view_permission() -> None:
+    assert APIClient().get("/api/gradings/sessions/years/").status_code == 403
+    bare = user("session-years-none@example.com")
+    bare.groups.clear()
+    bare.user_permissions.clear()
+    client = APIClient()
+    client.force_authenticate(user=type(bare).objects.get(pk=bare.pk))
+
+    response = client.get("/api/gradings/sessions/years/")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "permission_denied"
 
 
 def test_session_api_searches_title_and_location() -> None:
@@ -846,3 +902,88 @@ def test_listing_sessions_counts_progress_without_a_query_per_session() -> None:
 
     assert response.json()["count"] == GradingSession.objects.count() > 1
     assert len(many.captured_queries) == len(one.captured_queries)
+
+
+def cancelled_session(title: str, *, marked: bool) -> GradingSession:
+    session = grading_session(title=title, status=GradingSession.Status.OPEN)
+    sat = assessment(candidate=candidate(session=session))
+    if marked:
+        start_assessment(sat)
+    GradingSession.objects.filter(pk=session.pk).update(
+        status=GradingSession.Status.CANCELLED,
+    )
+    session.refresh_from_db()
+    return session
+
+
+def served_can_be_deleted(client: APIClient, session: GradingSession) -> bool:
+    response = client.get(f"/api/gradings/sessions/{session.pk}/")
+    assert response.status_code == 200
+    return bool(response.json()["can_be_deleted"])
+
+
+def test_can_be_deleted_follows_the_delete_rule_for_an_ordinary_user() -> None:
+    client = auth_client("session-deletable-instructor@example.com")
+    draft = grading_session(title="Draft")
+    opened = grading_session(title="Open", status=GradingSession.Status.OPEN)
+    untouched = cancelled_session("Cancelled, never started", marked=False)
+    worked = cancelled_session("Cancelled, marked", marked=True)
+
+    assert served_can_be_deleted(client, draft) is True
+    assert served_can_be_deleted(client, opened) is False
+    assert served_can_be_deleted(client, untouched) is True
+    assert served_can_be_deleted(client, worked) is False
+
+
+def test_can_be_deleted_agrees_with_what_the_delete_endpoint_does() -> None:
+    client = auth_client("session-deletable-agree@example.com")
+    for session in (
+        cancelled_session("Marked", marked=True),
+        cancelled_session("Unmarked", marked=False),
+        grading_session(),
+        grading_session(status=GradingSession.Status.OPEN),
+    ):
+        advertised = served_can_be_deleted(client, session)
+        deleted = client.delete(f"/api/gradings/sessions/{session.pk}/")
+        assert (deleted.status_code == 204) is advertised
+
+
+def test_the_delete_any_permission_makes_every_session_deletable() -> None:
+    holder = grant_permission(
+        user("session-deletable-admin@example.com"), DELETE_ANY_SESSION_PERMISSION
+    )
+    client = APIClient()
+    client.force_authenticate(user=holder)
+    locked = grading_session(status=GradingSession.Status.LOCKED)
+
+    assert served_can_be_deleted(client, locked) is True
+    peer = auth_client("session-deletable-peer@example.com")
+    assert served_can_be_deleted(peer, locked) is False
+
+
+def test_listing_sessions_decides_deletability_without_a_query_per_session() -> None:
+    client = auth_client("session-deletable-list@example.com")
+    cancelled_session("First", marked=False)
+    client.get("/api/gradings/sessions/")
+
+    with CaptureQueriesContext(connection) as one:
+        assert client.get("/api/gradings/sessions/").status_code == 200
+    one_count = len(one.captured_queries)
+    for title in ("Second", "Third", "Fourth"):
+        cancelled_session(title, marked=True)
+    with CaptureQueriesContext(connection) as many:
+        response = client.get("/api/gradings/sessions/")
+    many_count = len(many.captured_queries)
+
+    flags = {
+        row["title"]: row["can_be_deleted"]
+        for row in response.json()["results"]
+        if row["title"] in {"First", "Second", "Third", "Fourth"}
+    }
+    assert flags == {
+        "First": True,
+        "Second": False,
+        "Third": False,
+        "Fourth": False,
+    }
+    assert many_count == one_count

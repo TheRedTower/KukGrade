@@ -6,6 +6,10 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
+from gradings.assessment_services import (
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
     CandidateAssessment,
@@ -16,19 +20,19 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
-from gradings.services import (
-    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
-    OverallAssessmentSummary,
-    apply_candidate_update,
-    candidate_assessment_summary,
-    candidate_can_be_deleted,
-    candidate_can_change_session,
-    create_grading_session,
+from gradings.outcome_services import (
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
+)
+from gradings.read_models import OverallAssessmentSummary, assessment_overall
+from gradings.services import (
+    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
+    apply_candidate_update,
+    candidate_can_be_deleted,
+    candidate_can_change_session,
+    create_grading_session,
+    session_deletion_blocker,
     update_grading_session,
     validate_session_grading_date_change,
     validate_session_transition,
@@ -40,12 +44,17 @@ from students.models import Student
 from syllabus.models import SyllabusItem
 
 
+class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
+    years = serializers.ListField(child=serializers.IntegerField(), read_only=True)
+
+
 class GradingSessionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     # Counted by gradings.services.with_session_progress (KG-A15).
     candidate_count = serializers.IntegerField(read_only=True)
     completed_assessment_count = serializers.IntegerField(read_only=True)
     awaiting_decision_count = serializers.IntegerField(read_only=True)
+    can_be_deleted = serializers.SerializerMethodField()
 
     class Meta:
         model = GradingSession
@@ -61,6 +70,7 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "candidate_count",
             "completed_assessment_count",
             "awaiting_decision_count",
+            "can_be_deleted",
         )
         read_only_fields = (
             "id",
@@ -70,6 +80,18 @@ class GradingSessionSerializer(serializers.ModelSerializer):
         # Sent when cancelling a locked session; no screen reads it back. It
         # is kept on the model and in the audit log.
         extra_kwargs = {"cancellation_reason": {"write_only": True}}
+
+    def get_can_be_deleted(self, obj: GradingSession) -> bool:
+        """Whether the requesting user may delete it, by the delete's own rule."""
+        actor = self.context["request"].user
+        return (
+            session_deletion_blocker(
+                obj,
+                actor,
+                has_recorded_work=obj.has_recorded_work,  # type: ignore[attr-defined]
+            )
+            is None
+        )
 
     def to_representation(self, instance: GradingSession) -> dict[str, Any]:
         # A session just created or edited was not loaded through the
@@ -350,7 +372,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(AssessmentSummaryCountsSerializer)
     def get_overall(self, obj: CandidateAssessment) -> OverallAssessmentSummary:
-        return candidate_assessment_summary(obj)["overall"]
+        return assessment_overall(obj)
 
     def update(
         self,

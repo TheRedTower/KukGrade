@@ -8,6 +8,10 @@ from django.forms import ModelForm
 from django.http import HttpRequest
 
 from accounts.models import User
+from gradings.assessment_services import (
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -22,8 +26,6 @@ from gradings.services import (
     delete_candidate,
     delete_grading_session,
     register_candidate,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
     update_grading_session,
     validate_candidate_can_be_deleted,
     validate_grading_session_transition,

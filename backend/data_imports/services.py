@@ -413,6 +413,20 @@ def _resolve_rank(text: str) -> Rank | None:
     ).first()
 
 
+def _active_rank_lookup() -> dict[str, Rank]:
+    """Every active rank by upper-cased code and name, read once.
+
+    Answers what `_resolve_rank` does for one text - a rank whose code or name
+    matches, ignoring case, the first by catalogue order when several do - so
+    a roster of thousands of rows needs one read, not one per row.
+    """
+    lookup: dict[str, Rank] = {}
+    for rank in Rank.objects.filter(active=True):
+        lookup.setdefault(rank.code.upper(), rank)
+        lookup.setdefault(rank.name.upper(), rank)
+    return lookup
+
+
 def _map_row(raw_row: dict[str, Any], column_mapping: dict[str, str]) -> dict[str, Any]:
     values: dict[str, Any] = {}
     for target_field in STUDENT_TARGET_FIELDS:
@@ -477,15 +491,21 @@ def _labelled(name: str, message: str) -> str:
     return f"{label}: {message}"
 
 
+def _row_wksa_id(values: dict[str, Any], correction: dict[str, str]) -> str:
+    return str(correction.get("wksa_id", values.get("wksa_id")) or "").strip()
+
+
 def _classify_student_row(
     row_number: int,
     values: dict[str, Any],
     correction: dict[str, str],
     seen_wksa_ids: set[str],
+    ranks: dict[str, Rank],
+    existing_wksa_ids: set[str],
 ) -> StudentImportRowResult:
     issues: list[str] = []
 
-    wksa_id = str(correction.get("wksa_id", values.get("wksa_id")) or "").strip()
+    wksa_id = _row_wksa_id(values, correction)
     first_name = str(
         correction.get("first_name", values.get("first_name")) or ""
     ).strip()
@@ -506,7 +526,7 @@ def _classify_student_row(
     elif parsed_dob is None:
         issues.append(f"Date of birth {dob_display!r} could not be parsed.")
 
-    rank = _resolve_rank(rank_text)
+    rank = ranks.get(rank_text.upper())
     if not rank_text:
         issues.append("Current rank is required.")
     elif rank is None:
@@ -530,9 +550,7 @@ def _classify_student_row(
     if wksa_id:
         seen_wksa_ids.add(wksa_id)
 
-    existing = Student.objects.filter(wksa_id=wksa_id).first() if wksa_id else None
-
-    if existing is not None:
+    if wksa_id in existing_wksa_ids:
         outcome = StudentImportRowOutcome.SKIP_EXISTING
     elif issues:
         outcome = StudentImportRowOutcome.REVIEW_REQUIRED
@@ -563,14 +581,34 @@ def preview_student_import(
 ) -> StudentImportPreview:
     dataset = _load_batch_dataset(batch)
     corrections = corrections or {}
-    seen_wksa_ids: set[str] = set()
-    rows: list[StudentImportRowResult] = []
-    for row_number, raw_row in dataset.rows:
-        values = _map_row(raw_row, column_mapping)
-        row_correction = corrections.get(str(row_number), {})
-        rows.append(
-            _classify_student_row(row_number, values, row_correction, seen_wksa_ids),
+    mapped = [
+        (
+            row_number,
+            _map_row(raw_row, column_mapping),
+            corrections.get(str(row_number), {}),
         )
+        for row_number, raw_row in dataset.rows
+    ]
+    ranks = _active_rank_lookup()
+    wanted = {_row_wksa_id(values, correction) for _, values, correction in mapped}
+    existing_wksa_ids = set(
+        Student.objects.filter(wksa_id__in=wanted - {""}).values_list(
+            "wksa_id",
+            flat=True,
+        ),
+    )
+    seen_wksa_ids: set[str] = set()
+    rows = [
+        _classify_student_row(
+            row_number,
+            values,
+            correction,
+            seen_wksa_ids,
+            ranks,
+            existing_wksa_ids,
+        )
+        for row_number, values, correction in mapped
+    ]
 
     return StudentImportPreview(
         total=len(rows),
@@ -620,15 +658,12 @@ def commit_student_import(
         row for row in preview.rows if row.outcome == StudentImportRowOutcome.READY
     ]
 
+    active_ranks = {rank.pk: rank for rank in Rank.objects.filter(active=True)}
     created = 0
     for row in ready_rows:
         # A READY row always has both resolved by _classify_student_row; the
         # None checks narrow the types and catch a rank deactivated since.
-        rank = (
-            Rank.objects.filter(pk=row.current_rank_id, active=True).first()
-            if row.current_rank_id is not None
-            else None
-        )
+        rank = active_ranks.get(row.current_rank_id) if row.current_rank_id else None
         if rank is None or row.date_of_birth is None:
             raise _row_no_longer_valid(row, "its rank is no longer active.")
         # Preview ran the same validation moments ago, so a refusal here is a

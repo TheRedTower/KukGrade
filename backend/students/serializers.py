@@ -10,7 +10,7 @@ from gradings.models import (
     LegacyDatePrecision,
     Promotion,
 )
-from gradings.services import (
+from gradings.read_models import (
     GradingHistoryItem,
     StudentGradingHistory,
     StudentRankTimeline,

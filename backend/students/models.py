@@ -101,7 +101,7 @@ class Student(models.Model):
     @property
     def age_band(self) -> str:
         """The canonical age band relative to today."""
-        from gradings.services import resolve_age_band
+        from gradings.age import resolve_age_band
 
         return resolve_age_band(self.date_of_birth, timezone.localdate())
 

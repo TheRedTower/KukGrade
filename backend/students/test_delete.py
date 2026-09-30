@@ -12,6 +12,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_record
+from gradings.assessment_services import generate_candidate_assessment
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -19,12 +20,8 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.services import (
-    generate_candidate_assessment,
-    get_next_active_rank,
-    promote_candidate,
-    transition_grading_session,
-)
+from gradings.outcome_services import promote_candidate
+from gradings.services import get_next_active_rank, transition_grading_session
 from gradings.testing import (
     candidate,
     complete_assessment,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import os
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import date, timedelta
 from io import StringIO
 from typing import Any
 from unittest.mock import patch
@@ -13,7 +13,8 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError, call_command
-from django.db import DatabaseError, IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from openpyxl.workbook import Workbook
 from rest_framework.test import APIClient
@@ -25,6 +26,8 @@ from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
+    _active_rank_lookup,
+    _resolve_rank,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
@@ -214,6 +217,54 @@ def test_preview_classifies_clean_row_as_ready() -> None:
     assert preview.ready == 1
     assert preview.rows[0].outcome == "READY"
     assert preview.rows[0].current_rank_code == "WHITE"
+
+
+def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
+    def roster(size: int) -> list[list[object]]:
+        # A mix: ready, already on the roster, and an unknown rank.
+        rows: list[list[object]] = []
+        for index in range(size):
+            rank_text = ("White", "yellow stripe", "Purple")[index % 3]
+            rows.append([f"Q{index:04d}", "Alex", "Kim", "2012-05-01", rank_text, ""])
+        return rows
+
+    creator = admin_user("preview-queries-creator@example.com")
+    for index in range(0, 40, 4):
+        create_student(
+            wksa_id=f"Q{index:04d}",
+            first_name="Existing",
+            last_name="Student",
+            date_of_birth=date(2012, 5, 1),
+            current_rank=rank("WHITE"),
+            actor=creator,
+        )
+    small = upload_batch(content=student_workbook(roster(2)), uploaded_by=creator)
+    large = upload_batch(content=student_workbook(roster(40)), uploaded_by=creator)
+
+    with CaptureQueriesContext(connection) as few:
+        preview_student_import(small, column_mapping=STANDARD_MAPPING)
+    with CaptureQueriesContext(connection) as many:
+        preview = preview_student_import(large, column_mapping=STANDARD_MAPPING)
+
+    assert {row.outcome for row in preview.rows} == {
+        "READY",
+        "SKIP_EXISTING",
+        "REVIEW_REQUIRED",
+    }
+    assert len(many.captured_queries) == len(few.captured_queries)
+
+
+def test_the_preloaded_rank_lookup_resolves_exactly_what_a_single_lookup_does() -> None:
+    lookup = _active_rank_lookup()
+    inactive = rank("YELLOW_STRIPE")
+    Rank.objects.filter(pk=inactive.pk).update(active=False)
+    lookup_without_it = _active_rank_lookup()
+
+    for text in ("white", "WHITE", "White", "Yellow", "blue stripe", "Purple", "x"):
+        assert lookup.get(text.upper()) == _resolve_rank(text), text
+    for text in ("yellow stripe", "YELLOW_STRIPE"):
+        assert lookup_without_it.get(text.upper()) is None
+        assert _resolve_rank(text) is None
 
 
 def test_preview_flags_missing_required_field_as_review_required() -> None:

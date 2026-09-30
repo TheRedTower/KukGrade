@@ -17,6 +17,13 @@ from accounts.permissions import (
     CanPromoteStudent,
     HasRequiredPermissions,
 )
+from gradings.assessment_services import (
+    bulk_generate_candidate_assessments,
+    bulk_start_candidate_assessments,
+    delete_candidate_assessment,
+    generate_candidate_assessment,
+    reopen_candidate_assessment,
+)
 from gradings.legacy_services import (
     resolve_legacy_current_rank,
     resolve_legacy_testing_for_rank,
@@ -31,6 +38,8 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
+from gradings.outcome_services import bulk_promote_candidates, create_candidate_outcome
+from gradings.read_models import candidate_assessment_summary, with_overall_counts
 from gradings.serializers import (
     BulkAssessmentGenerationResultSerializer,
     BulkAssessmentGenerationSerializer,
@@ -51,6 +60,7 @@ from gradings.serializers import (
     CandidatePromotionSerializer,
     GradingCandidateSerializer,
     GradingSessionSerializer,
+    GradingYearsSerializer,
     LegacyGradingRecordSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
@@ -60,21 +70,20 @@ from gradings.serializers import (
     WithdrawalReasonSerializer,
 )
 from gradings.services import (
-    bulk_generate_candidate_assessments,
-    bulk_promote_candidates,
     bulk_register_candidates,
-    bulk_start_candidate_assessments,
     bulk_update_candidate_status,
-    candidate_assessment_summary,
-    create_candidate_outcome,
     delete_candidate,
-    delete_candidate_assessment,
     delete_grading_session,
-    generate_candidate_assessment,
-    reopen_candidate_assessment,
     with_session_progress,
 )
-from kukgrade.filtering import boolean, by_id, choice, on_date, search
+from kukgrade.filtering import (
+    boolean,
+    by_id,
+    choices_in,
+    on_date,
+    ordered_by,
+    search,
+)
 
 
 class WithdrawalReasonViewSet(GenericViewSet):
@@ -104,13 +113,22 @@ class GradingSessionViewSet(ModelViewSet):
         "create": ("gradings.add_gradingsession",),
         "partial_update": ("gradings.change_gradingsession",),
         "destroy": ("gradings.delete_gradingsession",),
+        "years": ("gradings.view_gradingsession",),
     }
 
     query_filters = (
-        choice("status", "status", GradingSession.Status.values),
+        choices_in("status", "status", GradingSession.Status.values),
         on_date("grading_date_from", "grading_date__gte"),
         on_date("grading_date_to", "grading_date__lte"),
         search("search", ("title", "location")),
+        ordered_by(
+            "ordering",
+            {
+                "grading_date": ("grading_date", "created_at"),
+                "-grading_date": ("-grading_date", "created_at"),
+            },
+            "Newest first unless given.",
+        ),
     )
 
     def get_queryset(self) -> QuerySet[GradingSession]:
@@ -122,6 +140,19 @@ class GradingSessionViewSet(ModelViewSet):
         instance = self.get_object()
         delete_grading_session(instance, actor=cast(User, request.user))
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @extend_schema(
+        request=None,
+        responses=GradingYearsSerializer,
+        filters=False,
+    )
+    @action(detail=False, methods=["get"], pagination_class=None)
+    def years(self, request: Request) -> Response:
+        """Every year that has a grading session, newest first."""
+        years = GradingSession.objects.order_by().dates(
+            "grading_date", "year", order="DESC"
+        )
+        return Response({"years": [d.year for d in years]})
 
 
 class GradingCandidateViewSet(
@@ -336,21 +367,25 @@ class CandidateAssessmentViewSet(
     query_filters = (
         by_id("candidate", "candidate_id"),
         by_id("session", "candidate__session_id"),
-        choice("status", "status", CandidateAssessment.Status.values),
+        choices_in("status", "status", CandidateAssessment.Status.values),
     )
 
     def get_queryset(self) -> QuerySet[CandidateAssessment]:
-        return (
-            CandidateAssessment.objects.select_related(
-                "candidate__student",
-                "generated_by",
-            )
-            .prefetch_related("items")
-            .order_by(
-                "candidate__session__grading_date",
-                "candidate__student__last_name",
-                "candidate__student__first_name",
-            )
+        assessments = CandidateAssessment.objects.select_related(
+            "candidate__student",
+            "generated_by",
+        )
+        # A list needs only each assessment's counts; an object action may
+        # summarise by category, so it reads the items.
+        assessments = (
+            with_overall_counts(assessments)
+            if self.action == "list"
+            else assessments.prefetch_related("items")
+        )
+        return assessments.order_by(
+            "candidate__session__grading_date",
+            "candidate__student__last_name",
+            "candidate__student__first_name",
         )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
@@ -456,7 +491,10 @@ class CandidateOutcomeViewSet(
         "bulk_promote": ("gradings.view_candidateoutcome",),
     }
 
-    query_filters = (by_id("session", "candidate__session_id"),)
+    query_filters = (
+        by_id("session", "candidate__session_id"),
+        by_id("candidate", "candidate_id"),
+    )
 
     def get_queryset(self) -> QuerySet[CandidateOutcome]:
         return CandidateOutcome.objects.select_related(

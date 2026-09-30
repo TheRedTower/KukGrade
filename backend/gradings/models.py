@@ -363,7 +363,7 @@ class GradingCandidate(models.Model):
             raise ValidationError({"withdrawal_note": [OTHER_WITHDRAWAL_NOTE_MESSAGE]})
 
         if not self.age_band and self.student_id and self.session_id:
-            from gradings.services import resolve_age_band
+            from gradings.age import resolve_age_band
 
             self.age_band = resolve_age_band(
                 self.student.date_of_birth,

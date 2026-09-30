@@ -14,6 +14,13 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
+from gradings.assessment_services import (
+    delete_candidate_assessment,
+    generate_candidate_assessment,
+    reopen_candidate_assessment,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.models import (
     CandidateAssessment,
     CandidateAssessmentItem,
@@ -22,16 +29,11 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
+from gradings.outcome_services import promote_candidate
+from gradings.read_models import candidate_assessment_summary
 from gradings.services import (
     build_candidate,
-    candidate_assessment_summary,
-    delete_candidate_assessment,
-    generate_candidate_assessment,
-    promote_candidate,
-    reopen_candidate_assessment,
     transition_grading_session,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
     validate_candidate_can_be_deleted,
     validate_session_transition,
 )
@@ -347,7 +349,7 @@ def test_generation_is_atomic_if_item_creation_fails() -> None:
     # (KG-A11), and takes the half-built assessment with it.
     with (
         patch(
-            "gradings.services.effective_syllabus_requirements",
+            "gradings.assessment_services.effective_syllabus_requirements",
             return_value=[requirement, requirement],
         ),
         pytest.raises(IntegrityError),
@@ -1007,6 +1009,46 @@ def test_assessment_list_query_count_does_not_grow_with_the_cohort() -> None:
     assert len(four.captured_queries) == len(one.captured_queries)
 
 
+def test_assessment_list_counts_in_the_database_and_agrees_with_the_summary() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    marked = assessment(candidate=candidate(session=session))
+    untouched = assessment(candidate=candidate(session=session))
+    marker = user("assessment-list-marker@example.com")
+    optional = list(marked.items.order_by("pk").values_list("pk", flat=True))[::4]
+    marked.items.filter(pk__in=optional).update(required=False)
+    everything = list(marked.items.order_by("pk"))
+    # Required and optional items, each met, not met and left unassessed.
+    for position, item in enumerate(everything):
+        item.result = (
+            CandidateAssessmentItem.Result.MET,
+            CandidateAssessmentItem.Result.NOT_MET,
+            CandidateAssessmentItem.Result.NOT_ASSESSED,
+        )[position % 3]
+        if item.result != CandidateAssessmentItem.Result.NOT_ASSESSED:
+            item.assessor = marker
+            item.assessed_at = timezone.now()
+        item.save()
+    assert {item.required for item in everything} == {True, False}
+    client = auth_client("assessment-list-agreement@example.com")
+    url = f"/api/gradings/assessments/?session={session.id}"
+    client.get(url)
+
+    with CaptureQueriesContext(connection) as listing:
+        response = client.get(url)
+    listed = [query["sql"] for query in listing.captured_queries]
+
+    served = {row["id"]: row["overall"] for row in results(response)}
+    for built in (marked, untouched):
+        summary = client.get(f"/api/gradings/assessments/{built.id}/summary/")
+        assert served[built.id] == summary.json()["overall"]
+    assert served[marked.id]["not_assessed"] > 0 < served[marked.id]["not_met"]
+    # Counted by the database: no query reads the items themselves.
+    assert not any(
+        'FROM "gradings_candidateassessmentitem"' in sql and "COUNT(" not in sql
+        for sql in listed
+    )
+
+
 def test_assessment_summary_requires_the_view_permission() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     generated = assessment(candidate=built)
@@ -1303,3 +1345,22 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
         "before": {"notes": ""},
         "after": {"notes": "Strong stances"},
     }
+
+
+def test_assessment_list_filters_by_one_or_several_statuses() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    untouched = assessment(candidate=candidate(session=session))
+    working = start_assessment(assessment(candidate=candidate(session=session)))
+    done = complete_assessment(assessment(candidate=candidate(session=session)))
+    client = auth_client("assessment-status-filter@example.com")
+    base = f"/api/gradings/assessments/?session={session.pk}"
+
+    def ids(query: str) -> set[int]:
+        response = client.get(f"{base}{query}")
+        assert response.status_code == 200
+        return {row["id"] for row in results(response)}
+
+    assert ids("&status=COMPLETED") == {done.pk}
+    assert ids("&status=COMPLETED,IN_PROGRESS") == {done.pk, working.pk}
+    assert ids("&status=COMPLETED,NOPE") == set()
+    assert ids("") == {untouched.pk, working.pk, done.pk}

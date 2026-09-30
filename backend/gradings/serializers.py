@@ -8,7 +8,6 @@ from rest_framework import serializers
 from accounts.models import User
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
-    CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -109,8 +108,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     # Blank on a candidate who is not withdrawn, so the schema admits "".
     withdrawal_reason = serializers.ChoiceField(
         choices=GradingCandidate.WithdrawalReason.choices,
-        required=False,
         allow_blank=True,
+        read_only=True,
     )
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
@@ -137,11 +136,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     def get_can_be_removed(self, instance: GradingCandidate) -> bool:
         return candidate_can_be_deleted(instance)
 
-    def validate_student(self, value: Student) -> Student:
-        if self.instance is not None and value.pk != self.instance.student_id:
-            raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
-        return value
-
     class Meta:
         model = GradingCandidate
         fields = (
@@ -156,15 +150,21 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "testing_for_rank_name",
             "age_band_display",
             "status",
-            "notes",
             "withdrawal_reason",
             "withdrawal_reason_display",
             "withdrawal_note",
             "can_be_moved",
             "can_be_removed",
         )
+        # PATCH moves a registration to another session and does nothing
+        # else (KG-A13): withdrawal and status go through their own actions,
+        # and the rest is fixed at registration.
         read_only_fields = (
             "id",
+            "student",
+            "testing_for_rank",
+            "status",
+            "withdrawal_note",
             "student_display_name",
             "student_wksa_id",
             "from_rank",
@@ -182,14 +182,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         return apply_candidate_update(
             instance,
             session=cast(GradingSession | None, validated_data.get("session")),
-            testing_for_rank=cast(
-                Rank | None,
-                validated_data.get("testing_for_rank"),
-            ),
-            status=cast(str | None, validated_data.get("status")),
-            notes=cast(str | None, validated_data.get("notes")),
-            withdrawal_reason=validated_data.get("withdrawal_reason"),
-            withdrawal_note=validated_data.get("withdrawal_note"),
             actor=cast(User, self.context["request"].user),
         )
 
@@ -206,7 +198,6 @@ class BulkCandidateRegistrationItemSerializer(serializers.Serializer):
         queryset=Rank.objects.all(),
         required=False,
     )
-    notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class BulkCandidateRegistrationSerializer(serializers.Serializer):

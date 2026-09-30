@@ -387,6 +387,15 @@ def transition_grading_session(
     return locked_session
 
 
+def _audit_value(value: object) -> object:
+    """A field value as JSON audit metadata can hold it."""
+    if isinstance(value, models.Model):
+        return str(value.pk)
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
 @transaction.atomic
 def update_grading_session(
     session: GradingSession,
@@ -406,10 +415,24 @@ def update_grading_session(
     mapping.
     """
     locked = lock_session(session.pk)
-    if changes:
-        for field, value in changes.items():
-            setattr(locked, field, value)
-        locked.save(update_fields=[*changes, "updated_at"])
+    before = {field: _audit_value(getattr(locked, field)) for field in changes}
+    for field, value in changes.items():
+        setattr(locked, field, value)
+    after = {field: _audit_value(getattr(locked, field)) for field in changes}
+    changed = [field for field in changes if before[field] != after[field]]
+    # A resent value that matches writes nothing and records nothing.
+    if changed:
+        locked.save(update_fields=[*changed, "updated_at"])
+        record(
+            AuditAction.SESSION_UPDATED,
+            locked,
+            f"Grading session {locked.title} updated.",
+            actor=actor,
+            metadata={
+                "before": {field: before[field] for field in changed},
+                "after": {field: after[field] for field in changed},
+            },
+        )
     if target_status is not None and target_status != locked.status:
         locked = transition_grading_session(
             locked,
@@ -1624,7 +1647,6 @@ def bulk_register_candidates(
             session=locked_session,
             student=row_student,
             testing_for_rank=testing_for_rank,
-            notes=cast(str, row.get("notes", "")),
             actor=actor,
         )
         if not generate_assessments:
@@ -2056,10 +2078,14 @@ def update_candidate_assessment(
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
         raise ValidationError({"status": ["Completed assessments are immutable."]})
 
+    previous_notes = locked_assessment.notes
+    notes_changed = notes is not None and notes != previous_notes
     if notes is not None:
         locked_assessment.notes = notes
 
-    recorded_action: str | None = None
+    recorded_action: str | None = (
+        AuditAction.ASSESSMENT_UPDATED if notes_changed else None
+    )
     if status is not None and status != locked_assessment.status:
         if status == CandidateAssessment.Status.IN_PROGRESS:
             recorded_action = AuditAction.ASSESSMENT_STARTED
@@ -2085,17 +2111,30 @@ def update_candidate_assessment(
                 },
             )
 
+    if recorded_action is None:
+        # Nothing changed: a resent value writes and records nothing.
+        return locked_assessment
     locked_assessment.save()
-    if recorded_action is not None:
-        record(
-            recorded_action,
-            locked_assessment,
-            (
-                f"Assessment for {locked_assessment.candidate.student} "
-                f"{locked_assessment.get_status_display().lower()}."
-            ),
-            actor=actor,
+    if recorded_action == AuditAction.ASSESSMENT_UPDATED:
+        summary = f"Assessment notes for {locked_assessment.candidate.student} updated."
+    else:
+        summary = (
+            f"Assessment for {locked_assessment.candidate.student} "
+            f"{locked_assessment.get_status_display().lower()}."
         )
+    # Like an item's notes, the overall observation is a written judgement:
+    # a change keeps both versions, so it cannot be silently rewritten.
+    record(
+        recorded_action,
+        locked_assessment,
+        summary,
+        actor=actor,
+        metadata=(
+            {"before": {"notes": previous_notes}, "after": {"notes": notes}}
+            if notes_changed
+            else {}
+        ),
+    )
     return locked_assessment
 
 

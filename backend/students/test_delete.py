@@ -5,6 +5,8 @@ them; a linked LegacyGradingRecord is unlinked, not deleted."""
 from __future__ import annotations
 
 import pytest
+from django.contrib import admin
+from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -34,6 +36,7 @@ from gradings.tests import (
     start_assessment,
     user,
 )
+from students.admin import StudentAdmin
 from students.models import Student
 from students.services import delete_student
 
@@ -213,3 +216,28 @@ def test_api_admin_can_delete_student() -> None:
 
     assert response.status_code == 204
     assert not Student.objects.filter(pk=student.pk).exists()
+
+
+def test_admin_delete_goes_through_the_service_even_with_history() -> None:
+    # Django's own delete refuses a student with registrations (PROTECT) or,
+    # with none, deletes the row without the domain event; the service does
+    # neither (KG-A14).
+    built = candidate()
+    student = built.student
+    request = RequestFactory().post("/admin/")
+    request.user = user(
+        "student-admin-delete@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    model_admin = StudentAdmin(Student, admin.site)
+
+    assert model_admin.get_deleted_objects([student], request)[3] == []
+    model_admin.delete_queryset(request, Student.objects.filter(pk=student.pk))
+
+    assert not Student.objects.filter(pk=student.pk).exists()
+    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
+    assert AuditEvent.objects.filter(
+        action=AuditAction.STUDENT_DELETED,
+        entity_id=str(student.pk),
+        actor=request.user,
+    ).exists()

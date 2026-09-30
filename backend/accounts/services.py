@@ -348,12 +348,69 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     return refreshed
 
 
-def record_password_reset(user: User, actor: User | None = None) -> None:
-    # Sensitive per AGENTS.md, so it is recorded - but the value itself
-    # must never appear in metadata or the summary.
+@transaction.atomic
+def reset_password(target: User, *, password: str, actor: User) -> User:
+    """Set a password someone else chose, so its owner must replace it."""
+    locked = _lock_user(target.pk)
+    locked.set_password(password)
+    return _password_set(locked, actor=actor, chosen_by_owner=False)
+
+
+@transaction.atomic
+def change_own_password(user: User, *, password: str) -> User:
+    """The owner's own new password, which lifts the forced change."""
+    locked = _lock_user(user.pk)
+    locked.set_password(password)
+    return _password_set(locked, actor=user, chosen_by_owner=True)
+
+
+@transaction.atomic
+def record_admin_password_change(target: User, *, actor: User) -> User:
+    """Django admin's password form has saved `target`'s new password; the
+    rest of an administrator reset follows here, in the same transaction."""
+    return _password_set(_lock_user(target.pk), actor=actor, chosen_by_owner=False)
+
+
+def _password_set(locked: User, *, actor: User, chosen_by_owner: bool) -> User:
+    # One transaction with the password itself, so the change and its record
+    # land together or not at all (KG-A14). The value never appears in the
+    # summary or metadata.
+    locked.must_change_password = not chosen_by_owner
+    locked.save(update_fields=["password", "must_change_password"])
     record(
         AuditAction.USER_UPDATED,
-        user,
-        f"Password reset for {user.email}.",
+        locked,
+        f"Password reset for {locked.email}.",
         actor=actor,
     )
+    return locked
+
+
+@transaction.atomic
+def set_admin_site_access(
+    target: User,
+    *,
+    actor: User,
+    is_staff: bool | None = None,
+    is_superuser: bool | None = None,
+) -> User:
+    """Django admin's own two flags, which the API never sets, audited like
+    every other account change (KG-A14)."""
+    locked = _lock_user(target.pk)
+    before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
+    if is_staff is not None:
+        locked.is_staff = is_staff
+    if is_superuser is not None:
+        locked.is_superuser = is_superuser
+    after = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
+    if before == after:
+        return locked
+    locked.save(update_fields=["is_staff", "is_superuser"])
+    record(
+        AuditAction.USER_UPDATED,
+        locked,
+        f"Admin site access changed for {locked.email}.",
+        actor=actor,
+        metadata={"before": before, "after": after},
+    )
+    return locked

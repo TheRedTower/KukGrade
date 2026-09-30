@@ -19,8 +19,9 @@ from accounts.permissions import (
     can_view_audit_log,
 )
 from accounts.services import (
+    change_own_password,
     create_platform_user,
-    record_password_reset,
+    reset_password,
     set_user_authority,
     update_platform_user,
 )
@@ -283,12 +284,11 @@ class SetPasswordSerializer(serializers.Serializer):
         return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        instance.set_password(validated_data["password"])
-        instance.must_change_password = True
-        instance.save(update_fields=["password", "must_change_password"])
-        record_password_reset(instance, actor=request.user)
-        return instance
+        return reset_password(
+            instance,
+            password=validated_data["password"],
+            actor=self.context["request"].user,
+        )
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -321,9 +321,4 @@ class ChangePasswordSerializer(serializers.Serializer):
         return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        instance.set_password(validated_data["new_password"])
-        instance.must_change_password = False
-        instance.save(update_fields=["password", "must_change_password"])
-        record_password_reset(instance, actor=request.user)
-        return instance
+        return change_own_password(instance, password=validated_data["new_password"])

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django.contrib import admin
+from django.db import transaction
+from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import HttpRequest
 
 from accounts.models import User
 from students.models import Student
-from students.services import create_student, update_student
+from students.services import create_student, delete_student, update_student
 
 
 @admin.register(Student)
@@ -72,3 +74,30 @@ class StudentAdmin(admin.ModelAdmin):
             status=obj.status if "status" in changed_data else None,
             actor=cast(User, request.user),
         )
+
+    def get_deleted_objects(
+        self,
+        objs: Any,
+        request: HttpRequest,
+    ) -> tuple[Any, Any, Any, Any]:
+        # delete_student() removes the student's grading history itself, in
+        # dependency order, so Django's own "protected" refusal would block
+        # deletes the API allows (KG-A14).
+        deleted, model_count, perms_needed, _protected = super().get_deleted_objects(
+            objs,
+            request,
+        )
+        return deleted, model_count, perms_needed, []
+
+    def delete_model(self, request: HttpRequest, obj: Student) -> None:
+        delete_student(obj, actor=cast(User, request.user))
+
+    def delete_queryset(
+        self,
+        request: HttpRequest,
+        queryset: QuerySet[Student],
+    ) -> None:
+        # All or nothing, one student at a time through the service.
+        with transaction.atomic():
+            for student in queryset:
+                delete_student(student, actor=cast(User, request.user))

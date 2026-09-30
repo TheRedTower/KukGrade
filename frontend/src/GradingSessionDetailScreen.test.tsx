@@ -188,7 +188,6 @@ function registeredCandidate(overrides: Partial<GradingCandidate> = {}): Grading
     testing_for_rank_name: "Yellow Stripe",
     age_band_display: "18+",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: true,

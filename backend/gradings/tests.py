@@ -1336,15 +1336,17 @@ def test_authenticated_candidate_crud_and_age_band_spoofing_rejected() -> None:
     assert stored.testing_for_rank.code == "YELLOW_STRIPE"
 
     detail_response = client.get(f"/api/gradings/candidates/{payload['id']}/")
+    other_session = grading_session(title="Move target")
     patch_response = client.patch(
         f"/api/gradings/candidates/{payload['id']}/",
-        {"status": GradingCandidate.Status.WITHDRAWN, "withdrawal_reason": "ABSENT"},
+        {"session": other_session.id},
         format="json",
     )
     delete_response = client.delete(f"/api/gradings/candidates/{payload['id']}/")
 
     assert detail_response.status_code == 200
     assert patch_response.status_code == 200
+    assert patch_response.json()["session"] == other_session.id
     assert delete_response.status_code == 204
 
 
@@ -1366,12 +1368,17 @@ def test_registration_is_only_through_bulk_register() -> None:
 def test_withdrawing_before_lock_requires_a_reason_and_records_who_and_when() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     client = auth_client("prelock-withdraw@example.com")
-    url = f"/api/gradings/candidates/{built.pk}/"
+    url = "/api/gradings/candidates/bulk-update-status/"
 
-    refused = client.patch(url, {"status": "WITHDRAWN"}, format="json")
-    accepted = client.patch(
+    refused = client.post(
+        url,
+        {"candidates": [built.pk], "status": "WITHDRAWN"},
+        format="json",
+    )
+    accepted = client.post(
         url,
         {
+            "candidates": [built.pk],
             "status": "WITHDRAWN",
             "withdrawal_reason": "INJURY",
             "withdrawal_note": "Wrist",
@@ -1382,6 +1389,7 @@ def test_withdrawing_before_lock_requires_a_reason_and_records_who_and_when() ->
     assert refused.status_code == 400
     assert "withdrawal_reason" in refused.json()["error"]["fields"]
     assert accepted.status_code == 200
+    assert accepted.json()["errors"] == {}
     built.refresh_from_db()
     assert built.status == GradingCandidate.Status.WITHDRAWN
     assert built.withdrawal_reason == "INJURY"
@@ -1419,22 +1427,39 @@ def test_reinstating_a_withdrawn_candidate_clears_the_withdrawal() -> None:
     assert reinstated.withdrawn_by is None and reinstated.withdrawn_at is None
 
 
-def test_a_registrations_student_cannot_be_changed() -> None:
-    built = candidate()
+def test_candidate_patch_changes_nothing_but_the_session() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     other = student(wksa_id="SWAP0002")
 
     response = auth_client("student-swap@example.com").patch(
         f"/api/gradings/candidates/{built.pk}/",
-        {"student": other.pk},
+        {
+            "student": other.pk,
+            "testing_for_rank": rank("BLUE").pk,
+            "status": GradingCandidate.Status.COMPLETED,
+            "withdrawal_note": "Ignored",
+        },
         format="json",
     )
-    built.student = other
+
+    assert response.status_code == 200
+    unchanged = GradingCandidate.objects.get(pk=built.pk)
+    assert unchanged.student_id == built.student_id
+    assert unchanged.testing_for_rank_id == built.testing_for_rank_id
+    assert unchanged.status == GradingCandidate.Status.REGISTERED
+    assert unchanged.withdrawal_note == ""
+    assert not AuditEvent.objects.filter(
+        action=AuditAction.CANDIDATE_UPDATED,
+        entity_id=str(built.pk),
+    ).exists()
+
+
+def test_a_registrations_student_cannot_be_changed() -> None:
+    built = candidate()
+    built.student = student(wksa_id="SWAP0002")
+
     with pytest.raises(ValidationError):
         built.save()
-
-    assert response.status_code == 400
-    assert "student" in response.json()["error"]["fields"]
-    assert GradingCandidate.objects.get(pk=built.pk).student_id != other.pk
 
 
 def test_boolean_filters_accept_only_true_and_false() -> None:
@@ -1532,16 +1557,16 @@ def test_candidate_api_rejects_updates_for_locked_or_terminal_session(
     built.session.refresh_from_db()
     client = auth_client(f"candidate-update-{session_status.lower()}@example.com")
 
+    original_session_id = built.session_id
     response = client.patch(
         f"/api/gradings/candidates/{built.id}/",
-        {"status": GradingCandidate.Status.WITHDRAWN, "notes": "Changed"},
+        {"session": grading_session(title="Elsewhere").id},
         format="json",
     )
 
     assert response.status_code == 400
     built.refresh_from_db()
-    assert built.status == GradingCandidate.Status.REGISTERED
-    assert built.notes == ""
+    assert built.session_id == original_session_id
 
 
 def test_candidate_api_delete_rules_work() -> None:
@@ -2756,13 +2781,14 @@ def test_direct_candidate_completed_spoofing_rejected_through_api() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     client = auth_client("candidate-complete-spoof@example.com")
 
-    response = client.patch(
-        f"/api/gradings/candidates/{built.id}/",
-        {"status": GradingCandidate.Status.COMPLETED},
+    response = client.post(
+        "/api/gradings/candidates/bulk-update-status/",
+        {"candidates": [built.id], "status": GradingCandidate.Status.COMPLETED},
         format="json",
     )
 
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert list(response.json()["errors"]) == ["0"]
     built.refresh_from_db()
     assert built.status == GradingCandidate.Status.REGISTERED
 
@@ -5707,16 +5733,22 @@ def test_withdrawal_reasons_are_served_with_which_needs_a_note() -> None:
 def test_an_other_withdrawal_needs_a_note() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     client = auth_client("other-withdrawal@example.com")
-    url = f"/api/gradings/candidates/{built.pk}/"
+    url = "/api/gradings/candidates/bulk-update-status/"
 
-    refused = client.patch(
-        url,
-        {"status": "WITHDRAWN", "withdrawal_reason": "OTHER", "withdrawal_note": "  "},
-        format="json",
-    )
-    accepted = client.patch(
+    refused = client.post(
         url,
         {
+            "candidates": [built.pk],
+            "status": "WITHDRAWN",
+            "withdrawal_reason": "OTHER",
+            "withdrawal_note": "  ",
+        },
+        format="json",
+    )
+    accepted = client.post(
+        url,
+        {
+            "candidates": [built.pk],
             "status": "WITHDRAWN",
             "withdrawal_reason": "OTHER",
             "withdrawal_note": "Family emergency",
@@ -5724,9 +5756,10 @@ def test_an_other_withdrawal_needs_a_note() -> None:
         format="json",
     )
 
-    assert refused.status_code == 400
-    assert "withdrawal_note" in refused.json()["error"]["fields"]
+    assert refused.status_code == 200
+    assert refused.json()["errors"]["0"] == ["Say what the other reason is."]
     assert accepted.status_code == 200
+    assert accepted.json()["errors"] == {}
     built.refresh_from_db()
     assert built.withdrawal_note == "Family emergency"
 
@@ -5861,3 +5894,69 @@ def test_admin_candidate_delete_goes_through_the_service() -> None:
         entity_id=str(built.pk),
     )
     assert deleted.actor == request.user
+
+
+# ---------------------------------------------------------------------------
+# Session detail and assessment notes edits are audited (KG-A14)
+# ---------------------------------------------------------------------------
+
+
+def test_editing_a_sessions_details_is_audited_and_a_resend_is_not() -> None:
+    session = grading_session(title="Spring grading", location="Hall A")
+    client = auth_client("session-detail-editor@example.com")
+    url = f"/api/gradings/sessions/{session.pk}/"
+
+    first = client.patch(url, {"title": "Spring grading", "location": "Hall B"})
+    resent = client.patch(url, {"title": "Spring grading", "location": "Hall B"})
+
+    assert first.status_code == resent.status_code == 200
+    [event] = AuditEvent.objects.filter(
+        action=AuditAction.SESSION_UPDATED,
+        entity_id=str(session.pk),
+    )
+    assert event.metadata == {
+        "before": {"location": "Hall A"},
+        "after": {"location": "Hall B"},
+    }
+    assert event.actor is not None
+    assert event.actor.email == "session-detail-editor@example.com"
+
+
+def test_an_admin_session_edit_records_the_same_event() -> None:
+    session = grading_session(notes="Bring belts")
+    session.notes = "Bring belts and water"
+    admin_user = user("session-admin-editor@example.com")
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = admin_user
+
+    GradingSessionAdmin(GradingSession, admin.site).save_model(
+        request,
+        session,
+        cast("ModelForm[Any]", SimpleNamespace(changed_data=["notes"])),
+        True,
+    )
+
+    event = AuditEvent.objects.get(action=AuditAction.SESSION_UPDATED)
+    assert event.actor == admin_user
+    assert event.metadata["after"] == {"notes": "Bring belts and water"}
+
+
+def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
+    generated = start_assessment(
+        assessment(
+            candidate=candidate(
+                session=grading_session(status=GradingSession.Status.OPEN),
+            ),
+        ),
+    )
+    actor = user("assessment-notes-editor@example.com")
+
+    update_candidate_assessment(generated, notes="Strong stances", actor=actor)
+    update_candidate_assessment(generated, notes="Strong stances", actor=actor)
+
+    [event] = AuditEvent.objects.filter(action=AuditAction.ASSESSMENT_UPDATED)
+    assert event.actor == actor
+    assert event.metadata == {
+        "before": {"notes": ""},
+        "after": {"notes": "Strong stances"},
+    }

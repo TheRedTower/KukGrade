@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 800 backend tests and 240 frontend tests passing
+Verified on 2026-09-30 with 812 backend tests and 240 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -315,8 +315,13 @@ checks on each push and pull request.
   assessment, item, outcome, promotion, student and user actions. Written
   inside the acting service's transaction, so no event survives a
   rolled-back action. Django admin routes every write through the same
-  services the API uses, so an admin-created or admin-edited record is
-  audited and attributed identically. Outcome revisions carry the previous
+  services the API uses - creates, edits, deletes and password changes - so
+  a record changed there is audited and attributed identically (KG-A14).
+  Admin's own `is_staff`/`is_superuser` flags are audited too, and groups and
+  per-user permissions are read-only in admin. A password change and its
+  audit event share one transaction. Session detail edits
+  (`SESSION_UPDATED`) and assessment notes edits (`ASSESSMENT_UPDATED`) are
+  recorded with both versions; resending an unchanged value records nothing. Outcome revisions carry the previous
   proposal, and a locked-session withdrawal that discards an undecided
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.

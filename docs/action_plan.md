@@ -8,15 +8,11 @@ structural choice records it in `decision_log.md` first.
 
 1. **Finish the 2026-09-29 audit remediation**
    (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05
-   and A07 to A12; KG-A06 no longer applies (the filter it describes was
+   and A07 to A14; KG-A06 no longer applies (the filter it describes was
    removed). Remaining, in the audit's order:
-   - KG-A13 to A19 and A22: the impossible outcome PATCH route, admin/API
-     audit parity, session metrics, failed prerequisite reads, proposal
-     partial success, scoring invalidation, audit labels, documentation
-     claims. With A13 and A14, narrow candidate `PATCH` to the `session`
-     move the app sends - it also accepts student, rank, status, notes and
-     withdrawal fields no screen sends - and stop serving candidate `notes`,
-     which no screen writes or reads (admin keeps editing it).
+   - KG-A15 to A18: session metrics, failed prerequisite reads, proposal
+     partial success, scoring save and cache policy.
+   - KG-A19 and A22: audit labels, documentation claims.
    - KG-A20, A21 and A23: avoidable requests and queries (including the
      roster preview's per-row rank and existing-student lookups), bounded
      cleanup.

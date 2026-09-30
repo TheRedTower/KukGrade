@@ -18,6 +18,51 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Every write path is audited like the API's; candidate PATCH only moves
+
+Status: Accepted
+
+Decision:
+From the 2026-09-29 audit, KG-A13 and KG-A14.
+
+- **Candidate `PATCH` moves a registration to another session and does
+  nothing else.** The app sends only `session`; student, testing-for rank,
+  status and withdrawal fields are read-only there. Status changes go
+  through `bulk-update-status`, and a locked-session withdrawal through
+  `withdraw`, which is where the app already sent them. Candidate `notes`
+  are no longer served or accepted by the API, since no screen reads or
+  writes them. The column stays, and admin still edits it through
+  `apply_candidate_update`. The outcome `PATCH` route the audit named had
+  already been removed on 2026-09-28.
+- **Django admin writes through the services for every action.**
+  - Student and user deletes call `delete_student` and
+    `delete_platform_user`, including for records with history, which
+    Django's own collector would have refused.
+  - Admin's password form finishes like an administrator reset: the owner
+    must choose a new password, and the change is audited.
+  - `is_staff` and `is_superuser` go through `set_admin_site_access`, which
+    records `USER_UPDATED`.
+  - Groups and per-user permissions are read-only in admin. Master
+    authority is granted only through `set_user_authority`, which keeps its
+    rule that an administrator never holds final-decision authority.
+- **A password change and its audit event share one transaction**
+  (`reset_password`, `change_own_password`).
+- **Session details and assessment notes are audited.** `SESSION_UPDATED`
+  and `ASSESSMENT_UPDATED` record the changed fields with both versions,
+  as an item's notes already were. A resent unchanged value writes and
+  records nothing.
+
+Context:
+The audit found admin deletes, authority edits and password changes that
+skipped the domain services, so an admin change and the same change through
+the API left different state and a different audit trail. It also found a
+session edit and a notes-only assessment edit recording nothing.
+
+Consequences:
+Contract change: the candidate request and response shapes, and two new
+audit actions (`audit/0007`). The schema, generated types, audit-screen
+labels and `api_contract.md` are updated.
+
 ### 2026-09-30 - Import files, expiry, preview validity and spreadsheet limits
 
 Status: Accepted

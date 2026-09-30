@@ -1074,6 +1074,7 @@ export interface components {
     schemas: {
         /**
          * @description * `SESSION_CREATED` - Grading session created
+         *     * `SESSION_UPDATED` - Grading session updated
          *     * `SESSION_TRANSITIONED` - Grading session transitioned
          *     * `SESSION_DELETED` - Grading session deleted
          *     * `CANDIDATE_REGISTERED` - Candidate registered
@@ -1082,6 +1083,7 @@ export interface components {
          *     * `CANDIDATE_DELETED` - Candidate deleted
          *     * `ASSESSMENT_GENERATED` - Assessment generated
          *     * `ASSESSMENT_STARTED` - Assessment started
+         *     * `ASSESSMENT_UPDATED` - Assessment notes updated
          *     * `ASSESSMENT_COMPLETED` - Assessment completed
          *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
@@ -1107,7 +1109,7 @@ export interface components {
          *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1229,8 +1231,6 @@ export interface components {
         BulkCandidateRegistrationItemRequest: {
             student: number;
             testing_for_rank?: number;
-            /** @default  */
-            notes?: string;
         };
         BulkCandidateRegistrationRequest: {
             session: number;
@@ -1395,19 +1395,18 @@ export interface components {
         GradingCandidate: {
             readonly id: number;
             session: number;
-            student: number;
+            readonly student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
-            testing_for_rank: number;
+            readonly testing_for_rank: number;
             readonly testing_for_rank_name: string;
             readonly age_band_display: string;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
+            readonly status: components["schemas"]["GradingCandidateStatusEnum"];
+            readonly withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
-            withdrawal_note?: string;
+            readonly withdrawal_note: string;
             readonly can_be_moved: boolean;
             readonly can_be_removed: boolean;
         };
@@ -1789,12 +1788,6 @@ export interface components {
         };
         PatchedGradingCandidateRequest: {
             session?: number;
-            student?: number;
-            testing_for_rank?: number;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
-            withdrawal_note?: string;
         };
         PatchedGradingSessionRequest: {
             title?: string;
@@ -2179,7 +2172,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;

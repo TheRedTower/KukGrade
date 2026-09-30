@@ -19,6 +19,7 @@ const PAGE_SIZE = 10;
 // left out of the filter without a type error.
 const ACTION_LABELS: Record<AuditAction, string> = {
   SESSION_CREATED: "Grading session created",
+  SESSION_UPDATED: "Grading session updated",
   SESSION_TRANSITIONED: "Grading session transitioned",
   SESSION_DELETED: "Grading session deleted",
   CANDIDATE_REGISTERED: "Candidate registered",
@@ -27,6 +28,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   CANDIDATE_DELETED: "Candidate deleted",
   ASSESSMENT_GENERATED: "Assessment generated",
   ASSESSMENT_STARTED: "Assessment started",
+  ASSESSMENT_UPDATED: "Assessment notes updated",
   ASSESSMENT_COMPLETED: "Assessment completed",
   ASSESSMENT_REOPENED: "Assessment reopened",
   ASSESSMENT_DELETED: "Assessment deleted",

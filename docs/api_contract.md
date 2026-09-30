@@ -268,7 +268,7 @@ Promotion is never automatic - see section 8.
 | POST  | /api/gradings/candidates/              | 405; register through `bulk-register`            |
 | GET   | /api/gradings/candidates/{id}/         | Retrieve a grading candidate                     |
 | PUT   | /api/gradings/candidates/{id}/         | 405; not exposed (`PATCH` covers every real edit) |
-| PATCH | /api/gradings/candidates/{id}/         | Update session, testing-for rank, status or notes; `student` is fixed after registration |
+| PATCH | /api/gradings/candidates/{id}/         | Move the registration to another `session`; every other field is read-only here (withdrawal and status have their own actions) |
 | DELETE| /api/gradings/candidates/{id}/         | Delete only while parent session is DRAFT or OPEN|
 | POST  | /api/gradings/candidates/{id}/generate-assessment/ | Generate immutable assessment snapshot |
 | POST  | /api/gradings/candidates/{id}/create-outcome/ | Create a draft outcome after completion |
@@ -321,7 +321,7 @@ batch was starting is refused with a message saying so.
   "session": 4,
   "candidates": [
     {"student": 12},
-    {"student": 15, "notes": "left knee strapped"},
+    {"student": 15},
     {"student": 20, "testing_for_rank": 6}
   ],
   "generate_assessments": false
@@ -459,11 +459,13 @@ current rank. Registering a candidate does not itself change
 `Student.current_rank` - that happens only on promotion, once the outcome is
 finalised as `PASS` (see section 8).
 
-Candidate `student`, `testing_for_rank`, `status`, and `notes` can be changed
-only while the parent session is `DRAFT` or `OPEN`. `age_band` is not client
-writable. Once an assessment snapshot exists, `student`, `testing_for_rank`, and
-`session` cannot be changed. Candidate `COMPLETED` is controlled by assessment
-completion and cannot be spoofed through the candidate API. Candidates with
+A candidate's `session` can be changed through `PATCH` only while the
+parent session is `DRAFT` or `OPEN`, and not once an assessment snapshot
+exists. Status moves through `bulk-update-status` (and `withdraw` in a locked
+session); `student`, `testing_for_rank` and `age_band` are fixed at
+registration. Candidate `notes` are not served: no screen uses them, and they
+are edited only in Django admin. Candidate `COMPLETED` is controlled by
+assessment completion and cannot be spoofed through the candidate API. Candidates with
 assessment snapshots can be deleted only while the session is `DRAFT` and the
 assessment is `NOT_STARTED`.
 
@@ -674,8 +676,13 @@ Filters:
 **Written by admin too.** Django admin routes its writes through the same
 service functions as the API (`GradingSessionAdmin`, `GradingCandidateAdmin`,
 `StudentAdmin`, `UserAdmin`), so a session, candidate, student or user
-created or edited through admin is audited and attributed to whoever is
-signed in, exactly as if it had gone through the API.
+created, edited, deleted or given a new password through admin is audited and
+attributed to whoever is signed in, exactly as if it had gone through the API.
+Admin's `is_staff`/`is_superuser` flags, which the API never sets, are audited
+as `USER_UPDATED`; groups and per-user permissions are read-only in admin, so
+Master authority is granted only through `set_user_authority` and its rules.
+`SESSION_UPDATED` records a session's changed details and
+`ASSESSMENT_UPDATED` an assessment's changed notes, each with both versions.
 
 ## 10. Data Imports (Admin only)
 

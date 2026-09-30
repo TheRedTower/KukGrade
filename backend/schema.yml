@@ -22,6 +22,7 @@ paths:
           - ASSESSMENT_GENERATED
           - ASSESSMENT_REOPENED
           - ASSESSMENT_STARTED
+          - ASSESSMENT_UPDATED
           - CANDIDATE_DELETED
           - CANDIDATE_REGISTERED
           - CANDIDATE_UPDATED
@@ -41,6 +42,7 @@ paths:
           - SESSION_CREATED
           - SESSION_DELETED
           - SESSION_TRANSITIONED
+          - SESSION_UPDATED
           - STUDENT_CREATED
           - STUDENT_DELETED
           - STUDENT_STATUS_CHANGED
@@ -2084,6 +2086,7 @@ components:
     ActionEnum:
       enum:
       - SESSION_CREATED
+      - SESSION_UPDATED
       - SESSION_TRANSITIONED
       - SESSION_DELETED
       - CANDIDATE_REGISTERED
@@ -2092,6 +2095,7 @@ components:
       - CANDIDATE_DELETED
       - ASSESSMENT_GENERATED
       - ASSESSMENT_STARTED
+      - ASSESSMENT_UPDATED
       - ASSESSMENT_COMPLETED
       - ASSESSMENT_REOPENED
       - ASSESSMENT_DELETED
@@ -2118,6 +2122,7 @@ components:
       type: string
       description: |-
         * `SESSION_CREATED` - Grading session created
+        * `SESSION_UPDATED` - Grading session updated
         * `SESSION_TRANSITIONED` - Grading session transitioned
         * `SESSION_DELETED` - Grading session deleted
         * `CANDIDATE_REGISTERED` - Candidate registered
@@ -2126,6 +2131,7 @@ components:
         * `CANDIDATE_DELETED` - Candidate deleted
         * `ASSESSMENT_GENERATED` - Assessment generated
         * `ASSESSMENT_STARTED` - Assessment started
+        * `ASSESSMENT_UPDATED` - Assessment notes updated
         * `ASSESSMENT_COMPLETED` - Assessment completed
         * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
@@ -2436,9 +2442,6 @@ components:
           type: integer
         testing_for_rank:
           type: integer
-        notes:
-          type: string
-          default: ''
       required:
       - student
     BulkCandidateRegistrationRequest:
@@ -2871,6 +2874,7 @@ components:
           type: integer
         student:
           type: integer
+          readOnly: true
         student_display_name:
           type: string
           readOnly: true
@@ -2885,6 +2889,7 @@ components:
           readOnly: true
         testing_for_rank:
           type: integer
+          readOnly: true
         testing_for_rank_name:
           type: string
           readOnly: true
@@ -2892,10 +2897,11 @@ components:
           type: string
           readOnly: true
         status:
-          $ref: '#/components/schemas/GradingCandidateStatusEnum'
-        notes:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/GradingCandidateStatusEnum'
+          readOnly: true
         withdrawal_reason:
+          readOnly: true
           oneOf:
           - $ref: '#/components/schemas/WithdrawalReasonEnum'
           - $ref: '#/components/schemas/BlankEnum'
@@ -2904,6 +2910,7 @@ components:
           readOnly: true
         withdrawal_note:
           type: string
+          readOnly: true
         can_be_moved:
           type: boolean
           readOnly: true
@@ -2918,11 +2925,14 @@ components:
       - from_rank_name
       - id
       - session
+      - status
       - student
       - student_display_name
       - student_wksa_id
       - testing_for_rank
       - testing_for_rank_name
+      - withdrawal_note
+      - withdrawal_reason
       - withdrawal_reason_display
     GradingCandidateStatusEnum:
       enum:
@@ -3653,20 +3663,6 @@ components:
       properties:
         session:
           type: integer
-        student:
-          type: integer
-        testing_for_rank:
-          type: integer
-        status:
-          $ref: '#/components/schemas/GradingCandidateStatusEnum'
-        notes:
-          type: string
-        withdrawal_reason:
-          oneOf:
-          - $ref: '#/components/schemas/WithdrawalReasonEnum'
-          - $ref: '#/components/schemas/BlankEnum'
-        withdrawal_note:
-          type: string
     PatchedGradingSessionRequest:
       type: object
       properties:

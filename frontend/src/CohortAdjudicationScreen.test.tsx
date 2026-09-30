@@ -91,7 +91,6 @@ function candidate(id: number, name: string, overrides: Partial<GradingCandidate
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "COMPLETED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,

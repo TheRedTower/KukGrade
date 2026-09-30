@@ -454,6 +454,10 @@ def update_grading_session(
     before = {field: _audit_value(getattr(locked, field)) for field in changes}
     for field, value in changes.items():
         setattr(locked, field, value)
+    if changes:
+        # The same normalising clean() that save() runs, so a resent value
+        # that only differs by surrounding whitespace counts as unchanged.
+        locked.full_clean()
     after = {field: _audit_value(getattr(locked, field)) for field in changes}
     changed = [field for field in changes if before[field] != after[field]]
     # A resent value that matches writes nothing and records nothing.
@@ -2115,9 +2119,10 @@ def update_candidate_assessment(
         raise ValidationError({"status": ["Completed assessments are immutable."]})
 
     previous_notes = locked_assessment.notes
-    notes_changed = notes is not None and notes != previous_notes
     if notes is not None:
-        locked_assessment.notes = notes
+        # Stripped as clean() will, so whitespace alone is not a change.
+        locked_assessment.notes = notes.strip()
+    notes_changed = locked_assessment.notes != previous_notes
 
     recorded_action: str | None = (
         AuditAction.ASSESSMENT_UPDATED if notes_changed else None
@@ -2166,7 +2171,10 @@ def update_candidate_assessment(
         summary,
         actor=actor,
         metadata=(
-            {"before": {"notes": previous_notes}, "after": {"notes": notes}}
+            {
+                "before": {"notes": previous_notes},
+                "after": {"notes": locked_assessment.notes},
+            }
             if notes_changed
             else {}
         ),

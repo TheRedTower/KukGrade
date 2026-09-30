@@ -13,7 +13,10 @@ structural choice records it in `decision_log.md` first.
    - KG-A20, A21 and A23: avoidable requests and queries (the session
      rows' per-session counts are already served - KG-A15; still open
      include the roster preview's per-row rank and existing-student
-     lookups), bounded cleanup.
+     lookups), bounded cleanup. The sessions table still decides whether to
+     offer Delete from the completed count; serve a per-session
+     `can_be_deleted` from `validate_session_can_be_deleted`, as the roster
+     does for Move and Remove.
    - KG-A24: release assurance.
 2. **Go live.** Connect the production image to the real Traefik and
    PostgreSQL host, cap the request body at Traefik, then verify backup,

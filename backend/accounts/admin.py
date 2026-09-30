@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import cast
 
 from django import forms
 from django.contrib import admin
@@ -22,6 +22,7 @@ from accounts.services import (
     set_admin_site_access,
     update_platform_user,
 )
+from kukgrade.admin_mixins import ServiceDeleteMixin
 
 
 class UserCreationForm(forms.ModelForm):
@@ -88,7 +89,8 @@ class UserChangeForm(forms.ModelForm):
 
 
 @admin.register(User)
-class UserAdmin(DjangoUserAdmin):
+class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
+    deletion_service = staticmethod(delete_platform_user)
     form = UserChangeForm
     add_form = UserCreationForm
     model = User
@@ -246,26 +248,3 @@ class UserAdmin(DjangoUserAdmin):
         if obj is not None and obj.pk == request.user.pk:
             return False
         return super().has_delete_permission(request, obj)
-
-    def get_deleted_objects(
-        self,
-        objs: Any,
-        request: HttpRequest,
-    ) -> tuple[Any, Any, Any, Any]:
-        # delete_platform_user() reassigns every protected reference to the
-        # placeholder account first, so Django's own "protected" refusal
-        # would block deletes the API allows.
-        deleted, model_count, perms_needed, _protected = super().get_deleted_objects(
-            objs,
-            request,
-        )
-        return deleted, model_count, perms_needed, []
-
-    def delete_model(self, request: HttpRequest, obj: User) -> None:
-        delete_platform_user(obj, actor=cast(User, request.user))
-
-    def delete_queryset(self, request: HttpRequest, queryset: QuerySet[User]) -> None:
-        # All or nothing, one account at a time through the service.
-        with transaction.atomic():
-            for user in queryset:
-                delete_platform_user(user, actor=cast(User, request.user))

@@ -7,10 +7,10 @@ This document explains the contract; `backend/schema.yml` is its
 machine-readable form. The schema declares every request body and every
 success response, including the bulk, summary, and import actions, and
 generates the frontend's TypeScript types. Error responses are not modelled
-per endpoint: they all share the envelope in section 0b. CI fails if the schema drifts from the serializers or the
-types drift from the schema. Nothing is planned here: endpoints that do not
-exist yet (organisations, eligibility, certificates, reports) are listed as
-deferred in `current-system.md`.
+per endpoint: they all share the envelope in section 0b. CI fails if the
+schema drifts from the serializers or the types drift from the schema. Nothing
+is planned here: endpoints that do not exist yet (organisations, eligibility,
+certificates, reports) are listed as deferred in `current-system.md`.
 
 ## 0. Response conventions
 
@@ -468,15 +468,15 @@ current rank. Registering a candidate does not itself change
 `Student.current_rank` - that happens only on promotion, once the outcome is
 finalised as `PASS` (see section 8).
 
-A candidate's `session` can be changed through `PATCH` only while the
-parent session is `DRAFT` or `OPEN`, and not once an assessment snapshot
-exists. Status moves through `bulk-update-status` (and `withdraw` in a locked
+A candidate's `session` can be changed through `PATCH` only while the parent
+session is `DRAFT` or `OPEN`, and not once an assessment snapshot exists.
+Status moves through `bulk-update-status` (and `withdraw` in a locked
 session); `student`, `testing_for_rank` and `age_band` are fixed at
 registration. Candidate `notes` are not served: no screen uses them, and they
 are edited only in Django admin. Candidate `COMPLETED` is controlled by
-assessment completion and cannot be spoofed through the candidate API. Candidates with
-assessment snapshots can be deleted only while the session is `DRAFT` and the
-assessment is `NOT_STARTED`.
+assessment completion and cannot be spoofed through the candidate API.
+Candidates with assessment snapshots can be deleted only while the session is
+`DRAFT` and the assessment is `NOT_STARTED`.
 
 Assessment generation snapshots the effective (cumulative) requirements for
 the candidate's testing rank and age-band snapshot - exactly the rows

@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 818 backend tests and 250 frontend tests passing
+Verified on 2026-09-30 with 819 backend tests and 250 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -317,12 +317,16 @@ checks on each push and pull request.
   rolled-back action. Django admin routes every write through the same
   services the API uses - creates, edits, deletes and password changes - so
   a record changed there is audited and attributed identically (KG-A14).
-  Admin's own `is_staff`/`is_superuser` flags are audited too, and groups and
-  per-user permissions are read-only in admin. A password change and its
-  audit event share one transaction. Session detail edits
-  (`SESSION_UPDATED`) and assessment notes edits (`ASSESSMENT_UPDATED`) are
-  recorded with both versions; resending an unchanged value records nothing. Outcome revisions carry the previous
-  proposal, and a locked-session withdrawal that discards an undecided
+  Every admin delete runs through `kukgrade.admin_mixins.ServiceDeleteMixin`,
+  so Django's own "protected objects" check never refuses a delete the
+  service would perform. Admin's own `is_staff`/`is_superuser` flags are
+  audited too, and groups and per-user permissions are read-only in admin.
+  A password change and its audit event share one transaction. Session
+  detail edits (`SESSION_UPDATED`) and assessment notes edits
+  (`ASSESSMENT_UPDATED`) are recorded with both versions; resending an
+  unchanged value, or one differing only by surrounding whitespace, records
+  nothing. Outcome revisions carry the previous proposal, and a
+  locked-session withdrawal that discards an undecided
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.
   Immutable from model, queryset, admin and HTTP. **Readable only by
@@ -557,22 +561,21 @@ checks on each push and pull request.
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
   `frontend/src/api/schema.ts`, and every request and response type in
   `frontend/src/api.ts` is an alias onto it - see the 2026-09-14 decision log
-  entry. The two hand-written types are generic: `PaginatedResponse<T>`,
-  the shape every generated `Paginated*List` shares, and `FieldErrors`, the
-  error envelope's field map, which the schema does not model. Every custom action
+  entry. The two hand-written types are generic: `PaginatedResponse<T>`, the
+  shape every generated `Paginated*List` shares, and `FieldErrors`, the error
+  envelope's field map, which the schema does not model. Every custom action
   declares its real request and response (`@extend_schema`), and the bulk,
   summary, and import actions serialize through those same declared
   serializers, so the schema cannot describe a shape the API does not send.
   The schema splits request and response components
   (`COMPONENT_SPLIT_REQUEST`), so request payloads such as `StudentRequest`
   and `PatchedStudentRequest` are generated too, without the read-only fields
-  a response carries.
-  CI regenerates both the schema and the types and fails if either differs
-  from what is committed. List-filter parameters are generated too: each view declares its filters
-  once and the same declaration filters the queryset and documents the
-  schema. The only hand-written API shapes are the error
-  envelope, which `custom_exception_handler` builds outside DRF's
-  serializer path, and the page envelope.
+  a response carries. CI regenerates both the schema and the types and fails
+  if either differs from what is committed. List-filter parameters are
+  generated too: each view declares its filters once and the same declaration
+  filters the queryset and documents the schema. The only hand-written API
+  shapes are the error envelope, which `custom_exception_handler` builds
+  outside DRF's serializer path, and the page envelope.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every

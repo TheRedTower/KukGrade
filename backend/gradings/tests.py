@@ -5907,7 +5907,7 @@ def test_editing_a_sessions_details_is_audited_and_a_resend_is_not() -> None:
     url = f"/api/gradings/sessions/{session.pk}/"
 
     first = client.patch(url, {"title": "Spring grading", "location": "Hall B"})
-    resent = client.patch(url, {"title": "Spring grading", "location": "Hall B"})
+    resent = client.patch(url, {"title": " Spring grading ", "location": "Hall B "})
 
     assert first.status_code == resent.status_code == 200
     [event] = AuditEvent.objects.filter(
@@ -5952,7 +5952,7 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
     actor = user("assessment-notes-editor@example.com")
 
     update_candidate_assessment(generated, notes="Strong stances", actor=actor)
-    update_candidate_assessment(generated, notes="Strong stances", actor=actor)
+    update_candidate_assessment(generated, notes=" Strong stances ", actor=actor)
 
     [event] = AuditEvent.objects.filter(action=AuditAction.ASSESSMENT_UPDATED)
     assert event.actor == actor
@@ -6035,3 +6035,35 @@ def test_listing_sessions_counts_progress_without_a_query_per_session() -> None:
 
     assert response.json()["count"] == GradingSession.objects.count() > 1
     assert len(many.captured_queries) == len(one.captured_queries)
+
+
+def test_admin_deletes_a_locked_session_with_a_promotion_through_the_service() -> None:
+    # Django's own collector would refuse: the promotion is PROTECT. The
+    # service reverts the rank and removes the history itself, as the API
+    # lets an administrator do (KG-A14).
+    built, _generated = locked_completed_candidate()
+    promote_candidate(
+        finalised_outcome(built),
+        promoter("admin-delete-promoter@example.com"),
+    )
+    session = built.session
+    request = cast(HttpRequest, RequestFactory().post("/admin/"))
+    request.user = user(
+        "admin-session-deleter@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    model_admin = GradingSessionAdmin(GradingSession, admin.site)
+
+    _deleted, _counts, perms_needed, protected = model_admin.get_deleted_objects(
+        [session],
+        request,
+    )
+    model_admin.delete_model(request, session)
+
+    assert perms_needed == set() and protected == []
+    assert not GradingSession.objects.filter(pk=session.pk).exists()
+    assert not Promotion.objects.filter(grading_candidate_id=built.pk).exists()
+    assert AuditEvent.objects.filter(
+        action=AuditAction.SESSION_DELETED,
+        actor=request.user,
+    ).exists()

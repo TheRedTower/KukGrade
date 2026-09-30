@@ -29,6 +29,7 @@ from gradings.services import (
     validate_grading_session_transition,
     validate_session_can_be_deleted,
 )
+from kukgrade.admin_mixins import ServiceDeleteMixin
 
 
 class GradingSessionAdminForm(ModelForm):
@@ -74,21 +75,18 @@ class GradingSessionAdminForm(ModelForm):
         return cleaned_data
 
 
-class StateGatedDeleteMixin:
+class StateGatedDeleteMixin(ServiceDeleteMixin):
     """Applies the service deletion rule to both admin delete paths.
 
     The change page hides Delete when the rule refuses, and the changelist
     bulk action refuses as a whole rather than part-deleting a selection.
     Without this, admin bulk delete walked past rules the API enforced -
     and instructors now hold the delete permissions, so the changelist is
-    the most reachable way to reach them.
+    the most reachable way to reach them. The delete itself runs through
+    the service (ServiceDeleteMixin, KG-036, KG-A03).
     """
 
     deletion_validator: Any
-    # The service that performs the delete - taking its locks, re-checking
-    # the rule on the locked row and recording the deletion, none of which a
-    # bare obj.delete() does (KG-036, KG-A03).
-    deletion_service: Any
 
     def has_delete_permission(
         self,
@@ -120,14 +118,7 @@ class StateGatedDeleteMixin:
                 level=messages.ERROR,
             )
             return
-        for obj in queryset:
-            self._perform_delete(request, obj)
-
-    def delete_model(self, request: HttpRequest, obj: Any) -> None:
-        self._perform_delete(request, obj)
-
-    def _perform_delete(self, request: HttpRequest, obj: Any) -> None:
-        type(self).deletion_service(obj, actor=cast(User, request.user))
+        super().delete_queryset(request, queryset)
 
     def _is_deletable(self, obj: Any, actor: User | None = None) -> bool:
         try:

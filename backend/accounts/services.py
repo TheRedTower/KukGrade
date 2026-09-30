@@ -380,7 +380,11 @@ def _password_set(locked: User, *, actor: User, chosen_by_owner: bool) -> User:
     record(
         AuditAction.USER_UPDATED,
         locked,
-        f"Password reset for {locked.email}.",
+        (
+            f"Password changed by {locked.email}."
+            if chosen_by_owner
+            else f"Password reset for {locked.email}."
+        ),
         actor=actor,
     )
     return locked

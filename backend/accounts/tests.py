@@ -475,6 +475,7 @@ def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> 
         action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
     )
     assert event.actor == user
+    assert event.summary == "Password changed by change-pw-ok@example.com."
     assert "BrandNewPassw0rd" not in event.summary
     assert "BrandNewPassw0rd" not in str(event.metadata)
 
@@ -1332,6 +1333,7 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         entity_id=created["id"],
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
+    assert event.summary == "Password reset for reset-audit-target@example.com."
     assert "kg-NewSecret-Value!" not in event.summary
     assert "kg-NewSecret-Value!" not in str(event.metadata)
 

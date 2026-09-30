@@ -107,68 +107,66 @@ function formatRelativeTime(isoString: string): string {
   return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
 }
 
+type ActivityStatus = "approved" | "warning" | "in-progress" | "neutral";
+
 type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
-  targetName: string;
+  actorName: string;
   summary: string;
-  statusType: "approved" | "warning" | "in-progress" | "neutral";
+  statusType: ActivityStatus;
   statusLabel: string;
 };
 
-function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
-  const summaryLower = (event.summary || "").toLowerCase();
-  const actionLower = (event.action || "").toLowerCase();
+const OUTCOME_LABELS: Record<string, string> = {
+  PASS: "Pass",
+  FAIL: "Fail",
+  CONDITIONAL: "Conditional",
+};
 
-  let statusType: "approved" | "warning" | "in-progress" | "neutral" = "neutral";
-  let statusLabel = event.action_display || "Recorded";
-
-  if (
-    summaryLower.includes("promot") ||
-    summaryLower.includes("approv") ||
-    summaryLower.includes("pass") ||
-    summaryLower.includes("complete") ||
-    actionLower.includes("promote") ||
-    actionLower.includes("complete")
-  ) {
-    statusType = "approved";
-    statusLabel = "Approved";
-  } else if (
-    summaryLower.includes("ready for review") ||
-    summaryLower.includes("awaiting") ||
-    summaryLower.includes("propos") ||
-    summaryLower.includes("flag") ||
-    summaryLower.includes("withdraw") ||
-    actionLower.includes("propose")
-  ) {
-    statusType = "warning";
-    statusLabel = "Awaiting review";
-  } else if (
-    summaryLower.includes("started") ||
-    summaryLower.includes("progress") ||
-    actionLower.includes("start")
-  ) {
-    statusType = "in-progress";
-    statusLabel = "In progress";
+function metadataString(event: AuditEvent, ...path: string[]): string | undefined {
+  let value: unknown = event.metadata;
+  for (const key of path) {
+    value = value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
   }
+  return typeof value === "string" ? value : undefined;
+}
 
-  // Target extraction: prefer actor_name or entity info from summary
-  let targetName = event.actor_name || "System";
-  if (event.entity_type === "Student" || event.entity_type === "GradingCandidate") {
-    // If summary starts with or mentions a student/candidate name
-    const match = event.summary.match(/^([^:]+):/);
-    if (match) {
-      targetName = match[1].trim();
+/**
+ * An event's status, from its action and structured outcome - never from
+ * words in the prose summary, which labelled a password reset or a failed
+ * grading "Approved" (KG-A19). Unknown actions stay neutral under the
+ * server's own label.
+ */
+function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
+  switch (event.action) {
+    case "PROMOTION_RECORDED":
+      return { type: "approved" };
+    case "OUTCOME_FINALISED": {
+      const outcome = metadataString(event, "final_outcome");
+      return { type: outcome === "PASS" ? "approved" : "warning", outcome };
     }
+    case "OUTCOME_PROPOSED":
+      return { type: "in-progress", outcome: metadataString(event, "after", "proposed_outcome") };
+    case "ASSESSMENT_STARTED":
+      return { type: "in-progress" };
+    case "CANDIDATE_WITHDRAWN":
+      return { type: "warning" };
+    default:
+      return { type: "neutral" };
   }
+}
 
+function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
+  const { type, outcome } = activityStatus(event);
+  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome] : undefined;
   return {
     id: event.id,
     timeDisplay: formatRelativeTime(event.occurred_at),
-    targetName,
+    actorName: event.actor_name || event.actor_email || "System",
     summary: event.summary,
-    statusType,
-    statusLabel,
+    statusType: type,
+    statusLabel: outcomeLabel ? `${event.action_display} · ${outcomeLabel}` : event.action_display,
   };
 }
 
@@ -488,7 +486,7 @@ export function OverviewScreen() {
               <thead>
                 <tr>
                   <th scope="col">Time</th>
-                  <th scope="col">Student</th>
+                  <th scope="col">By</th>
                   <th scope="col">Event</th>
                   <th scope="col">Status</th>
                 </tr>
@@ -497,8 +495,8 @@ export function OverviewScreen() {
                 {recentActivities.map((activity) => (
                   <tr key={activity.id}>
                     <td className="cell-time">{activity.timeDisplay}</td>
-                    <td className="cell-student">
-                      <strong>{activity.targetName}</strong>
+                    <td className="cell-actor">
+                      <strong>{activity.actorName}</strong>
                     </td>
                     <td className="cell-event">{activity.summary}</td>
                     <td className="cell-status">

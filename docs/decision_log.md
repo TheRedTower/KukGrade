@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Overview activity status comes from the action, not the prose
+
+Status: Accepted
+
+Decision:
+The Overview's recent-activity status is the event's `action_display`, plus
+the outcome from its metadata for a proposal or final decision (KG-A19).
+- Green: a promotion, or a Pass finalised.
+- Amber: Fail or Conditional finalised, or a withdrawal.
+- In progress: a started assessment, or a proposal awaiting decision.
+- Neutral: everything else, including actions the screen does not know.
+
+The column that showed the actor under a "Student" heading is now "By".
+
+Context:
+The screen matched words such as "pass", "complete" and "promot" in the
+summary, so a password reset and "finalised as FAIL, overriding PASS" both
+read "Approved".
+
+Consequences:
+None beyond the Overview.
+
 ### 2026-09-30 - Scoring saves are sequenced per item, refetched once
 
 Status: Accepted

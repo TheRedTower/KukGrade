@@ -1228,6 +1228,77 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
+  // KG-A19: an event's status comes from its action and structured outcome,
+  // never from words in its summary.
+  it("labels activity by what happened, not by words in the summary", async () => {
+    const event = (
+      id: number,
+      action: AuditEvent["action"],
+      action_display: string,
+      summary: string,
+      metadata: Record<string, unknown> = {},
+    ) =>
+      ({
+        id,
+        occurred_at: new Date().toISOString(),
+        action,
+        action_display,
+        entity_type: "CandidateOutcome",
+        entity_id: String(id),
+        actor_email: "master@example.com",
+        actor_name: "Morgan Master",
+        summary,
+        metadata,
+      }) satisfies AuditEvent;
+    const events = [
+      event(1, "USER_UPDATED", "User updated", "Password reset for someone@example.com."),
+      event(2, "OUTCOME_PROPOSED", "Outcome proposed", "Outcome proposed as PASS.", {
+        after: { proposed_outcome: "PASS" },
+      }),
+      event(3, "OUTCOME_FINALISED", "Outcome finalised", "Final decision FAIL, overriding a proposed PASS.", {
+        final_outcome: "FAIL",
+      }),
+      event(4, "OUTCOME_FINALISED", "Outcome finalised", "Final decision CONDITIONAL.", {
+        final_outcome: "CONDITIONAL",
+      }),
+      event(5, "CANDIDATE_WITHDRAWN", "Candidate withdrawn", "Withdrawn: did not attend."),
+      event(6, "PROMOTION_RECORDED", "Promotion recorded", "Promoted to Yellow."),
+      event(7, "SESSION_UPDATED", "Grading session updated", "Notes: everyone should pass."),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, { ...authUser, can_read_audit_log: true });
+        if (url.includes("/api/gradings/sessions/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        if (url.includes("/api/audit-events/")) {
+          return jsonResponse(200, { count: events.length, next: null, previous: null, results: events });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+
+    render(<App />);
+
+    const ledger = await screen.findByRole("table", { name: "Recent activity ledger" });
+    const statusOf = (summary: string) =>
+      within(ledger).getByText(summary).closest("tr")!.querySelector(".status-pill-badge")!;
+    expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
+    expect(statusOf("Password reset for someone@example.com.")).toHaveClass("status-pill-neutral");
+    expect(statusOf("Outcome proposed as PASS.")).toHaveTextContent("Outcome proposed · Pass");
+    expect(statusOf("Outcome proposed as PASS.")).toHaveClass("status-pill-in-progress");
+    const overridden = statusOf("Final decision FAIL, overriding a proposed PASS.");
+    expect(overridden).toHaveTextContent("Outcome finalised · Fail");
+    expect(overridden).toHaveClass("status-pill-warning");
+    expect(statusOf("Final decision CONDITIONAL.")).toHaveTextContent("Outcome finalised · Conditional");
+    expect(statusOf("Withdrawn: did not attend.")).toHaveClass("status-pill-warning");
+    expect(statusOf("Promoted to Yellow.")).toHaveClass("status-pill-approved");
+    expect(statusOf("Notes: everyone should pass.")).toHaveClass("status-pill-neutral");
+    expect(within(ledger).queryByText("Approved")).not.toBeInTheDocument();
+    expect(within(ledger).getAllByText("Morgan Master")).toHaveLength(events.length);
+  });
+
   it("renders active session, attention items, upcoming grading, and recent ledger activity", async () => {
     const openSession = {
       id: 101,

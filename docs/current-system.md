@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 815 backend tests and 249 frontend tests passing
+Verified on 2026-09-30 with 815 backend tests and 250 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -462,6 +462,11 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+- **Overview activity is labelled by what happened (2026-09-30, KG-A19)**:
+  each event shows the server's own action label, with the outcome where
+  there is one ("Outcome finalised · Fail"). Its colour comes from the
+  action and structured outcome, never from words in the summary, and
+  unknown actions stay neutral. The column shows who acted ("By").
 - **Scoring saves are sequenced per item (2026-09-30, KG-A18)**: several item
   saves may be in flight at once. Writes to one item go out in the order
   they were made, so the server keeps the last. Each save confirms or rolls

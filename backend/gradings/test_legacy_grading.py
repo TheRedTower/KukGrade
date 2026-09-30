@@ -1,6 +1,6 @@
 """LegacyGradingRecord: immutability, void, and link/unlink/resolve services.
 
-Helpers imported from gradings.tests rather than re-built here.
+Helpers imported from gradings.testing rather than re-built here.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from gradings.models import (
     LegacyOutcome,
     LegacyRecordKind,
 )
-from gradings.tests import rank, student, user
+from gradings.testing import rank, student, user
 from students.models import Student
 
 pytestmark = pytest.mark.django_db

@@ -5,20 +5,22 @@ from __future__ import annotations
 from datetime import date
 
 from accounts.models import User
+from gradings.assessment_services import (
+    generate_candidate_assessment,
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.models import (
     CandidateAssessmentItem,
     CandidateOutcome,
     GradingCandidate,
     GradingSession,
 )
+from gradings.outcome_services import create_candidate_outcome
 from gradings.services import (
-    create_candidate_outcome,
     create_grading_session,
-    generate_candidate_assessment,
     register_candidate,
     transition_grading_session,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
 )
 from ranks.models import Rank
 from students.models import Student

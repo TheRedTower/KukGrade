@@ -17,10 +17,12 @@ from accounts.permissions import (
     OVERRIDE_LOCKED_SESSION_PERMISSION,
     PROMOTE_STUDENT_PERMISSION,
     can_view_audit_log,
+    prime_permission_cache,
 )
 from accounts.services import (
+    change_own_password,
     create_platform_user,
-    record_password_reset,
+    reset_password,
     set_user_authority,
     update_platform_user,
 )
@@ -160,6 +162,13 @@ class LoginSerializer(serializers.Serializer):
         return attrs
 
 
+class PermissionPrimedListSerializer(serializers.ListSerializer[User]):
+    def to_representation(self, data: Any) -> list[Any]:
+        users = list(data)
+        prime_permission_cache(users)
+        return super().to_representation(users)
+
+
 class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
     """List, retrieve, create and update for the administrator-facing API.
 
@@ -183,6 +192,7 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     class Meta:
         model = User
+        list_serializer_class = PermissionPrimedListSerializer
         fields = (
             "id",
             "email",
@@ -283,12 +293,11 @@ class SetPasswordSerializer(serializers.Serializer):
         return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        instance.set_password(validated_data["password"])
-        instance.must_change_password = True
-        instance.save(update_fields=["password", "must_change_password"])
-        record_password_reset(instance, actor=request.user)
-        return instance
+        return reset_password(
+            instance,
+            password=validated_data["password"],
+            actor=self.context["request"].user,
+        )
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -321,9 +330,4 @@ class ChangePasswordSerializer(serializers.Serializer):
         return _validated_password(value, self.instance)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        instance.set_password(validated_data["new_password"])
-        instance.must_change_password = False
-        instance.save(update_fields=["password", "must_change_password"])
-        record_password_reset(instance, actor=request.user)
-        return instance
+        return change_own_password(instance, password=validated_data["new_password"])

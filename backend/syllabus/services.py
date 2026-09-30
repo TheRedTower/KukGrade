@@ -1,12 +1,12 @@
-"""Cumulative, effective-as-of-rank syllabus computation (FDR-041 / SCR-025).
+"""The syllabus a grading assesses: cumulative, effective as of a rank.
 
-A candidate testing for a rank is examinable on everything introduced at or
-before that rank, not just what that rank's own rows list - a later
-`SyllabusRequirement` row for the same item extends or restates the earlier
-one rather than sitting alongside it. This module is the single place that
-turns the flat, per-(rank, age_band, item) rows into that cumulative,
-one-row-per-item view, so neither the API layer nor the frontend has to
-re-derive it.
+Every grading assesses a candidate on everything examinable through the rank
+they are testing for, not only the material that rank introduces (owner
+decision, 2026-09-29). A later `SyllabusRequirement` row for the same item
+extends or restates the earlier one rather than sitting alongside it. This
+module is the one place that turns the flat per-(rank, age band, item) rows
+into that cumulative, one-row-per-item view. The syllabus browser serves it
+and assessment generation snapshots it, so the two cannot disagree (KG-A05).
 """
 
 from __future__ import annotations
@@ -15,15 +15,7 @@ import re
 from dataclasses import dataclass
 
 from ranks.models import Rank
-from syllabus.models import SyllabusItem, SyllabusRequirement
-
-# Only these two categories carry rank-specific, cumulative content - the six
-# universal core grading areas are assessed at every rank with no range to
-# accumulate, and are served as-is from SyllabusItemViewSet instead.
-CUMULATIVE_CATEGORIES = (
-    SyllabusItem.Category.TECHNIQUE_SET,
-    SyllabusItem.Category.FORM,
-)
+from syllabus.models import CATEGORY_ORDER, SyllabusRequirement
 
 _CHART_NOTATION_RE = re.compile(r"^Chart notation: \((.+)\)\.$")
 _PART_OF_RE = re.compile(r"^(\d+)/(\d+)$")
@@ -69,45 +61,56 @@ def effective_syllabus_requirements(
     rank: Rank,
     age_band: str,
 ) -> list[EffectiveSyllabusRequirement]:
-    """One effective row per Technique/Form item examinable through `rank`.
+    """One row per item examinable through `rank`, in syllabus order.
 
-    For an item mapped at more than one rank at or before the selection, the
-    highest-order (most recent) mapping supplies the effective range,
-    required/sequence state and notes; the lowest-order mapping supplies
-    where the item was first introduced. This is the accumulation and
-    provenance policy FDR-041 requires the backend, not the frontend, to
-    encode.
+    Every category is included: the six core areas, Techniques, Forms and
+    Weapons. For an item mapped at more than one rank at or before the
+    selection, the highest-order (most recent) mapping supplies the effective
+    range, required state and notes; the lowest-order mapping supplies where
+    the item was introduced. Syllabus order is the chart's category order,
+    then the order items were introduced, then the sequence they were
+    introduced with - so a technique set keeps its place however often a
+    later rank extends it.
+
+    A rank with no requirement of its own for the age band has no recorded
+    syllabus and gets nothing: serving the earlier ranks' content would
+    present it as that rank's whole curriculum.
     """
-    rows = (
+    rows = list(
         SyllabusRequirement.objects.filter(
             age_band=age_band,
             active=True,
             item__active=True,
-            item__category__in=CUMULATIVE_CATEGORIES,
             rank__order__lte=rank.order,
         )
         .select_related("rank", "item")
-        .order_by("item_id", "rank__order")
+        .order_by("item_id", "rank__order"),
     )
+    if not any(row.rank_id == rank.id for row in rows):
+        return []
 
     by_item: dict[int, list[SyllabusRequirement]] = {}
     for row in rows:
         by_item.setdefault(row.item_id, []).append(row)
 
-    effective = [
+    def syllabus_order(
+        item_rows: list[SyllabusRequirement],
+    ) -> tuple[int, int, int, str, str]:
+        introduced = item_rows[0]
+        return (
+            CATEGORY_ORDER[introduced.item.category],
+            introduced.rank.order,
+            introduced.sequence,
+            introduced.item.name,
+            introduced.item.code,
+        )
+
+    return [
         EffectiveSyllabusRequirement(
             requirement=item_rows[-1],
             introduced_rank=item_rows[0].rank,
             effective_since_rank=item_rows[-1].rank,
             is_new_at_rank=item_rows[-1].rank_id == rank.id,
         )
-        for item_rows in by_item.values()
+        for item_rows in sorted(by_item.values(), key=syllabus_order)
     ]
-    effective.sort(
-        key=lambda row: (
-            row.requirement.item.category,
-            row.requirement.sequence,
-            row.requirement.item.name,
-        ),
-    )
-    return effective

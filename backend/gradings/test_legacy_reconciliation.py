@@ -9,7 +9,7 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from data_imports.testing import legacy_batch, legacy_record
 from gradings.legacy_services import link_legacy_record_to_student
-from gradings.tests import rank, student, user
+from gradings.testing import rank, student, user
 
 pytestmark = pytest.mark.django_db
 

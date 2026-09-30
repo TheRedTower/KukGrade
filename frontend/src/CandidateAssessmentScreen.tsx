@@ -19,7 +19,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./auth";
 import {
   ApiError,
@@ -33,6 +33,7 @@ import {
 import { RankBelt } from "./Belt";
 import {
   CategoryGroup,
+  forgetDeletedAssessment,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
 import { useDialogFocus } from "./useDialogFocus";
@@ -113,7 +114,33 @@ export function CandidateAssessmentScreen() {
     },
   });
 
+  // Item writes (KG-A18). Several can be in flight at once - scoring is fast -
+  // so each keeps to its own item: writes to one item go out in the order
+  // they were made, so the server keeps the last; each confirms or rolls back
+  // only that item, and only if nothing newer was written to it since; and
+  // the item list and rollup are refetched once, when every write has landed,
+  // because a refetch between writes would overwrite those still in flight.
+  const itemsKey = ["candidateAssessmentItems", assessment?.id];
+  const itemWriteKey = ["assessmentItemWrite", assessment?.id];
+  const pendingItemWrites = useIsMutating({ mutationKey: itemWriteKey });
+  const itemWriteChains = useRef(new Map<number, Promise<unknown>>());
+  const itemWriteSeq = useRef(new Map<number, number>());
+
+  const patchItem = (
+    itemId: number,
+    change: (item: CandidateAssessmentItem) => CandidateAssessmentItem,
+  ) => {
+    queryClient.setQueryData<{ results: CandidateAssessmentItem[] }>(itemsKey, (data) =>
+      data
+        ? { ...data, results: data.results.map((item) => (item.id === itemId ? change(item) : item)) }
+        : data,
+    );
+  };
+  const isLatestWrite = (itemId: number, seq: number) =>
+    itemWriteSeq.current.get(itemId) === seq;
+
   const updateItemMutation = useMutation({
+    mutationKey: itemWriteKey,
     mutationFn: ({
       itemId,
       result,
@@ -126,46 +153,50 @@ export function CandidateAssessmentScreen() {
       const payload: { result?: CandidateAssessmentItemResult; assessor_notes?: string } = {};
       if (result !== undefined) payload.result = result;
       if (notes !== undefined) payload.assessor_notes = notes;
-      return updateCandidateAssessmentItem(itemId, payload);
+      const previous = itemWriteChains.current.get(itemId) ?? Promise.resolve();
+      const write = previous
+        .catch(() => undefined)
+        .then(() => updateCandidateAssessmentItem(itemId, payload));
+      itemWriteChains.current.set(itemId, write);
+      return write;
     },
     onMutate: async ({ itemId, result, notes }) => {
-      await queryClient.cancelQueries({ queryKey: ["candidateAssessmentItems", assessment?.id] });
-      const previous = queryClient.getQueryData<{ results: CandidateAssessmentItem[] }>([
-        "candidateAssessmentItems",
-        assessment?.id,
-      ]);
-
-      if (previous?.results) {
-        const nextResults = previous.results.map((i) =>
-          i.id === itemId
-            ? {
-                ...i,
-                result: result !== undefined ? result : i.result,
-                assessor_notes: notes !== undefined ? notes : i.assessor_notes,
-              }
-            : i,
-        );
-        queryClient.setQueryData(["candidateAssessmentItems", assessment?.id], {
-          ...previous,
-          results: nextResults,
-        });
+      await queryClient.cancelQueries({ queryKey: itemsKey });
+      const seq = (itemWriteSeq.current.get(itemId) ?? 0) + 1;
+      itemWriteSeq.current.set(itemId, seq);
+      const before = queryClient
+        .getQueryData<{ results: CandidateAssessmentItem[] }>(itemsKey)
+        ?.results.find((item) => item.id === itemId);
+      patchItem(itemId, (item) => ({
+        ...item,
+        result: result !== undefined ? result : item.result,
+        assessor_notes: notes !== undefined ? notes : item.assessor_notes,
+      }));
+      return { itemId, seq, before };
+    },
+    onSuccess: (saved, _vars, context) => {
+      if (context && isLatestWrite(context.itemId, context.seq)) {
+        patchItem(context.itemId, () => saved);
       }
-      return { previous };
     },
     onError: (err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["candidateAssessmentItems", assessment?.id], context.previous);
+      if (context?.before && isLatestWrite(context.itemId, context.seq)) {
+        const before = context.before;
+        patchItem(context.itemId, () => before);
       }
       setActionError(err instanceof ApiError ? err.message : "Could not save item evaluation.");
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessmentItems", assessment?.id] });
-      // The rollup is served now, so a scored item has to refetch it or the
-      // mat bar and category headers go stale (FDR-046).
+      // This write still counts as pending here, so 1 means it is the last.
+      if (queryClient.isMutating({ mutationKey: itemWriteKey }) > 1) return;
+      queryClient.invalidateQueries({ queryKey: itemsKey });
+      // The rollup is served, so a scored item has to refetch it or the mat
+      // bar and category headers go stale (FDR-046).
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
     },
   });
+  const isSavingItems = pendingItemWrites > 0;
 
   const deleteAssessmentMutation = useMutation({
     mutationFn: () => {
@@ -173,8 +204,12 @@ export function CandidateAssessmentScreen() {
       return deleteCandidateAssessment(assessment.id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      if (assessment && candidate) {
+        forgetDeletedAssessment(queryClient, {
+          assessmentId: assessment.id,
+          candidateId: candidate.id,
+        });
+      }
       navigate(`/gradings/${numSessionId}`);
     },
   });
@@ -227,7 +262,7 @@ export function CandidateAssessmentScreen() {
   // Clearing a required result would otherwise leave completion enabled, and a
   // completion request that won the race could seal the assessment before the
   // clear landed.
-  const canComplete = stats.canComplete && !updateItemMutation.isPending;
+  const canComplete = stats.canComplete && !isSavingItems;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
@@ -438,7 +473,7 @@ export function CandidateAssessmentScreen() {
             disabled={!canComplete}
             onClick={() => navigate(reviewPath)}
             title={
-              updateItemMutation.isPending
+              isSavingItems
                 ? "Saving the last result"
                 : stats.canComplete
                 ? "Proceed to completion review"
@@ -446,7 +481,7 @@ export function CandidateAssessmentScreen() {
             }
             data-testid="caw-complete-assessment-btn"
           >
-            {updateItemMutation.isPending
+            {isSavingItems
               ? "Saving..."
               : stats.canComplete
               ? "Complete assessment →"
@@ -637,7 +672,7 @@ function AssessmentItemRow({
     >
       <div className="caw-row-detail">
         <div className="caw-row-title-line">
-          <span className="caw-row-seq">#{item.requirement_sequence}</span>
+          <span className="caw-row-seq">#{item.position}</span>
           <span className="caw-row-name">{item.item_name}</span>
           {item.korean_name && <span className="caw-row-korean">{item.korean_name}</span>}
           {item.required ? (

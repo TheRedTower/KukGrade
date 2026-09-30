@@ -29,11 +29,13 @@ what exists today and `decision_log.md` for why.
 - `development-workflow.md` - working rules, testing expectations, and the
   one canonical list of verification commands.
 
-## Evidence
+## Historical snapshots (not current)
+
+Nothing here describes today's system; read `current-system.md` for that.
 
 - `audits/` - dated audit snapshots. Code comments and the decision log cite
-  their `KG-nnn` findings. Verify a finding against current code before
-  acting on it, and never rewrite a dated audit to look current.
+  their `KG-nnn` and `KG-Ann` findings. Verify a finding against current code
+  before acting on it, and never rewrite a dated audit to look current.
 
 ## Working agreement
 

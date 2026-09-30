@@ -6,22 +6,27 @@ from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache as django_cache
 from django.core.exceptions import ValidationError
+from django.db import connection
 from django.db.models.signals import post_save
 from django.forms import ModelForm
-from django.test import RequestFactory
+from django.test import Client, RequestFactory
+from django.test.utils import CaptureQueriesContext
+from django.urls import get_resolver
 from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from accounts.admin import UserAdmin, UserCreationForm
 from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
-from accounts.models import User
+from accounts.middleware import EXEMPT_URL_NAMES
+from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
@@ -472,6 +477,7 @@ def test_change_password_succeeds_and_is_audited_without_leaking_the_value() -> 
         action=AuditAction.USER_UPDATED, entity_id=str(user.pk)
     )
     assert event.actor == user
+    assert event.summary == "Password changed by change-pw-ok@example.com."
     assert "BrandNewPassw0rd" not in event.summary
     assert "BrandNewPassw0rd" not in str(event.metadata)
 
@@ -790,6 +796,46 @@ def test_administrators_can_list_and_retrieve() -> None:
     assert "last_login" in detail
 
 
+def test_user_list_reads_permissions_in_bulk_not_per_user() -> None:
+    client, _admin = admin_client("bulk-permission-admin@example.com")
+    create_user("bulk-permission-first@example.com")
+    client.get("/api/users/")
+
+    with CaptureQueriesContext(connection) as one:
+        assert client.get("/api/users/").status_code == 200
+    for index in range(6):
+        create_user(f"bulk-permission-{index}@example.com")
+    with CaptureQueriesContext(connection) as many:
+        response = client.get("/api/users/")
+
+    assert response.json()["count"] >= 8
+    assert len(many.captured_queries) == len(one.captured_queries)
+
+
+def test_user_list_flags_match_each_users_own_permission_check() -> None:
+    client, _admin = admin_client("flags-admin@example.com")
+    granted = grant_permission(
+        create_user("flags-granted@example.com"),
+        FINAL_GRADING_DECISION_PERMISSION,
+    )
+    instructor = create_user("flags-instructor@example.com", role=User.Role.INSTRUCTOR)
+    inactive = create_user("flags-inactive@example.com", is_active=False)
+    grant_permission(inactive, FINAL_GRADING_DECISION_PERMISSION)
+    superuser = create_user("flags-super@example.com", is_superuser=True)
+
+    rows = {row["email"]: row for row in client.get("/api/users/").json()["results"]}
+
+    for person in (granted, instructor, inactive, superuser):
+        fresh = User.objects.get(pk=person.pk)
+        for flag, permission in AUTHORITY_PERMISSIONS.items():
+            assert rows[person.email][flag] == fresh.has_perm(permission), (
+                person.email,
+                flag,
+            )
+    assert rows["flags-granted@example.com"]["can_make_final_grading_decision"]
+    assert not rows["flags-inactive@example.com"]["can_make_final_grading_decision"]
+
+
 def test_weak_password_is_rejected_with_a_field_error() -> None:
     client, _admin = admin_client("weak-password-admin@example.com")
 
@@ -995,8 +1041,6 @@ def test_administrator_cannot_delete_their_own_account() -> None:
 
 
 def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
-    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
-
     client, _admin = admin_client("placeholder-visibility-admin@example.com")
 
     list_response = client.get("/api/users/")
@@ -1008,8 +1052,6 @@ def test_deleted_user_placeholder_is_hidden_from_the_users_api() -> None:
 
 def test_deleted_user_placeholder_can_never_be_reactivated() -> None:
     from django.core.exceptions import ValidationError
-
-    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
 
     placeholder = User.objects.get(email=DELETED_USER_PLACEHOLDER_EMAIL)
     placeholder.is_active = True
@@ -1027,7 +1069,6 @@ def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
     from django.test import RequestFactory
 
     from accounts.admin import UserAdmin
-    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
 
     request = RequestFactory().get("/admin/accounts/user/")
     request.user = User.objects.create_superuser(
@@ -1042,7 +1083,6 @@ def test_deleted_user_placeholder_is_hidden_from_django_admin() -> None:
 
 
 def test_deleting_a_user_reassigns_history_to_the_placeholder_account() -> None:
-    from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL
     from gradings.models import GradingSession
 
     client, admin = admin_client("delete-history-admin@example.com")
@@ -1335,6 +1375,7 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         entity_id=created["id"],
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
+    assert event.summary == "Password reset for reset-audit-target@example.com."
     assert "kg-NewSecret-Value!" not in event.summary
     assert "kg-NewSecret-Value!" not in str(event.metadata)
 
@@ -1504,21 +1545,23 @@ def test_admin_user_update_is_audited() -> None:
     assert event.actor == request.user
 
 
-def test_admin_is_staff_only_change_is_not_blocked_by_the_service() -> None:
-    # update_platform_user()'s no-op check only tracks the five API-writable
-    # fields; is_staff is not one of them, so this must still persist even
-    # though none of those five changed.
-    target = User.objects.create_user(email="admin-staff-toggle@example.com")
-    assert target.is_staff is False
+@pytest.mark.parametrize("field", ["is_staff", "is_superuser"])
+def test_admin_only_access_change_is_not_blocked_by_the_service(field: str) -> None:
+    # update_platform_user() only applies the five API-writable fields, onto
+    # a locked copy of the row; Django admin access is not one of them, so
+    # admin must still persist a change to it even though none of those five
+    # changed.
+    target = User.objects.create_user(email=f"admin-{field}-toggle@example.com")
+    assert getattr(target, field) is False
     model_admin = UserAdmin(User, admin.site)
-    target.is_staff = True
-    request = admin_operator_request("user-admin-staff-toggler@example.com")
-    form = cast(ModelForm, SimpleNamespace(changed_data=["is_staff"]))
+    setattr(target, field, True)
+    request = admin_operator_request(f"user-admin-{field}-toggler@example.com")
+    form = cast(ModelForm, SimpleNamespace(changed_data=[field]))
 
     model_admin.save_model(request, target, form, True)
 
     target.refresh_from_db()
-    assert target.is_staff is True
+    assert getattr(target, field) is True
 
 
 # ---------------------------------------------------------------------------
@@ -1587,3 +1630,312 @@ def test_user_changing_password_clears_must_change_password() -> None:
 
     me_after = client.get("/api/auth/me/")
     assert me_after.json()["must_change_password"] is False
+
+
+# ---------------------------------------------------------------------------
+# The forced password change is enforced on every request, not just in the UI
+# ---------------------------------------------------------------------------
+
+
+def signed_in_client(
+    email: str = "forced@example.com",
+    password: str = "kg-TemporaryPass123!",
+    **kwargs: object,
+) -> tuple[APIClient, User]:
+    """A real session login, not force_authenticate.
+
+    ForcePasswordChangeMiddleware reads the session user that Django's
+    AuthenticationMiddleware established; force_authenticate never reaches it,
+    so a test using it would pass whether or not the gate exists.
+    """
+    user = create_user(email=email, password=password, **kwargs)
+    client = APIClient()
+    token = csrf_token(client)
+    response = client.post(
+        "/api/auth/login/",
+        {"email": email, "password": password},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+    assert response.status_code == 200, response.json()
+    return client, user
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/users/",
+        "/api/students/",
+        "/api/gradings/sessions/",
+        "/api/ranks/",
+        "/api/syllabus/age-bands/",
+        "/api/audit-events/",
+    ],
+)
+def test_password_change_required_blocks_every_other_endpoint(path: str) -> None:
+    client, _user = signed_in_client(
+        role=User.Role.ADMINISTRATOR,
+        must_change_password=True,
+    )
+
+    response = client.get(path)
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "password_change_required"
+
+
+def test_password_change_required_blocks_writes_too() -> None:
+    client, _user = signed_in_client(
+        role=User.Role.ADMINISTRATOR,
+        must_change_password=True,
+    )
+    token = csrf_token(client)
+
+    response = client.post(
+        "/api/students/",
+        {"first_name": "Blocked", "last_name": "Student"},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "password_change_required"
+
+
+def test_password_change_required_still_allows_taking_the_account_back() -> None:
+    client, user = signed_in_client(must_change_password=True)
+
+    me_response = client.get("/api/auth/me/")
+    assert me_response.status_code == 200
+    assert me_response.json()["must_change_password"] is True
+
+    token = csrf_token(client)
+    change_response = client.post(
+        "/api/auth/change-password/",
+        {
+            "current_password": "kg-TemporaryPass123!",
+            "new_password": "kg-BrandNewSecurePass123!",
+        },
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+    assert change_response.status_code == 204, change_response.json()
+
+    user.refresh_from_db()
+    assert user.must_change_password is False
+    assert client.get("/api/students/").status_code == 200
+
+
+def test_password_change_required_still_allows_signing_out() -> None:
+    client, _user = signed_in_client(must_change_password=True)
+    token = csrf_token(client)
+
+    response = client.post("/api/auth/logout/", format="json", HTTP_X_CSRFTOKEN=token)
+
+    assert response.status_code == 204
+
+
+def test_password_change_required_still_serves_the_frontend_shell() -> None:
+    client, _user = signed_in_client(must_change_password=True)
+
+    for path in ("/api/site/", "/api/health/"):
+        assert client.get(path).status_code == 200, path
+
+
+def test_password_change_not_required_leaves_every_endpoint_reachable() -> None:
+    client, _user = signed_in_client(role=User.Role.ADMINISTRATOR)
+
+    assert client.get("/api/users/").status_code == 200
+    assert client.get("/api/students/").status_code == 200
+
+
+def test_password_change_required_does_not_gate_anonymous_requests() -> None:
+    client = APIClient()
+    create_user(email="stranger@example.com", must_change_password=True)
+
+    response = client.get("/api/students/")
+
+    # Still the ordinary "not signed in" refusal, not the password gate.
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] != "password_change_required"
+
+
+def test_exempt_url_names_all_resolve() -> None:
+    """A renamed or removed URL must not leave a stale exemption behind."""
+    known = {name for name in get_resolver().reverse_dict if isinstance(name, str)}
+    assert EXEMPT_URL_NAMES <= known, EXEMPT_URL_NAMES - known
+
+
+def test_session_authentication_is_the_only_authentication_class() -> None:
+    """The gate reads the session user; a token class would authenticate past it."""
+    assert settings.REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] == [
+        "rest_framework.authentication.SessionAuthentication",
+    ]
+
+
+def test_self_service_password_change_is_audited_against_the_user() -> None:
+    """request.user is a SimpleLazyObject; the event must name the real model."""
+    client, user = signed_in_client(must_change_password=True)
+    token = csrf_token(client)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {
+            "current_password": "kg-TemporaryPass123!",
+            "new_password": "kg-BrandNewSecurePass123!",
+        },
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 204, response.json()
+    event = AuditEvent.objects.filter(entity_id=str(user.pk)).latest("occurred_at")
+    assert event.entity_type == "User"
+    assert event.actor_email == user.email
+
+
+def test_self_name_edit_is_audited_against_the_user() -> None:
+    """The same SimpleLazyObject path as change-password, via PATCH me."""
+    client, user = signed_in_client(email="renamer@example.com")
+    token = csrf_token(client)
+
+    response = client.patch(
+        "/api/auth/me/",
+        {"first_name": "Renamed", "last_name": "Person"},
+        format="json",
+        HTTP_X_CSRFTOKEN=token,
+    )
+
+    assert response.status_code == 200, response.json()
+    event = AuditEvent.objects.filter(entity_id=str(user.pk)).latest("occurred_at")
+    assert event.entity_type == "User"
+
+
+# ---------------------------------------------------------------------------
+# Every admin write lands like the API's, with its audit event (KG-A14)
+# ---------------------------------------------------------------------------
+
+NEW_SECRET = "An0ther-Str0ng-Passphrase!"
+
+
+def admin_site_client(email: str) -> tuple[Client, User]:
+    operator = User.objects.create_superuser(email=email)
+    client = Client()
+    client.force_login(operator)
+    return client, operator
+
+
+def test_an_admin_site_password_change_forces_a_new_one_and_is_audited() -> None:
+    client, operator = admin_site_client("admin-site-password@example.com")
+    target = create_user(email="admin-site-target@example.com")
+
+    response = client.post(
+        f"/admin/accounts/user/{target.pk}/password/",
+        {"password1": NEW_SECRET, "password2": NEW_SECRET},
+    )
+
+    assert response.status_code == 302
+    target.refresh_from_db()
+    assert target.check_password(NEW_SECRET)
+    assert target.must_change_password is True
+    event = AuditEvent.objects.get(
+        action=AuditAction.USER_UPDATED,
+        entity_id=str(target.pk),
+    )
+    assert event.actor == operator
+    assert NEW_SECRET not in event.summary
+    assert NEW_SECRET not in str(event.metadata)
+
+
+@pytest.mark.parametrize("path", ["reset", "own"])
+def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
+    client, operator = admin_client("password-audit-fails@example.com")
+    target = create_user(email="password-audit-target@example.com")
+    target.set_password("Orig1nal-Passphrase!")
+    target.save()
+    if path == "own":
+        client.force_authenticate(user=target)
+        url, body = (
+            "/api/auth/change-password/",
+            {"current_password": "Orig1nal-Passphrase!", "new_password": NEW_SECRET},
+        )
+    else:
+        url, body = f"/api/users/{target.pk}/set-password/", {"password": NEW_SECRET}
+
+    with (
+        patch("accounts.services.record", side_effect=RuntimeError("audit")),
+        pytest.raises(RuntimeError),
+    ):
+        client.post(url, body, format="json")
+
+    target.refresh_from_db()
+    assert target.check_password("Orig1nal-Passphrase!")
+    assert target.must_change_password is False
+
+
+def test_admin_site_access_changes_are_audited_and_resends_are_not() -> None:
+    target = create_user(email="admin-access-target@example.com")
+    model_admin = UserAdmin(User, admin.site)
+    request = admin_operator_request("admin-access-operator@example.com")
+    target.is_staff = True
+
+    model_admin.save_model(
+        request,
+        target,
+        cast(ModelForm, SimpleNamespace(changed_data=["is_staff"])),
+        True,
+    )
+    model_admin.save_model(
+        request,
+        target,
+        cast(ModelForm, SimpleNamespace(changed_data=["is_staff"])),
+        True,
+    )
+
+    [event] = AuditEvent.objects.filter(
+        action=AuditAction.USER_UPDATED,
+        entity_id=str(target.pk),
+    )
+    assert event.metadata["before"] == {"is_staff": False, "is_superuser": False}
+    assert event.metadata["after"] == {"is_staff": True, "is_superuser": False}
+    assert event.actor == request.user
+
+
+def test_admin_cannot_edit_groups_or_per_user_permissions() -> None:
+    # Master authority is granted through set_user_authority() and its
+    # rules; the admin form must not offer a way around them.
+    request = RequestFactory().get("/admin/")
+    request.user = User.objects.create_superuser("perm-form-admin@example.com")
+    target = create_user(email="perm-form-target@example.com")
+
+    form = UserAdmin(User, admin.site).get_form(request, target)
+
+    assert "groups" not in form.base_fields
+    assert "user_permissions" not in form.base_fields
+
+
+def test_admin_user_delete_goes_through_the_service() -> None:
+    model_admin = UserAdmin(User, admin.site)
+    request = admin_operator_request("admin-delete-operator@example.com")
+    target = create_user(email="admin-delete-target@example.com")
+    record(AuditAction.USER_UPDATED, target, "History to keep.", actor=target)
+
+    assert model_admin.get_deleted_objects([target], request)[3] == []
+    model_admin.delete_model(request, target)
+
+    assert not User.objects.filter(pk=target.pk).exists()
+    kept = AuditEvent.objects.get(summary="History to keep.")
+    assert kept.actor is not None
+    assert kept.actor.email == DELETED_USER_PLACEHOLDER_EMAIL
+    assert AuditEvent.objects.filter(
+        action=AuditAction.USER_DELETED,
+        actor=request.user,
+    ).exists()
+
+
+def test_admin_offers_no_way_to_delete_your_own_account() -> None:
+    request = admin_operator_request("admin-self-delete@example.com")
+
+    model_admin = UserAdmin(User, admin.site)
+
+    assert model_admin.has_delete_permission(request, request.user) is False

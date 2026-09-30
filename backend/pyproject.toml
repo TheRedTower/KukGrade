@@ -10,8 +10,8 @@ dependencies = [
     "djangorestframework>=3.16,<4.0",
     "drf-spectacular>=0.30.0",
     "gunicorn>=26.2,<27.0",
+    "openpyxl>=3.1,<4.0",
     "psycopg[binary]>=3.2,<4.0",
-    "tablib[xlsx]>=3.10.0",
     "whitenoise[brotli]>=6.12,<7.0",
 ]
 
@@ -58,14 +58,8 @@ strict = true
 warn_unreachable = true
 disallow_any_generics = false
 
-# No published type stubs.
-[[tool.mypy.overrides]]
-module = "tablib.*"
-ignore_missing_imports = true
-
-# No published type stubs. Pulled in transitively via tablib[xlsx]; imported
-# directly here for the KSW workbook adapter's multi-sheet/auxiliary-section
-# scanning, which Tablib's single-table Dataset cannot do.
+# No published type stubs. Reads every uploaded .xlsx: the roster reader and
+# the KSW workbook adapter (data_imports/parsers.py, ksw_adapter.py).
 [[tool.mypy.overrides]]
 module = "openpyxl.*"
 ignore_missing_imports = true

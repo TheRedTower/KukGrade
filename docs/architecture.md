@@ -19,17 +19,31 @@
 | `audit` | The append-only `AuditEvent` log and the one `record()` function that writes it |
 | `ranks` | The seeded rank catalogue |
 | `students` | Students, their status, and their rank and grading history reads |
-| `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative effective-syllabus read model |
+| `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative resolver behind both the syllabus screen and assessment generation |
 | `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, and imported `LegacyGradingRecord`s |
 | `data_imports` | Import batches: student-roster import and the historical-workbook adapter |
 | `health` | Liveness (`/api/health/`) and database readiness (`/api/ready/`) |
 
-Every state change goes through a service function (`<app>/services.py`)
+Every state change goes through a service function (`<app>/services.py`;
+`gradings` splits its services by domain into `services.py`,
+`assessment_services.py`, `outcome_services.py` and `legacy_services.py`)
 that validates it, writes it inside a transaction, and records its audit
 event in that same transaction. Views, serializers, and Django admin all
 call those services, so the rules and the audit trail are identical however
-a change arrives. Models additionally refuse illegal states themselves, so the
-shell and bulk querysets cannot bypass them.
+a change arrives. Models additionally refuse the most important illegal
+states themselves - session status changes, deletion rules, and changes to
+finalised outcomes, promotions, audit events and imported source text - so
+the shell and bulk querysets cannot bypass those. Assessment snapshot and
+completion rules are enforced by the services, serializers and admin, not by
+the models (see `backend/README.md`).
+
+Concurrent grading writes follow one lock protocol, `gradings/locking.py`:
+a grading session's row lock is taken first and coordinates everything inside
+that session; students, the one row two sessions share, are locked after it in
+ascending id; validation runs only against rows re-read under those locks. A
+service never saves the instance it was handed - it applies the requested
+fields to the locked row. Student and user edits lock their own row the same
+way.
 
 ## Frontend
 

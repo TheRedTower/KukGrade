@@ -110,7 +110,7 @@ def test_an_event_about_an_undeclared_entity_type_is_refused() -> None:
 
 
 def test_revising_a_proposal_records_what_it_said_before() -> None:
-    from gradings.services import propose_candidate_outcome
+    from gradings.outcome_services import propose_candidate_outcome
 
     outcome, first, second = locked_completed_candidate_with_outcome()
 

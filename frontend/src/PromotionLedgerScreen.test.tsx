@@ -66,6 +66,10 @@ const mockSession: GradingSession = {
   title: "Autumn 2026 Grading",
   status: "LOCKED",
   status_display: "Locked",
+  candidate_count: 0,
+  completed_assessment_count: 0,
+  awaiting_decision_count: 0,
+  can_be_deleted: false,
   grading_date: "2026-10-15",
   location: "Main Dojang",
   notes: "Annual autumn examination",
@@ -85,7 +89,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -104,7 +107,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Blue Stripe",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -123,7 +125,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -142,7 +143,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -161,7 +161,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -180,7 +179,6 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
     status: "REGISTERED",
-    notes: "",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -413,6 +411,25 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Diana Prince")).toBeInTheDocument();
     expect(screen.getByText("Ethan Hunt")).toBeInTheDocument();
     expect(screen.getByText("Fiona Gallagher")).toBeInTheDocument();
+  });
+
+  it("blocks promotion when the promotions could not be loaded, until a retry succeeds", async () => {
+    // Without promotions, Carlos (already promoted) would read as eligible.
+    mockGetPromotions.mockRejectedValueOnce(new Error("offline"));
+    const user = userEvent.setup();
+    renderScreen(1);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("could not be loaded");
+    expect(screen.queryByText("Carlos Rivera")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Promote Qualified Cohort/i })).toBeDisabled();
+
+    await user.click(within(alert).getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("Carlos Rivera")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i }),
+    ).toBeEnabled();
   });
 
   it("displays correct eligibility badges and action states across candidate statuses", async () => {

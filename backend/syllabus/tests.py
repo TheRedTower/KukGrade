@@ -322,63 +322,6 @@ def test_ambiguous_optional_black_belt_material_is_not_seeded_as_requirement() -
     assert SyllabusItem.objects.filter(code__in=optional_codes).count() == 3
 
 
-def test_syllabus_item_api_requires_authentication() -> None:
-    response = APIClient().get("/api/syllabus/items/")
-
-    assert response.status_code == 403
-
-
-def test_syllabus_item_api_lists_items() -> None:
-    response = auth_client().get("/api/syllabus/items/?page_size=200")
-
-    assert response.status_code == 200
-    assert "Ki Bohn Soo" in {row["name"] for row in results(response)}
-
-
-def test_syllabus_item_api_orders_core_categories_like_the_wksa_chart() -> None:
-    """Etiquette..Breaking, then Techniques/Forms - not alphabetical.
-
-    FDR-041's core-grading-areas strip relies on this order coming from the
-    API rather than a hardcoded frontend sequence.
-    """
-    client = auth_client()
-
-    response = client.get("/api/syllabus/items/?page_size=100")
-
-    categories = [row["category"] for row in results(response)]
-    core_categories_seen = [
-        category
-        for category in categories
-        if category
-        in {
-            "ETIQUETTE",
-            "FUNDAMENTALS",
-            "HAND_TECHNIQUES",
-            "KICKING",
-            "FALLING",
-            "BREAKING",
-        }
-    ]
-    assert core_categories_seen == [
-        "ETIQUETTE",
-        "FUNDAMENTALS",
-        "HAND_TECHNIQUES",
-        "KICKING",
-        "FALLING",
-        "BREAKING",
-    ]
-    # Techniques and Forms both come after every core area.
-    last_core_index = max(
-        index
-        for index, category in enumerate(categories)
-        if category in core_categories_seen
-    )
-    assert all(
-        category in {"TECHNIQUE_SET", "FORM", "WEAPONS", "OTHER"}
-        for category in categories[last_core_index + 1 :]
-    )
-
-
 # ---------------------------------------------------------------------------
 # Cumulative effective requirements (FDR-041 / SCR-025)
 # ---------------------------------------------------------------------------
@@ -461,16 +404,233 @@ def test_effective_syllabus_requirement_blue_stripe_regression() -> None:
     assert ki_cho_hyung["is_new_at_rank"] is False
 
 
-def test_effective_syllabus_requirement_only_returns_technique_and_form_items() -> None:
-    client = auth_client()
+def ledger(category: str, *rows: tuple[str, str]) -> list[tuple[str, str, str]]:
+    return [(category, code, shown) for code, shown in rows]
 
-    response = client.get(
-        "/api/syllabus/requirements/effective/"
-        f"?rank_code=WHITE&age_band={AgeBand.AGE_13_TO_17}",
+
+CORE_AREAS = [
+    ("ETIQUETTE", "YEA_EUE", ""),
+    ("FUNDAMENTALS", "KI_CHO_JAH_KI", ""),
+    ("HAND_TECHNIQUES", "SOO_KI", ""),
+    ("KICKING", "JOHK_SOOL", ""),
+    ("FALLING", "NAHK_BUP", ""),
+    ("BREAKING", "KYUK_PAH", ""),
+]
+ADULT_COLOURED_BELT_TECHNIQUES = (
+    ("SOHN_PPAE_KI", "1-5"),
+    ("KI_BOHN_SOO", "1-15"),
+    ("SOHN_MOHK_SOO", "1-11"),
+    ("EUE_BOHK_SOO", "1-13"),
+    ("AHN_SOHN_MOHK_SOO", "1-6"),
+    ("MAEK_CHI_KI", "1-15"),
+    ("MAEK_CHA_KI", "1-15"),
+    ("JOO_MUHK_MAGA_KI_BON_SOO", "1-15"),
+)
+YOUTH_BLACK_BELT_TECHNIQUES = (
+    ("JOONG_GEUP_SOHN_MOHK_SOO", "1-7"),
+    ("AHP_EUE_BOHK_SOO", "1-20"),
+    ("DEE_EUE_BOHK_SOO", "1-23"),
+    ("KWAHN_JUHL_KI", "1-13"),
+    ("TOO_KI", "1-13"),
+)
+JKN_FORMS_AFTER_CHO_GEUP = (
+    ("JOONG_GEUP_HYUNG", ""),
+    ("GOH_GEUP_HYUNG", ""),
+    ("DAE_GEUP_HYUNG", ""),
+    ("GUHM_MOO_HYUNG", ""),
+)
+
+# Owner decisions of 2026-09-29: every grading assesses everything examinable
+# through the testing rank; at JKN adults do all seven black-belt technique
+# sets, juniors spin the staff 1-10 and everyone else 1-15. Each row is
+# (category, item, range or chart notation as shown), in syllabus order.
+WORKED_EXAMPLES = [
+    (
+        "BLUE_STRIPE",
+        AgeBand.AGE_8_AND_UNDER,
+        [
+            *CORE_AREAS,
+            *ledger("TECHNIQUE_SET", ("SOHN_PPAE_KI", "1-5"), ("KI_BOHN_SOO", "1-10")),
+            *ledger("FORM", ("KI_CHO_HYUNG", "1-6")),
+        ],
+    ),
+    (
+        "BLUE_STRIPE",
+        AgeBand.AGE_9_TO_12,
+        [
+            *CORE_AREAS,
+            *ledger("TECHNIQUE_SET", ("SOHN_PPAE_KI", "1-5"), ("KI_BOHN_SOO", "1-15")),
+            *ledger("FORM", ("KI_CHO_HYUNG", "1-6"), ("CHO_GEUP_HYUNG", "")),
+        ],
+    ),
+    *[
+        (
+            "BLUE_STRIPE",
+            age_band,
+            [
+                *CORE_AREAS,
+                *ledger(
+                    "TECHNIQUE_SET",
+                    ("SOHN_PPAE_KI", "1-5"),
+                    ("KI_BOHN_SOO", "1-15"),
+                    ("SOHN_MOHK_SOO", "1-5"),
+                ),
+                *ledger(
+                    "FORM",
+                    ("KI_CHO_HYUNG", "1-6"),
+                    ("CHO_GEUP_HYUNG", "Part 1 of 2"),
+                ),
+            ],
+        )
+        for age_band in (AgeBand.AGE_13_TO_17, AgeBand.AGE_18_AND_OVER)
+    ],
+    (
+        "JKN",
+        AgeBand.AGE_8_AND_UNDER,
+        [
+            *CORE_AREAS,
+            *ledger(
+                "TECHNIQUE_SET",
+                ("SOHN_PPAE_KI", "1-5"),
+                ("KI_BOHN_SOO", "1-15"),
+                ("SOHN_MOHK_SOO", "1-11"),
+                ("EUE_BOHK_SOO", "1-13"),
+                ("AHN_SOHN_MOHK_SOO", "1-6"),
+                ("MAEK_CHI_KI", "1-15"),
+                ("MAEK_CHA_KI", "1-15"),
+                ("JOO_MUHK_MAGA_KI_BON_SOO", "1-15"),
+            ),
+            *ledger(
+                "FORM",
+                ("KI_CHO_HYUNG", "1-6"),
+                ("CHO_GEUP_HYUNG", "Part 3"),
+                *JKN_FORMS_AFTER_CHO_GEUP,
+            ),
+            *ledger("WEAPONS", ("SWORD_TECHS", "1-5"), ("BOHNG_DOL_LI_KI", "1-10")),
+        ],
+    ),
+    (
+        "JKN",
+        AgeBand.AGE_9_TO_12,
+        [
+            *CORE_AREAS,
+            *ledger(
+                "TECHNIQUE_SET",
+                ("SOHN_PPAE_KI", "1-5"),
+                ("KI_BOHN_SOO", "1-15"),
+                ("SOHN_MOHK_SOO", "1-11"),
+                ("EUE_BOHK_SOO", "1-13"),
+                ("AHN_SOHN_MOHK_SOO", "1-6"),
+                ("MAEK_CHI_KI", "1-15"),
+                ("JOONG_GEUP_SOHN_MOHK_SOO", "1-7"),
+                ("AHP_EUE_BOHK_SOO", "1-20"),
+            ),
+            *ledger(
+                "FORM",
+                ("KI_CHO_HYUNG", "1-6"),
+                ("CHO_GEUP_HYUNG", ""),
+                *JKN_FORMS_AFTER_CHO_GEUP,
+            ),
+            *ledger("WEAPONS", ("SWORD_TECHS", "1-5"), ("BOHNG_DOL_LI_KI", "1-10")),
+        ],
+    ),
+    (
+        "JKN",
+        AgeBand.AGE_13_TO_17,
+        [
+            *CORE_AREAS,
+            *ledger(
+                "TECHNIQUE_SET",
+                *ADULT_COLOURED_BELT_TECHNIQUES,
+                *YOUTH_BLACK_BELT_TECHNIQUES,
+            ),
+            *ledger(
+                "FORM",
+                ("KI_CHO_HYUNG", "1-6"),
+                ("CHO_GEUP_HYUNG", ""),
+                *JKN_FORMS_AFTER_CHO_GEUP,
+            ),
+            *ledger("WEAPONS", ("SWORD_TECHS", "1-5"), ("BOHNG_DOL_LI_KI", "1-15")),
+        ],
+    ),
+    (
+        "JKN",
+        AgeBand.AGE_18_AND_OVER,
+        [
+            *CORE_AREAS,
+            *ledger(
+                "TECHNIQUE_SET",
+                *ADULT_COLOURED_BELT_TECHNIQUES,
+                *YOUTH_BLACK_BELT_TECHNIQUES,
+                ("MOHK_JOH_LEU_KI", "1-5"),
+                ("BAHNG_TOO_KI", "1-10"),
+            ),
+            *ledger(
+                "FORM",
+                ("KI_CHO_HYUNG", "1-6"),
+                ("CHO_GEUP_HYUNG", ""),
+                *JKN_FORMS_AFTER_CHO_GEUP,
+            ),
+            *ledger("WEAPONS", ("SWORD_TECHS", "1-5"), ("BOHNG_DOL_LI_KI", "1-15")),
+        ],
+    ),
+]
+
+
+@pytest.mark.parametrize(("rank_code", "age_band", "expected"), WORKED_EXAMPLES)
+def test_effective_syllabus_is_everything_examinable_through_the_rank(
+    rank_code: str,
+    age_band: str,
+    expected: list[tuple[str, str, str]],
+) -> None:
+    response = auth_client().get(
+        "/api/syllabus/requirements/effective/",
+        {"rank_code": rank_code, "age_band": age_band, "page_size": "200"},
     )
 
     assert response.status_code == 200
-    assert {row["category"] for row in results(response)} <= {"TECHNIQUE_SET", "FORM"}
+    rows = results(response)
+    assert [
+        (row["category"], row["item_code"], row["display_range"] or row["notation"])
+        for row in rows
+    ] == expected
+    assert all(row["required"] for row in rows)
+
+
+@pytest.mark.parametrize("rank_code", ["WHITE", "KSN", "PKJN"])
+@pytest.mark.parametrize("age_band", AgeBand.values)
+def test_effective_syllabus_is_empty_for_a_rank_with_no_recorded_syllabus(
+    rank_code: str,
+    age_band: str,
+) -> None:
+    # KSN and above have no syllabus recorded yet. Serving everything through
+    # JKN for them would present it as their whole curriculum.
+    response = auth_client().get(
+        "/api/syllabus/requirements/effective/",
+        {"rank_code": rank_code, "age_band": age_band},
+    )
+
+    assert response.status_code == 200
+    assert results(response) == []
+
+
+def test_effective_syllabus_serves_each_category_label() -> None:
+    response = auth_client().get(
+        "/api/syllabus/requirements/effective/",
+        {"rank_code": "JKN", "age_band": AgeBand.AGE_18_AND_OVER, "page_size": "200"},
+    )
+
+    labels = {row["category"]: row["category_display"] for row in results(response)}
+    assert labels == {
+        category: label
+        for category, label in SyllabusItem.Category.choices
+        if category != SyllabusItem.Category.OTHER
+    }
+
+
+def test_syllabus_items_endpoint_is_gone() -> None:
+    # The effective view serves every category, the core areas included.
+    assert auth_client().get("/api/syllabus/items/").status_code == 404
 
 
 def test_effective_syllabus_requirement_is_isolated_by_age_band() -> None:
@@ -546,11 +706,9 @@ def test_normalize_chart_notation(notes: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ("method", "path"),
     [
-        ("post", "/api/syllabus/items/"),
-        ("put", "/api/syllabus/items/"),
-        ("patch", "/api/syllabus/items/"),
-        ("delete", "/api/syllabus/items/"),
         ("post", "/api/syllabus/requirements/effective/"),
+        ("put", "/api/syllabus/requirements/effective/"),
+        ("patch", "/api/syllabus/requirements/effective/"),
         ("delete", "/api/syllabus/requirements/effective/"),
         ("post", "/api/syllabus/age-bands/"),
     ],
@@ -631,6 +789,44 @@ def test_syllabus_seed_reverse_targets_only_exact_seeded_rows() -> None:
         age_band=AgeBand.AGE_13_TO_17,
         item__code="KI_BOHN_SOO",
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_adult_jkn_technique_sets_migration_reverses_to_the_seed() -> None:
+    def adult_jkn_technique_sets() -> list[tuple[str, int]]:
+        return list(
+            SyllabusRequirement.objects.filter(
+                rank__code="JKN",
+                age_band=AgeBand.AGE_18_AND_OVER,
+                item__category=SyllabusItem.Category.TECHNIQUE_SET,
+            )
+            .order_by("sequence")
+            .values_list("item__code", "sequence"),
+        )
+
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+    assert adult_jkn_technique_sets() == [
+        ("JOONG_GEUP_SOHN_MOHK_SOO", 100),
+        ("AHP_EUE_BOHK_SOO", 110),
+        ("DEE_EUE_BOHK_SOO", 120),
+        ("KWAHN_JUHL_KI", 130),
+        ("TOO_KI", 140),
+        ("MOHK_JOH_LEU_KI", 150),
+        ("BAHNG_TOO_KI", 160),
+    ]
+
+    try:
+        executor.migrate([("syllabus", "0002_seed_wksa_2014_syllabus")])
+        assert adult_jkn_technique_sets() == [
+            ("MOHK_JOH_LEU_KI", 100),
+            ("BAHNG_TOO_KI", 110),
+        ]
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+    assert len(adult_jkn_technique_sets()) == 7
 
 
 def test_seed_migration_has_no_duplicate_in_memory_tuples() -> None:

@@ -38,6 +38,7 @@ import "./CandidateAssessment.css";
 import "./CohortAdjudication.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 
 type StagedDecision = {
@@ -140,6 +141,9 @@ export function CohortAdjudicationScreen() {
     rows.find((row) => row.candidate.id === focusId) ??
     rows.find((row) => row.decidable) ??
     rows[0];
+  // A single decision is recorded beside its evidence, so not before that
+  // evidence has loaded (KG-A16).
+  const focusEvidenceLoaded = useSealedEvidenceLoaded(focusRow?.assessment?.id);
 
   function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {
     const outcomeId = row.outcome?.id;
@@ -491,7 +495,9 @@ export function CohortAdjudicationScreen() {
                 <button
                   type="button"
                   className="btn-secondary cab-record-one"
-                  disabled={isRecording || missingRequirements(focusDecision)}
+                  disabled={
+                    isRecording || missingRequirements(focusDecision) || !focusEvidenceLoaded
+                  }
                   onClick={() => record([focusRow.outcome!.id])}
                 >
                   Record decision for {focusRow.candidate.student_display_name.split(" ")[0]}

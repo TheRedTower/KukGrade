@@ -38,6 +38,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
         "KUKGRADE_CLUB_NAME",
+        "DJANGO_TIME_ZONE",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -221,3 +222,36 @@ def test_club_name_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -
 
     assert configured.CLUB_NAME == "Kuk Sool Won Colchester"
     assert unset.CLUB_NAME == "Kuk Sool Won"
+
+
+def test_time_zone_defaults_to_london(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV)
+
+    assert settings.TIME_ZONE == "Europe/London"
+    assert settings.USE_TZ is True
+
+
+def test_time_zone_is_declared_in_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(
+        monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="America/New_York"
+    )
+
+    assert settings.TIME_ZONE == "America/New_York"
+
+
+def test_a_blank_time_zone_falls_back_to_the_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="  ")
+
+    assert settings.TIME_ZONE == "Europe/London"
+
+
+@pytest.mark.parametrize("bad", ["Mars/Olympus", "London", "../etc/passwd"])
+def test_an_unknown_time_zone_stops_startup(
+    monkeypatch: pytest.MonkeyPatch, bad: str
+) -> None:
+    with pytest.raises(ImproperlyConfigured, match="DJANGO_TIME_ZONE"):
+        load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE=bad)

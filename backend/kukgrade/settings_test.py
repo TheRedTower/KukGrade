@@ -15,13 +15,21 @@ covered explicitly by `kukgrade/tests.py`.
 
 from __future__ import annotations
 
+import atexit
 import os
+import shutil
+import tempfile
 
 os.environ.setdefault("DJANGO_DEBUG", "true")
 os.environ.setdefault(
     "DJANGO_SECRET_KEY",
     "test-only-secret-key-not-used-outside-the-test-suite",
 )
+# Uploaded test files go to a throwaway directory, removed when the run
+# ends, never the development server's upload folder.
+_UPLOAD_ROOT = tempfile.mkdtemp(prefix="kukgrade-test-uploads-")
+atexit.register(shutil.rmtree, _UPLOAD_ROOT, ignore_errors=True)
+os.environ["KUKGRADE_IMPORT_UPLOAD_ROOT"] = _UPLOAD_ROOT
 
 from kukgrade.settings import *  # noqa: E402,F403
 from kukgrade.settings import REST_FRAMEWORK  # noqa: E402

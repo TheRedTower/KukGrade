@@ -18,7 +18,8 @@ from typing import Any
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import Http404, HttpRequest, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.views.defaults import page_not_found
 from rest_framework import exceptions, status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
@@ -87,7 +88,7 @@ def _validation_payload(detail: Any) -> dict[str, Any]:
     }
 
 
-def _error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
+def error_payload(code: str, message: str) -> dict[str, dict[str, Any]]:
     return {"error": {"code": code, "message": message}}
 
 
@@ -126,13 +127,13 @@ def custom_exception_handler(
 
     detail = getattr(exc, "detail", None)
     message = str(detail) if detail is not None else str(exc)
-    response.data = _error_payload(_error_code(exc), message)
+    response.data = error_payload(_error_code(exc), message)
     return response
 
 
 def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:
     return JsonResponse(
-        _error_payload("csrf_failed", "CSRF verification failed."),
+        error_payload("csrf_failed", "CSRF verification failed."),
         status=status.HTTP_403_FORBIDDEN,
     )
 
@@ -149,9 +150,24 @@ def server_error(request: HttpRequest, *args: Any, **kwargs: Any) -> JsonRespons
     belongs in the logs, not in a response.
     """
     return JsonResponse(
-        _error_payload(
+        error_payload(
             "server_error",
             "Something went wrong on the server. Please try again.",
         ),
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+def not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
+    """Handler404: an unknown `/api/` URL answers in the API's envelope.
+
+    DRF only envelopes a 404 raised inside one of its views; a URL that
+    matches no route never reaches one, and got Django's HTML page instead
+    (KG-A22). Everything outside the API keeps Django's own page.
+    """
+    if request.path.startswith("/api/"):
+        return JsonResponse(
+            error_payload("not_found", "No API endpoint matches this URL."),
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return page_not_found(request, exception)

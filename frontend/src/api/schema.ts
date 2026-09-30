@@ -726,6 +726,23 @@ export interface paths {
         patch: operations["gradings_sessions_partial_update"];
         trace?: never;
     };
+    "/api/gradings/sessions/years/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every year that has a grading session, newest first. */
+        get: operations["gradings_sessions_years_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/withdrawal-reasons/": {
         parameters: {
             query?: never;
@@ -897,22 +914,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/syllabus/items/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["syllabus_items_list"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/syllabus/requirements/effective/": {
         parameters: {
             query?: never;
@@ -921,13 +922,11 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Cumulative Technique/Form requirements examinable through a rank.
+         * @description Everything a grading for this rank and age band assesses, in order.
          *
-         *     FDR-041 / SCR-025: the plain list above only ever returns rows
-         *     attached directly to one rank, which cannot express that a later
-         *     rank's mapping for the same item extends or restates an earlier
-         *     one. This mode does - see `syllabus.services.
-         *     effective_syllabus_requirements` for the accumulation policy.
+         *     The same rows assessment generation snapshots - see `syllabus.
+         *     services.effective_syllabus_requirements` for the accumulation
+         *     policy. Empty when no syllabus is recorded for the rank.
          */
         get: operations["syllabus_requirements_effective_list"];
         put?: never;
@@ -1092,6 +1091,7 @@ export interface components {
     schemas: {
         /**
          * @description * `SESSION_CREATED` - Grading session created
+         *     * `SESSION_UPDATED` - Grading session updated
          *     * `SESSION_TRANSITIONED` - Grading session transitioned
          *     * `SESSION_DELETED` - Grading session deleted
          *     * `CANDIDATE_REGISTERED` - Candidate registered
@@ -1100,6 +1100,7 @@ export interface components {
          *     * `CANDIDATE_DELETED` - Candidate deleted
          *     * `ASSESSMENT_GENERATED` - Assessment generated
          *     * `ASSESSMENT_STARTED` - Assessment started
+         *     * `ASSESSMENT_UPDATED` - Assessment notes updated
          *     * `ASSESSMENT_COMPLETED` - Assessment completed
          *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
@@ -1125,7 +1126,7 @@ export interface components {
          *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
          * @enum {string}
          */
-        ActionEnum: "SESSION_CREATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
+        ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
         /** @description One age band, from its code: label, description and programme. */
         AgeBand: {
             readonly code: components["schemas"]["AgeBandEnum"];
@@ -1247,8 +1248,6 @@ export interface components {
         BulkCandidateRegistrationItemRequest: {
             student: number;
             testing_for_rank?: number;
-            /** @default  */
-            notes?: string;
         };
         BulkCandidateRegistrationRequest: {
             session: number;
@@ -1306,7 +1305,7 @@ export interface components {
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
-            readonly requirement_sequence: number;
+            readonly position: number;
             readonly required: boolean;
             readonly display_range: string;
             readonly requirement_notes: string;
@@ -1386,7 +1385,7 @@ export interface components {
          */
         DatePrecisionEnum: "MONTH" | "DAY";
         /**
-         * @description One cumulative Technique/Form row for a selected rank and age band.
+         * @description One cumulative row for a selected rank and age band, in syllabus order.
          *
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
          *     the effective (latest applicable) `SyllabusRequirement` row, so most
@@ -1399,6 +1398,7 @@ export interface components {
             readonly item_name: string;
             readonly item_korean_name: string;
             readonly category: string;
+            readonly category_display: string;
             readonly required: boolean;
             readonly display_range: string;
             readonly notation: string;
@@ -1412,19 +1412,18 @@ export interface components {
         GradingCandidate: {
             readonly id: number;
             session: number;
-            student: number;
+            readonly student: number;
             readonly student_display_name: string;
             readonly student_wksa_id: string;
             readonly from_rank: number;
             readonly from_rank_name: string;
-            testing_for_rank: number;
+            readonly testing_for_rank: number;
             readonly testing_for_rank_name: string;
             readonly age_band_display: string;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
+            readonly status: components["schemas"]["GradingCandidateStatusEnum"];
+            readonly withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
             readonly withdrawal_reason_display: string;
-            withdrawal_note?: string;
+            readonly withdrawal_note: string;
             readonly can_be_moved: boolean;
             readonly can_be_removed: boolean;
         };
@@ -1458,6 +1457,11 @@ export interface components {
             readonly status_display: string;
             location?: string;
             notes?: string;
+            readonly candidate_count: number;
+            readonly completed_assessment_count: number;
+            readonly awaiting_decision_count: number;
+            /** @description Whether the requesting user may delete it, by the delete's own rule. */
+            readonly can_be_deleted: boolean;
         };
         GradingSessionRequest: {
             title: string;
@@ -1477,15 +1481,15 @@ export interface components {
          * @enum {string}
          */
         GradingSessionStatusEnum: "DRAFT" | "OPEN" | "LOCKED" | "COMPLETED" | "CANCELLED";
+        GradingYears: {
+            readonly years: number[];
+        };
         HealthResponse: {
             service: string;
             status: string;
         };
         ImportBatch: {
             readonly id: number;
-            readonly kind: components["schemas"]["KindEnum"];
-            readonly status: components["schemas"]["ImportBatchStatusEnum"];
-            readonly status_display: string;
             readonly summary_json: {
                 [key: string]: number;
             };
@@ -1496,36 +1500,18 @@ export interface components {
             file: string;
         };
         /**
-         * @description The batch, plus one-shot creation-response extras: a duplicate-hash
-         *     warning and the file's own headers, so the frontend can build its
-         *     mapping step without a second request. Not persisted batch state.
+         * @description The new batch's id, plus one-shot creation-response extras: a
+         *     duplicate-hash warning and the file's own headers, so the frontend can
+         *     build its mapping step without a second request. Not persisted state.
          */
         ImportBatchCreated: {
             readonly id: number;
-            readonly kind: components["schemas"]["KindEnum"];
-            readonly status: components["schemas"]["ImportBatchStatusEnum"];
-            readonly status_display: string;
-            readonly summary_json: {
-                [key: string]: number;
-            };
             readonly already_imported_warning: boolean;
             readonly detected_headers: string[];
             readonly suggested_mapping: {
                 [key: string]: string;
             };
         };
-        /**
-         * @description * `UPLOADED` - Uploaded
-         *     * `NEEDS_REVIEW` - Needs review
-         *     * `READY` - Ready
-         *     * `COMMITTED` - Committed
-         *     * `PARTIAL` - Partially committed
-         *     * `CANCELLED` - Cancelled
-         *     * `FAILED` - Failed
-         *     * `EXPIRED` - Expired
-         * @enum {string}
-         */
-        ImportBatchStatusEnum: "UPLOADED" | "NEEDS_REVIEW" | "READY" | "COMMITTED" | "PARTIAL" | "CANCELLED" | "FAILED" | "EXPIRED";
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /**
@@ -1778,21 +1764,6 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["StudentList"][];
         };
-        PaginatedSyllabusItemList: {
-            /** @example 123 */
-            count: number;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=4
-             */
-            next?: string | null;
-            /**
-             * Format: uri
-             * @example http://api.example.org/accounts/?page=2
-             */
-            previous?: string | null;
-            results: components["schemas"]["SyllabusItem"][];
-        };
         PaginatedUserManagementList: {
             /** @example 123 */
             count: number;
@@ -1842,12 +1813,6 @@ export interface components {
         };
         PatchedGradingCandidateRequest: {
             session?: number;
-            student?: number;
-            testing_for_rank?: number;
-            status?: components["schemas"]["GradingCandidateStatusEnum"];
-            notes?: string;
-            withdrawal_reason?: components["schemas"]["WithdrawalReasonEnum"] | components["schemas"]["BlankEnum"];
-            withdrawal_note?: string;
         };
         PatchedGradingSessionRequest: {
             title?: string;
@@ -2036,6 +2001,15 @@ export interface components {
         StudentGradingHistory: {
             items: components["schemas"]["GradingHistoryItem"][];
         };
+        /** @description One row's corrected values, by target field; any may be left out. */
+        StudentImportCorrectionRequest: {
+            wksa_id?: string;
+            first_name?: string;
+            last_name?: string;
+            date_of_birth?: string;
+            current_rank?: string;
+            status?: string;
+        };
         StudentImportPreview: {
             total: number;
             ready: number;
@@ -2049,9 +2023,7 @@ export interface components {
                 [key: string]: string;
             };
             corrections?: {
-                [key: string]: {
-                    [key: string]: string;
-                };
+                [key: string]: components["schemas"]["StudentImportCorrectionRequest"];
             };
         };
         /**
@@ -2119,13 +2091,6 @@ export interface components {
          * @enum {string}
          */
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
-        SyllabusItem: {
-            readonly id: number;
-            readonly name: string;
-            readonly korean_name: string;
-            readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
-            readonly category_display: string;
-        };
         /**
          * @description * `ETIQUETTE` - Etiquette
          *     * `FUNDAMENTALS` - Fundamentals
@@ -2239,7 +2204,7 @@ export interface operations {
     audit_events_list: {
         parameters: {
             query?: {
-                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
+                action?: "ASSESSMENT_COMPLETED" | "ASSESSMENT_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "CANDIDATE_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_EXPIRED" | "ITEM_RESULT_RECORDED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_VOIDED" | "OUTCOME_CREATED" | "OUTCOME_FINALISED" | "OUTCOME_PROPOSED" | "PROMOTION_RECORDED" | "SESSION_CREATED" | "SESSION_DELETED" | "SESSION_TRANSITIONED" | "SESSION_UPDATED" | "STUDENT_CREATED" | "STUDENT_DELETED" | "STUDENT_STATUS_CHANGED" | "STUDENT_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_CREATED" | "USER_DELETED" | "USER_UPDATED";
                 entity_id?: string;
                 entity_type?: "CandidateAssessment" | "CandidateAssessmentItem" | "CandidateOutcome" | "GradingCandidate" | "GradingSession" | "ImportBatch" | "LegacyGradingRecord" | "Promotion" | "Student" | "User";
                 occurred_from?: string;
@@ -2541,7 +2506,8 @@ export interface operations {
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 session?: number;
-                status?: "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED";
+                /** @description Comma-separated; one of COMPLETED, IN_PROGRESS, NOT_STARTED. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3083,6 +3049,7 @@ export interface operations {
     gradings_outcomes_list: {
         parameters: {
             query?: {
+                candidate?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
@@ -3244,12 +3211,15 @@ export interface operations {
             query?: {
                 grading_date_from?: string;
                 grading_date_to?: string;
+                /** @description Newest first unless given. */
+                ordering?: "-grading_date" | "grading_date";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 search?: string;
-                status?: "CANCELLED" | "COMPLETED" | "DRAFT" | "LOCKED" | "OPEN";
+                /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3363,6 +3333,25 @@ export interface operations {
             };
         };
     };
+    gradings_sessions_years_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradingYears"];
+                };
+            };
+        };
+    };
     gradings_withdrawal_reasons_list: {
         parameters: {
             query?: {
@@ -3471,13 +3460,19 @@ export interface operations {
     students_list: {
         parameters: {
             query?: {
+                /** @description The age band the student is in today. */
+                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
+                current_rank?: number;
                 current_rank_code?: string;
+                /** @description Students who could still be registered for this grading session: not Left and not already one of its candidates. */
+                eligible_for_session?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 search?: string;
-                status?: "ACTIVE" | "INACTIVE" | "LEFT";
+                /** @description Comma-separated; one of ACTIVE, INACTIVE, LEFT. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3655,30 +3650,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedAgeBandList"];
-                };
-            };
-        };
-    };
-    syllabus_items_list: {
-        parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PaginatedSyllabusItemList"];
                 };
             };
         };

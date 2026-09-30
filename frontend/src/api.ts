@@ -39,7 +39,6 @@ export type StudentListItem = components["schemas"]["StudentList"];
 export type StudentDetail = components["schemas"]["Student"];
 export type StudentStatus = components["schemas"]["StudentStatusEnum"];
 export type Rank = components["schemas"]["Rank"];
-export type SyllabusItem = components["schemas"]["SyllabusItem"];
 export type EffectiveSyllabusRequirement =
   components["schemas"]["EffectiveSyllabusRequirement"];
 export type AgeBandEnum = components["schemas"]["AgeBandEnum"];
@@ -325,6 +324,13 @@ export async function getAllGradingSessions(
   );
 }
 
+export async function getGradingSessionYears(): Promise<number[]> {
+  const body = await apiRequest<Schemas["GradingYears"]>(
+    "/api/gradings/sessions/years/",
+  );
+  return body.years;
+}
+
 export type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
 
 export async function createGradingSession(
@@ -358,7 +364,7 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
   });
 }
 
-export async function getGradingCandidates(
+async function getGradingCandidates(
   params?: ListQuery<"gradings_candidates_list">,
 ): Promise<PaginatedResponse<GradingCandidate>> {
   return apiRequest<PaginatedResponse<GradingCandidate>>(
@@ -621,12 +627,6 @@ export async function getAgeBands(): Promise<PaginatedResponse<AgeBand>> {
   return apiRequest<PaginatedResponse<AgeBand>>("/api/syllabus/age-bands/");
 }
 
-export async function getSyllabusItems(params?: ListQuery<"syllabus_items_list">): Promise<PaginatedResponse<SyllabusItem>> {
-  return apiRequest<PaginatedResponse<SyllabusItem>>(
-    withQuery("/api/syllabus/items/", params),
-  );
-}
-
 async function getEffectiveSyllabusRequirements(params: ListQuery<"syllabus_requirements_effective_list">): Promise<PaginatedResponse<EffectiveSyllabusRequirement>> {
   return apiRequest<PaginatedResponse<EffectiveSyllabusRequirement>>(
     withQuery("/api/syllabus/requirements/effective/", {
@@ -699,7 +699,7 @@ export async function getAllPromotions(
 
 export async function promoteCandidateOutcome(
   outcomeId: number,
-  data?: { notes?: string },
+  data?: Schemas["CandidatePromotionRequest"],
 ): Promise<Promotion> {
   return apiRequest<Promotion>(`/api/gradings/outcomes/${outcomeId}/promote/`, {
     method: "POST",
@@ -740,12 +740,7 @@ export async function createDataImportBatch(
 
 export type StudentImportRowResult = Schemas["StudentImportRowResult"];
 export type StudentImportPreview = Schemas["StudentImportPreview"];
-export type StudentImportRowCorrection = Partial<
-  Record<
-    "wksa_id" | "first_name" | "last_name" | "date_of_birth" | "current_rank" | "status",
-    string
-  >
->;
+export type StudentImportRowCorrection = Schemas["StudentImportCorrectionRequest"];
 export type StudentImportRequestPayload = Schemas["StudentImportRequest"];
 
 export async function previewStudentImport(

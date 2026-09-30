@@ -53,13 +53,14 @@ here does not by itself mean it has shipped.
 | FDR-038 | Use an expansive dual-column slide-over ledger for Authorised Master final decisions. | Approved | Selected from layout directions (synthesising slide-over efficiency with full-ledger depth) on 2026-09-16. Opens wide (~65% width) over the candidate roster to preserve scroll position and cohort context, while internally presenting an assessment criteria ledger with instructor proposal on the left, and Master adjudication cards, conditional requirements input, authority credential seal, and formal decision sealing on the right. |
 | FDR-039 | Use a roster batch and inline promotion ledger for student rank conferral. | Approved | Selected from three layout directions on 2026-09-16. Provides individual row-level promotion triggers ('Promote to [Rank]') alongside a cohort promotion summary bar ('Promote Qualified Cohort') and pinned batch preview tray. Gated strictly by `can_promote_student` permission. Effective date is locked to session grading date. Contracts to row-level promotion with a server-side bulk-promote endpoint targeted for efficient cohort processing. |
 | FDR-040 | Use in-page operational action banners for grading session state transitions. | Approved | Selected from layout directions on 2026-09-16. Instead of heavy multi-step wizards or disconnected drawers, the session roster proactively surfaces an elegant in-page operational banner beneath the title and progression track when stage prerequisites are satisfied (e.g. 'All assessments completed · Ready to lock session'). Clicking the direct action triggers a minimal 2-sentence confirmation dialog, maintaining quiet operational flow and zero modal fatigue. |
-| FDR-041 | Revise the syllabus Rank Chapter into a cumulative Current Knowledge ledger. | Approved | Selected on 2026-09-19 and recorded on 2026-09-21. Keep the existing curriculum, age-band and destination-rank controls and horizontal rank progression. Within the selected rank, show universal core grading areas first, then cumulative Techniques and Forms with effective ranges, provenance and a restrained `NEW AT [RANK]` treatment. The backend, not React, must derive accumulation and provenance. |
+| FDR-041 | Revise the syllabus Rank Chapter into a cumulative Current Knowledge ledger. | Approved | Selected on 2026-09-19 and recorded on 2026-09-21. Keep the existing curriculum, age-band and destination-rank controls and horizontal rank progression. Within the selected rank, show universal core grading areas first, then cumulative Techniques and Forms with effective ranges, provenance and a restrained `NEW AT [RANK]` treatment. The backend, not React, must derive accumulation and provenance. Amended 2026-09-29 (KG-A05): the effective view carries every category and is exactly what a grading assesses, so the core strip and one ledger per category - Techniques, Forms and, from JKN, Weapons - render from that one response under the served category labels, and a rank with no recorded syllabus says so instead of showing earlier ranks' content. |
 | FDR-042 | Rebuild mat-side scoring as the Single Column Run. | Implemented 2026-09-24 | Selected from three directions on 2026-09-23. Supersedes FDR-032's dual-pane command ledger and FDR-033's three-peer segmented control. No category sub-rail: one continuous scroll in syllabus order with sticky category headers that carry their own progress. Requirement rows are divider-led per FDR-008, not cards. Two verdict targets only; `NOT_ASSESSED` is an undo, not a peer, and becomes a warned `Clear`. Header chrome collapses to one line plus a persistent mat bar carrying the live required count and the completion action. |
 | FDR-043 | Rebuild completion review as the Certificate Proof. | Implemented 2026-09-24 | Selected from three directions on 2026-09-23. Supersedes FDR-036's dual-card ledger. The record renders as the document it becomes - candidate and rank transition, core grading areas, Techniques and Forms ledgers, every recorded item note, the assessment note, and a seal line that stays blank until sealed - so the instructor proofreads rather than fills in a form. Provenance and counts sit in a side column. Per-category percentages are removed entirely. Amended 2026-09-23 after review: the proof renders **every** recorded `assessor_notes` value with its result and attribution, not only the notes on `NOT_MET` items, because the same day's decision made `assessor_notes` the carrier of positive observations too - a note on a met requirement would otherwise be invisible at the last moment it can be read, and absent from the permanent record. The proof also keeps an **editable** control for `CandidateAssessment.notes` while unsealed: completion is the only point at which that field can be written, it is submitted with the `COMPLETED` transition and is immutable afterwards, and the selected 1A scoring screen has no overall-note control, so rendering it as static prose would remove the only write path in the application. |
 | FDR-044 | Rebuild the Authorised Master final decision as the Cohort Adjudication Board. | Implemented 2026-09-28 | Selected from three directions on 2026-09-23. Supersedes FDR-038's slide-over ledger. A locked session's whole cohort becomes a decision queue: rows carry evidence, the instructor proposal and an inline Pass/Conditional/Fail, with a detail pane for the row in focus. Decisions stage, then write one candidate at a time with per-row failures per FDR-028. FDR-037's instructor proposal drawer is retained but restyled to this screen's language - see FDR-047. |
 | FDR-045 | Clearing an item result is destructive and is confirmed inline. | Implemented 2026-09-24 | The `candidate_item_assessor_matches_result` constraint nulls `assessor` and `assessed_at` when a result returns to `NOT_ASSESSED`, and that attribution cannot be restored. `Clear` therefore opens an inline confirmation naming the assessor and time it will erase, per the selected FDR-042 direction. |
 | FDR-046 | Assessment counts are served, not recomputed in React. | Approved | The service `candidate_assessment_summary` is served by `GET /api/gradings/assessments/{id}/summary/`, which carries the required split at any status, and as `overall` on each assessment in the list, so a cohort needs no per-candidate request. The earlier `item_counts` field had no required-split, so it could not drive the completion gate (optional items may be left unassessed), and was removed. Percentages are never shown against results: `CandidateAssessmentItem.Result` is `NOT_ASSESSED`/`MET`/`NOT_MET` and carries no partial credit. See the 2026-09-23 and 2026-09-29 decision log entries. |
 | FDR-047 | Keep the instructor outcome proposal as a drawer, restyled. | Implemented 2026-09-29 | Consequence of selecting FDR-044. The Cohort Adjudication Board is a Master surface; it does not carry the instructor's proposal step. FDR-037's right slide-over is retained for proposals, but adopts the board's evidence presentation so the instructor sees the same sealed assessment ledger the Master does, which the current implementation does not provide. |
+| FDR-048 | Use the KukGrade logo artwork as the brand mark. | Implemented 2026-09-30 | Replaces the typed "KukGrade" wordmark on the navigation rail, the sign-in brand panel and the password-change screen; the footer keeps its small text wordmark. `src/assets/kukgrade-logo.svg` is a two-colour trace of the original artwork (`kukgrade-logo.jpg`): its black strokes are drawn in `currentColor`, so they are light on the ink rail and dark on a light page, and its gold stays the artwork's own `#cca736`. `kukgrade-mark.svg`, the figure without the lettering, is the browser-tab icon and lightens in a dark browser. |
 
 ## Concept screen register
 
@@ -121,6 +122,18 @@ badge was redundant, and the full rank name wrapped awkwardly in the
 Techniques/Forms table on narrow viewports. The full "new at
 Blue Stripe" phrasing still appears in the adjacent Provenance column.
 
+**Amended 2026-09-29 (KG-A05).** The effective view is now exactly what a
+grading assesses - one resolver serves this screen and assessment snapshots -
+and it carries every category, not only `TECHNIQUE_SET` and `FORM`. The screen
+renders the core strip and then one ledger per remaining category under the
+label the API serves (Techniques, Forms and, from Jo Kyo Nim, Weapons). A rank
+with no requirement of its own for the age band returns nothing, and the screen
+says no syllabus is recorded instead of showing earlier ranks' content. The
+plain requirement list and `GET /api/syllabus/items/` no longer exist. Where
+the plan below says "two ledgers", `TECHNIQUE_SET`/`FORM` only, or describes
+the pre-implementation endpoint, it records the 2026-09-21 build and is
+superseded by this paragraph.
+
 The revised screen must answer the instructor's operational question: **what is
 this candidate expected to know and demonstrate through the selected rank?** A
 rank's own newly introduced requirements are only part of that answer. Earlier
@@ -137,8 +150,9 @@ supersedes its earlier partial range in the effective view.
 5. Place `Core grading areas · Always assessed` before rank-specific content.
    Preserve the six areas as a compact, full-width strip rather than six
    dashboard cards.
-6. Place cumulative rank-specific content below in two grouped ledgers:
-   `Techniques` and `Forms`.
+6. Place cumulative rank-specific content below in grouped ledgers:
+   `Techniques` and `Forms` (amended 2026-09-29: one ledger per served
+   category, so `Weapons` follows from Jo Kyo Nim).
 7. Show the effective range or part for each item, its provenance, and a small
    gold-outline `NEW AT [RANK]` label only when it is introduced at the
    selected rank.
@@ -165,9 +179,10 @@ ranges or rank relationships.
 
 ### Required backend contract
 
-The current requirements endpoint filters to rows attached directly to one
-rank. It does not provide a cumulative effective syllabus or provenance, so
-SCR-025 cannot be implemented correctly as a frontend-only regrouping.
+At the time of the plan the requirements endpoint filtered to rows attached
+directly to one rank. It did not provide a cumulative effective syllabus or
+provenance, so SCR-025 could not be implemented correctly as a frontend-only
+regrouping. That endpoint has since been replaced by the effective view.
 
 Add a backend-owned read contract for an age band and selected rank. It may be
 a dedicated endpoint or an explicitly named mode on the existing requirements
@@ -202,8 +217,9 @@ Korean labels and ordering.
 - Preserve FDR-001 through FDR-004, FDR-007, FDR-008, FDR-012 and FDR-013.
 - Reuse the existing filters, belt rail, rank context and theme tokens. Do not
   introduce a second syllabus route or a new colour system.
-- Group returned `TECHNIQUE_SET` and `FORM` requirements into the two ledgers.
-  Render universal grading categories in the compact strip above them.
+- Group returned requirements into one ledger per category (built 2026-09-21
+  as `TECHNIQUE_SET` and `FORM` only). Render universal grading categories in
+  the compact strip above them.
 - Use gold only for the selected rank, focus/interaction and genuinely new
   material. Carried-forward and extended provenance remains muted neutral text.
 - Keep rows divider-led and touch-safe. Avoid nested cards, dashboard metrics,
@@ -241,7 +257,7 @@ Korean labels and ordering.
 - Adult & Youth is the source track for ages 13-17 and 18+.
 - Junior & Little Dragon is the source track for ages 9-12 and 8 and under.
 - Yea Eue, Ki Cho Jah Ki, Soo Ki, Johk Sool, Nahk Bup and Kyuk Pah are universal grading areas shown separately from rank-specific curriculum.
-- Rank-specific content is organised into parallel Techniques and Forms requirements.
+- Rank-specific content is organised into parallel Techniques and Forms requirements; weapons join at Jo Kyo Nim (see the 2026-09-29 amendment above).
 - Junior requirements differ by age group, so age context must remain visible at all times.
 - The source-chart P/F and Comments columns inform the later assessment-form design; they are not part of syllabus browsing.
 - The PDFs' printed `Do Not Alter` wording is source-document content, not an instruction governing this preliminary digital design pass.

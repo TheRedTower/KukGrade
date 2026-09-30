@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -32,6 +33,21 @@ def env_int(name: str, default: int) -> int:
     except ValueError as exc:
         msg = f"{name} must be an integer, got {value!r}."
         raise ImproperlyConfigured(msg) from exc
+
+
+def env_time_zone(name: str, default: str) -> str:
+    """An IANA zone name such as Europe/London, checked when settings load.
+
+    Django does not validate TIME_ZONE until something first needs the zone,
+    so a typo would otherwise surface as an error deep inside a request.
+    """
+    value = os.environ.get(name, "").strip() or default
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        msg = f"{name} must be an IANA time zone such as Europe/London, got {value!r}."
+        raise ImproperlyConfigured(msg) from exc
+    return value
 
 
 # DEBUG defaults to False so that a deployment with a missing or incomplete
@@ -81,6 +97,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Immediately after authentication: it needs request.user, and every
+    # view behind it must be gated.
+    "accounts.middleware.ForcePasswordChangeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -147,7 +166,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = "Europe/London"
+# The club's own zone: "today" for grading dates, student ages and age bands is
+# the date there. Stored timestamps are UTC whatever this is. Django also sets
+# the process's TZ from it, so the container needs no separate TZ variable.
+TIME_ZONE = env_time_zone("DJANGO_TIME_ZONE", "Europe/London")
 USE_I18N = True
 USE_TZ = True
 

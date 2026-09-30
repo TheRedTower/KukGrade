@@ -8,6 +8,7 @@ rather than one per changed field.
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
@@ -20,6 +21,15 @@ from accounts.permissions import (
 )
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
+
+
+def _lock_user(user_id: UUID) -> User:
+    """The account row, locked and re-read - a fresh instance, so has_perm()
+    has no stale permission cache either."""
+    locked = User.objects.select_for_update().filter(pk=user_id).first()
+    if locked is None:
+        raise ValidationError({"user": ["This user no longer exists."]})
+    return locked
 
 
 def _snapshot(user: User) -> dict[str, Any]:
@@ -78,15 +88,18 @@ def update_platform_user(
     is_active: bool | None = None,
     actor: User | None = None,
 ) -> User:
-    # Read fresh from the database rather than snapshotting `user` as
-    # received: Django admin's own save flow constructs the new field
-    # values onto this exact instance before save_model() ever runs, so a
-    # comparison against the argument as-is would always see the new value
-    # on both sides. The API path is unaffected, since DRF passes the
-    # unmodified instance.
-    before = _snapshot(User.objects.get(pk=user.pk))
+    # Only `user`'s id is used. The API loaded it before this transaction
+    # began (for PATCH /api/auth/me/ it is request.user itself), and Django
+    # admin has already written its form onto it, so saving it as received
+    # wrote back every column - the password hash included - that another
+    # request changed in the meantime (KG-A12). The locked row is also what
+    # makes the Master check below race-proof: set_user_authority() takes the
+    # same lock, so a role change and a Master grant cannot both read the
+    # other's field as it was.
+    locked = _lock_user(user.pk)
+    before = _snapshot(locked)
 
-    if role == User.Role.ADMINISTRATOR and user.has_perm(
+    if role == User.Role.ADMINISTRATOR and locked.has_perm(
         FINAL_GRADING_DECISION_PERMISSION,
     ):
         raise ValidationError(
@@ -100,15 +113,15 @@ def update_platform_user(
         )
 
     if email is not None:
-        user.email = email
+        locked.email = email
     if first_name is not None:
-        user.first_name = first_name
+        locked.first_name = first_name
     if last_name is not None:
-        user.last_name = last_name
+        locked.last_name = last_name
     if role is not None:
-        user.role = role
+        locked.role = role
     if is_active is not None:
-        user.is_active = is_active
+        locked.is_active = is_active
 
     # User.save() does not call full_clean() itself - unlike every other
     # model in this codebase, it only normalises the email. create_user()
@@ -117,23 +130,23 @@ def update_platform_user(
     # unaudited effect on Django's own auth internals (set_password flows,
     # AbstractBaseUser.save() call sites) that this change has no reason to
     # touch.
-    user.full_clean(exclude=["password"])
-    user.save()
+    locked.full_clean(exclude=["password"])
 
-    after = _snapshot(user)
+    after = _snapshot(locked)
     if before == after:
         # A no-op PATCH writes nothing: an audit trail exists to show what
         # changed, and nothing did.
-        return user
+        return locked
 
+    locked.save()
     record(
         AuditAction.USER_UPDATED,
-        user,
-        f"User account {user.email} updated.",
+        locked,
+        f"User account {locked.email} updated.",
         actor=actor,
         metadata={"before": before, "after": after},
     )
-    return user
+    return locked
 
 
 def get_deleted_user_placeholder() -> User:
@@ -288,7 +301,12 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     make themselves a Master unilaterally. Administrators are also refused
     final-decision authority outright - the confirmed policy is one
     designated Master, with administrators holding everything else instead.
+
+    Checked and changed on the locked row, the same lock
+    update_platform_user() takes: a grant and a role change each read the
+    other's field, so without it both could pass and commit.
     """
+    target = _lock_user(target.pk)
     validate_authority_change(target, actor, **flags)
 
     before = {
@@ -330,12 +348,73 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     return refreshed
 
 
-def record_password_reset(user: User, actor: User | None = None) -> None:
-    # Sensitive per AGENTS.md, so it is recorded - but the value itself
-    # must never appear in metadata or the summary.
+@transaction.atomic
+def reset_password(target: User, *, password: str, actor: User) -> User:
+    """Set a password someone else chose, so its owner must replace it."""
+    locked = _lock_user(target.pk)
+    locked.set_password(password)
+    return _password_set(locked, actor=actor, chosen_by_owner=False)
+
+
+@transaction.atomic
+def change_own_password(user: User, *, password: str) -> User:
+    """The owner's own new password, which lifts the forced change."""
+    locked = _lock_user(user.pk)
+    locked.set_password(password)
+    return _password_set(locked, actor=user, chosen_by_owner=True)
+
+
+@transaction.atomic
+def record_admin_password_change(target: User, *, actor: User) -> User:
+    """Django admin's password form has saved `target`'s new password; the
+    rest of an administrator reset follows here, in the same transaction."""
+    return _password_set(_lock_user(target.pk), actor=actor, chosen_by_owner=False)
+
+
+def _password_set(locked: User, *, actor: User, chosen_by_owner: bool) -> User:
+    # One transaction with the password itself, so the change and its record
+    # land together or not at all (KG-A14). The value never appears in the
+    # summary or metadata.
+    locked.must_change_password = not chosen_by_owner
+    locked.save(update_fields=["password", "must_change_password"])
     record(
         AuditAction.USER_UPDATED,
-        user,
-        f"Password reset for {user.email}.",
+        locked,
+        (
+            f"Password changed by {locked.email}."
+            if chosen_by_owner
+            else f"Password reset for {locked.email}."
+        ),
         actor=actor,
     )
+    return locked
+
+
+@transaction.atomic
+def set_admin_site_access(
+    target: User,
+    *,
+    actor: User,
+    is_staff: bool | None = None,
+    is_superuser: bool | None = None,
+) -> User:
+    """Django admin's own two flags, which the API never sets, audited like
+    every other account change (KG-A14)."""
+    locked = _lock_user(target.pk)
+    before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
+    if is_staff is not None:
+        locked.is_staff = is_staff
+    if is_superuser is not None:
+        locked.is_superuser = is_superuser
+    after = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
+    if before == after:
+        return locked
+    locked.save(update_fields=["is_staff", "is_superuser"])
+    record(
+        AuditAction.USER_UPDATED,
+        locked,
+        f"Admin site access changed for {locked.email}.",
+        actor=actor,
+        metadata={"before": before, "after": after},
+    )
+    return locked

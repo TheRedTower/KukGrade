@@ -7,10 +7,8 @@ import {
   type GradingSessionStatus,
   ApiError,
   deleteGradingSession,
-  getAllGradingSessions,
+  getGradingSessionYears,
   getGradingSessions,
-  getGradingCandidates,
-  getCandidateAssessments,
 } from "./api";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
@@ -51,10 +49,6 @@ function XCircleIcon() {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-function yearFromIso(iso: string): number {
-  return parseInt(iso.slice(0, 4), 10);
-}
 
 const STATUS_ORDER: GradingSessionStatus[] = ["OPEN", "DRAFT", "LOCKED", "COMPLETED", "CANCELLED"];
 const STATUS_LABEL: Record<GradingSessionStatus, string> = {
@@ -223,57 +217,17 @@ export function GradingSessionsScreen() {
     canClose: !deleteSessionMutation.isPending,
   });
 
-  // All sessions (large page to populate year dropdown & find current session)
-  const allSessionsQuery = useQuery({
-    queryKey: ["gradingSessions", "all"],
-    queryFn: () => getAllGradingSessions(),
+  const yearsQuery = useQuery({
+    queryKey: ["gradingSessions", "years"],
+    queryFn: getGradingSessionYears,
   });
+  const availableYears = yearsQuery.data ?? [];
 
-  const allSessions: GradingSession[] = useMemo(
-    () => allSessionsQuery.data?.results ?? [],
-    [allSessionsQuery.data],
-  );
-
-  const availableYears = useMemo(() => {
-    const years = new Set(allSessions.map((s) => yearFromIso(s.grading_date)));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [allSessions]);
-
-  const currentSession = useMemo(
-    () => allSessions.find((s) => s.status === "OPEN") ?? null,
-    [allSessions],
-  );
-
-  // Candidate & assessment counts for the current (open) session spotlight
-  const currentCandidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", "count", currentSession?.id],
-    queryFn: () =>
-      currentSession
-        ? getGradingCandidates({ session: currentSession.id } as Parameters<typeof getGradingCandidates>[0])
-        : Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
-    enabled: currentSession !== null,
+  const currentSessionQuery = useQuery({
+    queryKey: ["gradingSessions", "current"],
+    queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
   });
-
-  const currentAssessmentsQuery = useQuery({
-    queryKey: ["candidateAssessments", "count", currentSession?.id],
-    queryFn: () =>
-      currentSession
-        ? getCandidateAssessments({ session: currentSession.id } as Parameters<typeof getCandidateAssessments>[0])
-        : Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
-    enabled: currentSession !== null,
-  });
-
-  const currentCandidateCount = currentCandidatesQuery.data?.count ?? 0;
-
-  const currentAssessmentsComplete = useMemo(() => {
-    const items = currentAssessmentsQuery.data?.results ?? [];
-    return items.filter((a) => a.status === "COMPLETED" || a.status === "IN_PROGRESS").length;
-  }, [currentAssessmentsQuery.data]);
-
-  const currentAwaitingDecision = useMemo(() => {
-    const items = currentAssessmentsQuery.data?.results ?? [];
-    return items.filter((a) => a.status === "COMPLETED").length;
-  }, [currentAssessmentsQuery.data]);
+  const currentSession = currentSessionQuery.data?.results[0] ?? null;
 
   // Paginated sessions filtered by status on the server
   const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
@@ -304,50 +258,13 @@ export function GradingSessionsScreen() {
 
   const filteredSessions = sessions;
 
-  const sessionIdsOnPage = filteredSessions.map((s) => s.id);
-
-  const candidatesForPageQuery = useQuery({
-    queryKey: ["gradingCandidates", "bySessions", sessionIdsOnPage.join(",")],
-    queryFn: async () => {
-      if (sessionIdsOnPage.length === 0) return {};
-      const results: Record<number, number> = {};
-      await Promise.all(
-        sessionIdsOnPage.map(async (id) => {
-          const data = await getGradingCandidates({ session: id } as Parameters<typeof getGradingCandidates>[0]);
-          results[id] = data.count;
-        }),
-      );
-      return results;
-    },
-    enabled: sessionIdsOnPage.length > 0,
-  });
-
-  const assessmentsForPageQuery = useQuery({
-    queryKey: ["candidateAssessments", "bySessions", sessionIdsOnPage.join(",")],
-    queryFn: async () => {
-      if (sessionIdsOnPage.length === 0) return {};
-      const results: Record<number, number> = {};
-      await Promise.all(
-        sessionIdsOnPage.map(async (id) => {
-          const data = await getCandidateAssessments({ session: id, status: "COMPLETED" } as Parameters<typeof getCandidateAssessments>[0]);
-          results[id] = data.count;
-        }),
-      );
-      return results;
-    },
-    enabled: sessionIdsOnPage.length > 0,
-  });
-
-  const candidateCounts = candidatesForPageQuery.data ?? {};
-  const assessmentCounts = assessmentsForPageQuery.data ?? {};
-
   function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
   function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
   function handleSearch(value: string) { setSearchText(value); setPage(1); }
   function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setPage(1); }
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
-  const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
+  const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
@@ -419,9 +336,9 @@ export function GradingSessionsScreen() {
       {/* ── Current Session Spotlight */}
       {showCurrentCard && (
         <CurrentSessionCard
-          assessmentsComplete={currentAssessmentsComplete}
-          awaitingDecision={currentAwaitingDecision}
-          candidateCount={currentCandidateCount}
+          assessmentsComplete={currentSession!.completed_assessment_count}
+          awaitingDecision={currentSession!.awaiting_decision_count}
+          candidateCount={currentSession!.candidate_count}
           onOpen={() => navigate(`/gradings/${currentSession!.id}`)}
           session={currentSession!}
         />
@@ -455,16 +372,13 @@ export function GradingSessionsScreen() {
                   </thead>
                   <tbody>
                     {filteredSessions.map((session) => {
-                      const completeCount = assessmentCounts[session.id] ?? 0;
-                      const isEligibleStatus = session.status === "CANCELLED" || session.status === "DRAFT";
-                      const canDelete = isEligibleStatus && completeCount === 0;
                       return (
                         <SessionRow
-                          assessmentsComplete={assessmentCounts[session.id] ?? null}
-                          candidateCount={candidateCounts[session.id] ?? null}
+                          assessmentsComplete={session.completed_assessment_count}
+                          candidateCount={session.candidate_count}
                           key={session.id}
                           onView={() => navigate(`/gradings/${session.id}`)}
-                          canDelete={canDelete}
+                          canDelete={session.can_be_deleted}
                           onDelete={() => {
                             setDeleteError(null);
                             setDeleteConfirmSession(session);

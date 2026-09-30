@@ -5,11 +5,9 @@ import { useNavigate } from "react-router-dom";
 import {
   type AuditEvent,
   type CandidateAssessment,
-  type GradingCandidate,
   type GradingSession,
-  getAllCandidateAssessments,
-  getAllGradingCandidates,
-  getAllGradingSessions,
+  getCandidateAssessments,
+  getGradingSessions,
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
@@ -109,68 +107,66 @@ function formatRelativeTime(isoString: string): string {
   return `${formatApiDate(isoString, { day: "numeric", month: "short" })} ${time}`;
 }
 
+type ActivityStatus = "approved" | "warning" | "in-progress" | "neutral";
+
 type FormattedActivityItem = {
   id: number;
   timeDisplay: string;
-  targetName: string;
+  actorName: string;
   summary: string;
-  statusType: "approved" | "warning" | "in-progress" | "neutral";
+  statusType: ActivityStatus;
   statusLabel: string;
 };
 
-function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
-  const summaryLower = (event.summary || "").toLowerCase();
-  const actionLower = (event.action || "").toLowerCase();
+const OUTCOME_LABELS: Record<string, string> = {
+  PASS: "Pass",
+  FAIL: "Fail",
+  CONDITIONAL: "Conditional",
+};
 
-  let statusType: "approved" | "warning" | "in-progress" | "neutral" = "neutral";
-  let statusLabel = event.action_display || "Recorded";
-
-  if (
-    summaryLower.includes("promot") ||
-    summaryLower.includes("approv") ||
-    summaryLower.includes("pass") ||
-    summaryLower.includes("complete") ||
-    actionLower.includes("promote") ||
-    actionLower.includes("complete")
-  ) {
-    statusType = "approved";
-    statusLabel = "Approved";
-  } else if (
-    summaryLower.includes("ready for review") ||
-    summaryLower.includes("awaiting") ||
-    summaryLower.includes("propos") ||
-    summaryLower.includes("flag") ||
-    summaryLower.includes("withdraw") ||
-    actionLower.includes("propose")
-  ) {
-    statusType = "warning";
-    statusLabel = "Awaiting review";
-  } else if (
-    summaryLower.includes("started") ||
-    summaryLower.includes("progress") ||
-    actionLower.includes("start")
-  ) {
-    statusType = "in-progress";
-    statusLabel = "In progress";
+function metadataString(event: AuditEvent, ...path: string[]): string | undefined {
+  let value: unknown = event.metadata;
+  for (const key of path) {
+    value = value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined;
   }
+  return typeof value === "string" ? value : undefined;
+}
 
-  // Target extraction: prefer actor_name or entity info from summary
-  let targetName = event.actor_name || "System";
-  if (event.entity_type === "Student" || event.entity_type === "GradingCandidate") {
-    // If summary starts with or mentions a student/candidate name
-    const match = event.summary.match(/^([^:]+):/);
-    if (match) {
-      targetName = match[1].trim();
+/**
+ * An event's status, from its action and structured outcome - never from
+ * words in the prose summary, which labelled a password reset or a failed
+ * grading "Approved" (KG-A19). Unknown actions stay neutral under the
+ * server's own label.
+ */
+function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
+  switch (event.action) {
+    case "PROMOTION_RECORDED":
+      return { type: "approved" };
+    case "OUTCOME_FINALISED": {
+      const outcome = metadataString(event, "final_outcome");
+      return { type: outcome === "PASS" ? "approved" : "warning", outcome };
     }
+    case "OUTCOME_PROPOSED":
+      return { type: "in-progress", outcome: metadataString(event, "after", "proposed_outcome") };
+    case "ASSESSMENT_STARTED":
+      return { type: "in-progress" };
+    case "CANDIDATE_WITHDRAWN":
+      return { type: "warning" };
+    default:
+      return { type: "neutral" };
   }
+}
 
+function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
+  const { type, outcome } = activityStatus(event);
+  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome] : undefined;
   return {
     id: event.id,
     timeDisplay: formatRelativeTime(event.occurred_at),
-    targetName,
+    actorName: event.actor_name || event.actor_email || "System",
     summary: event.summary,
-    statusType,
-    statusLabel,
+    statusType: type,
+    statusLabel: outcomeLabel ? `${event.action_display} · ${outcomeLabel}` : event.action_display,
   };
 }
 
@@ -182,53 +178,40 @@ export function OverviewScreen() {
 
   const currentDateDisplay = useMemo(() => formatSessionDate(todayIsoDate()), []);
 
-  // 1. Fetch grading sessions
-  const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", "all"],
-    queryFn: () => getAllGradingSessions(),
+  // 1. The session on the mat and the next one after it.
+  const today = todayIsoDate();
+  const openQuery = useQuery({
+    queryKey: ["gradingSessions", "current"],
+    queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
+  });
+  const upcomingQuery = useQuery({
+    queryKey: ["gradingSessions", "upcoming", today],
+    queryFn: () =>
+      getGradingSessions({
+        status: "DRAFT,OPEN,LOCKED",
+        grading_date_from: today,
+        ordering: "grading_date",
+        page_size: 2,
+      }),
   });
 
-  const sessions = useMemo<GradingSession[]>(() => {
-    return Array.isArray(sessionsQuery.data?.results)
-      ? sessionsQuery.data.results
-      : [];
-  }, [sessionsQuery.data]);
+  const openSession: GradingSession | undefined = openQuery.data?.results[0];
+  const upcomingSession: GradingSession | undefined =
+    upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
 
-  // Resolve current open session on the mat
-  const openSession: GradingSession | undefined = useMemo(() => {
-    return sessions.find((s) => s.status === "OPEN");
-  }, [sessions]);
-
-  // Resolve next upcoming session
-  const upcomingSession: GradingSession | undefined = useMemo(() => {
-    const today = todayIsoDate();
-    const candidates = sessions
-      .filter(
-        (s) =>
-          s.id !== openSession?.id &&
-          s.status !== "CANCELLED" &&
-          s.status !== "COMPLETED" &&
-          s.grading_date >= today,
-      )
-      .sort((a, b) => a.grading_date.localeCompare(b.grading_date));
-    return candidates[0];
-  }, [sessions, openSession]);
-
-  // 2. Fetch candidates for open session
-  const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", openSession?.id],
-    queryFn: () => getAllGradingCandidates({ session: openSession!.id }),
-    enabled: !!openSession,
-  });
-
-  // 3. Fetch assessments for open session
+  // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
     queryKey: ["candidateAssessments", openSession?.id],
-    queryFn: () => getAllCandidateAssessments({ session: openSession!.id }),
+    queryFn: () =>
+      getCandidateAssessments({
+        session: openSession!.id,
+        status: "COMPLETED,IN_PROGRESS",
+        page_size: 4,
+      }),
     enabled: !!openSession,
   });
 
-  // 4. Fetch recent audit events
+  // 3. Fetch recent audit events
   const auditQuery = useQuery({
     queryKey: ["auditEvents", "recent"],
     queryFn: () => getAuditEvents({ page_size: 6 }),
@@ -236,30 +219,22 @@ export function OverviewScreen() {
     retry: false,
   });
 
-  // Derived metrics for open session
-  const candidates = useMemo<GradingCandidate[]>(() => {
-    return Array.isArray(candidatesQuery.data?.results)
-      ? candidatesQuery.data.results
-      : [];
-  }, [candidatesQuery.data]);
-
   const assessments = useMemo<CandidateAssessment[]>(() => {
     return Array.isArray(assessmentsQuery.data?.results)
       ? assessmentsQuery.data.results
       : [];
   }, [assessmentsQuery.data]);
 
-  const candidatesCount = candidates.length;
-  const completedAssessmentsCount = assessments.filter(
-    (a) => a.status === "COMPLETED",
-  ).length;
+  // Counted on the server, so they agree with every other screen (KG-A15).
+  const candidatesCount = openSession?.candidate_count ?? 0;
+  const completedAssessmentsCount = openSession?.completed_assessment_count ?? 0;
+  const awaitingDecisionCount = openSession?.awaiting_decision_count ?? 0;
 
   // Assessments needing attention:
   // - Completed assessments awaiting proposal/decision
   // - Assessments in progress
   const attentionItems = useMemo(() => {
     return assessments
-      .filter((a) => a.status === "COMPLETED" || a.status === "IN_PROGRESS")
       .map((a) => {
         let statusDescription = "Assessment in progress · Scoring pending";
         if (a.status === "COMPLETED") {
@@ -271,13 +246,8 @@ export function OverviewScreen() {
           statusDescription,
           status: a.status,
         };
-      })
-      .slice(0, 4);
+      });
   }, [assessments]);
-
-  const awaitingDecisionCount = assessments.filter(
-    (a) => a.status === "COMPLETED",
-  ).length;
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
@@ -286,9 +256,10 @@ export function OverviewScreen() {
   }, [auditQuery.data]);
 
   const isInitialLoading =
-    sessionsQuery.isLoading ||
+    openQuery.isLoading ||
+    upcomingQuery.isLoading ||
     (canViewAudit && auditQuery.isLoading) ||
-    (!!openSession && (candidatesQuery.isLoading || assessmentsQuery.isLoading));
+    (!!openSession && assessmentsQuery.isLoading);
 
   return (
     <section
@@ -309,7 +280,7 @@ export function OverviewScreen() {
         </div>
       </div>
 
-      {sessionsQuery.isError ? (
+      {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert" role="alert">
           <p className="form-error">
             Failed to load operational ledger. Please check your connection.
@@ -508,7 +479,7 @@ export function OverviewScreen() {
               <thead>
                 <tr>
                   <th scope="col">Time</th>
-                  <th scope="col">Student</th>
+                  <th scope="col">By</th>
                   <th scope="col">Event</th>
                   <th scope="col">Status</th>
                 </tr>
@@ -517,8 +488,8 @@ export function OverviewScreen() {
                 {recentActivities.map((activity) => (
                   <tr key={activity.id}>
                     <td className="cell-time">{activity.timeDisplay}</td>
-                    <td className="cell-student">
-                      <strong>{activity.targetName}</strong>
+                    <td className="cell-actor">
+                      <strong>{activity.actorName}</strong>
                     </td>
                     <td className="cell-event">{activity.summary}</td>
                     <td className="cell-status">

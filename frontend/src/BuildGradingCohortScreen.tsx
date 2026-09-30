@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AgeBandEnum,
   ApiError,
   BulkCandidateRegistrationPayload,
   BulkCandidateRegistrationResponse,
@@ -9,11 +10,11 @@ import {
   Rank,
   StudentListItem,
   bulkRegisterCandidates,
-  getAllGradingCandidates,
   getAllStudents,
   getGradingSession,
 } from "./api";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
+import { useDebouncedValue } from "./useDebouncedValue";
 import { useDialogFocus } from "./useDialogFocus";
 import { BeltSwatch } from "./Belt";
 import { formatSessionDate } from "./dates";
@@ -80,15 +81,21 @@ export function BuildGradingCohortScreen() {
   const ageBandsQuery = useAgeBandsQuery();
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
+  // The server narrows the roster to who could still be registered and to the
+  // toolbar's filters, so the screen never downloads students it would hide.
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const studentFilters = {
+    eligible_for_session: sessionId,
+    search: debouncedSearch || undefined,
+    current_rank: rankFilter === "ALL" ? undefined : Number(rankFilter),
+    age_band: ageFilter === "ALL" ? undefined : (ageFilter as AgeBandEnum),
+    status: statusFilter === "ACTIVE_INACTIVE" ? undefined : statusFilter,
+  };
   const studentsQuery = useQuery({
-    queryKey: ["students", "all"],
-    queryFn: () => getAllStudents(),
-  });
-
-  const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", sessionId],
-    queryFn: () => getAllGradingCandidates({ session: sessionId }),
+    queryKey: ["students", "eligible", studentFilters],
+    queryFn: () => getAllStudents(studentFilters),
     enabled: !isNaN(sessionId),
+    placeholderData: keepPreviousData,
   });
 
   const session: GradingSession | undefined = sessionQuery.data;
@@ -112,50 +119,14 @@ export function BuildGradingCohortScreen() {
     return { rankMap: map, nextRankMap: nextMap };
   }, [ranks]);
 
-  // Already registered student IDs in this grading session
-  const registeredStudentIds = useMemo(() => {
-    const existing = Array.isArray(candidatesQuery.data)
-      ? candidatesQuery.data
-      : (candidatesQuery.data?.results ?? []);
-    return new Set<number>(existing.map((c) => c.student));
-  }, [candidatesQuery.data]);
+  // While a new filter is typed or loading, the list on screen is not yet the
+  // list "Add all" would mean.
+  const isRosterUpdating = studentsQuery.isPlaceholderData || search.trim() !== debouncedSearch;
 
-  // Eligible students: the server's can_be_graded rule, less anyone already registered
-  const eligibleStudents = useMemo(() => {
-    const all = studentsQuery.data?.results ?? [];
-    return all.filter((s) => s.can_be_graded && !registeredStudentIds.has(s.id));
-  }, [studentsQuery.data, registeredStudentIds]);
-
-  // Filtered eligible students based on toolbar controls
-  const filteredEligibleStudents = useMemo(() => {
-    return eligibleStudents.filter((s) => {
-      // Search
-      const q = search.trim().toLowerCase();
-      if (q) {
-        const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
-        const wksa = (s.wksa_id || "").toLowerCase();
-        if (!fullName.includes(q) && !wksa.includes(q)) {
-          return false;
-        }
-      }
-
-      // Rank filter
-      if (rankFilter !== "ALL") {
-        if (String(s.current_rank) !== rankFilter && s.current_rank_code !== rankFilter) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (statusFilter === "ACTIVE" && s.status !== "ACTIVE") return false;
-      if (statusFilter === "INACTIVE" && s.status !== "INACTIVE") return false;
-
-      // Age group filter
-      if (ageFilter !== "ALL" && s.age_band !== ageFilter) return false;
-
-      return true;
-    });
-  }, [eligibleStudents, search, rankFilter, statusFilter, ageFilter]);
+  const filteredEligibleStudents = useMemo(
+    () => studentsQuery.data?.results ?? [],
+    [studentsQuery.data],
+  );
 
   // Group filtered eligible students by their current rank
   const rankGroups = useMemo(() => {
@@ -320,6 +291,7 @@ export function BuildGradingCohortScreen() {
 
       // Invalidate relevant queries so cache reflects newly registered candidates
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["students", "eligible"] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
@@ -387,6 +359,7 @@ export function BuildGradingCohortScreen() {
       const response = await bulkRegisterCandidates(retryPayload);
 
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["students", "eligible"] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
@@ -811,7 +784,7 @@ export function BuildGradingCohortScreen() {
                   type="button"
                   className="btn-primary gs-create-btn bgc-add-filtered-btn"
                   onClick={handleAddAllFiltered}
-                  disabled={filteredEligibleStudents.length === 0}
+                  disabled={filteredEligibleStudents.length === 0 || isRosterUpdating}
                   data-testid="bgc-add-all-filtered-btn"
                 >
                   Add all {filteredEligibleStudents.length} filtered students

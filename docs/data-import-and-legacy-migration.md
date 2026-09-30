@@ -48,7 +48,8 @@ review, identity reconciliation, void/correction workflows, and the unified
 grading-history read model. See `decision_log.md`'s "Student roster bulk
 import (Phase A of the data-import spec)" entry for the five deviations
 from the specification's recommendations that apply to both halves (Tablib
-instead of `django-import-export`, no background worker, local filesystem
+instead of `django-import-export` - itself replaced on 2026-09-30 by reading
+with openpyxl and `csv` directly - no background worker, local filesystem
 storage, all-or-nothing commit) and the exact-match-only rank resolution
 decision specific to the roster importer, and its "Historical KSW
 Colchester grading-workbook migration" entry for the historical half's own
@@ -67,10 +68,15 @@ of these to an Instructor. See `permissions.md`.
 
 ### Accepted formats
 
-`.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 5,000 rows,
-and 50 columns. Anything
-else - wrong extension, a file that isn't actually a valid workbook/CSV,
-`.xlsm` - is rejected before it is ever written to disk.
+`.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 5,000 rows
+after the header (blank rows included) and 50 columns; an `.xlsx` may also
+expand to no more than 50 MiB. Each limit is enforced while the file is
+read, not after, because a few kilobytes of workbook can describe a million
+rows (`data_imports/parsers.py`). Anything else - wrong extension, a file
+that isn't actually a valid workbook/CSV, `.xlsm` - is rejected before it
+is ever written to disk. The workbook's active sheet (the one open when it
+was saved) is read, its first row being the header; blank rows are skipped,
+and every row keeps its own row number in the sheet.
 
 ### Standard column headers
 
@@ -101,7 +107,9 @@ upload (create_import_batch)
   per-row staging table exists - only `ImportBatch` itself is persisted).
   Each row is classified `READY`, `REVIEW_REQUIRED` (missing/invalid field,
   or an unresolved rank), or `SKIP_EXISTING` (the WKSA ID already belongs
-  to a `Student`).
+  to a `Student`). A row is checked with `Student.full_clean()` - the
+  validation `create_student` runs - so a `READY` row is one commit can
+  create, field lengths included.
 - **An existing WKSA ID is always skipped, never silently updated.** Any
   future bulk-update-existing-students feature is a separate, undesigned
   piece of work.
@@ -117,15 +125,23 @@ upload (create_import_batch)
   has no separate, weaker write path.
 - **Commit is all-or-nothing**, inside one database transaction. If a row
   that was `READY` at the start of commit somehow fails when actually
-  written (a rare race, not something normal usage triggers), the whole
-  batch rolls back rather than partially committing. This is a deliberate
-  simplification versus the specification's partial-commit design - see
-  the decision log.
+  written (a concurrent change, such as the same WKSA ID created elsewhere
+  a moment earlier), the whole batch rolls back rather than partially
+  committing, and the error names the row and the reason. This is a
+  deliberate simplification versus the specification's partial-commit
+  design - see the decision log.
 - The source file is deleted from private storage on commit, cancel, or
-  expiry (`manage.py expire_stale_import_batches --hours 24`, run manually
-  or via an external cron - no background worker exists in this codebase).
+  expiry - after that transaction commits, never before, so a failed commit
+  leaves the batch open with its file intact.
+- Expiry (`manage.py expire_stale_import_batches --hours 24`, run manually
+  or via an external cron - no background worker exists in this codebase)
+  takes the same batch lock as commit and cancel and rechecks each batch
+  under it, so it never overwrites a batch committed in the meantime. It
+  also deletes stored files no batch names once they are older than
+  `--hours`: a file left by an upload that failed, or whose delete after a
+  commit failed.
 - Re-uploading a file with an identical SHA-256 to one already `COMMITTED`
-  produces a warning in the create response, not a block - the admin
+  produces a warning, shown by both import screens, not a block - the admin
   decides whether that's intentional.
 
 ### Rank resolution
@@ -172,7 +188,11 @@ imported history, only an administrator can correct it.
 
 ### Accepted format
 
-`.xlsx` only, same size/row/column limits as the roster importer.
+`.xlsx` only, up to 5 MiB and expanding to no more than 50 MiB, with at
+most 500 sheets, 50 columns and 50,000 rows across all sheets (blank rows
+and unrecognised sheets included). The whole workbook is parsed at upload:
+one that cannot be read, or that yields no records at all, is refused with
+the adapter's warnings before anything is stored.
 
 ### The workbook adapter
 

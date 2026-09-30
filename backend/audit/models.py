@@ -23,6 +23,7 @@ IMMUTABLE_MESSAGE = "Audit events are append-only and cannot be changed or delet
 
 class AuditAction(models.TextChoices):
     SESSION_CREATED = "SESSION_CREATED", "Grading session created"
+    SESSION_UPDATED = "SESSION_UPDATED", "Grading session updated"
     SESSION_TRANSITIONED = "SESSION_TRANSITIONED", "Grading session transitioned"
     SESSION_DELETED = "SESSION_DELETED", "Grading session deleted"
 
@@ -33,6 +34,7 @@ class AuditAction(models.TextChoices):
 
     ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment generated"
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
+    ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
     ASSESSMENT_REOPENED = "ASSESSMENT_REOPENED", "Assessment reopened"
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"

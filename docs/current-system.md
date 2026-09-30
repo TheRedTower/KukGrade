@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-29.
+Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 679 backend tests and 235 frontend tests passing
+Verified on 2026-09-30 with 845 backend tests and 253 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -57,13 +57,16 @@ checks on each push and pull request.
   one `BeltSwatch` from these fields and `stripe_count`. Dahn Bo is a brown
   belt with two black stripes; the black-belt titles are plain black until
   their appearance is decided.
-- Syllabus catalogue for WKSA Version 2014, read-only. Requirements are read
-  through `GET /api/syllabus/requirements/effective/`
-  (FDR-041/SCR-025, 2026-09-21) returns one cumulative row per Technique/Form
-  item examinable through a selected rank: the latest applicable mapping at
-  or before that rank supplies the effective range, the earliest supplies
-  where it was introduced. Core grading areas are ordered to match the WKSA
-  chart's own category sequence rather than alphabetically.
+- Syllabus catalogue for WKSA Version 2014, read-only, with adults doing all
+  seven black-belt technique sets at JKN (owner, 2026-09-29). **Every grading
+  assesses the cumulative syllabus (2026-09-29, KG-A05)**:
+  `GET /api/syllabus/requirements/effective/` is the one read of it - one row
+  per item examinable through a rank for an age band, every category (core
+  areas, Techniques, Forms, Weapons) in syllabus order, the latest applicable
+  mapping supplying the range and the earliest where it was introduced. The
+  syllabus screen shows it, and assessment generation snapshots exactly these
+  rows. A rank with no syllabus of its own recorded (White, KSN and above)
+  gets nothing, and the screen says so.
 - Student model with `ACTIVE` / `INACTIVE` / `LEFT`. `LEFT` blocks grading
   registration; both non-active states are reversible and keep history.
 - **Students API**: list, retrieve, create, partial update.
@@ -88,7 +91,13 @@ checks on each push and pull request.
   created student goes through the ordinary `students.services.create_student`
   service, so validation and the normal `STUDENT_CREATED` audit event are
   identical to a hand-created student. An existing WKSA ID is always
-  skipped, never updated. See `docs/data-import-and-legacy-migration.md`.
+  skipped, never updated. Preview checks each row with the student model's
+  own field and `clean()` rules, so a ready row can be committed (KG-A09). Every
+  upload is bounded while it is read - size, rows, columns, sheets and the
+  expanded size of an `.xlsx` - and a source file is deleted only after its
+  batch's commit, cancel or expiry has committed; expiry takes the same
+  batch lock and also sweeps files no batch names (KG-A07, A08, A10). See
+  `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW
   Colchester historical grading workbook (`.xlsx`) into `LegacyGradingRecord`
@@ -109,8 +118,9 @@ checks on each push and pull request.
   `gradings.can_reconcile_imported_history`) let an admin correct a wrong
   link or an unresolved rank without ever touching the source record. A
   voided record is excluded from active views but never physically
-  deleted; a second void on the same record is refused. See
-  `docs/data-import-and-legacy-migration.md`.
+  deleted; a second void on the same record is refused. Uploading a
+  workbook identical to one already committed shows a warning before
+  review. See `docs/data-import-and-legacy-migration.md`.
 - **Unified student grading history**: `GET /api/students/{id}/grading-history/`
   combines finalised native outcomes with linked, non-voided legacy records
   into one source-labelled, newest-first timeline (`KUKGRADE`/`LEGACY`),
@@ -139,7 +149,8 @@ checks on each push and pull request.
   withdrawal, before or after lock, records a reason, who and when); `bulk-promote` (on `/api/gradings/outcomes/`)
   promotes several finalised PASS outcomes at once, from one candidate to a
   whole cohort. All five process rows **independently**: each runs
-  its row through the domain service inside its own savepoint, and one row's failure never blocks the others. Every response
+  its row through the domain service inside its own savepoint, and one row's refusal never blocks the others
+  (an unexpected error is not a refusal: it still fails the whole request, KG-A11). Every response
   lists what succeeded plus an `errors` map keyed by row index for what
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
@@ -156,8 +167,12 @@ checks on each push and pull request.
   confirmation that states how many candidates are registered and that an
   open session cannot return to draft, so the roster is checked while it can
   still be edited freely.
-- Assessment generation copies applicable requirements into immutable snapshot
-  rows. Results are `NOT_ASSESSED`, `MET`, `NOT_MET`.
+- Assessment generation copies the cumulative syllabus through the testing
+  rank into immutable snapshot rows, each with its `position` in syllabus
+  order, and refuses a rank with no recorded syllabus. Every item is required.
+  Assessments generated before 2026-09-29 keep the testing rank's own
+  requirements they were generated with. Results are `NOT_ASSESSED`, `MET`,
+  `NOT_MET`.
 - **Locking ends grading (2026-09-26)**: results are recorded and assessments
   completed only while the session is `OPEN`, and it cannot lock until every
   non-withdrawn assessment is `COMPLETED`. Until then a completed assessment
@@ -226,10 +241,27 @@ checks on each push and pull request.
   PROTECT. `Promotion` and a finalised `CandidateOutcome` refuse
   `QuerySet.update()` as well as `save()`/`delete()` - the one path that
   could previously rewrite an immutable record from a shell.
-- **Row locking is consistent**: every `select_for_update()` in
-  `gradings/services.py` locks only its own row (`of=("self",)`), never a
-  joined session, student or rank row picked up incidentally through
-  `select_related`.
+- **One grading lock protocol** (`gradings/locking.py`, 2026-09-29, KG-A03,
+  KG-A04, KG-A12): every grading write locks its session first - that lock
+  coordinates everything inside the session - then any students, in
+  ascending id, and validates against rows re-read under those locks. This
+  covers transitions, the session-details edit (`update_grading_session`,
+  which the API and admin both use and which writes only the changed
+  fields), registration, candidate updates and moves (both sessions),
+  withdrawal, generation, assessment and item edits, outcomes, promotion,
+  and all three cleanup paths; `delete_student` locks the student's sessions
+  before the student. Bulk endpoints take every lock before their first
+  row's savepoint, since a lock first taken inside a rolled-back savepoint is
+  released. Locks are taken by join-free queries: a waiting
+  `FOR UPDATE` re-checks its joins against the row as the other transaction
+  left it, and PostgreSQL silently dropped a student whose rank had just
+  moved (previously a 500 in `promote_candidate`). Student and user edits
+  lock their row, apply only the requested fields, and write nothing for a
+  no-op; the user-row lock also makes a role change and a Master grant
+  mutually exclusive. Only the uniqueness race a create expects becomes a
+  `ValidationError` - identified by the table the violated constraint is on
+  - and anything else propagates rather than being reported as a
+  duplicate (KG-A11).
 - **Users API**: list, retrieve, create, partial update, plus two dedicated
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
@@ -237,6 +269,17 @@ checks on each push and pull request.
   `POST /api/users/{id}/set-password/` resets a password, validated by
   Django's configured password validators. `is_staff` and `is_superuser`
   are not part of the API.
+- **Forced password change (enforced server-side)**: creation and an
+  administrator reset both set `must_change_password`. While it is set,
+  `accounts.middleware.ForcePasswordChangeMiddleware` refuses every request
+  but `/api/auth/me/`, `/api/auth/change-password/`, `/api/auth/logout/`,
+  the two health endpoints, `/api/site/` and the frontend shell, answering
+  `403` with `error.code = "password_change_required"`. The browser client
+  already routed the user to the change-password screen, but that was
+  presentation only and a direct API call went straight past it. Django
+  admin is deliberately outside the gate: `is_staff` is not grantable
+  through KukGrade, and admin's own password flow does not clear the flag,
+  so gating it would strand a staff account.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -264,15 +307,26 @@ checks on each push and pull request.
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one; throttled the same
   way login is, validated by the same password validators as every other
-  password path, and never logs the value. Both are audited as the user's
-  own action.
+  password path, and never logs the value. The caller keeps their session -
+  the auth hash is refreshed, so choosing a new password does not eject them
+  to the sign-in screen - while every other session for that account ends.
+  Both are audited as the user's own action.
 - **Audit log**: append-only `audit` app recording session, candidate,
   assessment, item, outcome, promotion, student and user actions. Written
   inside the acting service's transaction, so no event survives a
   rolled-back action. Django admin routes every write through the same
-  services the API uses, so an admin-created or admin-edited record is
-  audited and attributed identically. Outcome revisions carry the previous
-  proposal, and a locked-session withdrawal that discards an undecided
+  services the API uses - creates, edits, deletes and password changes - so
+  a record changed there is audited and attributed identically (KG-A14).
+  Every admin delete runs through `kukgrade.admin_mixins.ServiceDeleteMixin`,
+  so Django's own "protected objects" check never refuses a delete the
+  service would perform. Admin's own `is_staff`/`is_superuser` flags are
+  audited too, and groups and per-user permissions are read-only in admin.
+  A password change and its audit event share one transaction. Session
+  detail edits (`SESSION_UPDATED`) and assessment notes edits
+  (`ASSESSMENT_UPDATED`) are recorded with both versions; resending an
+  unchanged value, or one differing only by surrounding whitespace, records
+  nothing. Outcome revisions carry the previous proposal, and a
+  locked-session withdrawal that discards an undecided
   proposal carries what it said, before it is deleted - both are what make
   a disagreement or an overridden decision visible after the fact.
   Immutable from model, queryset, admin and HTTP. **Readable only by
@@ -328,7 +382,9 @@ checks on each push and pull request.
   student creation and detail/edit, administrator-only bulk student-roster
   import (upload, column mapping pre-filled from the file's own headers,
   row-by-row review with inline correction, commit), the syllabus cumulative
-  current-knowledge ledger (FDR-041/SCR-025), grading-session list,
+  current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
+  progress counts, like the overview's, are served with each session
+  rather than derived from a first page of assessments - KG-A15),
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
   the promotion ledger. The administrator-only historical-import wizard
@@ -385,9 +441,9 @@ checks on each push and pull request.
   `CandidateAssessment.notes` can be written and the 1A scoring screen has no
   overall-note control. Sealing requires an explicit proofread
   acknowledgement. A sealed record shows its seal and offers no write path.
-  `CORE_CATEGORY_CODES` now lives in `syllabusCategories.ts`, shared with
-  `SyllabusScreen`, so the syllabus and the permanent record cannot disagree
-  about which categories are core areas.
+  `isCoreCategory` in `syllabusCategories.ts` is shared with `SyllabusScreen`,
+  so the syllabus and the permanent record cannot disagree about which
+  categories are core areas.
 - **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
   SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
   (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
@@ -410,6 +466,30 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+- **Overview activity is labelled by what happened (2026-09-30, KG-A19)**:
+  each event shows the server's own action label, with the outcome where
+  there is one ("Outcome finalised · Fail"). Its colour comes from the
+  action and structured outcome, never from words in the summary, and
+  unknown actions stay neutral. The column shows who acted ("By").
+- **Scoring saves are sequenced per item (2026-09-30, KG-A18)**: several item
+  saves may be in flight at once. Writes to one item go out in the order
+  they were made, so the server keeps the last. Each save confirms or rolls
+  back only its own item, and only if nothing newer was written to it. The
+  item list and rollup are refetched once, when every save has landed, and
+  "Complete assessment" waits for all of them. Deleting an assessment drops
+  its cached record, items, rollup and notes draft and refetches outcomes,
+  promotions, students and session counts (`forgetDeletedAssessment`). The
+  overall-notes draft is keyed by assessment, so a regenerated assessment
+  starts without the old one's draft.
+- **No decision on evidence that did not load (2026-09-30, KG-A16/A17)**:
+  the drawer's Submit and the board's single "Record decision" wait until
+  that assessment's evidence has loaded (`useSealedEvidenceLoaded`), and a
+  failed load shows a retry instead. The promotion ledger computes
+  eligibility only once candidates, outcomes and promotions have all loaded;
+  if any fails it shows a retry and offers no promotion, so an
+  already-promoted student can never read as eligible. A proposal whose
+  outcome creation succeeded but whose response was lost resumes against
+  that outcome rather than being refused as a duplicate.
 - **Dark, responsive and accessibility pass (2026-09-29)**: slice 8 measured
   the four grading surfaces (mat-side scoring, completion proof, the board and
   the proposal drawer) in a browser in light and dark at desktop, tablet and
@@ -479,30 +559,42 @@ checks on each push and pull request.
   "Welcome back" implies a return visit that has not actually happened yet.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
-  `frontend/src/api/schema.ts`, and every type in `frontend/src/api.ts` is an
-  alias onto it - see the 2026-09-14 decision log entry. Every custom action
+  `frontend/src/api/schema.ts`, and every request and response type in
+  `frontend/src/api.ts` is an alias onto it - see the 2026-09-14 decision log
+  entry. The two hand-written types are generic: `PaginatedResponse<T>`, the
+  shape every generated `Paginated*List` shares, and `FieldErrors`, the error
+  envelope's field map, which the schema does not model. Every custom action
   declares its real request and response (`@extend_schema`), and the bulk,
   summary, and import actions serialize through those same declared
   serializers, so the schema cannot describe a shape the API does not send.
   The schema splits request and response components
   (`COMPONENT_SPLIT_REQUEST`), so request payloads such as `StudentRequest`
   and `PatchedStudentRequest` are generated too, without the read-only fields
-  a response carries.
-  CI regenerates both the schema and the types and fails if either differs
-  from what is committed. List-filter parameters are generated too: each view declares its filters
-  once and the same declaration filters the queryset and documents the
-  schema. The only hand-written API shapes are the error
-  envelope, which `custom_exception_handler` builds outside DRF's
-  serializer path, and the page envelope.
+  a response carries. CI regenerates both the schema and the types and fails
+  if either differs from what is committed. List-filter parameters are
+  generated too: each view declares its filters once and the same declaration
+  filters the queryset and documents the schema. The only hand-written API
+  shapes are the error envelope, which `custom_exception_handler` builds
+  outside DRF's serializer path, and the page envelope.
 - **One end-to-end HTTP test** drives the entire grading workflow - login,
   student, session, candidate, assessment generation and marking, outcome
   proposal, finalisation and promotion, rank history - taking every
   identifier from the previous response, the way a real frontend must.
 - **Concurrency tests** (`gradings/test_concurrency.py`, marked
-  `concurrency`) prove five locking guarantees under a genuine multi-thread
-  race rather than by reading the code: exactly one snapshot, one outcome,
-  one finalisation and one promotion survive a race, and two competing
-  session transitions never leave a mixed state.
+  `concurrency`) prove the locking guarantees under a genuine multi-thread
+  race on PostgreSQL rather than by reading the code. Five race one
+  operation against itself: exactly one snapshot, one outcome, one
+  finalisation and one promotion survive, and competing session transitions
+  never leave a mixed state. Sixteen force a specific cross-operation
+  schedule with `interleave()`, which holds the first operation just before
+  it commits - no sleeps decide the order - and assert the one serial result
+  the protocol allows: item edit against completion, reopen and registration
+  and a candidate move against locking, withdrawal against finalisation,
+  cancellation against promotion, a details edit against cancellation,
+  assessment, session and student cleanup against a later promotion, bulk
+  promotion against session cleanup (previously a PostgreSQL deadlock), two
+  promotions of one student, and concurrent student, candidate and user
+  edits including a password change and a Master grant.
 - **Login is rate-limited**: `ScopedRateThrottle` at 10/min, scoped so no
   other endpoint is affected. A failed attempt is logged with the email
   only; no log line in the codebase ever includes a password or a raw
@@ -536,8 +628,6 @@ checks on each push and pull request.
   grading surfaces only; the rest of the app has been checked visually. The
   session screen's breadcrumb, banner button, search and filter are under
   44px.
-- `frontend/src/App.test.tsx` still holds about 6,000 lines of screen tests
-  that belong in per-screen files.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required
   before a production import.

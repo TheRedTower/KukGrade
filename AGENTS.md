@@ -47,6 +47,10 @@ image (`docs/deployment.md`) that is not yet deployed to a live host.
   2026-09-23 decision log entry.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
+- Every grading assesses the cumulative syllabus: everything examinable
+  through the testing rank for the candidate's age band, not only that rank's
+  new material. `syllabus.services.effective_syllabus_requirements` is the one
+  resolver; the syllabus screen and assessment generation both use it.
 - Each grading must retain the exact syllabus it was assessed against.
   Assessment item snapshots copy the full requirement text, so a past grading
   is reconstructable and cannot be changed by a later syllabus edit. An

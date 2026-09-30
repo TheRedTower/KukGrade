@@ -96,6 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       loginUser(email, password),
     onSuccess: (authenticatedUser) => {
+      // Signing out clears the cache, but only if the logout request
+      // succeeded. Closing the tab, losing the network, or an expiry the
+      // client never saw all leave the previous session's data sitting
+      // there, so the start of a session clears it too - whoever just
+      // signed in is the only person this cache may describe.
+      forgetSession();
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
     },
   });

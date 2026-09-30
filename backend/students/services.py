@@ -10,11 +10,13 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from accounts.models import User
 from audit.models import AuditAction
 from audit.recording import record
+from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students.models import Student
 
@@ -68,45 +70,46 @@ def update_student(
     status: str | None = None,
     actor: User | None = None,
 ) -> Student:
-    # Read fresh from the database rather than snapshotting `student` as
-    # received: Django admin's own save flow constructs the new field
-    # values onto this exact instance before save_model() ever runs, so a
-    # comparison against the argument as-is would always see the new value
-    # on both sides. The API path is unaffected, since DRF passes the
-    # unmodified instance.
-    persisted = Student.objects.get(pk=student.pk)
-    before = _snapshot(persisted)
-    status_changing = status is not None and status != persisted.status
+    # Only `student`'s id is used. The API loaded it before this transaction
+    # began, and Django admin has already written its form onto it, so
+    # saving it as received wrote back every field another edit changed in
+    # the meantime (KG-A12). The requested changes go onto the locked row -
+    # the same student lock promotion and rank rollback take.
+    locked = lock_student(student.pk)
+    before = _snapshot(locked)
 
     if first_name is not None:
-        student.first_name = first_name
+        locked.first_name = first_name
     if last_name is not None:
-        student.last_name = last_name
+        locked.last_name = last_name
     if date_of_birth is not None:
-        student.date_of_birth = date_of_birth
+        locked.date_of_birth = date_of_birth
     if current_rank is not None:
-        student.current_rank = current_rank
+        locked.current_rank = current_rank
     if status is not None:
-        student.status = status
-    student.save()
+        locked.status = status
+    # The same normalising clean() that save() runs, so a resent value that
+    # only differs by surrounding whitespace still counts as unchanged.
+    locked.full_clean()
 
-    after = _snapshot(student)
+    after = _snapshot(locked)
     if before == after:
-        # A no-op PATCH (resending the same values) writes nothing: an audit
-        # trail exists to show what changed, and nothing did.
-        return student
+        # A no-op PATCH (resending the same values) writes nothing at all -
+        # no row update and no audit event.
+        return locked
+    locked.save()
 
     # One event per call, not one per changed field and not both a generic
     # and a specific event for the same edit. A status change is the more
     # specific fact whenever it happens, even alongside other field changes,
     # so it is what gets recorded; that same event's metadata still carries
     # every field that moved.
-    if status_changing:
+    if before["status"] != after["status"]:
         record(
             AuditAction.STUDENT_STATUS_CHANGED,
-            student,
+            locked,
             (
-                f"Student {student} status changed from "
+                f"Student {locked} status changed from "
                 f"{before['status']} to {after['status']}."
             ),
             actor=actor,
@@ -115,12 +118,12 @@ def update_student(
     else:
         record(
             AuditAction.STUDENT_UPDATED,
-            student,
-            f"Student {student} updated.",
+            locked,
+            f"Student {locked} updated.",
             actor=actor,
             metadata={"before": before, "after": after},
         )
-    return student
+    return locked
 
 
 @transaction.atomic
@@ -157,7 +160,40 @@ def delete_student(student: Student, actor: User) -> None:
         Promotion,
     )
 
-    locked = Student.objects.select_for_update().get(pk=student.pk)
+    # Sessions before the student, as every grading write takes them
+    # (gradings/locking.py). This deletes rows inside each of the student's
+    # sessions, and a promotion holding one of those sessions takes the
+    # student last: locking the student first here is how the two came to
+    # wait on each other.
+    sessions = set(
+        GradingCandidate.objects.filter(student_id=student.pk).values_list(
+            "session_id",
+            flat=True,
+        ),
+    )
+    lock_sessions(sessions)
+    locked = lock_student(student.pk)
+    registered_since = (
+        set(
+            GradingCandidate.objects.filter(student=locked).values_list(
+                "session_id",
+                flat=True,
+            ),
+        )
+        - sessions
+    )
+    if registered_since:
+        # Registered into another session in the moment between reading the
+        # sessions and taking the locks. That session is not locked, and
+        # locking it now would break the order, so start again instead.
+        raise ValidationError(
+            {
+                "student": [
+                    "This student was registered for another grading while "
+                    "being deleted. Try again.",
+                ],
+            },
+        )
 
     cascaded_candidates = list(
         GradingCandidate.objects.filter(student=locked).values_list(

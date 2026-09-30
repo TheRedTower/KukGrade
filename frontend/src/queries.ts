@@ -36,3 +36,15 @@ export function useAssessmentItemsQuery(assessmentId: number | undefined) {
     enabled: assessmentId !== undefined,
   });
 }
+
+/**
+ * Whether the evidence an outcome decision rests on - the assessment's
+ * served counts and its items - has loaded. A decision must not be made on
+ * evidence that failed or is still on its way (KG-A16). True when there is no
+ * assessment to load.
+ */
+export function useSealedEvidenceLoaded(assessmentId: number | undefined): boolean {
+  const summary = useAssessmentSummaryQuery(assessmentId);
+  const items = useAssessmentItemsQuery(assessmentId);
+  return assessmentId === undefined || (summary.isSuccess && items.isSuccess);
+}

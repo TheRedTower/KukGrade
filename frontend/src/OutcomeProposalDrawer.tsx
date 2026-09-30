@@ -15,11 +15,13 @@ import {
   type CandidateOutcomeOutcome,
   type GradingCandidate,
   createCandidateOutcome,
+  getAllCandidateOutcomes,
   proposeCandidateOutcome,
 } from "./api";
 import { RankBelt } from "./Belt";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
+import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import { useDialogFocus } from "./useDialogFocus";
 import "./OutcomeDrawers.css";
@@ -47,6 +49,7 @@ export function OutcomeProposalDrawer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const evidenceLoaded = useSealedEvidenceLoaded(assessment?.id);
   const titleId = useId();
   const dialogRef = useDialogFocus<HTMLDivElement>({
     isOpen: true,
@@ -62,7 +65,7 @@ export function OutcomeProposalDrawer({
       // A candidate has no outcome record until the first proposal creates it.
       let id = outcomeId;
       if (id === undefined) {
-        id = (await createCandidateOutcome(candidate.id)).id;
+        id = await createOrFindOutcome(candidate);
         setOutcomeId(id);
       }
       const updated = await proposeCandidateOutcome(id, {
@@ -179,7 +182,11 @@ export function OutcomeProposalDrawer({
             <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={isSubmitting || !evidenceLoaded}
+            >
               {isSubmitting ? "Submitting…" : "Submit proposal"}
             </button>
           </footer>
@@ -187,4 +194,23 @@ export function OutcomeProposalDrawer({
       </div>
     </div>
   );
+}
+
+/**
+ * The candidate's outcome, created if it does not exist yet (KG-A17). A
+ * creation can succeed on the server while its response is lost, or the
+ * outcome can have been created since this drawer loaded; either way the
+ * retry resumes with that outcome instead of being refused as a duplicate.
+ */
+async function createOrFindOutcome(candidate: GradingCandidate): Promise<number> {
+  try {
+    return (await createCandidateOutcome(candidate.id)).id;
+  } catch (err) {
+    const existing = await getAllCandidateOutcomes({ candidate: candidate.id }).catch(
+      () => null,
+    );
+    const found = existing?.results.find((outcome) => outcome.candidate === candidate.id);
+    if (found) return found.id;
+    throw err;
+  }
 }

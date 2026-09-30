@@ -7,12 +7,14 @@ from django.forms import ModelForm
 from django.http import HttpRequest
 
 from accounts.models import User
+from kukgrade.admin_mixins import ServiceDeleteMixin
 from students.models import Student
-from students.services import create_student, update_student
+from students.services import create_student, delete_student, update_student
 
 
 @admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
+class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
+    deletion_service = staticmethod(delete_student)
     list_display = (
         "wksa_id",
         "first_name",

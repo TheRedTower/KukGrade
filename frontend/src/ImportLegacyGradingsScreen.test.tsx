@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportLegacyGradingsScreen } from "./ImportLegacyGradingsScreen";
 import {
   ApiError,
+  type CreateDataImportBatchResponse,
   type DataImportBatch,
   type LegacyImportPreview,
 } from "./api";
@@ -29,12 +30,11 @@ vi.mock("./api", async () => {
   };
 });
 
-const batchResponse: DataImportBatch = {
+const batchResponse: CreateDataImportBatchResponse = {
   id: 7,
-  kind: "LEGACY_GRADINGS",
-  status: "UPLOADED",
-  status_display: "Uploaded",
-  summary_json: {},
+  already_imported_warning: false,
+  detected_headers: [],
+  suggested_mapping: {},
 };
 
 const initialPreview: LegacyImportPreview = {
@@ -52,8 +52,7 @@ const initialPreview: LegacyImportPreview = {
 };
 
 const committedBatch: DataImportBatch = {
-  ...batchResponse,
-  status: "COMMITTED",
+  id: 7,
   summary_json: {
     total: 2,
     grading_result: 1,
@@ -129,6 +128,26 @@ describe("ImportLegacyGradingsScreen", () => {
       });
     });
     expect(await screen.findByText("Import complete")).toBeInTheDocument();
+  });
+
+  it("warns before committing a workbook that was already imported", async () => {
+    const user = userEvent.setup();
+    mockCreateDataImportBatch.mockResolvedValue({
+      ...batchResponse,
+      already_imported_warning: true,
+    });
+    mockPreviewLegacyGradingImport.mockResolvedValue(initialPreview);
+
+    renderScreen();
+    await user.upload(
+      screen.getByLabelText("Historical grading workbook file"),
+      makeFile(),
+    );
+    await user.click(screen.getByRole("button", { name: "Upload" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Importing it again creates a second copy of every record",
+    );
   });
 
   it("surfaces an upload error from the API", async () => {

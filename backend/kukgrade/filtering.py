@@ -14,7 +14,7 @@ empty page rather than a 400 or being silently ignored.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
@@ -83,6 +83,45 @@ def choice(
 
     return QueryFilter(
         name, apply, {"type": "string", "enum": sorted(choices)}, description
+    )
+
+
+def choices_in(
+    name: str,
+    lookup: str,
+    choices: Collection[str],
+    description: str = "",
+) -> QueryFilter:
+    """One or more comma-separated choices, matching any of them."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        wanted = value.split(",")
+        if not set(wanted) <= set(choices):
+            return queryset.none()
+        return queryset.filter(**{f"{lookup}__in": wanted})
+
+    return QueryFilter(
+        name,
+        apply,
+        {"type": "string"},
+        f"{description} Comma-separated; one of {', '.join(sorted(choices))}.".strip(),
+    )
+
+
+def ordered_by(
+    name: str,
+    orderings: Mapping[str, Sequence[str]],
+    description: str = "",
+) -> QueryFilter:
+    """Sort by one of the named orderings; any other value matches nothing."""
+
+    def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+        if value not in orderings:
+            return queryset.none()
+        return queryset.order_by(*orderings[value])
+
+    return QueryFilter(
+        name, apply, {"type": "string", "enum": sorted(orderings)}, description
     )
 
 

@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ApiError } from "./api";
 import { useAuth } from "./auth";
+import { KukGradeLogo } from "./KukGradeLogo";
 
 type MustChangePasswordProps = {
   themeToggle?: ReactNode;
@@ -68,9 +69,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
   return (
     <div className="must-change-password-page">
       <div className="must-change-password-header">
-        <div className="nav-wordmark">
-          Kuk<span className="nav-wordmark-accent">Grade</span>
-        </div>
+        <KukGradeLogo className="must-change-password-logo" />
         {themeToggle ? <div className="theme-toggle-bar">{themeToggle}</div> : null}
       </div>
 

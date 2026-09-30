@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django.db.models import QuerySet
+from django.utils import timezone
 from rest_framework import mixins, status
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -11,11 +12,16 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from gradings.services import (
-    student_rank_timeline,
-    unified_student_grading_history,
+from gradings.age import students_in_age_band
+from gradings.models import GradingCandidate
+from gradings.read_models import student_rank_timeline, unified_student_grading_history
+from kukgrade.filtering import (
+    QueryFilter,
+    by_id,
+    choices_in,
+    exact,
+    search,
 )
-from kukgrade.filtering import choice, exact, search
 from students.models import Student
 from students.serializers import (
     StudentGradingHistorySerializer,
@@ -24,6 +30,37 @@ from students.serializers import (
     StudentSerializer,
 )
 from students.services import delete_student
+from syllabus.models import AgeBand
+
+
+def _in_age_band(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    if value not in AgeBand.values:
+        return queryset.none()
+    return students_in_age_band(queryset, value, timezone.localdate())
+
+
+def _eligible_for_session(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    if not value.isdecimal():
+        return queryset.none()
+    registered = GradingCandidate.objects.filter(session_id=int(value)).values(
+        "student"
+    )
+    return queryset.exclude(status=Student.Status.LEFT).exclude(pk__in=registered)
+
+
+_AGE_BAND = QueryFilter(
+    "age_band",
+    _in_age_band,
+    {"type": "string", "enum": sorted(AgeBand.values)},
+    "The age band the student is in today.",
+)
+_ELIGIBLE_FOR_SESSION = QueryFilter(
+    "eligible_for_session",
+    _eligible_for_session,
+    {"type": "integer"},
+    "Students who could still be registered for this grading session: "
+    "not Left and not already one of its candidates.",
+)
 
 
 class StudentViewSet(
@@ -68,8 +105,11 @@ class StudentViewSet(
         return StudentSerializer
 
     query_filters = (
-        choice("status", "status", Student.Status.values),
+        choices_in("status", "status", Student.Status.values),
         exact("current_rank_code", "current_rank__code"),
+        by_id("current_rank", "current_rank_id"),
+        _AGE_BAND,
+        _ELIGIBLE_FOR_SESSION,
         search("search", ("first_name", "last_name", "wksa_id")),
     )
 

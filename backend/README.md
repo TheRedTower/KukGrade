@@ -48,7 +48,9 @@ uv run pytest
 Each app is described in `../docs/architecture.md`. The conventions that hold
 everywhere:
 
-- **Services own every state change.** `<app>/services.py` validates a
+- **Services own every state change.** `<app>/services.py` (`gradings` also has
+  `assessment_services.py`, `outcome_services.py` and `legacy_services.py`)
+  validates a
   change, writes it in a transaction, and records its audit event with
   `audit.recording.record()` in that same transaction. Views, serializers,
   and Django admin all call the services, so a change is validated and
@@ -56,13 +58,17 @@ everywhere:
   `ValidationError` and views let it propagate: `custom_exception_handler`
   (`kukgrade/exceptions.py`) turns it into the standard 400 envelope, keeping
   its field keys.
-- **Models refuse illegal states themselves.** Status changes, deletion
-  rules, and immutability (finalised outcomes, promotions, audit events,
-  imported source text) are enforced in `save()`/`delete()`/`clean()` and in
-  custom querysets, so they hold from the shell, bulk querysets, and admin -
-  not only through the API. The few deliberate bypasses (administrator hard
-  deletes that reassign attribution or cascade history) call the unbound
-  `models.QuerySet.update`/`delete` at one documented call site each.
+- **Models refuse the illegal states that matter most.** Session status
+  changes, deletion rules, and the immutability of finalised outcomes,
+  promotions, audit events and imported source text are enforced in
+  `save()`/`delete()`/`clean()` and custom querysets, so they hold from the
+  shell, bulk querysets and admin - not only through the API. The few
+  deliberate bypasses (administrator hard deletes that reassign attribution
+  or cascade history) call the unbound `models.QuerySet.update`/`delete` at
+  one documented call site each. Assessment rules - a snapshot's copied
+  requirement text, and a completed assessment staying completed - are
+  service invariants: the services, serializers and admin enforce them, but
+  a raw ORM write from the shell is not refused (KG-A22).
 - **Permissions fail closed.** Every viewset declares a `permission_map`;
   `accounts.permissions.HasRequiredPermissions` denies any undeclared
   action. Master authority and the audit-log grant are per-user permissions
@@ -78,7 +84,7 @@ everywhere:
   `schema.yml` after any serializer change; CI fails if it is stale, and the
   frontend's types are generated from it.
 - **Bulk endpoints process rows independently**
-  (`gradings.services._each_independently`): each row runs the single-item
+  (`gradings.service_support.each_independently`): each row runs the single-item
   service in its own savepoint, and the response lists what succeeded plus
   an `errors` map from row index to that row's messages.
 - **Test builders live in `testing.py`** in their own app
@@ -90,8 +96,10 @@ everywhere:
 Migrations seed the rank catalogue
 (`ranks/migrations/0002_seed_rank_catalogue.py`), the WKSA Version 2014
 syllabus from the Junior and Adult/Youth Testing Requirement Charts
-(`syllabus/migrations/0002_seed_wksa_2014_syllabus.py`), and the "Deleted
-User" placeholder account a hard-deleted user's history is reassigned to
+(`syllabus/migrations/0002_seed_wksa_2014_syllabus.py`, with the adults'
+seven black-belt technique sets completed in `0003_adult_jkn_technique_sets.py`),
+and the "Deleted User" placeholder account a hard-deleted user's history is
+reassigned to
 (`accounts/migrations/0005_seed_deleted_user_placeholder.py`). Numbered
 technique ranges live on `SyllabusRequirement`; form parts remain concise
 notes.
@@ -102,4 +110,7 @@ notes.
 KSW Colchester grading workbook - through one `ImportBatch` lifecycle.
 Uploaded files sit in private storage (`STORAGES["import_uploads"]`, never a
 public URL) until commit, cancel, or `manage.py expire_stale_import_batches
---hours 24`. Full detail in `../docs/data-import-and-legacy-migration.md`.
+--hours 24`, and are deleted only once that transaction has committed.
+Spreadsheets are read row by row with openpyxl and `csv`, under limits
+checked while reading (`data_imports/parsers.py`). Full detail in
+`../docs/data-import-and-legacy-migration.md`.

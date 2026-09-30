@@ -35,7 +35,6 @@ pytestmark = pytest.mark.django_db
 READ_ENDPOINTS = [
     "/api/ranks/",
     "/api/syllabus/age-bands/",
-    "/api/syllabus/items/",
     "/api/syllabus/requirements/effective/?rank_code=YELLOW&age_band=AGE_18_AND_OVER",
     "/api/gradings/sessions/",
     "/api/gradings/candidates/",

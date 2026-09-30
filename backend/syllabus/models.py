@@ -151,6 +151,13 @@ class SyllabusItem(models.Model):
             raise ValidationError(errors)
 
 
+# The WKSA chart's own category sequence - the six core areas, then
+# Techniques, Forms and Weapons - which is the order Category declares.
+CATEGORY_ORDER: dict[str, int] = {
+    code: index for index, code in enumerate(SyllabusItem.Category.values)
+}
+
+
 class SyllabusRequirement(models.Model):
     rank = models.ForeignKey(
         "ranks.Rank",

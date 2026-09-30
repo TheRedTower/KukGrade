@@ -108,15 +108,23 @@ button:disabled {
   padding: clamp(1.5rem, 4vw, 3rem);
 }
 
-.auth-wordmark {
-  margin: 0 0 0.5rem;
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+/* The logo's black strokes are drawn in currentColor (KukGradeLogo), so on
+   the ink panels they take the on-ink text colour. */
+.kukgrade-logo {
+  display: block;
+  line-height: 0;
 }
 
-.auth-wordmark-accent {
-  color: var(--color-gold);
+.kukgrade-logo svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.auth-logo {
+  width: 14rem;
+  max-width: 100%;
+  margin: 0 0 1.25rem;
 }
 
 .auth-brand-tagline {
@@ -401,15 +409,10 @@ h2 {
   padding: 0.5rem 0.75rem 1.5rem;
 }
 
-.nav-wordmark {
-  margin: 0 0 0.35rem;
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.nav-wordmark-accent {
-  color: var(--color-gold);
+.nav-logo {
+  width: 10rem;
+  max-width: 100%;
+  margin: 0 0 0.75rem;
 }
 
 .nav-brand-tagline {
@@ -850,6 +853,10 @@ h2 {
   color: var(--color-text);
 }
 
+.footer-brand-accent {
+  color: var(--color-gold);
+}
+
 .footer-separator {
   color: var(--color-border);
 }
@@ -871,6 +878,11 @@ h2 {
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
+  }
+
+  .nav-logo {
+    width: 8rem;
+    margin-bottom: 0.5rem;
   }
 
   .nav-links {
@@ -917,6 +929,11 @@ h2 {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1.5rem;
+}
+
+.must-change-password-logo {
+  width: 9rem;
+  color: var(--color-text);
 }
 
 .must-change-password-card {

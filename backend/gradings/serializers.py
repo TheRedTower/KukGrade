@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-from django.db import IntegrityError, transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from accounts.models import User
+from gradings.assessment_services import (
+    update_candidate_assessment,
+    update_candidate_assessment_item,
+)
 from gradings.legacy_services import link_legacy_record_to_student, void_legacy_record
 from gradings.models import (
-    CANDIDATE_STUDENT_FIXED_MESSAGE,
     CandidateAssessment,
     CandidateAssessmentItem,
     CandidateOutcome,
@@ -18,22 +20,23 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
-from gradings.services import (
-    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
-    OverallAssessmentSummary,
-    apply_candidate_update,
-    candidate_assessment_summary,
-    candidate_can_be_deleted,
-    candidate_can_change_session,
-    create_grading_session,
+from gradings.outcome_services import (
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
-    transition_grading_session,
-    update_candidate_assessment,
-    update_candidate_assessment_item,
+)
+from gradings.read_models import OverallAssessmentSummary, assessment_overall
+from gradings.services import (
+    WITHDRAWAL_REASON_REQUIRED_MESSAGE,
+    apply_candidate_update,
+    candidate_can_be_deleted,
+    candidate_can_change_session,
+    create_grading_session,
+    session_deletion_blocker,
+    update_grading_session,
     validate_session_grading_date_change,
     validate_session_transition,
+    with_session_progress,
     withdraw_locked_candidate,
 )
 from ranks.models import Rank
@@ -41,8 +44,17 @@ from students.models import Student
 from syllabus.models import SyllabusItem
 
 
+class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
+    years = serializers.ListField(child=serializers.IntegerField(), read_only=True)
+
+
 class GradingSessionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    # Counted by gradings.services.with_session_progress (KG-A15).
+    candidate_count = serializers.IntegerField(read_only=True)
+    completed_assessment_count = serializers.IntegerField(read_only=True)
+    awaiting_decision_count = serializers.IntegerField(read_only=True)
+    can_be_deleted = serializers.SerializerMethodField()
 
     class Meta:
         model = GradingSession
@@ -55,14 +67,40 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "location",
             "notes",
             "cancellation_reason",
+            "candidate_count",
+            "completed_assessment_count",
+            "awaiting_decision_count",
+            "can_be_deleted",
         )
         read_only_fields = (
             "id",
             "status_display",
         )
+
         # Sent when cancelling a locked session; no screen reads it back. It
         # is kept on the model and in the audit log.
         extra_kwargs = {"cancellation_reason": {"write_only": True}}
+
+    def get_can_be_deleted(self, obj: GradingSession) -> bool:
+        """Whether the requesting user may delete it, by the delete's own rule."""
+        actor = self.context["request"].user
+        return (
+            session_deletion_blocker(
+                obj,
+                actor,
+                has_recorded_work=obj.has_recorded_work,  # type: ignore[attr-defined]
+            )
+            is None
+        )
+
+    def to_representation(self, instance: GradingSession) -> dict[str, Any]:
+        # A session just created or edited was not loaded through the
+        # viewset's annotated queryset, so its counts are read now.
+        if not hasattr(instance, "candidate_count"):
+            instance = with_session_progress(
+                GradingSession.objects.filter(pk=instance.pk),
+            ).get()
+        return super().to_representation(instance)
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
         if self.instance is not None and "status" in attrs:
@@ -94,20 +132,13 @@ class GradingSessionSerializer(serializers.ModelSerializer):
     ) -> GradingSession:
         target_status = cast(str | None, validated_data.pop("status", None))
         reason = cast(str, validated_data.pop("cancellation_reason", ""))
-        with transaction.atomic():
-            if validated_data:
-                instance = cast(
-                    GradingSession,
-                    super().update(instance, validated_data),
-                )
-            if target_status is not None and target_status != instance.status:
-                instance = transition_grading_session(
-                    instance,
-                    target_status,
-                    actor=self.context["request"].user,
-                    reason=reason,
-                )
-            return instance
+        return update_grading_session(
+            instance,
+            changes=validated_data,
+            target_status=target_status,
+            reason=reason,
+            actor=self.context["request"].user,
+        )
 
 
 class GradingCandidateSerializer(serializers.ModelSerializer):
@@ -117,8 +148,8 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     # Blank on a candidate who is not withdrawn, so the schema admits "".
     withdrawal_reason = serializers.ChoiceField(
         choices=GradingCandidate.WithdrawalReason.choices,
-        required=False,
         allow_blank=True,
+        read_only=True,
     )
     student_display_name = serializers.SerializerMethodField()
     student_wksa_id = serializers.CharField(source="student.wksa_id", read_only=True)
@@ -145,11 +176,6 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     def get_can_be_removed(self, instance: GradingCandidate) -> bool:
         return candidate_can_be_deleted(instance)
 
-    def validate_student(self, value: Student) -> Student:
-        if self.instance is not None and value.pk != self.instance.student_id:
-            raise serializers.ValidationError(CANDIDATE_STUDENT_FIXED_MESSAGE)
-        return value
-
     class Meta:
         model = GradingCandidate
         fields = (
@@ -164,15 +190,21 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "testing_for_rank_name",
             "age_band_display",
             "status",
-            "notes",
             "withdrawal_reason",
             "withdrawal_reason_display",
             "withdrawal_note",
             "can_be_moved",
             "can_be_removed",
         )
+        # PATCH moves a registration to another session and does nothing
+        # else (KG-A13): withdrawal and status go through their own actions,
+        # and the rest is fixed at registration.
         read_only_fields = (
             "id",
+            "student",
+            "testing_for_rank",
+            "status",
+            "withdrawal_note",
             "student_display_name",
             "student_wksa_id",
             "from_rank",
@@ -187,25 +219,11 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
         instance: GradingCandidate,
         validated_data: dict[str, Any],
     ) -> GradingCandidate:
-        try:
-            candidate = apply_candidate_update(
-                instance,
-                session=cast(GradingSession | None, validated_data.get("session")),
-                testing_for_rank=cast(
-                    Rank | None,
-                    validated_data.get("testing_for_rank"),
-                ),
-                status=cast(str | None, validated_data.get("status")),
-                notes=cast(str | None, validated_data.get("notes")),
-                withdrawal_reason=validated_data.get("withdrawal_reason"),
-                withdrawal_note=validated_data.get("withdrawal_note"),
-                actor=cast(User, self.context["request"].user),
-            )
-        except IntegrityError as exc:
-            raise serializers.ValidationError(
-                {"student": ["Student is already registered for this session."]},
-            ) from exc
-        return candidate
+        return apply_candidate_update(
+            instance,
+            session=cast(GradingSession | None, validated_data.get("session")),
+            actor=cast(User, self.context["request"].user),
+        )
 
 
 class BulkCandidateRegistrationItemSerializer(serializers.Serializer):
@@ -220,7 +238,6 @@ class BulkCandidateRegistrationItemSerializer(serializers.Serializer):
         queryset=Rank.objects.all(),
         required=False,
     )
-    notes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class BulkCandidateRegistrationSerializer(serializers.Serializer):
@@ -355,7 +372,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(AssessmentSummaryCountsSerializer)
     def get_overall(self, obj: CandidateAssessment) -> OverallAssessmentSummary:
-        return candidate_assessment_summary(obj)["overall"]
+        return assessment_overall(obj)
 
     def update(
         self,
@@ -387,7 +404,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
-            "requirement_sequence",
+            "position",
             "required",
             "display_range",
             "requirement_notes",
@@ -403,7 +420,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
-            "requirement_sequence",
+            "position",
             "required",
             "display_range",
             "requirement_notes",

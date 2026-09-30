@@ -24,7 +24,9 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
 4. Copy `.env.production.example` to `.env.production` on the deployment
    host. Fill in the PostgreSQL network, alias, database, role, password and
    a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
-   name as it should appear in the top bar. Set mode
+   name as it should appear in the top bar, and `DJANGO_TIME_ZONE` to the
+   club's IANA time zone (default `Europe/London`; it decides what "today"
+   means for ages and grading dates). Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
 5. Requests pass through Cloudflare and then Traefik, so
    `DJANGO_NUM_PROXIES=2`. That count is only right if Traefik trusts
@@ -109,7 +111,16 @@ already applied, restore the matching pre-update database backup first.
 The `expire_stale_import_batches` command is currently manual. Run it from
 the host's scheduler with `docker compose ... exec -T app python manage.py
 expire_stale_import_batches --hours 24` so abandoned personal-data uploads
-are deleted. No worker container is required.
+are deleted, along with any stored file no batch names. It exits non-zero if
+a batch could not be expired; running it again finishes the job. No worker
+container is required.
+
+Django writes an upload to a temporary file before the application can
+refuse it for size, so the request body should be capped at the proxy, a
+little above `KUKGRADE_UPLOAD_MAX_BYTES`. Nothing caps it yet: that is a
+Traefik buffering middleware (`maxRequestBodyBytes`) attached to the
+`kukgrade` router in `compose.prod.yml`'s labels, to add and verify against
+the real Traefik when going live.
 
 ## Boundaries
 

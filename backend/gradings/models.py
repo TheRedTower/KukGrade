@@ -363,7 +363,7 @@ class GradingCandidate(models.Model):
             raise ValidationError({"withdrawal_note": [OTHER_WITHDRAWAL_NOTE_MESSAGE]})
 
         if not self.age_band and self.student_id and self.session_id:
-            from gradings.services import resolve_age_band
+            from gradings.age import resolve_age_band
 
             self.age_band = resolve_age_band(
                 self.student.date_of_birth,
@@ -864,6 +864,10 @@ class CandidateAssessmentItem(models.Model):
     korean_name = models.CharField(max_length=160, blank=True)
     category = models.CharField(max_length=32, choices=SyllabusItem.Category.choices)
     requirement_sequence = models.PositiveIntegerField()
+    # The item's place in the assessment, from 1, in syllabus order. The
+    # copied sequence cannot order a cumulative assessment: it is only the
+    # item's place among its own rank's requirements.
+    position = models.PositiveIntegerField()
     required = models.BooleanField(default=True)
     start_number = models.PositiveIntegerField(null=True, blank=True)
     end_number = models.PositiveIntegerField(null=True, blank=True)
@@ -890,7 +894,7 @@ class CandidateAssessmentItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["requirement_sequence", "item_name", "pk"]
+        ordering = ["position", "pk"]
         indexes = [
             models.Index(
                 fields=["assessment", "result"],
@@ -940,6 +944,14 @@ class CandidateAssessmentItem(models.Model):
             models.CheckConstraint(
                 condition=Q(requirement_sequence__gt=0),
                 name="candidate_item_sequence_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(position__gt=0),
+                name="candidate_item_position_positive",
+            ),
+            models.UniqueConstraint(
+                fields=["assessment", "position"],
+                name="unique_assessment_item_position",
             ),
             models.CheckConstraint(
                 condition=(
@@ -1012,6 +1024,8 @@ class CandidateAssessmentItem(models.Model):
             errors["item_name"] = ["Item name is required."]
         if self.requirement_sequence is not None and self.requirement_sequence <= 0:
             errors["requirement_sequence"] = ["Requirement sequence must be positive."]
+        if self.position is not None and self.position <= 0:
+            errors["position"] = ["Position must be positive."]
 
         if errors:
             raise ValidationError(errors)

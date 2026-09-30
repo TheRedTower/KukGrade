@@ -15,32 +15,26 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     summary_json = serializers.DictField(
         child=serializers.IntegerField(), read_only=True
     )
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = ImportBatch
-        fields = [
-            "id",
-            "kind",
-            "status",
-            "status_display",
-            "summary_json",
-        ]
+        fields = ["id", "summary_json"]
         read_only_fields = fields
 
 
-class ImportBatchCreatedSerializer(ImportBatchSerializer):
-    """The batch, plus one-shot creation-response extras: a duplicate-hash
-    warning and the file's own headers, so the frontend can build its
-    mapping step without a second request. Not persisted batch state."""
+class ImportBatchCreatedSerializer(serializers.ModelSerializer):
+    """The new batch's id, plus one-shot creation-response extras: a
+    duplicate-hash warning and the file's own headers, so the frontend can
+    build its mapping step without a second request. Not persisted state."""
 
     already_imported_warning = serializers.SerializerMethodField()
     detected_headers = serializers.SerializerMethodField()
     suggested_mapping = serializers.SerializerMethodField()
 
-    class Meta(ImportBatchSerializer.Meta):
+    class Meta:
+        model = ImportBatch
         fields = [
-            *ImportBatchSerializer.Meta.fields,
+            "id",
             "already_imported_warning",
             "detected_headers",
             "suggested_mapping",
@@ -81,6 +75,17 @@ def _validate_column_mapping(value: dict[str, str]) -> None:
         )
 
 
+class StudentImportCorrectionSerializer(serializers.Serializer):
+    """One row's corrected values, by target field; any may be left out."""
+
+    wksa_id = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    date_of_birth = serializers.CharField(required=False, allow_blank=True)
+    current_rank = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField(required=False, allow_blank=True)
+
+
 class StudentImportSerializer(serializers.Serializer):
     """Shared request shape for the preview and commit actions."""
 
@@ -88,8 +93,10 @@ class StudentImportSerializer(serializers.Serializer):
         child=serializers.CharField(allow_blank=True),
         validators=[_validate_column_mapping],
     )
+    # Keyed by row number. Each correction declares the target fields it may
+    # carry, so the schema - and the generated frontend type - name them.
     corrections = serializers.DictField(
-        child=serializers.DictField(child=serializers.CharField(allow_blank=True)),
+        child=StudentImportCorrectionSerializer(),
         required=False,
         default=dict,
     )

@@ -1,9 +1,8 @@
 """Read-only support/debug surface, not the product workflow.
 
 No add/change/delete here - the source file holds personal data and the
-batch lifecycle is service-owned (create_import_batch/commit_student_import/
-cancel_import_batch), so ordinary Admin CRUD would bypass validation, audit
-recording and temp-file cleanup.
+batch lifecycle is service-owned (`data_imports.services`), so ordinary Admin
+CRUD would bypass validation, audit recording and temp-file cleanup.
 """
 
 from __future__ import annotations

@@ -23,22 +23,11 @@ class ImportBatch(models.Model):
         LEGACY_GRADINGS = "LEGACY_GRADINGS", "Legacy grading records"
 
     class Status(models.TextChoices):
+        # The one open state; the other three are final.
         UPLOADED = "UPLOADED", "Uploaded"
-        NEEDS_REVIEW = "NEEDS_REVIEW", "Needs review"
-        READY = "READY", "Ready"
         COMMITTED = "COMMITTED", "Committed"
-        # Reserved for a future partial-commit design (see the deviations
-        # recorded in docs/decision_log.md) - never produced today.
-        PARTIAL = "PARTIAL", "Partially committed"
         CANCELLED = "CANCELLED", "Cancelled"
-        FAILED = "FAILED", "Failed"
         EXPIRED = "EXPIRED", "Expired"
-
-    UNCOMMITTED_STATUSES: tuple[str, ...] = (
-        Status.UPLOADED,
-        Status.NEEDS_REVIEW,
-        Status.READY,
-    )
 
     kind = models.CharField(max_length=32, choices=Kind.choices)
     status = models.CharField(

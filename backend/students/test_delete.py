@@ -5,11 +5,14 @@ them; a linked LegacyGradingRecord is unlinked, not deleted."""
 from __future__ import annotations
 
 import pytest
+from django.contrib import admin
+from django.test import RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_record
+from gradings.assessment_services import generate_candidate_assessment
 from gradings.models import (
     CandidateAssessment,
     CandidateOutcome,
@@ -17,13 +20,9 @@ from gradings.models import (
     GradingSession,
     Promotion,
 )
-from gradings.services import (
-    generate_candidate_assessment,
-    get_next_active_rank,
-    promote_candidate,
-    transition_grading_session,
-)
-from gradings.tests import (
+from gradings.outcome_services import promote_candidate
+from gradings.services import get_next_active_rank, transition_grading_session
+from gradings.testing import (
     candidate,
     complete_assessment,
     finalised_outcome,
@@ -34,6 +33,7 @@ from gradings.tests import (
     start_assessment,
     user,
 )
+from students.admin import StudentAdmin
 from students.models import Student
 from students.services import delete_student
 
@@ -151,7 +151,7 @@ def test_deleting_a_student_with_multiple_promotions_needs_no_supersession_check
 ):
     # Contrast with session-cascade delete: every promotion this student has
     # is removed together, so there is no surviving promotion left for
-    # either one to supersede - unlike gradings.tests's
+    # either one to supersede - unlike gradings.testing's
     # test_session_delete_with_a_superseded_promotion_is_refused_and_deletes_nothing.
     built, _generated = locked_completed_candidate()
     student = built.student
@@ -213,3 +213,28 @@ def test_api_admin_can_delete_student() -> None:
 
     assert response.status_code == 204
     assert not Student.objects.filter(pk=student.pk).exists()
+
+
+def test_admin_delete_goes_through_the_service_even_with_history() -> None:
+    # Django's own delete refuses a student with registrations (PROTECT) or,
+    # with none, deletes the row without the domain event; the service does
+    # neither (KG-A14).
+    built = candidate()
+    student = built.student
+    request = RequestFactory().post("/admin/")
+    request.user = user(
+        "student-admin-delete@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    model_admin = StudentAdmin(Student, admin.site)
+
+    assert model_admin.get_deleted_objects([student], request)[3] == []
+    model_admin.delete_queryset(request, Student.objects.filter(pk=student.pk))
+
+    assert not Student.objects.filter(pk=student.pk).exists()
+    assert not GradingCandidate.objects.filter(pk=built.pk).exists()
+    assert AuditEvent.objects.filter(
+        action=AuditAction.STUDENT_DELETED,
+        entity_id=str(student.pk),
+        actor=request.user,
+    ).exists()

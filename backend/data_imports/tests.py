@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+import csv
+import os
 from collections.abc import Sequence
-from datetime import timedelta
+from datetime import date, timedelta
 from io import StringIO
+from typing import Any
+from unittest.mock import patch
 
 import pytest
-import tablib
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
+from django.db import DatabaseError, IntegrityError, connection, transaction
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from openpyxl.workbook import Workbook
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -18,13 +26,20 @@ from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
+    _active_rank_lookup,
+    _resolve_rank,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
+    expire_import_batch,
     preview_student_import,
+    remove_orphaned_uploads,
 )
+from data_imports.storage import import_upload_storage
+from data_imports.testing import workbook_bytes
 from ranks.models import Rank
 from students.models import Student
+from students.services import create_student
 
 pytestmark = pytest.mark.django_db
 
@@ -60,11 +75,18 @@ def student_workbook(
     headers: list[str] | None = None,
     file_format: str = "xlsx",
 ) -> bytes:
-    dataset = tablib.Dataset(headers=headers or list(STANDARD_STUDENT_HEADERS.values()))
-    for row in rows:
-        dataset.append(row)
-    exported = dataset.export(file_format)
-    return exported if isinstance(exported, bytes) else exported.encode("utf-8")
+    table = [headers or list(STANDARD_STUDENT_HEADERS.values()), *rows]
+    if file_format == "csv":
+        text = StringIO()
+        csv.writer(text).writerows(table)
+        return text.getvalue().encode("utf-8")
+
+    def build(workbook: Workbook) -> None:
+        sheet = workbook.create_sheet("Roster")
+        for row in table:
+            sheet.append(list(row))
+
+    return workbook_bytes(build)
 
 
 def upload_batch(
@@ -86,6 +108,15 @@ def upload_batch(
 CLEAN_ROW = ["000123", "Alex", "Kim", "2012-05-01", "White", "ACTIVE"]
 
 
+def stored(name: str) -> bool:
+    return import_upload_storage().exists(name)
+
+
+def age_file(name: str, hours: int) -> None:
+    then = (timezone.now() - timedelta(hours=hours)).timestamp()
+    os.utime(import_upload_storage().path(name), (then, then))
+
+
 # --- parsers -----------------------------------------------------------------
 
 
@@ -102,8 +133,8 @@ def test_load_tabular_dataset_rejects_malformed_xlsx() -> None:
 def test_load_tabular_dataset_reads_valid_csv() -> None:
     content = student_workbook([CLEAN_ROW], file_format="csv")
     dataset = load_tabular_dataset(content=content, filename="roster.csv")
-    assert dataset.headers is not None
-    assert len(dataset) == 1
+    assert dataset.headers == list(STANDARD_STUDENT_HEADERS.values())
+    assert [number for number, _ in dataset.rows] == [2]
 
 
 # --- mappings ------------------------------------------------------------
@@ -188,6 +219,54 @@ def test_preview_classifies_clean_row_as_ready() -> None:
     assert preview.rows[0].current_rank_code == "WHITE"
 
 
+def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
+    def roster(size: int) -> list[list[object]]:
+        # A mix: ready, already on the roster, and an unknown rank.
+        rows: list[list[object]] = []
+        for index in range(size):
+            rank_text = ("White", "yellow stripe", "Purple")[index % 3]
+            rows.append([f"Q{index:04d}", "Alex", "Kim", "2012-05-01", rank_text, ""])
+        return rows
+
+    creator = admin_user("preview-queries-creator@example.com")
+    for index in range(0, 40, 4):
+        create_student(
+            wksa_id=f"Q{index:04d}",
+            first_name="Existing",
+            last_name="Student",
+            date_of_birth=date(2012, 5, 1),
+            current_rank=rank("WHITE"),
+            actor=creator,
+        )
+    small = upload_batch(content=student_workbook(roster(2)), uploaded_by=creator)
+    large = upload_batch(content=student_workbook(roster(40)), uploaded_by=creator)
+
+    with CaptureQueriesContext(connection) as few:
+        preview_student_import(small, column_mapping=STANDARD_MAPPING)
+    with CaptureQueriesContext(connection) as many:
+        preview = preview_student_import(large, column_mapping=STANDARD_MAPPING)
+
+    assert {row.outcome for row in preview.rows} == {
+        "READY",
+        "SKIP_EXISTING",
+        "REVIEW_REQUIRED",
+    }
+    assert len(many.captured_queries) == len(few.captured_queries)
+
+
+def test_the_preloaded_rank_lookup_resolves_exactly_what_a_single_lookup_does() -> None:
+    lookup = _active_rank_lookup()
+    inactive = rank("YELLOW_STRIPE")
+    Rank.objects.filter(pk=inactive.pk).update(active=False)
+    lookup_without_it = _active_rank_lookup()
+
+    for text in ("white", "WHITE", "White", "Yellow", "blue stripe", "Purple", "x"):
+        assert lookup.get(text.upper()) == _resolve_rank(text), text
+    for text in ("yellow stripe", "YELLOW_STRIPE"):
+        assert lookup_without_it.get(text.upper()) is None
+        assert _resolve_rank(text) is None
+
+
 def test_preview_flags_missing_required_field_as_review_required() -> None:
     row = ["000124", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
@@ -254,6 +333,134 @@ def test_preview_is_recomputed_fresh_and_deterministic_across_calls() -> None:
     first = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     second = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     assert first == second
+
+
+TOMORROW = (timezone.localdate() + timedelta(days=1)).isoformat()
+FIELD_INDEX = {name: index for index, name in enumerate(STANDARD_STUDENT_HEADERS)}
+
+# (changes to CLEAN_ROW, the issue preview must report or None for READY).
+# Every case is committed as well as previewed: READY must mean committable.
+PARITY_CASES = {
+    "WKSA ID at its limit": ({"wksa_id": "W" * 32}, None),
+    "WKSA ID over its limit": (
+        {"wksa_id": "W" * 33},
+        "WKSA ID: Ensure this value has at most 32 characters (it has 33).",
+    ),
+    "WKSA ID within its limit once trimmed": ({"wksa_id": f" {'W' * 32} "}, None),
+    "first name at its limit": ({"first_name": "F" * 150}, None),
+    "first name over its limit": (
+        {"first_name": "F" * 151},
+        "First name: Ensure this value has at most 150 characters (it has 151).",
+    ),
+    "last name over its limit": (
+        {"last_name": "L" * 151},
+        "Last name: Ensure this value has at most 150 characters (it has 151).",
+    ),
+    "blank WKSA ID": ({"wksa_id": ""}, "WKSA ID is required."),
+    "whitespace-only first name": ({"first_name": "   "}, "First name is required."),
+    "future date of birth": (
+        {"date_of_birth": TOMORROW},
+        "Date of birth cannot be in the future.",
+    ),
+    "unparseable date of birth": (
+        {"date_of_birth": "31/31/2012"},
+        "Date of birth '31/31/2012' could not be parsed.",
+    ),
+    "status in lower case": ({"status": "left"}, None),
+    "unrecognised status": ({"status": "GONE"}, "Status 'GONE' is not recognised."),
+    "unknown rank": (
+        {"current_rank": "Purple"},
+        "Rank 'Purple' did not match the rank catalogue.",
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    ("changes", "issue"),
+    list(PARITY_CASES.values()),
+    ids=list(PARITY_CASES),
+)
+def test_preview_and_commit_agree_on_every_row(
+    changes: dict[str, str],
+    issue: str | None,
+) -> None:
+    row = list(CLEAN_ROW)
+    for name, value in changes.items():
+        row[FIELD_INDEX[name]] = value
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([row]), uploaded_by=admin)
+
+    previewed = preview_student_import(batch, column_mapping=STANDARD_MAPPING).rows[0]
+    committed = commit_student_import(
+        batch, actor=admin, column_mapping=STANDARD_MAPPING
+    )
+
+    if issue is None:
+        assert previewed.outcome == "READY", previewed.issues
+        assert committed.summary_json["created"] == 1
+    else:
+        assert previewed.outcome == "REVIEW_REQUIRED"
+        assert previewed.issues == [issue]
+        assert committed.summary_json["created"] == 0
+
+
+def test_a_correction_is_held_to_the_same_rules() -> None:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
+
+    preview = preview_student_import(
+        batch,
+        column_mapping=STANDARD_MAPPING,
+        corrections={"2": {"last_name": "L" * 151}},
+    )
+
+    assert preview.rows[0].issues == [
+        "Last name: Ensure this value has at most 150 characters (it has 151).",
+    ]
+
+
+def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    def created_elsewhere_first(**values: Any) -> Student:
+        Student.objects.create(
+            wksa_id=values["wksa_id"],
+            first_name="Someone",
+            last_name="Else",
+            date_of_birth=values["date_of_birth"],
+            current_rank=values["current_rank"],
+        )
+        return create_student(**values)
+
+    with (
+        patch(
+            "data_imports.services.create_student",
+            side_effect=created_elsewhere_first,
+        ),
+        pytest.raises(DjangoValidationError) as raised,
+    ):
+        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+
+    [message] = raised.value.message_dict["rows"]
+    assert message.startswith("Row 2 (000123) is no longer valid: ")
+    assert "already exists" in message
+    assert message.endswith("Nothing was imported - preview the file again.")
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+
+
+def test_a_database_conflict_during_commit_fails_it_clearly() -> None:
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    with (
+        patch(
+            "data_imports.services.create_student",
+            side_effect=IntegrityError("duplicate key"),
+        ),
+        pytest.raises(DjangoValidationError, match="conflicts with a change saved"),
+    ):
+        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
 
 # --- commit_student_import ---------------------------------------------
@@ -352,29 +559,87 @@ def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
         commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
 
-def test_commit_deletes_the_temporary_source_file() -> None:
+def test_commit_deletes_the_temporary_source_file(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    assert batch.source_file
+    name = batch.source_file.name
+    assert stored(name)
 
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
+    with django_capture_on_commit_callbacks(execute=True):
+        committed = commit_student_import(
+            batch, actor=admin, column_mapping=STANDARD_MAPPING
+        )
 
     assert not committed.source_file
+    assert not stored(name)
+
+
+def test_a_commit_whose_audit_fails_leaves_the_batch_retryable(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        patch("data_imports.services.record", side_effect=RuntimeError("audit")),
+        pytest.raises(RuntimeError),
+    ):
+        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+    assert stored(batch.source_file.name)
+    assert not Student.objects.filter(wksa_id="000123").exists()
+    retried = commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+    assert retried.status == ImportBatch.Status.COMMITTED
+
+
+def test_a_failed_delete_after_commit_still_reports_the_commit(
+    django_capture_on_commit_callbacks: Any,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    name = batch.source_file.name
+    storage_class = type(import_upload_storage())
+
+    # The patch encloses the capture: captured callbacks run as it exits.
+    with (
+        patch.object(storage_class, "delete", side_effect=OSError("read-only")),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        committed = commit_student_import(
+            batch, actor=admin, column_mapping=STANDARD_MAPPING
+        )
+
+    assert committed.status == ImportBatch.Status.COMMITTED
+    assert f"Import batch #{batch.pk} is closed" in caplog.text
+    # Left for the sweep, which removes it once it is old enough.
+    assert stored(name)
+    age_file(name, hours=2)
+    remove_orphaned_uploads(max_age=timedelta(hours=1))
+    assert not stored(name)
 
 
 # --- cancel_import_batch -------------------------------------------------
 
 
-def test_cancel_deletes_temp_file_and_audits() -> None:
+def test_cancel_deletes_temp_file_and_audits(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    name = batch.source_file.name
 
-    cancelled = cancel_import_batch(batch, actor=admin)
+    with django_capture_on_commit_callbacks(execute=True):
+        cancelled = cancel_import_batch(batch, actor=admin)
 
     assert cancelled.status == ImportBatch.Status.CANCELLED
     assert not cancelled.source_file
+    assert not stored(name)
     assert AuditEvent.objects.filter(
         action=AuditAction.IMPORT_BATCH_CANCELLED,
         entity_type="ImportBatch",
@@ -382,23 +647,169 @@ def test_cancel_deletes_temp_file_and_audits() -> None:
     ).exists()
 
 
-def test_expiring_a_stale_batch_deletes_its_file_and_audits_it_as_expired() -> None:
+def test_a_cancel_whose_save_fails_keeps_the_file(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
     admin = admin_user()
-    stale = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
-    ImportBatch.objects.filter(pk=stale.pk).update(
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        patch.object(ImportBatch, "save", side_effect=DatabaseError("disk full")),
+        pytest.raises(DatabaseError),
+    ):
+        cancel_import_batch(batch, actor=admin)
+
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+    assert stored(batch.source_file.name)
+
+
+def test_rolling_back_an_enclosing_transaction_keeps_the_file(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    admin = admin_user()
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        pytest.raises(RuntimeError),
+        transaction.atomic(),
+    ):
+        cancel_import_batch(batch, actor=admin)
+        raise RuntimeError("the caller's own work failed")
+
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+    assert stored(batch.source_file.name)
+
+
+def stale_batch(admin: User) -> ImportBatch:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    ImportBatch.objects.filter(pk=batch.pk).update(
         uploaded_at=timezone.now() - timedelta(hours=25),
     )
+    return batch
 
-    call_command("expire_stale_import_batches", "--hours", "24", stdout=StringIO())
+
+def test_expiring_a_stale_batch_deletes_its_file_and_audits_it_as_expired(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    admin = admin_user()
+    stale = stale_batch(admin)
+    fresh = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
+    name = stale.source_file.name
+
+    with django_capture_on_commit_callbacks(execute=True):
+        call_command("expire_stale_import_batches", "--hours", "24", stdout=StringIO())
 
     stale.refresh_from_db()
     fresh.refresh_from_db()
     assert stale.status == ImportBatch.Status.EXPIRED
     assert not stale.source_file
+    assert not stored(name)
     assert fresh.status != ImportBatch.Status.EXPIRED
+    assert stored(fresh.source_file.name)
     events = AuditEvent.objects.filter(entity_id=str(stale.pk))
     assert [event.action for event in events] == [AuditAction.IMPORT_BATCH_EXPIRED]
+
+
+@pytest.mark.parametrize("hours", ["0", "-5"])
+def test_expiry_refuses_a_retention_under_one_hour(hours: str) -> None:
+    with pytest.raises(CommandError, match="at least 1"):
+        call_command("expire_stale_import_batches", "--hours", hours)
+
+
+def test_expiry_leaves_a_batch_that_closed_since_it_was_selected() -> None:
+    admin = admin_user()
+    batch = stale_batch(admin)
+    commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+
+    assert expire_import_batch(batch.pk, max_age=timedelta(hours=24)) is False
+
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.COMMITTED
+    assert not AuditEvent.objects.filter(
+        action=AuditAction.IMPORT_BATCH_EXPIRED,
+    ).exists()
+
+
+def test_expiry_leaves_a_batch_that_is_not_yet_stale() -> None:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
+
+    assert expire_import_batch(batch.pk, max_age=timedelta(hours=24)) is False
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+
+
+def test_an_expiry_whose_audit_fails_leaves_the_batch_open(
+    django_capture_on_commit_callbacks: Any,
+) -> None:
+    batch = stale_batch(admin_user())
+
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        patch("data_imports.services.record", side_effect=RuntimeError("audit")),
+        pytest.raises(RuntimeError),
+    ):
+        expire_import_batch(batch.pk, max_age=timedelta(hours=24))
+
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+    assert stored(batch.source_file.name)
+
+
+def test_expiry_carries_on_past_a_failing_batch_and_a_rerun_finishes() -> None:
+    admin = admin_user()
+    first, second = stale_batch(admin), stale_batch(admin)
+    real = expire_import_batch
+
+    def fail_first(batch_id: int, **kwargs: Any) -> bool:
+        if batch_id == first.pk:
+            raise DatabaseError("lock timeout")
+        return real(batch_id, **kwargs)
+
+    command = "data_imports.management.commands.expire_stale_import_batches"
+    with (
+        patch(f"{command}.expire_import_batch", side_effect=fail_first),
+        pytest.raises(CommandError, match="1 batch"),
+    ):
+        call_command(
+            "expire_stale_import_batches", stdout=StringIO(), stderr=StringIO()
+        )
+
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert first.status == ImportBatch.Status.UPLOADED
+    assert second.status == ImportBatch.Status.EXPIRED
+
+    call_command("expire_stale_import_batches", stdout=StringIO())
+    first.refresh_from_db()
+    assert first.status == ImportBatch.Status.EXPIRED
+
+
+def test_orphan_sweep_removes_only_old_files_no_batch_names() -> None:
+    storage = import_upload_storage()
+    named = upload_batch(content=student_workbook([CLEAN_ROW])).source_file.name
+    old_orphan = storage.save("old-orphan.xlsx", ContentFile(b"x"))
+    new_orphan = storage.save("new-orphan.xlsx", ContentFile(b"x"))
+    age_file(named, hours=48)
+    age_file(old_orphan, hours=48)
+
+    remove_orphaned_uploads(max_age=timedelta(hours=24))
+
+    assert stored(named)
+    assert not stored(old_orphan)
+    assert stored(new_orphan)
+    storage.delete(new_orphan)
+
+
+def test_preview_of_a_batch_whose_file_went_missing_is_a_clear_error() -> None:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
+    import_upload_storage().delete(batch.source_file.name)
+
+    with pytest.raises(Exception, match="no longer available"):
+        preview_student_import(batch, column_mapping=STANDARD_MAPPING)
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:
@@ -507,7 +918,8 @@ def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> No
         format="json",
     )
     assert commit_response.status_code == 200
-    assert commit_response.json()["status"] == ImportBatch.Status.COMMITTED
+    assert commit_response.json()["id"] == batch_id
+    assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED
     assert Student.objects.filter(wksa_id="000123").exists()
 
 

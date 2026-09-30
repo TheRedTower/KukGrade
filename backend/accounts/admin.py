@@ -8,13 +8,21 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import QuerySet
 from django.forms import ModelForm
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
-from accounts.services import create_platform_user, update_platform_user
+from accounts.services import (
+    create_platform_user,
+    delete_platform_user,
+    record_admin_password_change,
+    set_admin_site_access,
+    update_platform_user,
+)
+from kukgrade.admin_mixins import ServiceDeleteMixin
 
 
 class UserCreationForm(forms.ModelForm):
@@ -81,7 +89,8 @@ class UserChangeForm(forms.ModelForm):
 
 
 @admin.register(User)
-class UserAdmin(DjangoUserAdmin):
+class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
+    deletion_service = staticmethod(delete_platform_user)
     form = UserChangeForm
     add_form = UserCreationForm
     model = User
@@ -102,6 +111,11 @@ class UserAdmin(DjangoUserAdmin):
     )
     search_fields = ("email", "first_name", "last_name")
     ordering = ("email",)
+    # Groups follow the role, and per-user permissions are Master authority,
+    # granted in the app through set_user_authority() and its rules - never
+    # edited here, where they would skip both the rules and the audit
+    # (KG-A14). The two dates are Django's bookkeeping.
+    readonly_fields = ("groups", "user_permissions", "last_login", "date_joined")
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
         # Internal bookkeeping, not an account anyone administers.
@@ -177,10 +191,12 @@ class UserAdmin(DjangoUserAdmin):
                 is_active=obj.is_active,
                 actor=cast(User, request.user),
             )
-            if obj.is_staff or obj.is_superuser:
-                created.is_staff = obj.is_staff
-                created.is_superuser = obj.is_superuser
-                created.save(update_fields=["is_staff", "is_superuser"])
+            set_admin_site_access(
+                created,
+                actor=cast(User, request.user),
+                is_staff=obj.is_staff,
+                is_superuser=obj.is_superuser,
+            )
             obj.pk = created.pk
             obj.refresh_from_db()
             return
@@ -195,3 +211,40 @@ class UserAdmin(DjangoUserAdmin):
             is_active=obj.is_active if "is_active" in changed_data else None,
             actor=cast(User, request.user),
         )
+        # Admin site access is Django admin's own, so it has its own audited
+        # service; each is sent only when the form changed it, never by
+        # saving this form's copy whole over what the service just wrote.
+        set_admin_site_access(
+            obj,
+            actor=cast(User, request.user),
+            is_staff=obj.is_staff if "is_staff" in changed_data else None,
+            is_superuser=obj.is_superuser if "is_superuser" in changed_data else None,
+        )
+        obj.refresh_from_db()
+
+    def user_change_password(
+        self,
+        request: HttpRequest,
+        id: str,
+        form_url: str = "",
+    ) -> HttpResponse:
+        # Django's form sets the password itself; the rest of an
+        # administrator reset - the forced change and its audit event -
+        # follows in the same transaction, as it does through the API.
+        with transaction.atomic():
+            stored = User.objects.filter(pk=id).values_list("password", flat=True)
+            before = stored.first()
+            response = super().user_change_password(request, id, form_url)
+            target = User.objects.filter(pk=id).first()
+            if target is not None and target.password != before:
+                record_admin_password_change(target, actor=cast(User, request.user))
+        return response
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> bool:
+        if obj is not None and obj.pk == request.user.pk:
+            return False
+        return super().has_delete_permission(request, obj)

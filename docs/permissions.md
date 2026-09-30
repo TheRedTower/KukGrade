@@ -84,7 +84,10 @@ See `docs/data-import-and-legacy-migration.md`.
 (since 2026-09-21) `gradings.can_view_grading_audit_log` are granted per
 user, independently of role, so authority survives one person being
 unavailable and never arrives as a side effect of a role change. The four
-are separate: holding one does not confer the others.
+are separate: holding one does not confer the others. They are granted only
+through `accounts.services.set_user_authority`, which applies the rules
+below and audits the change; Django admin shows groups and per-user
+permissions read-only (KG-A14).
 `can_view_grading_audit_log` is the odd one out in framing - it grants
 audit-log *read* access rather than a grading action - but follows the
 identical mechanism (`accounts.permissions.AUTHORITY_PERMISSIONS`) as the
@@ -110,10 +113,16 @@ The syllabus catalogue is read-only while syllabus versioning is deferred.
 ## Backend Enforcement
 
 - Every endpoint requires authentication except `/api/health/`,
-  `/api/ready/`, and login.
+  `/api/ready/`, `/api/site/`, and login.
 - Every viewset declares a `permission_map` from action to required Django
   permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
   action is denied, so a new endpoint fails closed.
+- An account whose password somebody else chose (`must_change_password`, set
+  on creation and by an administrator reset) may do nothing but read who it is,
+  change its password, and sign out, whatever permissions it holds
+  (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
+  this to every view at once, so a new endpoint is gated without declaring
+  anything; see `api_contract.md`.
 - Final decisions, promotion, and locked-session withdrawal/cancellation each
   add a per-user authority check on top, pinned by
   `accounts/test_permission_matrix.py`.

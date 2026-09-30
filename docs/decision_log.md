@@ -18,6 +18,490 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - The club's time zone is declared in the environment
+
+Status: Accepted
+
+Decision:
+`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`) sets Django's
+`TIME_ZONE`. It is validated when settings load, so a typo stops startup with
+a message naming the variable instead of failing inside a request.
+
+- It decides the date "today" means: grading dates, student ages and the age
+  bands all use `timezone.localdate()`. Stored timestamps stay UTC whatever it
+  is.
+- Django exports it as the process's `TZ`, so the container needs no separate
+  `TZ` variable, and the `python:3.14-slim` image carries the zone data.
+  PostgreSQL's own zone is irrelevant: Django talks to it in UTC and the age
+  filter is handed the local date as a value.
+- The frontend is unchanged: it shows times in the reader's browser zone and
+  parses API dates as calendar dates.
+
+Consequences:
+Changing the variable changes which day a late-evening or early-morning
+request falls on, so ages and session "today" can shift by a day at the
+boundary. It is set once per deployment, in `.env.production`.
+
+### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
+
+Status: Accepted
+
+Decision:
+Screens ask for the rows they display instead of downloading a collection
+and filtering it.
+
+- Sessions carry a served `can_be_deleted`, decided by
+  `gradings.services.session_deletion_blocker` - the same rule the delete
+  endpoint enforces - from a `has_recorded_work` annotation counted in the
+  list query. `GET /api/gradings/sessions/years/` returns the distinct years
+  of every session's date. The sessions screen takes the current (open)
+  session with `status=OPEN&page_size=1`; the Overview takes the open and
+  next sessions with two one-to-two-row requests and the open session's
+  attention list with `status=COMPLETED,IN_PROGRESS&page_size=4`; move
+  targets ask for `status=DRAFT,OPEN`.
+- `kukgrade.filtering` gains `choices_in` (comma-separated values, any
+  unknown value gives an empty page) and `ordered_by` (a named ordering,
+  unknown value gives an empty page). Session `status` and `ordering`,
+  assessment `status` and student `status` use them.
+- The cohort builder asks `GET /api/students/` for the eligible students
+  with `eligible_for_session` (not Left, not already a candidate of that
+  session), `age_band` (Postgres `age()` over the date of birth, which keeps
+  `calculate_age_on`'s 29 February rule), `current_rank`, `status` and a
+  debounced `search`. It no longer downloads the session's candidates to
+  hide them. "Add all N matching" still means every match: the screen holds
+  the full matching set, because the rank groups and their age mix are
+  computed from it, and "Add all" is disabled while a typed filter is still
+  settling so it cannot act on a stale list. The outcome drawer's
+  retry-after-lost-response asks for one candidate's outcome
+  (`outcomes/?candidate=`) instead of the session's.
+- Session-scoped screens (session detail, adjudication, ledger) still fetch
+  one session's candidates, assessments and outcomes: a session is tens of
+  rows, the data those screens render.
+
+Context:
+Measured on 40 sessions and 300 students (response bytes, database
+queries): years 51 bytes and 1 query; the open session 268 bytes and 2
+queries, against 9,183 bytes for all sessions; the open session's attention
+list 52 bytes and 1 query; the full roster 51,788 bytes against 17,146 for a
+filtered one, both 2 queries. The sessions screen makes four requests
+(user, years, current, page) however many sessions are visible; before the
+KG-A15 served counts it made two more per visible session.
+
+KG-A21's five read-path items were measured before changing anything.
+The per-record history N+1 and the assessment summary's second retrieval did
+not reproduce; growth tests now pin both. The other three were real and are
+fixed, each with a growth test and the same responses: the users list
+primed one permission query per row (102 queries for 100 users, now 4); the
+assessment list loaded every item of every assessment to count results (3
+queries with item rows, now 2 with none, counted in the database); the
+import preview looked up each row's rank and existing student separately
+(now constant in the row count).
+
+Consequences:
+A new list screen should add a declared filter rather than filter
+client-side. The roster still downloads the matching students in full
+(about 170 bytes each); if a school outgrows that, the rank groups need a
+served count before the table can page.
+
+### 2026-09-30 - gradings/services.py is split by domain (KG-A23)
+
+Status: Accepted
+
+Decision:
+`gradings/services.py` keeps the session and candidate rules. Other domains
+moved to sibling modules with no behaviour change: `age.py` (age-band
+resolution), `read_models.py` (assessment summaries, rank timeline, grading
+history), `outcome_services.py` (outcomes and promotion),
+`assessment_services.py` (generation, scoring, reopening, deletion) and
+`service_support.py` (the per-row bulk runner and the unique-violation
+check). Importers name the module that owns the function; there is no
+re-export. The concurrency tests pause at each module's own `record` call.
+
+Consequences:
+Patch or pause a write path at the module that owns it, not at
+`gradings.services`.
+
+### 2026-09-30 - Documentation states which layer enforces each rule
+
+Status: Accepted
+
+Decision:
+Each claim the 2026-09-29 audit found overstated is now either made true
+or corrected to name the layer that really enforces it (KG-A22).
+- **Made true:**
+  - An unknown `/api/` URL answers with the JSON error envelope
+    (`handler404`, `kukgrade.exceptions.not_found`); other paths keep
+    Django's page.
+  - Student-import corrections and promotion notes use generated types,
+    since the correction fields are now declared on the backend.
+  - Several claims were already true after the earlier fixes: forced
+    password change (A01), admin writes (A14), session counts (A15),
+    no-op student updates, and bulk-row independence (A11).
+- **Corrected:**
+  - Model-level guards cover session status, deletion, finalised outcomes,
+    promotions, audit events and imported source text. Assessment snapshot
+    and completion rules are service invariants, enforced by services,
+    serializers and admin but not against a raw ORM write.
+  - The schema declares every request and success response; errors share
+    one envelope that is not modelled per endpoint.
+  - Readiness keeps its own `503` payload for its monitor.
+  - `PaginatedResponse<T>` and `FieldErrors` are the only hand-written
+    frontend types.
+
+Context:
+The audit's rule: a document saying something is done is not evidence that
+it is. Model-level guards for assessments were not added here. That would be
+a separate design choice about admin corrections and reopening.
+
+Consequences:
+Contract change: `StudentImportRequest.corrections` now names its six
+fields.
+
+### 2026-09-30 - Overview activity status comes from the action, not the prose
+
+Status: Accepted
+
+Decision:
+The Overview's recent-activity status is the event's `action_display`, plus
+the outcome from its metadata for a proposal or final decision (KG-A19).
+- Green: a promotion, or a Pass finalised.
+- Amber: Fail or Conditional finalised, or a withdrawal.
+- In progress: a started assessment, or a proposal awaiting decision.
+- Neutral: everything else, including actions the screen does not know.
+
+The column that showed the actor under a "Student" heading is now "By".
+
+Context:
+The screen matched words such as "pass", "complete" and "promot" in the
+summary, so a password reset and "finalised as FAIL, overriding PASS" both
+read "Approved".
+
+Consequences:
+None beyond the Overview.
+
+### 2026-09-30 - Scoring saves are sequenced per item, refetched once
+
+Status: Accepted
+
+Decision:
+Mat-side scoring keeps several item saves in flight (KG-A18):
+- Writes to one item go out in order, each after the previous one lands,
+  so the server keeps the last choice. Different items still save in
+  parallel.
+- Each save confirms or rolls back only its own item, and only if nothing
+  newer was written to it. It never restores a snapshot of the whole list.
+- The item list, rollup and assessment are refetched once, when every save
+  has landed. A refetch between saves would overwrite those still in flight.
+- "Complete assessment" waits until no save is pending, counted across every
+  save rather than only the latest.
+
+Deleting an assessment removes its cached record, items, rollup and notes
+draft, and refetches outcomes, promotions, students, candidates, session
+counts and assessment lists, since the delete can remove an outcome and a
+promotion and revert a rank. The overall-notes draft is keyed by assessment
+rather than candidate. Completing or reopening an assessment also refetches
+the session counts.
+
+Context:
+A failed save restored a snapshot of the whole list, erasing other saves
+still showing on screen. Two quick edits to one item could land at the
+server in either order. Every save triggered a refetch that could overwrite
+pending ones. Completion looked only at the latest save.
+
+Consequences:
+None beyond the scoring screen; the API is unchanged.
+
+### 2026-09-30 - Grading decisions wait for their evidence
+
+Status: Accepted
+
+Decision:
+An outcome is proposed, decided or promoted only on data that loaded
+(KG-A16).
+- The proposal drawer's Submit and the board's single-candidate "Record
+  decision" are disabled until the assessment's counts and items have
+  loaded. A failure offers a retry.
+- The promotion ledger shows no rows and offers no promotion unless
+  candidates, outcomes and promotions all loaded.
+
+A proposal recovers from a lost creation response (KG-A17): if creating the
+outcome fails, the drawer looks for that candidate's outcome in the session
+and proposes against it. Any other failure is still reported. Every way of
+closing the drawer was already blocked while it saved.
+
+Context:
+A failed evidence request left the drawer's Submit active. A failed
+promotions request made already-promoted students look eligible. If a
+creation response was lost, a retry was refused because the outcome
+already existed.
+
+Consequences:
+The board's bulk "Record staged decisions" still acts on the served list
+counts it shows, which already block the whole board when they fail to
+load.
+
+### 2026-09-30 - Session progress is counted once, on the server
+
+Status: Accepted
+
+Decision:
+Each grading session carries `candidate_count`,
+`completed_assessment_count` and `awaiting_decision_count`, counted in the
+database by `gradings.services.with_session_progress` (KG-A15). A withdrawn
+candidate counts in none of them. An assessment counts as complete only
+when it is `COMPLETED`. Awaiting a final decision means a completed
+assessment whose outcome is not finalised. The sessions list and the
+overview both read these counts, instead of counting a first page of
+assessments themselves.
+
+Context:
+The sessions screen counted in-progress assessments as "complete", treated
+every completed assessment as awaiting a decision, and counted only the
+first 50 of each. It also made two list requests per table row to get its
+numbers.
+
+Consequences:
+The session list's row counts no longer cost two requests per row (part of
+KG-A20). Listing more sessions adds no queries, which a test pins.
+
+### 2026-09-30 - Every write path is audited like the API's; candidate PATCH only moves
+
+Status: Accepted
+
+Decision:
+From the 2026-09-29 audit, KG-A13 and KG-A14.
+
+- **Candidate `PATCH` moves a registration to another session and does
+  nothing else.** The app sends only `session`; student, testing-for rank,
+  status and withdrawal fields are read-only there. Status changes go
+  through `bulk-update-status`, and a locked-session withdrawal through
+  `withdraw`, which is where the app already sent them. Candidate `notes`
+  are no longer served or accepted by the API, since no screen reads or
+  writes them. The column stays, and admin still edits it through
+  `apply_candidate_update`. The outcome `PATCH` route the audit named had
+  already been removed on 2026-09-28.
+- **Django admin writes through the services for every action.**
+  - Student and user deletes call `delete_student` and
+    `delete_platform_user`, including for records with history, which
+    Django's own collector would have refused.
+  - Admin's password form finishes like an administrator reset: the owner
+    must choose a new password, and the change is audited.
+  - `is_staff` and `is_superuser` go through `set_admin_site_access`, which
+    records `USER_UPDATED`.
+  - Groups and per-user permissions are read-only in admin. Master
+    authority is granted only through `set_user_authority`, which keeps its
+    rule that an administrator never holds final-decision authority.
+- **A password change and its audit event share one transaction**
+  (`reset_password`, `change_own_password`).
+- **Session details and assessment notes are audited.** `SESSION_UPDATED`
+  and `ASSESSMENT_UPDATED` record the changed fields with both versions,
+  as an item's notes already were. A resent unchanged value writes and
+  records nothing.
+
+Context:
+The audit found admin deletes, authority edits and password changes that
+skipped the domain services, so an admin change and the same change through
+the API left different state and a different audit trail. It also found a
+session edit and a notes-only assessment edit recording nothing.
+
+Consequences:
+Contract change: the candidate request and response shapes, and two new
+audit actions (`audit/0007`). The schema, generated types, audit-screen
+labels and `api_contract.md` are updated.
+
+### 2026-09-30 - Import files, expiry, preview validity and spreadsheet limits
+
+Status: Accepted
+
+Decision:
+The repairs to `data_imports` from the 2026-09-29 audit (KG-A07 to A10), and
+the removals a review of that work found.
+
+- **A source file is deleted only after its batch's transaction commits.**
+  Commit, cancel and expiry clear the batch's reference to the file inside
+  their transaction and delete the file from `transaction.on_commit`. A
+  failed save, audit record or enclosing transaction therefore leaves the
+  batch open with its file intact, and the batch can be retried. A delete
+  that fails after the commit is logged, not reported as a failed import,
+  because the import did succeed.
+- **Expiry is a lifecycle service**, `expire_import_batch`. It takes the
+  batch lock that commit and cancel take and rechecks status and age under
+  it, so exactly one terminal transition wins. The command only selects
+  candidates and runs each batch in its own transaction; it carries on past
+  a failure and exits non-zero. `--hours` must be at least 1.
+- **Orphaned files are swept.** The same command deletes stored files that
+  no batch names once they are older than `--hours`. That covers a file
+  saved for a batch whose creation rolled back, and a file whose
+  post-commit delete failed.
+- **Preview validates a row with `Student.full_clean()`**, the field and
+  `clean()` rules `create_student` runs on save, so a row marked Ready can
+  be committed. The checks that each cost a query and repeat one preview
+  has already made (the rank's existence, the two check constraints) are
+  skipped, keeping preview at its previous two queries a row. A refusal at
+  commit can then only come from a concurrent change, and it is reported
+  with the row number and reason. The batch stays all-or-nothing.
+- **Every upload is bounded while it is read.** The upload's declared size
+  is checked first, and the read is capped at the limit. An `.xlsx` archive
+  may expand to at most 50 MiB and hold at most 2,000 parts, judged from the
+  sizes it declares; Python's zip reader never reads past a declared size.
+  A roster reads at most 5,000 rows after the header, blank rows included,
+  and 50 columns. A legacy workbook reads at most 500 sheets, 50 columns and
+  50,000 rows across all its sheets, unknown sheets included. A workbook is
+  always closed. Rows are counted as they are read: in read-only mode a
+  4.8 KB workbook with one cell at row 1,048,576 reads as a million rows,
+  and is now refused after 5,000.
+- **A roster's blank rows are skipped**, and each remaining row keeps its
+  own row number in the sheet, so corrections still line up.
+- **A legacy workbook is fully parsed at upload.** One that cannot be read,
+  or that yields no records, is refused before anything is stored. The
+  refusal carries the adapter's warnings.
+- **Batch statuses are the ones the lifecycle uses**: `UPLOADED`, then
+  `COMMITTED`, `CANCELLED` or `EXPIRED`. `NEEDS_REVIEW`, `READY`, `PARTIAL`
+  and `FAILED` were never assigned and are removed (`data_imports/0003`),
+  superseding deviation 4's "kept in the enum for forward compatibility" in
+  the 2026-09-21 entry: a partial commit would be designed afresh.
+- **Batch responses carry what the app reads**: commit returns `id` and
+  `summary_json`, creation returns `id` and its one-shot extras. `kind`,
+  `status` and `status_display`, and the always-empty `summary_json` on
+  creation, are no longer served.
+- **The historical import screen shows the duplicate-file warning** the
+  roster screen already showed. Importing the same workbook twice creates a
+  second copy of every record, and historical records are voided, never
+  deleted.
+- **Tablib is replaced by reading with openpyxl and `csv` directly.**
+  Tablib always loads a whole file before any limit can be checked. openpyxl
+  was already installed through `tablib[xlsx]` and imported directly by the
+  workbook adapter; it is now a declared dependency, and `tablib` is
+  removed. This supersedes deviation 1 of the 2026-09-21 "Student roster
+  bulk import" entry.
+
+Measured with `tracemalloc`, which slows the runs, on synthetic fixtures:
+
+- A 5,000-row, 6-column roster parses in 0.7 s with a 4 MB peak.
+- A roster at both limits (5,000 rows by 50 columns) takes 5 s with a 23 MB
+  peak.
+- A 200-sheet history workbook takes 2 s with a 9 MB peak.
+- A workbook at the 50,000-row budget takes 6.6 s with a 28 MB peak.
+
+Context:
+The audit found the following:
+
+- A file was deleted before the database write it belonged to, so a
+  failure left an open batch with nothing to read.
+- Expiry ran without the batch lock, so it could overwrite a commit.
+- Preview checked a subset of the student rules, so a 33-character WKSA ID
+  was marked Ready and then failed at commit.
+- Spreadsheet limits were checked only after a whole file was loaded.
+
+Consequences:
+
+- Tests that assert a file is gone run the captured on-commit callbacks.
+- Tests upload to a throwaway temporary directory, not the development
+  server's `var/import_uploads`.
+- The request body itself is not bounded by the application. Django writes
+  a large upload to a temporary file before the view can refuse it, so the
+  production proxy should cap the request body size.
+
+### 2026-09-29 - Every grading assesses the cumulative syllabus
+
+Status: Accepted
+
+Decision:
+A grading assesses everything examinable through the rank being tested for,
+for the candidate's age band - not only the material that rank introduces.
+The owner's words: "we test everything every grading... they have to
+demonstrate knowledge cumulatively." One resolver,
+`syllabus.services.effective_syllabus_requirements`, serves the syllabus
+screen and is what assessment generation snapshots, so the two cannot
+disagree. It covers every category - the six core areas, Techniques, Forms
+and Weapons - in syllabus order: the chart's category order, then the order
+items were introduced. Where a later rank extends an item, its latest range
+applies. Every item stays required: each is marked Met or Not met before the
+assessment can be completed, and a session still locks only when every
+assessment is complete.
+
+A rank with no requirement of its own for an age band has no recorded
+syllabus. The resolver returns nothing for it and generation refuses, naming
+the rank, rather than presenting everything through the rank below as its
+curriculum. Today that is White, and KSN upwards.
+
+Assessment items gain `position`, their place in the assessment in syllabus
+order; items are listed and numbered by it. The copied `requirement_sequence`
+stays on the snapshot as trace data but no longer orders it - it is only an
+item's place among its own rank's requirements - and is no longer served.
+
+Jo Kyo Nim, settled the same day: adults do all seven black-belt technique
+sets, the five the chart marks for 13-17 plus Mohk Joh Leu Ki and Bahng Too
+Ki (`syllabus/0003`). The weapons are Sword Techs 1-5 and Bohng Dol-li-ki
+(staff spinning) 1-15, or 1-10 for 12 and under as the Junior chart says.
+Weapon forms and staff sparring follow JKN, with the 2nd Dahn syllabus, which
+is not recorded yet.
+
+`GET /api/syllabus/items/` is removed: the syllabus screen reads the core
+areas from the effective view with everything else. Supersedes the endpoint
+list in the 2026-06-23 "Syllabus catalogue foundation" entry: the syllabus is
+read only through `GET /api/syllabus/requirements/effective/` and the age
+bands, and no plain item or requirement list remains.
+
+Context:
+The 2026-09-29 independent audit (KG-A05) found generation used only the
+testing rank's own rows while the syllabus screen showed the cumulative view:
+an adult testing for Blue Stripe was assessed on Sohn Mohk Soo and Cho Geup
+Hyung but not Sohn Ppae Ki, Ki Bohn Soo or Ki Cho Hyung. The screen showed no
+weapons, and for KSN and above showed everything through JKN as if it were
+their curriculum. KG-A06, the student list's age-band filter, no longer
+applies: the filter was removed as unused earlier the same day (03a45df).
+Every age band is computed by `resolve_age_band`.
+
+Consequences:
+Assessments are larger and all required: 22-29 items at JKN against 11-14
+before, 9-11 at Blue Stripe. Assessments generated before this change keep
+the content they were generated with - snapshots are never regenerated.
+Their items are numbered in the order they were already listed in, and
+nothing else on them changes. Recording the 2nd Dahn syllabus and above, in
+its own chart version, is future content work.
+
+### 2026-09-29 - One grading lock protocol: session, then students
+
+Status: Accepted
+
+Decision:
+Every grading write takes its row locks in one order (`gradings/locking.py`):
+the grading session first, then the session's own rows and any students,
+students in ascending id. A session's lock coordinates everything inside it.
+Validation runs only against rows re-read under the locks, and services apply
+the requested fields to the locked row instead of saving the instance they
+were handed. Bulk operations take every lock before their first row's
+savepoint. Locks are taken by join-free queries.
+
+Context:
+The 2026-09-29 independent audit (KG-A03, KG-A04, KG-A11, KG-A12) found that
+row locks on individual rows could not make cross-row rules atomic, and each
+schedule it described was reproduced on PostgreSQL before the fix: an item
+cleared while its assessment completed, a reopen or registration landing in a
+session that had just locked, a withdrawal deleting a decision finalised
+moments before, cleanup rolling a rank back over a newer promotion, bulk
+promotion and session cleanup deadlocking, and stale full-row saves undoing a
+cancellation, a status change, a note or a password change. A role change and
+a Master grant could both succeed. Separately, a lock query that joined the
+student's rank dropped a student whose rank had just moved, a 500 in
+`promote_candidate`.
+
+This does not reverse KG-021 (2026-09-13), which removed session and student
+locks picked up *incidentally* through `select_related`, in no order - the
+contention and deadlock surface it warned about came from that. These locks
+are deliberate, explicit and ordered.
+
+Consequences:
+Writes inside one session run one at a time. Each is a single-row edit that
+takes milliseconds, so live grading by several instructors is unaffected at
+this club's scale; revisit if a session ever holds long-running work.
+`delete_student` locks the student's sessions before the student, and asks
+for a retry in the rare case they register elsewhere in between. Hard-deleting
+a user still reassigns attribution rows without session locks; it touches
+attribution columns only, and PostgreSQL would resolve any deadlock by
+refusing one side.
+
 ### 2026-09-29 - Opening a grading session is confirmed
 
 Status: Accepted
@@ -954,6 +1438,7 @@ is Administrator-group-only, mirroring `_DATA_CLEANUP_PERMISSIONS`.
 Five deliberate deviations from the reference spec (`KukGrade_Data_Import_
 Legacy_Migration_Definitive_Implementation_Spec.md`), each with concrete
 evidence/reasoning:
+
 1. **Tablib directly, not `django-import-export`.** PyPI/changelog evidence
    at decision time: Tablib 3.10.0 explicitly supports Python 3.14 (and even
    3.15); `django-import-export` 4.4.1 (latest stable) only classified

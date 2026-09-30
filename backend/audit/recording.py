@@ -27,7 +27,13 @@ def record(
         actor_email=actor.email if actor else "",
         actor_name=actor.get_full_name() if actor else "",
         action=action,
-        entity_type=type(entity).__name__,
+        # entity.__class__, not type(entity): request.user is a
+        # SimpleLazyObject, which proxies __class__ to the real model but
+        # reports itself under type(). Recording "SimpleLazyObject" made
+        # AuditEvent.entity_type fail its choices validation, which is how
+        # self-service password change came to 400 for a genuinely
+        # session-authenticated caller.
+        entity_type=entity.__class__.__name__,
         entity_id=str(entity.pk),
         summary=summary,
         metadata=metadata or {},

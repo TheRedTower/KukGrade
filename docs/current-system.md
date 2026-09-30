@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 815 backend tests and 244 frontend tests passing
+Verified on 2026-09-30 with 815 backend tests and 249 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -462,6 +462,16 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+- **Scoring saves are sequenced per item (2026-09-30, KG-A18)**: several item
+  saves may be in flight at once. Writes to one item go out in the order
+  they were made, so the server keeps the last. Each save confirms or rolls
+  back only its own item, and only if nothing newer was written to it. The
+  item list and rollup are refetched once, when every save has landed, and
+  "Complete assessment" waits for all of them. Deleting an assessment drops
+  its cached record, items, rollup and notes draft and refetches outcomes,
+  promotions, students and session counts (`forgetDeletedAssessment`). The
+  overall-notes draft is keyed by assessment, so a regenerated assessment
+  starts without the old one's draft.
 - **No decision on evidence that did not load (2026-09-30, KG-A16/A17)**:
   the drawer's Submit and the board's single "Record decision" wait until
   that assessment's evidence has loaded (`useSealedEvidenceLoaded`), and a

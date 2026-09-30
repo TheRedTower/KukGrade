@@ -14,7 +14,7 @@
  * and ledgers are per category. It no longer decides the counts.
  */
 import { useCallback, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CandidateAssessmentItem,
   CategoryAssessmentSummary,
@@ -181,37 +181,72 @@ export function useCandidateAssessmentData(
  *
  * Completion review is its own route, so navigating back to scoring to correct
  * a score unmounts the screen. Holding the draft in component state would
- * discard whatever the instructor had typed - which the previous in-page
- * review did not do, because it never unmounted. The draft therefore lives in
- * the query cache, keyed by candidate, so it survives the round trip and is
- * cleared once the assessment is sealed.
+ * discard whatever the instructor had typed. The draft therefore lives in the
+ * query cache, so it survives the round trip and is cleared once the
+ * assessment is sealed.
  *
- * `null` means "no draft", so the server value is shown - the same semantics
- * the previous `userNotes` state had.
+ * Keyed by assessment, not candidate (KG-A18): a deleted and regenerated
+ * assessment is a new record and starts without the old one's draft, and
+ * moving to another assessment without a remount shows that one's draft.
+ * Signing out clears the cache, so a draft never reaches another account.
+ *
+ * `null` means "no draft", so the server value is shown.
  */
-export function useAssessmentNotesDraft(numCandidateId: number | undefined) {
+export function useAssessmentNotesDraft(assessmentId: number | undefined) {
   const queryClient = useQueryClient();
-
-  const [draft, setDraftState] = useState<string | null>(
-    () => queryClient.getQueryData<string>(["assessmentNotesDraft", numCandidateId]) ?? null,
+  const readDraft = useCallback(
+    () => queryClient.getQueryData<string>(["assessmentNotesDraft", assessmentId]) ?? null,
+    [queryClient, assessmentId],
   );
+  const [local, setLocal] = useState(() => ({ assessmentId, draft: readDraft() }));
+  const draft = local.assessmentId === assessmentId ? local.draft : readDraft();
 
   const setDraft = useCallback(
     (value: string) => {
-      setDraftState(value);
+      setLocal({ assessmentId, draft: value });
       // Nothing observes this entry while the scoring screen is open, so the
       // default five-minute garbage collection would silently discard the
       // draft during a longer correction. It lives until cleared instead.
       queryClient.setQueryDefaults(["assessmentNotesDraft"], { gcTime: Infinity });
-      queryClient.setQueryData(["assessmentNotesDraft", numCandidateId], value);
+      queryClient.setQueryData(["assessmentNotesDraft", assessmentId], value);
     },
-    [queryClient, numCandidateId],
+    [queryClient, assessmentId],
   );
 
   const clearDraft = useCallback(() => {
-    setDraftState(null);
-    queryClient.removeQueries({ queryKey: ["assessmentNotesDraft", numCandidateId] });
-  }, [queryClient, numCandidateId]);
+    setLocal({ assessmentId, draft: null });
+    queryClient.removeQueries({ queryKey: ["assessmentNotesDraft", assessmentId] });
+  }, [queryClient, assessmentId]);
 
   return { draft, setDraft, clearDraft };
+}
+
+/**
+ * Everything a deleted assessment leaves cached (KG-A18). The delete cascades
+ * through its outcome and promotion and can revert the student's rank, so
+ * those reads are refetched; the assessment's own record, items, rollup and
+ * notes draft are dropped, so a regenerated assessment starts clean.
+ */
+export function forgetDeletedAssessment(
+  queryClient: QueryClient,
+  { assessmentId, candidateId }: { assessmentId: number; candidateId: number },
+) {
+  for (const queryKey of [
+    ["candidateAssessments", "byCandidate", candidateId],
+    ["candidateAssessmentItems", assessmentId],
+    ["candidateAssessmentSummary", assessmentId],
+    ["assessmentNotesDraft", assessmentId],
+  ]) {
+    queryClient.removeQueries({ queryKey, exact: true });
+  }
+  for (const queryKey of [
+    ["candidateAssessments"],
+    ["gradingCandidates"],
+    ["gradingSessions"],
+    ["candidateOutcomes"],
+    ["promotions"],
+    ["students"],
+  ]) {
+    void queryClient.invalidateQueries({ queryKey });
+  }
 }

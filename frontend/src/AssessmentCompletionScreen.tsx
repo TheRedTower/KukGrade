@@ -84,9 +84,6 @@ export function AssessmentCompletionScreen() {
   const numSessionId = sessionId ? Number(sessionId) : undefined;
   const numCandidateId = candidateId ? Number(candidateId) : undefined;
 
-  // The draft outlives a trip back to scoring - see useAssessmentNotesDraft.
-  const { draft: userNotes, setDraft: setUserNotes, clearDraft: clearNotesDraft } =
-    useAssessmentNotesDraft(numCandidateId);
   const [actionError, setActionError] = useState<string | null>(null);
   const [hasProofread, setHasProofread] = useState(false);
 
@@ -100,6 +97,9 @@ export function AssessmentCompletionScreen() {
     isLoading,
     hasLoadError,
   } = useCandidateAssessmentData(numSessionId, numCandidateId);
+  // The draft outlives a trip back to scoring - see useAssessmentNotesDraft.
+  const { draft: userNotes, setDraft: setUserNotes, clearDraft: clearNotesDraft } =
+    useAssessmentNotesDraft(assessment?.id);
 
   const generalNotes = userNotes !== null ? userNotes : (assessment?.notes ?? "");
   const scoringPath = `/gradings/${sessionId}/assessments/${candidateId}`;
@@ -118,6 +118,8 @@ export function AssessmentCompletionScreen() {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      // The session's served progress counts change with it (KG-A15).
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
@@ -136,6 +138,8 @@ export function AssessmentCompletionScreen() {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      // The session's served progress counts change with it (KG-A15).
+      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       navigate(scoringPath);
     },
     onError: (err) => {

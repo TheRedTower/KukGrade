@@ -5723,6 +5723,115 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     );
   });
 
+  // KG-A18: several item saves can be in flight at once. Each PATCH is held
+  // until the test releases it, and the "server" keeps the saved state, so a
+  // refetch shows what was really stored.
+  function scoringServer(initial: CandidateAssessmentItem[]) {
+    const items = new Map(initial.map((item) => [item.id, { ...item }]));
+    const pending: { itemId: number; result: string; save: () => void; refuse: () => void }[] = [];
+    const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const write = url.match(/\/api\/gradings\/assessment-items\/(\d+)\/$/);
+      if (write && init?.method === "PATCH") {
+        const itemId = Number(write[1]);
+        const body = JSON.parse(String(init.body)) as { result: CandidateAssessmentItemResult };
+        return new Promise<Response>((respond) => {
+          pending.push({
+            itemId,
+            result: body.result,
+            save: () => {
+              const saved = { ...items.get(itemId)!, result: body.result };
+              items.set(itemId, saved);
+              respond(jsonResponse(200, saved));
+            },
+            refuse: () =>
+              respond(jsonResponse(400, { error: { code: "validation_error", message: "Refused." } })),
+          });
+        });
+      }
+      if (url.includes("/api/auth/me/")) return Promise.resolve(jsonResponse(200, authUser));
+      if (url.includes("/api/gradings/sessions/10/")) return Promise.resolve(jsonResponse(200, mockSession));
+      if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+        return Promise.resolve(jsonResponse(200, mockCandidate));
+      }
+      const current = [...items.values()];
+      if (url.includes("/summary/")) return Promise.resolve(jsonResponse(200, assessmentSummaryFor(current)));
+      if (url.includes("/api/gradings/assessments/")) {
+        return Promise.resolve(jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] }));
+      }
+      if (url.includes("/api/gradings/assessment-items/")) {
+        return Promise.resolve(jsonResponse(200, { count: current.length, next: null, previous: null, results: current }));
+      }
+      return Promise.resolve(jsonResponse(404, { detail: "Not found" }));
+    });
+    return { fetchMock, pending };
+  }
+
+  it("rolls back only the item whose save failed", async () => {
+    const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+    vi.stubGlobal("fetch", server.fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    await user.click(screen.getByTestId("btn-met-1002"));
+    await user.click(screen.getByTestId("btn-met-1003"));
+    await waitFor(() => expect(server.pending).toHaveLength(2));
+    server.pending[0].refuse();
+
+    await waitFor(() => expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
+
+    server.pending[1].save();
+    await waitFor(() => expect(server.fetchMock.mock.calls.filter(([url]) => String(url).includes("/summary/")).length).toBeGreaterThan(1));
+    expect(screen.getByTestId("btn-met-1003")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("btn-not-met-1002")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sends a second change to the same item only after the first lands", async () => {
+    const server = scoringServer([mockItem1, mockItem2, mockItem3]);
+    vi.stubGlobal("fetch", server.fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Alex Carter" });
+
+    await user.click(screen.getByTestId("btn-met-1003"));
+    await user.click(screen.getByTestId("btn-not-met-1003"));
+    await waitFor(() => expect(server.pending).toHaveLength(1));
+    expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true");
+
+    server.pending[0].save();
+    await waitFor(() => expect(server.pending).toHaveLength(2));
+    expect(server.pending[1].result).toBe("NOT_MET");
+    server.pending[1].save();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("btn-not-met-1003")).toHaveAttribute("aria-pressed", "true"),
+    );
+  });
+
+  it("holds completion until every item save has landed", async () => {
+    const server = scoringServer([mockItem1, mockItem2, { ...mockItem3, result: "MET" }]);
+    vi.stubGlobal("fetch", server.fetchMock);
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Alex Carter" });
+    const complete = screen.getByTestId("caw-complete-assessment-btn");
+    await waitFor(() => expect(complete).toBeEnabled());
+
+    await user.click(screen.getByTestId("btn-not-met-1001"));
+    await user.click(screen.getByTestId("btn-met-1002"));
+    await waitFor(() => expect(server.pending).toHaveLength(2));
+    server.pending[1].save();
+    // Long enough for that save, and any refetch it triggers, to settle.
+    await new Promise((settle) => setTimeout(settle, 150));
+    expect(screen.getByTestId("btn-met-1002")).toHaveAttribute("aria-pressed", "true");
+    expect(complete).toBeDisabled();
+
+    server.pending[0].save();
+    await waitFor(() => expect(complete).toBeEnabled());
+  });
+
   it("updates item evaluation via segmented controls with immediate auto-save", async () => {
     let patchedItemId: number | null = null;
     let patchedBody: Record<string, unknown> | null = null;

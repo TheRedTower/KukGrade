@@ -18,6 +18,38 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Scoring saves are sequenced per item, refetched once
+
+Status: Accepted
+
+Decision:
+Mat-side scoring keeps several item saves in flight (KG-A18):
+- Writes to one item go out in order, each after the previous one lands,
+  so the server keeps the last choice. Different items still save in
+  parallel.
+- Each save confirms or rolls back only its own item, and only if nothing
+  newer was written to it. It never restores a snapshot of the whole list.
+- The item list, rollup and assessment are refetched once, when every save
+  has landed. A refetch between saves would overwrite those still in flight.
+- "Complete assessment" waits until no save is pending, counted across every
+  save rather than only the latest.
+
+Deleting an assessment removes its cached record, items, rollup and notes
+draft, and refetches outcomes, promotions, students, candidates, session
+counts and assessment lists, since the delete can remove an outcome and a
+promotion and revert a rank. The overall-notes draft is keyed by assessment
+rather than candidate. Completing or reopening an assessment also refetches
+the session counts.
+
+Context:
+A failed save restored a snapshot of the whole list, erasing other saves
+still showing on screen. Two quick edits to one item could land at the
+server in either order. Every save triggered a refetch that could overwrite
+pending ones. Completion looked only at the latest save.
+
+Consequences:
+None beyond the scoring screen; the API is unchanged.
+
 ### 2026-09-30 - Grading decisions wait for their evidence
 
 Status: Accepted

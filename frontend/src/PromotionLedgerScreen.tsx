@@ -53,23 +53,32 @@ export function PromotionLedgerScreen(): React.ReactElement {
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const { data: candidatesData, isLoading: isLoadingCandidates } = useQuery({
+  const candidatesQuery = useQuery({
     queryKey: ["gradingCandidates", sessionId],
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const { data: outcomesData, isLoading: isLoadingOutcomes } = useQuery({
+  const outcomesQuery = useQuery({
     queryKey: ["candidateOutcomes", sessionId],
     queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
-  const { data: promotionsData, isLoading: isLoadingPromotions } = useQuery({
+  const promotionsQuery = useQuery({
     queryKey: ["promotions", sessionId],
     queryFn: () => getAllPromotions({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
+
+  const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery];
+  // Eligibility is read from all three together, so a missing or failed one
+  // must not read as "nothing promoted yet" (KG-A16).
+  const ledgerFailed = ledgerQueries.some((query) => query.isError);
+  const ledgerLoaded = ledgerQueries.every((query) => query.isSuccess);
+  const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
+  const outcomesData = ledgerLoaded ? outcomesQuery.data : undefined;
+  const promotionsData = ledgerLoaded ? promotionsQuery.data : undefined;
 
   // Promotions map
   const promotionsMap = useMemo(() => {
@@ -193,8 +202,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     });
   }
 
-  const isLoading =
-    isLoadingSession || isLoadingCandidates || isLoadingOutcomes || isLoadingPromotions;
+  const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
 
   return (
     <section aria-labelledby="pl-title" className="pl-container" data-testid="promotion-ledger-screen">
@@ -312,7 +320,22 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
       {/* Candidates Promotion Ledger Table */}
       <div className="pl-table-container">
-        {isLoading ? (
+        {ledgerFailed ? (
+          <div className="pl-loading-state" role="alert">
+            <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                for (const query of ledgerQueries) {
+                  if (query.isError) void query.refetch();
+                }
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
         ) : rows.length === 0 ? (
           <div className="pl-empty-state">

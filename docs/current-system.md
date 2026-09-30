@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 815 backend tests and 241 frontend tests passing
+Verified on 2026-09-30 with 815 backend tests and 244 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -462,6 +462,15 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+- **No decision on evidence that did not load (2026-09-30, KG-A16/A17)**:
+  the drawer's Submit and the board's single "Record decision" wait until
+  that assessment's evidence has loaded (`useSealedEvidenceLoaded`), and a
+  failed load shows a retry instead. The promotion ledger computes
+  eligibility only once candidates, outcomes and promotions have all loaded;
+  if any fails it shows a retry and offers no promotion, so an
+  already-promoted student can never read as eligible. A proposal whose
+  outcome creation succeeded but whose response was lost resumes against
+  that outcome rather than being refused as a duplicate.
 - **Dark, responsive and accessibility pass (2026-09-29)**: slice 8 measured
   the four grading surfaces (mat-side scoring, completion proof, the board and
   the proposal drawer) in a browser in light and dark at desktop, tablet and

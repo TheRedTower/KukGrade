@@ -412,6 +412,25 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Fiona Gallagher")).toBeInTheDocument();
   });
 
+  it("blocks promotion when the promotions could not be loaded, until a retry succeeds", async () => {
+    // Without promotions, Carlos (already promoted) would read as eligible.
+    mockGetPromotions.mockRejectedValueOnce(new Error("offline"));
+    const user = userEvent.setup();
+    renderScreen(1);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("could not be loaded");
+    expect(screen.queryByText("Carlos Rivera")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Promote Qualified Cohort/i })).toBeDisabled();
+
+    await user.click(within(alert).getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("Carlos Rivera")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Promote Qualified Cohort \(2 Candidates\)/i }),
+    ).toBeEnabled();
+  });
+
   it("displays correct eligibility badges and action states across candidate statuses", async () => {
     renderScreen(1);
 

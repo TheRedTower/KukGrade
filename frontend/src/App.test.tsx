@@ -4350,6 +4350,71 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(creates).toHaveLength(1);
     expect(proposeAttempts).toBe(2);
   });
+
+  it("resumes with the outcome a lost creation response already made", async () => {
+    const user = userEvent.setup();
+    let created = false;
+    const madeOutcome = { ...testOutcomes[0], id: 401, candidate: 102, proposed_outcome: null };
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
+        // The server made it; the response never arrived.
+        created = true;
+        throw new TypeError("Failed to fetch");
+      }
+      if (url.includes("/api/gradings/outcomes/401/propose/") && init?.method === "PATCH") {
+        return jsonResponse(200, { ...madeOutcome, proposed_outcome: "PASS" });
+      }
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) {
+        const results = created ? [madeOutcome] : [];
+        return jsonResponse(200, { count: results.length, next: null, previous: null, results });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
+
+    await waitFor(() => expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument());
+    const creates = fetchMock.mock.calls.filter(([url]) => String(url).includes("/create-outcome/"));
+    expect(creates).toHaveLength(1);
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/gradings/outcomes/401/propose/")),
+    ).toBe(true);
+  });
+
+  it("will not submit a proposal while its evidence failed to load", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      if (url.includes("/summary/")) return jsonResponse(500, {});
+      if (url.includes("/api/gradings/assessment-items/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await user.click(await screen.findByTestId("propose-outcome-btn-102"));
+    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+
+    expect(await within(drawer).findByText(/could not be loaded/)).toBeVisible();
+    expect(within(drawer).getByRole("button", { name: "Submit proposal" })).toBeDisabled();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/create-outcome/"))).toBe(false);
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -18,6 +18,35 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Grading decisions wait for their evidence
+
+Status: Accepted
+
+Decision:
+An outcome is proposed, decided or promoted only on data that loaded
+(KG-A16).
+- The proposal drawer's Submit and the board's single-candidate "Record
+  decision" are disabled until the assessment's counts and items have
+  loaded. A failure offers a retry.
+- The promotion ledger shows no rows and offers no promotion unless
+  candidates, outcomes and promotions all loaded.
+
+A proposal recovers from a lost creation response (KG-A17): if creating the
+outcome fails, the drawer looks for that candidate's outcome in the session
+and proposes against it. Any other failure is still reported. Every way of
+closing the drawer was already blocked while it saved.
+
+Context:
+A failed evidence request left the drawer's Submit active. A failed
+promotions request made already-promoted students look eligible. If a
+creation response was lost, a retry was refused because the outcome
+already existed.
+
+Consequences:
+The board's bulk "Record staged decisions" still acts on the served list
+counts it shows, which already block the whole board when they fail to
+load.
+
 ### 2026-09-30 - Session progress is counted once, on the server
 
 Status: Accepted

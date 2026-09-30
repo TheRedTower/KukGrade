@@ -89,6 +89,7 @@ function lockedSession(): GradingSession {
     candidate_count: 0,
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
+    can_be_deleted: false,
     location: "Colchester",
     notes: "",
   };
@@ -211,11 +212,10 @@ describe("GradingSessionDetailScreen registration actions", () => {
     mockGetAllCandidateOutcomes.mockReset().mockResolvedValue(emptyPage());
     mockGetAllGradingSessions.mockReset().mockResolvedValue({
       ...emptyPage(),
-      count: 4,
+      count: 3,
       results: [
         openSession(),
         openSession({ id: 8, title: "April Grading", status: "DRAFT", grading_date: "2027-04-17" }),
-        openSession({ id: 9, title: "Old Grading", status: "COMPLETED" }),
         openSession({ id: 10, title: "May Grading", grading_date: "2027-05-15" }),
       ],
     });
@@ -233,8 +233,9 @@ describe("GradingSessionDetailScreen registration actions", () => {
     const dialog = screen.getByRole("dialog", { name: "Move Mia Okafor" });
     const select = within(dialog).getByLabelText("Move to");
     await waitFor(() => expect(within(select).getAllByRole("option")).toHaveLength(3));
-    // Only other sessions that accept candidates are offered.
-    expect(within(select).queryByRole("option", { name: /Old Grading/ })).toBeNull();
+    // The server is asked for only the sessions that accept candidates, and
+    // this one is not offered as its own destination.
+    expect(mockGetAllGradingSessions).toHaveBeenCalledWith({ status: "DRAFT,OPEN" });
     expect(within(select).queryByRole("option", { name: /March 2027/ })).toBeNull();
 
     await user.selectOptions(select, "10");

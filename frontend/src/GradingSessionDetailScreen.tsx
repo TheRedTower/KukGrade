@@ -395,12 +395,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // Sessions a registration can move to; loaded only when the move dialog opens.
   const moveTargetsQuery = useQuery({
-    queryKey: ["gradingSessions", "all"],
-    queryFn: () => getAllGradingSessions(),
+    queryKey: ["gradingSessions", "move-targets"],
+    queryFn: () => getAllGradingSessions({ status: "DRAFT,OPEN" }),
     enabled: registrationAction?.kind === "move",
   });
   const moveTargets = (moveTargetsQuery.data?.results ?? [])
-    .filter((target) => target.id !== sessionId && (target.status === "DRAFT" || target.status === "OPEN"))
+    .filter((target) => target.id !== sessionId)
     .map((target) => ({
       id: target.id,
       label: `${target.title} · ${formatSessionDate(target.grading_date)}`,

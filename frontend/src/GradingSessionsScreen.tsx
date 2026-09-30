@@ -7,7 +7,7 @@ import {
   type GradingSessionStatus,
   ApiError,
   deleteGradingSession,
-  getAllGradingSessions,
+  getGradingSessionYears,
   getGradingSessions,
 } from "./api";
 import { useAuth } from "./auth";
@@ -49,10 +49,6 @@ function XCircleIcon() {
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
-
-function yearFromIso(iso: string): number {
-  return parseInt(iso.slice(0, 4), 10);
-}
 
 const STATUS_ORDER: GradingSessionStatus[] = ["OPEN", "DRAFT", "LOCKED", "COMPLETED", "CANCELLED"];
 const STATUS_LABEL: Record<GradingSessionStatus, string> = {
@@ -221,26 +217,17 @@ export function GradingSessionsScreen() {
     canClose: !deleteSessionMutation.isPending,
   });
 
-  // All sessions (large page to populate year dropdown & find current session)
-  const allSessionsQuery = useQuery({
-    queryKey: ["gradingSessions", "all"],
-    queryFn: () => getAllGradingSessions(),
+  const yearsQuery = useQuery({
+    queryKey: ["gradingSessions", "years"],
+    queryFn: getGradingSessionYears,
   });
+  const availableYears = yearsQuery.data ?? [];
 
-  const allSessions: GradingSession[] = useMemo(
-    () => allSessionsQuery.data?.results ?? [],
-    [allSessionsQuery.data],
-  );
-
-  const availableYears = useMemo(() => {
-    const years = new Set(allSessions.map((s) => yearFromIso(s.grading_date)));
-    return Array.from(years).sort((a, b) => b - a);
-  }, [allSessions]);
-
-  const currentSession = useMemo(
-    () => allSessions.find((s) => s.status === "OPEN") ?? null,
-    [allSessions],
-  );
+  const currentSessionQuery = useQuery({
+    queryKey: ["gradingSessions", "current"],
+    queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
+  });
+  const currentSession = currentSessionQuery.data?.results[0] ?? null;
 
   // Paginated sessions filtered by status on the server
   const serverStatus = statusFilter !== "ALL" ? statusFilter : undefined;
@@ -277,7 +264,7 @@ export function GradingSessionsScreen() {
   function resetFilters() { setSearchText(""); setStatusFilter("ALL"); setYearFilter("ALL"); setPage(1); }
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
-  const isLoading = allSessionsQuery.isLoading || sessionsQuery.isLoading;
+  const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
   const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
@@ -385,15 +372,13 @@ export function GradingSessionsScreen() {
                   </thead>
                   <tbody>
                     {filteredSessions.map((session) => {
-                      const isEligibleStatus = session.status === "CANCELLED" || session.status === "DRAFT";
-                      const canDelete = isEligibleStatus && session.completed_assessment_count === 0;
                       return (
                         <SessionRow
                           assessmentsComplete={session.completed_assessment_count}
                           candidateCount={session.candidate_count}
                           key={session.id}
                           onView={() => navigate(`/gradings/${session.id}`)}
-                          canDelete={canDelete}
+                          canDelete={session.can_be_deleted}
                           onDelete={() => {
                             setDeleteError(null);
                             setDeleteConfirmSession(session);

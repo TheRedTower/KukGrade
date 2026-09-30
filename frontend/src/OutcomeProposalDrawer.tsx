@@ -206,7 +206,7 @@ async function createOrFindOutcome(candidate: GradingCandidate): Promise<number>
   try {
     return (await createCandidateOutcome(candidate.id)).id;
   } catch (err) {
-    const existing = await getAllCandidateOutcomes({ session: candidate.session }).catch(
+    const existing = await getAllCandidateOutcomes({ candidate: candidate.id }).catch(
       () => null,
     );
     const found = existing?.results.find((outcome) => outcome.candidate === candidate.id);

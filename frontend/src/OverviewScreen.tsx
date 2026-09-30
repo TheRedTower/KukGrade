@@ -6,8 +6,8 @@ import {
   type AuditEvent,
   type CandidateAssessment,
   type GradingSession,
-  getAllCandidateAssessments,
-  getAllGradingSessions,
+  getCandidateAssessments,
+  getGradingSessions,
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
@@ -178,42 +178,36 @@ export function OverviewScreen() {
 
   const currentDateDisplay = useMemo(() => formatSessionDate(todayIsoDate()), []);
 
-  // 1. Fetch grading sessions
-  const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", "all"],
-    queryFn: () => getAllGradingSessions(),
+  // 1. The session on the mat and the next one after it.
+  const today = todayIsoDate();
+  const openQuery = useQuery({
+    queryKey: ["gradingSessions", "current"],
+    queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
+  });
+  const upcomingQuery = useQuery({
+    queryKey: ["gradingSessions", "upcoming", today],
+    queryFn: () =>
+      getGradingSessions({
+        status: "DRAFT,OPEN,LOCKED",
+        grading_date_from: today,
+        ordering: "grading_date",
+        page_size: 2,
+      }),
   });
 
-  const sessions = useMemo<GradingSession[]>(() => {
-    return Array.isArray(sessionsQuery.data?.results)
-      ? sessionsQuery.data.results
-      : [];
-  }, [sessionsQuery.data]);
-
-  // Resolve current open session on the mat
-  const openSession: GradingSession | undefined = useMemo(() => {
-    return sessions.find((s) => s.status === "OPEN");
-  }, [sessions]);
-
-  // Resolve next upcoming session
-  const upcomingSession: GradingSession | undefined = useMemo(() => {
-    const today = todayIsoDate();
-    const candidates = sessions
-      .filter(
-        (s) =>
-          s.id !== openSession?.id &&
-          s.status !== "CANCELLED" &&
-          s.status !== "COMPLETED" &&
-          s.grading_date >= today,
-      )
-      .sort((a, b) => a.grading_date.localeCompare(b.grading_date));
-    return candidates[0];
-  }, [sessions, openSession]);
+  const openSession: GradingSession | undefined = openQuery.data?.results[0];
+  const upcomingSession: GradingSession | undefined =
+    upcomingQuery.data?.results.find((s) => s.id !== openSession?.id);
 
   // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
     queryKey: ["candidateAssessments", openSession?.id],
-    queryFn: () => getAllCandidateAssessments({ session: openSession!.id }),
+    queryFn: () =>
+      getCandidateAssessments({
+        session: openSession!.id,
+        status: "COMPLETED,IN_PROGRESS",
+        page_size: 4,
+      }),
     enabled: !!openSession,
   });
 
@@ -241,7 +235,6 @@ export function OverviewScreen() {
   // - Assessments in progress
   const attentionItems = useMemo(() => {
     return assessments
-      .filter((a) => a.status === "COMPLETED" || a.status === "IN_PROGRESS")
       .map((a) => {
         let statusDescription = "Assessment in progress · Scoring pending";
         if (a.status === "COMPLETED") {
@@ -253,8 +246,7 @@ export function OverviewScreen() {
           statusDescription,
           status: a.status,
         };
-      })
-      .slice(0, 4);
+      });
   }, [assessments]);
 
   // Recent activity items
@@ -264,7 +256,8 @@ export function OverviewScreen() {
   }, [auditQuery.data]);
 
   const isInitialLoading =
-    sessionsQuery.isLoading ||
+    openQuery.isLoading ||
+    upcomingQuery.isLoading ||
     (canViewAudit && auditQuery.isLoading) ||
     (!!openSession && assessmentsQuery.isLoading);
 
@@ -287,7 +280,7 @@ export function OverviewScreen() {
         </div>
       </div>
 
-      {sessionsQuery.isError ? (
+      {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert" role="alert">
           <p className="form-error">
             Failed to load operational ledger. Please check your connection.

@@ -726,6 +726,23 @@ export interface paths {
         patch: operations["gradings_sessions_partial_update"];
         trace?: never;
     };
+    "/api/gradings/sessions/years/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Every year that has a grading session, newest first. */
+        get: operations["gradings_sessions_years_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/withdrawal-reasons/": {
         parameters: {
             query?: never;
@@ -1443,6 +1460,8 @@ export interface components {
             readonly candidate_count: number;
             readonly completed_assessment_count: number;
             readonly awaiting_decision_count: number;
+            /** @description Whether the requesting user may delete it, by the delete's own rule. */
+            readonly can_be_deleted: boolean;
         };
         GradingSessionRequest: {
             title: string;
@@ -1462,6 +1481,9 @@ export interface components {
          * @enum {string}
          */
         GradingSessionStatusEnum: "DRAFT" | "OPEN" | "LOCKED" | "COMPLETED" | "CANCELLED";
+        GradingYears: {
+            readonly years: number[];
+        };
         HealthResponse: {
             service: string;
             status: string;
@@ -2484,7 +2506,8 @@ export interface operations {
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 session?: number;
-                status?: "COMPLETED" | "IN_PROGRESS" | "NOT_STARTED";
+                /** @description Comma-separated; one of COMPLETED, IN_PROGRESS, NOT_STARTED. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3026,6 +3049,7 @@ export interface operations {
     gradings_outcomes_list: {
         parameters: {
             query?: {
+                candidate?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
@@ -3187,12 +3211,15 @@ export interface operations {
             query?: {
                 grading_date_from?: string;
                 grading_date_to?: string;
+                /** @description Newest first unless given. */
+                ordering?: "-grading_date" | "grading_date";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 search?: string;
-                status?: "CANCELLED" | "COMPLETED" | "DRAFT" | "LOCKED" | "OPEN";
+                /** @description Comma-separated; one of CANCELLED, COMPLETED, DRAFT, LOCKED, OPEN. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3306,6 +3333,25 @@ export interface operations {
             };
         };
     };
+    gradings_sessions_years_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GradingYears"];
+                };
+            };
+        };
+    };
     gradings_withdrawal_reasons_list: {
         parameters: {
             query?: {
@@ -3414,13 +3460,19 @@ export interface operations {
     students_list: {
         parameters: {
             query?: {
+                /** @description The age band the student is in today. */
+                age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
+                current_rank?: number;
                 current_rank_code?: string;
+                /** @description Students who could still be registered for this grading session: not Left and not already one of its candidates. */
+                eligible_for_session?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
                 search?: string;
-                status?: "ACTIVE" | "INACTIVE" | "LEFT";
+                /** @description Comma-separated; one of ACTIVE, INACTIVE, LEFT. */
+                status?: string;
             };
             header?: never;
             path?: never;

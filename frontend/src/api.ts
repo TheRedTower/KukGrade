@@ -324,6 +324,13 @@ export async function getAllGradingSessions(
   );
 }
 
+export async function getGradingSessionYears(): Promise<number[]> {
+  const body = await apiRequest<Schemas["GradingYears"]>(
+    "/api/gradings/sessions/years/",
+  );
+  return body.years;
+}
+
 export type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
 
 export async function createGradingSession(
@@ -357,7 +364,7 @@ export async function deleteGradingSession(id: number | string): Promise<void> {
   });
 }
 
-export async function getGradingCandidates(
+async function getGradingCandidates(
   params?: ListQuery<"gradings_candidates_list">,
 ): Promise<PaginatedResponse<GradingCandidate>> {
   return apiRequest<PaginatedResponse<GradingCandidate>>(

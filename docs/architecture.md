@@ -24,7 +24,9 @@
 | `data_imports` | Import batches: student-roster import and the historical-workbook adapter |
 | `health` | Liveness (`/api/health/`) and database readiness (`/api/ready/`) |
 
-Every state change goes through a service function (`<app>/services.py`)
+Every state change goes through a service function (`<app>/services.py`;
+`gradings` splits its services by domain into `services.py`,
+`assessment_services.py`, `outcome_services.py` and `legacy_services.py`)
 that validates it, writes it inside a transaction, and records its audit
 event in that same transaction. Views, serializers, and Django admin all
 call those services, so the rules and the audit trail are identical however

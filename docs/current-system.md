@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 819 backend tests and 250 frontend tests passing
+Verified on 2026-09-30 with 845 backend tests and 253 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -628,8 +628,6 @@ checks on each push and pull request.
   grading surfaces only; the rest of the app has been checked visually. The
   session screen's breadcrumb, banner button, search and filter are under
   44px.
-- `frontend/src/App.test.tsx` still holds about 6,000 lines of screen tests
-  that belong in per-screen files.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required
   before a production import.

@@ -18,6 +18,109 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - The club's time zone is declared in the environment
+
+Status: Accepted
+
+Decision:
+`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`) sets Django's
+`TIME_ZONE`. It is validated when settings load, so a typo stops startup with
+a message naming the variable instead of failing inside a request.
+
+- It decides the date "today" means: grading dates, student ages and the age
+  bands all use `timezone.localdate()`. Stored timestamps stay UTC whatever it
+  is.
+- Django exports it as the process's `TZ`, so the container needs no separate
+  `TZ` variable, and the `python:3.14-slim` image carries the zone data.
+  PostgreSQL's own zone is irrelevant: Django talks to it in UTC and the age
+  filter is handed the local date as a value.
+- The frontend is unchanged: it shows times in the reader's browser zone and
+  parses API dates as calendar dates.
+
+Consequences:
+Changing the variable changes which day a late-evening or early-morning
+request falls on, so ages and session "today" can shift by a day at the
+boundary. It is set once per deployment, in `.env.production`.
+
+### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
+
+Status: Accepted
+
+Decision:
+Screens ask for the rows they display instead of downloading a collection
+and filtering it.
+
+- Sessions carry a served `can_be_deleted`, decided by
+  `gradings.services.session_deletion_blocker` - the same rule the delete
+  endpoint enforces - from a `has_recorded_work` annotation counted in the
+  list query. `GET /api/gradings/sessions/years/` returns the distinct years
+  of every session's date. The sessions screen takes the current (open)
+  session with `status=OPEN&page_size=1`; the Overview takes the open and
+  next sessions with two one-to-two-row requests and the open session's
+  attention list with `status=COMPLETED,IN_PROGRESS&page_size=4`; move
+  targets ask for `status=DRAFT,OPEN`.
+- `kukgrade.filtering` gains `choices_in` (comma-separated values, any
+  unknown value gives an empty page) and `ordered_by` (a named ordering,
+  unknown value gives an empty page). Session `status` and `ordering`,
+  assessment `status` and student `status` use them.
+- The cohort builder asks `GET /api/students/` for the eligible students
+  with `eligible_for_session` (not Left, not already a candidate of that
+  session), `age_band` (Postgres `age()` over the date of birth, which keeps
+  `calculate_age_on`'s 29 February rule), `current_rank`, `status` and a
+  debounced `search`. It no longer downloads the session's candidates to
+  hide them. "Add all N matching" still means every match: the screen holds
+  the full matching set, because the rank groups and their age mix are
+  computed from it, and "Add all" is disabled while a typed filter is still
+  settling so it cannot act on a stale list. The outcome drawer's
+  retry-after-lost-response asks for one candidate's outcome
+  (`outcomes/?candidate=`) instead of the session's.
+- Session-scoped screens (session detail, adjudication, ledger) still fetch
+  one session's candidates, assessments and outcomes: a session is tens of
+  rows, the data those screens render.
+
+Context:
+Measured on 40 sessions and 300 students (response bytes, database
+queries): years 51 bytes and 1 query; the open session 268 bytes and 2
+queries, against 9,183 bytes for all sessions; the open session's attention
+list 52 bytes and 1 query; the full roster 51,788 bytes against 17,146 for a
+filtered one, both 2 queries. The sessions screen makes four requests
+(user, years, current, page) however many sessions are visible; before the
+KG-A15 served counts it made two more per visible session.
+
+KG-A21's five read-path items were measured before changing anything.
+The per-record history N+1 and the assessment summary's second retrieval did
+not reproduce; growth tests now pin both. The other three were real and are
+fixed, each with a growth test and the same responses: the users list
+primed one permission query per row (102 queries for 100 users, now 4); the
+assessment list loaded every item of every assessment to count results (3
+queries with item rows, now 2 with none, counted in the database); the
+import preview looked up each row's rank and existing student separately
+(now constant in the row count).
+
+Consequences:
+A new list screen should add a declared filter rather than filter
+client-side. The roster still downloads the matching students in full
+(about 170 bytes each); if a school outgrows that, the rank groups need a
+served count before the table can page.
+
+### 2026-09-30 - gradings/services.py is split by domain (KG-A23)
+
+Status: Accepted
+
+Decision:
+`gradings/services.py` keeps the session and candidate rules. Other domains
+moved to sibling modules with no behaviour change: `age.py` (age-band
+resolution), `read_models.py` (assessment summaries, rank timeline, grading
+history), `outcome_services.py` (outcomes and promotion),
+`assessment_services.py` (generation, scoring, reopening, deletion) and
+`service_support.py` (the per-row bulk runner and the unique-violation
+check). Importers name the module that owns the function; there is no
+re-export. The concurrency tests pause at each module's own `record` call.
+
+Consequences:
+Patch or pause a write path at the module that owns it, not at
+`gradings.services`.
+
 ### 2026-09-30 - Documentation states which layer enforces each rule
 
 Status: Accepted

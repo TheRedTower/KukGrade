@@ -159,7 +159,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status`, `current_rank_code`, `search` |
+| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left and not yet a candidate of that session), `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -262,7 +262,8 @@ Promotion is never automatic - see section 8.
 
 | Method | Endpoint                              | Description                                      |
 |-------|----------------------------------------|--------------------------------------------------|
-| GET   | /api/gradings/sessions/                | List grading sessions; filters `status`, `grading_date_from`, `grading_date_to`, `search` (title/location) |
+| GET   | /api/gradings/sessions/                | List grading sessions; filters `status` (comma-separated), `grading_date_from`, `grading_date_to`, `search` (title/location), `ordering` (`grading_date` or `-grading_date`, newest first by default). Each row carries its served counts and `can_be_deleted`, the delete endpoint's rule for the requesting user |
+| GET   | /api/gradings/sessions/years/          | `{"years": [...]}` - the distinct years of every session's date, newest first |
 | POST  | /api/gradings/sessions/                | Create a grading session                         |
 | GET   | /api/gradings/sessions/{id}/           | Retrieve a grading session                       |
 | PUT   | /api/gradings/sessions/{id}/           | 405; not exposed (`PATCH` covers every real edit) |
@@ -489,12 +490,12 @@ syllabus is refused with a `candidate` error naming the rank and age band.
 
 | Method | Endpoint                                             | Description                                          |
 |-------|-------------------------------------------------------|------------------------------------------------------|
-| GET   | /api/gradings/assessments/                            | List generated candidate assessments. Each carries `overall`, the same counts block the `summary` action returns, computed from items prefetched in one query so the list's query count does not grow with the cohort. |
+| GET   | /api/gradings/assessments/                            | List generated candidate assessments; filters include `status` (comma-separated). Each carries `overall`, the same counts block the `summary` action returns, computed from items prefetched in one query so the list's query count does not grow with the cohort. |
 | PATCH | /api/gradings/assessments/{id}/                       | Update lifecycle status or notes only                |
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
 | GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
-| DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
+| DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.assessment_services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items, in `position` order - each item's place in the assessment, from 1, in syllabus order |
 | PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
 | POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |

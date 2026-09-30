@@ -563,6 +563,7 @@ describe("First-time login copy", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+    expect(screen.getByRole("img", { name: "KukGrade" })).toBeInTheDocument();
   });
 
   it("says 'Welcome back' once this browser has signed in before", async () => {
@@ -691,6 +692,11 @@ describe("Navigation rail and role-gated routes", () => {
 
     await screen.findByText("Casey Instructor");
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+    expect(
+      within(screen.getByRole("complementary", { name: "Navigation rail" })).getByRole("img", {
+        name: "KukGrade",
+      }),
+    ).toBeVisible();
 
     expect(screen.getByRole("link", { name: "Overview" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Students" })).toBeVisible();
@@ -1039,6 +1045,7 @@ describe("Mandatory password change", () => {
     expect(
       screen.getByText(/Your account was provisioned with a temporary password/i),
     ).toBeVisible();
+    expect(screen.getByRole("img", { name: "KukGrade" })).toBeVisible();
 
     // Nav rail and main overview should NOT be visible
     expect(screen.queryByRole("navigation", { name: "Main navigation" })).not.toBeInTheDocument();

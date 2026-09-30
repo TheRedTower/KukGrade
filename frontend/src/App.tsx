@@ -23,6 +23,7 @@ import {
   UsersIcon,
 } from "./NavIcons";
 import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
+import { KukGradeLogo } from "./KukGradeLogo";
 import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";
 import { OverviewScreen } from "./OverviewScreen";
@@ -114,9 +115,7 @@ function LoginBrandPanel() {
   return (
     <aside className="auth-brand">
       <div>
-        <p className="auth-wordmark">
-          Kuk<span className="auth-wordmark-accent">Grade</span>
-        </p>
+        <KukGradeLogo className="auth-logo" />
         <p className="auth-brand-tagline">Staff grading management</p>
         <p className="auth-brand-values">People &middot; Progress &middot; Purpose</p>
       </div>
@@ -260,9 +259,7 @@ function NavigationRail({ user }: { user: AuthUser }) {
   return (
     <aside aria-label="Navigation rail" className="nav-rail">
       <div className="nav-brand">
-        <p className="nav-wordmark">
-          Kuk<span className="nav-wordmark-accent">Grade</span>
-        </p>
+        <KukGradeLogo className="nav-logo" />
         <p className="nav-brand-tagline">People &middot; Progress &middot; Purpose</p>
       </div>
 
@@ -395,7 +392,7 @@ function ApplicationShell() {
 
         <footer className="app-footer">
           <span className="footer-brand">
-            Kuk<span className="nav-wordmark-accent">Grade</span>
+            Kuk<span className="footer-brand-accent">Grade</span>
           </span>
           <span aria-hidden="true" className="footer-separator">
             &middot;

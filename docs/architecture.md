@@ -28,8 +28,12 @@ Every state change goes through a service function (`<app>/services.py`)
 that validates it, writes it inside a transaction, and records its audit
 event in that same transaction. Views, serializers, and Django admin all
 call those services, so the rules and the audit trail are identical however
-a change arrives. Models additionally refuse illegal states themselves, so the
-shell and bulk querysets cannot bypass them.
+a change arrives. Models additionally refuse the most important illegal
+states themselves - session status changes, deletion rules, and changes to
+finalised outcomes, promotions, audit events and imported source text - so
+the shell and bulk querysets cannot bypass those. Assessment snapshot and
+completion rules are enforced by the services, serializers and admin, not by
+the models (see `backend/README.md`).
 
 Concurrent grading writes follow one lock protocol, `gradings/locking.py`:
 a grading session's row lock is taken first and coordinates everything inside

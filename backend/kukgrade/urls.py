@@ -7,7 +7,8 @@ from django.urls import include, path, re_path
 
 from kukgrade.views import frontend, site_settings
 
-# Django looks this up by name on the root URLconf.
+# Django looks these up by name on the root URLconf.
+handler404 = "kukgrade.exceptions.not_found"
 handler500 = "kukgrade.exceptions.server_error"
 
 urlpatterns = [

@@ -56,13 +56,17 @@ everywhere:
   `ValidationError` and views let it propagate: `custom_exception_handler`
   (`kukgrade/exceptions.py`) turns it into the standard 400 envelope, keeping
   its field keys.
-- **Models refuse illegal states themselves.** Status changes, deletion
-  rules, and immutability (finalised outcomes, promotions, audit events,
-  imported source text) are enforced in `save()`/`delete()`/`clean()` and in
-  custom querysets, so they hold from the shell, bulk querysets, and admin -
-  not only through the API. The few deliberate bypasses (administrator hard
-  deletes that reassign attribution or cascade history) call the unbound
-  `models.QuerySet.update`/`delete` at one documented call site each.
+- **Models refuse the illegal states that matter most.** Session status
+  changes, deletion rules, and the immutability of finalised outcomes,
+  promotions, audit events and imported source text are enforced in
+  `save()`/`delete()`/`clean()` and custom querysets, so they hold from the
+  shell, bulk querysets and admin - not only through the API. The few
+  deliberate bypasses (administrator hard deletes that reassign attribution
+  or cascade history) call the unbound `models.QuerySet.update`/`delete` at
+  one documented call site each. Assessment rules - a snapshot's copied
+  requirement text, and a completed assessment staying completed - are
+  service invariants: the services, serializers and admin enforce them, but
+  a raw ORM write from the shell is not refused (KG-A22).
 - **Permissions fail closed.** Every viewset declares a `permission_map`;
   `accounts.permissions.HasRequiredPermissions` denies any undeclared
   action. Master authority and the audit-log grant are per-user permissions

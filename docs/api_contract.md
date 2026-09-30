@@ -4,9 +4,10 @@ Every endpoint below is implemented. All are prefixed with `/api/`, return
 JSON, and use Django session authentication with CSRF protection.
 
 This document explains the contract; `backend/schema.yml` is its
-machine-readable form. The schema declares every request and response body,
-including the bulk, summary, and import actions, and generates the frontend's
-TypeScript types. CI fails if the schema drifts from the serializers or the
+machine-readable form. The schema declares every request body and every
+success response, including the bulk, summary, and import actions, and
+generates the frontend's TypeScript types. Error responses are not modelled
+per endpoint: they all share the envelope in section 0b. CI fails if the schema drifts from the serializers or the
 types drift from the schema. Nothing is planned here: endpoints that do not
 exist yet (organisations, eligibility, certificates, reports) are listed as
 deferred in `current-system.md`.
@@ -40,7 +41,10 @@ generated from it.
 
 ## 0b. Error responses
 
-Every error response uses one envelope:
+Every error response uses one envelope - including an unknown `/api/` URL,
+which answers `404` with code `not_found`. The one deliberate exception is
+`GET /api/ready/`, whose `503` is `{"status": "unavailable"}` for the
+monitor that polls it:
 
 ```json
 {"error": {"code": "validation_error",
@@ -718,7 +722,8 @@ best-effort column mapping to pre-fill, never applied automatically).
 - **`STUDENT_ROSTER`**: request body `column_mapping` (target field ->
   source header, required fields
   `wksa_id`/`first_name`/`last_name`/`date_of_birth`/`current_rank`) and an
-  optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`)
+  optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`,
+  where each field is one of the six target fields; others are ignored)
   for fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
   response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
   per-row `issues`; a `SKIP_EXISTING` row is never modified. `row_number` is

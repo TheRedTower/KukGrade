@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 815 backend tests and 250 frontend tests passing
+Verified on 2026-09-30 with 818 backend tests and 250 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -555,8 +555,11 @@ checks on each push and pull request.
   "Welcome back" implies a return visit that has not actually happened yet.
 - **Frontend API types are generated**, not hand-written: `npm run
   generate:types` runs `openapi-typescript` against `backend/schema.yml` into
-  `frontend/src/api/schema.ts`, and every type in `frontend/src/api.ts` is an
-  alias onto it - see the 2026-09-14 decision log entry. Every custom action
+  `frontend/src/api/schema.ts`, and every request and response type in
+  `frontend/src/api.ts` is an alias onto it - see the 2026-09-14 decision log
+  entry. The two hand-written types are generic: `PaginatedResponse<T>`,
+  the shape every generated `Paginated*List` shares, and `FieldErrors`, the
+  error envelope's field map, which the schema does not model. Every custom action
   declares its real request and response (`@extend_schema`), and the bulk,
   summary, and import actions serialize through those same declared
   serializers, so the schema cannot describe a shape the API does not send.

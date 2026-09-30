@@ -18,6 +18,42 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Documentation states which layer enforces each rule
+
+Status: Accepted
+
+Decision:
+Each claim the 2026-09-29 audit found overstated is now either made true
+or corrected to name the layer that really enforces it (KG-A22).
+- **Made true:**
+  - An unknown `/api/` URL answers with the JSON error envelope
+    (`handler404`, `kukgrade.exceptions.not_found`); other paths keep
+    Django's page.
+  - Student-import corrections and promotion notes use generated types,
+    since the correction fields are now declared on the backend.
+  - Several claims were already true after the earlier fixes: forced
+    password change (A01), admin writes (A14), session counts (A15),
+    no-op student updates, and bulk-row independence (A11).
+- **Corrected:**
+  - Model-level guards cover session status, deletion, finalised outcomes,
+    promotions, audit events and imported source text. Assessment snapshot
+    and completion rules are service invariants, enforced by services,
+    serializers and admin but not against a raw ORM write.
+  - The schema declares every request and success response; errors share
+    one envelope that is not modelled per endpoint.
+  - Readiness keeps its own `503` payload for its monitor.
+  - `PaginatedResponse<T>` and `FieldErrors` are the only hand-written
+    frontend types.
+
+Context:
+The audit's rule: a document saying something is done is not evidence that
+it is. Model-level guards for assessments were not added here. That would be
+a separate design choice about admin corrections and reopening.
+
+Consequences:
+Contract change: `StudentImportRequest.corrections` now names its six
+fields.
+
 ### 2026-09-30 - Overview activity status comes from the action, not the prose
 
 Status: Accepted

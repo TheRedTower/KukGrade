@@ -18,7 +18,8 @@ from typing import Any
 
 from django.core.exceptions import PermissionDenied as DjangoPermissionDenied
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.http import Http404, HttpRequest, JsonResponse
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.views.defaults import page_not_found
 from rest_framework import exceptions, status
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
@@ -155,3 +156,18 @@ def server_error(request: HttpRequest, *args: Any, **kwargs: Any) -> JsonRespons
         ),
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+def not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
+    """Handler404: an unknown `/api/` URL answers in the API's envelope.
+
+    DRF only envelopes a 404 raised inside one of its views; a URL that
+    matches no route never reaches one, and got Django's HTML page instead
+    (KG-A22). Everything outside the API keeps Django's own page.
+    """
+    if request.path.startswith("/api/"):
+        return JsonResponse(
+            error_payload("not_found", "No API endpoint matches this URL."),
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return page_not_found(request, exception)

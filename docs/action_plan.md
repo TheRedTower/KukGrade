@@ -8,9 +8,8 @@ structural choice records it in `decision_log.md` first.
 
 1. **Finish the 2026-09-29 audit remediation**
    (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05
-   and A07 to A19; KG-A06 no longer applies (the filter it describes was
-   removed). Remaining, in the audit's order:
-   - KG-A22: documentation claims.
+   and A07 to A19 and A22; KG-A06 no longer applies (the filter it
+   describes was removed). Remaining, in the audit's order:
    - KG-A20, A21 and A23: avoidable requests and queries (the session
      rows' per-session counts are already served - KG-A15; still open
      include the roster preview's per-row rank and existing-student

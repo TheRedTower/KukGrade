@@ -215,3 +215,41 @@ def test_a_domain_validation_error_is_enveloped_by_the_handler(
             "fields": fields,
         },
     }
+
+
+def test_an_unknown_api_url_is_enveloped() -> None:
+    # A URL that matches no route never reaches a DRF view, so without
+    # handler404 the API answered with Django's HTML page (KG-A22).
+    from django.http import Http404
+    from django.test import Client
+
+    from kukgrade.exceptions import not_found
+
+    request = Client().request(PATH_INFO="/api/does-not-exist/").wsgi_request
+    response = not_found(request, Http404())
+
+    assert response.status_code == 404
+    assert json.loads(response.content)["error"]["code"] == "not_found"
+
+
+def test_an_unknown_page_outside_the_api_keeps_djangos_404() -> None:
+    from django.http import Http404
+    from django.test import Client
+
+    from kukgrade.exceptions import not_found
+
+    request = Client().request(PATH_INFO="/admin/nowhere/").wsgi_request
+    response = not_found(request, Http404())
+
+    assert response.status_code == 404
+    assert response["Content-Type"].startswith("text/html")
+
+
+def test_the_404_handler_is_wired_for_real_requests() -> None:
+    from django.test import Client, override_settings
+
+    with override_settings(DEBUG=False):
+        response = Client().get("/api/does-not-exist/", HTTP_HOST="localhost")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"

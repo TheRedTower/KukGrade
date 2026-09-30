@@ -75,6 +75,17 @@ def _validate_column_mapping(value: dict[str, str]) -> None:
         )
 
 
+class StudentImportCorrectionSerializer(serializers.Serializer):
+    """One row's corrected values, by target field; any may be left out."""
+
+    wksa_id = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
+    date_of_birth = serializers.CharField(required=False, allow_blank=True)
+    current_rank = serializers.CharField(required=False, allow_blank=True)
+    status = serializers.CharField(required=False, allow_blank=True)
+
+
 class StudentImportSerializer(serializers.Serializer):
     """Shared request shape for the preview and commit actions."""
 
@@ -82,8 +93,10 @@ class StudentImportSerializer(serializers.Serializer):
         child=serializers.CharField(allow_blank=True),
         validators=[_validate_column_mapping],
     )
+    # Keyed by row number. Each correction declares the target fields it may
+    # carry, so the schema - and the generated frontend type - name them.
     corrections = serializers.DictField(
-        child=serializers.DictField(child=serializers.CharField(allow_blank=True)),
+        child=StudentImportCorrectionSerializer(),
         required=False,
         default=dict,
     )

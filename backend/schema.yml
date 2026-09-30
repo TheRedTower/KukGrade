@@ -4052,6 +4052,22 @@ components:
             $ref: '#/components/schemas/GradingHistoryItem'
       required:
       - items
+    StudentImportCorrectionRequest:
+      type: object
+      description: One row's corrected values, by target field; any may be left out.
+      properties:
+        wksa_id:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        date_of_birth:
+          type: string
+        current_rank:
+          type: string
+        status:
+          type: string
     StudentImportPreview:
       type: object
       properties:
@@ -4084,9 +4100,7 @@ components:
         corrections:
           type: object
           additionalProperties:
-            type: object
-            additionalProperties:
-              type: string
+            $ref: '#/components/schemas/StudentImportCorrectionRequest'
       required:
       - column_mapping
     StudentImportRowOutcomeEnum:

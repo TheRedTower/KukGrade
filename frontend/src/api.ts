@@ -692,7 +692,7 @@ export async function getAllPromotions(
 
 export async function promoteCandidateOutcome(
   outcomeId: number,
-  data?: { notes?: string },
+  data?: Schemas["CandidatePromotionRequest"],
 ): Promise<Promotion> {
   return apiRequest<Promotion>(`/api/gradings/outcomes/${outcomeId}/promote/`, {
     method: "POST",
@@ -733,12 +733,7 @@ export async function createDataImportBatch(
 
 export type StudentImportRowResult = Schemas["StudentImportRowResult"];
 export type StudentImportPreview = Schemas["StudentImportPreview"];
-export type StudentImportRowCorrection = Partial<
-  Record<
-    "wksa_id" | "first_name" | "last_name" | "date_of_birth" | "current_rank" | "status",
-    string
-  >
->;
+export type StudentImportRowCorrection = Schemas["StudentImportCorrectionRequest"];
 export type StudentImportRequestPayload = Schemas["StudentImportRequest"];
 
 export async function previewStudentImport(

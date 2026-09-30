@@ -1979,6 +1979,15 @@ export interface components {
         StudentGradingHistory: {
             items: components["schemas"]["GradingHistoryItem"][];
         };
+        /** @description One row's corrected values, by target field; any may be left out. */
+        StudentImportCorrectionRequest: {
+            wksa_id?: string;
+            first_name?: string;
+            last_name?: string;
+            date_of_birth?: string;
+            current_rank?: string;
+            status?: string;
+        };
         StudentImportPreview: {
             total: number;
             ready: number;
@@ -1992,9 +2001,7 @@ export interface components {
                 [key: string]: string;
             };
             corrections?: {
-                [key: string]: {
-                    [key: string]: string;
-                };
+                [key: string]: components["schemas"]["StudentImportCorrectionRequest"];
             };
         };
         /**

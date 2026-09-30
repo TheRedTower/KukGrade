@@ -350,10 +350,11 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
 
 @transaction.atomic
 def reset_password(target: User, *, password: str, actor: User) -> User:
-    """Set a password someone else chose, so its owner must replace it."""
+    """Set a password someone else chose, so its owner must replace it (unless
+    the owner is the one setting it)."""
     locked = _lock_user(target.pk)
     locked.set_password(password)
-    return _password_set(locked, actor=actor, chosen_by_owner=False)
+    return _password_set(locked, actor=actor)
 
 
 @transaction.atomic
@@ -361,17 +362,20 @@ def change_own_password(user: User, *, password: str) -> User:
     """The owner's own new password, which lifts the forced change."""
     locked = _lock_user(user.pk)
     locked.set_password(password)
-    return _password_set(locked, actor=user, chosen_by_owner=True)
+    return _password_set(locked, actor=user)
 
 
 @transaction.atomic
 def record_admin_password_change(target: User, *, actor: User) -> User:
     """Django admin's password form has saved `target`'s new password; the
     rest of an administrator reset follows here, in the same transaction."""
-    return _password_set(_lock_user(target.pk), actor=actor, chosen_by_owner=False)
+    return _password_set(_lock_user(target.pk), actor=actor)
 
 
-def _password_set(locked: User, *, actor: User, chosen_by_owner: bool) -> User:
+def _password_set(locked: User, *, actor: User) -> User:
+    # A password its owner chose - including an administrator setting their
+    # own - needs no forced replacement; one someone else chose does.
+    chosen_by_owner = locked.pk == actor.pk
     # One transaction with the password itself, so the change and its record
     # land together or not at all (KG-A14). The value never appears in the
     # summary or metadata.

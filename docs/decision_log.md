@@ -18,6 +18,32 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Fixes from the pre-push review of audit steps 1-6
+
+Status: Accepted
+
+Decision:
+A review of everything ahead of `origin/dev` found seven defects, all fixed:
+
+- Django admin deletes that a service refuses (a bulk delete that includes
+  your own account, for one) are shown as an error message and delete nothing,
+  not a server error (`ServiceDeleteMixin`).
+- A password someone sets on their own account - through the admin form or the
+  API - is owner-chosen: it does not force a second change and is recorded as
+  "Password changed", not "Password reset". One rule in
+  `accounts.services._password_set`.
+- An item edit whose notes differ only by surrounding whitespace writes and
+  records nothing, as the assessment-level edit already behaved.
+- Session writes no longer compute the four progress counts for the row they
+  load; only list and retrieve do.
+- Overview's attention list has its own query key
+  (`candidateAssessments/attention/<session>`); it shared the session's full
+  list key while holding a four-row slice. The session detail screen's update
+  invalidates every session list except its own detail.
+
+Consequences:
+None change the API schema.
+
 ### 2026-09-30 - The club's time zone is declared in the environment
 
 Status: Accepted

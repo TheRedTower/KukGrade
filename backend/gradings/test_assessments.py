@@ -1315,15 +1315,19 @@ def test_repeating_the_same_item_notes_records_nothing() -> None:
         assessor=user("repeat-notes-assessor@example.com"),
     )
     before = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
+    stamp = CandidateAssessmentItem.objects.get(pk=item.pk).updated_at
 
-    update_candidate_assessment_item(
-        item,
-        assessor_notes="Already recorded.",
-        assessor=user("repeat-notes-assessor-2@example.com"),
-    )
+    # The model strips notes, so surrounding whitespace is not a change.
+    for repeat in ("Already recorded.", " Already recorded.  "):
+        update_candidate_assessment_item(
+            item,
+            assessor_notes=repeat,
+            assessor=user(f"repeat-notes-assessor-{len(repeat)}@example.com"),
+        )
 
     after = AuditEvent.objects.filter(action=AuditAction.ITEM_RESULT_RECORDED).count()
     assert after == before
+    assert CandidateAssessmentItem.objects.get(pk=item.pk).updated_at == stamp
 
 
 def test_editing_assessment_notes_is_audited_with_both_versions() -> None:

@@ -117,3 +117,14 @@ def interleave(
             thread.join(timeout=20)
     assert not any(thread.is_alive() for thread in threads), "a thread never finished"
     return results[0], results[1]
+
+
+def render_admin_pages(settings: Any) -> None:
+    """Let admin pages render in a test: their templates resolve hashed static
+    files, which need collectstatic. Call with pytest's `settings` fixture."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }

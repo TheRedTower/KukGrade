@@ -518,7 +518,7 @@ def update_candidate_assessment_item(
     previous_notes = locked_item.assessor_notes
 
     if assessor_notes is not None:
-        locked_item.assessor_notes = assessor_notes
+        locked_item.assessor_notes = assessor_notes.strip()
 
     if result is not None and result != locked_item.result:
         if result not in CandidateAssessmentItem.Result.values:
@@ -531,14 +531,15 @@ def update_candidate_assessment_item(
             locked_item.assessor = assessor
             locked_item.assessed_at = timezone.now()
 
-    locked_item.save()
-
     result_changed = result is not None and result != previous_result
-    notes_changed = assessor_notes is not None and assessor_notes != previous_notes
+    notes_changed = locked_item.assessor_notes != previous_notes
     # One event per call covering whatever changed, not one per field - a
     # notes-only edit used to record nothing at all, which meant the
-    # written judgement about a candidate could be silently rewritten.
+    # written judgement about a candidate could be silently rewritten. A call
+    # that changes nothing (notes differing only by surrounding whitespace,
+    # which the model strips) writes and records nothing.
     if result_changed or notes_changed:
+        locked_item.save()
         record(
             AuditAction.ITEM_RESULT_RECORDED,
             locked_item,

@@ -17,6 +17,7 @@ from gradings.outcome_services import promote_candidate
 from gradings.services import transition_grading_session
 from gradings.testing import (
     assessment,
+    auth_client,
     candidate,
     complete_assessment,
     finalised_outcome,
@@ -96,3 +97,27 @@ def test_promotion_and_outcome_lists_cost_the_same_however_long_they_are() -> No
         promote_through(student(), PROMOTION_CHAIN[0])
 
     assert [queries_for(client, url) for url in endpoints] == one
+
+
+def progress_queries(captured: CaptureQueriesContext) -> int:
+    return sum("awaiting_decision_count" in query["sql"] for query in captured)
+
+
+def test_a_session_write_does_not_count_progress_for_a_response_it_recomputes() -> None:
+    built = grading_session()
+    client = auth_client("session-write-queries@example.com")
+
+    with CaptureQueriesContext(connection) as deleting:
+        assert client.delete(f"/api/gradings/sessions/{built.pk}/").status_code == 204
+    other = grading_session(title="Edited")
+    with CaptureQueriesContext(connection) as editing:
+        response = client.patch(
+            f"/api/gradings/sessions/{other.pk}/", {"notes": "x"}, format="json"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["candidate_count"] == 0
+    # The counts are read once for the edit's own response, never for loading
+    # the row to act on it, and not at all for a delete.
+    assert progress_queries(deleting) == 0
+    assert progress_queries(editing) == 1

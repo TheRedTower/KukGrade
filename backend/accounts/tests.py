@@ -33,9 +33,11 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
+from accounts.services import reset_password
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
+from kukgrade.testing import render_admin_pages
 
 pytestmark = pytest.mark.django_db
 
@@ -1939,3 +1941,70 @@ def test_admin_offers_no_way_to_delete_your_own_account() -> None:
     model_admin = UserAdmin(User, admin.site)
 
     assert model_admin.has_delete_permission(request, request.user) is False
+
+
+# ---------------------------------------------------------------------------
+# A refused admin delete is a message, not a server error
+# ---------------------------------------------------------------------------
+
+
+def _bulk_delete(client: Client, url: str, ids: list[object]) -> Any:
+    return client.post(
+        url,
+        {"action": "delete_selected", "_selected_action": ids, "post": "yes"},
+        follow=True,
+    )
+
+
+def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
+    settings: Any,
+) -> None:
+    render_admin_pages(settings)
+    me = create_user(email="bulk-self@example.com", is_staff=True, is_superuser=True)
+    other = create_user(email="bulk-other@example.com")
+    client = Client()
+    client.force_login(me)
+
+    response = _bulk_delete(client, "/admin/accounts/user/", [me.pk, other.pk])
+
+    assert response.status_code == 200
+    assert "cannot delete your own account" in response.content.decode()
+    # All or nothing: the refusal rolled back the other deletion too.
+    assert User.objects.filter(pk__in=[me.pk, other.pk]).count() == 2
+
+
+def test_an_administrator_setting_their_own_password_is_not_forced_to_change_it() -> (
+    None
+):
+    me = create_user(email="self-reset@example.com", role=User.Role.ADMINISTRATOR)
+
+    reset_password(me, password="kg-MyOwnChoice123!", actor=me)
+
+    me.refresh_from_db()
+    assert me.check_password("kg-MyOwnChoice123!")
+    assert me.must_change_password is False
+    event = AuditEvent.objects.filter(action=AuditAction.USER_UPDATED).latest("pk")
+    assert event.summary == "Password changed by self-reset@example.com."
+
+
+def test_admin_site_password_form_on_your_own_account_is_not_a_reset(
+    settings: Any,
+) -> None:
+    render_admin_pages(settings)
+    me = create_user(
+        email="self-admin-form@example.com", is_staff=True, is_superuser=True
+    )
+    other = create_user(email="other-admin-form@example.com")
+    client = Client()
+    client.force_login(me)
+
+    for target in (me, other):
+        response = client.post(
+            f"/admin/accounts/user/{target.pk}/password/",
+            {"password1": "kg-FormChosen123!", "password2": "kg-FormChosen123!"},
+        )
+        assert response.status_code == 302, response.content.decode()[:500]
+        target.refresh_from_db()
+
+    assert me.must_change_password is False
+    assert other.must_change_password is True

@@ -201,7 +201,7 @@ export function OverviewScreen() {
 
   // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
-    queryKey: ["candidateAssessments", openSession?.id],
+    queryKey: ["candidateAssessments", "attention", openSession?.id],
     queryFn: () =>
       getCandidateAssessments({
         session: openSession!.id,

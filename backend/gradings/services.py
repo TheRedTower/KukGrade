@@ -6,7 +6,8 @@ from typing import TypedDict, cast
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, models, transaction
-from django.db.models import Q
+from django.db.models import Count, OuterRef, Q, QuerySet, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from psycopg import errors as pg_errors
 
@@ -385,6 +386,41 @@ def transition_grading_session(
         },
     )
     return locked_session
+
+
+def with_session_progress(
+    sessions: QuerySet[GradingSession],
+) -> QuerySet[GradingSession]:
+    """Each session's progress, defined once for every screen (KG-A15).
+
+    Counted in the database, so a cohort larger than a page is counted in
+    full. A withdrawn candidate counts in none of the three: they are not
+    being assessed. Awaiting a final decision means an assessment is
+    complete and its outcome, if any, is not yet finalised.
+    """
+    active = GradingCandidate.objects.filter(session=OuterRef("pk")).exclude(
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    completed = active.filter(
+        assessment__status=CandidateAssessment.Status.COMPLETED,
+    )
+
+    def count(candidates: QuerySet[GradingCandidate]) -> Coalesce:
+        per_session = (
+            candidates.order_by()
+            .values("session")
+            .annotate(total=Count("pk"))
+            .values("total")
+        )
+        return Coalesce(Subquery(per_session), 0)
+
+    return sessions.annotate(
+        candidate_count=count(active),
+        completed_assessment_count=count(completed),
+        awaiting_decision_count=count(
+            completed.exclude(outcome__status=CandidateOutcome.Status.FINALISED),
+        ),
+    )
 
 
 def _audit_value(value: object) -> object:

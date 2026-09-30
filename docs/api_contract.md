@@ -388,6 +388,11 @@ Session fields:
 - `cancellation_reason`: write-only. Sent when cancelling a locked session and
   never returned; it is kept on the record and in the audit log. The creator
   is recorded from the authenticated user and is not served either.
+- `candidate_count`, `completed_assessment_count`, `awaiting_decision_count`:
+  read-only progress, counted in the database for every session in a list
+  (`gradings.services.with_session_progress`). A withdrawn candidate counts
+  in none of them; awaiting a decision means a completed assessment whose
+  outcome is not finalised.
 
 `grading_date` can be changed only before candidates are added. Once a session
 has candidates, its date is fixed so stored candidate age-band snapshots do not

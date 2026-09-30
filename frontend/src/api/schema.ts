@@ -1440,6 +1440,9 @@ export interface components {
             readonly status_display: string;
             location?: string;
             notes?: string;
+            readonly candidate_count: number;
+            readonly completed_assessment_count: number;
+            readonly awaiting_decision_count: number;
         };
         GradingSessionRequest: {
             title: string;

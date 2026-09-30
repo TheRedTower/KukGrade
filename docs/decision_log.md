@@ -18,6 +18,30 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Session progress is counted once, on the server
+
+Status: Accepted
+
+Decision:
+Each grading session carries `candidate_count`,
+`completed_assessment_count` and `awaiting_decision_count`, counted in the
+database by `gradings.services.with_session_progress` (KG-A15). A withdrawn
+candidate counts in none of them. An assessment counts as complete only
+when it is `COMPLETED`. Awaiting a final decision means a completed
+assessment whose outcome is not finalised. The sessions list and the
+overview both read these counts, instead of counting a first page of
+assessments themselves.
+
+Context:
+The sessions screen counted in-progress assessments as "complete", treated
+every completed assessment as awaiting a decision, and counted only the
+first 50 of each. It also made two list requests per table row to get its
+numbers.
+
+Consequences:
+The session list's row counts no longer cost two requests per row (part of
+KG-A20). Listing more sessions adds no queries, which a test pins.
+
 ### 2026-09-30 - Every write path is audited like the API's; candidate PATCH only moves
 
 Status: Accepted

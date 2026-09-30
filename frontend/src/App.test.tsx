@@ -1235,6 +1235,11 @@ describe("Overview screen (Operational Ledger)", () => {
       grading_date: "2026-05-15",
       status: "OPEN",
       status_display: "Open",
+      // Served counts: the one completed assessment is already decided, so
+      // nothing awaits a decision even though the list shows it completed.
+      candidate_count: 2,
+      completed_assessment_count: 1,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
     } satisfies GradingSession;
 
@@ -1244,6 +1249,9 @@ describe("Overview screen (Operational Ledger)", () => {
       grading_date: "2099-08-20",
       status: "DRAFT",
       status_display: "Draft",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Ipswich Central",
     } satisfies GradingSession;
 
@@ -1387,6 +1395,9 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(screen.getByText("Colchester Dojang")).toBeVisible();
     expect(await screen.findByText("1 / 2")).toBeVisible(); // 1 of 2 completed
     expect(screen.getByText("2")).toBeVisible(); // candidates count
+    expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
+      "0",
+    );
     expect(screen.getByRole("button", { name: /Open session/i })).toBeVisible();
 
     // Needs attention card
@@ -1436,6 +1447,9 @@ describe("Overview screen (Operational Ledger)", () => {
       grading_date: "2026-05-15",
       status: "OPEN",
       status_display: "Open",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
     } satisfies GradingSession;
 
@@ -2377,6 +2391,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2026-09-15",
       status: "OPEN",
       status_display: "Open",
+      candidate_count: 5,
+      completed_assessment_count: 3,
+      awaiting_decision_count: 1,
       location: "Colchester Dojang",
       notes: "",
     },
@@ -2386,6 +2403,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2026-06-20",
       status: "LOCKED",
       status_display: "Locked",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     },
@@ -2395,6 +2415,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2026-03-21",
       status: "COMPLETED",
       status_display: "Completed",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     },
@@ -2413,17 +2436,27 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: sessions.length, next: null, previous: null, results: sessions });
       }
-      // Candidates per session
-      if (url.includes("/api/gradings/candidates/")) {
-        return jsonResponse(200, { count: 5, next: null, previous: null, results: [] });
-      }
-      // Assessments per session
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
-        return jsonResponse(200, { count: 3, next: null, previous: null, results: [] });
-      }
       return jsonResponse(404, {});
     });
   }
+
+  it("shows each session's served progress without asking for its candidates", async () => {
+    const fetchMock = makeFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    const card = await screen.findByRole("region", { name: "Current grading session" });
+    expect(within(card).getByText("3 / 5")).toBeVisible();
+    expect(within(card).getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
+      "1",
+    );
+    const table = await screen.findByRole("table", { name: "Grading sessions" });
+    expect(within(table).getByText("3 of 5 complete")).toBeVisible();
+    const requested = fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requested.some((url) => url.includes("/api/gradings/candidates/"))).toBe(false);
+    expect(requested.some((url) => url.includes("/api/gradings/assessments/"))).toBe(false);
+  });
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings");
@@ -2567,6 +2600,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2025-09-13",
       status: "CANCELLED",
       status_display: "Cancelled",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -2618,6 +2654,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2025-09-13",
       status: "CANCELLED",
       status_display: "Cancelled",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -2679,6 +2718,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2025-09-13",
       status: "CANCELLED",
       status_display: "Cancelled",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -2727,6 +2769,9 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       grading_date: "2025-09-13",
       status: "CANCELLED",
       status_display: "Cancelled",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Dojang",
       notes: "",
     } satisfies GradingSession;
@@ -2917,6 +2962,9 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       grading_date: "2027-03-20",
       status: "DRAFT",
       status_display: "Draft",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
       location: "Colchester Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;
@@ -3047,6 +3095,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     grading_date: "2026-09-15",
     status: "OPEN" as const,
     status_display: "Open",
+    candidate_count: 0,
+    completed_assessment_count: 0,
+    awaiting_decision_count: 0,
     location: "Colchester Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
@@ -4328,6 +4379,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     location: "Colchester Dojang",
     status: "DRAFT",
     status_display: "Draft",
+    candidate_count: 0,
+    completed_assessment_count: 0,
+    awaiting_decision_count: 0,
     notes: "",
   };
 
@@ -4861,6 +4915,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     location: "Main Dojang",
     status: "OPEN",
     status_display: "Open",
+    candidate_count: 0,
+    completed_assessment_count: 0,
+    awaiting_decision_count: 0,
     notes: "",
   };
 
@@ -6133,6 +6190,9 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       ...mockSession,
       status: "DRAFT" as const,
       status_display: "Draft",
+      candidate_count: 0,
+      completed_assessment_count: 0,
+      awaiting_decision_count: 0,
     } satisfies GradingSession;
     const generatedAssessment: CandidateAssessment = {
       ...mockAssessment,

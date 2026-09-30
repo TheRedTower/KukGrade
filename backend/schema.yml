@@ -3011,7 +3011,19 @@ components:
           maxLength: 200
         notes:
           type: string
+        candidate_count:
+          type: integer
+          readOnly: true
+        completed_assessment_count:
+          type: integer
+          readOnly: true
+        awaiting_decision_count:
+          type: integer
+          readOnly: true
       required:
+      - awaiting_decision_count
+      - candidate_count
+      - completed_assessment_count
       - grading_date
       - id
       - status_display

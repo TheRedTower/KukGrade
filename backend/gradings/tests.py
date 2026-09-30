@@ -5960,3 +5960,78 @@ def test_editing_assessment_notes_is_audited_with_both_versions() -> None:
         "before": {"notes": ""},
         "after": {"notes": "Strong stances"},
     }
+
+
+# ---------------------------------------------------------------------------
+# Session progress is counted once, on the server (KG-A15)
+# ---------------------------------------------------------------------------
+
+
+def served_progress(session: GradingSession) -> dict[str, int]:
+    row = auth_client("session-progress-reader@example.com").get(
+        f"/api/gradings/sessions/{session.pk}/",
+    )
+    assert row.status_code == 200
+    body = row.json()
+    return {
+        name: body[name]
+        for name in (
+            "candidate_count",
+            "completed_assessment_count",
+            "awaiting_decision_count",
+        )
+    }
+
+
+def test_open_session_progress_counts_only_completed_assessments() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    assessment(candidate=candidate(session=session))  # not started
+    start_assessment(assessment(candidate=candidate(session=session)))
+    complete_assessment(assessment(candidate=candidate(session=session)))
+    candidate(session=session)  # no assessment yet
+    candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
+
+    assert served_progress(session) == {
+        "candidate_count": 4,
+        "completed_assessment_count": 1,
+        "awaiting_decision_count": 1,
+    }
+
+
+def test_awaiting_decision_excludes_finalised_outcomes() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    decided, proposed, undecided = (candidate(session=session) for _ in range(3))
+    for built in (decided, proposed, undecided):
+        complete_assessment(assessment(candidate=built))
+    candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    finalised_outcome(decided)
+    propose_candidate_outcome(
+        create_candidate_outcome(proposed, user("progress-outcome@example.com")),
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("progress-proposer@example.com"),
+    )
+
+    assert served_progress(session) == {
+        "candidate_count": 3,
+        "completed_assessment_count": 3,
+        "awaiting_decision_count": 2,
+    }
+
+
+def test_listing_sessions_counts_progress_without_a_query_per_session() -> None:
+    client = auth_client("session-progress-list@example.com")
+    grading_session(title="First")
+    # The first request also loads the user's permissions; measure after it.
+    client.get("/api/gradings/sessions/")
+
+    with CaptureQueriesContext(connection) as one:
+        assert client.get("/api/gradings/sessions/").status_code == 200
+    for title in ("Second", "Third", "Fourth"):
+        candidate(session=grading_session(title=title))
+    with CaptureQueriesContext(connection) as many:
+        response = client.get("/api/gradings/sessions/")
+
+    assert response.json()["count"] == GradingSession.objects.count() > 1
+    assert len(many.captured_queries) == len(one.captured_queries)

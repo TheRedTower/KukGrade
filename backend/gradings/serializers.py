@@ -32,6 +32,7 @@ from gradings.services import (
     update_grading_session,
     validate_session_grading_date_change,
     validate_session_transition,
+    with_session_progress,
     withdraw_locked_candidate,
 )
 from ranks.models import Rank
@@ -41,6 +42,10 @@ from syllabus.models import SyllabusItem
 
 class GradingSessionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
+    # Counted by gradings.services.with_session_progress (KG-A15).
+    candidate_count = serializers.IntegerField(read_only=True)
+    completed_assessment_count = serializers.IntegerField(read_only=True)
+    awaiting_decision_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = GradingSession
@@ -53,14 +58,27 @@ class GradingSessionSerializer(serializers.ModelSerializer):
             "location",
             "notes",
             "cancellation_reason",
+            "candidate_count",
+            "completed_assessment_count",
+            "awaiting_decision_count",
         )
         read_only_fields = (
             "id",
             "status_display",
         )
+
         # Sent when cancelling a locked session; no screen reads it back. It
         # is kept on the model and in the audit log.
         extra_kwargs = {"cancellation_reason": {"write_only": True}}
+
+    def to_representation(self, instance: GradingSession) -> dict[str, Any]:
+        # A session just created or edited was not loaded through the
+        # viewset's annotated queryset, so its counts are read now.
+        if not hasattr(instance, "candidate_count"):
+            instance = with_session_progress(
+                GradingSession.objects.filter(pk=instance.pk),
+            ).get()
+        return super().to_representation(instance)
 
     def validate(self, attrs: dict[str, object]) -> dict[str, object]:
         if self.instance is not None and "status" in attrs:

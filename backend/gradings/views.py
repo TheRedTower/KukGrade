@@ -72,6 +72,7 @@ from gradings.services import (
     delete_grading_session,
     generate_candidate_assessment,
     reopen_candidate_assessment,
+    with_session_progress,
 )
 from kukgrade.filtering import boolean, by_id, choice, on_date, search
 
@@ -113,7 +114,9 @@ class GradingSessionViewSet(ModelViewSet):
     )
 
     def get_queryset(self) -> QuerySet[GradingSession]:
-        return GradingSession.objects.order_by("-grading_date", "created_at")
+        return with_session_progress(
+            GradingSession.objects.order_by("-grading_date", "created_at"),
+        )
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()

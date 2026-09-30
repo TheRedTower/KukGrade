@@ -86,6 +86,9 @@ function lockedSession(): GradingSession {
     grading_date: "2027-03-20",
     status: "LOCKED",
     status_display: "Locked",
+    candidate_count: 0,
+    completed_assessment_count: 0,
+    awaiting_decision_count: 0,
     location: "Colchester",
     notes: "",
   };

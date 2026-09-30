@@ -5,10 +5,8 @@ import { useNavigate } from "react-router-dom";
 import {
   type AuditEvent,
   type CandidateAssessment,
-  type GradingCandidate,
   type GradingSession,
   getAllCandidateAssessments,
-  getAllGradingCandidates,
   getAllGradingSessions,
   getAuditEvents,
 } from "./api";
@@ -214,21 +212,14 @@ export function OverviewScreen() {
     return candidates[0];
   }, [sessions, openSession]);
 
-  // 2. Fetch candidates for open session
-  const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", openSession?.id],
-    queryFn: () => getAllGradingCandidates({ session: openSession!.id }),
-    enabled: !!openSession,
-  });
-
-  // 3. Fetch assessments for open session
+  // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
     queryKey: ["candidateAssessments", openSession?.id],
     queryFn: () => getAllCandidateAssessments({ session: openSession!.id }),
     enabled: !!openSession,
   });
 
-  // 4. Fetch recent audit events
+  // 3. Fetch recent audit events
   const auditQuery = useQuery({
     queryKey: ["auditEvents", "recent"],
     queryFn: () => getAuditEvents({ page_size: 6 }),
@@ -236,23 +227,16 @@ export function OverviewScreen() {
     retry: false,
   });
 
-  // Derived metrics for open session
-  const candidates = useMemo<GradingCandidate[]>(() => {
-    return Array.isArray(candidatesQuery.data?.results)
-      ? candidatesQuery.data.results
-      : [];
-  }, [candidatesQuery.data]);
-
   const assessments = useMemo<CandidateAssessment[]>(() => {
     return Array.isArray(assessmentsQuery.data?.results)
       ? assessmentsQuery.data.results
       : [];
   }, [assessmentsQuery.data]);
 
-  const candidatesCount = candidates.length;
-  const completedAssessmentsCount = assessments.filter(
-    (a) => a.status === "COMPLETED",
-  ).length;
+  // Counted on the server, so they agree with every other screen (KG-A15).
+  const candidatesCount = openSession?.candidate_count ?? 0;
+  const completedAssessmentsCount = openSession?.completed_assessment_count ?? 0;
+  const awaitingDecisionCount = openSession?.awaiting_decision_count ?? 0;
 
   // Assessments needing attention:
   // - Completed assessments awaiting proposal/decision
@@ -275,10 +259,6 @@ export function OverviewScreen() {
       .slice(0, 4);
   }, [assessments]);
 
-  const awaitingDecisionCount = assessments.filter(
-    (a) => a.status === "COMPLETED",
-  ).length;
-
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
     if (!Array.isArray(auditQuery.data?.results)) return [];
@@ -288,7 +268,7 @@ export function OverviewScreen() {
   const isInitialLoading =
     sessionsQuery.isLoading ||
     (canViewAudit && auditQuery.isLoading) ||
-    (!!openSession && (candidatesQuery.isLoading || assessmentsQuery.isLoading));
+    (!!openSession && assessmentsQuery.isLoading);
 
   return (
     <section

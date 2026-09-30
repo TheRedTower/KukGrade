@@ -3,7 +3,7 @@
 Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 812 backend tests and 240 frontend tests passing
+Verified on 2026-09-30 with 815 backend tests and 241 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -378,7 +378,9 @@ checks on each push and pull request.
   student creation and detail/edit, administrator-only bulk student-roster
   import (upload, column mapping pre-filled from the file's own headers,
   row-by-row review with inline correction, commit), the syllabus cumulative
-  current-knowledge ledger (FDR-041/SCR-025), grading-session list,
+  current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
+  progress counts, like the overview's, are served with each session
+  rather than derived from a first page of assessments - KG-A15),
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
   the promotion ledger. The administrator-only historical-import wizard

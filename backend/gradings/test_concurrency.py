@@ -11,7 +11,7 @@ Marked `concurrency` so the suite can deselect it (`-m "not concurrency"`) if
 it ever proves flaky in a particular CI environment without losing the rest
 of the tests. Nothing here is skipped by default.
 
-Helpers are imported from `gradings.tests` rather than re-built here - a
+Helpers are imported from `gradings.testing` rather than re-built here - a
 grading session, a completed assessment and a finalised outcome are exactly
 the same fixtures the rest of the suite already builds correctly.
 
@@ -79,7 +79,7 @@ from gradings.services import (
     update_candidate_assessment_item,
     withdraw_locked_candidate,
 )
-from gradings.tests import (
+from gradings.testing import (
     assessment,
     candidate,
     complete_assessment,

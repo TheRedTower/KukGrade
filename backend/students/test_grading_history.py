@@ -10,7 +10,7 @@ from accounts.models import User
 from data_imports.testing import legacy_record
 from gradings.legacy_services import void_legacy_record
 from gradings.models import CandidateOutcome
-from gradings.tests import finalised_outcome, locked_completed_candidate, user
+from gradings.testing import finalised_outcome, locked_completed_candidate, user
 
 pytestmark = pytest.mark.django_db
 

@@ -25,7 +25,7 @@ from gradings.services import (
     promote_candidate,
     transition_grading_session,
 )
-from gradings.tests import (
+from gradings.testing import (
     candidate,
     complete_assessment,
     finalised_outcome,
@@ -154,7 +154,7 @@ def test_deleting_a_student_with_multiple_promotions_needs_no_supersession_check
 ):
     # Contrast with session-cascade delete: every promotion this student has
     # is removed together, so there is no surviving promotion left for
-    # either one to supersede - unlike gradings.tests's
+    # either one to supersede - unlike gradings.testing's
     # test_session_delete_with_a_superseded_promotion_is_refused_and_deletes_nothing.
     built, _generated = locked_completed_candidate()
     student = built.student

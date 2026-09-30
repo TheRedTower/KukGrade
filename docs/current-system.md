@@ -1,9 +1,9 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-29.
+Describes the implementation on `dev` as verified on 2026-09-30.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-29 with 749 backend tests and 238 frontend tests passing
+Verified on 2026-09-30 with 800 backend tests and 239 frontend tests passing
 (the frontend suite in both UTC and `TZ=America/Los_Angeles`).
 Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
 OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
@@ -91,7 +91,13 @@ checks on each push and pull request.
   created student goes through the ordinary `students.services.create_student`
   service, so validation and the normal `STUDENT_CREATED` audit event are
   identical to a hand-created student. An existing WKSA ID is always
-  skipped, never updated. See `docs/data-import-and-legacy-migration.md`.
+  skipped, never updated. Preview checks each row with the student model's
+  own field and `clean()` rules, so a ready row can be committed (KG-A09). Every
+  upload is bounded while it is read - size, rows, columns, sheets and the
+  expanded size of an `.xlsx` - and a source file is deleted only after its
+  batch's commit, cancel or expiry has committed; expiry takes the same
+  batch lock and also sweeps files no batch names (KG-A07, A08, A10). See
+  `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW
   Colchester historical grading workbook (`.xlsx`) into `LegacyGradingRecord`
@@ -112,8 +118,9 @@ checks on each push and pull request.
   `gradings.can_reconcile_imported_history`) let an admin correct a wrong
   link or an unresolved rank without ever touching the source record. A
   voided record is excluded from active views but never physically
-  deleted; a second void on the same record is refused. See
-  `docs/data-import-and-legacy-migration.md`.
+  deleted; a second void on the same record is refused. Uploading a
+  workbook identical to one already committed shows a warning before
+  review. See `docs/data-import-and-legacy-migration.md`.
 - **Unified student grading history**: `GET /api/students/{id}/grading-history/`
   combines finalised native outcomes with linked, non-voided legacy records
   into one source-labelled, newest-first timeline (`KUKGRADE`/`LEGACY`),

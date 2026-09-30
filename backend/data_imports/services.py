@@ -1,4 +1,4 @@
-"""Import batch lifecycle and student-roster preview/commit.
+"""Import batch lifecycle, and preview/commit for both batch kinds.
 
 Every created `Student` goes through `students.services.create_student` -
 the exact service a hand-created student uses - so full model validation and
@@ -9,15 +9,18 @@ bulk importer never bypasses the domain-service layer.
 from __future__ import annotations
 
 import hashlib
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from functools import partial
 from typing import Any
 
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.storage import Storage
 from django.core.files.uploadedfile import UploadedFile
-from django.db import models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -37,15 +40,19 @@ from data_imports.mappings import (
 )
 from data_imports.models import ImportBatch
 from data_imports.parsers import (
+    TabularData,
     UnsupportedImportFileError,
     file_suffix,
     load_tabular_dataset,
 )
+from data_imports.storage import import_upload_storage
 from gradings.legacy_services import create_legacy_grading_record
 from gradings.models import LegacyRecordKind
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student
+
+logger = logging.getLogger(__name__)
 
 _ALLOWED_EXTENSIONS: dict[str, frozenset[str]] = {
     ImportBatch.Kind.STUDENT_ROSTER: frozenset({"xlsx", "csv"}),
@@ -96,27 +103,41 @@ def create_import_batch(
             },
         )
 
-    content = upload.read()
+    # The declared size is checked before reading and the read is capped
+    # too, so a wrong declared size cannot make it read past the limit.
     limit = settings.IMPORT_UPLOAD_MAX_BYTES
+    too_large = DjangoValidationError(
+        {"file": [f"File exceeds the {limit / (1024 * 1024):g} MiB limit."]},
+    )
+    if upload.size is not None and upload.size > limit:
+        raise too_large
+    content = upload.read(limit + 1)
     if len(content) > limit:
-        raise DjangoValidationError(
-            {"file": [f"File exceeds the {limit / (1024 * 1024):g} MiB limit."]},
-        )
+        raise too_large
 
-    # Parse-validate before the file is ever persisted, so a malformed
-    # upload is rejected immediately rather than discovered at preview time.
-    # The headers are also handed back so the frontend can build a mapping
-    # UI without a second round trip. Only STUDENT_ROSTER is a flat table -
-    # LEGACY_GRADINGS workbooks have an "Information" cover sheet plus
-    # per-period sheets, which tablib's single-sheet loader can't parse;
-    # those get their own structural check in parse_ksw_colchester_workbook.
+    # Parsed in full before the file is ever persisted, so a malformed or
+    # unusable upload is refused now rather than discovered at preview. A
+    # roster's headers also go back, so the mapping UI needs no second trip.
     detected_headers: list[str] = []
     if kind == ImportBatch.Kind.STUDENT_ROSTER:
         try:
             dataset = load_tabular_dataset(content=content, filename=filename)
         except UnsupportedImportFileError as exc:
             raise DjangoValidationError({"file": [str(exc)]}) from exc
-        detected_headers = [str(header) for header in dataset.headers]
+        detected_headers = dataset.headers
+    else:
+        parsed = _parse_legacy_workbook(content, error_key="file")
+        if not parsed.rows:
+            raise DjangoValidationError(
+                {
+                    "file": [
+                        "No historical records were found: the workbook has "
+                        "no grading-period sheet (named like 06-2025) with a "
+                        "Name / Current Rank / Testing For / Outcome table.",
+                        *parsed.warnings,
+                    ],
+                },
+            )
 
     digest = hashlib.sha256(content).hexdigest()
     already_imported_warning = ImportBatch.objects.filter(
@@ -147,32 +168,61 @@ def create_import_batch(
     )
 
 
-def delete_batch_file(batch: ImportBatch) -> None:
-    if batch.source_file:
-        batch.source_file.delete(save=False)
+def _release_source_file(locked: ImportBatch) -> None:
+    """Detach the batch's file now, and delete it once this transaction commits.
+
+    Storage is not transactional (KG-A07): a file deleted before the commit
+    stays deleted if the commit then fails, leaving an open batch with
+    nothing to read. Until the commit the file is still on disk and the
+    rolled-back row still names it, so a failure leaves the batch retryable.
+    """
+    name = locked.source_file.name
+    if not name:
+        return
+    storage = locked.source_file.storage
+    locked.source_file = ""
+    transaction.on_commit(partial(_delete_stored_file, storage, name, locked.pk))
+
+
+def _delete_stored_file(storage: Storage, name: str, batch_id: int) -> None:
+    # Runs after the commit, so a failure here must not look like one: the
+    # batch really is closed. The file is left for remove_orphaned_uploads.
+    try:
+        storage.delete(name)
+    except OSError:
+        logger.warning(
+            "Import batch #%s is closed but its source file could not be "
+            "deleted; expire_stale_import_batches will remove it.",
+            batch_id,
+            exc_info=True,
+        )
 
 
 def _lock_uncommitted(batch: ImportBatch, verb: str) -> ImportBatch:
     locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
-    if locked.status not in ImportBatch.UNCOMMITTED_STATUSES:
+    if locked.status != ImportBatch.Status.UPLOADED:
         raise DjangoValidationError(
             {"batch": [f"Batch is already {locked.status} and cannot be {verb}."]},
         )
     return locked
 
 
+_SOURCE_FILE_GONE = (
+    "This batch's source file is no longer available "
+    "(already committed, cancelled, or expired)."
+)
+
+
 def _read_source_file(batch: ImportBatch) -> bytes:
+    # A preview holds no lock, so the batch can close - and its file go -
+    # between loading the row and opening the file.
     if not batch.source_file:
-        raise DjangoValidationError(
-            {
-                "batch": [
-                    "This batch's source file is no longer available "
-                    "(already committed, cancelled, or expired).",
-                ],
-            },
-        )
-    with batch.source_file.open("rb") as handle:
-        content: bytes = handle.read()
+        raise DjangoValidationError({"batch": [_SOURCE_FILE_GONE]})
+    try:
+        with batch.source_file.open("rb") as handle:
+            content: bytes = handle.read()
+    except FileNotFoundError as exc:
+        raise DjangoValidationError({"batch": [_SOURCE_FILE_GONE]}) from exc
     return content
 
 
@@ -192,7 +242,7 @@ def _mark_committed(
     locked.committed_at = timezone.now()
     locked.summary_json = summary
     locked.configuration_json = configuration
-    delete_batch_file(locked)
+    _release_source_file(locked)
     locked.save(
         update_fields=[
             "status",
@@ -223,7 +273,7 @@ def _mark_committed(
 @transaction.atomic
 def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
     locked = _lock_uncommitted(batch, "cancelled")
-    delete_batch_file(locked)
+    _release_source_file(locked)
     locked.status = ImportBatch.Status.CANCELLED
     locked.cancelled_by = actor
     locked.cancelled_at = timezone.now()
@@ -246,7 +296,65 @@ def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
     return locked
 
 
-def _load_batch_dataset(batch: ImportBatch) -> Any:
+@transaction.atomic
+def expire_import_batch(batch_id: int, *, max_age: timedelta) -> bool:
+    """Expire one abandoned batch, under the lock commit and cancel take.
+
+    The caller's selection may be stale by now (KG-A08): the batch can have
+    been committed, cancelled or deleted since. Rechecked under the lock, so
+    exactly one of those transitions wins. Returns whether this one did.
+    """
+    locked = (
+        ImportBatch.objects.select_for_update(of=("self",)).filter(pk=batch_id).first()
+    )
+    if (
+        locked is None
+        or locked.status != ImportBatch.Status.UPLOADED
+        or locked.uploaded_at >= timezone.now() - max_age
+    ):
+        return False
+    _release_source_file(locked)
+    locked.status = ImportBatch.Status.EXPIRED
+    locked.save(update_fields=["status", "source_file", "updated_at"])
+    hours = max_age // timedelta(hours=1)
+    record(
+        AuditAction.IMPORT_BATCH_EXPIRED,
+        locked,
+        f"Import batch #{locked.pk} ({locked.kind}) expired after {hours}h.",
+        metadata={"batch_id": locked.pk, "kind": locked.kind},
+    )
+    return True
+
+
+def remove_orphaned_uploads(*, max_age: timedelta) -> int:
+    """Delete stored files no batch names, once they are older than max_age.
+
+    Covers a file saved for a batch whose creation then rolled back, and one
+    a closed batch failed to delete after its commit. The age guard leaves
+    alone a file whose batch is still being created.
+    """
+    storage = import_upload_storage()
+    try:
+        _, names = storage.listdir("")
+    except FileNotFoundError:
+        return 0
+    named = set(
+        ImportBatch.objects.exclude(source_file="").values_list(
+            "source_file",
+            flat=True,
+        ),
+    )
+    cutoff = timezone.now() - max_age
+    removed = 0
+    for name in names:
+        if name in named or storage.get_modified_time(name) >= cutoff:
+            continue
+        storage.delete(name)
+        removed += 1
+    return removed
+
+
+def _load_batch_dataset(batch: ImportBatch) -> TabularData:
     content = _read_source_file(batch)
     try:
         return load_tabular_dataset(content=content, filename=batch.original_filename)
@@ -313,6 +421,62 @@ def _map_row(raw_row: dict[str, Any], column_mapping: dict[str, str]) -> dict[st
     return values
 
 
+_STUDENT_FIELD_LABELS = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "date_of_birth": "Date of birth",
+}
+
+
+def _student_model_issues(
+    *,
+    wksa_id: str,
+    first_name: str,
+    last_name: str,
+    date_of_birth: date | None,
+) -> list[str]:
+    """What `Student`'s own validation says of an unsaved row (KG-A09).
+
+    The field and `clean()` rules `create_student` runs on save - lengths,
+    blanks, a future date of birth - so a row preview calls ready is one
+    commit can create. A value that is missing or did not parse already has
+    its own issue, so its field is skipped here. So are the checks that each
+    cost a query and repeat one preview has made: the rank was just read
+    from the catalogue, the status checked against its choices, and the two
+    check constraints restate `clean()` and those choices. An existing WKSA
+    ID is a skip, not an error (import Decision 9).
+    """
+    given = {
+        "wksa_id": wksa_id,
+        "first_name": first_name,
+        "last_name": last_name,
+        "date_of_birth": date_of_birth,
+    }
+    unset = {name for name, value in given.items() if not value}
+    candidate = Student(**{name: given[name] for name in given.keys() - unset})
+    try:
+        candidate.full_clean(
+            exclude={"current_rank", *unset},
+            validate_unique=False,
+            validate_constraints=False,
+        )
+    except DjangoValidationError as exc:
+        return [
+            _labelled(name, message)
+            for name, messages in exc.message_dict.items()
+            for message in messages
+        ]
+    return []
+
+
+def _labelled(name: str, message: str) -> str:
+    label = _STUDENT_FIELD_LABELS.get(name)
+    if label is None or message.startswith(label):
+        return message
+    return f"{label}: {message}"
+
+
 def _classify_student_row(
     row_number: int,
     values: dict[str, Any],
@@ -335,21 +499,12 @@ def _classify_student_row(
     ).strip()
     dob_raw = correction.get("date_of_birth", values.get("date_of_birth"))
 
-    if not wksa_id:
-        issues.append("WKSA ID is required.")
-    if not first_name:
-        issues.append("First name is required.")
-    if not last_name:
-        issues.append("Last name is required.")
-
     dob_display = "" if dob_raw is None else str(dob_raw).strip()
     parsed_dob = _coerce_date(dob_raw)
     if not dob_display:
         issues.append("Date of birth is required.")
     elif parsed_dob is None:
         issues.append(f"Date of birth {dob_display!r} could not be parsed.")
-    elif parsed_dob > timezone.localdate():
-        issues.append("Date of birth cannot be in the future.")
 
     rank = _resolve_rank(rank_text)
     if not rank_text:
@@ -360,6 +515,15 @@ def _classify_student_row(
     if status_text not in Student.Status.values:
         issues.append(f"Status {status_text!r} is not recognised.")
         status_text = Student.Status.ACTIVE
+
+    issues.extend(
+        _student_model_issues(
+            wksa_id=wksa_id,
+            first_name=first_name,
+            last_name=last_name,
+            date_of_birth=parsed_dob,
+        ),
+    )
 
     if wksa_id and wksa_id in seen_wksa_ids:
         issues.append("Duplicate WKSA ID within this file.")
@@ -401,10 +565,12 @@ def preview_student_import(
     corrections = corrections or {}
     seen_wksa_ids: set[str] = set()
     rows: list[StudentImportRowResult] = []
-    for index, raw_row in enumerate(dataset.dict, start=2):  # header is row 1
+    for row_number, raw_row in dataset.rows:
         values = _map_row(raw_row, column_mapping)
-        row_correction = corrections.get(str(index), {})
-        rows.append(_classify_student_row(index, values, row_correction, seen_wksa_ids))
+        row_correction = corrections.get(str(row_number), {})
+        rows.append(
+            _classify_student_row(row_number, values, row_correction, seen_wksa_ids),
+        )
 
     return StudentImportPreview(
         total=len(rows),
@@ -416,6 +582,20 @@ def preview_student_import(
             1 for row in rows if row.outcome == StudentImportRowOutcome.SKIP_EXISTING
         ),
         rows=rows,
+    )
+
+
+def _row_no_longer_valid(
+    row: StudentImportRowResult,
+    reason: str,
+) -> DjangoValidationError:
+    return DjangoValidationError(
+        {
+            "rows": [
+                f"Row {row.row_number} ({row.wksa_id}) is no longer valid: "
+                f"{reason} Nothing was imported - preview the file again.",
+            ],
+        },
     )
 
 
@@ -443,30 +623,36 @@ def commit_student_import(
     created = 0
     for row in ready_rows:
         # A READY row always has both resolved by _classify_student_row; the
-        # None checks below are for mypy narrowing and the rare-race guard
-        # (a rank deactivated between preview and commit) in one step.
+        # None checks narrow the types and catch a rank deactivated since.
         rank = (
             Rank.objects.filter(pk=row.current_rank_id, active=True).first()
             if row.current_rank_id is not None
             else None
         )
         if rank is None or row.date_of_birth is None:
-            # Rare race: valid at preview time, no longer valid now (e.g. the
-            # rank was deactivated in the last few minutes). All-or-nothing
-            # per the recorded commit-semantics deviation - the whole batch
-            # rolls back rather than silently skipping the row.
-            raise DjangoValidationError(
-                {"rows": [f"Row {row.row_number} ({row.wksa_id}) is no longer valid."]},
-            )
-        create_student(
-            wksa_id=row.wksa_id,
-            first_name=row.first_name,
-            last_name=row.last_name,
-            date_of_birth=row.date_of_birth,
-            current_rank=rank,
-            status=row.status,
-            actor=actor,
-        )
+            raise _row_no_longer_valid(row, "its rank is no longer active.")
+        # Preview ran the same validation moments ago, so a refusal here is a
+        # concurrent change - such as the same WKSA ID created elsewhere.
+        # All-or-nothing per the recorded commit-semantics deviation: the
+        # whole batch rolls back rather than silently skipping the row.
+        try:
+            with transaction.atomic():
+                create_student(
+                    wksa_id=row.wksa_id,
+                    first_name=row.first_name,
+                    last_name=row.last_name,
+                    date_of_birth=row.date_of_birth,
+                    current_rank=rank,
+                    status=row.status,
+                    actor=actor,
+                )
+        except DjangoValidationError as exc:
+            raise _row_no_longer_valid(row, " ".join(exc.messages)) from exc
+        except IntegrityError as exc:
+            raise _row_no_longer_valid(
+                row,
+                "it conflicts with a change saved since the preview.",
+            ) from exc
         created += 1
 
     return _mark_committed(
@@ -487,12 +673,15 @@ def commit_student_import(
 # --- historical grading workbook preview/commit -----------------------------
 
 
-def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
-    content = _read_source_file(batch)
+def _parse_legacy_workbook(content: bytes, *, error_key: str) -> WorkbookParseResult:
     try:
         return parse_ksw_colchester_workbook(content)
     except WorkbookStructureError as exc:
-        raise DjangoValidationError({"batch": [str(exc)]}) from exc
+        raise DjangoValidationError({error_key: [str(exc)]}) from exc
+
+
+def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
+    return _parse_legacy_workbook(_read_source_file(batch), error_key="batch")
 
 
 @dataclass(frozen=True)
@@ -700,7 +889,8 @@ __all__ = [
     "commit_legacy_grading_import",
     "commit_student_import",
     "create_import_batch",
-    "delete_batch_file",
+    "expire_import_batch",
     "preview_legacy_grading_import",
     "preview_student_import",
+    "remove_orphaned_uploads",
 ]

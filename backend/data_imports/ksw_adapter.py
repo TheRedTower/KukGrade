@@ -20,13 +20,24 @@ during the real-workbook rehearsal required before any production import.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
-from io import BytesIO
 from typing import Any
 
-import openpyxl
-
+from data_imports.parsers import (
+    MAX_COLUMNS,
+    UnsupportedImportFileError,
+    is_blank,
+    open_workbook,
+    worksheet_rows,
+)
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
+
+# Budgets for the whole workbook (KG-A10), every sheet counted, known or not.
+# Generous for a club's history - a sheet per grading cycle, tens of rows
+# each - and far below what exhausts a request.
+MAX_SHEETS = 500
+MAX_WORKBOOK_ROWS = 50_000
 
 # Excel worksheet titles cannot contain "/" (openpyxl raises ValueError on
 # it - it is one of the characters OOXML itself forbids in a sheet title),
@@ -98,10 +109,6 @@ def _clean(value: Any) -> str:
 
 def _normalise(value: Any) -> str:
     return " ".join(_clean(value).lower().split())
-
-
-def _row_is_blank(cells: tuple[Any, ...]) -> bool:
-    return all(_clean(cell) == "" for cell in cells)
 
 
 def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
@@ -235,7 +242,7 @@ def _parse_cycle_sheet(
     warnings: list[str] = []
     header = _find_header_row(rows)
     if header is None:
-        if any(not _row_is_blank(row) for row in rows):
+        if any(not is_blank(row) for row in rows):
             warnings.append(
                 f"Sheet '{sheet_name}' has no recognisable main table header "
                 "and was not imported.",
@@ -252,7 +259,7 @@ def _parse_cycle_sheet(
     for row_index in range(header_index + 1, len(rows)):
         row = rows[row_index]
         row_number = row_index + 1
-        if _row_is_blank(row):
+        if is_blank(row):
             continue
 
         section = _auxiliary_section_name(row)
@@ -284,18 +291,38 @@ def _parse_cycle_sheet(
     return canonical_rows, warnings
 
 
+class _RowBudget:
+    """Rows left to read across the whole workbook."""
+
+    def __init__(self) -> None:
+        self.remaining = MAX_WORKBOOK_ROWS
+
+    def rows(self, worksheet: Any) -> Iterator[tuple[Any, ...]]:
+        for row in worksheet_rows(worksheet, max_col=MAX_COLUMNS):
+            self.remaining -= 1
+            if self.remaining < 0:
+                raise WorkbookStructureError(
+                    "The workbook has more than "
+                    f"{MAX_WORKBOOK_ROWS:,} rows across its sheets, blank rows "
+                    "included - beyond what this importer reads.",
+                )
+            yield row
+
+
 def parse_ksw_colchester_workbook(content: bytes) -> WorkbookParseResult:
     try:
-        workbook = openpyxl.load_workbook(
-            BytesIO(content),
-            data_only=True,
-            read_only=True,
-        )
-    except Exception as exc:
-        raise WorkbookStructureError(
-            "The file could not be read as a valid Excel workbook.",
-        ) from exc
+        with open_workbook(content) as workbook:
+            return _parse_workbook(workbook)
+    except UnsupportedImportFileError as exc:
+        raise WorkbookStructureError(str(exc)) from exc
 
+
+def _parse_workbook(workbook: Any) -> WorkbookParseResult:
+    if len(workbook.sheetnames) > MAX_SHEETS:
+        msg = f"The workbook has more than {MAX_SHEETS} sheets."
+        raise WorkbookStructureError(msg)
+
+    budget = _RowBudget()
     all_rows: list[CanonicalLegacyRow] = []
     warnings: list[str] = []
 
@@ -306,19 +333,16 @@ def parse_ksw_colchester_workbook(content: bytes) -> WorkbookParseResult:
 
         match = _CYCLE_SHEET_PATTERN.match(cleaned_name)
         if match is None:
-            worksheet = workbook[sheet_name]
             has_content = any(
-                not _row_is_blank(row) for row in worksheet.iter_rows(values_only=True)
+                not is_blank(row) for row in budget.rows(workbook[sheet_name])
             )
             if has_content:
                 warnings.append(f"Unknown sheet '{sheet_name}' was not imported.")
             continue
 
         cycle_month, cycle_year = int(match.group(1)), int(match.group(2))
-        worksheet = workbook[sheet_name]
-        rows = list(worksheet.iter_rows(values_only=True))
         sheet_rows, sheet_warnings = _parse_cycle_sheet(
-            rows,
+            list(budget.rows(workbook[sheet_name])),
             sheet_name=cleaned_name,
             cycle_year=cycle_year,
             cycle_month=cycle_month,

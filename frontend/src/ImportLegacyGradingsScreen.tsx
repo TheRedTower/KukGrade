@@ -24,6 +24,7 @@ export function ImportLegacyGradingsScreen() {
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [batchId, setBatchId] = useState<number | null>(null);
+  const [alreadyImported, setAlreadyImported] = useState(false);
   const [preview, setPreview] = useState<LegacyImportPreview | null>(null);
   const [rankMappings, setRankMappings] = useState<Record<string, string | null>>({});
   const [commitResult, setCommitResult] = useState<DataImportBatch | null>(null);
@@ -44,6 +45,7 @@ export function ImportLegacyGradingsScreen() {
     setStep("upload");
     setFile(null);
     setBatchId(null);
+    setAlreadyImported(false);
     setPreview(null);
     setRankMappings({});
     setCommitResult(null);
@@ -57,6 +59,7 @@ export function ImportLegacyGradingsScreen() {
     try {
       const created = await createDataImportBatch(file, "LEGACY_GRADINGS");
       setBatchId(created.id);
+      setAlreadyImported(created.already_imported_warning);
       const initialPreview = await previewLegacyGradingImport(created.id, {
         rank_mappings: {},
       });
@@ -191,6 +194,13 @@ export function ImportLegacyGradingsScreen() {
       {step === "review" && preview && (
         <div className="form-section-card">
           <h2 className="form-section-title">2. Review</h2>
+          {alreadyImported && (
+            <p className="imp-warning-text" role="alert">
+              A workbook with identical content has already been imported. Importing it
+              again creates a second copy of every record, and historical records can
+              only be voided, never deleted.
+            </p>
+          )}
           <ul className="imp-summary">
             <li>{preview.total} row(s) found</li>
             <li>{preview.grading_result} grading result(s)</li>

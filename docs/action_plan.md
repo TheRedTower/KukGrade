@@ -7,18 +7,23 @@ structural choice records it in `decision_log.md` first.
 ## Next
 
 1. **Finish the 2026-09-29 audit remediation**
-   (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05,
-   A11 and A12; KG-A06 no longer applies (the filter it describes was
-   removed). Remaining, in the audit's order: KG-A07 to A10 (import file
-   lifecycle, expiry, preview validity, spreadsheet bounds); KG-A13 to A19
-   and A22 (the impossible outcome PATCH route, admin/API audit parity,
-   session metrics, failed prerequisite reads, proposal partial success,
-   scoring invalidation, audit labels, documentation claims); KG-A20, A21
-   and A23 (avoidable requests and queries, bounded cleanup); KG-A24
-   (release assurance).
+   (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05
+   and A07 to A12; KG-A06 no longer applies (the filter it describes was
+   removed). Remaining, in the audit's order:
+   - KG-A13 to A19 and A22: the impossible outcome PATCH route, admin/API
+     audit parity, session metrics, failed prerequisite reads, proposal
+     partial success, scoring invalidation, audit labels, documentation
+     claims. With A13 and A14, narrow candidate `PATCH` to the `session`
+     move the app sends - it also accepts student, rank, status, notes and
+     withdrawal fields no screen sends - and stop serving candidate `notes`,
+     which no screen writes or reads (admin keeps editing it).
+   - KG-A20, A21 and A23: avoidable requests and queries (including the
+     roster preview's per-row rank and existing-student lookups), bounded
+     cleanup.
+   - KG-A24: release assurance.
 2. **Go live.** Connect the production image to the real Traefik and
-   PostgreSQL host, then verify backup, restore, and monitoring before
-   describing it as live (`deployment.md`).
+   PostgreSQL host, cap the request body at Traefik, then verify backup,
+   restore, and monitoring before describing it as live (`deployment.md`).
 3. **Rehearse the historical import** against a sanitised copy of the real
    KSW Colchester workbook. Every adapter fixture is synthetic, so expect
    adjustments (`data-import-and-legacy-migration.md`).

@@ -691,9 +691,14 @@ Status: implemented for both batch kinds - student-roster import
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
 
 `kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
-only). `preview`/`commit` request/response shape depends on `kind`:
+only). An upload over a size, row, column or sheet limit, or one that cannot
+be read, is refused with a `400` on `file` and nothing is stored; so is a
+historical workbook with no records in it, with the parser's warnings as
+further messages. `preview`/`commit` request/response shape depends on
+`kind`:
 
-Creating a batch returns the batch plus three one-shot fields that are not
+Commit returns the batch's `id` and `summary_json` (safe counts only).
+Creating a batch returns its `id` plus three one-shot fields that are not
 stored: `already_imported_warning` (the same file was already committed),
 `detected_headers` (a roster's own header row), and `suggested_mapping` (a
 best-effort column mapping to pre-fill, never applied automatically).
@@ -704,7 +709,10 @@ best-effort column mapping to pre-fill, never applied automatically).
   optional `corrections` map (`{"<row_number>": {"<field>": "<value>"}}`)
   for fixing a `REVIEW_REQUIRED` row without re-uploading the file. Preview
   response rows carry `outcome` (`READY`/`REVIEW_REQUIRED`/`SKIP_EXISTING`),
-  per-row `issues`; a `SKIP_EXISTING` row is never modified.
+  per-row `issues`; a `SKIP_EXISTING` row is never modified. `row_number` is
+  the row's own number in the sheet (header is 1; blank rows are skipped).
+  A commit that finds a `READY` row can no longer be created - a concurrent
+  change - fails as a whole with a `400` on `rows` naming that row.
 - **`LEGACY_GRADINGS`**: request body `rank_mappings`
   (`{"<source rank text>": "<Rank.code or null>"}`, one entry per *distinct*
   value across the batch, not per row - `null`/omitted means "leave

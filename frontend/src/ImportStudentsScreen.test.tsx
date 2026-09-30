@@ -30,10 +30,6 @@ vi.mock("./api", async () => {
 
 const batchResponse: CreateDataImportBatchResponse = {
   id: 42,
-  kind: "STUDENT_ROSTER",
-  status: "UPLOADED",
-  status_display: "Uploaded",
-  summary_json: {},
   already_imported_warning: false,
   detected_headers: ["WKSA ID", "First Name", "Last Name", "Date of Birth", "Current Rank", "Status"],
   suggested_mapping: {
@@ -67,8 +63,7 @@ const readyPreview: StudentImportPreview = {
 };
 
 const committedBatch: DataImportBatch = {
-  ...batchResponse,
-  status: "COMMITTED",
+  id: 42,
   summary_json: { total: 1, created: 1, skipped_existing: 0, review_required: 0 },
 };
 

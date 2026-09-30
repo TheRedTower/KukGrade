@@ -307,7 +307,8 @@ def test_admin_completes_the_full_legacy_flow_via_the_api() -> None:
         format="json",
     )
     assert commit_response.status_code == 200
-    assert commit_response.json()["status"] == ImportBatch.Status.COMMITTED
+    assert commit_response.json()["id"] == batch_id
+    assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED
 
     record = LegacyGradingRecord.objects.get(source_batch_id=batch_id)
     assert record.current_rank_id == yellow.pk

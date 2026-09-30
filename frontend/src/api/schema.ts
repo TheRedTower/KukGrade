@@ -1466,9 +1466,6 @@ export interface components {
         };
         ImportBatch: {
             readonly id: number;
-            readonly kind: components["schemas"]["KindEnum"];
-            readonly status: components["schemas"]["ImportBatchStatusEnum"];
-            readonly status_display: string;
             readonly summary_json: {
                 [key: string]: number;
             };
@@ -1479,36 +1476,18 @@ export interface components {
             file: string;
         };
         /**
-         * @description The batch, plus one-shot creation-response extras: a duplicate-hash
-         *     warning and the file's own headers, so the frontend can build its
-         *     mapping step without a second request. Not persisted batch state.
+         * @description The new batch's id, plus one-shot creation-response extras: a
+         *     duplicate-hash warning and the file's own headers, so the frontend can
+         *     build its mapping step without a second request. Not persisted state.
          */
         ImportBatchCreated: {
             readonly id: number;
-            readonly kind: components["schemas"]["KindEnum"];
-            readonly status: components["schemas"]["ImportBatchStatusEnum"];
-            readonly status_display: string;
-            readonly summary_json: {
-                [key: string]: number;
-            };
             readonly already_imported_warning: boolean;
             readonly detected_headers: string[];
             readonly suggested_mapping: {
                 [key: string]: string;
             };
         };
-        /**
-         * @description * `UPLOADED` - Uploaded
-         *     * `NEEDS_REVIEW` - Needs review
-         *     * `READY` - Ready
-         *     * `COMMITTED` - Committed
-         *     * `PARTIAL` - Partially committed
-         *     * `CANCELLED` - Cancelled
-         *     * `FAILED` - Failed
-         *     * `EXPIRED` - Expired
-         * @enum {string}
-         */
-        ImportBatchStatusEnum: "UPLOADED" | "NEEDS_REVIEW" | "READY" | "COMMITTED" | "PARTIAL" | "CANCELLED" | "FAILED" | "EXPIRED";
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /**

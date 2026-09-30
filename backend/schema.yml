@@ -3059,17 +3059,6 @@ components:
         id:
           type: integer
           readOnly: true
-        kind:
-          allOf:
-          - $ref: '#/components/schemas/KindEnum'
-          readOnly: true
-        status:
-          allOf:
-          - $ref: '#/components/schemas/ImportBatchStatusEnum'
-          readOnly: true
-        status_display:
-          type: string
-          readOnly: true
         summary_json:
           type: object
           additionalProperties:
@@ -3077,9 +3066,6 @@ components:
           readOnly: true
       required:
       - id
-      - kind
-      - status
-      - status_display
       - summary_json
     ImportBatchCreateRequest:
       type: object
@@ -3095,28 +3081,12 @@ components:
     ImportBatchCreated:
       type: object
       description: |-
-        The batch, plus one-shot creation-response extras: a duplicate-hash
-        warning and the file's own headers, so the frontend can build its
-        mapping step without a second request. Not persisted batch state.
+        The new batch's id, plus one-shot creation-response extras: a
+        duplicate-hash warning and the file's own headers, so the frontend can
+        build its mapping step without a second request. Not persisted state.
       properties:
         id:
           type: integer
-          readOnly: true
-        kind:
-          allOf:
-          - $ref: '#/components/schemas/KindEnum'
-          readOnly: true
-        status:
-          allOf:
-          - $ref: '#/components/schemas/ImportBatchStatusEnum'
-          readOnly: true
-        status_display:
-          type: string
-          readOnly: true
-        summary_json:
-          type: object
-          additionalProperties:
-            type: integer
           readOnly: true
         already_imported_warning:
           type: boolean
@@ -3135,31 +3105,7 @@ components:
       - already_imported_warning
       - detected_headers
       - id
-      - kind
-      - status
-      - status_display
       - suggested_mapping
-      - summary_json
-    ImportBatchStatusEnum:
-      enum:
-      - UPLOADED
-      - NEEDS_REVIEW
-      - READY
-      - COMMITTED
-      - PARTIAL
-      - CANCELLED
-      - FAILED
-      - EXPIRED
-      type: string
-      description: |-
-        * `UPLOADED` - Uploaded
-        * `NEEDS_REVIEW` - Needs review
-        * `READY` - Ready
-        * `COMMITTED` - Committed
-        * `PARTIAL` - Partially committed
-        * `CANCELLED` - Cancelled
-        * `FAILED` - Failed
-        * `EXPIRED` - Expired
     ImportPreview:
       oneOf:
       - $ref: '#/components/schemas/StudentImportPreview'

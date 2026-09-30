@@ -18,6 +18,99 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-09-30 - Import files, expiry, preview validity and spreadsheet limits
+
+Status: Accepted
+
+Decision:
+The repairs to `data_imports` from the 2026-09-29 audit (KG-A07 to A10), and
+the removals a review of that work found.
+
+- **A source file is deleted only after its batch's transaction commits.**
+  Commit, cancel and expiry clear the batch's reference to the file inside
+  their transaction and delete the file from `transaction.on_commit`. A
+  failed save, audit record or enclosing transaction therefore leaves the
+  batch open with its file intact, and the batch can be retried. A delete
+  that fails after the commit is logged, not reported as a failed import,
+  because the import did succeed.
+- **Expiry is a lifecycle service**, `expire_import_batch`. It takes the
+  batch lock that commit and cancel take and rechecks status and age under
+  it, so exactly one terminal transition wins. The command only selects
+  candidates and runs each batch in its own transaction; it carries on past
+  a failure and exits non-zero. `--hours` must be at least 1.
+- **Orphaned files are swept.** The same command deletes stored files that
+  no batch names once they are older than `--hours`. That covers a file
+  saved for a batch whose creation rolled back, and a file whose
+  post-commit delete failed.
+- **Preview validates a row with `Student.full_clean()`**, the field and
+  `clean()` rules `create_student` runs on save, so a row marked Ready can
+  be committed. The checks that each cost a query and repeat one preview
+  has already made (the rank's existence, the two check constraints) are
+  skipped, keeping preview at its previous two queries a row. A refusal at
+  commit can then only come from a concurrent change, and it is reported
+  with the row number and reason. The batch stays all-or-nothing.
+- **Every upload is bounded while it is read.** The upload's declared size
+  is checked first, and the read is capped at the limit. An `.xlsx` archive
+  may expand to at most 50 MiB and hold at most 2,000 parts, judged from the
+  sizes it declares; Python's zip reader never reads past a declared size.
+  A roster reads at most 5,000 rows after the header, blank rows included,
+  and 50 columns. A legacy workbook reads at most 500 sheets, 50 columns and
+  50,000 rows across all its sheets, unknown sheets included. A workbook is
+  always closed. Rows are counted as they are read: in read-only mode a
+  4.8 KB workbook with one cell at row 1,048,576 reads as a million rows,
+  and is now refused after 5,000.
+- **A roster's blank rows are skipped**, and each remaining row keeps its
+  own row number in the sheet, so corrections still line up.
+- **A legacy workbook is fully parsed at upload.** One that cannot be read,
+  or that yields no records, is refused before anything is stored. The
+  refusal carries the adapter's warnings.
+- **Batch statuses are the ones the lifecycle uses**: `UPLOADED`, then
+  `COMMITTED`, `CANCELLED` or `EXPIRED`. `NEEDS_REVIEW`, `READY`, `PARTIAL`
+  and `FAILED` were never assigned and are removed (`data_imports/0003`),
+  superseding deviation 4's "kept in the enum for forward compatibility" in
+  the 2026-09-21 entry: a partial commit would be designed afresh.
+- **Batch responses carry what the app reads**: commit returns `id` and
+  `summary_json`, creation returns `id` and its one-shot extras. `kind`,
+  `status` and `status_display`, and the always-empty `summary_json` on
+  creation, are no longer served.
+- **The historical import screen shows the duplicate-file warning** the
+  roster screen already showed. Importing the same workbook twice creates a
+  second copy of every record, and historical records are voided, never
+  deleted.
+- **Tablib is replaced by reading with openpyxl and `csv` directly.**
+  Tablib always loads a whole file before any limit can be checked. openpyxl
+  was already installed through `tablib[xlsx]` and imported directly by the
+  workbook adapter; it is now a declared dependency, and `tablib` is
+  removed. This supersedes deviation 1 of the 2026-09-21 "Student roster
+  bulk import" entry.
+
+Measured with `tracemalloc`, which slows the runs, on synthetic fixtures:
+
+- A 5,000-row, 6-column roster parses in 0.7 s with a 4 MB peak.
+- A roster at both limits (5,000 rows by 50 columns) takes 5 s with a 23 MB
+  peak.
+- A 200-sheet history workbook takes 2 s with a 9 MB peak.
+- A workbook at the 50,000-row budget takes 6.6 s with a 28 MB peak.
+
+Context:
+The audit found the following:
+
+- A file was deleted before the database write it belonged to, so a
+  failure left an open batch with nothing to read.
+- Expiry ran without the batch lock, so it could overwrite a commit.
+- Preview checked a subset of the student rules, so a 33-character WKSA ID
+  was marked Ready and then failed at commit.
+- Spreadsheet limits were checked only after a whole file was loaded.
+
+Consequences:
+
+- Tests that assert a file is gone run the captured on-commit callbacks.
+- Tests upload to a throwaway temporary directory, not the development
+  server's `var/import_uploads`.
+- The request body itself is not bounded by the application. Django writes
+  a large upload to a temporary file before the view can refuse it, so the
+  production proxy should cap the request body size.
+
 ### 2026-09-29 - Every grading assesses the cumulative syllabus
 
 Status: Accepted

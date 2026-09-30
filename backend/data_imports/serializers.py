@@ -15,32 +15,26 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     summary_json = serializers.DictField(
         child=serializers.IntegerField(), read_only=True
     )
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
 
     class Meta:
         model = ImportBatch
-        fields = [
-            "id",
-            "kind",
-            "status",
-            "status_display",
-            "summary_json",
-        ]
+        fields = ["id", "summary_json"]
         read_only_fields = fields
 
 
-class ImportBatchCreatedSerializer(ImportBatchSerializer):
-    """The batch, plus one-shot creation-response extras: a duplicate-hash
-    warning and the file's own headers, so the frontend can build its
-    mapping step without a second request. Not persisted batch state."""
+class ImportBatchCreatedSerializer(serializers.ModelSerializer):
+    """The new batch's id, plus one-shot creation-response extras: a
+    duplicate-hash warning and the file's own headers, so the frontend can
+    build its mapping step without a second request. Not persisted state."""
 
     already_imported_warning = serializers.SerializerMethodField()
     detected_headers = serializers.SerializerMethodField()
     suggested_mapping = serializers.SerializerMethodField()
 
-    class Meta(ImportBatchSerializer.Meta):
+    class Meta:
+        model = ImportBatch
         fields = [
-            *ImportBatchSerializer.Meta.fields,
+            "id",
             "already_imported_warning",
             "detected_headers",
             "suggested_mapping",

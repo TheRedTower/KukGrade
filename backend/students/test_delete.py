@@ -4,9 +4,13 @@ them; a linked LegacyGradingRecord is unlinked, not deleted."""
 
 from __future__ import annotations
 
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 from django.contrib import admin
-from django.test import RequestFactory
+from django.core.exceptions import ValidationError
+from django.test import Client, RequestFactory
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -31,8 +35,10 @@ from gradings.testing import (
     promoter,
     rank,
     start_assessment,
+    student,
     user,
 )
+from kukgrade.testing import render_admin_pages
 from students.admin import StudentAdmin
 from students.models import Student
 from students.services import delete_student
@@ -238,3 +244,36 @@ def test_admin_delete_goes_through_the_service_even_with_history() -> None:
         entity_id=str(student.pk),
         actor=request.user,
     ).exists()
+
+
+def test_a_refused_admin_delete_is_a_message_and_deletes_nothing(
+    settings: Any,
+) -> None:
+    render_admin_pages(settings)
+    target = student()
+    client = Client()
+    client.force_login(
+        user("refused-delete-admin@example.com", is_staff=True, is_superuser=True),
+    )
+    refusal = ValidationError({"student": ["Refused for the test."]})
+
+    with patch.object(StudentAdmin, "deletion_service", side_effect=refusal):
+        single = client.post(
+            f"/admin/students/student/{target.pk}/delete/",
+            {"post": "yes"},
+            follow=True,
+        )
+        bulk = client.post(
+            "/admin/students/student/",
+            {
+                "action": "delete_selected",
+                "_selected_action": [target.pk],
+                "post": "yes",
+            },
+            follow=True,
+        )
+
+    assert single.status_code == bulk.status_code == 200
+    assert "Refused for the test." in single.content.decode()
+    assert "Refused for the test." in bulk.content.decode()
+    assert Student.objects.filter(pk=target.pk).exists()

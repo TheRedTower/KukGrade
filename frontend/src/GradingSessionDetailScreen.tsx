@@ -269,11 +269,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     mutationFn: (payload: Parameters<typeof updateGradingSession>[1]) =>
       updateGradingSession(sessionId, payload),
     onSuccess: (updated: GradingSession) => {
-      // The response is the new state of this session; only the lists that
-      // summarise it need refetching.
+      // The response is the new state of this session; every list that
+      // summarises it (the current and upcoming sessions, the years, the
+      // pages, the move targets) needs refetching, but not this session.
       queryClient.setQueryData(["gradingSessions", "detail", sessionId], updated);
-      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "all"] });
-      void queryClient.invalidateQueries({ queryKey: ["gradingSessions", "page"] });
+      void queryClient.invalidateQueries({
+        queryKey: ["gradingSessions"],
+        predicate: (query) => query.queryKey[1] !== "detail",
+      });
       setIsEditingNotes(false);
       setConfirmModal(null);
       setCancellationReason("");

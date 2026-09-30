@@ -132,9 +132,12 @@ class GradingSessionViewSet(ModelViewSet):
     )
 
     def get_queryset(self) -> QuerySet[GradingSession]:
-        return with_session_progress(
-            GradingSession.objects.order_by("-grading_date", "created_at"),
-        )
+        sessions = GradingSession.objects.order_by("-grading_date", "created_at")
+        # Only a read serialises the instance it loaded: a write loads the row
+        # to act on it, and its response is annotated afresh by the serializer.
+        if self.action in ("list", "retrieve"):
+            return with_session_progress(sessions)
+        return sessions
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()

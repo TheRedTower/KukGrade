@@ -76,6 +76,7 @@ const mockSession: GradingSession = {
 };
 
 
+// A locked session: every candidate's assessment is completed.
 const mockCandidates: GradingCandidate[] = [
   {
     id: 101,
@@ -88,7 +89,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -106,7 +107,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 4,
     testing_for_rank_name: "Blue Stripe",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -124,7 +125,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -142,7 +143,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -160,7 +161,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -178,7 +179,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,

@@ -180,7 +180,7 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null }],
+          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null } satisfies Rank],
         });
       }
       if (url.includes("/api/students/")) {
@@ -367,8 +367,6 @@ describe("Add student screen (/students/new)", () => {
           can_be_graded: true,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
-          attendance_count: 0,
-          eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
           updated_at: "2026-09-17T12:00:00Z",
         });
@@ -388,8 +386,6 @@ describe("Add student screen (/students/new)", () => {
           can_be_graded: true,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
-          attendance_count: 0,
-          eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
           updated_at: "2026-09-17T12:00:00Z",
         });
@@ -493,6 +489,13 @@ describe("Add student screen (/students/new)", () => {
     const cancelBtn = screen.getByRole("button", { name: "Cancel" });
     await user.click(cancelBtn);
 
+    expect(window.location.pathname).toBe("/students");
+
+    // And the breadcrumb, from the form again
+    window.history.pushState({}, "", "/students/new");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Students" }));
     expect(window.location.pathname).toBe("/students");
   });
 });

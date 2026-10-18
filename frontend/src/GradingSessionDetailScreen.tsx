@@ -467,14 +467,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     });
   }, [candidatesQuery.data, assessmentsQuery.data, outcomesQuery.data]);
 
-  // Count candidates awaiting final decision
-  const awaitingDecisionCount = useMemo(() => {
-    return enrichedCandidates.filter(
-      (c) =>
-        c.assessment?.status === "COMPLETED" &&
-        c.outcome?.status === "PROPOSED",
-    ).length;
-  }, [enrichedCandidates]);
+  // The server's count (completed, outcome not finalised - see
+  // with_session_progress), the same number Overview and Gradings show. A
+  // decision can only be made once the session is locked, so the banner
+  // waits for that.
+  const awaitingDecisionCount =
+    session?.status === "LOCKED" ? session.awaiting_decision_count : 0;
 
   // Filter candidates by search and status
   const filteredCandidates = useMemo(() => {
@@ -506,8 +504,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         item.candidate.status !== "WITHDRAWN" && item.assessment?.status === "NOT_STARTED",
     )
     .map((item) => item.assessment!.id);
+  // A no-show is a candidate who never started: the server refuses to
+  // withdraw one whose assessment work has begun (that needs a locked-session
+  // withdrawal), so only those are offered.
   const attendanceCandidates: AttendanceCandidate[] = enrichedCandidates
-    .filter((item) => item.candidate.status === "REGISTERED")
+    .filter(
+      (item) =>
+        item.candidate.status === "REGISTERED" &&
+        (!item.assessment || item.assessment.status === "NOT_STARTED"),
+    )
     .map(toAttendanceCandidate);
 
   // Lifecycle stage statuses
@@ -905,14 +910,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               {awaitingDecisionCount} candidate{awaitingDecisionCount === 1 ? "" : "s"} awaiting final decision
             </span>
           </div>
-          <button
-            type="button"
+          <Link
+            to={`/gradings/${session.id}/decisions`}
             className="btn-ghost gsd-banner-btn"
-            onClick={() => setStatusFilter("COMPLETED")}
             data-testid="gsd-review-decisions-btn"
           >
             Review <span aria-hidden="true">→</span>
-          </button>
+          </Link>
         </section>
       )}
 

@@ -6,6 +6,7 @@ import App from "./App";
 import type {
   AgeBand,
   AuthUser,
+  BulkCandidateRegistrationResponse,
   GradingCandidate,
   GradingSession,
   Rank,
@@ -28,7 +29,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     full_name: "Alex Admin",
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
-    can_make_final_grading_decision: true,
+    can_make_final_grading_decision: false,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
@@ -174,6 +175,20 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     can_be_removed: false,
     withdrawal_note: "",
   };
+
+  // A registration as the server returns it, for one of the students above.
+  function registeredRow(studentId: number): GradingCandidate {
+    const registered = mockStudents.find((s) => s.id === studentId)!;
+    return {
+      ...mockExistingCandidate,
+      id: 600 + studentId,
+      student: registered.id,
+      student_display_name: `${registered.first_name} ${registered.last_name}`,
+      student_wksa_id: registered.wksa_id,
+      from_rank: registered.current_rank,
+      from_rank_name: registered.current_rank_name,
+    };
+  }
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/10/register");
@@ -470,45 +485,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       bulkRegisterHandler: (body) => {
         capturedPayload = body;
         return jsonResponse(200, {
-          created: [
-            {
-              candidate: {
-                id: 601,
-                session: 10,
-                student: 101,
-                student_display_name: "Alice Smith",
-                student_wksa_id: "KG-0101",
-                from_rank: 1,
-                from_rank_code: "WHITE",
-                from_rank_name: "White",
-                testing_for_rank: 2,
-                testing_for_rank_name: "Yellow stripe",
-                status: "ACTIVE",
-                status_display: "Active",
-                notes: "",
-                registered_at: "2026-09-18T10:00:00Z",
-                registered_by: 1,
-                registered_by_display_name: "Master L. Tan",
-              },
-              assessment: {
-                id: 701,
-                candidate: 601,
-                status: "NOT_STARTED",
-                status_display: "Not started",
-                candidate_student_display_name: "Alice Smith",
-                candidate_student_wksa_id: "KG-0101",
-                candidate_testing_for_rank_name: "Yellow stripe",
-                summary_comments: "",
-                positive_observations: "",
-                started_at: null,
-                completed_at: null,
-                created_at: "2026-09-18T10:00:00Z",
-                updated_at: "2026-09-18T10:00:00Z",
-              },
-            },
-          ],
+          created: [{ candidate: registeredRow(103), assessment: null }],
           errors: {},
-        });
+        } satisfies BulkCandidateRegistrationResponse);
       },
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -544,33 +523,11 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     const fetchMock = setupCohortMock({
       bulkRegisterHandler: () => {
         return jsonResponse(200, {
-          created: [
-            {
-              candidate: {
-                id: 601,
-                session: 10,
-                student: 101,
-                student_display_name: "Alice Smith",
-                student_wksa_id: "KG-0101",
-                from_rank: 1,
-                from_rank_code: "WHITE",
-                from_rank_name: "White",
-                testing_for_rank: 2,
-                testing_for_rank_name: "Yellow stripe",
-                status: "ACTIVE",
-                status_display: "Active",
-                notes: "",
-                registered_at: "2026-09-18T10:00:00Z",
-                registered_by: 1,
-                registered_by_display_name: "Master L. Tan",
-              },
-              assessment: null,
-            },
-          ],
+          created: [{ candidate: registeredRow(101), assessment: null }],
           errors: {
             "1": ["Student is already registered for this session."],
           },
-        });
+        } satisfies BulkCandidateRegistrationResponse);
       },
     });
     vi.stubGlobal("fetch", fetchMock);

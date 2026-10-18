@@ -474,6 +474,11 @@ checks on each push and pull request.
   The roster offers "Propose outcome" only on a `LOCKED` session, the only
   status in which the server creates an outcome; while the session is open a
   completed assessment offers "View record" instead (2026-10-18).
+  On a locked session the "awaiting final decision" banner shows the served
+  `awaiting_decision_count` - the number Overview and Gradings show - and
+  links to the decisions board. "Confirm attendance" offers only candidates
+  whose assessment has not started, the ones the server lets it withdraw
+  (2026-10-18).
 - **The signed-in screen survives a re-check (2026-10-18)**: once a user is
   known, `useAuth()` stays `authenticated` while `/api/auth/me/` is refetched
   (TanStack Query does so on every network reconnect), whether the re-check

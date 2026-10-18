@@ -33,7 +33,7 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
-from accounts.services import reset_password
+from accounts.services import reset_password, set_user_authority
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -1257,8 +1257,9 @@ def test_only_administrators_hold_change_user_for_the_authority_action() -> None
 
 
 def test_granting_final_decision_authority_to_an_administrator_is_refused() -> None:
-    # Confirmed policy: exactly one designated Master, never an
-    # administrator - administrators keep every other capability instead.
+    # Confirmed policy: final-decision authority belongs to instructors (as
+    # many Masters as the school has), never an administrator -
+    # administrators keep every other capability instead.
     client, _admin = admin_client("no-master-admin-grantor@example.com")
     created = create_user_via_api(
         client,
@@ -2008,3 +2009,42 @@ def test_admin_site_password_form_on_your_own_account_is_not_a_reset(
 
     assert me.must_change_password is False
     assert other.must_change_password is True
+
+
+def test_a_superusers_unchanged_administrator_role_can_be_resent() -> None:
+    # A superuser passes every has_perm() check, which used to make any edit
+    # that resent role=administrator look like promoting a Master. The Users
+    # screen always sends the role, so their name could not be saved there.
+    superuser = User.objects.create_superuser(
+        "root-resend@example.com", "Superuser-Pass-2026!"
+    )
+    client = APIClient()
+    client.force_authenticate(superuser)
+
+    response = client.patch(
+        f"/api/users/{superuser.pk}/",
+        {"first_name": "Root", "role": "administrator"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.content
+    assert response.json()["first_name"] == "Root"
+
+
+def test_an_instructor_holding_final_decision_authority_still_cannot_become_admin() -> (
+    None
+):
+    client, _admin = admin_client("master-to-admin-actor@example.com")
+    master_user = User.objects.create_user(
+        email="master-to-admin@example.com", role=User.Role.INSTRUCTOR
+    )
+    set_user_authority(master_user, _admin, can_make_final_grading_decision=True)
+
+    response = client.patch(
+        f"/api/users/{master_user.pk}/",
+        {"role": "administrator"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "role" in response.json()["error"]["fields"]

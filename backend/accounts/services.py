@@ -77,6 +77,19 @@ def create_platform_user(
     return user
 
 
+def _granted(user: User, permission: str) -> bool:
+    """Whether `permission` was granted to `user`, directly or by a group.
+
+    Unlike has_perm(), not true for a superuser by default.
+    """
+    app_label, codename = permission.split(".")
+    held = Permission.objects.filter(
+        content_type__app_label=app_label,
+        codename=codename,
+    )
+    return held.filter(user=user).exists() or held.filter(group__user=user).exists()
+
+
 @transaction.atomic
 def update_platform_user(
     user: User,
@@ -99,8 +112,13 @@ def update_platform_user(
     locked = _lock_user(user.pk)
     before = _snapshot(locked)
 
-    if role == User.Role.ADMINISTRATOR and locked.has_perm(
-        FINAL_GRADING_DECISION_PERMISSION,
+    # Checked against the grant itself, and only when the role is actually
+    # changing: has_perm() is true for every superuser, so it refused any
+    # edit that resent a superuser's unchanged administrator role.
+    if (
+        role == User.Role.ADMINISTRATOR
+        and locked.role != User.Role.ADMINISTRATOR
+        and _granted(locked, FINAL_GRADING_DECISION_PERMISSION)
     ):
         raise ValidationError(
             {
@@ -285,8 +303,7 @@ def validate_authority_change(
             {
                 "can_make_final_grading_decision": [
                     "Administrators cannot hold final grading decision "
-                    "authority. Only one designated Master should - grant "
-                    "it to an instructor instead.",
+                    "authority - grant it to an instructor instead.",
                 ],
             },
         )
@@ -299,8 +316,9 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     Not a role: granted per user so authority survives one person being
     unavailable, and self-granting is refused so an administrator cannot
     make themselves a Master unilaterally. Administrators are also refused
-    final-decision authority outright - the confirmed policy is one
-    designated Master, with administrators holding everything else instead.
+    final-decision authority outright: it belongs to instructors - as many
+    Masters as the school has (2026-09-25) - with administrators holding
+    everything else instead.
 
     Checked and changed on the locked row, the same lock
     update_platform_user() takes: a grant and a role change each read the

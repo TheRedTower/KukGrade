@@ -206,10 +206,6 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
             </button>
           </div>
         </form>
-
-        <p className="security-guarantee-note">
-          KukGrade stores only a salted hash of your password, never the password itself.
-        </p>
       </main>
     </div>
   );

@@ -1034,13 +1034,6 @@ h2 {
   margin-top: 0.5rem;
 }
 
-.security-guarantee-note {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: 1.75rem;
-  text-align: center;
-}
-
 .chevron-icon {
   transition: transform 200ms ease;
   font-size: 1.25rem;

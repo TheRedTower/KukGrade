@@ -373,10 +373,19 @@ class GradingCandidate(models.Model):
             from gradings.services import (
                 validate_candidate_assessment_changes,
                 validate_candidate_can_be_changed,
+                validate_no_unsettled_registration,
                 validate_session_accepts_candidates,
                 validate_testing_for_rank,
             )
 
+            # The testing rank is checked against the student's current rank
+            # when it is chosen, not on every later save: once the student is
+            # promoted elsewhere, this registration must still be withdrawable
+            # and completable (it can no longer be promoted - see
+            # validate_promotion_eligibility). Moving it, changing its rank or
+            # reinstating it chooses again, so those are checked.
+            rank_is_chosen = True
+            registers_again = True
             if self._state.adding:
                 # Withdrawal and completion each have their own path, which
                 # records why and by whom.
@@ -416,7 +425,19 @@ class GradingCandidate(models.Model):
                         else None
                     ),
                 )
-            validate_testing_for_rank(self.student, self.testing_for_rank)
+                registers_again = previous is not None and (
+                    previous["status"] == GradingCandidate.Status.WITHDRAWN
+                    and self.status != GradingCandidate.Status.WITHDRAWN
+                )
+                rank_is_chosen = previous is None or (
+                    previous["session_id"] != self.session_id
+                    or previous["testing_for_rank_id"] != self.testing_for_rank_id
+                    or registers_again
+                )
+            if registers_again:
+                validate_no_unsettled_registration(self)
+            if rank_is_chosen:
+                validate_testing_for_rank(self.student, self.testing_for_rank)
 
 
 class CandidateAssessment(models.Model):

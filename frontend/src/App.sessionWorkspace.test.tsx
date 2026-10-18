@@ -50,6 +50,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
 
+  // Outcomes are created only once a session is locked, so every proposal
+  // test runs against this one.
+  const lockedSession = {
+    ...testSession,
+    status: "LOCKED" as const,
+    status_display: "Locked",
+  } satisfies GradingSession;
+
   const testCandidates: GradingCandidate[] = [
     {
       id: 101,
@@ -1017,6 +1025,28 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 
+  it("offers no proposal while the session is open, only the completed record", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    const row = await screen.findByTestId("candidate-row-102");
+
+    expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: "View record →" })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/102/review",
+    );
+  });
+
   it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -1027,7 +1057,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, testSession);
+        return jsonResponse(200, lockedSession);
       }
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, {
@@ -1181,7 +1211,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
@@ -1225,7 +1255,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         return jsonResponse(400, {
           error: { code: "validation_error", message: "The assessment is not completed." },
@@ -1259,7 +1289,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     let proposeAttempts = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         return jsonResponse(201, { ...testOutcomes[0], id: 401, proposed_outcome: null });
       }
@@ -1305,7 +1335,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const madeOutcome = { ...testOutcomes[0], id: 401, candidate: 102, proposed_outcome: null };
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         // The server made it; the response never arrived.
         created = true;
@@ -1348,7 +1378,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });

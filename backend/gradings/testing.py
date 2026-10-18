@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 from datetime import date
 from typing import Any, cast
+from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
@@ -105,6 +106,16 @@ def candidate(**overrides: object) -> GradingCandidate:
             actor=user(f"withdrawer-{built.pk}@example.com"),
         )
     return built
+
+
+def earlier_double_registration(**overrides: object) -> GradingCandidate:
+    """A second unsettled registration of one student.
+
+    Registering one is refused since the 2026-10-18 one-grading-at-a-time
+    rule; this builds the data a database from before it may still hold.
+    """
+    with patch("gradings.services.validate_no_unsettled_registration"):
+        return candidate(**overrides)
 
 
 def assessment(**overrides: object) -> CandidateAssessment:

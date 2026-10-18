@@ -159,7 +159,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left and not yet a candidate of that session), `search` |
+| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `search` |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -463,9 +463,21 @@ Candidate filters:
 - `session`
 
 Candidate creation rejects locked, completed, and cancelled sessions; duplicate
-student/session pairs; invalid testing-for ranks; and missing student date of
-birth. The testing-for rank must be the next active rank after the student's
-current rank. Registering a candidate does not itself change
+student/session pairs; invalid testing-for ranks; missing student date of
+birth; and a student still registered for another grading that has not
+reached its result. A student is registered for one grading at a time: a
+registration is settled once it is withdrawn, its session is cancelled, or
+its outcome is finalised as Fail or Conditional, or as a Pass that has been
+promoted. Reinstating a withdrawn registration is refused the same way. A
+registration made in error is corrected by an administrator rather than by
+registering again.
+
+The testing-for rank must be the next active rank after the student's
+current rank. That is checked when the rank is chosen - at registration, and
+again when a registration is moved to another session or reinstated after a
+withdrawal - not on every later change, so a registration whose student was
+promoted at another grading can still be withdrawn (it cannot be promoted).
+Registering a candidate does not itself change
 `Student.current_rank` - that happens only on promotion, once the outcome is
 finalised as `PASS` (see section 8).
 

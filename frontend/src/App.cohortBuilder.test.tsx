@@ -254,7 +254,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Section 1: Find eligible students
     expect(screen.getByRole("heading", { name: "1. Find eligible students" })).toBeVisible();
     expect(
-      screen.getByText("Students with Left status are excluded (not eligible for grading)."),
+      screen.getByText(
+        "Students who have left, or are still registered for another grading that has not reached its result, are not listed.",
+      ),
     ).toBeVisible();
 
     // Total eligible students: 101 (Alice - White), 102 (Bob - White), 103 (Charlie - Yellow stripe).
@@ -598,5 +600,30 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Finish and view session button navigates back
     await user.click(screen.getByTestId("bgc-finish-view-session-btn"));
     expect(window.location.pathname).toBe("/gradings/10");
+  });
+
+  it("flags a student held by another grading without offering a retry", async () => {
+    const heldElsewhere =
+      "This student is already registered for 'Summer Grading', which has not reached its " +
+      "result yet. A student is registered for one grading at a time; an administrator can " +
+      "correct a registration made in error.";
+    vi.stubGlobal(
+      "fetch",
+      setupCohortMock({
+        bulkRegisterHandler: () =>
+          jsonResponse(200, { created: [], errors: { "0": [heldElsewhere] } }),
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+    await user.click(screen.getByTestId("bgc-add-student-101"));
+    await user.click(screen.getByTestId("bgc-register-candidates-btn"));
+
+    expect(await screen.findByRole("heading", { name: "Resolve flagged candidates" })).toBeVisible();
+    expect(screen.getByText(heldElsewhere)).toBeVisible();
+    expect(screen.getByText("Registered for another grading")).toBeVisible();
+    expect(screen.queryByText("No retry needed")).not.toBeInTheDocument();
   });
 });

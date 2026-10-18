@@ -38,6 +38,7 @@ from gradings.testing import (
     assessment,
     auth_client,
     candidate,
+    earlier_double_registration,
     grading_session,
     rank,
     start_assessment,
@@ -1102,7 +1103,7 @@ def test_a_move_onto_an_existing_registration_is_refused_by_the_service() -> Non
     target = grading_session(status=GradingSession.Status.OPEN, title="Target")
     both = student()
     moving = candidate(session=source, student=both)
-    candidate(session=target, student=both)
+    earlier_double_registration(session=target, student=both)
 
     with (
         patch.object(
@@ -1174,3 +1175,247 @@ def test_admin_candidate_delete_goes_through_the_service() -> None:
         entity_id=str(built.pk),
     )
     assert deleted.actor == request.user
+
+
+def _registered_twice_then_promoted_in_first() -> tuple[GradingCandidate, Student]:
+    """A student registered in two sessions and promoted from the first."""
+    from gradings.outcome_services import promote_candidate
+    from gradings.services import transition_grading_session
+    from gradings.testing import complete_assessment, finalised_outcome, promoter
+
+    pupil = student()
+    first = grading_session(
+        title="First", grading_date=date(2027, 3, 20), status=GradingSession.Status.OPEN
+    )
+    second = grading_session(
+        title="Second",
+        grading_date=date(2027, 6, 20),
+        status=GradingSession.Status.OPEN,
+    )
+    in_first = candidate(session=first, student=pupil)
+    in_second = earlier_double_registration(session=second, student=pupil)
+    first_assessment = assessment(candidate=in_first)
+    start_assessment(first_assessment)
+    complete_assessment(first_assessment)
+    transition_grading_session(first, GradingSession.Status.LOCKED)
+    in_first.refresh_from_db()
+    promote_candidate(finalised_outcome(in_first), promoter())
+    pupil.refresh_from_db()
+    in_second.refresh_from_db()
+    return in_second, pupil
+
+
+def test_a_registration_overtaken_by_a_promotion_can_still_be_withdrawn() -> None:
+    # The testing rank is checked when it is chosen. Re-checking it on every
+    # save stranded this registration: no withdrawal, no move, no promotion.
+    stale, pupil = _registered_twice_then_promoted_in_first()
+    assert pupil.current_rank == stale.testing_for_rank
+
+    apply_candidate_update(
+        stale,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.OTHER,
+        withdrawal_note="Already promoted at the earlier grading.",
+        actor=user("withdrawer@example.com"),
+    )
+
+    stale.refresh_from_db()
+    assert stale.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_a_registration_overtaken_by_a_promotion_can_be_withdrawn_after_lock() -> None:
+    from gradings.services import transition_grading_session, withdraw_locked_candidate
+    from gradings.testing import complete_assessment, override_master
+
+    stale, _pupil = _registered_twice_then_promoted_in_first()
+    stale_assessment = assessment(candidate=stale)
+    start_assessment(stale_assessment)
+    complete_assessment(stale_assessment)
+    transition_grading_session(stale.session, GradingSession.Status.LOCKED)
+    stale.refresh_from_db()
+
+    withdraw_locked_candidate(
+        stale,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
+        note="Already promoted at the earlier grading.",
+        actor=override_master("override@example.com"),
+    )
+
+    stale.refresh_from_db()
+    assert stale.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_moving_or_reinstating_a_registration_rechecks_its_testing_rank() -> None:
+    stale, _pupil = _registered_twice_then_promoted_in_first()
+    elsewhere = grading_session(
+        title="Elsewhere",
+        grading_date=date(2027, 9, 20),
+        status=GradingSession.Status.OPEN,
+    )
+    actor = user("mover@example.com")
+
+    with pytest.raises(ValidationError) as moved:
+        apply_candidate_update(stale, session=elsewhere, actor=actor)
+    assert "testing_for_rank" in moved.value.message_dict
+
+    apply_candidate_update(
+        stale,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=actor,
+    )
+    stale.refresh_from_db()
+    with pytest.raises(ValidationError) as reinstated:
+        apply_candidate_update(
+            stale, status=GradingCandidate.Status.REGISTERED, actor=actor
+        )
+    assert "testing_for_rank" in reinstated.value.message_dict
+
+
+ONE_GRADING_REFUSAL = "has not reached its result yet"
+
+
+def _graded_in(first: GradingSession) -> GradingCandidate:
+    from gradings.services import transition_grading_session
+    from gradings.testing import complete_assessment
+
+    built = candidate(session=first)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    complete_assessment(generated)
+    transition_grading_session(first, GradingSession.Status.LOCKED)
+    built.refresh_from_db()
+    return built
+
+
+def _register_elsewhere(pupil: Student) -> dict[str, list[str]]:
+    later = grading_session(
+        title="Later", grading_date=date(2027, 9, 20), status=GradingSession.Status.OPEN
+    )
+    _created, errors = bulk_register_candidates(
+        session=later,
+        rows=[{"student": Student.objects.get(pk=pupil.pk)}],
+        actor=user(f"registrar-{later.pk}@example.com"),
+    )
+    return errors
+
+
+def test_a_student_is_registered_for_one_grading_at_a_time() -> None:
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    registered = candidate(session=first)
+
+    errors = _register_elsewhere(registered.student)
+
+    assert list(errors) == ["0"]
+    assert ONE_GRADING_REFUSAL in errors["0"][0]
+    assert "'First'" in errors["0"][0]
+    assert GradingCandidate.objects.filter(student=registered.student).count() == 1
+
+
+def test_a_locked_grading_awaiting_its_decision_still_holds_the_student() -> None:
+    from gradings.outcome_services import (
+        create_candidate_outcome,
+        propose_candidate_outcome,
+    )
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+    outcome = create_candidate_outcome(graded, user("drafter@example.com"))
+    propose_candidate_outcome(
+        outcome, "PASS", "Ready for decision.", user("proposer@example.com")
+    )
+
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+
+def test_a_finalised_pass_holds_the_student_until_promoted() -> None:
+    from gradings.outcome_services import promote_candidate
+    from gradings.testing import finalised_outcome, promoter
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    outcome = finalised_outcome(graded)
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+    promote_candidate(outcome, promoter())
+
+    assert _register_elsewhere(graded.student) == {}
+
+
+@pytest.mark.parametrize("final", ["FAIL", "CONDITIONAL"])
+def test_a_finalised_fail_or_conditional_releases_the_student(final: str) -> None:
+    from gradings.testing import finalised_outcome
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    finalised_outcome(
+        graded,
+        proposed=final,
+        final=final,
+        conditional_requirements="Re-test forms." if final == "CONDITIONAL" else "",
+    )
+
+    assert _register_elsewhere(graded.student) == {}
+
+
+def test_a_withdrawal_or_cancelled_session_releases_the_student() -> None:
+    from gradings.services import transition_grading_session
+
+    withdrawn = candidate(
+        session=grading_session(title="Withdrawn", status=GradingSession.Status.OPEN),
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    assert _register_elsewhere(withdrawn.student) == {}
+
+    cancelled_session = grading_session(
+        title="Cancelled", status=GradingSession.Status.OPEN
+    )
+    in_cancelled = candidate(session=cancelled_session)
+    transition_grading_session(cancelled_session, GradingSession.Status.CANCELLED)
+    assert _register_elsewhere(in_cancelled.student) == {}
+
+
+def test_reinstating_is_refused_while_another_grading_holds_the_student() -> None:
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    withdrawn = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    assert _register_elsewhere(withdrawn.student) == {}
+
+    with pytest.raises(ValidationError) as refusal:
+        apply_candidate_update(
+            withdrawn,
+            status=GradingCandidate.Status.REGISTERED,
+            actor=user("reinstater@example.com"),
+        )
+
+    assert ONE_GRADING_REFUSAL in refusal.value.message_dict["student"][0]
+
+
+def test_registering_twice_in_one_session_keeps_its_own_message() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registered = candidate(session=session)
+
+    _created, errors = bulk_register_candidates(
+        session=session,
+        rows=[{"student": registered.student}],
+        actor=user("registrar@example.com"),
+    )
+
+    assert errors == {"0": ["Student is already registered for this session."]}
+
+
+def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
+    from gradings.services import bulk_update_candidate_status
+
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    held = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    free = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    assert _register_elsewhere(held.student) == {}
+
+    updated, errors = bulk_update_candidate_status(
+        candidates=[held, free],
+        new_status=GradingCandidate.Status.REGISTERED,
+        actor=user("bulk-reinstater@example.com"),
+    )
+
+    assert [row.pk for row in updated] == [free.pk]
+    assert list(errors) == ["0"]
+    assert ONE_GRADING_REFUSAL in errors["0"][0]

@@ -1123,9 +1123,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         nextActionLabel = "Review proposal →";
                         isProposalDrawerTrigger = true;
                       }
-                    } else {
+                    } else if (session.status === "LOCKED") {
                       nextActionLabel = "Propose outcome →";
                       isProposalDrawerTrigger = true;
+                    } else {
+                      // An outcome can only be created once the session is
+                      // locked; until then the record can still be reopened
+                      // from its review page.
+                      nextActionLabel = "View record →";
+                      nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}/review`;
                     }
                   }
 

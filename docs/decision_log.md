@@ -18,6 +18,56 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-18 - A student is registered for one grading at a time
+Status: Accepted
+Decision:
+Registering a student, or reinstating a withdrawn registration, is refused
+while the student has another registration that has not reached its result
+(`gradings.services.validate_no_unsettled_registration`, called from
+`GradingCandidate.clean()`, so the API, bulk registration and Django admin
+all hold). A registration is settled once it is withdrawn, its session is
+cancelled, or its outcome is finalised as Fail or Conditional, or as a Pass
+that has been promoted. `eligible_for_session` leaves such students out, so
+the cohort builder does not offer them. A registration made in error is
+corrected by an administrator, not by registering the student again. Moving
+or removing a registration stays available to instructors where the session
+and assessment rules already allow it (confirmed by the owner the same day:
+"keep as is"). Registration and reinstatement both lock the student, the row
+two sessions share, so two concurrent attempts cannot both succeed.
+Context:
+The owner, asked about F-12 of the 2026-10-04 audit: "the student should be
+refused ... mistakes should be done through an administrator. To stop there
+being multiple workflows it will be too much to keep track of." Until a
+grading settles, the student's next rank is not known, so a second
+registration would test them for a rank they may already hold.
+Consequences:
+A student who fails or is given a Conditional can be registered for the next
+grading as soon as the Master records the decision; one who passes, once
+promoted. Registering twice in one session keeps its own message. Data from
+before this rule may still hold a double registration; the entry below keeps
+it withdrawable.
+
+### 2026-10-18 - A registration's testing rank is checked when it is chosen
+Status: Accepted
+Decision:
+`validate_testing_for_rank` runs when a registration's rank is chosen: at
+registration, and when the registration is moved to another session, has its
+rank changed, or is reinstated after a withdrawal. It no longer runs on every
+other save (`GradingCandidate.clean()`, `apply_candidate_update`). Promotion
+still refuses a candidate whose testing rank is no longer the student's next
+rank.
+Context:
+The 2026-10-04 audit (F-12) found a student registered in two sessions was
+stranded in the second once promoted in the first: every save re-checked the
+rank against the new current rank, so the second registration could not be
+withdrawn before or after lock, nor moved, and could only be finalised into
+an outcome that can never be promoted.
+Consequences:
+The stale registration can be withdrawn (a reason such as Other, "already
+promoted") or removed while that is otherwise allowed. New double
+registrations are refused by the entry above; this keeps any made before it
+recoverable.
+
 ### 2026-09-30 - Fixes from the pre-push review of audit steps 1-6
 
 Status: Accepted
@@ -2508,7 +2558,7 @@ local PostgreSQL only - is still the current setup.
 
 ## Open decisions
 
-None. Every decision arising from the 2026-09-23 assessment grading redesign
-is recorded above. See
+None. Every decision arising from the 2026-09-23 assessment grading redesign is
+recorded above. See
 `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
 for the nine proposed directions.

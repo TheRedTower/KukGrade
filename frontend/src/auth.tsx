@@ -176,19 +176,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Fetching covers both the initial load and a retry, so both read as
-  // "loading" without a separate attempt counter. A query in flight always
-  // takes priority over its previous result or error.
+  // A known user stays signed in through a background re-check (a network
+  // reconnect refetches this query): showing "loading" or "error" then would
+  // unmount the whole app and lose whatever was on screen. Only a genuine
+  // "not signed in" answer ends the session, and that clears the user
+  // through forgetSession. Without a user yet, fetching covers both the
+  // initial load and a retry, so both read as "loading".
+  const neverAnswered = currentUserQuery.data === undefined;
   let status: AuthStatus;
-  if (currentUserQuery.isFetching) {
-    status = "loading";
-  } else if (currentUserQuery.isError) {
-    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
-  } else if (user === null) {
-    // A successful fetch that resolved to no user - true after logout.
-    status = "anonymous";
-  } else {
+  if (user !== null) {
     status = "authenticated";
+  } else if (neverAnswered && currentUserQuery.isFetching) {
+    status = "loading";
+  } else if (neverAnswered && currentUserQuery.isError) {
+    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
+  } else {
+    // Resolved to no user - true after logout or an expired session.
+    status = "anonymous";
   }
 
   const error =

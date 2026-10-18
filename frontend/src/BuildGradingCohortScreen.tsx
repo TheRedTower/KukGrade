@@ -536,7 +536,12 @@ export function BuildGradingCohortScreen() {
                     </td>
                     <td className="bgc-td-status">
                       {item.isAlreadyRegistered ? (
-                        <span className="bgc-status-badge bgc-badge-muted">No retry needed</span>
+                        <span className="bgc-status-badge bgc-badge-muted">
+                          {/* One grading at a time: held by another grading, not this one. */}
+                          {item.error.includes("for this session")
+                            ? "No retry needed"
+                            : "Registered for another grading"}
+                        </span>
                       ) : (
                         <span className={`bgc-status-badge bgc-status-${item.student?.status?.toLowerCase()}`}>
                           {item.student?.status_display || item.student?.status}
@@ -771,7 +776,7 @@ export function BuildGradingCohortScreen() {
               <div className="bgc-summary-info">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span className="bgc-info-text">
-                  Students with Left status are excluded (not eligible for grading).
+                  Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
               <div className="bgc-summary-actions">

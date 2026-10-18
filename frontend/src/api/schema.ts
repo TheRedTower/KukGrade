@@ -3464,7 +3464,7 @@ export interface operations {
                 age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 current_rank?: number;
                 current_rank_code?: string;
-                /** @description Students who could still be registered for this grading session: not Left and not already one of its candidates. */
+                /** @description Students who could still be registered for this grading session: not Left, not already one of its candidates, and not registered for another grading that has not reached its result. */
                 eligible_for_session?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;

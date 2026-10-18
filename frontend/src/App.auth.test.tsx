@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { onlineManager } from "@tanstack/react-query";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -398,6 +399,69 @@ describe("Connection failures are not sign-outs", () => {
     await waitFor(() => {
       expect(screen.getByText("Casey Instructor")).toBeVisible();
     });
+  });
+
+  it.each([
+    ["succeeds", () => jsonResponse(200, authUser)],
+    ["fails", () => jsonResponse(502, { error: { code: "error", message: "Bad gateway" } })],
+  ])(
+    "keeps the signed-in screen mounted when the reconnect re-check %s",
+    async (_outcome, recheckResponse) => {
+      let meCalls = 0;
+      const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) {
+          meCalls += 1;
+          if (meCalls === 1) return jsonResponse(200, authUser);
+          // A real re-check takes time; the screen must not change meanwhile.
+          await new Promise((settle) => setTimeout(settle, 20));
+          return recheckResponse();
+        }
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<App />);
+      const heading = await screen.findByRole("heading", { name: "Overview" });
+
+      // Losing and regaining the network makes TanStack Query refetch.
+      act(() => {
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+      });
+      await waitFor(() => expect(meCalls).toBe(2));
+      await act(async () => {
+        await new Promise((settle) => setTimeout(settle, 50));
+      });
+
+      // The same element, not a remounted copy: on-screen state survived.
+      expect(heading.isConnected).toBe(true);
+      expect(screen.queryByText("Loading KukGrade")).not.toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Can’t reach KukGrade" })).not.toBeInTheDocument();
+    },
+  );
+
+  it("signs the viewer out when the reconnect re-check says the session has ended", async () => {
+    let meCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) {
+          meCalls += 1;
+          return meCalls === 1 ? jsonResponse(200, authUser) : authRequiredResponse();
+        }
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Overview" });
+    act(() => {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+    expect(window.location.pathname).toBe("/login");
   });
 
   it("still treats a genuine authentication answer as anonymous", async () => {

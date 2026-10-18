@@ -155,6 +155,11 @@ checks on each push and pull request.
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
   mixed-belt group registers in one request with no rank picked at all.
+- **One grading at a time (2026-10-18)**: a student cannot be registered,
+  or a withdrawn registration reinstated, while another registration of theirs
+  has not reached its result (withdrawn, cancelled session, or a finalised
+  Fail/Conditional or promoted Pass settles it). The cohort builder does not
+  list such students; mistakes are corrected by an administrator.
 - **Registrations (2026-09-28)**: `bulk-register` is the only way to register
   a candidate - there is no single-item create. Each roster row offers
   "Move…" (`PATCH` the registration's `session` to another draft or open
@@ -466,6 +471,14 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+  The roster offers "Propose outcome" only on a `LOCKED` session, the only
+  status in which the server creates an outcome; while the session is open a
+  completed assessment offers "View record" instead (2026-10-18).
+- **The signed-in screen survives a re-check (2026-10-18)**: once a user is
+  known, `useAuth()` stays `authenticated` while `/api/auth/me/` is refetched
+  (TanStack Query does so on every network reconnect), whether the re-check
+  succeeds or fails, so the screen is not unmounted and nothing typed on it is
+  lost. Only a "not signed in" answer ends the session.
 - **Overview activity is labelled by what happened (2026-09-30, KG-A19)**:
   each event shows the server's own action label, with the outcome where
   there is one ("Outcome finalised · Fail"). Its colour comes from the

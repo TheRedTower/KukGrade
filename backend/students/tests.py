@@ -676,11 +676,15 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
     Student.objects.create(**student_kwargs(wksa_id="GONE", status="LEFT"))
     registered = Student.objects.create(**student_kwargs(wksa_id="IN"))
     elsewhere = Student.objects.create(**student_kwargs(wksa_id="ELSEWHERE"))
+    withdrew = Student.objects.create(**student_kwargs(wksa_id="WITHDREW"))
     candidate(session=session, student=registered)
+    # One grading at a time: an unsettled registration elsewhere excludes the
+    # student; a withdrawn one does not.
     candidate(session=other_session, student=elsewhere)
+    candidate(session=other_session, student=withdrew, status="WITHDRAWN")
     client = auth_client("roster-eligible@example.com")
 
-    mine = {"FREE", "BREAK", "GONE", "IN", "ELSEWHERE"}
+    mine = {"FREE", "BREAK", "GONE", "IN", "ELSEWHERE", "WITHDREW"}
     eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
-    assert eligible & mine == {"FREE", "BREAK", "ELSEWHERE"}
+    assert eligible & mine == {"FREE", "BREAK", "WITHDREW"}
     assert roster_names(client, "eligible_for_session=abc") == []

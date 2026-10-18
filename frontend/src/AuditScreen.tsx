@@ -131,6 +131,8 @@ export function AuditScreen(): React.ReactElement {
   const occurredFrom = searchParams.get("occurred_from") ?? "";
   const occurredTo = searchParams.get("occurred_to") ?? "";
   const appliedSearch = searchParams.get("search") ?? "";
+  // Set by links from a record ("View audit events"); no control edits it.
+  const entityId = searchParams.get("entity_id") ?? "";
 
 
   const updateFilters = (updates: Record<string, string>, preservePage = false) => {
@@ -149,6 +151,7 @@ export function AuditScreen(): React.ReactElement {
       page,
       action,
       entityType,
+      entityId,
       occurredFrom,
       occurredTo,
       appliedSearch,
@@ -159,6 +162,7 @@ export function AuditScreen(): React.ReactElement {
         page_size: PAGE_SIZE,
         action: action || undefined,
         entity_type: entityType || undefined,
+        entity_id: entityId || undefined,
         occurred_from: occurredFrom || undefined,
         occurred_to: occurredTo || undefined,
         search: appliedSearch || undefined,
@@ -169,7 +173,9 @@ export function AuditScreen(): React.ReactElement {
   const totalCount = query.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const pageNumbers = useMemo(() => visiblePages(page, totalPages), [page, totalPages]);
-  const hasFilters = Boolean(action || entityType || occurredFrom || occurredTo || appliedSearch);
+  const hasFilters = Boolean(
+    action || entityType || entityId || occurredFrom || occurredTo || appliedSearch,
+  );
 
   // The trigger is restored explicitly: a clicked button is not focused in
   // every browser, so the hook's "whatever had focus" may not be it.
@@ -264,7 +270,15 @@ export function AuditScreen(): React.ReactElement {
         </label>
 
         <div className="audit-filter-summary">
-          <span>{totalCount} event{totalCount === 1 ? "" : "s"}</span>
+          <span>
+            {totalCount} event{totalCount === 1 ? "" : "s"}
+            {entityId && (
+              <>
+                {" "}
+                for {entityType ? ENTITY_LABELS[entityType] : "record"} #{entityId}
+              </>
+            )}
+          </span>
           {hasFilters && (
             <button
               type="button"

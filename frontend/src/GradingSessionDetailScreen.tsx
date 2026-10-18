@@ -263,6 +263,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   });
 
   const session = sessionQuery.data;
+  const cancelReasonRequired = session?.status === "LOCKED";
 
   // Mutations
   const updateSessionMutation = useMutation({
@@ -474,12 +475,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         c.outcome?.status === "PROPOSED",
     ).length;
   }, [enrichedCandidates]);
-
-  // Check if any assessment work has been started (for delete eligibility)
-  const hasAssessmentWork = useMemo(() => {
-    const assessments = assessmentsQuery.data?.results ?? [];
-    return assessments.some((a) => a.status !== "NOT_STARTED");
-  }, [assessmentsQuery.data]);
 
   // Filter candidates by search and status
   const filteredCandidates = useMemo(() => {
@@ -766,14 +761,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     >
                       Cancel session
                     </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item gsd-danger-text"
-                      onClick={() => handleActionClick("DELETE")}
-                    >
-                      Delete session
-                    </button>
                   </>
                 )}
 
@@ -834,63 +821,30 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         Cancel session
                       </button>
                     )}
-                    {currentUser?.can_delete_any_session && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item gsd-danger-text"
-                        onClick={() => handleActionClick("DELETE")}
-                      >
-                        Delete session
-                      </button>
-                    )}
                   </>
                 )}
 
-                {session.status === "COMPLETED" && (
-                  <>
-                    <Link
-                      to={`/audit?entity_type=GradingSession`}
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      View audit events
-                    </Link>
-                    {currentUser?.can_delete_any_session && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item gsd-danger-text"
-                        onClick={() => handleActionClick("DELETE")}
-                      >
-                        Delete session
-                      </button>
-                    )}
-                  </>
+                {currentUser?.can_read_audit_log && (
+                  <Link
+                    to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
+                    role="menuitem"
+                    className="gsd-dropdown-item"
+                    onClick={() => setActionsMenuOpen(false)}
+                  >
+                    View audit events
+                  </Link>
                 )}
 
-                {session.status === "CANCELLED" && (
-                  <>
-                    <Link
-                      to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      View audit events
-                    </Link>
-                    {(!hasAssessmentWork || currentUser?.can_delete_any_session) && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="gsd-dropdown-item gsd-danger-text"
-                        onClick={() => handleActionClick("DELETE")}
-                      >
-                        Delete session
-                      </button>
-                    )}
-                  </>
+                {/* The server decides, for this user, by the delete's own rule. */}
+                {session.can_be_deleted && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="gsd-dropdown-item gsd-danger-text"
+                    onClick={() => handleActionClick("DELETE")}
+                  >
+                    Delete session
+                  </button>
                 )}
               </div>
             )}
@@ -1350,7 +1304,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             {confirmModal.actionType === "CANCEL" && (
               <div className="gsd-modal-field gsd-cancel-reason-field">
                 <label htmlFor="cancellation-reason" className="gsd-field-label">
-                  Cancellation reason (optional)
+                  {/* Abandoning a locked session must say why (server rule). */}
+                  {cancelReasonRequired ? "Cancellation reason (required)" : "Cancellation reason (optional)"}
                 </label>
                 <textarea
                   id="cancellation-reason"
@@ -1372,7 +1327,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     : ""
                 }`}
                 onClick={handleConfirmModalAction}
-                disabled={isConfirmModalMutationPending}
+                disabled={
+                  isConfirmModalMutationPending ||
+                  (confirmModal.actionType === "CANCEL" &&
+                    cancelReasonRequired &&
+                    !cancellationReason.trim())
+                }
                 data-testid="gsd-modal-confirm-btn"
               >
                 {confirmModal.actionType === "DELETE"

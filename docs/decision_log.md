@@ -18,6 +18,31 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-18 - Screens and contract follow the server's rules (F-25, F-26, F-16, F-33)
+Status: Accepted
+Decision:
+- A list refuses a query parameter it does not declare with a 400 naming it
+  (`kukgrade/filtering.py`). Ignoring it returned the unfiltered list.
+  `page`, `page_size` and `format` are accepted on every list; actions that
+  read their own parameters (the effective syllabus) are unaffected.
+- Registering a student a session already holds - withdrawn or not - and
+  moving a registration onto such a session answer "Student is already
+  registered for this session." on every path, instead of the unique
+  constraint's generic message the cohort builder did not recognise.
+- The session screen offers "Delete session" from the served
+  `can_be_deleted`, in any status, instead of re-deriving the rule. "View
+  audit events" appears only with `can_read_audit_log`, always for this
+  session, and the audit screen honours the link's `entity_id`. Cancelling a
+  locked session asks for its reason as required.
+- The assessment screen prepares a missing assessment in a draft or open
+  session, the statuses generation accepts.
+Context:
+The 2026-10-04 audit found each screen restating a server rule and getting it
+wrong, and tests pinning the restated rule.
+Consequences:
+Contract change: an undeclared list parameter is a 400. Two backend tests
+that passed parameters no list declares were corrected.
+
 ### 2026-10-18 - Integrity guards from the 2026-10-04 audit (F-13, F-14, F-15)
 Status: Accepted
 Decision:

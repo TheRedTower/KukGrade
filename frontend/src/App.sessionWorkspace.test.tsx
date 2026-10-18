@@ -932,6 +932,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
+      can_be_deleted: true,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -946,7 +947,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return new Response(null, { status: 204 });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, { ...testSession, status: "CANCELLED", status_display: "Cancelled" });
+        return jsonResponse(200, {
+          ...testSession,
+          status: "CANCELLED",
+          status_display: "Cancelled",
+          can_be_deleted: true,
+        });
       }
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
@@ -993,6 +999,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
+      can_be_deleted: true,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -1005,6 +1012,54 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // testAssessments includes an IN_PROGRESS entry, so this is the guarded
     // case - only an administrator should see the option.
     expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+  });
+
+  it("offers delete and the session's audit events exactly as the server and grants allow", async () => {
+    const fetchMock = setupStandardMock({ can_be_deleted: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // An open session an administrator may delete: offered, whatever the status.
+    expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "View audit events" })).toHaveAttribute(
+      "href",
+      "/audit?entity_type=GradingSession&entity_id=10",
+    );
+  });
+
+  it("hides the audit link from a user who cannot read the audit log", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    expect(screen.queryByRole("menuitem", { name: "View audit events" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
+  });
+
+  it("requires a reason before a locked session can be cancelled", async () => {
+    vi.stubGlobal("fetch", setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
+
+    const confirm = screen.getByTestId("gsd-modal-confirm-btn");
+    expect(screen.getByLabelText("Cancellation reason (required)")).toBeVisible();
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByLabelText("Cancellation reason (required)"), "Hall flooded.");
+    expect(confirm).toBeEnabled();
   });
 
   it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {

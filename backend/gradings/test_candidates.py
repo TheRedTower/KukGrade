@@ -1419,3 +1419,33 @@ def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
     assert [row.pk for row in updated] == [free.pk]
     assert list(errors) == ["0"]
     assert ONE_GRADING_REFUSAL in errors["0"][0]
+
+
+def test_a_withdrawn_registration_in_the_session_gets_the_same_message() -> None:
+    # The unique constraint's own message named neither the student nor the
+    # session; the cohort builder recognises this one.
+    session = grading_session(status=GradingSession.Status.OPEN)
+    withdrawn = candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
+
+    _created, errors = bulk_register_candidates(
+        session=session,
+        rows=[{"student": withdrawn.student}],
+        actor=user("registrar-again@example.com"),
+    )
+
+    assert errors == {"0": ["Student is already registered for this session."]}
+
+
+def test_moving_onto_a_session_holding_the_student_gets_the_same_message() -> None:
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    both = student()
+    candidate(session=target, student=both, status=GradingCandidate.Status.WITHDRAWN)
+    moving = candidate(session=source, student=both)
+
+    with pytest.raises(ValidationError) as refusal:
+        apply_candidate_update(moving, session=target, actor=user("mover2@example.com"))
+
+    assert refusal.value.message_dict == {
+        "student": ["Student is already registered for this session."],
+    }

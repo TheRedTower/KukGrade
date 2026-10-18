@@ -130,9 +130,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
 
     required_items = results(
         instructor.get(
-            f"/api/gradings/assessment-items/?assessment={assessment_id}&required=true",
+            f"/api/gradings/assessment-items/?assessment={assessment_id}",
         ),
     )
+    required_items = [item for item in required_items if item["required"]]
     assert required_items
 
     for item in required_items:

@@ -77,7 +77,8 @@ everywhere:
   (`kukgrade.pagination.DefaultPagination`: 50 per page, `?page_size=` up to
   200, so one candidate's roughly 40 assessment items fit a page), and every
   query-parameter filter goes through `kukgrade/filtering.py`, where a value
-  that cannot match returns an empty page.
+  that cannot match returns an empty page; a parameter the list does not
+  declare is refused with a 400.
 - **The schema is the contract.** Every custom action declares its request
   and response with `@extend_schema`, and the bulk, summary, and import
   responses serialize through those declared serializers. Regenerate

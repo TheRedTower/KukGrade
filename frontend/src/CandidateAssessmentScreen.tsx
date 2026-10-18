@@ -265,6 +265,9 @@ export function CandidateAssessmentScreen() {
   const canComplete = stats.canComplete && !isSavingItems;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
+  // The statuses assessment generation accepts (ASSESSMENT_GENERATION_SESSION_
+  // STATUSES); a candidate registered after opening is prepared here too.
+  const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
   const isEditable = !!isAssessmentInProgress && !isAssessmentCompleted;
@@ -351,13 +354,13 @@ export function CandidateAssessmentScreen() {
             type="button"
             className="btn-primary"
             onClick={() => generateAssessmentMutation.mutate()}
-            disabled={generateAssessmentMutation.isPending || session.status !== "DRAFT"}
+            disabled={generateAssessmentMutation.isPending || !canPrepare}
             data-testid="generate-assessment-btn"
           >
             {generateAssessmentMutation.isPending
               ? "Preparing..."
-              : session.status !== "DRAFT"
-              ? "Session must be Draft to prepare"
+              : !canPrepare
+              ? "Session must be draft or open to prepare"
               : "Prepare assessment form"}
           </button>
         </div>

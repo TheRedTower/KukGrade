@@ -914,8 +914,6 @@ def test_assessment_api_generation_lists_and_filters() -> None:
     list_response = client.get(
         "/api/gradings/assessments/"
         f"?candidate={built.id}&session={session.id}"
-        f"&student_wksa_id={built.student.wksa_id}"
-        "&testing_for_rank_code=YELLOW_STRIPE"
         "&status=NOT_STARTED",
     )
     post_response = client.post("/api/gradings/assessments/", {}, format="json")

@@ -505,6 +505,25 @@ def unsettled_registrations() -> QuerySet[GradingCandidate]:
     )
 
 
+def validate_not_already_in_session(candidate: GradingCandidate) -> None:
+    """A student has one registration per session, whatever its status.
+
+    The unique constraint holds this too, but its own message ("Grading
+    candidate with this Session and Student already exists.") names
+    neither the student nor what to do; this gives the one message every
+    path - and the cohort builder - recognises.
+    """
+    if (
+        GradingCandidate.objects.filter(
+            session_id=candidate.session_id,
+            student_id=candidate.student_id,
+        )
+        .exclude(pk=candidate.pk)
+        .exists()
+    ):
+        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]})
+
+
 def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
     """One grading at a time (owner decision 2026-10-18).
 
@@ -518,8 +537,6 @@ def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
         .select_related("session")
         .first()
     )
-    if other is not None and other.session_id == candidate.session_id:
-        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]})
     if other is not None:
         raise ValidationError(
             {

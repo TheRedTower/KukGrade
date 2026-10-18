@@ -1407,11 +1407,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
 
-  it("prepares a missing assessment snapshot before offering start", async () => {
+  it.each(["DRAFT", "OPEN"] as const)("prepares a missing assessment snapshot before offering start (%s)", async (sessionStatus) => {
     const draftSession = {
       ...mockSession,
-      status: "DRAFT" as const,
-      status_display: "Draft",
+      status: sessionStatus,
+      status_display: sessionStatus === "DRAFT" ? "Draft" : "Open",
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,

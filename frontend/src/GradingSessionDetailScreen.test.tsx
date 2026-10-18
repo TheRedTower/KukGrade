@@ -147,6 +147,8 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
 
   it("lets an administrator delete a locked session after confirming", async () => {
     currentUser = adminUser;
+    // The server decides per user: an administrator may delete any status.
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), can_be_deleted: true });
     const user = userEvent.setup();
 
     renderScreen();

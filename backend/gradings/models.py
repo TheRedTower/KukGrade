@@ -378,6 +378,7 @@ class GradingCandidate(models.Model):
                 validate_candidate_assessment_changes,
                 validate_candidate_can_be_changed,
                 validate_no_unsettled_registration,
+                validate_not_already_in_session,
                 validate_session_accepts_candidates,
                 validate_testing_for_rank,
             )
@@ -398,6 +399,7 @@ class GradingCandidate(models.Model):
                         {"status": [CANDIDATE_REGISTERED_ON_CREATION_MESSAGE]},
                     )
                 validate_session_accepts_candidates(self.session)
+                validate_not_already_in_session(self)
             else:
                 validate_candidate_can_be_changed(self)
                 previous = (
@@ -438,6 +440,8 @@ class GradingCandidate(models.Model):
                     or previous["testing_for_rank_id"] != self.testing_for_rank_id
                     or registers_again
                 )
+                if previous and previous["session_id"] != self.session_id:
+                    validate_not_already_in_session(self)
             if registers_again:
                 validate_no_unsettled_registration(self)
             if rank_is_chosen:

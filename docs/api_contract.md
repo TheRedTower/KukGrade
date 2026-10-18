@@ -27,7 +27,10 @@ object directly. See `backend/README.md` for the rationale.
 List filters follow one rule on every endpoint: an absent or blank parameter
 does not filter, and a value that cannot match - a non-numeric id, an unknown
 choice, a malformed UUID or date, or a boolean other than `true`/`false` -
-returns an empty page. Each view declares its filters once
+returns an empty page. A parameter the list does not declare at all - a
+misspelling, or a filter that has been removed - is refused with a `400`
+naming it, rather than ignored, which returned the unfiltered list; `page`,
+`page_size` and `format` are accepted on every list. Each view declares its filters once
 (`query_filters`, `kukgrade/filtering.py`), and that declaration both applies
 them and publishes them in `backend/schema.yml`, which is the authoritative
 list; the tables below summarise it.

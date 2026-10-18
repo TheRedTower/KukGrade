@@ -145,4 +145,22 @@ describe("AuditScreen", () => {
       );
     });
   });
+
+  it("shows one record's events when opened from that record's link", async () => {
+    const user = userEvent.setup();
+    renderScreen("/audit?entity_type=GradingSession&entity_id=10");
+
+    await screen.findByText(auditEvent.summary);
+    expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ entity_type: "GradingSession", entity_id: "10" }),
+    );
+    expect(screen.getByText(/for Grading session #10/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    await waitFor(() => {
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({ entity_id: undefined }),
+      );
+    });
+  });
 });

@@ -27,7 +27,6 @@ from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
     _active_rank_lookup,
-    _resolve_rank,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
@@ -254,17 +253,19 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
     assert len(many.captured_queries) == len(few.captured_queries)
 
 
-def test_the_preloaded_rank_lookup_resolves_exactly_what_a_single_lookup_does() -> None:
+def test_the_rank_lookup_matches_code_or_name_of_active_ranks_ignoring_case() -> None:
     lookup = _active_rank_lookup()
     inactive = rank("YELLOW_STRIPE")
     Rank.objects.filter(pk=inactive.pk).update(active=False)
     lookup_without_it = _active_rank_lookup()
 
-    for text in ("white", "WHITE", "White", "Yellow", "blue stripe", "Purple", "x"):
-        assert lookup.get(text.upper()) == _resolve_rank(text), text
+    for text in ("white", "WHITE", "White"):
+        assert lookup[text.upper()] == rank("WHITE"), text
+    assert lookup["BLUE STRIPE"] == rank("BLUE_STRIPE")
+    for text in ("Purple", "x"):
+        assert text.upper() not in lookup
     for text in ("yellow stripe", "YELLOW_STRIPE"):
         assert lookup_without_it.get(text.upper()) is None
-        assert _resolve_rank(text) is None
 
 
 def test_preview_flags_missing_required_field_as_review_required() -> None:

@@ -98,6 +98,9 @@ def link_legacy_record_to_student(
     """Import Decision 3: every link is an explicit administrator decision,
     never inferred from a name match, however strong the suggestion looked."""
     locked = _locked(record_.pk)
+    if locked.student_id == student.pk:
+        # Already linked there: nothing changes, so nothing is recorded.
+        return locked
     locked.student = student
     locked.save()
     record(
@@ -156,6 +159,9 @@ def _resolve_legacy_rank(
     """`rank=None` explicitly leaves the mapping unresolved (import
     Decision 4) - the source text is never touched either way."""
     locked = _locked(record_.pk)
+    if getattr(locked, f"{field}_id") == (rank.pk if rank else None):
+        # Already resolved that way: nothing changes, so nothing is recorded.
+        return locked
     setattr(locked, field, rank)
     locked.save()
     resolved_display = rank.code if rank else "unresolved"

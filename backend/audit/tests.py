@@ -472,7 +472,12 @@ def test_granted_instructor_can_read_the_log_but_not_user_management() -> None:
     actions = {row["action"] for row in listing.json()["results"]}
     assert AuditAction.SESSION_CREATED in actions
     assert AuditAction.USER_CREATED not in actions
-    assert client.get(f"/api/audit-events/{user_event.pk}/").status_code == 404
+    # Asking for that event by its entity does not reveal it either.
+    asked = client.get(
+        f"/api/audit-events/?entity_type=User&entity_id={user_event.entity_id}"
+    )
+    assert asked.status_code == 200
+    assert asked.json()["count"] == 0
 
 
 def test_admin_grants_the_log_exactly_as_the_api_does() -> None:

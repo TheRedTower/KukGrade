@@ -1516,15 +1516,14 @@ def test_admin_can_still_create_a_staff_or_superuser_account() -> None:
     persisted = User.objects.get(pk=obj.pk)
     assert persisted.is_staff is True
     assert persisted.is_superuser is True
-    # Still exactly one audit event - granting is_staff/is_superuser is a
-    # detail of the same creation, not a second action.
-    assert (
-        AuditEvent.objects.filter(
-            action=AuditAction.USER_CREATED,
-            entity_id=str(obj.pk),
-        ).count()
-        == 1
+    # One creation, and the admin-site flags recorded as their own update
+    # (set_admin_site_access) - every event for the account, not just one kind.
+    actions = list(
+        AuditEvent.objects.filter(entity_id=str(obj.pk))
+        .order_by("pk")
+        .values_list("action", flat=True)
     )
+    assert actions == [AuditAction.USER_CREATED, AuditAction.USER_UPDATED]
 
 
 def test_admin_user_update_is_audited() -> None:
@@ -1972,6 +1971,11 @@ def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
     assert "cannot delete your own account" in response.content.decode()
     # All or nothing: the refusal rolled back the other deletion too.
     assert User.objects.filter(pk__in=[me.pk, other.pk]).count() == 2
+    # Including admin's own history: Django logs a deletion before it deletes,
+    # and a refused delete must not leave "deleted" entries behind.
+    from django.contrib.admin.models import DELETION, LogEntry
+
+    assert not LogEntry.objects.filter(action_flag=DELETION).exists()
 
 
 def test_an_administrator_setting_their_own_password_is_not_forced_to_change_it() -> (

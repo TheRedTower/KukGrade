@@ -130,7 +130,18 @@ def assessment(**overrides: object) -> CandidateAssessment:
             ),
         ),
     )
-    return generate_candidate_assessment(built_candidate, generated_by)
+    # A status is reached through the services, as in the app; anything else
+    # is refused rather than silently dropped, which left tests that asked
+    # for an IN_PROGRESS assessment testing a NOT_STARTED one.
+    status = overrides.pop("status", CandidateAssessment.Status.NOT_STARTED)
+    if overrides:
+        raise TypeError(f"assessment() does not set {sorted(overrides)}")
+    generated = generate_candidate_assessment(built_candidate, generated_by)
+    if status == CandidateAssessment.Status.IN_PROGRESS:
+        return start_assessment(generated)
+    if status == CandidateAssessment.Status.COMPLETED:
+        return complete_assessment(generated)
+    return generated
 
 
 def start_assessment(assessment: CandidateAssessment) -> CandidateAssessment:

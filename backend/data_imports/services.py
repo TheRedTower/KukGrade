@@ -21,7 +21,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import Storage
 from django.core.files.uploadedfile import UploadedFile
 from django.db import IntegrityError, models, transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import User
@@ -47,7 +46,7 @@ from data_imports.parsers import (
 )
 from data_imports.storage import import_upload_storage
 from gradings.legacy_services import create_legacy_grading_record
-from gradings.models import LegacyRecordKind
+from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student
@@ -405,20 +404,12 @@ def _coerce_date(value: Any) -> date | None:
     return None
 
 
-def _resolve_rank(text: str) -> Rank | None:
-    if not text:
-        return None
-    return Rank.objects.filter(
-        Q(code__iexact=text) | Q(name__iexact=text), active=True
-    ).first()
-
-
 def _active_rank_lookup() -> dict[str, Rank]:
     """Every active rank by upper-cased code and name, read once.
 
-    Answers what `_resolve_rank` does for one text - a rank whose code or name
-    matches, ignoring case, the first by catalogue order when several do - so
-    a roster of thousands of rows needs one read, not one per row.
+    The one rank-text matcher: a rank whose code or name matches, ignoring
+    case, the first by catalogue order when several do. One read serves a
+    roster of thousands of rows, or every distinct text in a workbook.
     """
     lookup: dict[str, Rank] = {}
     for rank in Rank.objects.filter(active=True):
@@ -710,9 +701,38 @@ def commit_student_import(
 
 def _parse_legacy_workbook(content: bytes, *, error_key: str) -> WorkbookParseResult:
     try:
-        return parse_ksw_colchester_workbook(content)
+        parsed = parse_ksw_colchester_workbook(content)
     except WorkbookStructureError as exc:
         raise DjangoValidationError({error_key: [str(exc)]}) from exc
+    _check_legacy_field_lengths(parsed.rows, error_key=error_key)
+    return parsed
+
+
+def _check_legacy_field_lengths(
+    rows: list[CanonicalLegacyRow],
+    *,
+    error_key: str,
+) -> None:
+    """Refuse a cell longer than its record field, naming where it is.
+
+    Source text is kept verbatim (import Decision 7), so it is never
+    truncated; committing it would fail the whole batch with an error that
+    names no row, after a preview that looked clean.
+    """
+    problems: list[str] = []
+    for row in rows:
+        for name, value in vars(row).items():
+            if not isinstance(value, str):
+                continue
+            model_field = LegacyGradingRecord._meta.get_field(name)
+            limit = getattr(model_field, "max_length", None)
+            if limit is not None and len(value) > limit:
+                problems.append(
+                    f"{row.source_locator}: {name.replace('_', ' ')} is "
+                    f"{len(value)} characters; at most {limit} can be kept.",
+                )
+    if problems:
+        raise DjangoValidationError({error_key: problems})
 
 
 def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
@@ -816,8 +836,9 @@ def preview_legacy_grading_import(
     )
 
     suggestions = []
+    ranks = _active_rank_lookup()
     for text in _distinct_rank_texts(rows):
-        suggested = _resolve_rank(text)
+        suggested = ranks.get(text.upper()) if text else None
         suggestions.append(
             RankMappingSuggestion(
                 source_text=text,

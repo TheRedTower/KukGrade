@@ -192,7 +192,9 @@ imported history, only an administrator can correct it.
 most 500 sheets, 50 columns and 50,000 rows across all sheets (blank rows
 and unrecognised sheets included). The whole workbook is parsed at upload:
 one that cannot be read, or that yields no records at all, is refused with
-the adapter's warnings before anything is stored.
+the adapter's warnings before anything is stored. So is one with a cell longer
+than its record field can keep (source text is never cut to fit); the
+refusal names each cell by its locator, such as `06-2025!R14`.
 
 ### The workbook adapter
 

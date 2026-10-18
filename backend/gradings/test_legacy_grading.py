@@ -181,6 +181,21 @@ def test_resolve_and_clear_current_rank_mapping() -> None:
     assert event.metadata["field"] == "current_rank"
 
 
+def test_a_correction_that_changes_nothing_records_nothing() -> None:
+    record = legacy_record(source_current_rank_text="Yellow Belt")
+    actor = user("legacy-noop-admin@example.com")
+    linked = student(wksa_id="LEGACY020")
+    link_legacy_record_to_student(record, linked, actor=actor)
+    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
+    events_before = AuditEvent.objects.filter(entity_id=str(record.pk)).count()
+
+    link_legacy_record_to_student(record, linked, actor=actor)
+    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
+    resolve_legacy_testing_for_rank(record, None, actor=actor)
+
+    assert AuditEvent.objects.filter(entity_id=str(record.pk)).count() == events_before
+
+
 def test_resolve_testing_for_rank_mapping() -> None:
     record = legacy_record(source_testing_for_rank_text="Blue Stripe")
     actor = user("legacy-testing-rank-admin@example.com")

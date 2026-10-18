@@ -45,7 +45,9 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
         # permission_map, since it depends on the row's own action, not the
         # request method.
         return (
-            AuditEvent.objects.visible_to(cast(User, self.request.user))
-            .select_related("actor")
-            .order_by("-occurred_at", "-pk")
+            # No join to actor: the response reads the actor_email/actor_name
+            # copies, which outlive the user.
+            AuditEvent.objects.visible_to(cast(User, self.request.user)).order_by(
+                "-occurred_at", "-pk"
+            )
         )

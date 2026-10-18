@@ -892,7 +892,9 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
                 current_rank=promotion.from_rank,
             )
             models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
-        CandidateOutcome.objects.filter(candidate__session=locked).delete()
+        models.QuerySet.delete(
+            CandidateOutcome.objects.filter(candidate__session=locked),
+        )
 
     # Recorded before the row goes, so the event still carries its identity.
     #

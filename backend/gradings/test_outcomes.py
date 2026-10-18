@@ -443,6 +443,33 @@ def test_finalised_outcome_is_immutable_and_protects_deletion() -> None:
     assert built.student.current_rank == original_rank
 
 
+@pytest.mark.parametrize("final", ["FAIL", "CONDITIONAL"])
+def test_a_bulk_delete_cannot_erase_a_finalised_decision(final: str) -> None:
+    # A Fail or Conditional has no promotion to protect it, so the queryset
+    # guard is all that stops `objects.filter(...).delete()` from the shell.
+    built, _generated = locked_completed_candidate()
+    outcome = finalised_outcome(
+        built,
+        proposed=final,
+        final=final,
+        conditional_requirements="Re-test forms." if final == "CONDITIONAL" else "",
+    )
+
+    with pytest.raises(ValidationError):
+        CandidateOutcome.objects.filter(pk=outcome.pk).delete()
+
+    assert CandidateOutcome.objects.filter(pk=outcome.pk).exists()
+
+
+def test_a_bulk_delete_still_removes_undecided_outcomes() -> None:
+    built, _generated = locked_completed_candidate()
+    draft = create_candidate_outcome(built, user("bulk-draft@example.com"))
+
+    deleted, _ = CandidateOutcome.objects.filter(pk=draft.pk).delete()
+
+    assert deleted == 1
+
+
 def test_direct_outcome_status_spoofing_rejected() -> None:
     built, _generated = locked_completed_candidate()
     outcome = create_candidate_outcome(built, user("status-spoof-creator@example.com"))

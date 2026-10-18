@@ -18,6 +18,34 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-18 - Integrity guards from the 2026-10-04 audit (F-13, F-14, F-15)
+Status: Accepted
+Decision:
+- `CandidateOutcomeQuerySet.delete()` refuses a finalised outcome, as
+  `Model.delete()` already did, so a bulk delete cannot erase a Fail or
+  Conditional. The three cleanup services that remove decisions on purpose
+  (`delete_candidate_assessment`, `delete_grading_session`,
+  `delete_student`) call `models.QuerySet.delete` directly, as they already
+  did for promotions.
+- The withdrawal-attribution check now also refuses a `WITHDRAWN`
+  candidate with no reason, actor or time (`gradings/0012`), making the
+  2026-09-26 rule a database guarantee. It is added `NOT VALID`, so rows
+  withdrawn before that decision are left as they are, as that entry
+  promised, and every new write is checked.
+- Deleting an assessment registers its candidate again, as reopening does.
+  In a draft or open session a new assessment can be prepared; after lock
+  the candidate is resolved by an authorised withdrawal.
+Context:
+The 2026-10-04 audit reproduced each gap: a bulk delete removed a finalised
+Fail; a queryset update produced a withdrawn candidate with no attribution;
+deleting an assessment after lock left a COMPLETED candidate with no
+assessment, which blocked completing the session.
+Consequences:
+Tests that wrote a withdrawn candidate directly now withdraw through the
+service or write the attribution. Whether an assessment should be deletable
+at all once its session is locked is left with the other open questions from
+that audit.
+
 ### 2026-10-18 - A student is registered for one grading at a time
 Status: Accepted
 Decision:

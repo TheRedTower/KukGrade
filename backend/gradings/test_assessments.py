@@ -855,9 +855,7 @@ def test_session_lock_and_completion_require_assessments() -> None:
 
 def test_withdrawn_candidates_do_not_block_session_completion() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    built.status = GradingCandidate.Status.WITHDRAWN
-    built.save()
+    candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
 
     validate_session_transition(
         GradingSession.Status.OPEN,
@@ -1134,6 +1132,51 @@ def test_deleting_completed_assessment_cascades_and_reverts_rank() -> None:
         "to": promotion.from_rank.code,
     }
     assert AuditEvent.objects.count() == events_before + 1
+
+
+def test_deleting_a_completed_assessment_registers_its_candidate_again() -> None:
+    from gradings.assessment_services import generate_candidate_assessment
+
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    complete_assessment(generated)
+    admin = User.objects.create_user(
+        email="assessment-redo-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    delete_candidate_assessment(generated, admin)
+
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+    regenerated = generate_candidate_assessment(built, admin)
+    assert regenerated.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_deleting_an_assessment_after_lock_leaves_a_withdrawable_candidate() -> None:
+    from gradings.services import withdraw_locked_candidate
+    from gradings.testing import override_master
+
+    built, generated = locked_completed_candidate()
+    admin = User.objects.create_user(
+        email="assessment-locked-delete-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    delete_candidate_assessment(generated, admin)
+
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+    withdraw_locked_candidate(
+        built,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
+        note="Assessment deleted as test data.",
+        actor=override_master("locked-delete-withdrawer@example.com"),
+    )
+    session = transition_grading_session(built.session, GradingSession.Status.COMPLETED)
+    assert session.status == GradingSession.Status.COMPLETED
 
 
 def test_deleting_an_assessment_is_refused_when_a_later_promotion_exists() -> None:

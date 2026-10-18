@@ -205,9 +205,9 @@ def delete_student(student: Student, actor: User) -> None:
     promotion_count = models.QuerySet.delete(
         Promotion.objects.filter(student=locked),
     )[0]
-    outcome_count = CandidateOutcome.objects.filter(
-        candidate__student=locked,
-    ).delete()[0]
+    outcome_count = models.QuerySet.delete(
+        CandidateOutcome.objects.filter(candidate__student=locked),
+    )[0]
     models.QuerySet.delete(GradingCandidate.objects.filter(student=locked))
 
     legacy_records = list(LegacyGradingRecord.objects.filter(student=locked))

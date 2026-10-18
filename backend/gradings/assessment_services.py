@@ -69,14 +69,11 @@ def delete_candidate_assessment(
     sanctioned bypass of both guards, administrator-gated (see
     accounts.groups._DATA_CLEANUP_PERMISSIONS):
 
-    - `CandidateOutcome.objects.filter(...).delete()` goes through Django's
-      default `QuerySet.delete()`, which never calls a model's overridden
-      instance `delete()`, so the FINALISED guard is simply never reached.
-    - `Promotion` closes exactly that loophole with its own queryset
-      override, so the same trick does not work there. Deleting a promotion
-      here instead calls `models.QuerySet.delete` directly - the real,
-      unbound base implementation - bypassing `PromotionQuerySet.delete()`
-      on purpose rather than by omission.
+    - Both `CandidateOutcomeQuerySet.delete()` (for a finalised outcome)
+      and `PromotionQuerySet.delete()` refuse, so the rows are removed here
+      by calling `models.QuerySet.delete` directly - the real, unbound base
+      implementation - bypassing those overrides on purpose rather than by
+      omission.
     """
     locked = lock_in_session(
         CandidateAssessment.objects.select_related(
@@ -102,7 +99,7 @@ def delete_candidate_assessment(
         models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
 
     if outcome is not None:
-        CandidateOutcome.objects.filter(pk=outcome.pk).delete()
+        models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
 
     record(
         AuditAction.ASSESSMENT_DELETED,
@@ -120,6 +117,14 @@ def delete_candidate_assessment(
         },
     )
     locked.delete()
+    # A candidate is COMPLETED only through its assessment, so without one it
+    # is registered again, as reopening leaves it. In a draft or open session
+    # a new assessment can then be prepared; once the session is locked one
+    # cannot, and the candidate is resolved by an authorised withdrawal.
+    GradingCandidate.objects.filter(
+        pk=locked.candidate_id,
+        status=GradingCandidate.Status.COMPLETED,
+    ).update(status=GradingCandidate.Status.REGISTERED, updated_at=timezone.now())
 
 
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:

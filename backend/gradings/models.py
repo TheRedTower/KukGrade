@@ -318,7 +318,10 @@ class GradingCandidate(models.Model):
                 condition=~Q(withdrawal_reason="OTHER", withdrawal_note=""),
                 name="grading_candidate_other_withdrawal_has_note",
             ),
-            # Attribution travels together, and only ever on a withdrawal.
+            # Attribution travels together, and only ever on a withdrawal; a
+            # withdrawal always has it (2026-09-26). Added NOT VALID
+            # (gradings/0012): rows withdrawn before that decision are left as
+            # they are, and every new write is checked.
             models.CheckConstraint(
                 condition=(
                     Q(
@@ -326,6 +329,7 @@ class GradingCandidate(models.Model):
                         withdrawn_by__isnull=True,
                         withdrawn_at__isnull=True,
                     )
+                    & ~Q(status="WITHDRAWN")
                     | Q(
                         status="WITHDRAWN",
                         withdrawn_by__isnull=False,
@@ -544,6 +548,18 @@ class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
                 {"status": ["Finalised candidate outcomes are immutable."]},
             )
         return super().update(**kwargs)
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        # Model.delete() refuses a finalised outcome; QuerySet.delete() never
+        # calls it, so without this a bulk delete erased a finalised Fail or
+        # Conditional (a Pass is also held by its promotion). The cleanup
+        # services that remove decisions on purpose call
+        # models.QuerySet.delete directly.
+        if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
+            raise ValidationError(
+                {"status": ["Finalised candidate outcomes cannot be deleted."]},
+            )
+        return super().delete()
 
 
 class CandidateOutcome(models.Model):

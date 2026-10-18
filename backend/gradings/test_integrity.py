@@ -342,3 +342,39 @@ def test_deleting_an_assessor_is_blocked_rather_than_erasing_attribution() -> No
     # proposed_by, decided_by and promoted_by.
     with pytest.raises(ProtectedError):
         judge.delete()
+
+
+def test_a_withdrawal_without_attribution_is_refused_by_the_database() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        GradingCandidate.objects.filter(pk=built.pk).update(
+            status=GradingCandidate.Status.WITHDRAWN,
+        )
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_the_attribution_check_keeps_rows_withdrawn_before_it() -> None:
+    """gradings/0012 is NOT VALID: earlier rows stay, new writes are checked."""
+    legacy = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    later = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    withdraw_unattributed = (
+        "UPDATE gradings_gradingcandidate SET status = 'WITHDRAWN' WHERE id = %s"
+    )
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate([("gradings", "0011_candidateassessmentitem_position")])
+        with connection.cursor() as cursor:
+            cursor.execute(withdraw_unattributed, [legacy.pk])
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("gradings", "0012_withdrawal_always_attributed")])
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(withdraw_unattributed, [later.pk])
+        assert GradingCandidate.objects.get(pk=legacy.pk).status == "WITHDRAWN"
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)

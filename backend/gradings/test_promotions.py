@@ -13,6 +13,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.forms import ModelForm
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
@@ -353,8 +354,14 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
 
     withdrawn, _withdrawn_assessment = locked_completed_candidate()
     withdrawn_outcome = finalised_outcome(withdrawn)
+    # Unreachable through the services (a finalised outcome blocks withdrawal),
+    # so written directly - with the attribution the database requires.
     GradingCandidate.objects.filter(pk=withdrawn.pk).update(
         status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.OTHER,
+        withdrawal_note="Written directly for the test.",
+        withdrawn_by=user("promotion-withdrawer@example.com"),
+        withdrawn_at=timezone.now(),
     )
     with pytest.raises(ValidationError):
         promote_candidate(

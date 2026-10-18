@@ -698,6 +698,103 @@ def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
     )
 
 
+def test_student_list_shows_each_students_current_grading_and_its_stage() -> None:
+    # Replaces the old "Next action" guess with the registration the student
+    # actually has, worked out from its assessment and outcome (audit F-29).
+    from gradings.models import CandidateOutcome, GradingCandidate, GradingSession
+    from gradings.outcome_services import (
+        create_candidate_outcome,
+        promote_candidate,
+        propose_candidate_outcome,
+    )
+    from gradings.services import transition_grading_session
+    from gradings.testing import (
+        assessment,
+        candidate,
+        complete_assessment,
+        finalised_outcome,
+        grading_session,
+        locked_completed_candidate,
+        promoter,
+        start_assessment,
+        user,
+    )
+
+    def named(built: GradingCandidate, wksa_id: str) -> GradingCandidate:
+        Student.objects.filter(pk=built.student_id).update(wksa_id=wksa_id)
+        return built
+
+    session = grading_session(status=GradingSession.Status.OPEN, title="Spring")
+    named(candidate(session=session), "REGISTERED")
+    named(
+        start_assessment(assessment(candidate=candidate(session=session))).candidate,
+        "BEING",
+    )
+    named(
+        complete_assessment(assessment(candidate=candidate(session=session))).candidate,
+        "ASSESSED",
+    )
+
+    proposed, _ = locked_completed_candidate()
+    named(proposed, "DECIDING")
+    propose_candidate_outcome(
+        create_candidate_outcome(proposed, user("stage-creator@example.com")),
+        CandidateOutcome.Outcome.PASS,
+        "Ready.",
+        user("stage-proposer@example.com"),
+    )
+    passed, _ = locked_completed_candidate()
+    named(passed, "PASSED")
+    finalised_outcome(passed)
+
+    # Settled registrations show nothing: promoted, failed, withdrawn,
+    # cancelled - and a student never registered.
+    promoted, _ = locked_completed_candidate()
+    named(promoted, "PROMOTED")
+    promote_candidate(
+        finalised_outcome(promoted), promoter("stage-promoter@example.com")
+    )
+    failed, _ = locked_completed_candidate()
+    named(failed, "FAILED")
+    finalised_outcome(
+        failed,
+        proposed=CandidateOutcome.Outcome.FAIL,
+        final=CandidateOutcome.Outcome.FAIL,
+    )
+    named(
+        candidate(session=session, status=GradingCandidate.Status.WITHDRAWN), "WITHDREW"
+    )
+    cancelled = grading_session(status=GradingSession.Status.OPEN, title="Cancelled")
+    named(candidate(session=cancelled), "CANCELLED")
+    transition_grading_session(
+        cancelled,
+        GradingSession.Status.CANCELLED,
+        actor=user("stage-canceller@example.com"),
+    )
+    Student.objects.create(**student_kwargs(wksa_id="NEVER"))
+
+    response = auth_client("current-grading@example.com").get(
+        "/api/students/?page_size=200",
+    )
+
+    assert response.status_code == 200
+    by_id = {
+        row["wksa_id"]: row["current_grading"] for row in response.json()["results"]
+    }
+    assert by_id["REGISTERED"] == {
+        "session": session.pk,
+        "session_title": "Spring",
+        "stage": "REGISTERED",
+        "stage_display": "Registered",
+    }
+    assert by_id["BEING"]["stage"] == "BEING_ASSESSED"
+    assert by_id["ASSESSED"]["stage"] == "ASSESSED"
+    assert by_id["DECIDING"]["stage"] == "AWAITING_DECISION"
+    assert by_id["PASSED"]["stage"] == "AWAITING_PROMOTION"
+    for settled in ("PROMOTED", "FAILED", "WITHDREW", "CANCELLED", "NEVER"):
+        assert by_id[settled] is None, settled
+
+
 def test_eligible_for_session_leaves_out_left_and_already_registered_students() -> None:
     from gradings.testing import candidate, grading_session
 

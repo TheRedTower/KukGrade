@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from gradings.models import (
@@ -12,6 +13,7 @@ from gradings.models import (
 )
 from gradings.read_models import (
     GradingHistoryItem,
+    GradingStage,
     StudentGradingHistory,
     StudentRankTimeline,
 )
@@ -76,6 +78,15 @@ class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHisto
     items = GradingHistoryItemSerializer(many=True)
 
 
+class CurrentGradingSerializer(serializers.Serializer):
+    """The grading a student is registered for that has not reached its result."""
+
+    session = serializers.IntegerField()
+    session_title = serializers.CharField()
+    stage = serializers.ChoiceField(choices=GradingStage.choices)
+    stage_display = serializers.CharField()
+
+
 class StudentListSerializer(serializers.ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
@@ -105,6 +116,12 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
         ),
     )
     age_band_display = serializers.SerializerMethodField()
+    current_grading = serializers.SerializerMethodField(
+        help_text=(
+            "The grading the student is registered for that has not reached "
+            "its result, and how far it has got; null when there is none."
+        ),
+    )
 
     class Meta:
         model = Student
@@ -121,8 +138,23 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
             "can_be_graded",
             "age_band",
             "age_band_display",
+            "current_grading",
         )
         read_only_fields = fields
+
+    # Annotated by the list view (gradings.read_models.with_current_grading).
+    @extend_schema_field(CurrentGradingSerializer(allow_null=True))
+    def get_current_grading(self, obj: Student) -> dict[str, Any] | None:
+        session = getattr(obj, "current_grading_session", None)
+        if session is None:
+            return None
+        stage = GradingStage(obj.current_grading_stage)  # type: ignore[attr-defined]
+        return {
+            "session": session,
+            "session_title": obj.current_grading_title,  # type: ignore[attr-defined]
+            "stage": stage.value,
+            "stage_display": stage.label,
+        }
 
     def get_age_band_display(self, obj: Student) -> str:
         return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]

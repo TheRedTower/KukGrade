@@ -1382,6 +1382,13 @@ export interface components {
             current_password: string;
             new_password: string;
         };
+        /** @description The grading a student is registered for that has not reached its result. */
+        CurrentGrading: {
+            session: number;
+            session_title: string;
+            stage: components["schemas"]["GradingStageEnum"];
+            stage_display: string;
+        };
         /**
          * @description * `MONTH` - Month
          *     * `DAY` - Day
@@ -1487,6 +1494,15 @@ export interface components {
          * @enum {string}
          */
         GradingSessionStatusEnum: "DRAFT" | "OPEN" | "LOCKED" | "COMPLETED" | "CANCELLED";
+        /**
+         * @description * `REGISTERED` - Registered
+         *     * `BEING_ASSESSED` - Being assessed
+         *     * `ASSESSED` - Assessed
+         *     * `AWAITING_DECISION` - Awaiting final decision
+         *     * `AWAITING_PROMOTION` - Passed, awaiting promotion
+         * @enum {string}
+         */
+        GradingStageEnum: "REGISTERED" | "BEING_ASSESSED" | "ASSESSED" | "AWAITING_DECISION" | "AWAITING_PROMOTION";
         GradingYears: {
             readonly years: number[];
         };
@@ -2078,6 +2094,8 @@ export interface components {
              */
             readonly age_band: components["schemas"]["AgeBandEnum"];
             readonly age_band_display: string;
+            /** @description The grading the student is registered for that has not reached its result, and how far it has got; null when there is none. */
+            readonly current_grading: components["schemas"]["CurrentGrading"] | null;
         };
         StudentRankHistory: {
             readonly promotions: components["schemas"]["PromotionRankHistory"][];

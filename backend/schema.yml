@@ -2844,6 +2844,24 @@ components:
       required:
       - current_password
       - new_password
+    CurrentGrading:
+      type: object
+      description: The grading a student is registered for that has not reached its
+        result.
+      properties:
+        session:
+          type: integer
+        session_title:
+          type: string
+        stage:
+          $ref: '#/components/schemas/GradingStageEnum'
+        stage_display:
+          type: string
+      required:
+      - session
+      - session_title
+      - stage
+      - stage_display
     DatePrecisionEnum:
       enum:
       - MONTH
@@ -3133,6 +3151,20 @@ components:
         * `LOCKED` - Locked
         * `COMPLETED` - Completed
         * `CANCELLED` - Cancelled
+    GradingStageEnum:
+      enum:
+      - REGISTERED
+      - BEING_ASSESSED
+      - ASSESSED
+      - AWAITING_DECISION
+      - AWAITING_PROMOTION
+      type: string
+      description: |-
+        * `REGISTERED` - Registered
+        * `BEING_ASSESSED` - Being assessed
+        * `ASSESSED` - Assessed
+        * `AWAITING_DECISION` - Awaiting final decision
+        * `AWAITING_PROMOTION` - Passed, awaiting promotion
     GradingYears:
       type: object
       properties:
@@ -4278,10 +4310,18 @@ components:
         age_band_display:
           type: string
           readOnly: true
+        current_grading:
+          allOf:
+          - $ref: '#/components/schemas/CurrentGrading'
+          nullable: true
+          readOnly: true
+          description: The grading the student is registered for that has not reached
+            its result, and how far it has got; null when there is none.
       required:
       - age_band
       - age_band_display
       - can_be_graded
+      - current_grading
       - current_rank
       - current_rank_code
       - current_rank_name

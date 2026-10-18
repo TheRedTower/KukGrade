@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type Rank,
@@ -172,19 +172,6 @@ export function StudentsScreen() {
     );
   }
 
-  function resolveNextAction(status: StudentStatus): string {
-    switch (status) {
-      case "ACTIVE":
-        return "Prepare for next grading";
-      case "INACTIVE":
-        return "Follow up required";
-      case "LEFT":
-        return "No further action";
-      default:
-        return "—";
-    }
-  }
-
   return (
     <section aria-labelledby="students-page-heading" className="students-view">
       {/* Header */}
@@ -349,7 +336,7 @@ export function StudentsScreen() {
                     <th scope="col" className="col-wksa-id">WKSA ID</th>
                     <th scope="col" className="col-rank">Current rank</th>
                     <th scope="col" className="col-status">Status</th>
-                    <th scope="col" className="col-action-suggested">Next action</th>
+                    <th scope="col" className="col-current-grading">Current grading</th>
                     <th scope="col" className="col-cta">
                       <span className="sr-only">Actions</span>
                     </th>
@@ -372,8 +359,25 @@ export function StudentsScreen() {
                       <td className="col-status cell-status">
                         {renderStatusBadge(s.status, s.status_display)}
                       </td>
-                      <td className="col-action-suggested cell-next-action">
-                        {resolveNextAction(s.status)}
+                      {/* The registration the server says is still in
+                          progress, and how far it has got - not a guess
+                          from the student's status (audit F-29). */}
+                      <td className="col-current-grading cell-current-grading">
+                        {s.current_grading ? (
+                          <>
+                            <Link
+                              className="current-grading-link"
+                              to={`/gradings/${s.current_grading.session}`}
+                            >
+                              {s.current_grading.session_title}
+                            </Link>
+                            <span className="current-grading-stage">
+                              {s.current_grading.stage_display}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="current-grading-none">Not registered</span>
+                        )}
                       </td>
                       <td className="col-cta cell-cta">
                         <button

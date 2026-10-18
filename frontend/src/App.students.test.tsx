@@ -73,6 +73,12 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: true,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: {
+          session: 42,
+          session_title: "Spring Grading 2027",
+          stage: "AWAITING_DECISION",
+          stage_display: "Awaiting final decision",
+        },
       },
       {
         id: 2,
@@ -87,6 +93,7 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: true,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: null,
       },
       {
         id: 3,
@@ -101,6 +108,7 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: false,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: null,
       },
     ] satisfies StudentListItem[];
 
@@ -147,19 +155,26 @@ describe("Students registry screen (/students)", () => {
     expect(tableScope.getByText("UK-1001")).toBeVisible();
     expect(tableScope.getByText("White Belt")).toBeVisible();
     expect(tableScope.getByText("Active")).toBeVisible();
-    expect(tableScope.getByText("Prepare for next grading")).toBeVisible();
+    // Current grading is the served registration and its stage, linked to
+    // the session; a student with none says so.
+    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute(
+      "href",
+      "/gradings/42",
+    );
+    expect(tableScope.getByText("Awaiting final decision")).toBeVisible();
+    expect(tableScope.getAllByText("Not registered")).toHaveLength(2);
+    expect(screen.queryByRole("columnheader", { name: "Next action" })).not.toBeInTheDocument();
 
     expect(tableScope.getByText("Clark Kent")).toBeVisible();
     expect(tableScope.getByText("UK-1002")).toBeVisible();
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
     expect(tableScope.getByText("Inactive")).toBeVisible();
-    expect(tableScope.getByText("Follow up required")).toBeVisible();
+    expect(tableScope.queryByText("Follow up required")).not.toBeInTheDocument();
 
     expect(tableScope.getByText("Diana Prince")).toBeVisible();
     expect(tableScope.getByText("UK-1003")).toBeVisible();
     expect(tableScope.getByText("Blue Belt")).toBeVisible();
     expect(tableScope.getByText("Left")).toBeVisible();
-    expect(tableScope.getByText("No further action")).toBeVisible();
 
     // Privacy verification: Date of birth must NOT be rendered in table
     expect(screen.queryByText(/199[0-9]|200[0-9]/)).not.toBeInTheDocument();

@@ -15,7 +15,11 @@ from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
 from gradings.age import with_age_band_on
 from gradings.models import GradingCandidate, GradingSession
-from gradings.read_models import student_rank_timeline, unified_student_grading_history
+from gradings.read_models import (
+    student_rank_timeline,
+    unified_student_grading_history,
+    with_current_grading,
+)
 from gradings.services import unsettled_registrations
 from kukgrade.filtering import (
     QueryFilter,
@@ -134,7 +138,9 @@ class StudentViewSet(
             "wksa_id",
         )
         if self.action == "list":
-            return with_age_band_on(students, self._age_band_date())
+            return with_current_grading(
+                with_age_band_on(students, self._age_band_date()),
+            )
         return students
 
     def _age_band_date(self) -> date:

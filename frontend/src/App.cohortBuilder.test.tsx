@@ -98,6 +98,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 102,
@@ -112,6 +113,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Inactive",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 103,
@@ -126,6 +128,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_13_TO_17",
       age_band_display: "13-17",
+      current_grading: null,
     },
     {
       id: 104,
@@ -140,6 +143,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Left",
       age_band: "AGE_8_AND_UNDER",
       age_band_display: "8 and under",
+      current_grading: null,
     },
     {
       id: 105,
@@ -154,6 +158,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
   ];
 

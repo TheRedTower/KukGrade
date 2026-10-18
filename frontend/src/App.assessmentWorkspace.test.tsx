@@ -66,6 +66,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "ACTIVE",
     can_be_graded: true,
     status_display: "Active",
+    current_grading: null,
   };
 
   const mockAssessment: CandidateAssessment = {

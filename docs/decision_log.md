@@ -18,6 +18,28 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-19 - The Students list shows each student's current grading (F-29)
+
+Status: Accepted
+
+Decision:
+The "Next action" column is replaced by "Current grading": the grading the
+student is registered for that has not reached its result, linked to the
+session, with how far it has got - Registered, Being assessed, Assessed,
+Awaiting final decision, or Passed, awaiting promotion - or "Not
+registered". The list serves it as `current_grading`
+(`gradings.read_models.with_current_grading`), from the same
+`unsettled_registrations()` the one-grading-at-a-time rule uses, so the
+column and that rule cannot disagree.
+
+Context:
+"Next action" was worked out in the browser from status alone ("Follow up
+required" for Inactive, which blocks nothing). The owner chose this over
+removing the column or showing time at rank.
+
+Consequences:
+API addition: `current_grading` (nullable) on each student list row.
+
 ### 2026-10-18 - Owner answers on the audit's open decisions
 
 Status: Accepted
@@ -2714,11 +2736,8 @@ decisions" above.
 2. **WKSA ID case and uniqueness (F-30)** - deferred; part of a planned
    overhaul. Only the Add student screen upper-cases the ID; the API and
    roster import store it as typed.
-3. **The Students list's "Next action" column (F-29)** - to be discussed. It
-   shows guidance no data backs ("Follow up required" for Inactive, which
-   blocks nothing).
-4. **Roster import (F-19)** - deferred to the planned import overhaul. A
+3. **Roster import (F-19)** - deferred to the planned import overhaul. A
    5,000-row commit takes about a minute in one request.
-5. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by
+4. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by
    nothing (FDR-048 keeps it as the source artwork); 5,950 orphaned local
    files in `backend/var/import_uploads/` (F-11).

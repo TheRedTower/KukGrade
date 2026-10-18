@@ -253,9 +253,26 @@
   font-weight: 500;
 }
 
-.cell-next-action {
-  color: var(--color-text-muted);
+.cell-current-grading {
   font-size: 0.88rem;
+}
+
+.current-grading-link {
+  display: block;
+  color: var(--color-text);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.current-grading-link:hover,
+.current-grading-link:focus-visible {
+  text-decoration: underline;
+}
+
+.current-grading-stage,
+.current-grading-none {
+  display: block;
+  color: var(--color-text-muted);
 }
 
 /* Status Badges */

@@ -77,7 +77,9 @@ checks on each push and pull request.
   instructor deliberately opened. `wksa_id` is writable on create and
   read-only afterwards, since it is the external identifier grading records
   are matched against. Filters: `status`, `current_rank_code`, `search`
-  (name and WKSA ID). **Hard delete (2026-09-22, administrator-only)**:
+  (name and WKSA ID). Each list row carries `current_grading` - the
+  registration not yet at its result and its stage - which the Students
+  screen shows as "Current grading" (2026-10-19). **Hard delete (2026-09-22, administrator-only)**:
   `DELETE /api/students/{id}/` (`students.services.delete_student`) cascades
   through every grading-session registration, assessment, outcome and
   promotion involving the student - every relationship is `PROTECT`, so

@@ -75,6 +75,7 @@ const studentResult: StudentListItem = {
   status_display: "Active",
   age_band: "AGE_9_TO_12",
   age_band_display: "9-12",
+  current_grading: null,
 };
 
 function renderScreen() {

@@ -211,6 +211,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 2,
@@ -225,6 +226,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 3,
@@ -239,6 +241,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
   ] satisfies StudentListItem[];
 

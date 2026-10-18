@@ -282,6 +282,7 @@ SPECTACULAR_SETTINGS = {
         "BeltColourEnum": "ranks.models.BeltColour",
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
+        "GradingStageEnum": "gradings.read_models.GradingStage",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": (
             "data_imports.services.StudentImportRowOutcome"

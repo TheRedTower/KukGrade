@@ -6,10 +6,11 @@ from rest_framework import serializers
 from syllabus.models import (
     AGE_BAND_DESCRIPTION,
     AGE_BAND_PROGRAMME,
+    CORE_CATEGORIES,
     AgeBand,
     Programme,
 )
-from syllabus.services import EffectiveSyllabusRequirement, normalize_chart_notation
+from syllabus.services import EffectiveSyllabusRequirement
 
 
 class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
@@ -33,6 +34,12 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
         source="requirement.item.get_category_display",
         read_only=True,
     )
+    category_is_core = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the category is one of the six core grading areas every "
+            "rank shares, rather than rank-specific content."
+        ),
+    )
     # "required" collides with Field.required (whether the input itself is
     # mandatory) only in the type stubs, not at runtime - DRF serializers
     # commonly have a field named this for exactly this reason.
@@ -43,7 +50,7 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
     display_range = serializers.CharField(
         source="requirement.display_range", read_only=True
     )
-    notation = serializers.SerializerMethodField()
+    notation = serializers.CharField(read_only=True)
     notes = serializers.CharField(source="requirement.notes", read_only=True)
     introduced_rank_code = serializers.CharField(
         source="introduced_rank.code",
@@ -63,8 +70,8 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
     )
     is_new_at_rank = serializers.BooleanField(read_only=True)
 
-    def get_notation(self, obj: EffectiveSyllabusRequirement) -> str:
-        return normalize_chart_notation(obj.requirement.notes)
+    def get_category_is_core(self, obj: EffectiveSyllabusRequirement) -> bool:
+        return obj.requirement.item.category in CORE_CATEGORIES
 
 
 class AgeBandSerializer(serializers.Serializer[str]):

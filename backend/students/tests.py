@@ -666,6 +666,38 @@ def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
     ).exists()
 
 
+def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
+    # Registration bands a student by their age on the grading date; the
+    # cohort builder's list must agree, or a birthday in between shows the
+    # wrong band and filters the student out (audit F-33).
+    from gradings.testing import grading_session
+
+    today = timezone.localdate()
+    session = grading_session(status="OPEN", grading_date=today + timedelta(days=30))
+    # Turns 13 ten days from now: 12 today, 13 on the grading date.
+    birthday = today + timedelta(days=10)
+    born = date(birthday.year - 13, birthday.month, min(birthday.day, 28))
+    Student.objects.create(**student_kwargs(wksa_id="BIRTHDAY", date_of_birth=born))
+    client = auth_client("grading-date-band@example.com")
+
+    def served(query: str) -> str:
+        response = client.get(f"/api/students/?{query}")
+        assert response.status_code == 200
+        row = response.json()["results"][0]
+        assert row["age_band_display"]
+        return str(row["age_band"])
+
+    assert served("search=BIRTHDAY") == "AGE_9_TO_12"
+    assert served(f"eligible_for_session={session.pk}") == "AGE_13_TO_17"
+    assert roster_names(
+        client, f"eligible_for_session={session.pk}&age_band=AGE_13_TO_17"
+    ) == ["BIRTHDAY"]
+    assert (
+        roster_names(client, f"eligible_for_session={session.pk}&age_band=AGE_9_TO_12")
+        == []
+    )
+
+
 def test_eligible_for_session_leaves_out_left_and_already_registered_students() -> None:
     from gradings.testing import candidate, grading_session
 

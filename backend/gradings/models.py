@@ -913,6 +913,18 @@ class CandidateAssessmentItem(models.Model):
     start_number = models.PositiveIntegerField(null=True, blank=True)
     end_number = models.PositiveIntegerField(null=True, blank=True)
     requirement_notes = models.TextField(blank=True)
+    # The syllabus's display wording for this cumulative row ("Part 1 of 2",
+    # "Parts 1-3"), copied when the assessment is generated so the record
+    # keeps the wording it was assessed against.
+    notation = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text=(
+            "The syllabus's display wording for this item's chart notation - "
+            "'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was "
+            "generated; empty when there is none."
+        ),
+    )
     result = models.CharField(
         max_length=32,
         choices=Result.choices,
@@ -1056,6 +1068,7 @@ class CandidateAssessmentItem(models.Model):
         self.item_name = (self.item_name or "").strip()
         self.korean_name = (self.korean_name or "").strip()
         self.requirement_notes = (self.requirement_notes or "").strip()
+        self.notation = (self.notation or "").strip()
         self.assessor_notes = (self.assessor_notes or "").strip()
 
         errors = numbered_range_errors(self.start_number, self.end_number)

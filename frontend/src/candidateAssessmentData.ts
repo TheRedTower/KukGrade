@@ -28,6 +28,8 @@ import { useAssessmentItemsQuery, useAssessmentSummaryQuery } from "./queries";
 export interface CategoryGroup {
   category: string;
   categoryDisplay: string;
+  /** One of the six core grading areas, as served with each item. */
+  isCore: boolean;
   items: CandidateAssessmentItem[];
   totalCount: number;
   requiredCount: number;
@@ -119,6 +121,7 @@ export function useCandidateAssessmentData(
       return {
         category,
         categoryDisplay: displayByCategory.get(category)!,
+        isCore: itemsByCategory.get(category)![0].category_is_core,
         items: itemsByCategory.get(category)!,
         totalCount: served?.total ?? 0,
         requiredCount,

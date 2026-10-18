@@ -63,7 +63,9 @@ checks on each push and pull request.
   `GET /api/syllabus/requirements/effective/` is the one read of it - one row
   per item examinable through a rank for an age band, every category (core
   areas, Techniques, Forms, Weapons) in syllabus order, the latest applicable
-  mapping supplying the range and the earliest where it was introduced. The
+  mapping supplying the range and the earliest where it was introduced. A
+  form taught in parts across ranks names every part taught so far
+  (8-and-under Cho Geup Hyung reads "Parts 1-3" from Red; 2026-10-18). The
   syllabus screen shows it, and assessment generation snapshots exactly these
   rows. A rank with no syllabus of its own recorded (White, KSN and above)
   gets nothing, and the screen says so.
@@ -174,7 +176,8 @@ checks on each push and pull request.
   still be edited freely.
 - Assessment generation copies the cumulative syllabus through the testing
   rank into immutable snapshot rows, each with its `position` in syllabus
-  order, and refuses a rank with no recorded syllabus. Every item is required.
+  order and the row's display `notation`, and refuses a rank with no
+  recorded syllabus. Every item is required.
   Assessments generated before 2026-09-29 keep the testing rank's own
   requirements they were generated with. Results are `NOT_ASSESSED`, `MET`,
   `NOT_MET`.
@@ -446,9 +449,9 @@ checks on each push and pull request.
   `CandidateAssessment.notes` can be written and the 1A scoring screen has no
   overall-note control. Sealing requires an explicit proofread
   acknowledgement. A sealed record shows its seal and offers no write path.
-  `isCoreCategory` in `syllabusCategories.ts` is shared with `SyllabusScreen`,
-  so the syllabus and the permanent record cannot disagree about which
-  categories are core areas.
+  Which categories are core areas is served as `category_is_core` on both
+  syllabus rows and assessment items (`syllabus.models.CORE_CATEGORIES`),
+  so the syllabus and the permanent record cannot disagree about it.
 - **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
   SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
   (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
@@ -531,7 +534,9 @@ checks on each push and pull request.
   reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
-  is the API's own `age_band_display`, never recomputed in the browser, and
+  is the API's own `age_band_display`, never recomputed in the browser - on
+  the grading date in the cohort builder, whose list is filtered by
+  `eligible_for_session` (2026-10-18) - and
   the age-band controls on the syllabus and cohort-builder screens read their
   bands and programmes from `/api/syllabus/age-bands/`. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because

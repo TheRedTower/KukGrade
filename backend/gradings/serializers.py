@@ -41,8 +41,7 @@ from gradings.services import (
 )
 from ranks.models import Rank
 from students.models import Student
-from syllabus.models import SyllabusItem
-from syllabus.services import normalize_chart_notation
+from syllabus.models import CORE_CATEGORIES, SyllabusItem
 
 
 class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
@@ -396,11 +395,10 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
     result_display = serializers.CharField(source="get_result_display", read_only=True)
     assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
     display_range = serializers.CharField(read_only=True)
-    notation = serializers.SerializerMethodField(
+    category_is_core = serializers.SerializerMethodField(
         help_text=(
-            "The chart notation in requirement_notes as display wording - "
-            "'Part 1 of 2', '1-3' - the same wording the syllabus serves; "
-            "empty when the notes are not chart notation."
+            "Whether the category is one of the six core grading areas every "
+            "rank shares, rather than rank-specific content."
         ),
     )
 
@@ -412,6 +410,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
+            "category_is_core",
             "position",
             "required",
             "display_range",
@@ -429,6 +428,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
+            "category_is_core",
             "position",
             "required",
             "display_range",
@@ -439,8 +439,8 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "assessed_at",
         )
 
-    def get_notation(self, obj: CandidateAssessmentItem) -> str:
-        return normalize_chart_notation(obj.requirement_notes)
+    def get_category_is_core(self, obj: CandidateAssessmentItem) -> bool:
+        return obj.category in CORE_CATEGORIES
 
     def update(
         self,

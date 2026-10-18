@@ -9,7 +9,6 @@ import {
 import { BeltSwatch } from "./Belt";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import "./Syllabus.css";
-import { isCoreCategory } from "./syllabusCategories";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -190,8 +189,9 @@ export function SyllabusScreen() {
   );
 
   const rankName = selectedRank ? selectedRank.name : selectedRankCode;
-  const coreAreas = requirements.filter((row) => isCoreCategory(row.category));
-  const ledgers = ledgersByCategory(requirements.filter((row) => !isCoreCategory(row.category)));
+  // Which categories are core areas is served with each row.
+  const coreAreas = requirements.filter((row) => row.category_is_core);
+  const ledgers = ledgersByCategory(requirements.filter((row) => !row.category_is_core));
   // A rank with no syllabus of its own gets nothing back, rather than the
   // earlier ranks' content presented as its whole curriculum.
   const hasNoSyllabus = requirementsQuery.isSuccess && requirements.length === 0;

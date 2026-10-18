@@ -378,3 +378,47 @@ def test_the_attribution_check_keeps_rows_withdrawn_before_it() -> None:
     finally:
         executor = MigrationExecutor(connection)
         executor.migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_existing_assessment_items_get_the_notation_they_already_showed() -> None:
+    generated = assessment()
+    first, second, third = generated.items.order_by("position")[:3]
+    old_target = [("gradings", "0012_withdrawal_always_attributed")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def notation(item_id: int) -> str:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT notation FROM gradings_candidateassessmentitem WHERE id = %s",
+                [item_id],
+            )
+            row = cursor.fetchone()
+        assert row is not None
+        return str(row[0])
+
+    try:
+        executor.migrate(old_target)
+        with connection.cursor() as cursor:
+            for item, notes in (
+                (first, "Chart notation: (pt.3)."),
+                (second, "Chart notation: (1/2)."),
+                (third, "May be assessed if time allows."),
+            ):
+                cursor.execute(
+                    "UPDATE gradings_candidateassessmentitem"
+                    " SET requirement_notes = %s WHERE id = %s",
+                    [notes, item.pk],
+                )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+        # The wording the screens showed for each before the field existed.
+        assert notation(first.pk) == "Part 3"
+        assert notation(second.pk) == "Part 1 of 2"
+        assert notation(third.pk) == ""
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)

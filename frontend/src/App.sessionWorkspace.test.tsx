@@ -1204,6 +1204,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
             item_name: `Item ${i}`,
             category: "TECHNIQUE",
             category_display: "Techniques",
+            category_is_core: false,
             required: true,
             result: "MET",
             result_display: "Met",

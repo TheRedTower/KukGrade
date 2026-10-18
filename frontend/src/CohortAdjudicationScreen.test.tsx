@@ -165,6 +165,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     korean_name: "",
     category: "KICKING",
     category_display: "Kicking",
+    category_is_core: true,
     position: id,
     required: true,
     display_range: "",

@@ -92,8 +92,19 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
-    age_band = serializers.ChoiceField(choices=AgeBand.choices, read_only=True)
-    age_band_display = serializers.CharField(read_only=True)
+    # Annotated by the list view (gradings.age.with_age_band_on): on the
+    # grading date when the list is filtered by eligible_for_session,
+    # otherwise today.
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        source="age_band_on_date",
+        read_only=True,
+        help_text=(
+            "On the session's grading date when the list is filtered by "
+            "eligible_for_session, otherwise today."
+        ),
+    )
+    age_band_display = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
@@ -112,6 +123,9 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
             "age_band_display",
         )
         read_only_fields = fields
+
+    def get_age_band_display(self, obj: Student) -> str:
+        return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
 
 
 class StudentSerializer(serializers.ModelSerializer[Student]):

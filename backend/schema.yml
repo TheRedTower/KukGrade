@@ -1565,7 +1565,8 @@ paths:
       - name: age_band
         required: false
         in: query
-        description: The age band the student is in today.
+        description: The student's age band - on the session's grading date when eligible_for_session
+          is given, as registration works it out, otherwise today.
         schema:
           type: string
           enum:
@@ -2644,6 +2645,11 @@ components:
         category_display:
           type: string
           readOnly: true
+        category_is_core:
+          type: boolean
+          readOnly: true
+          description: Whether the category is one of the six core grading areas every
+            rank shares, rather than rank-specific content.
         position:
           type: integer
           readOnly: true
@@ -2659,9 +2665,9 @@ components:
         notation:
           type: string
           readOnly: true
-          description: The chart notation in requirement_notes as display wording
-            - 'Part 1 of 2', '1-3' - the same wording the syllabus serves; empty when
-            the notes are not chart notation.
+          description: The syllabus's display wording for this item's chart notation
+            - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated;
+            empty when there is none.
         result:
           $ref: '#/components/schemas/ResultEnum'
         result_display:
@@ -2683,6 +2689,7 @@ components:
       - assessor_email
       - category
       - category_display
+      - category_is_core
       - display_range
       - id
       - item_name
@@ -2871,6 +2878,11 @@ components:
         category_display:
           type: string
           readOnly: true
+        category_is_core:
+          type: boolean
+          readOnly: true
+          description: Whether the category is one of the six core grading areas every
+            rank shares, rather than rank-specific content.
         required:
           type: boolean
           readOnly: true
@@ -2901,6 +2913,7 @@ components:
       required:
       - category
       - category_display
+      - category_is_core
       - display_range
       - effective_since_rank_code
       - effective_since_rank_name
@@ -4255,6 +4268,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/AgeBandEnum'
           readOnly: true
+          description: |-
+            On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
+
+            * `AGE_8_AND_UNDER` - 8 and under
+            * `AGE_9_TO_12` - 9-12
+            * `AGE_13_TO_17` - 13-17
+            * `AGE_18_AND_OVER` - 18+
         age_band_display:
           type: string
           readOnly: true

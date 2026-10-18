@@ -166,6 +166,7 @@ def _snapshot_item(
         start_number=requirement.start_number,
         end_number=requirement.end_number,
         requirement_notes=requirement.notes,
+        notation=effective.notation,
     )
 
 

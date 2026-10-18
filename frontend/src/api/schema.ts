@@ -1305,11 +1305,13 @@ export interface components {
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
+            /** @description Whether the category is one of the six core grading areas every rank shares, rather than rank-specific content. */
+            readonly category_is_core: boolean;
             readonly position: number;
             readonly required: boolean;
             readonly display_range: string;
             readonly requirement_notes: string;
-            /** @description The chart notation in requirement_notes as display wording - 'Part 1 of 2', '1-3' - the same wording the syllabus serves; empty when the notes are not chart notation. */
+            /** @description The syllabus's display wording for this item's chart notation - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated; empty when there is none. */
             readonly notation: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
@@ -1401,6 +1403,8 @@ export interface components {
             readonly item_korean_name: string;
             readonly category: string;
             readonly category_display: string;
+            /** @description Whether the category is one of the six core grading areas every rank shares, rather than rank-specific content. */
+            readonly category_is_core: boolean;
             readonly required: boolean;
             readonly display_range: string;
             readonly notation: string;
@@ -2064,6 +2068,14 @@ export interface components {
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            /**
+             * @description On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
+             *
+             *     * `AGE_8_AND_UNDER` - 8 and under
+             *     * `AGE_9_TO_12` - 9-12
+             *     * `AGE_13_TO_17` - 13-17
+             *     * `AGE_18_AND_OVER` - 18+
+             */
             readonly age_band: components["schemas"]["AgeBandEnum"];
             readonly age_band_display: string;
         };
@@ -3462,7 +3474,7 @@ export interface operations {
     students_list: {
         parameters: {
             query?: {
-                /** @description The age band the student is in today. */
+                /** @description The student's age band - on the session's grading date when eligible_for_session is given, as registration works it out, otherwise today. */
                 age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 current_rank?: number;
                 current_rank_code?: string;

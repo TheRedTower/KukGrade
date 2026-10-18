@@ -18,6 +18,53 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-18 - Owner answers on the audit's open decisions
+
+Status: Accepted
+
+Decision:
+- **A form taught in parts names every part taught so far (F-09).** The
+  cumulative syllabus combines part notation across ranks:
+  8-and-under Cho Geup Hyung (part 1 at Blue, 2 at Red stripe, 3 at Red)
+  reads "Parts 1-2" at Red stripe and "Parts 1-3" from Red, where it read
+  only the latest part. A latest mapping without part notation - the whole
+  form, or a range - stands as before
+  (`syllabus.services.cumulative_notation`). Assessment items now store this
+  wording as `notation` when generated (`gradings/0013`), so a past record
+  keeps it; existing items were given the wording they already showed.
+- **An assessment stays deletable after lock, by administrators only (D2).**
+  Kept for emergencies. Deleting needs the administrator-only cleanup
+  permission; the three Master permissions do not grant it, and Django
+  admin offers no delete. Tested.
+- **The cohort builder bands students by age on the grading date (F-33).**
+  With `eligible_for_session`, the student list's `age_band` and its
+  `age_band` filter are worked out on that session's grading date, as
+  registration does; otherwise today. Banding moved into the query
+  (`gradings.age.with_age_band_on`).
+- **Which categories are core areas is served (F-31).** Syllabus rows and
+  assessment items carry `category_is_core` from
+  `syllabus.models.CORE_CATEGORIES`; the frontend's own list is gone.
+- **Grading services lock the students they rely on explicitly (D1).**
+  `lock_in_session` locked a candidate, assessment or outcome with a query
+  that inherited the model's ordering, which joined the session and
+  student, so `FOR UPDATE` also locked the student - in row order, not
+  ascending, and unstated. The row lock is now bare (`OF self`, no
+  ordering). Of its callers, only `apply_candidate_update` relied on the
+  student: moving a candidate, changing their testing rank and reinstating
+  them now lock and re-read the student after the sessions. Promotion and
+  assessment deletion already locked it explicitly.
+
+Context:
+The owner answered the open list on 2026-10-18. F-04, F-30, F-29 and F-19
+stay open, below. Investigating D1 showed the reinstatement race fixed
+earlier that day was covered by the incidental lock, not only the explicit
+one.
+
+Consequences:
+API additions: `category_is_core` on syllabus rows and assessment items; the
+item's `notation` is now stored. The student list's `age_band` depends on
+`eligible_for_session`. A race test pins the move/student-edit ordering.
+
 ### 2026-10-18 - Screens and contract follow the server's rules (F-25, F-26, F-16, F-33)
 
 Status: Accepted
@@ -2657,53 +2704,21 @@ recorded above. See
 `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
 for the nine proposed directions.
 
-Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`), for the owner.
-Each says what happens today and what is recommended.
+Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`). The owner's
+answers to the rest are under "2026-10-18 - Owner answers on the audit's open
+decisions" above.
 
-1. **Part-taught forms in the cumulative syllabus (F-09).** For 8 and under,
-   Cho Geup Hyung is taught in parts (part 1 at Blue, 2 at Red stripe, 3 at
-   Red). From Red to JKN the cumulative row shows only the latest mapping,
-   "Part 3". Should it read "Parts 1-3" (or the whole form), since every
-   part is examinable? Recommended: name every part examinable so far.
-2. **Can an assessment be deleted once its session is locked (D2)?** Today
-   an administrator can. Deleting it puts the candidate back to registered,
-   and the only way forward after lock is an authorised withdrawal.
-   Recommended: refuse the delete after lock and correct through the
-   override path, so a locked record cannot lose its evidence.
-3. **Self set-password (F-04).** An administrator can set their own password
-   from the Users screen without entering the current one. Recommended:
-   refuse `set-password` on your own account and send the user to
-   change-password, which asks for the current one. This affects how a
-   forgotten admin password is recovered: another administrator, or
-   `manage.py changepassword`.
-4. **WKSA ID case (F-30).** Only the Add student screen upper-cases the ID.
-   The API and roster import store it as typed, so the same ID can exist in
-   two cases. Recommended: normalise in the backend and make uniqueness
-   ignore case. This needs a migration and a check that no existing IDs
-   differ only by case.
-5. **Age band in the cohort builder (F-33, second part).** The builder
-   filters and labels students by their age today. Registration uses their
-   age on the grading date. Near a birthday the two disagree. Recommended:
-   serve the age band on the grading date with the eligible list.
-6. **Core category order in React (F-31).** `syllabusCategories.ts` lists
-   the core category codes and their order. It is presentation, but a new
-   category added in data would be misplaced. Recommended: serve the order
-   with the categories.
-7. **The Students list's "Next action" column (F-29).** It suggests actions
-   that no data backs, for example "Follow up required" for Inactive, which
-   blocks nothing. Remove it, or say what it should be based on.
-8. **Roster import size (F-19).** A 5,000-row commit (the limit) takes about
-   a minute in one request, close to a proxy's 100 s timeout. Lower
-   `MAX_ROWS` to what the club needs, or document the duration.
-9. **Explicit student locks in `lock_in_session` callers (D1).** A service
-   that inserts or re-points a row referencing a student also takes PostgreSQL's key-share
-   lock on that student as a side effect, outside the ascending order. The
-   reinstatement race turned out to be covered only by that side effect; it
-   now locks the student explicitly. Recommended: review every caller and
-   lock its students explicitly wherever it relies on them.
-10. **Housekeeping.** `frontend/src/assets/kukgrade-logo.jpg` (106 kB) is
-    imported by nothing. FDR-048 keeps it as the source artwork the SVG was
-    traced from: move it out of `src/`, or keep it. The 5,950 orphaned files
-    in `backend/var/import_uploads/` are from old test runs, git ignores
-    them, and they are local only (F-11): delete them, or let
-    `manage.py expire_stale_import_batches` sweep them.
+1. **Self set-password (F-04)** - deferred for a separate discussion. An
+   administrator can set their own password from the Users screen without
+   entering the current one.
+2. **WKSA ID case and uniqueness (F-30)** - deferred; part of a planned
+   overhaul. Only the Add student screen upper-cases the ID; the API and
+   roster import store it as typed.
+3. **The Students list's "Next action" column (F-29)** - to be discussed. It
+   shows guidance no data backs ("Follow up required" for Inactive, which
+   blocks nothing).
+4. **Roster import (F-19)** - deferred to the planned import overhaul. A
+   5,000-row commit takes about a minute in one request.
+5. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by
+   nothing (FDR-048 keeps it as the source artwork); 5,950 orphaned local
+   files in `backend/var/import_uploads/` (F-11).

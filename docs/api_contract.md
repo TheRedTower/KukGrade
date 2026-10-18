@@ -162,7 +162,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `search` |
+| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `search`. Each row's `age_band`, and the `age_band` filter, are on that session's grading date when `eligible_for_session` is given - as registration works it out - and today otherwise. |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -243,8 +243,10 @@ supplies the effective range/notes; the lowest-order mapping supplies where
 it was first introduced - see
 `syllabus.services.effective_syllabus_requirements`. Paginated like every
 other list endpoint. Besides the item, `category`, `category_display`, range
-and notes it carries `notation` (chart notation such as
-`Chart notation: (1/2).` normalised to `Part 1 of 2`),
+and notes it carries `category_is_core` (one of the six core grading areas),
+`notation` (chart notation such as `Chart notation: (1/2).` normalised to
+`Part 1 of 2`; a form taught in parts across ranks names every part taught
+so far, so 8-and-under Cho Geup Hyung reads `Parts 1-3` from Red),
 `introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
 `effective_since_rank_name`, and `is_new_at_rank` (true when the effective
 row's rank is the selected rank itself). An empty page means no syllabus is
@@ -518,9 +520,10 @@ syllabus is refused with a `candidate` error naming the rank and age band.
 | DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |
 
 Each item carries its snapshot's `display_range` and raw `requirement_notes`,
-and `notation`: the chart notation in those notes as the same display
-wording the syllabus endpoint serves (`Chart notation: (1/2).` becomes
-`Part 1 of 2`), empty when the notes are not chart notation.
+`category_is_core`, and `notation`: the syllabus endpoint's display wording
+for the row (`Part 1 of 2`, `Parts 1-3`), copied when the assessment was
+generated so a later syllabus edit never changes it; empty when there is no
+chart notation.
 
 Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
 Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and

@@ -13,6 +13,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import AUTHORITY_PERMISSIONS
+from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
     delete_candidate_assessment,
@@ -386,6 +388,32 @@ def test_assessment_snapshot_survives_live_syllabus_edits() -> None:
     assert snapshot.start_number == original_start
     assert snapshot.end_number == original_end
     assert snapshot.requirement_notes != "Changed live notes"
+
+
+def test_snapshot_keeps_the_cumulative_parts_of_a_form_taught_in_parts() -> None:
+    # 8-and-under Cho Geup Hyung: part 1 at Blue, 2 at Red stripe, 3 at Red.
+    # A Red grading assesses all three, and the record keeps that wording
+    # whatever later happens to the syllabus (audit F-09).
+    built = candidate(
+        student=student(
+            date_of_birth=BORN_IN_BAND[AgeBand.AGE_8_AND_UNDER],
+            current_rank=rank("RED_STRIPE"),
+        ),
+        testing_for_rank=rank("RED"),
+    )
+    generated = assessment(candidate=built)
+
+    snapshot = generated.items.get(item_code="CHO_GEUP_HYUNG")
+    assert snapshot.notation == "Parts 1-3"
+    assert snapshot.requirement_notes == "Chart notation: (pt.3)."
+
+    source = snapshot.source_requirement
+    assert source is not None
+    source.notes = "Chart notation: (pt.4)."
+    source.save()
+
+    snapshot.refresh_from_db()
+    assert snapshot.notation == "Parts 1-3"
 
 
 def test_deleting_source_requirement_and_item_preserves_snapshot_display_data() -> None:
@@ -1080,6 +1108,34 @@ def test_assessment_delete_requires_the_cleanup_permission() -> None:
     assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
 
 
+def test_only_an_administrator_can_delete_an_assessment_after_lock() -> None:
+    # Kept for emergencies (2026-10-18 owner decision), and only for
+    # administrators: Master authority over the session is not enough.
+    _, generated = locked_completed_candidate()
+    master_instructor = user("locked-delete-master@example.com")
+    for permission in AUTHORITY_PERMISSIONS.values():
+        grant_permission(master_instructor, permission)
+    instructor_client = APIClient()
+    instructor_client.force_authenticate(user=master_instructor)
+
+    refused = instructor_client.delete(f"/api/gradings/assessments/{generated.id}/")
+
+    assert refused.status_code == 403
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+
+    admin = User.objects.create_user(
+        email="locked-delete-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    admin_client = APIClient()
+    admin_client.force_authenticate(user=admin)
+
+    allowed = admin_client.delete(f"/api/gradings/assessments/{generated.id}/")
+
+    assert allowed.status_code == 204
+    assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
+
+
 def test_administrator_can_delete_a_not_started_assessment() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     generated = assessment(candidate=built)
@@ -1334,6 +1390,9 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
         "FALLING",
         "BREAKING",
     ]
+    # The six core areas are flagged as such; rank content is not (F-31).
+    assert all(row["category_is_core"] for row in rows[:6])
+    assert not any(row["category_is_core"] for row in rows[6:])
     assert [row["item_name"] for row in rows if row["category"] == "WEAPONS"] == [
         "Sword Techs",
         "Bohng Dol-li-ki",

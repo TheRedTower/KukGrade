@@ -527,6 +527,39 @@ def test_reinstating_and_registering_elsewhere_cannot_both_hold_the_student() ->
     )
 
 
+def test_moving_a_candidate_waits_for_an_edit_to_its_student() -> None:
+    """A move checks the testing rank against the student, so it locks them.
+
+    The candidate was read with its student joined before any student lock;
+    checked against that copy, a move went through on a rank an
+    administrator had just corrected (audit D1).
+    """
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    moving = candidate(session=source)
+    editor = user("race-rank-editor@example.com")
+    mover = user("race-rank-mover@example.com")
+    stale_student = Student.objects.get(pk=moving.student_id)
+    stale_moving = GradingCandidate.objects.get(pk=moving.pk)
+    stale_target = GradingSession.objects.get(pk=target.pk)
+
+    edited, moved = interleave(
+        lambda: update_student(
+            stale_student,
+            current_rank=rank("YELLOW_STRIPE"),
+            actor=editor,
+        ),
+        lambda: apply_candidate_update(stale_moving, session=stale_target, actor=mover),
+        pause_first_at="students.services.record",
+    )
+
+    assert isinstance(edited, Student)
+    # Now Yellow stripe, the student tests for Yellow, not Yellow stripe.
+    refused(moved, "next active rank")
+    moving.refresh_from_db()
+    assert moving.session_id == source.pk
+
+
 def test_candidate_move_and_session_lock_cannot_interleave() -> None:
     """KG-A03: moving a candidate into a session must see that session lock."""
     source = grading_session(status=GradingSession.Status.OPEN, title="Source")

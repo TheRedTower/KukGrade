@@ -310,6 +310,7 @@ class CandidateAssessmentItemAdmin(admin.ModelAdmin):
         "start_number",
         "end_number",
         "requirement_notes",
+        "notation",
         "assessor",
         "assessed_at",
         "created_at",

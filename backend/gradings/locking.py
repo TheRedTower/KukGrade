@@ -127,7 +127,20 @@ def lock_in_session[M: models.Model](
         wanted = {found, *also_lock}
         if len(lock_sessions(wanted)) != len(wanted):
             raise ValidationError({"session": [SESSION_GONE_MESSAGE]})
-        locked = manager.select_for_update().filter(pk=pk).values_list("pk").first()
+        # Without the cleared ordering, a model whose Meta.ordering runs
+        # through its session and student - a candidate, assessment or
+        # outcome - joined both, and FOR UPDATE locked every joined row: the
+        # student was locked as a side effect, in row order rather than
+        # ascending, and callers came to rely on it without saying so (audit
+        # D1). OF self keeps it to this row whatever the query becomes; a
+        # caller that needs the student locks it explicitly.
+        locked = (
+            manager.select_for_update(of=("self",))
+            .filter(pk=pk)
+            .order_by()
+            .values_list("pk")
+            .first()
+        )
         row = queryset.filter(pk=pk).first() if locked is not None else None
         if row is not None:
             if _session_id_on(row, session_path) == found:

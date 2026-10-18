@@ -1104,16 +1104,26 @@ def apply_candidate_update(
         name="candidate",
         also_lock=[session.pk] if session is not None else [],
     )
-    if (
+    moving = session is not None and session.pk != locked.session_id
+    rechoosing_rank = (
+        testing_for_rank is not None
+        and testing_for_rank.pk != locked.testing_for_rank_id
+    )
+    reinstating = (
         status is not None
         and status != GradingCandidate.Status.WITHDRAWN
         and locked.status == GradingCandidate.Status.WITHDRAWN
-    ):
-        # Reinstating registers the student again, and the one-grading rule
-        # reads their registrations in other sessions, which this session's
-        # lock does not cover. The student is the row those share, so it is
-        # locked after the sessions, as registration locks it.
-        lock_student(locked.student_id)
+    )
+    if moving or rechoosing_rank or reinstating:
+        # Each of these is checked against the student - their current rank,
+        # their age on the new grading date, and (reinstating) their
+        # registrations in other sessions, which this session's lock does not
+        # cover. So the student is locked after the sessions, as registration
+        # locks it, and re-read: the copy joined above was read before any
+        # student lock and may already be out of date. Relying instead on the
+        # key-share lock a write happens to take was how the reinstatement
+        # race was first found covered by accident (audit D1, 2026-10-18).
+        locked.student = lock_student(locked.student_id)
     before = _candidate_snapshot(locked)
     updated = update_candidate(
         locked,

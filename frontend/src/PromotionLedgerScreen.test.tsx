@@ -476,7 +476,9 @@ describe("PromotionLedgerScreen", () => {
 
     // Row 106 (Fiona Gallagher): Proposed Pass (Pending finalisation)
     const row106 = screen.getByTestId("promotion-row-106");
-    expect(row106).toHaveTextContent("Proposed: PASS");
+    // The served display, never the raw enum.
+    expect(row106).toHaveTextContent("Proposed: Pass");
+    expect(row106).not.toHaveTextContent("PASS");
     expect(row106).toHaveTextContent("Outcome pending finalisation");
     expect(screen.queryByTestId("promote-candidate-btn-106")).not.toBeInTheDocument();
   });
@@ -697,8 +699,9 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" })).toBeInTheDocument();
     expect(screen.getByText("Blue Stripe", { selector: ".pl-chip-target" })).toBeInTheDocument();
 
-    // Metadata in right section
+    // Metadata in right section: the session's grading date, labelled as such.
     expect(screen.getByText("15 Oct 2026", { selector: ".pl-meta-val" })).toBeInTheDocument();
+    expect(screen.getByText("Grading date", { selector: ".pl-meta-label" })).toBeInTheDocument();
     expect(screen.getByText("In Hyuk Kim", { selector: ".pl-meta-val" })).toBeInTheDocument();
 
     // Confirm batch promotion
@@ -818,11 +821,10 @@ describe("PromotionLedgerScreen", () => {
     });
     await user.click(confirmBatchBtn);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText("Promoted 1 candidates, but 1 encountered errors."),
-      ).toBeInTheDocument();
-    });
+    // Row 1 of the request is outcome 102: the candidate is named, with why.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Promoted 1 of 2. Not promoted - Beth Harmon: Outcome 102 cannot be promoted at this time",
+    );
   });
 
   it("shows informational notice when all candidates are already promoted", async () => {

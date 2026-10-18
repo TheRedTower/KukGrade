@@ -1309,6 +1309,8 @@ export interface components {
             readonly required: boolean;
             readonly display_range: string;
             readonly requirement_notes: string;
+            /** @description The chart notation in requirement_notes as display wording - 'Part 1 of 2', '1-3' - the same wording the syllabus serves; empty when the notes are not chart notation. */
+            readonly notation: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
             /** Format: email */

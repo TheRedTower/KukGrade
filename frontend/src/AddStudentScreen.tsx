@@ -42,8 +42,8 @@ export function AddStudentScreen() {
   const effectiveRankId = useMemo(() => {
     if (currentRank !== null) return currentRank;
     if (ranks.length > 0) {
-      // Find White belt (order 1 or code W) or default to first
-      const defaultRank = ranks.find((r) => r.code === "W" || r.order === 1) || ranks[0];
+      // White belt is the first rank in order; otherwise the first listed
+      const defaultRank = ranks.find((r) => r.order === 1) || ranks[0];
       return defaultRank.id;
     }
     return null;

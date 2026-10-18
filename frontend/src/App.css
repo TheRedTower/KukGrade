@@ -1429,18 +1429,6 @@ h2 {
   font-weight: 500;
 }
 
-@keyframes opdFadeIn {
-  from { opacity: 0; }
-
-  to { opacity: 1; }
-}
-
-@keyframes opdSlideIn {
-  from { transform: translateX(100%); }
-
-  to { transform: translateX(0); }
-}
-
 @keyframes sylSpin {
   to {
     transform: rotate(360deg);

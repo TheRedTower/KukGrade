@@ -216,9 +216,15 @@ function PasswordResetDialog({
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [clientError, setClientError] = useState("");
+  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => resetManagedUserPassword(user.id, password),
     onSuccess: () => {
+      // The reset sets must_change_password on the server; refetch so
+      // "Next sign-in" and the activity list show it rather than the old state.
+      void queryClient.invalidateQueries({ queryKey: ["managedUser", user.id] });
+      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
       onSaved("Temporary password set. The user must change it at next sign-in.");
       onClose();
     },

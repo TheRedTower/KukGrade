@@ -585,11 +585,42 @@ describe("Login theme toggle", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Sign in" });
-    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    // The shim's system preference is light; the resolved theme is still
+    // written, so component overrides keyed on data-theme apply.
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+  });
+
+  // Component overrides are written as [data-theme="dark"] .x; with a dark
+  // OS and no stored choice they used to be skipped, because System left the
+  // attribute unset.
+  it("writes a dark system preference to the page and follows it as it changes", async () => {
+    window.localStorage.removeItem("kukgrade-theme");
+    let listener: ((event: MediaQueryListEvent) => void) | null = null;
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: true,
+          media: query,
+          addEventListener: (_: string, handler: (event: MediaQueryListEvent) => void) => {
+            listener = handler;
+          },
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+
+    act(() => listener?.({ matches: false } as MediaQueryListEvent));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    matchMedia.mockRestore();
   });
 
   it("pins an explicit choice to the page and remembers it for next time", async () => {
@@ -640,21 +671,42 @@ describe("Mandatory password change", () => {
     expect(screen.queryByRole("heading", { name: "Overview" })).not.toBeInTheDocument();
   });
 
-  it("validates client-side constraints before submitting", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(200, forcedUser)));
+  it("shows the server's password rules and checks only the confirmation itself", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/change-password/")) {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Invalid input",
+            fields: {
+              new_password: [
+                "This password is too short. It must contain at least 8 characters.",
+              ],
+            },
+          },
+        });
+      }
+      return jsonResponse(200, forcedUser);
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Choose a new password" });
 
-    // Submit with short password
+    // A short password is the server's to refuse; its message is shown as is.
     await user.type(screen.getByLabelText(/Temporary or current password/i), "temp123!");
     await user.type(screen.getByLabelText(/^New password/i), "short");
     await user.type(screen.getByLabelText(/^Confirm new password/i), "short");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
 
-    expect(await screen.findByText("Password must be at least 8 characters.")).toBeVisible();
+    expect(
+      await screen.findByText("This password is too short. It must contain at least 8 characters."),
+    ).toBeVisible();
+    const changeRequests = () =>
+      fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/auth/change-password/"));
+    expect(changeRequests()).toHaveLength(1);
 
     // Submit with mismatched passwords
     await user.clear(screen.getByLabelText(/^New password/i));
@@ -664,6 +716,7 @@ describe("Mandatory password change", () => {
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
 
     expect(await screen.findByText("New passwords do not match.")).toBeVisible();
+    expect(changeRequests()).toHaveLength(1);
   });
 
   it("submits change password, refetches user, and unlocks navigation on success", async () => {
@@ -760,5 +813,27 @@ describe("Mandatory password change", () => {
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
+  });
+
+  it("says so when signing out from the mandatory password change view fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/logout/")) throw new TypeError("Failed to fetch");
+        return jsonResponse(200, forcedUser);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Choose a new password" });
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(
+      await screen.findByText("Could not sign out. Check your connection and retry."),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
   });
 });

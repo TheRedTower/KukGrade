@@ -169,6 +169,7 @@ function item(id: number, overrides: Partial<CandidateAssessmentItem>): Candidat
     required: true,
     display_range: "",
     requirement_notes: "",
+    notation: "",
     result: "MET",
     result_display: "Met",
     assessor_email: "reed@example.com",

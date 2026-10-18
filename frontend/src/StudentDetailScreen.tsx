@@ -358,7 +358,7 @@ export function StudentDetailScreen() {
               </div>
 
               <div className="detail-kv-row">
-                <dt className="detail-kv-label">Joined</dt>
+                <dt className="detail-kv-label">Added to KukGrade</dt>
                 <dd className="detail-kv-value">{formatLongDate(student.created_at)}</dd>
               </div>
             </dl>
@@ -486,24 +486,24 @@ export function StudentDetailScreen() {
                 {student.status === "ACTIVE" ? (
                   <span className="readiness-badge readiness-eligible">
                     <CheckIcon size={14} />
-                    <span>Eligible for registration</span>
+                    <span>Can be registered</span>
                   </span>
                 ) : student.status === "INACTIVE" ? (
                   <span className="readiness-badge readiness-inactive">
-                    <span>Inactive (Temporary break)</span>
+                    <span>Inactive (temporary break)</span>
                   </span>
                 ) : (
                   <span className="readiness-badge readiness-left">
-                    <span>Departed (Registration blocked)</span>
+                    <span>Left (registration blocked)</span>
                   </span>
                 )}
               </div>
 
               <p className="readiness-guidance">
                 {student.status === "ACTIVE"
-                  ? "This student meets the standard requirements and can be added to the next grading session cohort."
+                  ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
                   : student.status === "INACTIVE"
-                  ? "Student is currently on a temporary break. Transition back to Active when regular training resumes."
+                  ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
                   : "Student has left. Left status blocks grading registration while preserving complete historical records."}
               </p>
             </div>

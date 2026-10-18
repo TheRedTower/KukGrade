@@ -223,6 +223,11 @@ describe("Students registry screen (/students)", () => {
 
     // Filter empty state renders
     expect(await screen.findByText("No matching students found")).toBeVisible();
+    // One request for the typed name, not one per keystroke.
+    const searched = fetchMock.mock.calls
+      .map(([url]) => new URL(String(url), "http://localhost").searchParams.get("search"))
+      .filter((value): value is string => value !== null);
+    expect(searched).toEqual(["Nonexistent"]);
     expect(screen.getByText("No records match your active search and filter criteria.")).toBeVisible();
 
     // Click "Clear all filters"
@@ -582,11 +587,16 @@ describe("Student detail screen (/students/:id)", () => {
       year: "numeric",
     }).format(new Date("2021-01-08T10:00:00Z"));
     expect(screen.getByText(createdDay)).toBeVisible();
+    // The record's creation date, never presented as when the student joined.
+    expect(screen.getByText("Added to KukGrade")).toBeVisible();
+    expect(screen.queryByText("Joined")).not.toBeInTheDocument();
 
-    // Grading readiness card
+    // Grading readiness card: states the status, and claims no requirement
+    // KukGrade does not check.
     expect(screen.getByRole("heading", { name: "Grading readiness" })).toBeVisible();
     expect(screen.getByText("Yellow Belt")).toBeVisible();
-    expect(screen.getByText("Eligible for registration")).toBeVisible();
+    expect(screen.getByText("Can be registered")).toBeVisible();
+    expect(screen.queryByText(/meets the standard requirements/)).not.toBeInTheDocument();
 
     // Record status card
     expect(screen.getByRole("heading", { name: "Record status" })).toBeVisible();

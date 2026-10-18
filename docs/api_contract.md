@@ -517,6 +517,11 @@ syllabus is refused with a `candidate` error naming the rank and age band.
 | POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |
 | DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |
 
+Each item carries its snapshot's `display_range` and raw `requirement_notes`,
+and `notation`: the chart notation in those notes as the same display
+wording the syllabus endpoint serves (`Chart notation: (1/2).` becomes
+`Part 1 of 2`), empty when the notes are not chart notation.
+
 Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
 Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
 `IN_PROGRESS -> COMPLETED`; direct `NOT_STARTED -> COMPLETED` is rejected.

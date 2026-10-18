@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -12,6 +12,7 @@ import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 function ClearIcon() {
   return (
@@ -113,12 +114,16 @@ export function StudentsScreen() {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
   }, [ranksQuery.data]);
 
-  // 2. Fetch paginated students with active filters
+  // 2. Fetch paginated students with active filters. The search waits for a
+  // pause in typing, and the last page stays on screen while the next loads,
+  // so a name is one request rather than one per keystroke.
+  const debouncedSearch = useDebouncedValue(search.trim());
   const studentsQuery = useQuery({
-    queryKey: ["students", "list", search, statusFilter, rankFilter, page],
+    queryKey: ["students", "list", debouncedSearch, statusFilter, rankFilter, page],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       getStudents({
-        search: search.trim() || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== "ALL" ? statusFilter : undefined,
         current_rank_code: rankFilter !== "ALL" ? rankFilter : undefined,
         page,

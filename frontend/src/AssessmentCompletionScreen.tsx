@@ -568,10 +568,11 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
 /**
  * One rank-specific ledger, headed by the category's own served display name.
  * `display_range` is the syllabus numbering the paper chart carries, which the
- * old review screen never showed.
+ * old review screen never showed; `notation` is a form's part ("Part 1 of 2"),
+ * shown in the same column as the scoring and syllabus screens show it.
  */
 function LedgerTable({ group }: { group: CategoryGroup }) {
-  const hasAnyRange = group.items.some((item) => item.display_range);
+  const hasAnyRange = group.items.some((item) => item.display_range || item.notation);
 
   return (
     <>
@@ -592,7 +593,9 @@ function LedgerTable({ group }: { group: CategoryGroup }) {
                 {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
                 {!item.required && <span className="caw-optional-badge">Optional</span>}
               </td>
-              {hasAnyRange && <td className="acp-ledger-range">{item.display_range}</td>}
+              {hasAnyRange && (
+                <td className="acp-ledger-range">{item.display_range || item.notation}</td>
+              )}
               <td>
                 <ResultMark result={item.result} />
               </td>

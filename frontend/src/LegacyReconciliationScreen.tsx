@@ -99,6 +99,12 @@ export function LegacyReconciliationScreen() {
   });
   const ranksQuery = useRanksQuery();
   const ranks = ranksQuery.data?.results ?? [];
+  // A resolved rank shows by name, as the resolve selects do; the code only
+  // if the rank list has not loaded, and the source text while unresolved.
+  function rankLabel(id: number | null, code: string | null, sourceText: string): string {
+    if (id === null) return sourceText;
+    return ranks.find((rank) => rank.id === id)?.name ?? code ?? sourceText;
+  }
 
   const records = recordsQuery.data?.results ?? [];
   const totalCount = recordsQuery.data?.count ?? 0;
@@ -249,6 +255,17 @@ export function LegacyReconciliationScreen() {
         <div className="loading-state" role="status">
           Loading historical records…
         </div>
+      ) : recordsQuery.isError ? (
+        <div className="form-alert-banner" role="alert">
+          <p>
+            {recordsQuery.error instanceof ApiError && recordsQuery.error.message
+              ? recordsQuery.error.message
+              : "Historical records could not be loaded."}
+          </p>
+          <button type="button" className="btn-secondary" onClick={() => void recordsQuery.refetch()}>
+            Try again
+          </button>
+        </div>
       ) : records.length === 0 ? (
         <div className="detail-empty-box">
           <p className="detail-empty-title">No historical records match these filters</p>
@@ -274,8 +291,20 @@ export function LegacyReconciliationScreen() {
                   <tr className="student-table-row">
                     <td>{cycleLabel(record)}</td>
                     <td>{record.source_name}</td>
-                    <td>{record.current_rank_code ?? record.source_current_rank_text}</td>
-                    <td>{record.testing_for_rank_code ?? record.source_testing_for_rank_text}</td>
+                    <td>
+                      {rankLabel(
+                        record.current_rank,
+                        record.current_rank_code,
+                        record.source_current_rank_text,
+                      )}
+                    </td>
+                    <td>
+                      {rankLabel(
+                        record.testing_for_rank,
+                        record.testing_for_rank_code,
+                        record.source_testing_for_rank_text,
+                      )}
+                    </td>
                     <td>
                       {record.record_kind === "AUXILIARY_NOTE"
                         ? "—"
@@ -287,7 +316,11 @@ export function LegacyReconciliationScreen() {
                       <button
                         type="button"
                         className="btn-secondary"
-                        onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
+                        onClick={() => {
+                          // A reason typed for one record never carries to another.
+                          setVoidReason("");
+                          setExpandedId(expandedId === record.id ? null : record.id);
+                        }}
                       >
                         {expandedId === record.id ? "Close" : "Manage"}
                       </button>

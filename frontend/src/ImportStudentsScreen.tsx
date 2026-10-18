@@ -72,6 +72,11 @@ export function ImportStudentsScreen() {
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<StudentImportPreview | null>(null);
   const [corrections, setCorrections] = useState<Record<string, StudentImportRowCorrection>>({});
+  // The corrections the shown preview was checked with. The commit button's
+  // count comes from that preview, so an edit since leaves it describing
+  // something else: committing waits for a re-check.
+  const [checkedCorrections, setCheckedCorrections] = useState(corrections);
+  const correctionsUnchecked = checkedCorrections !== corrections;
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [commitResult, setCommitResult] = useState<DataImportBatch | null>(null);
 
@@ -93,6 +98,7 @@ export function ImportStudentsScreen() {
     setColumnMapping({});
     setPreview(null);
     setCorrections({});
+    setCheckedCorrections({});
     setExpandedRow(null);
     setCommitResult(null);
     setError(null);
@@ -118,12 +124,14 @@ export function ImportStudentsScreen() {
     if (!batch) return;
     setError(null);
     setIsChecking(true);
+    const sent = corrections;
     try {
       const result = await previewStudentImport(batch.id, {
         column_mapping: columnMapping,
-        corrections,
+        corrections: sent,
       });
       setPreview(result);
+      setCheckedCorrections(sent);
       setStep("preview");
     } catch (err) {
       setError(errorMessage(err, "Could not check that mapping. Every required field needs a column."));
@@ -136,12 +144,14 @@ export function ImportStudentsScreen() {
     if (!batch) return;
     setError(null);
     setIsChecking(true);
+    const sent = corrections;
     try {
       const result = await previewStudentImport(batch.id, {
         column_mapping: columnMapping,
-        corrections,
+        corrections: sent,
       });
       setPreview(result);
+      setCheckedCorrections(sent);
     } catch (err) {
       setError(errorMessage(err, "Could not re-check the file."));
     } finally {
@@ -150,7 +160,7 @@ export function ImportStudentsScreen() {
   }
 
   async function handleCommit() {
-    if (!batch) return;
+    if (!batch || correctionsUnchecked) return;
     setError(null);
     setIsCommitting(true);
     try {
@@ -422,8 +432,12 @@ export function ImportStudentsScreen() {
             isCancelling={isCancelling}
             isChecking={isChecking}
             isCommitting={isCommitting}
-            commitDisabled={preview.ready === 0}
-            commitLabel={`Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`}
+            commitDisabled={preview.ready === 0 || correctionsUnchecked}
+            commitLabel={
+              correctionsUnchecked
+                ? "Re-check corrections first"
+                : `Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`
+            }
             onCancel={() => void handleCancel()}
             onRecheck={() => void handleRecheck()}
             onCommit={() => void handleCommit()}

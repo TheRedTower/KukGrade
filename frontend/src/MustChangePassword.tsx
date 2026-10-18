@@ -35,13 +35,8 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
       return;
     }
 
-    if (newPassword.length < 8) {
-      setFieldErrors({
-        new_password: ["Password must be at least 8 characters."],
-      });
-      return;
-    }
-
+    // The password rules are the server's validators; their messages come
+    // back as new_password field errors rather than being restated here.
     setIsSubmitting(true);
     try {
       await changePassword(currentPassword, newPassword);
@@ -61,6 +56,20 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
       } else {
         setError("Could not update password. Check your connection and try again.");
       }
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await logout();
+    } catch {
+      // The session may still be live, so the page stays rather than
+      // showing a signed-out screen backed by a valid cookie.
+      setError("Could not sign out. Check your connection and retry.");
     } finally {
       setIsSubmitting(false);
     }
@@ -190,7 +199,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
             <button
               className="secondary-button"
               disabled={isSubmitting}
-              onClick={() => void logout()}
+              onClick={() => void handleSignOut()}
               type="button"
             >
               Sign out
@@ -199,7 +208,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
         </form>
 
         <p className="security-guarantee-note">
-          Passwords are encrypted using PBKDF2 with SHA-256 and never logged.
+          KukGrade stores only a salted hash of your password, never the password itself.
         </p>
       </main>
     </div>

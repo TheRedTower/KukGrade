@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   type GradingSession,
@@ -15,6 +15,7 @@ import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { CheckIcon, LockIcon, SearchIcon } from "./Icons";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -234,10 +235,12 @@ export function GradingSessionsScreen() {
   const selectedYear = yearFilter !== "ALL" ? Number(yearFilter) : undefined;
   const gradingDateFrom = selectedYear ? `${selectedYear}-01-01` : undefined;
   const gradingDateTo = selectedYear ? `${selectedYear}-12-31` : undefined;
-  const serverSearch = searchText.trim() || undefined;
+  // Waits for a pause in typing; the last page stays while the next loads.
+  const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
 
   const sessionsQuery = useQuery({
     queryKey: ["gradingSessions", "page", page, serverStatus, selectedYear, serverSearch],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       getGradingSessions({
         page,
@@ -256,8 +259,6 @@ export function GradingSessionsScreen() {
   const totalCount = sessionsQuery.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  const filteredSessions = sessions;
-
   function handleStatusFilter(value: GradingSessionStatus | "ALL") { setStatusFilter(value); setPage(1); }
   function handleYearFilter(value: string) { setYearFilter(value); setPage(1); }
   function handleSearch(value: string) { setSearchText(value); setPage(1); }
@@ -265,7 +266,7 @@ export function GradingSessionsScreen() {
 
   const isFiltered = searchText.trim() !== "" || statusFilter !== "ALL" || yearFilter !== "ALL";
   const isLoading = currentSessionQuery.isLoading || sessionsQuery.isLoading;
-  const showingFrom = filteredSessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const showingFrom = sessions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(page * PAGE_SIZE, totalCount);
   const showCurrentCard = currentSession !== null && statusFilter === "ALL" && !searchText.trim() && yearFilter === "ALL";
 
@@ -356,7 +357,7 @@ export function GradingSessionsScreen() {
         <>
           <div className="gs-table-section">
             <h2 className="gs-table-heading">All grading sessions</h2>
-            {filteredSessions.length > 0 ? (
+            {sessions.length > 0 ? (
               <div className="gs-table-wrapper">
                 <table aria-label="Grading sessions" className="gs-table">
                   <thead>
@@ -371,7 +372,7 @@ export function GradingSessionsScreen() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSessions.map((session) => {
+                    {sessions.map((session) => {
                       return (
                         <SessionRow
                           assessmentsComplete={session.completed_assessment_count}
@@ -408,12 +409,12 @@ export function GradingSessionsScreen() {
           </div>
 
           {/* ── Pagination */}
-          {filteredSessions.length > 0 && (
+          {sessions.length > 0 && (
             <div className="gs-pagination-bar">
               <p className="gs-pagination-info">
                 {totalPages > 1
                   ? `Showing ${showingFrom}–${showingTo} of ${totalCount} sessions`
-                  : `Showing ${filteredSessions.length} of ${totalCount} sessions`}
+                  : `Showing ${sessions.length} of ${totalCount} sessions`}
               </p>
               {totalPages > 1 && (
                 <div aria-label="Grading sessions pagination" className="gs-pagination-controls" role="navigation">

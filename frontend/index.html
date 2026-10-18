@@ -6,22 +6,26 @@
     <title>KukGrade</title>
     <link rel="icon" type="image/svg+xml" href="/src/assets/kukgrade-mark.svg" />
     <script>
-      // Applied before first paint so an explicit stored theme choice never
-      // flashes the system default first - see src/useTheme.ts, which reads
-      // and writes the same "kukgrade-theme" key. No stored value (the
-      // common case) leaves data-theme unset and the page follows
-      // prefers-color-scheme purely through CSS, exactly as if this script
-      // did not run.
+      // Applied before first paint, so the page never flashes the other
+      // theme first. The resolved theme - the stored choice, else the
+      // system preference - is always set, because component overrides are
+      // written as [data-theme="dark"] .x; src/useTheme.ts keeps it current
+      // and reads and writes the same "kukgrade-theme" key.
       (function () {
+        var theme = null;
         try {
           var stored = window.localStorage.getItem("kukgrade-theme");
           if (stored === "light" || stored === "dark") {
-            document.documentElement.setAttribute("data-theme", stored);
+            theme = stored;
           }
         } catch (error) {
-          // Private browsing or a blocked store: fall back to the system
-          // default, same as if no preference had ever been stored.
+          // Private browsing or a blocked store: follow the system default,
+          // same as if no preference had ever been stored.
         }
+        if (theme === null) {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", theme);
       })();
     </script>
   </head>

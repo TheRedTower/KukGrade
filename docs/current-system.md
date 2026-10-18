@@ -555,10 +555,11 @@ checks on each push and pull request.
   area on those tokens, with `App.css` holding only the shell and shared
   primitives; a few literal colours remain (status tints). Belt colours are
   the `--belt-*` tokens, fixed across themes because they are physical belts. Dark
-  mode follows `prefers-color-scheme` by default; an
-  explicit Light/Dark/System choice sets
-  `[data-theme]` on `<html>` instead, applied before first paint by an inline
-  script in `index.html` so a stored choice does not flash the system default.
+  mode follows `prefers-color-scheme` by default. `<html data-theme>` always
+  holds the resolved theme - the stored Light/Dark choice, else the system
+  preference - set before first paint by an inline script in `index.html`
+  and kept current by `useTheme.ts`, so component overrides written as
+  `[data-theme="dark"] .x` apply under System on a dark OS too.
 - **Login matches the SCR-008 concept screen**: a permanent two-panel layout
   (ink brand panel, form panel) rather than a single centered card - the
   other auth states (loading, connection failure) keep the old centered

@@ -41,6 +41,7 @@ function item(overrides: Partial<CandidateAssessmentItem>): CandidateAssessmentI
     required: true,
     display_range: "",
     requirement_notes: "",
+    notation: "",
     result: "MET",
     result_display: "Met",
     assessor_email: "reed@example.com",

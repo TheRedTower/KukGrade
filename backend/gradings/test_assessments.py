@@ -1269,6 +1269,42 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert delete_response.status_code == 405
 
 
+def test_assessment_item_api_serves_chart_notation_as_display_wording() -> None:
+    # The scoring and completion screens show the same wording the syllabus
+    # does, from the snapshot - never the raw "Chart notation: (...)." seed.
+    built = candidate()
+    for code, notes in (
+        ("PART_NOTATION_ITEM", "Chart notation: (1/2)."),
+        ("PLAIN_NOTE_ITEM", "May be assessed if time allows."),
+    ):
+        SyllabusRequirement.objects.create(
+            rank=built.testing_for_rank,
+            item=SyllabusItem.objects.create(
+                code=code,
+                name=code.title(),
+                category=SyllabusItem.Category.OTHER,
+            ),
+            age_band=built.age_band,
+            sequence=999,
+            notes=notes,
+        )
+    generated = assessment(candidate=built)
+
+    response = auth_client("notation@example.com").get(
+        "/api/gradings/assessment-items/",
+        {"assessment": generated.id, "page_size": 200},
+    )
+
+    assert response.status_code == 200
+    by_name = {row["item_name"]: row for row in results(response)}
+    part = by_name["Part_Notation_Item"]
+    assert part["notation"] == "Part 1 of 2"
+    assert part["requirement_notes"] == "Chart notation: (1/2)."
+    plain = by_name["Plain_Note_Item"]
+    assert plain["notation"] == ""
+    assert plain["requirement_notes"] == "May be assessed if time allows."
+
+
 def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
     built = candidate(
         student=student(

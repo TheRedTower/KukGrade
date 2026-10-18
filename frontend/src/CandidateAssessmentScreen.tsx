@@ -683,10 +683,16 @@ function AssessmentItemRow({
           ) : (
             <span className="caw-optional-badge">Optional</span>
           )}
-          {item.display_range && <span className="caw-row-range">{item.display_range}</span>}
+          {(item.display_range || item.notation) && (
+            <span className="caw-row-range">{item.display_range || item.notation}</span>
+          )}
         </div>
 
-        {item.requirement_notes && <p className="caw-row-desc">{item.requirement_notes}</p>}
+        {/* Chart notation is served as wording and shown as the range above,
+            as the syllabus screen does; only other notes print here. */}
+        {!item.notation && item.requirement_notes && (
+          <p className="caw-row-desc">{item.requirement_notes}</p>
+        )}
 
         {/*
           Attribution renders on every scored row. The previous screen showed

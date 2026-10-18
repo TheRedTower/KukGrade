@@ -42,6 +42,7 @@ from gradings.services import (
 from ranks.models import Rank
 from students.models import Student
 from syllabus.models import SyllabusItem
+from syllabus.services import normalize_chart_notation
 
 
 class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
@@ -395,6 +396,13 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
     result_display = serializers.CharField(source="get_result_display", read_only=True)
     assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
     display_range = serializers.CharField(read_only=True)
+    notation = serializers.SerializerMethodField(
+        help_text=(
+            "The chart notation in requirement_notes as display wording - "
+            "'Part 1 of 2', '1-3' - the same wording the syllabus serves; "
+            "empty when the notes are not chart notation."
+        ),
+    )
 
     class Meta:
         model = CandidateAssessmentItem
@@ -408,6 +416,7 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "required",
             "display_range",
             "requirement_notes",
+            "notation",
             "result",
             "result_display",
             "assessor_email",
@@ -424,10 +433,14 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "required",
             "display_range",
             "requirement_notes",
+            "notation",
             "result_display",
             "assessor_email",
             "assessed_at",
         )
+
+    def get_notation(self, obj: CandidateAssessmentItem) -> str:
+        return normalize_chart_notation(obj.requirement_notes)
 
     def update(
         self,

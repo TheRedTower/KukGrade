@@ -17,12 +17,14 @@ import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import {
   AuditIcon,
   GradingsIcon,
+  MonitorIcon,
+  MoonIcon,
   OverviewIcon,
   StudentsIcon,
+  SunIcon,
   SyllabusIcon,
   UsersIcon,
-} from "./NavIcons";
-import { MonitorIcon, MoonIcon, SunIcon } from "./ThemeIcons";
+} from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";

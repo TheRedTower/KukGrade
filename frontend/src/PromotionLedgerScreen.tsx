@@ -158,17 +158,30 @@ export function PromotionLedgerScreen(): React.ReactElement {
     mutationFn: async (outcomes: number[]) => {
       return bulkPromoteCandidateOutcomes({ outcomes });
     },
-    onSuccess: (res) => {
+    onSuccess: (res, sentOutcomes) => {
       queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       setIsBatchTrayOpen(false);
 
-      const failed = Object.keys(res.errors).length;
-      if (failed > 0) {
+      const failures = Object.entries(res.errors);
+      if (failures.length > 0) {
+        // Errors are keyed by the row's index in the request; name each
+        // candidate and say why, so the admin knows whom to look at rather
+        // than only how many.
+        const nameFor = (index: string) => {
+          const outcomeId = sentOutcomes[Number(index)];
+          return (
+            rows.find((r) => r.outcome?.id === outcomeId)?.candidate.student_display_name ??
+            `Outcome #${outcomeId}`
+          );
+        };
+        const details = failures
+          .map(([index, reasons]) => `${nameFor(index)}: ${reasons.join(" ")}`)
+          .join("; ");
         setActionFeedback({
           type: "error",
-          message: `Promoted ${res.promoted.length} candidates, but ${failed} encountered errors.`,
+          message: `Promoted ${res.promoted.length} of ${res.promoted.length + failures.length}. Not promoted - ${details}`,
         });
       } else {
         setActionFeedback({
@@ -386,7 +399,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     outcomeLabel = "Fail (Finalised)";
                   }
                 } else if (outcome?.status === "PROPOSED") {
-                  outcomeLabel = `Proposed: ${outcome.proposed_outcome || "Pending"}`;
+                  outcomeLabel = `Proposed: ${outcome.proposed_outcome_display || "Pending"}`;
                 }
 
                 return (
@@ -544,7 +557,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               </button>
               <div className="pl-batch-meta">
                 <div className="pl-meta-row">
-                  <span className="pl-meta-label">Locked</span>
+                  <span className="pl-meta-label">Grading date</span>
                   <span className="pl-meta-val">
                     {formatShortDate(session?.grading_date)}
                   </span>

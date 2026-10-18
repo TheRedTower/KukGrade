@@ -191,6 +191,57 @@ describe("LegacyReconciliationScreen", () => {
     });
   });
 
+  it("reports a failed list load instead of saying nothing matches, and recovers", async () => {
+    const user = userEvent.setup();
+    mockGetLegacyGradingRecords.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    renderScreen();
+
+    expect(await screen.findByText("Historical records could not be loaded.")).toBeInTheDocument();
+    expect(screen.queryByText("No historical records match these filters")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("A. Example")).toBeInTheDocument();
+  });
+
+  it("shows a resolved rank by its name, not its code", async () => {
+    mockGetLegacyGradingRecords.mockResolvedValue({
+      count: 1,
+      next: null,
+      previous: null,
+      results: [{ ...unlinkedRecord, source_current_rank_text: "yel", current_rank: 3, current_rank_code: "YELLOW" }],
+    });
+
+    renderScreen();
+
+    const row = (await screen.findByText("A. Example")).closest("tr") as HTMLElement;
+    expect(within(row).getByText("Yellow")).toBeInTheDocument();
+    expect(within(row).queryByText("YELLOW")).not.toBeInTheDocument();
+    // Unresolved, the source text is what there is to show.
+    expect(within(row).getByText("Blue Stripe")).toBeInTheDocument();
+  });
+
+  it("never carries a void reason typed for one record to another", async () => {
+    const user = userEvent.setup();
+    mockGetLegacyGradingRecords.mockResolvedValue({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [unlinkedRecord, { ...unlinkedRecord, id: 56, source_name: "B. Example" }],
+    });
+
+    renderScreen();
+    await screen.findByText("B. Example");
+    const manage = screen.getAllByRole("button", { name: "Manage" });
+    await user.click(manage[0]);
+    await user.type(screen.getByLabelText("Reason"), "Duplicate row");
+
+    // The first row's button now reads Close; the only Manage left is the second.
+    await user.click(screen.getByRole("button", { name: "Manage" }));
+
+    expect(screen.getByLabelText("Reason")).toHaveValue("");
+  });
+
   it("filters by link status", async () => {
     const user = userEvent.setup();
     renderScreen();

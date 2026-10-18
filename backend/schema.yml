@@ -2656,6 +2656,12 @@ components:
         requirement_notes:
           type: string
           readOnly: true
+        notation:
+          type: string
+          readOnly: true
+          description: The chart notation in requirement_notes as display wording
+            - 'Part 1 of 2', '1-3' - the same wording the syllabus serves; empty when
+            the notes are not chart notation.
         result:
           $ref: '#/components/schemas/ResultEnum'
         result_display:
@@ -2681,6 +2687,7 @@ components:
       - id
       - item_name
       - korean_name
+      - notation
       - position
       - required
       - requirement_notes

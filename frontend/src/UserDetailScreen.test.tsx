@@ -167,10 +167,14 @@ describe("UserDetailScreen", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Riley Khan" });
 
+    expect(screen.getByText("Normal access")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Set new password" }));
     const dialog = screen.getByRole("dialog", { name: "Set a temporary password" });
     await user.type(within(dialog).getByLabelText("Temporary password"), "Replacement-Password-2026!");
     await user.type(within(dialog).getByLabelText("Confirm password"), "Replacement-Password-2026!");
+    // The server now requires a change at next sign-in.
+    mockGetManagedUser.mockResolvedValue({ ...managedUser, must_change_password: true });
     await user.click(within(dialog).getByRole("button", { name: "Set password" }));
 
     await waitFor(() => {
@@ -180,6 +184,8 @@ describe("UserDetailScreen", () => {
       );
     });
     expect(await screen.findByText(/Temporary password set/)).toBeInTheDocument();
+    // The page refetches rather than keeping the pre-reset record.
+    expect(await screen.findByText("Password change required")).toBeInTheDocument();
   });
 
   it("cannot close the password dialog while the reset is in flight", async () => {

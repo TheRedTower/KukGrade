@@ -58,7 +58,7 @@ monitor that polls it:
 - `code` is stable and machine-readable. Current codes: `validation_error`,
   `authentication_required`, `authentication_failed`, `permission_denied`,
   `password_change_required`, `not_found`, `method_not_allowed`,
-  `csrf_failed`, `throttled`, `error`.
+  `csrf_failed`, `throttled`, `server_error`, `error`.
 - `message` is human-readable and safe to show. When a validation failure has
   exactly one message it is promoted here, because a lone message is nearly
   always a domain rule rather than a form error and should be usable as a
@@ -419,10 +419,10 @@ Session lifecycle:
   candidates have already been assessed by this point.
 
 `CANCELLED` and `COMPLETED` are terminal. Sessions do not auto-transition based
-on dates. Locking a session requires every non-withdrawn candidate to have an
-assessment that is already `IN_PROGRESS` or `COMPLETED`; generation alone is
-insufficient. Assessment start must happen while the session is `OPEN`. Locked
-sessions can finish work already in progress but cannot start new assessments.
+on dates. Locking a session requires every non-withdrawn candidate's
+assessment to be `COMPLETED` (2026-09-26): locking marks the end of grading, so
+no result is recorded or changed after it. Assessment start must happen while
+the session is `OPEN`.
 Completing a locked session requires every non-withdrawn candidate to have a
 completed assessment and finalised candidate outcome. Withdrawn candidates do
 not block locking or session completion. `LOCKED -> OPEN` is rejected now that
@@ -449,17 +449,18 @@ Candidate fields:
 - `session`: grading session id.
 - `student`: student id.
 - `testing_for_rank`: rank id.
-- `age_band`: read-only snapshot derived from student date of birth and session
-  grading date.
+- `age_band_display`: read-only label of the age-band snapshot, derived from
+  the student's date of birth and the session's grading date.
 - `status`: `REGISTERED`, `WITHDRAWN`, or `COMPLETED`; defaults to
   `REGISTERED`.
-- `notes`: optional notes.
-- Locked-session withdrawal metadata is read-only on ordinary candidate
-  responses: `withdrawal_reason`, `withdrawal_reason_display`,
-  `withdrawal_note`, `withdrawn_by`, `withdrawn_by_email`,
-  `withdrawn_by_name`, and `withdrawn_at`. These fields are populated only by
-  the dedicated withdrawal action; routine draft/open no-show withdrawal has
-  blank/null attribution metadata.
+- `withdrawal_reason`, `withdrawal_reason_display` and `withdrawal_note`:
+  read-only here. Every withdrawal - a draft/open no-show as well as a
+  locked-session withdrawal - records why, who and when; who and when are kept
+  on the record and in the audit log but not served (the database refuses a
+  withdrawal without them, `gradings/0012`).
+- `from_rank`, `from_rank_name`, `student_display_name`, `student_wksa_id`,
+  `testing_for_rank_name`, `can_be_moved`, `can_be_removed`: read-only, see
+  above.
 
 Candidate filters:
 
@@ -601,11 +602,12 @@ unsupported low-level maintenance path.
 Outcome list filters:
 
 - `session`
+- `candidate`
 
-An outcome row exposes candidate, student name, WKSA ID, testing rank, session,
-assessment status, proposed decision, final decision, timestamps, attribution,
-notes, and conditional requirements. Clients cannot write `status`, candidate,
-assessment, actor, or timestamp fields directly.
+An outcome row exposes its candidate id, status, the proposed and final
+decisions with their labels, who proposed and decided (by name) and when, the
+proposal and decision notes, and conditional requirements. Clients cannot
+write `status`, candidate, assessment, actor, or timestamp fields directly.
 
 The assessment summary action groups `CandidateAssessmentItem` rows by copied snapshot
 category, in the syllabus chart's category order. It returns `overall` and
@@ -670,17 +672,16 @@ door; logistics is an administrator concern, matching the boundary drawn
 everywhere else in this API. This is also what scopes a
 `can_view_grading_audit_log` holder to grading/syllabus events and away from
 user management - they hold that permission but not `accounts.view_user`, so
-the same filter excludes them automatically with no separate logic. A direct
-`GET` on an excluded event's id answers 404, the same as any other object
-outside the caller's queryset.
+the same filter excludes them automatically with no separate logic. There is
+no single-event route, so the list is the only way to read an event.
 
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|
 | GET    | /api/audit-events/           | List audit events, newest first       |
 
-Every event has `actor` (nullable - null only for a system action),
-`actor_email` and `actor_name` (who acted, copied when the event was written;
-empty for a system action), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
+Every event has `actor_email` and `actor_name` (who acted, copied when the
+event was written; empty for a system action - the `actor` foreign key is
+kept on the row but not served), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
 a record outlives the schema it describes), `occurred_at`, a human-readable
 `summary`, and `metadata` (a `{"before": {...}, "after": {...}}` object for a
 revision, `{}` otherwise). The model is append-only: no admin, API, queryset

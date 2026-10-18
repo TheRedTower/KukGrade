@@ -94,8 +94,8 @@ identical mechanism (`accounts.permissions.AUTHORITY_PERMISSIONS`) as the
 other three, so it is listed alongside them rather than introducing a second
 grant mechanism.
 
-Final-decision authority is administrator-exclusive by decision (2026-09-16,
-see `decision_log.md`): granting it to an administrator, or promoting a
+Final-decision authority is never held by an administrator, by decision
+(2026-09-16, see `decision_log.md`): granting it to an administrator, or promoting a
 holder to administrator, is refused outright. Any number of instructors may
 hold it - a second Master is a normal outcome, not an exception (2026-09-25,
 see `decision_log.md`) - but an administrator never can. Administrators hold

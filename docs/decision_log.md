@@ -19,7 +19,9 @@ Consequences:
 ## Accepted decisions
 
 ### 2026-10-18 - Screens and contract follow the server's rules (F-25, F-26, F-16, F-33)
+
 Status: Accepted
+
 Decision:
 - A list refuses a query parameter it does not declare with a 400 naming it
   (`kukgrade/filtering.py`). Ignoring it returned the unfiltered list.
@@ -36,15 +38,19 @@ Decision:
   locked session asks for its reason as required.
 - The assessment screen prepares a missing assessment in a draft or open
   session, the statuses generation accepts.
+
 Context:
 The 2026-10-04 audit found each screen restating a server rule and getting it
 wrong, and tests pinning the restated rule.
+
 Consequences:
 Contract change: an undeclared list parameter is a 400. Two backend tests
 that passed parameters no list declares were corrected.
 
 ### 2026-10-18 - Integrity guards from the 2026-10-04 audit (F-13, F-14, F-15)
+
 Status: Accepted
+
 Decision:
 - `CandidateOutcomeQuerySet.delete()` refuses a finalised outcome, as
   `Model.delete()` already did, so a bulk delete cannot erase a Fail or
@@ -60,11 +66,13 @@ Decision:
 - Deleting an assessment registers its candidate again, as reopening does.
   In a draft or open session a new assessment can be prepared; after lock
   the candidate is resolved by an authorised withdrawal.
+
 Context:
 The 2026-10-04 audit reproduced each gap: a bulk delete removed a finalised
 Fail; a queryset update produced a withdrawn candidate with no attribution;
 deleting an assessment after lock left a COMPLETED candidate with no
 assessment, which blocked completing the session.
+
 Consequences:
 Tests that wrote a withdrawn candidate directly now withdraw through the
 service or write the attribution. Whether an assessment should be deletable
@@ -72,7 +80,9 @@ at all once its session is locked is left with the other open questions from
 that audit.
 
 ### 2026-10-18 - A student is registered for one grading at a time
+
 Status: Accepted
+
 Decision:
 Registering a student, or reinstating a withdrawn registration, is refused
 while the student has another registration that has not reached its result
@@ -87,12 +97,14 @@ or removing a registration stays available to instructors where the session
 and assessment rules already allow it (confirmed by the owner the same day:
 "keep as is"). Registration and reinstatement both lock the student, the row
 two sessions share, so two concurrent attempts cannot both succeed.
+
 Context:
 The owner, asked about F-12 of the 2026-10-04 audit: "the student should be
 refused ... mistakes should be done through an administrator. To stop there
 being multiple workflows it will be too much to keep track of." Until a
 grading settles, the student's next rank is not known, so a second
 registration would test them for a rank they may already hold.
+
 Consequences:
 A student who fails or is given a Conditional can be registered for the next
 grading as soon as the Master records the decision; one who passes, once
@@ -101,7 +113,9 @@ before this rule may still hold a double registration; the entry below keeps
 it withdrawable.
 
 ### 2026-10-18 - A registration's testing rank is checked when it is chosen
+
 Status: Accepted
+
 Decision:
 `validate_testing_for_rank` runs when a registration's rank is chosen: at
 registration, and when the registration is moved to another session, has its
@@ -109,12 +123,14 @@ rank changed, or is reinstated after a withdrawal. It no longer runs on every
 other save (`GradingCandidate.clean()`, `apply_candidate_update`). Promotion
 still refuses a candidate whose testing rank is no longer the student's next
 rank.
+
 Context:
 The 2026-10-04 audit (F-12) found a student registered in two sessions was
 stranded in the second once promoted in the first: every save re-checked the
 rank against the new current rank, so the second registration could not be
 withdrawn before or after lock, nor moved, and could only be finalised into
 an outcome that can never be promoted.
+
 Consequences:
 The stale registration can be withdrawn (a reason such as Other, "already
 promoted") or removed while that is otherwise allowed. New double
@@ -1548,6 +1564,10 @@ should be expected to need adjustment once tested against the real file.
 
 Status: Accepted
 
+Superseded in part: deviation 1 (Tablib) and deviation 4's reserved `PARTIAL`
+status, by 2026-09-30 "Import files, expiry, preview validity and
+spreadsheet limits".
+
 Decision:
 A new `data_imports` app provides administrator-only bulk student-roster
 import from `.xlsx`/`.csv`, ahead of the originally-recommended v1.0.0
@@ -1772,6 +1792,10 @@ again feels convenient.
 
 Status: Accepted
 
+Superseded in part: the Administrator group carries `audit.view_auditevent`
+again and the check follows that permission, not the role (2026-09-26); a
+per-user grant also reads the log (2026-09-21 "Fourth sensitive permission").
+
 Decision:
 The audit log (`/api/audit-events/` and Django admin's `AuditEventAdmin`) is
 readable only by administrators and holders of Master (final-decision)
@@ -1798,6 +1822,11 @@ in `permission_map`.
 ### 2026-09-16 - Master authority is administrator-exclusive
 
 Status: Accepted
+
+Superseded in part: "exactly one designated Master" in the context below -
+any number of instructors may hold it (2026-09-25 "Multiple Masters are
+permitted"). The rule itself stands: an administrator never holds
+final-decision authority (the title means exclusive of administrators).
 
 Decision:
 `gradings.can_make_final_grading_decision` can never be held by a user whose
@@ -1860,6 +1889,11 @@ an intended feature.
 ### 2026-09-15 - User-management audit events are administrator-only
 
 Status: Accepted
+
+Superseded in part: other events are no longer readable by every signed-in
+user (2026-09-16 "Audit log is administrator-or-Master"), and there is no
+single-event route to answer 404 (2026-09-28 "The API serves what the
+application uses").
 
 Decision:
 `USER_CREATED`, `USER_UPDATED` and `USER_AUTHORITY_CHANGED` audit events are
@@ -2033,7 +2067,7 @@ Candidate registration gains a status check.
 
 ### 2026-09-13 - Syllabus versioning and immutability
 
-Status: Accepted
+Status: Superseded by 2026-09-14 - Syllabus versioning deferred, not cancelled
 
 Decision:
 The syllabus is versioned and set in stone. Introduce `SyllabusVersion` with a
@@ -2079,6 +2113,9 @@ may be a management command.
 ### 2026-09-13 - Capability map and role definitions
 
 Status: Accepted
+
+Superseded in part: instructors authoring and publishing syllabus versions
+was deferred by 2026-09-14 "Syllabus versioning deferred, not cancelled".
 
 Decision:
 Instructors own everything related to Kuk Sool; logistics beyond that is left to
@@ -2389,6 +2426,10 @@ screens, or implement correction/reopening after finalisation.
 ### 2026-06-23 - Candidate assessment snapshot foundation
 
 Status: Accepted
+
+Superseded in part: a session now locks only when every assessment is
+completed, and no result is recorded after lock (2026-09-26 "A session locks
+only when grading is complete").
 
 Decision:
 Create `CandidateAssessment` as a one-to-one assessment package for a

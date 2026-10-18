@@ -290,8 +290,8 @@ each locking the row, saving, and recording one audit event
 
 ### Reconciliation screen and API
 
-`GET /api/gradings/legacy-records/` (filters: `student`, `linked`,
-`voided`, `record_kind`, `source_batch`) plus the five actions above as
+`GET /api/gradings/legacy-records/` (filters: `linked`,
+`voided`) plus the five actions above as
 `POST .../link-student/`, `.../unlink-student/`, `.../resolve-current-rank/`,
 `.../resolve-testing-for-rank/`, `.../void/`. The frontend
 (`LegacyReconciliationScreen.tsx`, reachable from the Gradings list header)
@@ -300,7 +300,7 @@ each action, including a name/WKSA-ID student search for linking.
 
 ### Unified grading history
 
-`GET /api/students/{id}/grading-history/` (`gradings.
+`GET /api/students/{id}/grading-history/` (`gradings.read_models.
 unified_student_grading_history`) combines every finalised native
 `CandidateOutcome` with every linked, non-voided `LegacyGradingRecord` for a
 student into one newest-first, source-labelled (`KUKGRADE`/`LEGACY`) list,

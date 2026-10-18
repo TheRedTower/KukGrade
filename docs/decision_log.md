@@ -2652,7 +2652,58 @@ local PostgreSQL only - is still the current setup.
 
 ## Open decisions
 
-None. Every decision arising from the 2026-09-23 assessment grading redesign is
+Every decision arising from the 2026-09-23 assessment grading redesign is
 recorded above. See
 `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
 for the nine proposed directions.
+
+Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`), for the owner.
+Each says what happens today and what is recommended.
+
+1. **Part-taught forms in the cumulative syllabus (F-09).** For 8 and under,
+   Cho Geup Hyung is taught in parts (part 1 at Blue, 2 at Red stripe, 3 at
+   Red). From Red to JKN the cumulative row shows only the latest mapping,
+   "Part 3". Should it read "Parts 1-3" (or the whole form), since every
+   part is examinable? Recommended: name every part examinable so far.
+2. **Can an assessment be deleted once its session is locked (D2)?** Today
+   an administrator can. Deleting it puts the candidate back to registered,
+   and the only way forward after lock is an authorised withdrawal.
+   Recommended: refuse the delete after lock and correct through the
+   override path, so a locked record cannot lose its evidence.
+3. **Self set-password (F-04).** An administrator can set their own password
+   from the Users screen without entering the current one. Recommended:
+   refuse `set-password` on your own account and send the user to
+   change-password, which asks for the current one. This affects how a
+   forgotten admin password is recovered: another administrator, or
+   `manage.py changepassword`.
+4. **WKSA ID case (F-30).** Only the Add student screen upper-cases the ID.
+   The API and roster import store it as typed, so the same ID can exist in
+   two cases. Recommended: normalise in the backend and make uniqueness
+   ignore case. This needs a migration and a check that no existing IDs
+   differ only by case.
+5. **Age band in the cohort builder (F-33, second part).** The builder
+   filters and labels students by their age today. Registration uses their
+   age on the grading date. Near a birthday the two disagree. Recommended:
+   serve the age band on the grading date with the eligible list.
+6. **Core category order in React (F-31).** `syllabusCategories.ts` lists
+   the core category codes and their order. It is presentation, but a new
+   category added in data would be misplaced. Recommended: serve the order
+   with the categories.
+7. **The Students list's "Next action" column (F-29).** It suggests actions
+   that no data backs, for example "Follow up required" for Inactive, which
+   blocks nothing. Remove it, or say what it should be based on.
+8. **Roster import size (F-19).** A 5,000-row commit (the limit) takes about
+   a minute in one request, close to a proxy's 100 s timeout. Lower
+   `MAX_ROWS` to what the club needs, or document the duration.
+9. **Explicit student locks in `lock_in_session` callers (D1).** A service
+   that inserts or re-points a row referencing a student also takes PostgreSQL's key-share
+   lock on that student as a side effect, outside the ascending order. The
+   reinstatement race turned out to be covered only by that side effect; it
+   now locks the student explicitly. Recommended: review every caller and
+   lock its students explicitly wherever it relies on them.
+10. **Housekeeping.** `frontend/src/assets/kukgrade-logo.jpg` (106 kB) is
+    imported by nothing. FDR-048 keeps it as the source artwork the SVG was
+    traced from: move it out of `src/`, or keep it. The 5,950 orphaned files
+    in `backend/var/import_uploads/` are from old test runs, git ignores
+    them, and they are local only (F-11): delete them, or let
+    `manage.py expire_stale_import_batches` sweep them.

@@ -148,20 +148,19 @@ DATABASES = {
     }
 }
 
+# The one password policy (accounts/password_policy.py), run by every path
+# that sets a password. Django's numeric-only check is not listed: the
+# character rules already require letters.
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": (
-            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
-        ),
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
+    {"NAME": "accounts.password_policy.LengthValidator"},
+    {"NAME": "accounts.password_policy.CharacterRulesValidator"},
     {
         "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
     },
     {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+        "NAME": (
+            "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+        ),
     },
 ]
 

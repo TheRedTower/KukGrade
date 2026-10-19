@@ -1369,7 +1369,7 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
 
     client.post(
         f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-NewSecret-Value!"},
+        {"password": "kg-NewSecret-Value-9!"},
         format="json",
     )
 
@@ -1379,8 +1379,8 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
     assert event.summary == "Password reset for reset-audit-target@example.com."
-    assert "kg-NewSecret-Value!" not in event.summary
-    assert "kg-NewSecret-Value!" not in str(event.metadata)
+    assert "kg-NewSecret-Value-9!" not in event.summary
+    assert "kg-NewSecret-Value-9!" not in str(event.metadata)
 
 
 def test_new_password_actually_works_for_login() -> None:
@@ -1388,22 +1388,25 @@ def test_new_password_actually_works_for_login() -> None:
     created = create_user_via_api(
         client,
         email="reset-login-target@example.com",
-        password="kg-Original-Login!",
+        password="kg-Original-Login-9!",
     )
     client.post(
         f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-New-Login-Value!"},
+        {"password": "kg-New-Login-Value-9!"},
         format="json",
     )
 
     old_login = APIClient().post(
         "/api/auth/login/",
-        {"email": "reset-login-target@example.com", "password": "kg-Original-Login!"},
+        {"email": "reset-login-target@example.com", "password": "kg-Original-Login-9!"},
         format="json",
     )
     new_login = APIClient().post(
         "/api/auth/login/",
-        {"email": "reset-login-target@example.com", "password": "kg-New-Login-Value!"},
+        {
+            "email": "reset-login-target@example.com",
+            "password": "kg-New-Login-Value-9!",
+        },
         format="json",
     )
 

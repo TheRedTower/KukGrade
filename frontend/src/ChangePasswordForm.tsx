@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 
 import { ApiError } from "./api";
 import { useAuth } from "./auth";
+import { PasswordRequirements } from "./PasswordRequirements";
 
 type FieldErrors = {
   current_password?: string[];
@@ -29,10 +30,10 @@ type ChangePasswordFormProps = {
  *
  * The one form for it, used by the forced change after a temporary password
  * and by the account menu, so both send the same request and report the
- * server's answer the same way. The password rules are the server's; their
- * messages come back as `new_password` errors rather than being restated
- * here. Only the confirmation is checked in the browser, since the server
- * never sees it.
+ * server's answer the same way. The password rules are the server's: the
+ * checklist shows the policy it serves, and its messages come back as
+ * `new_password` errors. Only the confirmation is checked in the browser,
+ * since the server never sees it.
  */
 export function ChangePasswordForm({
   currentPasswordLabel,
@@ -139,6 +140,7 @@ export function ChangePasswordForm({
         </div>
         {errorsFor("new_password")}
       </label>
+      <PasswordRequirements password={newPassword} />
 
       <label>
         Confirm new password

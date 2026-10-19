@@ -338,7 +338,7 @@ export function StudentsScreen() {
                     <th scope="col" className="col-status">Status</th>
                     <th scope="col" className="col-current-grading">Current grading</th>
                     <th scope="col" className="col-cta">
-                      <span className="sr-only">Actions</span>
+                      <span className="visually-hidden">Actions</span>
                     </th>
                   </tr>
                 </thead>

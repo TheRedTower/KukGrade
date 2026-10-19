@@ -1545,7 +1545,9 @@ paths:
         Deployment settings the frontend shows, such as the club's name.
 
         Public, like the health check: the sign-in screen may show them too, and
-        nothing here is personal data.
+        nothing here is personal data. The password policy is the one the server
+        enforces (accounts/password_policy.py), served so the screens never keep
+        a copy of their own.
       tags:
       - site
       security:
@@ -3750,6 +3752,41 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WithdrawalReason'
+    PasswordCharacterRule:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        pattern:
+          type: string
+          description: A regular expression the password must match.
+      required:
+      - code
+      - label
+      - pattern
+    PasswordPolicy:
+      type: object
+      properties:
+        min_length:
+          type: integer
+        max_length:
+          type: integer
+        character_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/PasswordCharacterRule'
+        checked_on_save:
+          type: array
+          items:
+            type: string
+          description: Rules only the server can check, run when it is saved.
+      required:
+      - character_rules
+      - checked_on_save
+      - max_length
+      - min_length
     PatchedCandidateAssessmentItemRequest:
       type: object
       properties:
@@ -4084,10 +4121,13 @@ components:
     SiteSettings:
       type: object
       properties:
+        password_policy:
+          $ref: '#/components/schemas/PasswordPolicy'
         club_name:
           type: string
       required:
       - club_name
+      - password_policy
     SourceEnum:
       enum:
       - KUKGRADE

@@ -277,10 +277,20 @@ checks on each push and pull request.
   sensitive permissions as booleans in the same shape `/api/auth/me/`
   returns them, and refuses a user changing their own authority.
   `POST /api/users/{id}/set-password/` resets someone else's password,
-  validated by Django's configured password validators; it refuses your own
+  validated by the password policy; it refuses your own
   account (2026-10-19), which is changed behind the current password
   instead. `is_staff` and `is_superuser`
   are not part of the API.
+- **Password policy (2026-10-19)**: 16 to 64 characters with an uppercase
+  letter, a lowercase letter, a number and a special character (a space
+  counts), not a common password and not too similar to the account's own
+  details. Defined once in `accounts/password_policy.py` and run through
+  `AUTH_PASSWORD_VALIDATORS`, so the API, Django admin's forms and an
+  interactive `createsuperuser` all enforce it; `/api/site/` serves it and
+  the password forms tick it off as you type. It applies when a password is
+  next set - existing passwords keep working. `createsuperuser --noinput`
+  and its "bypass validation" prompt skip it; the first-administrator setup
+  planned for go-live replaces that path.
 - **Forced password change (enforced server-side)**: creation and an
   administrator reset both set `must_change_password`. While it is set,
   `accounts.middleware.ForcePasswordChangeMiddleware` refuses every request
@@ -320,7 +330,7 @@ checks on each push and pull request.
   change their own password, given their current one - from the account
   menu's "Change password", or the forced change after a temporary password,
   which share one form (`ChangePasswordForm`); throttled the same
-  way login is, validated by the same password validators as every other
+  way login is, validated by the same password policy as every other
   password path, and never logs the value. The caller keeps their session -
   the auth hash is refreshed, so choosing a new password does not eject them
   to the sign-in screen - while every other session for that account ends.

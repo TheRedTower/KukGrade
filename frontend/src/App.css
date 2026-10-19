@@ -257,6 +257,46 @@ button:disabled {
   transform: translateY(-50%);
 }
 
+.password-requirements {
+  margin-top: -0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.password-requirements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.password-requirements li.is-met {
+  color: var(--color-success);
+}
+
+.password-requirement-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.password-requirements-on-save {
+  margin: 0.4rem 0 0;
+}
+
 .password-toggle:hover {
   color: var(--color-text);
 }

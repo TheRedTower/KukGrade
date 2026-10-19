@@ -822,7 +822,9 @@ export interface paths {
          * @description Deployment settings the frontend shows, such as the club's name.
          *
          *     Public, like the health check: the sign-in screen may show them too, and
-         *     nothing here is personal data.
+         *     nothing here is personal data. The password policy is the one the server
+         *     enforces (accounts/password_policy.py), served so the screens never keep
+         *     a copy of their own.
          */
         get: operations["site_retrieve"];
         put?: never;
@@ -1816,6 +1818,19 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["WithdrawalReason"][];
         };
+        PasswordCharacterRule: {
+            code: string;
+            label: string;
+            /** @description A regular expression the password must match. */
+            pattern: string;
+        };
+        PasswordPolicy: {
+            min_length: number;
+            max_length: number;
+            character_rules: components["schemas"]["PasswordCharacterRule"][];
+            /** @description Rules only the server can check, run when it is saved. */
+            checked_on_save: string[];
+        };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
             assessor_notes?: string;
@@ -1984,6 +1999,7 @@ export interface components {
             password: string;
         };
         SiteSettings: {
+            password_policy: components["schemas"]["PasswordPolicy"];
             club_name: string;
         };
         /**

@@ -79,7 +79,7 @@ not the response.
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
-| GET | /api/site/ | Anonymous site settings; returns `{"club_name": "..."}` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"). Shown in the top bar. |
+| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist. |
 
 ## 1. Authentication
 

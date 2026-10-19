@@ -16,6 +16,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from accounts.password_policy import policy as password_policy
+
 
 @require_safe
 @never_cache
@@ -30,10 +32,37 @@ def frontend(_request: HttpRequest, path: str = "") -> HttpResponse:
     return HttpResponse(index.read_text(encoding="utf-8"), content_type="text/html")
 
 
+_PASSWORD_POLICY = inline_serializer(
+    "PasswordPolicy",
+    fields={
+        "min_length": serializers.IntegerField(),
+        "max_length": serializers.IntegerField(),
+        "character_rules": inline_serializer(
+            "PasswordCharacterRule",
+            fields={
+                "code": serializers.CharField(),
+                "label": serializers.CharField(),
+                "pattern": serializers.CharField(
+                    help_text="A regular expression the password must match.",
+                ),
+            },
+            many=True,
+        ),
+        "checked_on_save": serializers.ListField(
+            child=serializers.CharField(),
+            help_text="Rules only the server can check, run when it is saved.",
+        ),
+    },
+)
+
+
 @extend_schema(
     responses=inline_serializer(
         "SiteSettings",
-        fields={"club_name": serializers.CharField()},
+        fields={
+            "club_name": serializers.CharField(),
+            "password_policy": _PASSWORD_POLICY,
+        },
     ),
 )
 @api_view(["GET"])
@@ -42,6 +71,10 @@ def site_settings(_request: Request) -> Response:
     """Deployment settings the frontend shows, such as the club's name.
 
     Public, like the health check: the sign-in screen may show them too, and
-    nothing here is personal data.
+    nothing here is personal data. The password policy is the one the server
+    enforces (accounts/password_policy.py), served so the screens never keep
+    a copy of their own.
     """
-    return Response({"club_name": settings.CLUB_NAME})
+    return Response(
+        {"club_name": settings.CLUB_NAME, "password_policy": password_policy()},
+    )

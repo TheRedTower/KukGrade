@@ -276,11 +276,23 @@ checks on each push and pull request.
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
   returns them, and refuses a user changing their own authority.
-  `POST /api/users/{id}/set-password/` resets someone else's password,
-  validated by the password policy; it refuses your own
-  account (2026-10-19), which is changed behind the current password
-  instead. `is_staff` and `is_superuser`
-  are not part of the API.
+  `POST /api/users/{id}/set-password/` resets someone else's password to a
+  new generated temporary one; it refuses your own account (2026-10-19),
+  which is changed behind the current password instead. `is_staff` and
+  `is_superuser` are not part of the API.
+- **Temporary passwords (2026-10-19)**: nobody types a password for someone
+  else in the app. Creating a user and resetting a password each generate a
+  temporary one (`generate_temporary_password`, drawn from the password
+  policy's own rules, without look-alike characters), store only its hash,
+  and return it once with caching disabled; the Users screens show it in a
+  one-time dialog with a copy button. It expires after
+  `KUKGRADE_TEMPORARY_PASSWORD_HOURS` (default 24,
+  `temporary_password_expires_at`), enforced by `accounts.backends.
+  AccountBackend` wherever Django checks a sign-in: the API's login, the
+  admin site's, and every request on an open session. A reset replaces it.
+  Accounts from before this change have no expiry. Django admin's add-user
+  and password forms still take a typed password, which is treated as
+  temporary too.
 - **Password policy (2026-10-19)**: 16 to 64 characters with an uppercase
   letter, a lowercase letter, a number and a special character (a space
   counts), not a common password and not too similar to the account's own
@@ -292,7 +304,8 @@ checks on each push and pull request.
   and its "bypass validation" prompt skip it; the first-administrator setup
   planned for go-live replaces that path.
 - **Forced password change (enforced server-side)**: creation and an
-  administrator reset both set `must_change_password`. While it is set,
+  administrator reset both set `must_change_password`, which the owner
+  choosing their own password clears along with the expiry. While it is set,
   `accounts.middleware.ForcePasswordChangeMiddleware` refuses every request
   but `/api/auth/me/`, `/api/auth/change-password/`, `/api/auth/logout/`,
   the two health endpoints, `/api/site/` and the frontend shell, answering
@@ -654,8 +667,8 @@ checks on each push and pull request.
   the next person on that browser never sees the previous person's students
   or gradings.
 - **Password validation is consistent everywhere an account can be
-  created**: the users API, `SetPasswordSerializer`, and the Django admin
-  add-user form all run the full configured validator set, including
+  created**: generated temporary passwords, changing your own, and the
+  Django admin forms all run the full configured validator set, including
   `UserAttributeSimilarityValidator` against the account's own email.
 - **Sensitive actions cannot silently lose their authority class**: a
   permission-completeness test pins `finalise`, `promote` and `withdraw` to

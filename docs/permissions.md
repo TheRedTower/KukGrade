@@ -122,7 +122,8 @@ The syllabus catalogue is read-only while syllabus versioning is deferred.
   change its password, and sign out, whatever permissions it holds
   (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
   this to every view at once, so a new endpoint is gated without declaring
-  anything; see `api_contract.md`.
+  anything; see `api_contract.md`. Once that temporary password expires, the
+  account cannot sign in at all until an administrator issues a new one.
 - Final decisions, promotion, and locked-session withdrawal/cancellation each
   add a per-user authority check on top, pinned by
   `accounts/test_permission_matrix.py`.

@@ -379,9 +379,8 @@ def test_master_authority_instructor_cannot_see_user_management_events_in_the_lo
     admin_actor = administrator("audit-user-mgmt-admin@example.com")
     created = create_platform_user(
         email="audit-user-mgmt-target@example.com",
-        password="Str0ng-Passphrase!42",
         actor=admin_actor,
-    )
+    ).user
     client = APIClient()
     client.force_authenticate(user=master("audit-instructor-reader@example.com"))
 
@@ -400,7 +399,6 @@ def test_administrator_can_see_user_management_events_in_the_log() -> None:
     admin_actor = administrator("audit-user-mgmt-admin-2@example.com")
     create_platform_user(
         email="audit-user-mgmt-target-2@example.com",
-        password="Str0ng-Passphrase!42",
         actor=admin_actor,
     )
     client = APIClient()
@@ -445,9 +443,8 @@ def user_created_event() -> AuditEvent:
 
     created = create_platform_user(
         email="audit-parity-target@example.com",
-        password="Str0ng-Passphrase!42",
         actor=administrator("audit-parity-admin@example.com"),
-    )
+    ).user
     return AuditEvent.objects.get(
         action=AuditAction.USER_CREATED,
         entity_id=str(created.pk),

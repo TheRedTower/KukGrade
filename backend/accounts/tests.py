@@ -445,7 +445,7 @@ def test_change_password_enforces_the_configured_validators() -> None:
         "/api/auth/change-password/",
         # Matches the account's own email, which UserAttributeSimilarityValidator
         # rejects - only reachable if the instance is passed through to
-        # validate_password(), same as SetPasswordSerializer.
+        # validate_password().
         {
             "current_password": "OldPassw0rd!",
             "new_password": "change-pw-weak@example.com",
@@ -759,7 +759,6 @@ def admin_client(email: str = "users-api-admin@example.com") -> tuple[APIClient,
 def create_user_via_api(client: APIClient, **overrides: object) -> dict[str, Any]:
     payload: dict[str, object] = {
         "email": "created-user@example.com",
-        "password": "kg-Str0ngPassw0rd!",
         "first_name": "Created",
         "last_name": "User",
     }
@@ -838,42 +837,6 @@ def test_user_list_flags_match_each_users_own_permission_check() -> None:
     assert not rows["flags-inactive@example.com"]["can_make_final_grading_decision"]
 
 
-def test_weak_password_is_rejected_with_a_field_error() -> None:
-    client, _admin = admin_client("weak-password-admin@example.com")
-
-    response = client.post(
-        "/api/users/",
-        {"email": "weak@example.com", "password": "12345678"},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
-    assert not User.objects.filter(email="weak@example.com").exists()
-
-
-def test_password_matching_the_new_accounts_own_email_is_rejected() -> None:
-    # UserAttributeSimilarityValidator has nothing to compare against on
-    # create unless the serializer builds an unsaved User from the other
-    # submitted fields first - this is the case that catches a regression.
-    client, _admin = admin_client("similarity-admin@example.com")
-
-    response = client.post(
-        "/api/users/",
-        {
-            "email": "graham.mitchell@example.com",
-            "password": "graham.mitchell@example.com",
-            "first_name": "Graham",
-            "last_name": "Mitchell",
-        },
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
-    assert not User.objects.filter(email="graham.mitchell@example.com").exists()
-
-
 def test_admin_add_user_form_enforces_the_same_password_validators() -> None:
     # UserCreationForm is a plain ModelForm subclass, not Django's own
     # contrib.auth.forms.UserCreationForm - it must validate the password
@@ -914,7 +877,7 @@ def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
 
     response = client.post(
         "/api/users/",
-        {"email": "dup@example.com", "password": "kg-Str0ngPassw0rd!"},
+        {"email": "dup@example.com"},
         format="json",
     )
 
@@ -969,11 +932,7 @@ def test_patch_cannot_change_the_password() -> None:
     # The password field is removed entirely from the update serializer, not
     # just made optional: password changes go through set-password only.
     client, _admin = admin_client("patch-password-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="patch-password-target@example.com",
-        password="kg-Original-Passw0rd!",
-    )
+    created = create_user_via_api(client, email="patch-password-target@example.com")
 
     response = client.patch(
         f"/api/users/{created['id']}/",
@@ -984,7 +943,7 @@ def test_patch_cannot_change_the_password() -> None:
     assert response.status_code == 200
     assert "password" not in response.json()
     target = User.objects.get(pk=created["id"])
-    assert target.check_password("kg-Original-Passw0rd!") is True
+    assert target.check_password(created["temporary_password"]) is True
     assert target.check_password("kg-Attempted-Change!") is False
 
 
@@ -1331,47 +1290,25 @@ def test_promoting_a_master_authority_instructor_to_administrator_is_refused() -
 
 def test_administrator_can_reset_another_users_password() -> None:
     client, _admin = admin_client("reset-password-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-target@example.com",
-        password="kg-Original-Str0ng!",
-    )
+    created = create_user_via_api(client, email="reset-target@example.com")
 
-    response = client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-Replacement-Str0ng!"},
-        format="json",
-    )
+    response = client.post(f"/api/users/{created['id']}/set-password/")
 
-    assert response.status_code == 204
+    assert response.status_code == 200
+    issued = response.json()["temporary_password"]
+    assert issued != created["temporary_password"]
     target = User.objects.get(pk=created["id"])
-    assert target.check_password("kg-Replacement-Str0ng!") is True
-    assert target.check_password("kg-Original-Str0ng!") is False
-
-
-def test_weak_reset_password_is_rejected() -> None:
-    client, _admin = admin_client("weak-reset-admin@example.com")
-    created = create_user_via_api(client, email="weak-reset-target@example.com")
-
-    response = client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "12345678"},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
+    assert target.check_password(issued) is True
+    assert target.check_password(created["temporary_password"]) is False
 
 
 def test_password_reset_is_recorded_without_leaking_the_password() -> None:
     client, _admin = admin_client("reset-audit-admin@example.com")
     created = create_user_via_api(client, email="reset-audit-target@example.com")
 
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-NewSecret-Value-9!"},
-        format="json",
-    )
+    issued = client.post(f"/api/users/{created['id']}/set-password/").json()[
+        "temporary_password"
+    ]
 
     event = AuditEvent.objects.filter(
         entity_type="User",
@@ -1379,34 +1316,28 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
     assert event.summary == "Password reset for reset-audit-target@example.com."
-    assert "kg-NewSecret-Value-9!" not in event.summary
-    assert "kg-NewSecret-Value-9!" not in str(event.metadata)
+    assert issued not in event.summary
+    assert issued not in str(event.metadata)
 
 
 def test_new_password_actually_works_for_login() -> None:
     client, _admin = admin_client("reset-login-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-login-target@example.com",
-        password="kg-Original-Login-9!",
-    )
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-New-Login-Value-9!"},
-        format="json",
-    )
+    created = create_user_via_api(client, email="reset-login-target@example.com")
+    issued = client.post(f"/api/users/{created['id']}/set-password/").json()[
+        "temporary_password"
+    ]
 
     old_login = APIClient().post(
         "/api/auth/login/",
-        {"email": "reset-login-target@example.com", "password": "kg-Original-Login-9!"},
+        {
+            "email": "reset-login-target@example.com",
+            "password": created["temporary_password"],
+        },
         format="json",
     )
     new_login = APIClient().post(
         "/api/auth/login/",
-        {
-            "email": "reset-login-target@example.com",
-            "password": "kg-New-Login-Value-9!",
-        },
+        {"email": "reset-login-target@example.com", "password": issued},
         format="json",
     )
 
@@ -1576,32 +1507,22 @@ def test_admin_only_access_change_is_not_blocked_by_the_service(field: str) -> N
 
 def test_user_created_via_api_has_must_change_password_flag() -> None:
     client, _admin = admin_client("onboarding-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="onboarded-staff@example.com",
-        password="kg-InitialSecret123!",
-    )
+    created = create_user_via_api(client, email="onboarded-staff@example.com")
     assert created["must_change_password"] is True
     stored = User.objects.get(pk=created["id"])
     assert stored.must_change_password is True
 
 
-@pytest.mark.parametrize("password", ["kg-ResetOwnPass123!", "short"])
-def test_admin_cannot_reset_their_own_password(password: str) -> None:
+def test_admin_cannot_reset_their_own_password() -> None:
     # A reset asks for no current password, so on your own account a
     # signed-in session alone could replace it (audit F-04). Your own is
-    # changed through change-password. Refused before the password is
-    # checked, so even a weak one gets the pointer, not a rule error.
+    # changed through change-password.
     client, admin = admin_client("reset-own-admin@example.com")
     admin.set_password("kg-OriginalOwn123!")
     admin.save(update_fields=["password"])
     events_before = AuditEvent.objects.count()
 
-    response = client.post(
-        f"/api/users/{admin.pk}/set-password/",
-        {"password": password},
-        format="json",
-    )
+    response = client.post(f"/api/users/{admin.pk}/set-password/")
 
     assert response.status_code == 400
     assert response.json()["error"]["fields"]["user"] == [
@@ -1622,7 +1543,7 @@ def test_reset_password_service_refuses_your_own_account() -> None:
     )
 
     with pytest.raises(ValidationError):
-        reset_password(admin, password="kg-ResetOwnPass123!", actor=admin)
+        reset_password(admin, actor=admin)
 
     admin.refresh_from_db()
     assert admin.check_password("kg-OriginalOwn123!")
@@ -1630,20 +1551,12 @@ def test_reset_password_service_refuses_your_own_account() -> None:
 
 def test_admin_set_password_forces_must_change_password() -> None:
     client, _admin = admin_client("reset-pw-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-forced@example.com",
-        password="kg-InitialSecret123!",
-    )
+    created = create_user_via_api(client, email="reset-forced@example.com")
     target = User.objects.get(pk=created["id"])
     target.must_change_password = False
     target.save(update_fields=["must_change_password"])
 
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-ResetAdminPass123!"},
-        format="json",
-    )
+    client.post(f"/api/users/{created['id']}/set-password/")
 
     target.refresh_from_db()
     assert target.must_change_password is True
@@ -1907,7 +1820,7 @@ def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
             {"current_password": "Orig1nal-Passphrase!", "new_password": NEW_SECRET},
         )
     else:
-        url, body = f"/api/users/{target.pk}/set-password/", {"password": NEW_SECRET}
+        url, body = f"/api/users/{target.pk}/set-password/", {}
 
     with (
         patch("accounts.services.record", side_effect=RuntimeError("audit")),

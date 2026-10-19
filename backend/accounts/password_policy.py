@@ -1,6 +1,6 @@
 """The password policy: defined once, enforced by Django, served to the screens.
 
-Every path that sets a password - creating a user, an administrator's reset,
+Every path that sets a password - a generated temporary password (below),
 changing your own, Django admin's forms, `createsuperuser` - runs Django's
 `validate_password`, which runs `AUTH_PASSWORD_VALIDATORS`. The two validators
 here read the rules below, and `/api/site/` serves the same rules, so the
@@ -17,10 +17,15 @@ account's own details, so they are served only as labels and run on save.
 from __future__ import annotations
 
 import re
+import secrets
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+
+if TYPE_CHECKING:
+    from accounts.models import User
 
 MIN_LENGTH = 16
 MAX_LENGTH = 64
@@ -105,3 +110,41 @@ class CharacterRulesValidator:
         return (
             "Include " + ", ".join(rule.label.lower() for rule in CHARACTER_RULES) + "."
         )
+
+
+# What a generated temporary password is drawn from: every letter and digit
+# except the look-alikes (0 O o, 1 I l, 5 S s, 2 Z z, 8 B), and symbols that
+# survive being read aloud, copied or written down (no quotes, spaces or
+# brackets). Someone types it once, from a message or a note.
+TEMPORARY_PASSWORD_ALPHABET = "ACDEFGHJKLMNPQRTUVWXYabcdefghijkmnpqrtuvwxy34679!#%*+=?@"
+
+
+def generate_temporary_password(user: User | None = None) -> str:
+    """A random password that passes the policy, for an administrator to pass on.
+
+    One character from each rule's share of the alphabet, the rest from all of
+    it, shuffled - so the rules here decide what it must contain, not a second
+    list. Drawn again in the rare case Django's own checks refuse it (one too
+    like `user`'s details, say); 16 characters of this alphabet is about 93
+    bits.
+    """
+    random = secrets.SystemRandom()
+    for _attempt in range(10):
+        chars = [random.choice(_alphabet_for(rule.pattern)) for rule in CHARACTER_RULES]
+        chars += [
+            random.choice(TEMPORARY_PASSWORD_ALPHABET)
+            for _ in range(MIN_LENGTH - len(chars))
+        ]
+        random.shuffle(chars)
+        candidate = "".join(chars)
+        try:
+            validate_password(candidate, user)
+        except ValidationError:
+            continue
+        return candidate
+    msg = "Could not generate a temporary password that passes the policy."
+    raise RuntimeError(msg)
+
+
+def _alphabet_for(pattern: str) -> str:
+    return "".join(c for c in TEMPORARY_PASSWORD_ALPHABET if re.fullmatch(pattern, c))

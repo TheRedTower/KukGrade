@@ -249,12 +249,11 @@ describe("user management API", () => {
     });
     await createManagedUser({
       email: "new@example.com",
-      password: "Temporary-Password-2026!",
       role: "instructor",
     });
     await updateManagedUser("target", { first_name: "Updated", is_active: false });
     await updateManagedUserAuthority("target", { can_promote_student: true });
-    await resetManagedUserPassword("target", "Replacement-Password-2026!");
+    await resetManagedUserPassword("target");
 
     const listUrl = new URL(String(fetchMock.mock.calls[0][0]), "http://localhost");
     expect(Object.fromEntries(listUrl.searchParams)).toEqual({
@@ -272,10 +271,8 @@ describe("user management API", () => {
       body: JSON.stringify({ can_promote_student: true }),
     });
     expect(String(fetchMock.mock.calls[4][0])).toContain("/target/set-password/");
-    expect(fetchMock.mock.calls[4][1]).toMatchObject({
-      method: "POST",
-      body: JSON.stringify({ password: "Replacement-Password-2026!" }),
-    });
+    expect(fetchMock.mock.calls[4][1]).toMatchObject({ method: "POST" });
+    expect(fetchMock.mock.calls[4][1]).not.toHaveProperty("body");
   });
 });
 

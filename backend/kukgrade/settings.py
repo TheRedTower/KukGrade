@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -163,6 +164,18 @@ AUTH_PASSWORD_VALIDATORS = [
         ),
     },
 ]
+
+# Who may sign in: Django's own rules, and no temporary password past its
+# expiry. One backend, so the API's sign-in, the admin site's and every
+# signed-in request all apply it (accounts/backends.py).
+AUTHENTICATION_BACKENDS = ["accounts.backends.AccountBackend"]
+
+# How long a temporary password an administrator issues stays usable.
+_TEMPORARY_PASSWORD_HOURS = env_int("KUKGRADE_TEMPORARY_PASSWORD_HOURS", 24)
+if _TEMPORARY_PASSWORD_HOURS < 1:
+    msg = "KUKGRADE_TEMPORARY_PASSWORD_HOURS must be at least 1."
+    raise ImproperlyConfigured(msg)
+TEMPORARY_PASSWORD_LIFETIME = timedelta(hours=_TEMPORARY_PASSWORD_HOURS)
 
 LANGUAGE_CODE = "en-gb"
 # The club's own zone: "today" for grading dates, student ages and age bands is

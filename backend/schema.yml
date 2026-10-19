@@ -1935,7 +1935,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserManagement'
+                $ref: '#/components/schemas/IssuedTemporaryPassword'
           description: ''
   /api/users/{id}/:
     get:
@@ -2088,17 +2088,7 @@ paths:
   /api/users/{id}/set-password/:
     post:
       operationId: users_set_password_create
-      description: |-
-        The administrator-facing users API.
-
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+      description: A new temporary password for someone else, replacing theirs.
       parameters:
       - in: path
         name: id
@@ -2109,23 +2099,15 @@ paths:
         required: true
       tags:
       - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-        required: true
       security:
       - cookieAuth: []
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedTemporaryPassword'
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -2828,9 +2810,9 @@ components:
       description: |-
         POST /api/auth/change-password/.
 
-        Self-service, unlike SetPasswordSerializer: an administrator resetting
-        someone else's password already proved their own authority to manage
-        that account, so no current-password check applies there. Here the
+        Self-service, unlike set-password: an administrator resetting someone
+        else's password already proved their own authority to manage that
+        account, so no current-password check applies there. Here the
         caller is proving they still control the account, not managing someone
         else's - current_password is required precisely because a hijacked
         session should not be enough to lock the real owner out.
@@ -3248,6 +3230,85 @@ components:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
       - $ref: '#/components/schemas/LegacyImportRequest'
+    IssuedTemporaryPassword:
+      type: object
+      description: |-
+        The account, with the temporary password just issued for it.
+
+        The only response that ever carries a password, and only this once: the
+        server keeps nothing but its hash, so it cannot be shown again. Sent by
+        creating a user and by set-password, with caching disabled.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        can_make_final_grading_decision:
+          type: boolean
+          readOnly: true
+        can_promote_student:
+          type: boolean
+          readOnly: true
+        can_override_locked_session:
+          type: boolean
+          readOnly: true
+        can_view_grading_audit_log:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        temporary_password_expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        temporary_password:
+          type: string
+          readOnly: true
+      required:
+      - can_make_final_grading_decision
+      - can_override_locked_session
+      - can_promote_student
+      - can_view_grading_audit_log
+      - date_joined
+      - email
+      - full_name
+      - id
+      - last_login
+      - must_change_password
+      - role_display
+      - temporary_password
+      - temporary_password_expires_at
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -3929,10 +3990,6 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
-        password:
-          type: string
-          writeOnly: true
-          minLength: 1
     ProgrammeEnum:
       enum:
       - JUNIOR
@@ -4103,21 +4160,6 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
-    SetPasswordRequest:
-      type: object
-      description: |-
-        POST /api/users/{id}/set-password/.
-
-        A separate action rather than a writable field on UserManagementSerializer,
-        so a plain PATCH to a user's other details can never carry a password
-        change as a side effect.
-      properties:
-        password:
-          type: string
-          writeOnly: true
-          minLength: 1
-      required:
-      - password
     SiteSettings:
       type: object
       properties:
@@ -4577,6 +4619,11 @@ components:
         must_change_password:
           type: boolean
           readOnly: true
+        temporary_password_expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         date_joined:
           type: string
           format: date-time
@@ -4598,6 +4645,7 @@ components:
       - last_login
       - must_change_password
       - role_display
+      - temporary_password_expires_at
     UserManagementRequest:
       type: object
       description: |-
@@ -4624,13 +4672,8 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
-        password:
-          type: string
-          writeOnly: true
-          minLength: 1
       required:
       - email
-      - password
     VoidLegacyRecordRequest:
       type: object
       properties:

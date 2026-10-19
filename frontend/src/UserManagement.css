@@ -401,6 +401,38 @@
 
 .users-form-wide { grid-column: 1 / -1; }
 .users-form-note { margin: 0; }
+
+/* A temporary password, shown once (TemporaryPasswordIssued.tsx). */
+.users-issued-password { display: grid; gap: 0.9rem; }
+.users-issued-password p { margin: 0; }
+.users-issued-password-value {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface-sunken);
+  padding: 0.75rem 0.9rem;
+}
+.users-issued-password-value span {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.users-issued-password-value code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.users-issued-password-warning {
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-surface);
+  color: var(--color-text);
+  font-weight: 700;
+  padding: 0.6rem 0.8rem;
+}
 .users-field-error { color: var(--color-danger); }
 
 .users-error,

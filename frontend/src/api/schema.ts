@@ -1068,18 +1068,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description The administrator-facing users API.
-         *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
-         */
+        /** @description A new temporary password for someone else, replacing theirs. */
         post: operations["users_set_password_create"];
         delete?: never;
         options?: never;
@@ -1373,9 +1362,9 @@ export interface components {
         /**
          * @description POST /api/auth/change-password/.
          *
-         *     Self-service, unlike SetPasswordSerializer: an administrator resetting
-         *     someone else's password already proved their own authority to manage
-         *     that account, so no current-password check applies there. Here the
+         *     Self-service, unlike set-password: an administrator resetting someone
+         *     else's password already proved their own authority to manage that
+         *     account, so no current-password check applies there. Here the
          *     caller is proving they still control the account, not managing someone
          *     else's - current_password is required precisely because a hijacked
          *     session should not be enough to lock the real owner out.
@@ -1538,6 +1527,37 @@ export interface components {
         };
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
+        /**
+         * @description The account, with the temporary password just issued for it.
+         *
+         *     The only response that ever carries a password, and only this once: the
+         *     server keeps nothing but its hash, so it cannot be shown again. Sent by
+         *     creating a user and by set-password, with caching disabled.
+         */
+        IssuedTemporaryPassword: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            email: string;
+            first_name?: string;
+            last_name?: string;
+            readonly full_name: string;
+            role?: components["schemas"]["RoleEnum"];
+            readonly role_display: string;
+            is_active?: boolean;
+            readonly can_make_final_grading_decision: boolean;
+            readonly can_promote_student: boolean;
+            readonly can_override_locked_session: boolean;
+            readonly can_view_grading_audit_log: boolean;
+            readonly must_change_password: boolean;
+            /** Format: date-time */
+            readonly temporary_password_expires_at: string | null;
+            /** Format: date-time */
+            readonly date_joined: string;
+            /** Format: date-time */
+            readonly last_login: string | null;
+            readonly temporary_password: string;
+        };
         /**
          * @description * `STUDENT_ROSTER` - Student roster
          *     * `LEGACY_GRADINGS` - Legacy grading records
@@ -1917,7 +1937,6 @@ export interface components {
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
-            password?: string;
         };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
@@ -1988,16 +2007,6 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "instructor" | "administrator";
-        /**
-         * @description POST /api/users/{id}/set-password/.
-         *
-         *     A separate action rather than a writable field on UserManagementSerializer,
-         *     so a plain PATCH to a user's other details can never carry a password
-         *     change as a side effect.
-         */
-        SetPasswordRequest: {
-            password: string;
-        };
         SiteSettings: {
             password_policy: components["schemas"]["PasswordPolicy"];
             club_name: string;
@@ -2201,6 +2210,8 @@ export interface components {
             readonly can_view_grading_audit_log: boolean;
             readonly must_change_password: boolean;
             /** Format: date-time */
+            readonly temporary_password_expires_at: string | null;
+            /** Format: date-time */
             readonly date_joined: string;
             /** Format: date-time */
             readonly last_login: string | null;
@@ -2221,7 +2232,6 @@ export interface components {
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
-            password: string;
         };
         VoidLegacyRecordRequest: {
             reason: string;
@@ -3775,7 +3785,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserManagement"];
+                    "application/json": components["schemas"]["IssuedTemporaryPassword"];
                 };
             };
         };
@@ -3889,20 +3899,15 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetPasswordRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SetPasswordRequest"];
-                "multipart/form-data": components["schemas"]["SetPasswordRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description No response body */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IssuedTemporaryPassword"];
+                };
             };
         };
     };

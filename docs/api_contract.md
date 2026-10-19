@@ -106,7 +106,7 @@ them to the sign-in screen. Every *other* session for that account is ended.
 
 ### Forced password change
 
-`must_change_password` is set whenever somebody other than the owner chose the
+`must_change_password` is set whenever somebody other than the owner set the
 account's password: creation, and `POST /api/users/{id}/set-password/`. While
 it is set, the account may reach only `/api/auth/me/`,
 `/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`, `/api/ready/`
@@ -116,6 +116,23 @@ and `/api/site/`. Every other endpoint answers `403` with
 Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds
 for direct API callers and not only for the browser client. Django admin is
 outside this gate - see the middleware's docstring.
+
+### Temporary passwords
+
+Creation and `set-password` take no password: the server generates a
+temporary one that passes the password policy, stores only its hash, and
+returns it exactly once as `temporary_password` in an
+`IssuedTemporaryPassword` body, sent with `Cache-Control: no-store`. It is
+never logged, audited or served again; issuing another replaces it.
+
+A temporary password expires `KUKGRADE_TEMPORARY_PASSWORD_HOURS` (default 24)
+after it is issued, shown as `temporary_password_expires_at` on the managed
+user (null for a password its owner chose). Once it has passed, the account
+cannot sign in - through the API or the Django admin site - and a session
+already open stops being signed in. The refusal is the same generic error as a
+wrong password. An administrator issuing a new one is the way back; the
+owner choosing their own password clears the expiry. Enforced by
+`accounts.backends.AccountBackend`.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student`, `can_override_locked_session` and
@@ -140,21 +157,22 @@ Administrator group.
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
 | GET    | /api/users/                  | List users; filters `role`, `is_active`, `search`. Excludes the "Deleted User" placeholder account. |
-| POST   | /api/users/                  | Create a user; requires `password`, validated against Django's password validators |
+| POST   | /api/users/                  | Create a user. No `password`: returns `201` with the account and its generated `temporary_password`, once (see "Temporary passwords") |
 | GET    | /api/users/{id}/             | Retrieve a user                               |
 | PATCH  | /api/users/{id}/             | Update user details (not `password` - see below) |
 | DELETE | /api/users/{id}/             | Hard-delete, gated to `accounts.delete_user` (Administrator group only). Refuses self-deletion. Reassigns every PROTECT attribution (grading sessions created, candidates withdrawn, assessments generated, outcomes proposed/decided, items assessed, promotions recorded, audit events) to a seeded "Deleted User" placeholder account rather than nulling it, then deletes the row. Records `USER_DELETED`. See `accounts.services.delete_platform_user` and the 2026-09-21 decision log entry. |
 | PUT    | /api/users/{id}/             | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
-| POST   | /api/users/{id}/set-password/ | Reset another user's password; validated the same way as creation. Your own account is refused with 400 (`fields.user`) before the password is checked - change it with `/api/auth/change-password/` |
+| POST   | /api/users/{id}/set-password/ | Reset another user's password: no request body; returns `200` with the account and a new generated `temporary_password`, once. Their previous password, temporary or not, stops working. Your own account is refused with 400 (`fields.user`) - change it with `/api/auth/change-password/` |
 
 `is_staff` and `is_superuser` are not part of this API - it cannot hand out
 Django admin access. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
-resource. Responses include read-only `date_joined` and nullable `last_login`
-timestamps. There is no invite flow; account creation uses a temporary
-password and marks it for mandatory change at first sign-in.
+resource. Responses include read-only `date_joined`, nullable `last_login`
+and nullable `temporary_password_expires_at` timestamps. There is no invite
+flow; account creation issues a generated temporary password that must be
+changed at first sign-in.
 
 ## 3. Students
 

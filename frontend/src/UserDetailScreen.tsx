@@ -15,6 +15,7 @@ import {
   type UserAuthorityPayload,
   type UserRole,
 } from "./api";
+import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
@@ -207,28 +208,26 @@ function AuthorityForm({
 function PasswordResetDialog({
   user,
   onClose,
-  onSaved,
 }: {
   user: ManagedUser;
   onClose: () => void;
-  onSaved: (message: string) => void;
 }): React.ReactElement {
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [clientError, setClientError] = useState("");
   const queryClient = useQueryClient();
+  // gcTime 0: the response carries the temporary password, which should
+  // leave memory with this dialog rather than linger in the mutation cache.
   const mutation = useMutation({
-    mutationFn: () => resetManagedUserPassword(user.id, password),
+    mutationFn: () => resetManagedUserPassword(user.id),
+    gcTime: 0,
     onSuccess: () => {
-      // The reset sets must_change_password on the server; refetch so
-      // "Next sign-in" and the activity list show it rather than the old state.
+      // Refetched rather than set from the response, which would keep the
+      // password in the query cache: "Next sign-in" and the activity list
+      // show the reset.
       void queryClient.invalidateQueries({ queryKey: ["managedUser", user.id] });
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
       void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
-      onSaved("Temporary password set. The user must change it at next sign-in.");
-      onClose();
     },
   });
+  const issued = mutation.data;
   const dialogRef = useDialogFocus<HTMLElement>({
     isOpen: true,
     onClose,
@@ -238,61 +237,40 @@ function PasswordResetDialog({
   const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
-    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending) onClose(); }}>
+    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending && !issued) onClose(); }}>
       <section ref={dialogRef} tabIndex={-1} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
         <header>
-          <div><p>Security action</p><h2 id="reset-password-title">Set a temporary password</h2></div>
+          <div><p>Security action</p><h2 id="reset-password-title">{issued ? "Password reset" : "Reset password"}</h2></div>
           <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>Close</button>
         </header>
-        <form onSubmit={(event) => {
-          event.preventDefault();
-          setClientError("");
-          if (password !== confirmation) {
-            setClientError("The password confirmation does not match.");
-            return;
-          }
-          mutation.mutate();
-        }}>
-          <p>Reset the password for <strong>{user.full_name}</strong>. The password itself is never written to the audit log.</p>
-          <input
-            className="visually-hidden"
-            type="email"
-            autoComplete="username"
-            value={user.email}
-            readOnly
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-          <label>
-            <span>Temporary password</span>
-            <input
-              data-dialog-autofocus
-              required
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              aria-invalid={(error?.messagesFor("password").length ?? 0) > 0}
-              aria-describedby={(error?.messagesFor("password").length ?? 0) > 0 ? "reset-password-error" : undefined}
-            />
-          </label>
-          <label><span>Confirm password</span><input required type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
-          {(error?.messagesFor("password").length ?? 0) > 0 && (
-            <span id="reset-password-error" role="alert">
-              {error?.messagesFor("password").map((message, index) => (
-                <small className="users-field-error" key={index}>{message}</small>
-              ))}
-            </span>
-          )}
-          {(clientError || error) && <div className="users-error" role="alert">{clientError || error?.message}</div>}
-          <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-            <button type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : "Set password"}</button>
-          </div>
-        </form>
+        {issued ? (
+          <TemporaryPasswordIssued issued={issued} onDone={onClose} />
+        ) : (
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}>
+            <p>
+              Reset the password for <strong>{user.full_name}</strong>? Their current password stops
+              working straight away, and you'll be given a temporary one to pass on.
+            </p>
+            {error && <div className="users-error" role="alert">{error.message}</div>}
+            <div className="users-dialog-actions">
+              <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+              <button data-dialog-autofocus type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );
+}
+
+function temporaryPasswordState(expiresAt: string): string {
+  const when = formatDateTime(expiresAt);
+  return new Date(expiresAt) <= new Date()
+    ? `Expired ${when}. Reset the password to give them a new one.`
+    : `Works until ${when}`;
 }
 
 function DeleteUserDialog({
@@ -444,7 +422,7 @@ export function UserDetailScreen(): React.ReactElement {
         {isSelf ? (
           <p className="users-self-password-hint">Change your own password from your account menu.</p>
         ) : (
-          <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Set new password</button>
+          <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Reset password</button>
         )}
       </header>
 
@@ -488,6 +466,9 @@ export function UserDetailScreen(): React.ReactElement {
               <div><dt>Last active</dt><dd>{formatDateTime(managedUser.last_login, "Never")}</dd></div>
               <div><dt>Role</dt><dd>{managedUser.role_display}</dd></div>
               <div><dt>Next sign-in</dt><dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd></div>
+              {managedUser.temporary_password_expires_at && (
+                <div><dt>Temporary password</dt><dd>{temporaryPasswordState(managedUser.temporary_password_expires_at)}</dd></div>
+              )}
             </dl>
           </section>
           <section>
@@ -508,7 +489,7 @@ export function UserDetailScreen(): React.ReactElement {
         </aside>
       </div>
 
-      {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} onSaved={setNotice} />}
+      {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} />}
       {deleteOpen && <DeleteUserDialog user={managedUser} onClose={closeDelete} />}
     </section>
   );

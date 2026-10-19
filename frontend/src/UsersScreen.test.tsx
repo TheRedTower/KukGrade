@@ -33,6 +33,7 @@ const managedUser: ManagedUser = {
   can_override_locked_session: true,
   can_view_grading_audit_log: false,
   must_change_password: false,
+  temporary_password_expires_at: null,
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -121,34 +122,67 @@ describe("UsersScreen", () => {
     });
   });
 
-  it("validates and creates a user before opening their detail", async () => {
+  it("creates a user, shows their temporary password once, then opens their detail", async () => {
     const user = userEvent.setup();
-    mockCreateManagedUser.mockResolvedValue({ ...managedUser, id: "created-user" });
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    mockCreateManagedUser.mockResolvedValue({
+      ...managedUser,
+      id: "created-user",
+      full_name: "Casey Created",
+      must_change_password: true,
+      temporary_password_expires_at: "2026-10-20T14:00:00Z",
+      temporary_password: "Kq7#mPx4!vRt9@Wa",
+    });
     renderScreen();
     await screen.findByText("Riley Khan");
 
     await user.click(screen.getByRole("button", { name: "Add user" }));
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    // The server generates the password: there is nothing to type.
+    expect(within(dialog).queryByLabelText(/password/i)).not.toBeInTheDocument();
     await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
-    await user.type(within(dialog).getByLabelText("Temporary password"), "Temporary-Password-2026!");
-    await user.type(within(dialog).getByLabelText("Confirm password"), "different");
-    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
-    expect(await screen.findByText("The password confirmation does not match.")).toBeInTheDocument();
-    expect(mockCreateManagedUser).not.toHaveBeenCalled();
-
-    await user.clear(within(dialog).getByLabelText("Confirm password"));
-    await user.type(within(dialog).getByLabelText("Confirm password"), "Temporary-Password-2026!");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
-    await waitFor(() => {
-      expect(mockCreateManagedUser.mock.calls[0][0]).toEqual(expect.objectContaining({
-        email: "created@example.com",
-        password: "Temporary-Password-2026!",
-        role: "instructor",
-        is_active: true,
-      }));
+    expect(mockCreateManagedUser.mock.calls[0][0]).toEqual({
+      email: "created@example.com",
+      first_name: "",
+      last_name: "",
+      role: "instructor",
+      is_active: true,
     });
+    const shown = await screen.findByRole("dialog", { name: "Staff user added" });
+    expect(within(shown).getByText("Kq7#mPx4!vRt9@Wa")).toBeInTheDocument();
+    expect(within(shown).getByText(/It will not be shown again/)).toBeInTheDocument();
+    expect(within(shown).getByRole("button", { name: "Copy password" })).toHaveFocus();
+
+    await user.click(within(shown).getByRole("button", { name: "Copy password" }));
+    expect(writeText).toHaveBeenCalledWith("Kq7#mPx4!vRt9@Wa");
+    expect(await within(shown).findByText("Copied.")).toBeInTheDocument();
+
+    await user.click(within(shown).getByRole("button", { name: "Done" }));
     expect(await screen.findByRole("heading", { name: "User detail reached" })).toBeInTheDocument();
+    expect(screen.queryByText("Kq7#mPx4!vRt9@Wa")).not.toBeInTheDocument();
+  });
+
+  it("does not lose the temporary password to a stray click outside the dialog", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockResolvedValue({
+      ...managedUser,
+      temporary_password_expires_at: "2026-10-20T14:00:00Z",
+      temporary_password: "Kq7#mPx4!vRt9@Wa",
+    });
+    renderScreen();
+    await screen.findByText("Riley Khan");
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await user.type(within(dialog).getByLabelText("Email address"), "created@example.com");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+    const shown = await screen.findByRole("dialog", { name: "Staff user added" });
+
+    await user.pointer({ keys: "[MouseLeft]", target: shown.parentElement! });
+
+    expect(screen.getByText("Kq7#mPx4!vRt9@Wa")).toBeInTheDocument();
   });
 
   it("announces a server-side email validation error and associates it with the email field", async () => {
@@ -165,8 +199,6 @@ describe("UsersScreen", () => {
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     const emailInput = within(dialog).getByLabelText("Email address");
     await user.type(emailInput, "riley.khan@example.com");
-    await user.type(within(dialog).getByLabelText("Temporary password"), "Temporary-Password-2026!");
-    await user.type(within(dialog).getByLabelText("Confirm password"), "Temporary-Password-2026!");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     const fieldError = await screen.findByText("A user with that email already exists.");
@@ -184,8 +216,6 @@ describe("UsersScreen", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Add staff user" });
     await user.type(within(dialog).getByLabelText("Email address"), "pending@example.com");
-    await user.type(within(dialog).getByLabelText("Temporary password"), "Temporary-Password-2026!");
-    await user.type(within(dialog).getByLabelText("Confirm password"), "Temporary-Password-2026!");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
 
     await waitFor(() => expect(mockCreateManagedUser).toHaveBeenCalled());

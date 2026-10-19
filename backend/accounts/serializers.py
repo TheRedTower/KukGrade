@@ -21,8 +21,6 @@ from accounts.permissions import (
 )
 from accounts.services import (
     change_own_password,
-    create_platform_user,
-    reset_password,
     set_user_authority,
     update_platform_user,
 )
@@ -181,19 +179,13 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
-    # write_only and required at the class level, for create. Removed
-    # entirely on update in __init__, below, rather than merely marked
-    # optional: password changes go through the dedicated set-password
-    # action, so update() should never even receive the field.
-    password = serializers.CharField(
-        write_only=True,
-        style={"input_type": "password"},
-    )
 
+    # No password field: the server generates every password an administrator
+    # issues (UserViewSet.create and set-password), so none is ever typed here.
     class Meta:
         model = User
         list_serializer_class = PermissionPrimedListSerializer
-        fields = (
+        fields: tuple[str, ...] = (
             "id",
             "email",
             "first_name",
@@ -207,9 +199,9 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_override_locked_session",
             "can_view_grading_audit_log",
             "must_change_password",
+            "temporary_password_expires_at",
             "date_joined",
             "last_login",
-            "password",
         )
         # is_staff and is_superuser are not in this API at all: Django admin
         # access is not something it should be able to hand out. Role and
@@ -224,31 +216,10 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "can_override_locked_session",
             "can_view_grading_audit_log",
             "must_change_password",
+            "temporary_password_expires_at",
             "date_joined",
             "last_login",
         )
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if self.instance is not None:
-            del self.fields["password"]
-
-    def validate_password(self, value: str) -> str:
-        # This only ever runs on create - update() has no password field, see
-        # __init__ above. Without an unsaved User built from the other
-        # submitted fields, UserAttributeSimilarityValidator has nothing to
-        # compare against and a password identical to the new account's own
-        # email would pass.
-        candidate = User(
-            email=self.initial_data.get("email", ""),
-            first_name=self.initial_data.get("first_name", ""),
-            last_name=self.initial_data.get("last_name", ""),
-        )
-        return _validated_password(value, candidate)
-
-    def create(self, validated_data: dict[str, Any]) -> User:
-        request = self.context["request"]
-        return create_platform_user(actor=request.user, **validated_data)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]
@@ -276,36 +247,29 @@ class UserAuthoritySerializer(serializers.Serializer):
         )
 
 
-class SetPasswordSerializer(serializers.Serializer):
-    """POST /api/users/{id}/set-password/.
+class IssuedTemporaryPasswordSerializer(UserManagementSerializer):
+    """The account, with the temporary password just issued for it.
 
-    A separate action rather than a writable field on UserManagementSerializer,
-    so a plain PATCH to a user's other details can never carry a password
-    change as a side effect.
+    The only response that ever carries a password, and only this once: the
+    server keeps nothing but its hash, so it cannot be shown again. Sent by
+    creating a user and by set-password, with caching disabled.
     """
 
-    password = serializers.CharField(
-        write_only=True,
-        style={"input_type": "password"},
-    )
+    temporary_password = serializers.SerializerMethodField()
 
-    def validate_password(self, value: str) -> str:
-        return _validated_password(value, self.instance)
+    class Meta(UserManagementSerializer.Meta):
+        fields = (*UserManagementSerializer.Meta.fields, "temporary_password")
 
-    def update(self, instance: User, validated_data: dict[str, Any]) -> User:
-        return reset_password(
-            instance,
-            password=validated_data["password"],
-            actor=self.context["request"].user,
-        )
+    def get_temporary_password(self, _user: User) -> str:
+        return str(self.context["temporary_password"])
 
 
 class ChangePasswordSerializer(serializers.Serializer):
     """POST /api/auth/change-password/.
 
-    Self-service, unlike SetPasswordSerializer: an administrator resetting
-    someone else's password already proved their own authority to manage
-    that account, so no current-password check applies there. Here the
+    Self-service, unlike set-password: an administrator resetting someone
+    else's password already proved their own authority to manage that
+    account, so no current-password check applies there. Here the
     caller is proving they still control the account, not managing someone
     else's - current_password is required precisely because a hijacked
     session should not be enough to lock the real owner out.

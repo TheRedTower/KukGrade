@@ -282,7 +282,7 @@ export function ProfileMenu({
           </div>
 
           {/* Your own password, behind your current one. An administrator's
-              "Set new password" is for other people's accounts only. */}
+              "Reset password" is for other people's accounts only. */}
           <div className="profile-dropdown-section">
             {isChangingPassword ? (
               <ChangePasswordForm

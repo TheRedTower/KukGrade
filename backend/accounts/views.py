@@ -5,6 +5,7 @@ from typing import cast
 
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.db.models import QuerySet
+from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
@@ -21,14 +22,19 @@ from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.permissions import HasRequiredPermissions
 from accounts.serializers import (
     ChangePasswordSerializer,
+    IssuedTemporaryPasswordSerializer,
     LoginSerializer,
     SelfProfileSerializer,
-    SetPasswordSerializer,
     UserAuthoritySerializer,
     UserManagementSerializer,
     UserSerializer,
 )
-from accounts.services import delete_platform_user, validate_can_reset_password
+from accounts.services import (
+    TemporaryPassword,
+    create_platform_user,
+    delete_platform_user,
+    reset_password,
+)
 from kukgrade.filtering import boolean, choice, search
 
 
@@ -133,6 +139,34 @@ class UserViewSet(
         "set_password": ("accounts.change_user",),
     }
 
+    @extend_schema(responses={201: IssuedTemporaryPasswordSerializer})
+    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        issued = create_platform_user(
+            actor=cast(User, request.user),
+            **serializer.validated_data,
+        )
+        return self._issued(request, issued, status.HTTP_201_CREATED)
+
+    def _issued(
+        self,
+        request: Request,
+        issued: TemporaryPassword,
+        status_code: int,
+    ) -> Response:
+        """The account and its new temporary password - shown once, so never
+        stored by a browser or proxy cache."""
+        response = Response(
+            IssuedTemporaryPasswordSerializer(
+                issued.user,
+                context={"request": request, "temporary_password": issued.password},
+            ).data,
+            status=status_code,
+        )
+        add_never_cache_headers(response)
+        return response
+
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
         delete_platform_user(instance, cast(User, request.user))
@@ -177,7 +211,7 @@ class UserViewSet(
             UserManagementSerializer(updated, context={"request": request}).data,
         )
 
-    @extend_schema(request=SetPasswordSerializer, responses={204: None})
+    @extend_schema(request=None, responses=IssuedTemporaryPasswordSerializer)
     @action(detail=True, methods=["post"], url_path="set-password")
     def set_password(
         self,
@@ -185,16 +219,6 @@ class UserViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        target = self.get_object()
-        # Before the password is validated, so your own account is told where
-        # to go rather than shown a password-rule error. reset_password
-        # checks again for any other caller.
-        validate_can_reset_password(target, cast(User, request.user))
-        serializer = SetPasswordSerializer(
-            target,
-            data=request.data,
-            context={"request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        """A new temporary password for someone else, replacing theirs."""
+        issued = reset_password(self.get_object(), actor=cast(User, request.user))
+        return self._issued(request, issued, status.HTTP_200_OK)

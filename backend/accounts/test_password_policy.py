@@ -78,41 +78,10 @@ def test_a_password_like_the_users_own_details_is_refused() -> None:
     ]
 
 
-def _admin_client() -> APIClient:
-    admin = User.objects.create_user(
-        email="policy-admin@example.com",
-        role=User.Role.ADMINISTRATOR,
-    )
-    client = APIClient()
-    client.force_authenticate(user=admin)
-    return client
-
-
 def _target() -> User:
     return User.objects.create_user(
         email="policy-target@example.com",
         password="Original-Password-9",
-    )
-
-
-def _create_user(password: str) -> Any:
-    return _admin_client().post(
-        "/api/users/",
-        {
-            "email": "policy-new@example.com",
-            "password": password,
-            "first_name": "New",
-            "last_name": "User",
-        },
-        format="json",
-    )
-
-
-def _reset(password: str) -> Any:
-    return _admin_client().post(
-        f"/api/users/{_target().pk}/set-password/",
-        {"password": password},
-        format="json",
     )
 
 
@@ -126,7 +95,9 @@ def _change_own(password: str) -> Any:
     )
 
 
-@pytest.mark.parametrize("send", [_create_user, _reset, _change_own])
+# Changing your own password is the one API path that takes a typed password:
+# every other is generated (test_temporary_passwords.py), and checked against
+# the same policy before it is issued.
 @pytest.mark.parametrize(
     ("password", "message"),
     [
@@ -135,21 +106,18 @@ def _change_own(password: str) -> Any:
         ("kukgrade-strong-9", "Include an uppercase letter."),
     ],
 )
-def test_every_api_path_enforces_the_same_policy(
-    send: Any,
+def test_changing_your_own_password_enforces_the_policy(
     password: str,
     message: str,
 ) -> None:
-    response = send(password)
+    response = _change_own(password)
 
     assert response.status_code == 400
-    fields = response.json()["error"]["fields"]
-    assert message in (fields.get("password") or fields.get("new_password"))
+    assert message in response.json()["error"]["fields"]["new_password"]
 
 
-@pytest.mark.parametrize("send", [_create_user, _reset, _change_own])
-def test_every_api_path_accepts_a_strong_password(send: Any) -> None:
-    assert send(STRONG).status_code in {201, 204}
+def test_changing_your_own_password_accepts_a_strong_one() -> None:
+    assert _change_own(STRONG).status_code == 204
 
 
 def test_django_admin_forms_enforce_the_same_policy(settings: Any) -> None:

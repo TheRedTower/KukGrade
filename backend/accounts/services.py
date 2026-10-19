@@ -7,14 +7,19 @@ rather than one per changed field.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.password_policy import generate_temporary_password
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
@@ -42,27 +47,62 @@ def _snapshot(user: User) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True)
+class TemporaryPassword:
+    """A temporary password just issued, for the administrator to pass on.
+
+    The plaintext exists only here, on its way to the one response that shows
+    it: only its hash is stored, and it is never logged or audited.
+    """
+
+    user: User
+    # Out of the repr, so a log line or traceback that prints this cannot
+    # print the password.
+    password: str = field(repr=False)
+
+
+def _temporary_password_expiry() -> datetime:
+    return timezone.now() + settings.TEMPORARY_PASSWORD_LIFETIME
+
+
 @transaction.atomic
 def create_platform_user(
     *,
     email: str,
-    password: str,
     first_name: str = "",
     last_name: str = "",
     role: str | None = None,
     is_active: bool | None = None,
-    must_change_password: bool = True,
+    password: str | None = None,
     actor: User | None = None,
-) -> User:
+) -> TemporaryPassword:
+    """A new account with a temporary password, which its owner must replace.
+
+    The password is generated unless `password` is given - Django admin's add
+    form, where a superuser types one. Either way it is temporary: it expires,
+    and the first sign-in must choose a new one.
+    """
+    expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,
         "last_name": last_name,
-        "must_change_password": must_change_password,
+        "must_change_password": True,
+        "temporary_password_expires_at": expires_at,
     }
     if role is not None:
         extra["role"] = role
     if is_active is not None:
         extra["is_active"] = is_active
+    if password is None:
+        # Built unsaved from the submitted details, so the similarity check
+        # has the new account's own name and email to compare against.
+        password = generate_temporary_password(
+            User(
+                email=User.objects.normalize_email(email),
+                first_name=first_name,
+                last_name=last_name,
+            ),
+        )
     # create_user() already calls full_clean(exclude=["password"]) and
     # save() itself; is_staff and is_superuser are not accepted here at
     # all, so this path can never hand out Django admin access.
@@ -72,9 +112,12 @@ def create_platform_user(
         user,
         f"User account created for {user.email}.",
         actor=actor,
-        metadata={"role": user.role},
+        metadata={
+            "role": user.role,
+            "temporary_password_expires_at": expires_at.isoformat(),
+        },
     )
-    return user
+    return TemporaryPassword(user, password)
 
 
 def _granted(user: User, permission: str) -> bool:
@@ -385,12 +428,17 @@ def validate_can_reset_password(target: User, actor: User) -> None:
 
 
 @transaction.atomic
-def reset_password(target: User, *, password: str, actor: User) -> User:
-    """Set a password someone else chose, so its owner must replace it."""
+def reset_password(target: User, *, actor: User) -> TemporaryPassword:
+    """Issue `target` a new temporary password, replacing whatever they had.
+
+    Their old password stops working at once, as does any earlier temporary
+    one; they must choose their own at next sign-in.
+    """
     validate_can_reset_password(target, actor)
     locked = _lock_user(target.pk)
+    password = generate_temporary_password(locked)
     locked.set_password(password)
-    return _password_set(locked, actor=actor)
+    return TemporaryPassword(_password_set(locked, actor=actor), password)
 
 
 @transaction.atomic
@@ -409,16 +457,24 @@ def record_admin_password_change(target: User, *, actor: User) -> User:
 
 
 def _password_set(locked: User, *, actor: User) -> User:
-    # A password its owner chose needs no forced replacement; one someone
-    # else chose does. An owner reaches this through change_own_password, or
-    # through Django admin's own form, which slice 4 of the credential
-    # lifecycle closes.
+    # A password its owner chose is theirs to keep; one someone else set is
+    # temporary - it expires, and must be replaced at next sign-in. An owner
+    # reaches this through change_own_password, or through Django admin's own
+    # form, which slice 4 of the credential lifecycle closes.
     chosen_by_owner = locked.pk == actor.pk
+    expires_at = None if chosen_by_owner else _temporary_password_expiry()
+    locked.must_change_password = not chosen_by_owner
+    locked.temporary_password_expires_at = expires_at
     # One transaction with the password itself, so the change and its record
     # land together or not at all (KG-A14). The value never appears in the
     # summary or metadata.
-    locked.must_change_password = not chosen_by_owner
-    locked.save(update_fields=["password", "must_change_password"])
+    locked.save(
+        update_fields=[
+            "password",
+            "must_change_password",
+            "temporary_password_expires_at",
+        ],
+    )
     record(
         AuditAction.USER_UPDATED,
         locked,
@@ -428,6 +484,11 @@ def _password_set(locked: User, *, actor: User) -> User:
             else f"Password reset for {locked.email}."
         ),
         actor=actor,
+        metadata=(
+            {"temporary_password_expires_at": expires_at.isoformat()}
+            if expires_at
+            else {}
+        ),
     )
     return locked
 

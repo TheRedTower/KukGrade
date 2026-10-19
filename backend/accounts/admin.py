@@ -114,8 +114,16 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     # Groups follow the role, and per-user permissions are Master authority,
     # granted in the app through set_user_authority() and its rules - never
     # edited here, where they would skip both the rules and the audit
-    # (KG-A14). The two dates are Django's bookkeeping.
-    readonly_fields = ("groups", "user_permissions", "last_login", "date_joined")
+    # (KG-A14). The two dates are Django's bookkeeping, and the password
+    # state follows whoever last set the password.
+    readonly_fields = (
+        "groups",
+        "user_permissions",
+        "must_change_password",
+        "temporary_password_expires_at",
+        "last_login",
+        "date_joined",
+    )
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
         # Internal bookkeeping, not an account anyone administers.
@@ -128,7 +136,17 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         )
 
     fieldsets = (
-        (None, {"fields": ("email", "password")}),
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "password",
+                    "must_change_password",
+                    "temporary_password_expires_at",
+                ),
+            },
+        ),
         (_("Personal info"), {"fields": ("first_name", "last_name")}),
         (
             _("KukGrade access"),
@@ -182,6 +200,8 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         # them, the same way the API does, so they are applied as an
         # explicit second step on create rather than routed through it.
         if not change:
+            # The password typed here is temporary like any other an
+            # administrator sets: it expires, and must be replaced.
             created = create_platform_user(
                 email=obj.email,
                 password=form.cleaned_data["password1"],
@@ -190,7 +210,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
                 role=obj.role,
                 is_active=obj.is_active,
                 actor=cast(User, request.user),
-            )
+            ).user
             set_admin_site_access(
                 created,
                 actor=cast(User, request.user),

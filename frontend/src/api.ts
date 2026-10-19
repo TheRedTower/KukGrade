@@ -12,7 +12,9 @@ type Schemas = components["schemas"];
 type ListQuery<Op extends keyof operations> = NonNullable<operations[Op]["parameters"]["query"]>;
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
-export type ManagedUser = Omit<components["schemas"]["UserManagement"], "password">;
+export type ManagedUser = components["schemas"]["UserManagement"];
+/** A managed user with the temporary password just issued for them, shown once. */
+export type IssuedTemporaryPassword = components["schemas"]["IssuedTemporaryPassword"];
 
 export type PaginatedResponse<T> = {
   count: number;
@@ -263,8 +265,8 @@ export type CreateManagedUserPayload = Schemas["UserManagementRequest"];
 
 export async function createManagedUser(
   data: CreateManagedUserPayload,
-): Promise<ManagedUser> {
-  return apiRequest<ManagedUser>("/api/users/", {
+): Promise<IssuedTemporaryPassword> {
+  return apiRequest<IssuedTemporaryPassword>("/api/users/", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -298,13 +300,9 @@ export async function updateManagedUserAuthority(
   });
 }
 
-export async function resetManagedUserPassword(
-  id: string,
-  password: string,
-): Promise<void> {
-  await apiRequest<void>(`/api/users/${id}/set-password/`, {
+export async function resetManagedUserPassword(id: string): Promise<IssuedTemporaryPassword> {
+  return apiRequest<IssuedTemporaryPassword>(`/api/users/${id}/set-password/`, {
     method: "POST",
-    body: JSON.stringify({ password }),
   });
 }
 

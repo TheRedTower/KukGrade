@@ -86,6 +86,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     must_change_password = models.BooleanField(default=False)
+    # Set with a temporary password - one somebody other than the owner set -
+    # and cleared when the owner chooses their own. Once passed, the account
+    # cannot sign in until an administrator issues a new one
+    # (accounts/backends.py). Null for every password its owner chose.
+    temporary_password_expires_at = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects: ClassVar[UserManager] = UserManager()
@@ -110,6 +115,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.is_deleted_user_placeholder and self.is_active:
             raise ValidationError({"is_active": [PLACEHOLDER_ACTIVE_MESSAGE]})
         super().save(*args, **kwargs)
+
+    @property
+    def temporary_password_expired(self) -> bool:
+        expires_at = self.temporary_password_expires_at
+        return expires_at is not None and expires_at <= timezone.now()
 
     @property
     def is_deleted_user_placeholder(self) -> bool:

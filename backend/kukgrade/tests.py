@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+from datetime import timedelta
 from pathlib import Path
 from types import ModuleType
 
@@ -39,6 +40,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_NUM_PROXIES",
         "KUKGRADE_CLUB_NAME",
         "DJANGO_TIME_ZONE",
+        "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -255,3 +257,28 @@ def test_an_unknown_time_zone_stops_startup(
 ) -> None:
     with pytest.raises(ImproperlyConfigured, match="DJANGO_TIME_ZONE"):
         load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE=bad)
+
+
+def test_temporary_passwords_last_a_day_unless_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    default = load_settings(monkeypatch, **PRODUCTION_ENV)
+    configured = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        KUKGRADE_TEMPORARY_PASSWORD_HOURS="6",
+    )
+
+    assert default.TEMPORARY_PASSWORD_LIFETIME == timedelta(hours=24)
+    assert configured.TEMPORARY_PASSWORD_LIFETIME == timedelta(hours=6)
+
+
+def test_a_temporary_password_lifetime_under_an_hour_refuses_to_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(ImproperlyConfigured):
+        load_settings(
+            monkeypatch,
+            **PRODUCTION_ENV,
+            KUKGRADE_TEMPORARY_PASSWORD_HOURS="0",
+        )

@@ -9,6 +9,7 @@ import {
   type ManagedUser,
   type UserRole,
 } from "./api";
+import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
@@ -32,12 +33,19 @@ function CreateUserDialog({
   onClose: () => void;
   onCreated: (user: ManagedUser) => void;
 }): React.ReactElement {
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
-  const [clientError, setClientError] = useState("");
-  const mutation = useMutation({ mutationFn: createManagedUser, onSuccess: onCreated });
+  const queryClient = useQueryClient();
+  // gcTime 0: the response carries the temporary password, which should
+  // leave memory with this dialog rather than linger in the mutation cache.
+  const mutation = useMutation({
+    mutationFn: createManagedUser,
+    gcTime: 0,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["managedUsers"] }),
+  });
+  const issued = mutation.data;
+  const close = issued ? () => onCreated(issued) : onClose;
   const dialogRef = useDialogFocus<HTMLElement>({
     isOpen: true,
-    onClose,
+    onClose: close,
     canClose: !mutation.isPending,
   });
 
@@ -48,7 +56,8 @@ function CreateUserDialog({
       className="users-dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !mutation.isPending) onClose();
+        // Not once the password is showing: a stray click must not lose it.
+        if (event.target === event.currentTarget && !mutation.isPending && !issued) onClose();
       }}
     >
       <section
@@ -62,113 +71,83 @@ function CreateUserDialog({
         <header>
           <div>
             <p>Administrator action</p>
-            <h2 id="create-user-title">Add staff user</h2>
+            <h2 id="create-user-title">{issued ? "Staff user added" : "Add staff user"}</h2>
           </div>
-          <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>
+          <button type="button" className="users-link-button" onClick={close} disabled={mutation.isPending}>
             Close
           </button>
         </header>
-        <form
-          className="users-dialog-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setClientError("");
-            const form = new FormData(event.currentTarget);
-            const password = String(form.get("password") ?? "");
-            if (password !== passwordConfirmation) {
-              setClientError("The password confirmation does not match.");
-              return;
-            }
-            mutation.mutate({
-              email: String(form.get("email") ?? "").trim(),
-              first_name: String(form.get("first_name") ?? "").trim(),
-              last_name: String(form.get("last_name") ?? "").trim(),
-              role: String(form.get("role") ?? "instructor") as UserRole,
-              password,
-              is_active: true,
-            });
-          }}
-        >
-          <div className="users-form-grid">
-            <label>
-              <span>First name</span>
-              <input data-dialog-autofocus name="first_name" autoComplete="off" />
-            </label>
-            <label>
-              <span>Last name</span>
-              <input name="last_name" autoComplete="off" />
-            </label>
-            <label className="users-form-wide">
-              <span>Email address</span>
-              <input
-                required
-                type="email"
-                name="email"
-                autoComplete="off"
-                aria-invalid={(apiError?.messagesFor("email").length ?? 0) > 0}
-                aria-describedby={(apiError?.messagesFor("email").length ?? 0) > 0 ? "cud-email-error" : undefined}
-              />
-              {(apiError?.messagesFor("email").length ?? 0) > 0 && (
-                <span id="cud-email-error" role="alert">
-                  {apiError?.messagesFor("email").map((message, index) => (
-                    <small className="users-field-error" key={index}>{message}</small>
-                  ))}
-                </span>
-              )}
-            </label>
-            <label className="users-form-wide">
-              <span>Role</span>
-              <select name="role" defaultValue="instructor">
-                <option value="instructor">Instructor</option>
-                <option value="administrator">Administrator</option>
-              </select>
-            </label>
-            <label>
-              <span>Temporary password</span>
-              <input
-                required
-                type="password"
-                name="password"
-                autoComplete="new-password"
-                aria-invalid={(apiError?.messagesFor("password").length ?? 0) > 0}
-                aria-describedby={(apiError?.messagesFor("password").length ?? 0) > 0 ? "cud-password-error" : undefined}
-              />
-              {(apiError?.messagesFor("password").length ?? 0) > 0 && (
-                <span id="cud-password-error" role="alert">
-                  {apiError?.messagesFor("password").map((message, index) => (
-                    <small className="users-field-error" key={index}>{message}</small>
-                  ))}
-                </span>
-              )}
-            </label>
-            <label>
-              <span>Confirm password</span>
-              <input
-                required
-                type="password"
-                value={passwordConfirmation}
-                onChange={(event) => setPasswordConfirmation(event.target.value)}
-                autoComplete="new-password"
-              />
-            </label>
-          </div>
-          <p className="users-form-note">
-            The user must change this temporary password when they first sign in.
-          </p>
-          {(clientError || apiError) && (
-            <div className="users-error" role="alert">
-              {clientError || apiError?.message}
+        {issued ? (
+          <TemporaryPasswordIssued issued={issued} onDone={close} />
+        ) : (
+          <form
+            className="users-dialog-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              mutation.mutate({
+                email: String(form.get("email") ?? "").trim(),
+                first_name: String(form.get("first_name") ?? "").trim(),
+                last_name: String(form.get("last_name") ?? "").trim(),
+                role: String(form.get("role") ?? "instructor") as UserRole,
+                is_active: true,
+              });
+            }}
+          >
+            <div className="users-form-grid">
+              <label>
+                <span>First name</span>
+                <input data-dialog-autofocus name="first_name" autoComplete="off" />
+              </label>
+              <label>
+                <span>Last name</span>
+                <input name="last_name" autoComplete="off" />
+              </label>
+              <label className="users-form-wide">
+                <span>Email address</span>
+                <input
+                  required
+                  type="email"
+                  name="email"
+                  autoComplete="off"
+                  aria-invalid={(apiError?.messagesFor("email").length ?? 0) > 0}
+                  aria-describedby={(apiError?.messagesFor("email").length ?? 0) > 0 ? "cud-email-error" : undefined}
+                />
+                {(apiError?.messagesFor("email").length ?? 0) > 0 && (
+                  <span id="cud-email-error" role="alert">
+                    {apiError?.messagesFor("email").map((message, index) => (
+                      <small className="users-field-error" key={index}>{message}</small>
+                    ))}
+                  </span>
+                )}
+              </label>
+              <label className="users-form-wide">
+                <span>Role</span>
+                <select name="role" defaultValue="instructor">
+                  <option value="instructor">Instructor</option>
+                  <option value="administrator">Administrator</option>
+                </select>
+              </label>
             </div>
-          )}
-          <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>
-              Cancel
-            </button>
-            <button type="submit" className="users-primary-button" disabled={mutation.isPending}>
-              {mutation.isPending ? "Adding…" : "Add user"}
-            </button>
-          </div>
-        </form>
+            <p className="users-form-note">
+              A temporary password is created for them. They'll choose their own when they first
+              sign in.
+            </p>
+            {apiError && (
+              <div className="users-error" role="alert">
+                {apiError.message}
+              </div>
+            )}
+            <div className="users-dialog-actions">
+              <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>
+                Cancel
+              </button>
+              <button type="submit" className="users-primary-button" disabled={mutation.isPending}>
+                {mutation.isPending ? "Adding…" : "Add user"}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );
@@ -176,7 +155,6 @@ function CreateUserDialog({
 
 export function UsersScreen(): React.ReactElement {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -327,7 +305,6 @@ export function UsersScreen(): React.ReactElement {
         <CreateUserDialog
           onClose={closeCreate}
           onCreated={(user) => {
-            void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
             setCreateOpen(false);
             navigate(`/users/${user.id}`);
           }}

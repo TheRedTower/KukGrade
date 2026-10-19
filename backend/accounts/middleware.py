@@ -3,7 +3,8 @@
 `must_change_password` is set whenever somebody other than the owner chose an
 account's password: creation, and an administrator reset. Until the owner picks
 their own, the account is not provably theirs, so it may do nothing but read
-who it is, set a new password, and sign out.
+who it is, set a new password, and sign out - in the API and the Django admin
+site alike.
 
 The frontend already refuses to route anywhere else while the flag is set, but
 that is presentation - a direct API call bypassed it entirely. This is the rule
@@ -28,6 +29,7 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import status
 
+from accounts.admin_site import admin_notice
 from accounts.models import User
 from kukgrade.exceptions import error_payload
 
@@ -47,16 +49,20 @@ EXEMPT_URL_NAMES = frozenset(
     },
 )
 
-# Django admin is deliberately outside this gate. `is_staff` is not grantable
-# through KukGrade at all (see accounts/serializers.py), and admin carries its
-# own password-change flow which does not clear this flag - so gating admin
-# would strand a staff account with no way back. Closing that surface means
-# changing admin's password flow too, which belongs in its own change.
+# The Django admin site is closed too, but answered with a page rather than
+# JSON, and signing out stays open. The way back is KukGrade's own
+# change-password screen: the admin site has no password form of its own for
+# your account (accounts/admin_site.py).
 ADMIN_NAMESPACE = "admin"
+ADMIN_EXEMPT_URL_NAMES = frozenset({"logout"})
 
 PASSWORD_CHANGE_REQUIRED_CODE = "password_change_required"
 PASSWORD_CHANGE_REQUIRED_MESSAGE = (
     "Your password must be changed before you can use KukGrade."
+)
+ADMIN_PASSWORD_CHANGE_REQUIRED_MESSAGE = (
+    "Your password must be changed before you can use the admin site. Sign in "
+    "to KukGrade to choose a new one, then come back."
 )
 
 
@@ -84,8 +90,18 @@ class ForcePasswordChangeMiddleware:
             return None
 
         match = request.resolver_match
-        if match is None or match.namespace == ADMIN_NAMESPACE:
+        if match is None:
             return None
+        if match.namespace == ADMIN_NAMESPACE:
+            if match.url_name in ADMIN_EXEMPT_URL_NAMES:
+                return None
+            return admin_notice(
+                request,
+                title="Change your password",
+                message=ADMIN_PASSWORD_CHANGE_REQUIRED_MESSAGE,
+                status=status.HTTP_403_FORBIDDEN,
+                closed=True,
+            )
         if match.url_name in EXEMPT_URL_NAMES:
             return None
 
@@ -99,7 +115,9 @@ class ForcePasswordChangeMiddleware:
 
 
 __all__ = [
+    "ADMIN_EXEMPT_URL_NAMES",
     "ADMIN_NAMESPACE",
+    "ADMIN_PASSWORD_CHANGE_REQUIRED_MESSAGE",
     "EXEMPT_URL_NAMES",
     "PASSWORD_CHANGE_REQUIRED_CODE",
     "PASSWORD_CHANGE_REQUIRED_MESSAGE",

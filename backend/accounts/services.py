@@ -449,18 +449,11 @@ def change_own_password(user: User, *, password: str) -> User:
     return _password_set(locked, actor=user)
 
 
-@transaction.atomic
-def record_admin_password_change(target: User, *, actor: User) -> User:
-    """Django admin's password form has saved `target`'s new password; the
-    rest of an administrator reset follows here, in the same transaction."""
-    return _password_set(_lock_user(target.pk), actor=actor)
-
-
 def _password_set(locked: User, *, actor: User) -> User:
     # A password its owner chose is theirs to keep; one someone else set is
-    # temporary - it expires, and must be replaced at next sign-in. An owner
-    # reaches this through change_own_password, or through Django admin's own
-    # form, which slice 4 of the credential lifecycle closes.
+    # temporary - it expires, and must be replaced at next sign-in. The owner
+    # reaches this only through change_own_password: Django admin has no
+    # password form for your own account (accounts/admin_site.py).
     chosen_by_owner = locked.pk == actor.pk
     expires_at = None if chosen_by_owner else _temporary_password_expiry()
     locked.must_change_password = not chosen_by_owner

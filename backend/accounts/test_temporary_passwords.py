@@ -15,7 +15,6 @@ from django.test import Client
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from accounts.admin import UserAdmin
 from accounts.models import User
 from accounts.password_policy import (
     CHARACTER_RULES,
@@ -221,32 +220,6 @@ def test_only_user_managers_can_issue_one() -> None:
     target.refresh_from_db()
     assert target.check_password("Owner-Chosen-Pass-9!")
     assert target.must_change_password is False
-
-
-def test_a_password_typed_on_the_admin_site_is_temporary_too(settings: Any) -> None:
-    render_admin_pages(settings)
-    superuser = User.objects.create_superuser(
-        email="temp-superuser@example.com",
-        password="Superuser-Pass-2026!",
-    )
-    client = Client()
-    client.force_login(superuser)
-
-    client.post(
-        "/admin/accounts/user/add/",
-        {
-            "email": "temp-admin-site@example.com",
-            "role": User.Role.INSTRUCTOR,
-            "password1": "Typed-On-Admin-2026!",
-            "password2": "Typed-On-Admin-2026!",
-            "is_active": "on",
-        },
-    )
-
-    created = User.objects.get(email="temp-admin-site@example.com")
-    assert created.must_change_password is True
-    assert created.temporary_password_expires_at is not None
-    assert "temporary_password_expires_at" in UserAdmin.readonly_fields
 
 
 # ---------------------------------------------------------------------------

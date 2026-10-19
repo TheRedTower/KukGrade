@@ -1,7 +1,7 @@
 """The password policy: defined once, enforced by Django, served to the screens.
 
 Every path that sets a password - a generated temporary password (below),
-changing your own, Django admin's forms, `createsuperuser` - runs Django's
+changing your own, `createsuperuser` - runs Django's
 `validate_password`, which runs `AUTH_PASSWORD_VALIDATORS`. The two validators
 here read the rules below, and `/api/site/` serves the same rules, so the
 checklist the screens show cannot drift from what the server enforces

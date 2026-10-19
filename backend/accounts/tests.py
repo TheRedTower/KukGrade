@@ -23,7 +23,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.admin import UserAdmin, UserCreationForm
+from accounts.admin import ISSUED_PASSWORD_ATTR, UserAdmin
 from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
 from accounts.middleware import EXEMPT_URL_NAMES
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
@@ -837,40 +837,6 @@ def test_user_list_flags_match_each_users_own_permission_check() -> None:
     assert not rows["flags-inactive@example.com"]["can_make_final_grading_decision"]
 
 
-def test_admin_add_user_form_enforces_the_same_password_validators() -> None:
-    # UserCreationForm is a plain ModelForm subclass, not Django's own
-    # contrib.auth.forms.UserCreationForm - it must validate the password
-    # itself, or admin becomes a second door with a lower standard than
-    # the API.
-    weak = UserCreationForm(
-        data={
-            "email": "weak-admin-form@example.com",
-            "first_name": "Weak",
-            "last_name": "Password",
-            "role": User.Role.INSTRUCTOR,
-            "password1": "12345678",
-            "password2": "12345678",
-        },
-    )
-
-    assert weak.is_valid() is False
-    assert "password2" in weak.errors
-
-    similar = UserCreationForm(
-        data={
-            "email": "graham.mitchell@example.com",
-            "first_name": "Graham",
-            "last_name": "Mitchell",
-            "role": User.Role.INSTRUCTOR,
-            "password1": "graham.mitchell@example.com",
-            "password2": "graham.mitchell@example.com",
-        },
-    )
-
-    assert similar.is_valid() is False
-    assert "password2" in similar.errors
-
-
 def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
     client, _admin = admin_client("duplicate-email-admin@example.com")
     create_user_via_api(client, email="dup@example.com")
@@ -1406,16 +1372,13 @@ def test_admin_created_user_is_persisted_and_audited() -> None:
     )
     model_admin = UserAdmin(User, admin.site)
     request = admin_operator_request("user-admin-creator@example.com")
-    form = cast(
-        ModelForm,
-        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
-    )
+    form = cast(ModelForm, SimpleNamespace(cleaned_data={}))
 
     model_admin.save_model(request, obj, form, False)
 
     assert obj.pk is not None
     persisted = User.objects.get(pk=obj.pk)
-    assert persisted.check_password("Str0ng-Passphrase!42")
+    assert persisted.check_password(getattr(request, ISSUED_PASSWORD_ATTR).password)
     assert persisted.is_staff is False
     assert persisted.is_superuser is False
     event = AuditEvent.objects.filter(
@@ -1440,10 +1403,7 @@ def test_admin_can_still_create_a_staff_or_superuser_account() -> None:
     )
     model_admin = UserAdmin(User, admin.site)
     request = admin_operator_request("user-admin-superuser-creator@example.com")
-    form = cast(
-        ModelForm,
-        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
-    )
+    form = cast(ModelForm, SimpleNamespace(cleaned_data={}))
 
     model_admin.save_model(request, obj, form, False)
 
@@ -1785,28 +1745,6 @@ def admin_site_client(email: str) -> tuple[Client, User]:
     return client, operator
 
 
-def test_an_admin_site_password_change_forces_a_new_one_and_is_audited() -> None:
-    client, operator = admin_site_client("admin-site-password@example.com")
-    target = create_user(email="admin-site-target@example.com")
-
-    response = client.post(
-        f"/admin/accounts/user/{target.pk}/password/",
-        {"password1": NEW_SECRET, "password2": NEW_SECRET},
-    )
-
-    assert response.status_code == 302
-    target.refresh_from_db()
-    assert target.check_password(NEW_SECRET)
-    assert target.must_change_password is True
-    event = AuditEvent.objects.get(
-        action=AuditAction.USER_UPDATED,
-        entity_id=str(target.pk),
-    )
-    assert event.actor == operator
-    assert NEW_SECRET not in event.summary
-    assert NEW_SECRET not in str(event.metadata)
-
-
 @pytest.mark.parametrize("path", ["reset", "own"])
 def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
     client, operator = admin_client("password-audit-fails@example.com")
@@ -1934,29 +1872,6 @@ def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
     from django.contrib.admin.models import DELETION, LogEntry
 
     assert not LogEntry.objects.filter(action_flag=DELETION).exists()
-
-
-def test_admin_site_password_form_on_your_own_account_is_not_a_reset(
-    settings: Any,
-) -> None:
-    render_admin_pages(settings)
-    me = create_user(
-        email="self-admin-form@example.com", is_staff=True, is_superuser=True
-    )
-    other = create_user(email="other-admin-form@example.com")
-    client = Client()
-    client.force_login(me)
-
-    for target in (me, other):
-        response = client.post(
-            f"/admin/accounts/user/{target.pk}/password/",
-            {"password1": "kg-FormChosen123!", "password2": "kg-FormChosen123!"},
-        )
-        assert response.status_code == 302, response.content.decode()[:500]
-        target.refresh_from_db()
-
-    assert me.must_change_password is False
-    assert other.must_change_password is True
 
 
 def test_a_superusers_unchanged_administrator_role_can_be_resent() -> None:

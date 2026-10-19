@@ -114,8 +114,16 @@ and `/api/site/`. Every other endpoint answers `403` with
 `error.code = "password_change_required"`, whatever the method. A successful
 `POST /api/auth/change-password/` clears the flag and restores normal access.
 Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds
-for direct API callers and not only for the browser client. Django admin is
-outside this gate - see the middleware's docstring.
+for direct API callers and not only for the browser client. The Django admin
+site is closed too: every admin page but signing out answers `403` with a page
+saying to change the password in KukGrade first.
+
+The admin site has no password form for your own account: its "Change
+password" page and its reset page for your own user both point to the account
+menu, so `/api/auth/change-password/` is the one way to change your own
+password. Its reset page for anyone else takes no password - it asks to
+confirm, then shows a generated temporary password once, as `set-password`
+does, and so does its add-user page.
 
 ### Temporary passwords
 

@@ -7,12 +7,9 @@ from typing import Any
 import pytest
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.test import Client
 from rest_framework.test import APIClient
 
-from accounts.admin import UserCreationForm
 from accounts.models import User
-from kukgrade.testing import render_admin_pages
 
 pytestmark = pytest.mark.django_db
 
@@ -118,34 +115,3 @@ def test_changing_your_own_password_enforces_the_policy(
 
 def test_changing_your_own_password_accepts_a_strong_one() -> None:
     assert _change_own(STRONG).status_code == 204
-
-
-def test_django_admin_forms_enforce_the_same_policy(settings: Any) -> None:
-    form = UserCreationForm(
-        data={
-            "email": "admin-form-new@example.com",
-            "password1": TOO_SHORT,
-            "password2": TOO_SHORT,
-            "role": User.Role.INSTRUCTOR,
-        },
-    )
-    assert not form.is_valid()
-    assert "Use at least 16 characters." in str(form.errors)
-
-    render_admin_pages(settings)
-    superuser = User.objects.create_superuser(
-        email="policy-superuser@example.com",
-        password="Superuser-Pass-2026!",
-    )
-    target = _target()
-    client = Client()
-    client.force_login(superuser)
-    response = client.post(
-        f"/admin/accounts/user/{target.pk}/password/",
-        {"password1": TOO_SHORT, "password2": TOO_SHORT},
-    )
-
-    assert response.status_code == 200  # the form, re-shown with its error
-    assert "Use at least 16 characters." in response.content.decode()
-    target.refresh_from_db()
-    assert target.check_password("Original-Password-9")

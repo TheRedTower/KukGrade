@@ -291,14 +291,13 @@ checks on each push and pull request.
   AccountBackend` wherever Django checks a sign-in: the API's login, the
   admin site's, and every request on an open session. A reset replaces it.
   Accounts from before this change have no expiry. Django admin's add-user
-  and password forms still take a typed password, which is treated as
-  temporary too.
+  and reset pages issue one the same way.
 - **Password policy (2026-10-19)**: 16 to 64 characters with an uppercase
   letter, a lowercase letter, a number and a special character (a space
   counts), not a common password and not too similar to the account's own
   details. Defined once in `accounts/password_policy.py` and run through
-  `AUTH_PASSWORD_VALIDATORS`, so the API, Django admin's forms and an
-  interactive `createsuperuser` all enforce it; `/api/site/` serves it and
+  `AUTH_PASSWORD_VALIDATORS`, so the API, generated temporary passwords and
+  an interactive `createsuperuser` all enforce it; `/api/site/` serves it and
   the password forms tick it off as you type. It applies when a password is
   next set - existing passwords keep working. `createsuperuser --noinput`
   and its "bypass validation" prompt skip it; the first-administrator setup
@@ -311,10 +310,13 @@ checks on each push and pull request.
   the two health endpoints, `/api/site/` and the frontend shell, answering
   `403` with `error.code = "password_change_required"`. The browser client
   already routed the user to the change-password screen, but that was
-  presentation only and a direct API call went straight past it. Django
-  admin is deliberately outside the gate: `is_staff` is not grantable
-  through KukGrade, and admin's own password flow does not clear the flag,
-  so gating it would strand a staff account.
+  presentation only and a direct API call went straight past it. Since
+  2026-10-19 the Django admin site is closed too, every page but signing
+  out answering `403` with a plain page; the way back is KukGrade's own
+  change-password screen. The admin site (`accounts.admin_site.
+  KukGradeAdminSite`) has no password form for your own account - its
+  "Change password" page and its reset of your own user point to the
+  account menu - so changing your own password has one path.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to

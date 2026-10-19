@@ -275,13 +275,17 @@ class ChangePasswordSerializer(serializers.Serializer):
     session should not be enough to lock the real owner out.
     """
 
+    # Untrimmed, as sign-in reads it: a space counts as a special character,
+    # and one trimmed off here would leave a password nobody can type.
     current_password = serializers.CharField(
         write_only=True,
         style={"input_type": "password"},
+        trim_whitespace=False,
     )
     new_password = serializers.CharField(
         write_only=True,
         style={"input_type": "password"},
+        trim_whitespace=False,
     )
 
     def validate_current_password(self, value: str) -> str:

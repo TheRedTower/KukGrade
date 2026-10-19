@@ -11,7 +11,7 @@ type FieldErrors = {
 };
 
 type ChangePasswordFormProps = {
-  /** "Temporary or current password" on the forced screen, plainer elsewhere. */
+  /** "Temporary password" on the forced screen, "Current password" in the menu. */
   currentPasswordLabel: string;
   submitLabel: string;
   submittingLabel: string;
@@ -72,17 +72,15 @@ export function ChangePasswordForm({
       onChanged?.();
     } catch (submitError) {
       if (submitError instanceof ApiError) {
-        if (submitError.fields) {
-          setFieldErrors({
-            current_password: submitError.messagesFor("current_password"),
-            new_password: submitError.messagesFor("new_password"),
-          });
-        }
-        if (submitError.nonFieldMessages.length > 0) {
-          setError(submitError.nonFieldMessages.join(" "));
-        } else if (submitError.message && !submitError.fields) {
-          setError(submitError.message);
-        }
+        const current = submitError.messagesFor("current_password");
+        const next = submitError.messagesFor("new_password");
+        setFieldErrors({ current_password: current, new_password: next });
+        // Anything not shown beside a field goes in the banner, so no error
+        // the server sends is left unsaid.
+        const banner =
+          submitError.nonFieldMessages.join(" ") ||
+          (current.length || next.length ? "" : submitError.message);
+        if (banner) setError(banner);
       } else {
         setError("Could not update password. Check your connection and try again.");
       }
@@ -106,7 +104,10 @@ export function ChangePasswordForm({
       <label>
         {currentPasswordLabel}
         <div className="password-field">
+          {/* Named here rather than by the label, which also holds the
+              Show button and would add its name to this field's. */}
           <input
+            aria-label={currentPasswordLabel}
             autoComplete="current-password"
             name="current_password"
             onChange={(e) => setCurrentPassword(e.target.value)}

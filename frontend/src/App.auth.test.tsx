@@ -662,7 +662,7 @@ describe("Mandatory password change", () => {
 
     expect(await screen.findByRole("heading", { name: "Choose a new password" })).toBeVisible();
     expect(
-      screen.getByText(/Your account was provisioned with a temporary password/i),
+      screen.getByText(/You signed in with a temporary password/),
     ).toBeVisible();
     expect(screen.getByRole("img", { name: "KukGrade" })).toBeVisible();
 
@@ -696,7 +696,7 @@ describe("Mandatory password change", () => {
     await screen.findByRole("heading", { name: "Choose a new password" });
 
     // A short password is the server's to refuse; its message is shown as is.
-    await user.type(screen.getByLabelText(/Temporary or current password/i), "temp123!");
+    await user.type(screen.getByLabelText("Temporary password"), "temp123!");
     await user.type(screen.getByLabelText(/^New password/i), "short");
     await user.type(screen.getByLabelText(/^Confirm new password/i), "short");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
@@ -747,7 +747,7 @@ describe("Mandatory password change", () => {
 
     await screen.findByRole("heading", { name: "Choose a new password" });
 
-    await user.type(screen.getByLabelText(/Temporary or current password/i), "temp-secret-123");
+    await user.type(screen.getByLabelText("Temporary password"), "temp-secret-123");
     await user.type(screen.getByLabelText(/^New password/i), "NewSecretPass123!");
     await user.type(screen.getByLabelText(/^Confirm new password/i), "NewSecretPass123!");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));
@@ -784,7 +784,7 @@ describe("Mandatory password change", () => {
 
     await screen.findByRole("heading", { name: "Choose a new password" });
 
-    await user.type(screen.getByLabelText(/Temporary or current password/i), "wrong-temp-password");
+    await user.type(screen.getByLabelText("Temporary password"), "wrong-temp-password");
     await user.type(screen.getByLabelText(/^New password/i), "ValidNewPass123!");
     await user.type(screen.getByLabelText(/^Confirm new password/i), "ValidNewPass123!");
     await user.click(screen.getByRole("button", { name: "Update password and continue" }));

@@ -96,7 +96,8 @@ not the response.
 No other endpoint is throttled.
 
 `POST /api/auth/change-password/` body: `{"current_password": "...",
-"new_password": "..."}`. The current password must check out first - a
+"new_password": "..."}`, each read exactly as sent - never trimmed, as
+sign-in does not trim either. The current password must check out first - a
 hijacked session alone is not enough to lock the real owner out. The new
 password runs through the same Django password validators as every other
 password path in the app. Returns `204` on success; the value is never
@@ -108,9 +109,9 @@ them to the sign-in screen. Every *other* session for that account is ended.
 
 `must_change_password` is set whenever somebody other than the owner set the
 account's password: creation, and `POST /api/users/{id}/set-password/`. While
-it is set, the account may reach only `/api/auth/me/`,
-`/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`, `/api/ready/`
-and `/api/site/`. Every other endpoint answers `403` with
+it is set, the account may reach only `/api/auth/login/`, `/api/auth/me/`,
+`/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`,
+`/api/ready/`, `/api/site/` and the frontend shell. Every other endpoint answers `403` with
 `error.code = "password_change_required"`, whatever the method. A successful
 `POST /api/auth/change-password/` clears the flag and restores normal access.
 Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds
@@ -171,7 +172,7 @@ Administrator group.
 | DELETE | /api/users/{id}/             | Hard-delete, gated to `accounts.delete_user` (Administrator group only). Refuses self-deletion. Reassigns every PROTECT attribution (grading sessions created, candidates withdrawn, assessments generated, outcomes proposed/decided, items assessed, promotions recorded, audit events) to a seeded "Deleted User" placeholder account rather than nulling it, then deletes the row. Records `USER_DELETED`. See `accounts.services.delete_platform_user` and the 2026-09-21 decision log entry. |
 | PUT    | /api/users/{id}/             | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
-| POST   | /api/users/{id}/set-password/ | Reset another user's password: no request body; returns `200` with the account and a new generated `temporary_password`, once. Their previous password, temporary or not, stops working. Your own account is refused with 400 (`fields.user`) - change it with `/api/auth/change-password/` |
+| POST   | /api/users/{id}/set-password/ | Reset another user's password: no request body; returns `200` with the account and a new generated `temporary_password`, once. Their previous password, temporary or not, stops working. Refused with 400 (`fields.user`) for your own account - change it with `/api/auth/change-password/` - and, unless you are a superuser, for an account that can use the Django admin site |
 
 `is_staff` and `is_superuser` are not part of this API - it cannot hand out
 Django admin access. `role` is `instructor` or `administrator`; changing

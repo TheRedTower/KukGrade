@@ -2008,8 +2008,8 @@ export interface components {
          */
         RoleEnum: "instructor" | "administrator";
         SiteSettings: {
-            password_policy: components["schemas"]["PasswordPolicy"];
             club_name: string;
+            password_policy: components["schemas"]["PasswordPolicy"];
         };
         /**
          * @description * `KUKGRADE` - KUKGRADE

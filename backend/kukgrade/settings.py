@@ -167,7 +167,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Who may sign in: Django's own rules, and no temporary password past its
 # expiry. One backend, so the API's sign-in, the admin site's and every
-# signed-in request all apply it (accounts/backends.py).
+# signed-in request all apply it (accounts/backends.py). Every session records
+# this path: renaming or moving the class signs everyone out unless a
+# migration re-points their sessions, as accounts 0007 did for this one.
 AUTHENTICATION_BACKENDS = ["accounts.backends.AccountBackend"]
 
 # How long a temporary password an administrator issues stays usable.

@@ -108,7 +108,6 @@
 .users-back-link:focus-visible,
 .users-form-grid input:focus,
 .users-form-grid select:focus,
-.users-password-dialog input:focus,
 .user-authority-options input:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
@@ -139,7 +138,7 @@
 .users-filters label > span,
 .users-dialog-form label > span,
 .users-form-grid label > span,
-.users-password-dialog label > span {
+.users-issued-password-value span {
   color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: 800;
@@ -154,8 +153,7 @@
 .users-search input,
 .users-filters select,
 .users-form-grid input,
-.users-form-grid select,
-.users-password-dialog input {
+.users-form-grid select {
   min-height: 2.7rem;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
@@ -393,8 +391,7 @@
   gap: 1rem;
 }
 
-.users-form-grid label,
-.users-password-dialog label {
+.users-form-grid label {
   display: grid;
   gap: 0.4rem;
 }
@@ -412,12 +409,6 @@
   border-radius: 0.4rem;
   background: var(--color-surface-sunken);
   padding: 0.75rem 0.9rem;
-}
-.users-issued-password-value span {
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
 }
 .users-issued-password-value code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;

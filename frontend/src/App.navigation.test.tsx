@@ -384,13 +384,13 @@ describe("Instructor profile menu and Master capabilities", () => {
     const menu = screen.getByLabelText("User account menu");
 
     // A wrong current password is the server's to refuse; the form stays.
-    await user.type(within(menu).getByLabelText(/^Current password/), "Wrong-Pass-2026!");
+    await user.type(within(menu).getByLabelText("Current password"), "Wrong-Pass-2026!");
     await user.type(within(menu).getByLabelText("New password"), "Brand-New-Pass-2026!");
     await user.type(within(menu).getByLabelText("Confirm new password"), "Brand-New-Pass-2026!");
     await user.click(within(menu).getByRole("button", { name: "Change password" }));
     expect(await within(menu).findByText("Current password is incorrect.")).toBeVisible();
 
-    const current = within(menu).getByLabelText(/^Current password/);
+    const current = within(menu).getByLabelText("Current password");
     await user.clear(current);
     await user.type(current, "Current-Pass-2026!");
     await user.click(within(menu).getByRole("button", { name: "Change password" }));
@@ -406,6 +406,40 @@ describe("Instructor profile menu and Master capabilities", () => {
       current_password: "Current-Pass-2026!",
       new_password: "Brand-New-Pass-2026!",
     });
+  });
+
+  it("says an error the server raises against no password field", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/change-password/")) {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "This user no longer exists.",
+              fields: { user: ["This user no longer exists."] },
+            },
+          });
+        }
+        return signedInResponse(url, authUser);
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+    const menu = screen.getByLabelText("User account menu");
+    await user.type(within(menu).getByLabelText("Current password"), "Current-Pass-2026!");
+    await user.type(within(menu).getByLabelText("New password"), "Brand-New-Pass-2026!");
+    await user.type(within(menu).getByLabelText("Confirm new password"), "Brand-New-Pass-2026!");
+    await user.click(within(menu).getByRole("button", { name: "Change password" }));
+
+    expect(await within(menu).findByRole("alert")).toHaveTextContent(
+      "This user no longer exists.",
+    );
   });
 
   it("keeps the name form open with the server's message when saving fails", async () => {

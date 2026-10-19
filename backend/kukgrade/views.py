@@ -9,7 +9,7 @@ from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -32,39 +32,34 @@ def frontend(_request: HttpRequest, path: str = "") -> HttpResponse:
     return HttpResponse(index.read_text(encoding="utf-8"), content_type="text/html")
 
 
-_PASSWORD_POLICY = inline_serializer(
-    "PasswordPolicy",
-    fields={
-        "min_length": serializers.IntegerField(),
-        "max_length": serializers.IntegerField(),
-        "character_rules": inline_serializer(
-            "PasswordCharacterRule",
-            fields={
-                "code": serializers.CharField(),
-                "label": serializers.CharField(),
-                "pattern": serializers.CharField(
-                    help_text="A regular expression the password must match.",
-                ),
-            },
-            many=True,
-        ),
-        "checked_on_save": serializers.ListField(
-            child=serializers.CharField(),
-            help_text="Rules only the server can check, run when it is saved.",
-        ),
-    },
-)
+# The response is rendered through these, so the schema they declare is the
+# shape actually served: no key can be served undeclared, or declared unserved.
+class PasswordCharacterRuleSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    # DRF lifts declared fields off the class, so this does not replace
+    # Field.label at runtime; the stubs cannot know that.
+    label = serializers.CharField()  # type: ignore[assignment]
+    pattern = serializers.CharField(
+        help_text="A regular expression the password must match.",
+    )
 
 
-@extend_schema(
-    responses=inline_serializer(
-        "SiteSettings",
-        fields={
-            "club_name": serializers.CharField(),
-            "password_policy": _PASSWORD_POLICY,
-        },
-    ),
-)
+class PasswordPolicySerializer(serializers.Serializer):
+    min_length = serializers.IntegerField()
+    max_length = serializers.IntegerField()
+    character_rules = PasswordCharacterRuleSerializer(many=True)
+    checked_on_save = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Rules only the server can check, run when it is saved.",
+    )
+
+
+class SiteSettingsSerializer(serializers.Serializer):
+    club_name = serializers.CharField()
+    password_policy = PasswordPolicySerializer()
+
+
+@extend_schema(responses=SiteSettingsSerializer)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def site_settings(_request: Request) -> Response:
@@ -76,5 +71,7 @@ def site_settings(_request: Request) -> Response:
     a copy of their own.
     """
     return Response(
-        {"club_name": settings.CLUB_NAME, "password_policy": password_policy()},
+        SiteSettingsSerializer(
+            {"club_name": settings.CLUB_NAME, "password_policy": password_policy()},
+        ).data,
     )

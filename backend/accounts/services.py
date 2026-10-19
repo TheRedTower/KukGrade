@@ -73,15 +73,10 @@ def create_platform_user(
     last_name: str = "",
     role: str | None = None,
     is_active: bool | None = None,
-    password: str | None = None,
     actor: User | None = None,
 ) -> TemporaryPassword:
-    """A new account with a temporary password, which its owner must replace.
-
-    The password is generated unless `password` is given - Django admin's add
-    form, where a superuser types one. Either way it is temporary: it expires,
-    and the first sign-in must choose a new one.
-    """
+    """A new account with a generated temporary password, which expires and
+    which its owner must replace at their first sign-in."""
     expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,
@@ -93,16 +88,15 @@ def create_platform_user(
         extra["role"] = role
     if is_active is not None:
         extra["is_active"] = is_active
-    if password is None:
-        # Built unsaved from the submitted details, so the similarity check
-        # has the new account's own name and email to compare against.
-        password = generate_temporary_password(
-            User(
-                email=User.objects.normalize_email(email),
-                first_name=first_name,
-                last_name=last_name,
-            ),
-        )
+    # Built unsaved from the submitted details, so the similarity check has
+    # the new account's own name and email to compare against.
+    password = generate_temporary_password(
+        User(
+            email=User.objects.normalize_email(email),
+            first_name=first_name,
+            last_name=last_name,
+        ),
+    )
     # create_user() already calls full_clean(exclude=["password"]) and
     # save() itself; is_staff and is_superuser are not accepted here at
     # all, so this path can never hand out Django admin access.
@@ -412,19 +406,24 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
 OWN_PASSWORD_RESET_MESSAGE = (
     "Change your own password from your account menu, which asks for your current one."
 )
+ADMIN_SITE_ACCOUNT_RESET_MESSAGE = "Only a superuser can reset this account's password."
 
 
 def validate_can_reset_password(target: User, actor: User) -> None:
-    """A reset sets someone else's password; your own is changed, not reset.
+    """Whether `actor` may issue `target` a temporary password.
 
-    A reset asks for no current password, so on your own account it let
-    whoever held a signed-in session replace the password and lock the owner
-    out (audit F-04). Changing your own password goes through
-    change_own_password, which the change-password endpoint guards with the
-    current password.
+    Not your own: a reset asks for no current password, so on your own
+    account it let whoever held a signed-in session replace the password and
+    lock the owner out (audit F-04); change_own_password, behind the current
+    password, is the way. And not an account that can use the Django admin
+    site unless you are a superuser: the temporary password signs in as that
+    account, so anyone less would be handing themselves admin site access,
+    which the users API never grants.
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": [OWN_PASSWORD_RESET_MESSAGE]})
+    if (target.is_staff or target.is_superuser) and not actor.is_superuser:
+        raise ValidationError({"user": [ADMIN_SITE_ACCOUNT_RESET_MESSAGE]})
 
 
 @transaction.atomic
@@ -434,8 +433,10 @@ def reset_password(target: User, *, actor: User) -> TemporaryPassword:
     Their old password stops working at once, as does any earlier temporary
     one; they must choose their own at next sign-in.
     """
-    validate_can_reset_password(target, actor)
     locked = _lock_user(target.pk)
+    # On the locked row, so a change to its admin site access cannot slip in
+    # between the check and the reset.
+    validate_can_reset_password(locked, actor)
     password = generate_temporary_password(locked)
     locked.set_password(password)
     return TemporaryPassword(_password_set(locked, actor=actor), password)

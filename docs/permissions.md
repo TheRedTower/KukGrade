@@ -124,6 +124,10 @@ The syllabus catalogue is read-only while syllabus versioning is deferred.
   this to every view at once, so a new endpoint is gated without declaring
   anything; see `api_contract.md`. Once that temporary password expires, the
   account cannot sign in at all until an administrator issues a new one.
+- A password reset hands the administrator a password that signs in as that
+  account, so only a superuser may reset an account that can use the Django
+  admin site (`is_staff` or `is_superuser`), and nobody may reset their own
+  (`accounts.services.validate_can_reset_password`).
 - Final decisions, promotion, and locked-session withdrawal/cancellation each
   add a per-user authority check on top, pinned by
   `accounts/test_permission_matrix.py`.

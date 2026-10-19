@@ -278,8 +278,11 @@ checks on each push and pull request.
   returns them, and refuses a user changing their own authority.
   `POST /api/users/{id}/set-password/` resets someone else's password to a
   new generated temporary one; it refuses your own account (2026-10-19),
-  which is changed behind the current password instead. `is_staff` and
-  `is_superuser` are not part of the API.
+  which is changed behind the current password instead, and - unless the
+  caller is a superuser - an account that can use the Django admin site,
+  since its temporary password would sign in as that account. The Django
+  admin site's reset applies the same rules. `is_staff` and `is_superuser`
+  are not part of the API.
 - **Temporary passwords (2026-10-19)**: nobody types a password for someone
   else in the app. Creating a user and resetting a password each generate a
   temporary one (`generate_temporary_password`, drawn from the password
@@ -289,7 +292,9 @@ checks on each push and pull request.
   `KUKGRADE_TEMPORARY_PASSWORD_HOURS` (default 24,
   `temporary_password_expires_at`), enforced by `accounts.backends.
   AccountBackend` wherever Django checks a sign-in: the API's login, the
-  admin site's, and every request on an open session. A reset replaces it.
+  admin site's, and every request on an open session; sessions opened before
+  that backend replaced Django's are re-pointed to it rather than signed out
+  (accounts migration 0007). A reset replaces it.
   Accounts from before this change have no expiry. Django admin's add-user
   and reset pages issue one the same way.
 - **Password policy (2026-10-19)**: 16 to 64 characters with an uppercase

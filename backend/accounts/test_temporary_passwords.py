@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
-import re
 from datetime import timedelta
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from django.apps import apps as django_apps
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.test import Client
@@ -17,7 +18,6 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from accounts.password_policy import (
-    CHARACTER_RULES,
     MIN_LENGTH,
     TEMPORARY_PASSWORD_ALPHABET,
     generate_temporary_password,
@@ -46,11 +46,6 @@ def test_generated_passwords_pass_the_policy_and_avoid_look_alikes() -> None:
         assert len(password) == MIN_LENGTH
         assert set(password) <= set(TEMPORARY_PASSWORD_ALPHABET)
         assert not set(password) & set(LOOK_ALIKES)
-
-
-def test_every_character_rule_can_be_met_from_the_alphabet() -> None:
-    for rule in CHARACTER_RULES:
-        assert any(re.fullmatch(rule.pattern, c) for c in TEMPORARY_PASSWORD_ALPHABET)
 
 
 def test_a_candidate_django_refuses_is_drawn_again() -> None:
@@ -222,6 +217,34 @@ def test_only_user_managers_can_issue_one() -> None:
     assert target.must_change_password is False
 
 
+@pytest.mark.parametrize("access", ["is_staff", "is_superuser"])
+def test_only_a_superuser_can_reset_an_account_with_admin_site_access(
+    access: str,
+) -> None:
+    # The temporary password signs in as that account, so a reset by anyone
+    # less would hand out the admin site, which this API never grants.
+    target = User.objects.create_user(
+        email="temp-admin-site@example.com",
+        password="Owner-Chosen-Pass-9!",
+        **{access: True},
+    )
+    client, _admin = admin_client()
+
+    refused = client.post(f"/api/users/{target.pk}/set-password/")
+
+    assert refused.status_code == 400
+    assert refused.json()["error"]["message"] == (
+        "Only a superuser can reset this account's password."
+    )
+    target.refresh_from_db()
+    assert target.check_password("Owner-Chosen-Pass-9!")
+    superuser = APIClient()
+    superuser.force_authenticate(
+        user=User.objects.create_superuser(email="temp-root@example.com"),
+    )
+    assert superuser.post(f"/api/users/{target.pk}/set-password/").status_code == 200
+
+
 # ---------------------------------------------------------------------------
 # Expiry, wherever sign-in is checked
 # ---------------------------------------------------------------------------
@@ -349,8 +372,28 @@ def test_the_security_log_never_sees_a_temporary_password(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     client, _admin = admin_client()
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="kukgrade.security"):
         issued = create(client).json()["temporary_password"]
         sign_in("temp-new@example.com", issued + "x")
 
+    # The failed sign-in is there: proof the capture sees this log at all.
+    assert "Failed login attempt for temp-new@example.com" in caplog.text
     assert issued not in caplog.text
+
+
+def test_sessions_signed_in_before_account_backend_stay_signed_in() -> None:
+    # Django loads a session's user only while the backend path the session
+    # recorded is still configured; 0007 re-points the old one.
+    migration = importlib.import_module(
+        "accounts.migrations.0007_sessions_use_account_backend",
+    )
+    user = User.objects.create_user(email="temp-session@example.com")
+    client = Client()
+    client.force_login(user, backend=migration.MODEL_BACKEND)
+    assert client.get("/api/auth/me/").status_code == 403
+
+    migration.forwards(django_apps, None)
+
+    assert client.get("/api/auth/me/").status_code == 200
+    migration.backwards(django_apps, None)
+    assert client.get("/api/auth/me/").status_code == 403

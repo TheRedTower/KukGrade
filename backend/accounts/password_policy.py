@@ -125,8 +125,8 @@ def generate_temporary_password(user: User | None = None) -> str:
     One character from each rule's share of the alphabet, the rest from all of
     it, shuffled - so the rules here decide what it must contain, not a second
     list. Drawn again in the rare case Django's own checks refuse it (one too
-    like `user`'s details, say); 16 characters of this alphabet is about 93
-    bits.
+    like `user`'s details, say). 16 characters of this 56-character alphabet
+    is at most 93 bits; requiring one of each kind costs only a few.
     """
     random = secrets.SystemRandom()
     for _attempt in range(10):

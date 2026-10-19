@@ -11,21 +11,20 @@ structural choice records it in `decision_log.md` first.
    and A07 to A23; KG-A06 no longer applies (the filter it
    describes was removed). Remaining, in the audit's order:
    - KG-A24: release assurance.
-2. **Credential lifecycle, email-free part** (`email-and-credential-lifecycle.md`,
-   slices 1-4): signed-in password change for everyone, the server-declared
-   16-64 password policy, generated temporary credentials with expiry, and
-   the Django admin site closed while a change is required. Slices 5-10
-   (email) follow the packet's readiness condition.
-3. **Go live.** Before it: map what the Administrator role - not superuser -
+2. **Go live.** Before it: map what the Administrator role - not superuser -
    can and cannot do, and build the first-deployment prompt that sets up the
-   first administrator (a superuser; no default password exists). Then
+   first administrator (a superuser; no default password exists). Found so
+   far: only a superuser may reset the password of an account that can use
+   the Django admin site (enforced since the 2026-10-19 review); an
+   Administrator can still change such an account's email, role or status
+   through the Users API, which matters most once email recovery exists. Then
    connect the production image to the real Traefik and PostgreSQL host, cap
    the request body at Traefik, and verify backup, restore, and monitoring
    before describing it as live (`deployment.md`).
-4. **Rehearse the historical import** against a sanitised copy of the real
+3. **Rehearse the historical import** against a sanitised copy of the real
    KSW Colchester workbook. Every adapter fixture is synthetic, so expect
    adjustments (`data-import-and-legacy-migration.md`).
-5. **Extend the accessibility pass to the other screens**: the four grading
+4. **Extend the accessibility pass to the other screens**: the four grading
    surfaces were measured in slice 8; the rest of the app has only been
    checked visually. Known: the session screen's breadcrumb, banner button,
    search and filter are under 44px.
@@ -44,6 +43,13 @@ Recorded, not yet fixed.
   longer stretches to the row's height and its `border-bottom` is drawn at
   its own content height. Fix: keep the `<td>` a table cell and move the flex
   column onto an inner wrapper; check light, dark and narrow widths.
+
+## Waiting on a release
+
+- **Email** (`email-and-credential-lifecycle.md`, slices 5-10): optional
+  Resend email for welcome, reset and password-changed messages, and
+  forgotten-password recovery. Waits for the packet's readiness condition
+  (v1.0.0). The email-free slices 1-4 are built (`current-system.md`).
 
 ## Needs a decision first
 

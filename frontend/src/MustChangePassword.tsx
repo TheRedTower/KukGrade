@@ -53,8 +53,8 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
         <h1 id="change-password-title">Choose a new password</h1>
         <p className="must-change-password-subtitle">
-          Your account was provisioned with a temporary password. To protect
-          student records and grading outcomes, please set your personal password.
+          You signed in with a temporary password. Choose your own password to
+          continue.
         </p>
 
         {user ? (
@@ -69,7 +69,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
         <ChangePasswordForm
           actionsClassName="must-change-password-actions"
           className="must-change-password-form"
-          currentPasswordLabel="Temporary or current password"
+          currentPasswordLabel="Temporary password"
           labelledBy="change-password-title"
           secondaryAction={(isSubmitting) => (
             <button

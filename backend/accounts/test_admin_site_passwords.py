@@ -120,6 +120,16 @@ def test_the_admin_sites_own_password_form_points_to_the_account_menu() -> None:
     assert me.check_password(OWNER_PASSWORD)
 
 
+def test_the_admin_sites_password_changed_page_claims_nothing() -> None:
+    client, _me = superuser_client()
+
+    response = client.get("/admin/password_change/done/")
+
+    page = response.content.decode()
+    assert "Change your own password from your account menu" in page
+    assert "was changed" not in page
+
+
 def test_your_own_account_cannot_be_reset_on_the_admin_site() -> None:
     client, me = superuser_client()
     events_before = AuditEvent.objects.count()
@@ -212,3 +222,28 @@ def test_adding_a_user_on_the_admin_site_issues_a_temporary_password_once() -> N
     )
     assert created.actor == me
     assert issued not in str(created.metadata)
+
+
+def test_only_a_superuser_can_reset_a_superuser_on_the_admin_site() -> None:
+    # An administrator who can use the admin site, but is not a superuser.
+    administrator = User.objects.create_user(
+        email="site-administrator@example.com",
+        role=User.Role.ADMINISTRATOR,
+        is_staff=True,
+    )
+    superuser = User.objects.create_superuser(
+        email="site-root@example.com",
+        password=OWNER_PASSWORD,
+    )
+    client = Client()
+    client.force_login(administrator)
+
+    shown = client.get(f"/admin/accounts/user/{superuser.pk}/password/")
+    sent = client.post(f"/admin/accounts/user/{superuser.pk}/password/")
+
+    for response in (shown, sent):
+        assert response.context["message"] == (
+            "Only a superuser can reset this account's password."
+        )
+    superuser.refresh_from_db()
+    assert superuser.check_password(OWNER_PASSWORD)

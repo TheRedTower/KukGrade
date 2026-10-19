@@ -7,7 +7,7 @@ from django.contrib import admin
 from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import QuerySet
 from django.forms import ModelForm
 from django.http import Http404, HttpRequest, HttpResponse
@@ -18,13 +18,13 @@ from django.utils.translation import gettext_lazy as _
 from accounts.admin_site import admin_notice
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import (
-    OWN_PASSWORD_RESET_MESSAGE,
     TemporaryPassword,
     create_platform_user,
     delete_platform_user,
     reset_password,
     set_admin_site_access,
     update_platform_user,
+    validate_can_reset_password,
 )
 from kukgrade.admin_mixins import ServiceDeleteMixin
 
@@ -235,21 +235,25 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ) -> HttpResponse:
         """A reset, as in the app: confirm, then a generated temporary
         password shown once. Nobody types another person's password here, and
-        your own is changed in KukGrade's account menu instead."""
+        your own is changed in KukGrade's account menu instead. The same
+        rules as the API's reset, checked before the confirmation too."""
         target = self.get_object(request, unquote(id))
         if not self.has_change_permission(request, target):
             raise PermissionDenied
         if target is None:
             raise Http404
-        if target.pk == request.user.pk:
+        actor = cast(User, request.user)
+        try:
+            validate_can_reset_password(target, actor)
+            if request.method != "POST":
+                return self._temporary_password_page(request, target, None)
+            issued = reset_password(target, actor=actor)
+        except ValidationError as refused:
             return admin_notice(
                 request,
-                title="Change your password",
-                message=OWN_PASSWORD_RESET_MESSAGE,
+                title="Reset password",
+                message=" ".join(refused.messages),
             )
-        if request.method != "POST":
-            return self._temporary_password_page(request, target, None)
-        issued = reset_password(target, actor=cast(User, request.user))
         return self._temporary_password_page(request, issued.user, issued)
 
     def _temporary_password_page(

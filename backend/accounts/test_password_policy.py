@@ -59,7 +59,7 @@ def test_the_policy(password: str, expected: list[str]) -> None:
 
 
 def test_length_counts_characters_not_bytes() -> None:
-    # 16 characters, one of them two bytes in UTF-8 and two UTF-16 units in
+    # 16 characters, one of them four bytes in UTF-8 and two UTF-16 units in
     # a browser: the browser's checklist counts code points to agree.
     password = "Kukgrade-Strng9" + "\N{GRINNING FACE}"
 
@@ -115,3 +115,42 @@ def test_changing_your_own_password_enforces_the_policy(
 
 def test_changing_your_own_password_accepts_a_strong_one() -> None:
     assert _change_own(STRONG).status_code == 204
+
+
+def test_a_password_is_kept_exactly_as_typed_spaces_and_all() -> None:
+    # Sign-in never trims, so neither may changing it: a passphrase ending in
+    # a space, saved trimmed, would never sign in again as typed.
+    padded = " Kukgrade strong 9 "
+    client = APIClient()
+    client.force_authenticate(user=_target())
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {"current_password": "Original-Password-9", "new_password": padded},
+        format="json",
+    )
+
+    assert response.status_code == 204
+    signed_in = APIClient().post(
+        "/api/auth/login/",
+        {"email": "policy-target@example.com", "password": padded},
+        format="json",
+    )
+    assert signed_in.status_code == 200
+
+
+def test_a_current_password_with_spaces_is_checked_as_typed() -> None:
+    user = User.objects.create_user(
+        email="policy-padded@example.com",
+        password=" Padded-Current-9 ",
+    )
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        "/api/auth/change-password/",
+        {"current_password": " Padded-Current-9 ", "new_password": STRONG},
+        format="json",
+    )
+
+    assert response.status_code == 204

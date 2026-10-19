@@ -4163,10 +4163,10 @@ components:
     SiteSettings:
       type: object
       properties:
-        password_policy:
-          $ref: '#/components/schemas/PasswordPolicy'
         club_name:
           type: string
+        password_policy:
+          $ref: '#/components/schemas/PasswordPolicy'
       required:
       - club_name
       - password_policy

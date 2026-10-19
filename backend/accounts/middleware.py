@@ -61,8 +61,8 @@ PASSWORD_CHANGE_REQUIRED_MESSAGE = (
     "Your password must be changed before you can use KukGrade."
 )
 ADMIN_PASSWORD_CHANGE_REQUIRED_MESSAGE = (
-    "Your password must be changed before you can use the admin site. Sign in "
-    "to KukGrade to choose a new one, then come back."
+    "Your password must be changed before you can use the admin site. Open "
+    "KukGrade to choose a new one, then come back."
 )
 
 

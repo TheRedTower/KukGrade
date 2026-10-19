@@ -18,6 +18,68 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The WKSA ID scheme
+
+Status: Accepted (format and the owner's answers); implementation waits for
+the one question below
+
+Decision:
+A WKSA ID is never free text. It is the identifier a student is known and
+tracked by, so it must have one of exactly two forms, all digits apart from
+the hyphens and the `A`:
+
+| Kind | Form | Example | Who holds it | Issued by |
+|---|---|---|---|---|
+| Student ID | `NNN-N-NNN` | `206-2-150` | Every student below black belt | The school owner |
+| Black belt ID | `A-NNNNN` | `A-20819` | Every black belt, instructor or student | WKSA |
+
+- In a student ID the first two parts are the school and the last three the
+  student's number within it, always three digits with leading zeros
+  (`206-2-007`). Colchester is `206-2`, and nearly every student holds that
+  prefix; a student transferring in may keep another school's, such as
+  `206-1-044`, in the same form. The home prefix is a deployment setting
+  beside the club name.
+- A black belt ID is `A`, a hyphen and exactly five digits.
+- KukGrade never invents an ID. It records the one the school owner or WKSA
+  issued; nobody using KukGrade - administrators included - chooses the
+  number.
+- Anything else is refused - by the model, the API, the Add student screen
+  and the roster and historical imports alike, from one definition on the
+  server that the screens are told about rather than copying.
+- On promotion to black belt the student's black belt ID replaces their
+  student ID as the one they are known by. The student ID is kept on their
+  record as a previous ID, so anything that still quotes it - an old
+  spreadsheet, a historical grading being imported - finds the same
+  student.
+
+How previous IDs are kept (recommended, 2026-10-20): every record inside
+KukGrade - gradings, assessments, promotions - already points at the student
+row itself, not at the text of their ID, so none of it needs relinking when
+the ID changes. Only what arrives from outside is matched by ID. So each
+student keeps a short list of the IDs they have held, each with the date it
+was replaced; a lookup by ID checks the current one and then that list, and
+the change is audited like any other.
+
+Context:
+`Student.wksa_id` today is any text up to 32 characters, unique, stored as
+typed - only the Add student screen upper-cases it (audit F-30, left open on
+2026-10-18 for this overhaul). That lets the same person be entered twice
+under two spellings and lets anything at all stand in for the identifier
+historical gradings are matched on.
+
+Consequences:
+- A migration checks every existing ID and lists any that fit neither form,
+  for the owner to correct, before the rule is enforced.
+- `wksa_id` stops being read-only after creation in exactly one way:
+  recording a black belt ID, which moves the old one into the list of
+  previous IDs.
+
+Question to answer before it is built:
+- When a student leaves, can their student number later be given to a new
+  student? If it can, an old ID can belong to two people at different times,
+  and a lookup by a previous ID has to be told which period it is about; if
+  it cannot, every ID - current or previous - is unique for good.
+
 ### 2026-10-19 - Email and credential lifecycle: the packet as amended
 
 Status: Accepted
@@ -2770,9 +2832,10 @@ Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`). The owner's
 answers to the rest are under "2026-10-18 - Owner answers on the audit's open
 decisions" above.
 
-1. **WKSA ID case and uniqueness (F-30)** - deferred; part of a planned
-   overhaul. Only the Add student screen upper-cases the ID; the API and
-   roster import store it as typed.
+1. **WKSA ID case and uniqueness (F-30)** - the format is decided ("2026-10-20
+   - The WKSA ID scheme" above); building it waits on that entry's last
+   question, whether student numbers are ever reused. Until then only the Add student screen upper-cases the ID; the
+   API and roster import store it as typed.
 2. **Roster import (F-19)** - deferred to the planned import overhaul. A
    5,000-row commit takes about a minute in one request.
 3. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by

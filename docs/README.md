@@ -17,6 +17,10 @@ what exists today and `decision_log.md` for why.
   the code cites as "import Decision N".
 - `deployment.md` - production image, Traefik/PostgreSQL connections,
   startup, update, and recovery.
+- `email-and-credential-lifecycle.md` - the accepted design for optional
+  email (Resend), temporary credentials, forced and voluntary password
+  changes, and forgotten-password recovery, with the owner's 2026-10-19
+  amendments and delivery order at the top.
 
 ## Direction and reasoning
 

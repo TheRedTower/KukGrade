@@ -146,7 +146,7 @@ Administrator group.
 | DELETE | /api/users/{id}/             | Hard-delete, gated to `accounts.delete_user` (Administrator group only). Refuses self-deletion. Reassigns every PROTECT attribution (grading sessions created, candidates withdrawn, assessments generated, outcomes proposed/decided, items assessed, promotions recorded, audit events) to a seeded "Deleted User" placeholder account rather than nulling it, then deletes the row. Records `USER_DELETED`. See `accounts.services.delete_platform_user` and the 2026-09-21 decision log entry. |
 | PUT    | /api/users/{id}/             | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
-| POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
+| POST   | /api/users/{id}/set-password/ | Reset another user's password; validated the same way as creation. Your own account is refused with 400 (`fields.user`) before the password is checked - change it with `/api/auth/change-password/` |
 
 `is_staff` and `is_superuser` are not part of this API - it cannot hand out
 Django admin access. `role` is `instructor` or `administrator`; changing

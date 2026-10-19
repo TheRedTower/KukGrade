@@ -28,7 +28,7 @@ from accounts.serializers import (
     UserManagementSerializer,
     UserSerializer,
 )
-from accounts.services import delete_platform_user
+from accounts.services import delete_platform_user, validate_can_reset_password
 from kukgrade.filtering import boolean, choice, search
 
 
@@ -186,6 +186,10 @@ class UserViewSet(
         **kwargs: object,
     ) -> Response:
         target = self.get_object()
+        # Before the password is validated, so your own account is told where
+        # to go rather than shown a password-rule error. reset_password
+        # checks again for any other caller.
+        validate_can_reset_password(target, cast(User, request.user))
         serializer = SetPasswordSerializer(
             target,
             data=request.data,

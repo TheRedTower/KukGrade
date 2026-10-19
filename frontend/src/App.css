@@ -751,6 +751,19 @@ h2 {
   gap: 0.5rem;
 }
 
+/* The shared password form renders its submit button first; reversed here so
+   Cancel sits left of it, as in the name form. */
+.profile-password-actions {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.profile-password-changed {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-success);
+}
+
 .profile-name-button {
   min-height: 44px;
   padding: 0 0.85rem;

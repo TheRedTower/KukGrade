@@ -356,6 +356,58 @@ describe("Instructor profile menu and Master capabilities", () => {
     });
   });
 
+  it("changes your own password from the account menu, behind the current one", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/auth/change-password/")) {
+        const body = JSON.parse(init?.body as string);
+        if (body.current_password !== "Current-Pass-2026!") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_error",
+              message: "Invalid input",
+              fields: { current_password: ["Current password is incorrect."] },
+            },
+          });
+        }
+        return new Response(null, { status: 204 });
+      }
+      return signedInResponse(url, authUser);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await screen.findByText("Casey Instructor");
+    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
+    await user.click(screen.getByRole("button", { name: "Change password" }));
+    const menu = screen.getByLabelText("User account menu");
+
+    // A wrong current password is the server's to refuse; the form stays.
+    await user.type(within(menu).getByLabelText(/^Current password/), "Wrong-Pass-2026!");
+    await user.type(within(menu).getByLabelText("New password"), "Brand-New-Pass-2026!");
+    await user.type(within(menu).getByLabelText("Confirm new password"), "Brand-New-Pass-2026!");
+    await user.click(within(menu).getByRole("button", { name: "Change password" }));
+    expect(await within(menu).findByText("Current password is incorrect.")).toBeVisible();
+
+    const current = within(menu).getByLabelText(/^Current password/);
+    await user.clear(current);
+    await user.type(current, "Current-Pass-2026!");
+    await user.click(within(menu).getByRole("button", { name: "Change password" }));
+
+    expect(await within(menu).findByRole("status")).toHaveTextContent(
+      "Your password has been changed.",
+    );
+    expect(within(menu).queryByLabelText(/^Current password/)).not.toBeInTheDocument();
+    const sent = fetchMock.mock.calls
+      .filter(([url]) => String(url).includes("/api/auth/change-password/"))
+      .map(([, init]) => JSON.parse(init?.body as string));
+    expect(sent.at(-1)).toEqual({
+      current_password: "Current-Pass-2026!",
+      new_password: "Brand-New-Pass-2026!",
+    });
+  });
+
   it("keeps the name form open with the server's message when saving fails", async () => {
     vi.stubGlobal(
       "fetch",

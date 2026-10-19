@@ -217,5 +217,11 @@ describe("UserDetailScreen", () => {
     expect(screen.getByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
     expect(screen.getByText("You cannot change your own authority.")).toBeInTheDocument();
+    // Your own password is changed from the account menu, behind the current
+    // one; a reset - which asks for none - is not offered (audit F-04).
+    expect(screen.queryByRole("button", { name: "Set new password" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Change your own password from your account menu."),
+    ).toBeInTheDocument();
   });
 });

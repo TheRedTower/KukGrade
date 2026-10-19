@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { type AuthUser, errorMessage } from "./api";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 
 function CheckCircleIcon() {
   return (
@@ -182,8 +183,16 @@ export function ProfileMenu({
 }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordChanged, setPasswordChanged] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const initials = getInitials(user);
+
+  function closeForms() {
+    setIsEditingName(false);
+    setIsChangingPassword(false);
+    setPasswordChanged(false);
+  }
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -192,14 +201,14 @@ export function ProfileMenu({
         !containerRef.current.contains(event.target as Node)
       ) {
         setIsOpen(false);
-        setIsEditingName(false);
+        closeForms();
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsOpen(false);
-        setIsEditingName(false);
+        closeForms();
       }
     }
 
@@ -222,7 +231,7 @@ export function ProfileMenu({
         className="profile-trigger"
         onClick={() => {
           setIsOpen((previous) => !previous);
-          setIsEditingName(false);
+          closeForms();
         }}
         type="button"
       >
@@ -269,6 +278,53 @@ export function ProfileMenu({
               >
                 Edit your name
               </button>
+            )}
+          </div>
+
+          {/* Your own password, behind your current one. An administrator's
+              "Set new password" is for other people's accounts only. */}
+          <div className="profile-dropdown-section">
+            {isChangingPassword ? (
+              <ChangePasswordForm
+                actionsClassName="profile-name-actions profile-password-actions"
+                className="profile-name-form"
+                currentPasswordLabel="Current password"
+                onChanged={() => {
+                  setIsChangingPassword(false);
+                  setPasswordChanged(true);
+                }}
+                secondaryAction={(isSubmitting) => (
+                  <button
+                    className="profile-name-button"
+                    disabled={isSubmitting}
+                    onClick={() => setIsChangingPassword(false)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                )}
+                submitClassName="profile-name-button primary"
+                submitLabel="Change password"
+                submittingLabel="Changing…"
+              />
+            ) : (
+              <>
+                {passwordChanged ? (
+                  <p className="profile-password-changed" role="status">
+                    Your password has been changed.
+                  </p>
+                ) : null}
+                <button
+                  className="profile-name-button"
+                  onClick={() => {
+                    setPasswordChanged(false);
+                    setIsChangingPassword(true);
+                  }}
+                  type="button"
+                >
+                  Change password
+                </button>
+              </>
             )}
           </div>
 

@@ -1583,6 +1583,48 @@ def test_user_created_via_api_has_must_change_password_flag() -> None:
     assert stored.must_change_password is True
 
 
+@pytest.mark.parametrize("password", ["kg-ResetOwnPass123!", "short"])
+def test_admin_cannot_reset_their_own_password(password: str) -> None:
+    # A reset asks for no current password, so on your own account a
+    # signed-in session alone could replace it (audit F-04). Your own is
+    # changed through change-password. Refused before the password is
+    # checked, so even a weak one gets the pointer, not a rule error.
+    client, admin = admin_client("reset-own-admin@example.com")
+    admin.set_password("kg-OriginalOwn123!")
+    admin.save(update_fields=["password"])
+    events_before = AuditEvent.objects.count()
+
+    response = client.post(
+        f"/api/users/{admin.pk}/set-password/",
+        {"password": password},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"]["user"] == [
+        "Change your own password from your account menu, which asks for your "
+        "current one."
+    ]
+    admin.refresh_from_db()
+    assert admin.check_password("kg-OriginalOwn123!")
+    assert admin.must_change_password is False
+    assert AuditEvent.objects.count() == events_before
+
+
+def test_reset_password_service_refuses_your_own_account() -> None:
+    admin = User.objects.create_user(
+        email="reset-own-service@example.com",
+        password="kg-OriginalOwn123!",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    with pytest.raises(ValidationError):
+        reset_password(admin, password="kg-ResetOwnPass123!", actor=admin)
+
+    admin.refresh_from_db()
+    assert admin.check_password("kg-OriginalOwn123!")
+
+
 def test_admin_set_password_forces_must_change_password() -> None:
     client, _admin = admin_client("reset-pw-admin@example.com")
     created = create_user_via_api(
@@ -1976,20 +2018,6 @@ def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
     from django.contrib.admin.models import DELETION, LogEntry
 
     assert not LogEntry.objects.filter(action_flag=DELETION).exists()
-
-
-def test_an_administrator_setting_their_own_password_is_not_forced_to_change_it() -> (
-    None
-):
-    me = create_user(email="self-reset@example.com", role=User.Role.ADMINISTRATOR)
-
-    reset_password(me, password="kg-MyOwnChoice123!", actor=me)
-
-    me.refresh_from_db()
-    assert me.check_password("kg-MyOwnChoice123!")
-    assert me.must_change_password is False
-    event = AuditEvent.objects.filter(action=AuditAction.USER_UPDATED).latest("pk")
-    assert event.summary == "Password changed by self-reset@example.com."
 
 
 def test_admin_site_password_form_on_your_own_account_is_not_a_reset(

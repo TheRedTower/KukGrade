@@ -563,3 +563,10 @@
   .users-dialog { padding: 1rem; }
   .user-detail-header p { align-items: flex-start; flex-direction: column; }
 }
+
+.users-self-password-hint {
+  margin: 0;
+  max-width: 16rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}

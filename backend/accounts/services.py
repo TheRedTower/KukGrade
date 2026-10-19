@@ -366,10 +366,28 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     return refreshed
 
 
+OWN_PASSWORD_RESET_MESSAGE = (
+    "Change your own password from your account menu, which asks for your current one."
+)
+
+
+def validate_can_reset_password(target: User, actor: User) -> None:
+    """A reset sets someone else's password; your own is changed, not reset.
+
+    A reset asks for no current password, so on your own account it let
+    whoever held a signed-in session replace the password and lock the owner
+    out (audit F-04). Changing your own password goes through
+    change_own_password, which the change-password endpoint guards with the
+    current password.
+    """
+    if target.pk == actor.pk:
+        raise ValidationError({"user": [OWN_PASSWORD_RESET_MESSAGE]})
+
+
 @transaction.atomic
 def reset_password(target: User, *, password: str, actor: User) -> User:
-    """Set a password someone else chose, so its owner must replace it (unless
-    the owner is the one setting it)."""
+    """Set a password someone else chose, so its owner must replace it."""
+    validate_can_reset_password(target, actor)
     locked = _lock_user(target.pk)
     locked.set_password(password)
     return _password_set(locked, actor=actor)
@@ -391,8 +409,10 @@ def record_admin_password_change(target: User, *, actor: User) -> User:
 
 
 def _password_set(locked: User, *, actor: User) -> User:
-    # A password its owner chose - including an administrator setting their
-    # own - needs no forced replacement; one someone else chose does.
+    # A password its owner chose needs no forced replacement; one someone
+    # else chose does. An owner reaches this through change_own_password, or
+    # through Django admin's own form, which slice 4 of the credential
+    # lifecycle closes.
     chosen_by_owner = locked.pk == actor.pk
     # One transaction with the password itself, so the change and its record
     # land together or not at all (KG-A14). The value never appears in the

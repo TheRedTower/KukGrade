@@ -439,7 +439,13 @@ export function UserDetailScreen(): React.ReactElement {
           <h1 id="user-detail-heading">{managedUser.full_name}</h1>
           <p>{managedUser.email} <span aria-hidden="true">·</span> <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>{managedUser.is_active ? "Active" : "Inactive"}</span></p>
         </div>
-        <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Set new password</button>
+        {/* A reset sets someone else's password and asks for no current one;
+            the server refuses it on your own account. */}
+        {isSelf ? (
+          <p className="users-self-password-hint">Change your own password from your account menu.</p>
+        ) : (
+          <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Set new password</button>
+        )}
       </header>
 
       {notice && <div className="users-success" role="status">{notice}</div>}

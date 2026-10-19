@@ -2778,3 +2778,13 @@ decisions" above.
 3. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by
    nothing (FDR-048 keeps it as the source artwork); 5,950 orphaned local
    files in `backend/var/import_uploads/` (F-11).
+
+Raised by the owner, to come back to and elaborate:
+
+4. **A Settings page (2026-10-19).** Move most of what the account menu
+   holds today - editing your name, changing your password, the Master
+   capability summary, appearance - onto a dedicated Settings page, so
+   people make these edits on a full page rather than in the small menu
+   panel that covers the screen. What moves, what stays in the menu, and
+   what else the page should hold are to be worked out. Until then the menu
+   keeps them, including "Change password" (credential-lifecycle slice 1).

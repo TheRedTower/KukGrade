@@ -276,8 +276,10 @@ checks on each push and pull request.
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
   returns them, and refuses a user changing their own authority.
-  `POST /api/users/{id}/set-password/` resets a password, validated by
-  Django's configured password validators. `is_staff` and `is_superuser`
+  `POST /api/users/{id}/set-password/` resets someone else's password,
+  validated by Django's configured password validators; it refuses your own
+  account (2026-10-19), which is changed behind the current password
+  instead. `is_staff` and `is_superuser`
   are not part of the API.
 - **Forced password change (enforced server-side)**: creation and an
   administrator reset both set `must_change_password`. While it is set,
@@ -315,7 +317,9 @@ checks on each push and pull request.
   user change their own first/last name only - email, role and authority
   stay administrator-only; the account menu's "Edit your name" form calls it
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
-  change their own password, given their current one; throttled the same
+  change their own password, given their current one - from the account
+  menu's "Change password", or the forced change after a temporary password,
+  which share one form (`ChangePasswordForm`); throttled the same
   way login is, validated by the same password validators as every other
   password path, and never logs the value. The caller keeps their session -
   the auth hash is refreshed, so choosing a new password does not eject them

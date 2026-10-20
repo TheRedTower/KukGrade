@@ -97,15 +97,22 @@ used - the suggestion is never authoritative.
 ### Lifecycle
 
 ```
-upload (create_import_batch)
-  -> preview (preview_student_import) - repeatable, nothing committed
+upload (create_import_batch) - every row read once and stored (ImportRow)
+  -> match columns (save_import_mapping) - every row checked
+  -> fix a row (correct_import_row) / leave one out (set_import_row_excluded)
+     - repeatable, nothing committed; preview_student_import does all three
+     in one call for the current screen
   -> commit (commit_student_import) - or cancel (cancel_import_batch)
 ```
 
-- **Preview** is recomputed from the stored source file every time it is
-  called, never from a cached/staged copy of the rows (no permanent
-  per-row staging table exists - only `ImportBatch` itself is persisted).
-  Each row is classified `READY`, `REVIEW_REQUIRED` (missing/invalid field,
+- **Rows are stored** (superseding "no permanent per-row staging table",
+  2026-10-20 import overhaul): the file is read once at upload, and every
+  later step reads and updates `ImportRow`s under the batch's lock, so fixes
+  survive a reload and the file is not parsed again. An open batch uploaded
+  before this has its rows read from its file the first time it is touched.
+  Rows hold personal data: they go with a cancelled or expired batch, and a
+  finished batch's rows go `COMMITTED_ROWS_KEPT_FOR` (30 days) after it
+  finished. Each row is classified `READY`, `REVIEW_REQUIRED` (missing/invalid field,
   or an unresolved rank), or `SKIP_EXISTING` (the WKSA ID already belongs
   to a `Student`). A row is checked with `Student.full_clean()` - the
   validation `create_student` runs - so a `READY` row is one commit can
@@ -252,8 +259,8 @@ time afterwards via the reconciliation actions below.
 
 ### Commit
 
-`commit_legacy_grading_import()` - re-parses the workbook and re-resolves
-every rank mapping from scratch (never trusts a stale preview), creates one
+`commit_legacy_grading_import()` - reads the stored rows not left out and
+re-resolves every rank mapping from scratch (never trusts a stale preview), creates one
 `LegacyGradingRecord` per row via `gradings.legacy_services.
 create_legacy_grading_record` inside one all-or-nothing transaction, and
 records a single `IMPORT_BATCH_COMMITTED` audit event for the whole batch

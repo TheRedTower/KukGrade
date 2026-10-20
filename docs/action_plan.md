@@ -30,7 +30,7 @@ after the owner's approval):
 
 - Backend: A0 read the real workbook (done 2026-10-20: findings in the
   decision log); A1 stored rows and A2 the batch API (list, mapping, paged rows,
-  per-row fixes); A3 a fast bulk roster commit with a lower row limit and no
+  per-row fixes; done 2026-10-20); A3 a fast bulk roster commit with a lower row limit and no
   worker; A4 mapping onto KukGrade's fields, whole-file values, extra
   information and the grading report; A5 and A6 per-row historical preview
   and suggested student links; A7 voiding a wrong batch, choosing the sheet.

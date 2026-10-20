@@ -116,7 +116,13 @@ checks on each push and pull request.
   upload is bounded while it is read - size, rows, columns, sheets and the
   expanded size of an `.xlsx` - and a source file is deleted only after its
   batch's commit, cancel or expiry has committed; expiry takes the same
-  batch lock and also sweeps files no batch names (KG-A07, A08, A10). See
+  batch lock and also sweeps files no batch names (KG-A07, A08, A10). Since
+  2026-10-20 (import overhaul A1-A2) a file is read once, at upload, into
+  stored rows (`data_imports.models.ImportRow`); matching columns, checking,
+  fixing a row and leaving one out work on those rows under the batch lock,
+  so an import can be left and resumed, and finishing re-checks every row
+  against the database. Rows go when an import is cancelled or expires, and
+  30 days after it finishes (`expire_stale_import_batches`). See
   `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW

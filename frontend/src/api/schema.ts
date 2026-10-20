@@ -112,7 +112,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * @description Administrator-only bulk data import (import Decision 1).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_list"];
         put?: never;
         /**
          * @description Administrator-only bulk data import (import Decision 1).
@@ -121,6 +127,28 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Administrator-only bulk data import (import Decision 1).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -159,12 +187,27 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         * @description Finish the import. With no body, the stored mapping, fixes and rank
+         *     choices are used; any given here replace them first.
          */
         post: operations["data_imports_batches_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/mapping/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Match a roster's columns to KukGrade's fields, and check every row. */
+        post: operations["data_imports_batches_mapping_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -187,6 +230,57 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The import's rows, a page at a time, in file order. */
+        get: operations["data_imports_batches_rows_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/{row_number}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Fix a roster row's values; every row is checked again. */
+        patch: operations["data_imports_batches_rows_partial_update"];
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/{row_number}/exclusion/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave a row out of the import, or bring it back. */
+        post: operations["data_imports_batches_rows_exclusion_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1565,8 +1659,32 @@ export interface components {
             service: string;
             status: string;
         };
+        /** @description An import: what was uploaded, where it is up to, and its rows' counts. */
         ImportBatch: {
             readonly id: number;
+            readonly kind: components["schemas"]["KindEnum"];
+            readonly kind_display: string;
+            readonly status: components["schemas"]["ImportBatchStatusEnum"];
+            readonly status_display: string;
+            readonly original_filename: string;
+            readonly file_size: number;
+            /** Format: date-time */
+            readonly uploaded_at: string;
+            readonly uploaded_by_name: string;
+            /** Format: date-time */
+            readonly committed_at: string | null;
+            readonly committed_by_name: string;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            /** @description Where the import is up to, so a screen can resume it. */
+            readonly next_step: components["schemas"]["NextStepEnum"];
+            /** @description A roster's column headers, as in the file; empty otherwise. */
+            readonly detected_headers: string[];
+            /** @description A roster's chosen column for each KukGrade field. */
+            readonly column_mapping: {
+                [key: string]: string;
+            };
+            readonly row_counts: components["schemas"]["ImportRowCounts"];
             readonly summary_json: {
                 [key: string]: number;
             };
@@ -1589,8 +1707,49 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * @description * `UPLOADED` - Uploaded
+         *     * `COMMITTED` - Imported
+         *     * `CANCELLED` - Cancelled
+         *     * `EXPIRED` - Expired
+         * @enum {string}
+         */
+        ImportBatchStatusEnum: "UPLOADED" | "COMMITTED" | "CANCELLED" | "EXPIRED";
+        /** @description POST /{id}/mapping/: a roster's column for each KukGrade field. */
+        ImportMappingRequest: {
+            column_mapping: {
+                [key: string]: string;
+            };
+        };
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
+        /** @description One stored row and what the last check made of it. */
+        ImportRow: {
+            readonly row_number: number;
+            readonly source_locator: string;
+            readonly outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
+            readonly outcome_display: string;
+            readonly excluded: boolean;
+            /** @description The row's values by KukGrade field, as checked - for a roster wksa_id, first_name, last_name, date_of_birth, current_rank and status; for historical gradings name, period, current_rank, testing_for_rank, outcome and report. */
+            values: {
+                [key: string]: string;
+            };
+            issues: string[];
+            /** @description The fields whose value is the importer's fix, not the file's. */
+            readonly corrected_fields: string[];
+            readonly created_id: string;
+        };
+        ImportRowCounts: {
+            total: number;
+            ready: number;
+            review_required: number;
+            skip_existing: number;
+            excluded: number;
+        };
+        ImportRowExclusionRequest: {
+            /** @description True leaves the row out of the import; false brings it back. */
+            excluded: boolean;
+        };
         /**
          * @description The account, with the temporary password just issued for it.
          *
@@ -1664,6 +1823,7 @@ export interface components {
             unresolved_current_rank: number;
             unresolved_testing_for_rank: number;
             unresolved_outcome: number;
+            excluded: number;
             warnings: string[];
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
         };
@@ -1692,6 +1852,8 @@ export interface components {
             email: string;
             password: string;
         };
+        /** @enum {string} */
+        NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
         NullEnum: null;
         PaginatedAgeBandList: {
@@ -1813,6 +1975,36 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
+        };
+        PaginatedImportBatchList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ImportBatch"][];
+        };
+        PaginatedImportRowList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ImportRow"][];
         };
         PaginatedLegacyGradingRecordList: {
             /** @example 123 */
@@ -1945,6 +2137,19 @@ export interface components {
             location?: string;
             notes?: string;
             cancellation_reason?: string;
+        };
+        /**
+         * @description PATCH /{id}/rows/{row_number}/: a roster row's fixes, by field.
+         *
+         *     A null value takes the fix away, so the file's own value is used again.
+         */
+        PatchedImportRowCorrectionRequest: {
+            wksa_id?: string | null;
+            first_name?: string | null;
+            last_name?: string | null;
+            date_of_birth?: string | null;
+            current_rank?: string | null;
+            status?: string | null;
         };
         /**
          * @description PATCH /api/auth/me/.
@@ -2158,6 +2363,7 @@ export interface components {
             ready: number;
             review_required: number;
             skip_existing: number;
+            excluded: number;
             rows: components["schemas"]["StudentImportRowResult"][];
         };
         /** @description Shared request shape for the preview and commit actions. */
@@ -2171,11 +2377,12 @@ export interface components {
         };
         /**
          * @description * `READY` - Ready
-         *     * `REVIEW_REQUIRED` - Needs review
-         *     * `SKIP_EXISTING` - Skip - WKSA ID exists
+         *     * `REVIEW_REQUIRED` - Needs attention
+         *     * `SKIP_EXISTING` - Already in KukGrade
+         *     * `EXCLUDED` - Left out
          * @enum {string}
          */
-        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED";
         StudentImportRowResult: {
             row_number: number;
             outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
@@ -2531,6 +2738,32 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_list: {
+        parameters: {
+            query?: {
+                kind?: "LEGACY_GRADINGS" | "STUDENT_ROSTER";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                status?: "CANCELLED" | "COMMITTED" | "EXPIRED" | "UPLOADED";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportBatchList"];
+                };
+            };
+        };
+    };
     data_imports_batches_create: {
         parameters: {
             query?: never;
@@ -2552,6 +2785,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatchCreated"];
+                };
+            };
+        };
+    };
+    data_imports_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -2605,6 +2860,34 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_mapping_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportMappingRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportMappingRequest"];
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
     data_imports_batches_preview_create: {
         parameters: {
             query?: never;
@@ -2629,6 +2912,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportPreview"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_list: {
+        parameters: {
+            query?: {
+                /** @description Only rows with this outcome. */
+                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Matches any of the row's values. */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportRowList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_exclusion_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
+                "application/json": components["schemas"]["ImportRowExclusionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
                 };
             };
         };

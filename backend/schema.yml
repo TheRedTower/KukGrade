@@ -231,6 +231,57 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
   /api/data-imports/batches/:
+    get:
+      operationId: data_imports_batches_list
+      description: |-
+        Administrator-only bulk data import (import Decision 1).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - name: kind
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - LEGACY_GRADINGS
+          - STUDENT_ROSTER
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: status
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - CANCELLED
+          - COMMITTED
+          - EXPIRED
+          - UPLOADED
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportBatchList'
+          description: ''
     post:
       operationId: data_imports_batches_create
       description: |-
@@ -261,6 +312,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportBatchCreated'
           description: ''
+  /api/data-imports/batches/{id}/:
+    get:
+      operationId: data_imports_batches_retrieve
+      description: |-
+        Administrator-only bulk data import (import Decision 1).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
   /api/data-imports/batches/{id}/cancel/:
     post:
       operationId: data_imports_batches_cancel_create
@@ -287,10 +364,8 @@ paths:
     post:
       operationId: data_imports_batches_commit_create
       description: |-
-        Administrator-only bulk data import (import Decision 1).
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        Finish the import. With no body, the stored mapping, fixes and rank
+        choices are used; any given here replace them first.
       parameters:
       - in: path
         name: id
@@ -311,6 +386,41 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ImportRequestRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/mapping/:
+    post:
+      operationId: data_imports_batches_mapping_create
+      description: Match a roster's columns to KukGrade's fields, and check every
+        row.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -356,6 +466,134 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportPreview'
+          description: ''
+  /api/data-imports/batches/{id}/rows/:
+    get:
+      operationId: data_imports_batches_rows_list
+      description: The import's rows, a page at a time, in file order.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: query
+        name: outcome
+        schema:
+          type: string
+          enum:
+          - EXCLUDED
+          - READY
+          - REVIEW_REQUIRED
+          - SKIP_EXISTING
+        description: Only rows with this outcome.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches any of the row's values.
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportRowList'
+          description: ''
+  /api/data-imports/batches/{id}/rows/{row_number}/:
+    patch:
+      operationId: data_imports_batches_rows_partial_update
+      description: Fix a roster row's values; every row is checked again.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{id}/rows/{row_number}/exclusion/:
+    post:
+      operationId: data_imports_batches_rows_exclusion_create
+      description: Leave a row out of the import, or bring it back.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
           description: ''
   /api/gradings/assessment-items/:
     get:
@@ -3271,9 +3509,72 @@ components:
       - status
     ImportBatch:
       type: object
+      description: 'An import: what was uploaded, where it is up to, and its rows''
+        counts.'
       properties:
         id:
           type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        kind_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportBatchStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        original_filename:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        committed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        committed_by_name:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        next_step:
+          allOf:
+          - $ref: '#/components/schemas/NextStepEnum'
+          description: Where the import is up to, so a screen can resume it.
+          readOnly: true
+        detected_headers:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A roster's column headers, as in the file; empty otherwise.
+        column_mapping:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's chosen column for each KukGrade field.
+        row_counts:
+          allOf:
+          - $ref: '#/components/schemas/ImportRowCounts'
           readOnly: true
         summary_json:
           type: object
@@ -3281,8 +3582,23 @@ components:
             type: integer
           readOnly: true
       required:
+      - cancelled_at
+      - column_mapping
+      - committed_at
+      - committed_by_name
+      - detected_headers
+      - file_size
       - id
+      - kind
+      - kind_display
+      - next_step
+      - original_filename
+      - row_counts
+      - status
+      - status_display
       - summary_json
+      - uploaded_at
+      - uploaded_by_name
     ImportBatchCreateRequest:
       type: object
       properties:
@@ -3322,6 +3638,28 @@ components:
       - detected_headers
       - id
       - suggested_mapping
+    ImportBatchStatusEnum:
+      enum:
+      - UPLOADED
+      - COMMITTED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `UPLOADED` - Uploaded
+        * `COMMITTED` - Imported
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
+    ImportMappingRequest:
+      type: object
+      description: 'POST /{id}/mapping/: a roster''s column for each KukGrade field.'
+      properties:
+        column_mapping:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - column_mapping
     ImportPreview:
       oneOf:
       - $ref: '#/components/schemas/StudentImportPreview'
@@ -3330,6 +3668,84 @@ components:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
       - $ref: '#/components/schemas/LegacyImportRequest'
+    ImportRow:
+      type: object
+      description: One stored row and what the last check made of it.
+      properties:
+        row_number:
+          type: integer
+          readOnly: true
+        source_locator:
+          type: string
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
+          readOnly: true
+        outcome_display:
+          type: string
+          readOnly: true
+        excluded:
+          type: boolean
+          readOnly: true
+        values:
+          type: object
+          additionalProperties:
+            type: string
+          description: The row's values by KukGrade field, as checked - for a roster
+            wksa_id, first_name, last_name, date_of_birth, current_rank and status;
+            for historical gradings name, period, current_rank, testing_for_rank,
+            outcome and report.
+        issues:
+          type: array
+          items:
+            type: string
+        corrected_fields:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: The fields whose value is the importer's fix, not the file's.
+        created_id:
+          type: string
+          readOnly: true
+      required:
+      - corrected_fields
+      - created_id
+      - excluded
+      - issues
+      - outcome
+      - outcome_display
+      - row_number
+      - source_locator
+      - values
+    ImportRowCounts:
+      type: object
+      properties:
+        total:
+          type: integer
+        ready:
+          type: integer
+        review_required:
+          type: integer
+        skip_existing:
+          type: integer
+        excluded:
+          type: integer
+      required:
+      - excluded
+      - ready
+      - review_required
+      - skip_existing
+      - total
+    ImportRowExclusionRequest:
+      type: object
+      properties:
+        excluded:
+          type: boolean
+          description: True leaves the row out of the import; false brings it back.
+      required:
+      - excluded
     IssuedTemporaryPassword:
       type: object
       description: |-
@@ -3530,6 +3946,8 @@ components:
           type: integer
         unresolved_outcome:
           type: integer
+        excluded:
+          type: integer
         warnings:
           type: array
           items:
@@ -3541,6 +3959,7 @@ components:
       required:
       - auxiliary_note
       - did_not_attend
+      - excluded
       - grading_result
       - rank_suggestions
       - total
@@ -3594,6 +4013,12 @@ components:
       required:
       - email
       - password
+    NextStepEnum:
+      enum:
+      - MATCH_COLUMNS
+      - REVIEW
+      - CLOSED
+      type: string
     NullEnum:
       enum:
       - null
@@ -3781,6 +4206,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GradingSession'
+    PaginatedImportBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportBatch'
+    PaginatedImportRowList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
     PaginatedLegacyGradingRecordList:
       type: object
       required:
@@ -4009,6 +4480,31 @@ components:
         cancellation_reason:
           type: string
           writeOnly: true
+    PatchedImportRowCorrectionRequest:
+      type: object
+      description: |-
+        PATCH /{id}/rows/{row_number}/: a roster row's fixes, by field.
+
+        A null value takes the fix away, so the file's own value is used again.
+      properties:
+        wksa_id:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        date_of_birth:
+          type: string
+          nullable: true
+        current_rank:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
     PatchedSelfProfileRequest:
       type: object
       description: |-
@@ -4448,11 +4944,14 @@ components:
           type: integer
         skip_existing:
           type: integer
+        excluded:
+          type: integer
         rows:
           type: array
           items:
             $ref: '#/components/schemas/StudentImportRowResult'
       required:
+      - excluded
       - ready
       - review_required
       - rows
@@ -4477,11 +4976,13 @@ components:
       - READY
       - REVIEW_REQUIRED
       - SKIP_EXISTING
+      - EXCLUDED
       type: string
       description: |-
         * `READY` - Ready
-        * `REVIEW_REQUIRED` - Needs review
-        * `SKIP_EXISTING` - Skip - WKSA ID exists
+        * `REVIEW_REQUIRED` - Needs attention
+        * `SKIP_EXISTING` - Already in KukGrade
+        * `EXCLUDED` - Left out
     StudentImportRowResult:
       type: object
       properties:

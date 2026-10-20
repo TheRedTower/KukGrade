@@ -1,4 +1,10 @@
-"""Import batch lifecycle, and preview/commit for both batch kinds.
+"""Import batch lifecycle, stored rows, and preview/commit for both kinds.
+
+A file is read once, at upload, into `ImportRow`s; every later step - matching
+columns, checking, fixing a row, leaving one out, finishing - works on those
+stored rows under the batch's lock, never on a fresh parse (decision log,
+2026-10-20 import overhaul). Finishing still re-checks every row against the
+database as it is at that moment, so nothing a stale screen showed is trusted.
 
 Every created `Student` goes through `students.services.create_student` -
 the exact service a hand-created student uses - so full model validation and
@@ -11,8 +17,8 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, time, timedelta
 from functools import partial
 from typing import Any
 
@@ -37,7 +43,7 @@ from data_imports.mappings import (
     STUDENT_TARGET_FIELDS,
     suggest_column_mapping,
 )
-from data_imports.models import ImportBatch
+from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch, ImportRow
 from data_imports.parsers import (
     TabularData,
     UnsupportedImportFileError,
@@ -60,10 +66,16 @@ _ALLOWED_EXTENSIONS: dict[str, frozenset[str]] = {
 }
 
 
-class StudentImportRowOutcome(models.TextChoices):
-    READY = "READY", "Ready"
-    REVIEW_REQUIRED = "REVIEW_REQUIRED", "Needs review"
-    SKIP_EXISTING = "SKIP_EXISTING", "Skip - WKSA ID exists"
+# One set of row outcomes for checking and storing alike.
+StudentImportRowOutcome = ImportRow.Outcome
+
+
+class ImportStep(models.TextChoices):
+    """Where an import is up to, so a screen can resume it."""
+
+    MATCH_COLUMNS = "MATCH_COLUMNS", "Match columns"
+    REVIEW = "REVIEW", "Review rows"
+    CLOSED = "CLOSED", "Finished"
 
 
 _DATE_FORMATS: tuple[str, ...] = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y")
@@ -155,7 +167,12 @@ def create_import_batch(
         sha256=digest,
         file_size=len(content),
         uploaded_by=uploaded_by,
+        configuration_json={"detected_headers": detected_headers},
     )
+    if kind == ImportBatch.Kind.STUDENT_ROSTER:
+        _store_roster_rows(batch, dataset)
+    else:
+        _store_legacy_rows(batch, parsed)
     return CreateImportBatchResult(
         batch=batch,
         already_imported_warning=already_imported_warning,
@@ -166,6 +183,155 @@ def create_import_batch(
             else {}
         ),
     )
+
+
+# --- stored rows -----------------------------------------------------------
+
+_ROWS_STORED = "rows_stored"
+
+
+def _jsonable(value: Any) -> Any:
+    """A cell as JSON keeps it: a date as its ISO day, which _coerce_date reads."""
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date | time):
+        return value.isoformat()
+    if value is None or isinstance(value, str | int | float | bool):
+        return value
+    return str(value)
+
+
+def _store_roster_rows(batch: ImportBatch, dataset: TabularData) -> None:
+    ImportRow.objects.bulk_create(
+        [
+            ImportRow(
+                batch=batch,
+                row_number=row_number,
+                source_locator=f"R{row_number}",
+                raw={header: _jsonable(value) for header, value in cells.items()},
+            )
+            for row_number, cells in dataset.rows
+        ],
+        batch_size=500,
+    )
+    _mark_rows_stored(batch)
+
+
+def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
+    ImportRow.objects.bulk_create(
+        [
+            ImportRow(
+                batch=batch,
+                row_number=index,
+                source_locator=row.source_locator,
+                raw={name: _jsonable(value) for name, value in asdict(row).items()},
+                outcome=ImportRow.Outcome.READY,
+                values=_legacy_values(row),
+                search_text=_search_text(_legacy_values(row)),
+            )
+            for index, row in enumerate(parsed.rows, start=1)
+        ],
+        batch_size=500,
+    )
+    batch.configuration_json["warnings"] = list(parsed.warnings)
+    _mark_rows_stored(batch)
+
+
+def _mark_rows_stored(batch: ImportBatch) -> None:
+    batch.configuration_json[_ROWS_STORED] = True
+    batch.save(update_fields=["configuration_json", "updated_at"])
+
+
+def _ensure_rows_stored(locked: ImportBatch) -> None:
+    """Rows for an open import uploaded before rows were stored, read once now."""
+    if locked.configuration_json.get(_ROWS_STORED):
+        return
+    if locked.kind == ImportBatch.Kind.STUDENT_ROSTER:
+        dataset = _load_batch_dataset(locked)
+        locked.configuration_json.setdefault("detected_headers", dataset.headers)
+        _store_roster_rows(locked, dataset)
+    else:
+        _store_legacy_rows(locked, _load_legacy_workbook(locked))
+
+
+def _search_text(values: dict[str, str]) -> str:
+    return " ".join(value for value in values.values() if value).lower()
+
+
+def _locked_row(locked: ImportBatch, row_number: int) -> ImportRow:
+    row = locked.rows.filter(row_number=row_number).first()
+    if row is None:
+        raise DjangoValidationError({"row": ["This import has no such row."]})
+    return row
+
+
+ROW_COUNT_NAMES: tuple[str, ...] = (
+    "total",
+    "ready",
+    "review_required",
+    "skip_existing",
+    "excluded",
+)
+
+
+def with_row_counts(
+    batches: models.QuerySet[ImportBatch],
+) -> models.QuerySet[ImportBatch]:
+    """Imports annotated with `rows_<name>` for each of ROW_COUNT_NAMES."""
+
+    def outcome(value: str) -> models.Count:
+        return models.Count("rows", filter=models.Q(rows__outcome=value))
+
+    return batches.annotate(
+        row_counts_annotated=models.Value(True),
+        rows_total=models.Count("rows"),
+        rows_ready=outcome(ImportRow.Outcome.READY),
+        rows_review_required=outcome(ImportRow.Outcome.REVIEW_REQUIRED),
+        rows_skip_existing=outcome(ImportRow.Outcome.SKIP_EXISTING),
+        rows_excluded=outcome(ImportRow.Outcome.EXCLUDED),
+    )
+
+
+def row_counts(batch: ImportBatch) -> dict[str, int]:
+    """How many of an import's rows have each outcome."""
+    counts = dict(
+        batch.rows.values_list("outcome").annotate(models.Count("pk")).order_by(),
+    )
+    return {
+        "total": sum(counts.values()),
+        "ready": counts.get(ImportRow.Outcome.READY, 0),
+        "review_required": counts.get(ImportRow.Outcome.REVIEW_REQUIRED, 0),
+        "skip_existing": counts.get(ImportRow.Outcome.SKIP_EXISTING, 0),
+        "excluded": counts.get(ImportRow.Outcome.EXCLUDED, 0),
+    }
+
+
+def next_step(batch: ImportBatch) -> str:
+    if batch.status != ImportBatch.Status.UPLOADED:
+        return ImportStep.CLOSED
+    if (
+        batch.kind == ImportBatch.Kind.STUDENT_ROSTER
+        and not batch.configuration_json.get(
+            "column_mapping",
+        )
+    ):
+        return ImportStep.MATCH_COLUMNS
+    return ImportStep.REVIEW
+
+
+def _drop_rows(locked: ImportBatch) -> None:
+    # Rows are the file's content: they go with it.
+    locked.rows.all().delete()
+
+
+def prune_finished_import_rows(*, now: datetime | None = None) -> int:
+    """Delete the rows of imports finished longer ago than they are kept."""
+    cutoff = (now or timezone.now()) - COMMITTED_ROWS_KEPT_FOR
+    deleted, _ = ImportRow.objects.filter(
+        batch__status=ImportBatch.Status.COMMITTED,
+        batch__committed_at__lt=cutoff,
+    ).delete()
+    return deleted
 
 
 def _release_source_file(locked: ImportBatch) -> None:
@@ -280,6 +446,7 @@ def _mark_committed(
 def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
     locked = _lock_uncommitted(batch, "cancelled")
     _release_source_file(locked)
+    _drop_rows(locked)
     locked.status = ImportBatch.Status.CANCELLED
     locked.cancelled_by = actor
     locked.cancelled_at = timezone.now()
@@ -320,6 +487,7 @@ def expire_import_batch(batch_id: int, *, max_age: timedelta) -> bool:
     ):
         return False
     _release_source_file(locked)
+    _drop_rows(locked)
     locked.status = ImportBatch.Status.EXPIRED
     locked.save(update_fields=["status", "source_file", "updated_at"])
     hours = max_age // timedelta(hours=1)
@@ -395,6 +563,7 @@ class StudentImportPreview:
     review_required: int
     skip_existing: int
     rows: list[StudentImportRowResult]
+    excluded: int = 0
 
 
 def _coerce_date(value: Any) -> date | None:
@@ -595,69 +764,247 @@ def _classify_student_row(
     )
 
 
+def _classify_roster(locked: ImportBatch) -> StudentImportPreview:
+    """Check every stored row of a roster against its mapping and the database.
+
+    Rows are checked together, not one by one: a WKSA ID repeated in the file
+    is only seen across rows, and the lookups are one query each for the
+    whole file. Each row's result is stored on it.
+    """
+    column_mapping: dict[str, str] = locked.configuration_json.get(
+        "column_mapping",
+        {},
+    )
+    stored_rows = list(locked.rows.order_by("row_number"))
+    mapped = [
+        (stored, _map_row(stored.raw, column_mapping), stored.correction)
+        for stored in stored_rows
+    ]
+    ranks = _active_rank_lookup()
+    wanted = {
+        _row_wksa_id(values, correction)
+        for stored, values, correction in mapped
+        if not stored.excluded
+    } - {""}
+    existing_wksa_ids = set(
+        Student.objects.filter(wksa_id__in=wanted).values_list("wksa_id", flat=True),
+    )
+    # Old student IDs that a black belt ID replaced, by the ID now held.
+    replaced_wksa_ids = dict(
+        PreviousWksaId.objects.filter(wksa_id__in=wanted).values_list(
+            "wksa_id",
+            "student__wksa_id",
+        ),
+    )
+    retired_wksa_ids = set(
+        RetiredWksaId.objects.filter(wksa_id__in=wanted).values_list(
+            "wksa_id",
+            flat=True,
+        ),
+    )
+    seen_wksa_ids: set[str] = set()
+    results: list[StudentImportRowResult] = []
+    for stored, values, correction in mapped:
+        if stored.excluded:
+            result = _excluded_roster_row(stored, values, correction)
+        else:
+            result = _classify_student_row(
+                stored.row_number,
+                values,
+                correction,
+                seen_wksa_ids,
+                ranks,
+                existing_wksa_ids,
+                replaced_wksa_ids,
+                retired_wksa_ids,
+            )
+        shown = _roster_values(result)
+        stored.outcome = result.outcome
+        stored.issues = list(result.issues)
+        stored.values = shown
+        stored.search_text = _search_text(shown)
+        results.append(result)
+    ImportRow.objects.bulk_update(
+        stored_rows,
+        ["outcome", "issues", "values", "search_text"],
+        batch_size=500,
+    )
+
+    def count(outcome: str) -> int:
+        return sum(1 for row in results if row.outcome == outcome)
+
+    return StudentImportPreview(
+        total=len(results),
+        ready=count(StudentImportRowOutcome.READY),
+        review_required=count(StudentImportRowOutcome.REVIEW_REQUIRED),
+        skip_existing=count(StudentImportRowOutcome.SKIP_EXISTING),
+        excluded=count(StudentImportRowOutcome.EXCLUDED),
+        rows=results,
+    )
+
+
+def _excluded_roster_row(
+    stored: ImportRow,
+    values: dict[str, Any],
+    correction: dict[str, str],
+) -> StudentImportRowResult:
+    def text(name: str) -> str:
+        value = correction.get(name, values.get(name))
+        return "" if value is None else str(value).strip()
+
+    return StudentImportRowResult(
+        row_number=stored.row_number,
+        outcome=StudentImportRowOutcome.EXCLUDED,
+        wksa_id=text("wksa_id"),
+        first_name=text("first_name"),
+        last_name=text("last_name"),
+        date_of_birth_display=text("date_of_birth"),
+        date_of_birth=None,
+        current_rank_text=text("current_rank"),
+        current_rank_id=None,
+        current_rank_code=None,
+        status=text("status"),
+    )
+
+
+def _roster_values(result: StudentImportRowResult) -> dict[str, str]:
+    return {
+        "wksa_id": result.wksa_id,
+        "first_name": result.first_name,
+        "last_name": result.last_name,
+        "date_of_birth": result.date_of_birth_display,
+        "current_rank": result.current_rank_text,
+        "status": result.status,
+    }
+
+
+_MAPPING_FIRST = "Match the file's columns to KukGrade's fields first."
+
+
+def _require_mapping(locked: ImportBatch) -> None:
+    if not locked.configuration_json.get("column_mapping"):
+        raise DjangoValidationError({"column_mapping": [_MAPPING_FIRST]})
+
+
+def _require_roster(locked: ImportBatch) -> None:
+    if locked.kind != ImportBatch.Kind.STUDENT_ROSTER:
+        raise DjangoValidationError(
+            {"batch": ["Only a student roster's columns are matched."]},
+        )
+
+
+def _save_column_mapping(locked: ImportBatch, column_mapping: dict[str, str]) -> None:
+    locked.configuration_json["column_mapping"] = {
+        field: header for field, header in column_mapping.items() if header
+    }
+    locked.save(update_fields=["configuration_json", "updated_at"])
+
+
+def _replace_corrections(
+    locked: ImportBatch,
+    corrections: dict[str, dict[str, str]],
+) -> None:
+    stored_rows = list(locked.rows.all())
+    for stored in stored_rows:
+        stored.correction = dict(corrections.get(str(stored.row_number), {}))
+    ImportRow.objects.bulk_update(stored_rows, ["correction"], batch_size=500)
+
+
+@transaction.atomic
+def save_import_mapping(
+    batch: ImportBatch,
+    *,
+    column_mapping: dict[str, str],
+) -> ImportBatch:
+    """Match a roster's columns to KukGrade's fields, and check every row."""
+    locked = _lock_uncommitted(batch, "changed")
+    _require_roster(locked)
+    _ensure_rows_stored(locked)
+    _save_column_mapping(locked, column_mapping)
+    _classify_roster(locked)
+    return locked
+
+
+@transaction.atomic
+def correct_import_row(
+    batch: ImportBatch,
+    *,
+    row_number: int,
+    changes: dict[str, str | None],
+) -> ImportRow:
+    """Fix a roster row's values; a null value goes back to what the file says.
+
+    Every row is checked again, not only this one: fixing a WKSA ID can make
+    or end a repeat elsewhere in the file.
+    """
+    locked = _lock_uncommitted(batch, "changed")
+    _require_roster(locked)
+    _ensure_rows_stored(locked)
+    _require_mapping(locked)
+    row = _locked_row(locked, row_number)
+    correction = dict(row.correction)
+    for name, value in changes.items():
+        if value is None:
+            correction.pop(name, None)
+        else:
+            correction[name] = value
+    row.correction = correction
+    row.save(update_fields=["correction"])
+    _classify_roster(locked)
+    row.refresh_from_db()
+    return row
+
+
+@transaction.atomic
+def set_import_row_excluded(
+    batch: ImportBatch,
+    *,
+    row_number: int,
+    excluded: bool,
+) -> ImportRow:
+    """Leave a row out of the import, or bring it back."""
+    locked = _lock_uncommitted(batch, "changed")
+    _ensure_rows_stored(locked)
+    row = _locked_row(locked, row_number)
+    row.excluded = excluded
+    if excluded:
+        row.outcome = ImportRow.Outcome.EXCLUDED
+    elif locked.kind == ImportBatch.Kind.STUDENT_ROSTER:
+        # Until the check below, which a roster with its columns matched gets.
+        row.outcome = ImportRow.Outcome.REVIEW_REQUIRED
+    else:
+        # A historical record is never held back by what it lacks (import
+        # Decision 5), so one brought back is ready.
+        row.outcome = ImportRow.Outcome.READY
+    row.save(update_fields=["excluded", "outcome"])
+    if locked.kind == ImportBatch.Kind.STUDENT_ROSTER and locked.configuration_json.get(
+        "column_mapping",
+    ):
+        # Every row again: a row left out, or back, can end or make a repeat.
+        _classify_roster(locked)
+    row.refresh_from_db()
+    return row
+
+
+@transaction.atomic
 def preview_student_import(
     batch: ImportBatch,
     *,
     column_mapping: dict[str, str],
     corrections: dict[str, dict[str, str]] | None = None,
 ) -> StudentImportPreview:
-    dataset = _load_batch_dataset(batch)
-    corrections = corrections or {}
-    mapped = [
-        (
-            row_number,
-            _map_row(raw_row, column_mapping),
-            corrections.get(str(row_number), {}),
-        )
-        for row_number, raw_row in dataset.rows
-    ]
-    ranks = _active_rank_lookup()
-    wanted = {_row_wksa_id(values, correction) for _, values, correction in mapped}
-    existing_wksa_ids = set(
-        Student.objects.filter(wksa_id__in=wanted - {""}).values_list(
-            "wksa_id",
-            flat=True,
-        ),
-    )
-    # Old student IDs that a black belt ID replaced, by the ID now held.
-    replaced_wksa_ids = dict(
-        PreviousWksaId.objects.filter(wksa_id__in=wanted - {""}).values_list(
-            "wksa_id",
-            "student__wksa_id",
-        ),
-    )
-    retired_wksa_ids = set(
-        RetiredWksaId.objects.filter(wksa_id__in=wanted - {""}).values_list(
-            "wksa_id",
-            flat=True,
-        ),
-    )
-    seen_wksa_ids: set[str] = set()
-    rows = [
-        _classify_student_row(
-            row_number,
-            values,
-            correction,
-            seen_wksa_ids,
-            ranks,
-            existing_wksa_ids,
-            replaced_wksa_ids,
-            retired_wksa_ids,
-        )
-        for row_number, values, correction in mapped
-    ]
+    """Save the mapping (and, when given, every row's corrections) and check.
 
-    return StudentImportPreview(
-        total=len(rows),
-        ready=sum(1 for row in rows if row.outcome == StudentImportRowOutcome.READY),
-        review_required=sum(
-            1 for row in rows if row.outcome == StudentImportRowOutcome.REVIEW_REQUIRED
-        ),
-        skip_existing=sum(
-            1 for row in rows if row.outcome == StudentImportRowOutcome.SKIP_EXISTING
-        ),
-        rows=rows,
-    )
+    The single-request check the current roster screen uses: corrections
+    given here replace the stored ones, as that screen sends them all.
+    """
+    locked = _lock_uncommitted(batch, "checked")
+    _require_roster(locked)
+    _ensure_rows_stored(locked)
+    _save_column_mapping(locked, column_mapping)
+    if corrections is not None:
+        _replace_corrections(locked, corrections)
+    return _classify_roster(locked)
 
 
 def _row_no_longer_valid(
@@ -679,37 +1026,43 @@ def commit_student_import(
     batch: ImportBatch,
     *,
     actor: User,
-    column_mapping: dict[str, str],
+    column_mapping: dict[str, str] | None = None,
     corrections: dict[str, dict[str, str]] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "imported again")
+    """Create a student for every ready row, all or nothing.
 
-    # Never trusts a stale frontend preview - re-runs the exact same
-    # validation against the source file right now.
-    preview = preview_student_import(
-        locked,
-        column_mapping=column_mapping,
-        corrections=corrections,
-    )
+    The mapping and corrections are the stored ones unless given here (as the
+    current roster screen sends them). Never trusts what a screen last
+    showed - every row is checked again now, under the batch's lock.
+    """
+    locked = _lock_uncommitted(batch, "imported again")
+    _require_roster(locked)
+    _ensure_rows_stored(locked)
+    if column_mapping is not None:
+        _save_column_mapping(locked, column_mapping)
+    if corrections is not None:
+        _replace_corrections(locked, corrections)
+    _require_mapping(locked)
+    preview = _classify_roster(locked)
     ready_rows = [
         row for row in preview.rows if row.outcome == StudentImportRowOutcome.READY
     ]
 
     active_ranks = {rank.pk: rank for rank in Rank.objects.filter(active=True)}
-    created = 0
+    created_ids: dict[int, int] = {}
     for row in ready_rows:
         # A READY row always has both resolved by _classify_student_row; the
         # None checks narrow the types and catch a rank deactivated since.
         rank = active_ranks.get(row.current_rank_id) if row.current_rank_id else None
         if rank is None or row.date_of_birth is None:
             raise _row_no_longer_valid(row, "its rank is no longer active.")
-        # Preview ran the same validation moments ago, so a refusal here is a
-        # concurrent change - such as the same WKSA ID created elsewhere.
-        # All-or-nothing per the recorded commit-semantics deviation: the
-        # whole batch rolls back rather than silently skipping the row.
+        # Checked moments ago, so a refusal here is a concurrent change - such
+        # as the same WKSA ID created elsewhere. All-or-nothing per the
+        # recorded commit-semantics deviation: the whole batch rolls back
+        # rather than silently skipping the row.
         try:
             with transaction.atomic():
-                create_student(
+                student = create_student(
                     wksa_id=row.wksa_id,
                     first_name=row.first_name,
                     last_name=row.last_name,
@@ -725,21 +1078,31 @@ def commit_student_import(
                 row,
                 "it conflicts with a change saved since the preview.",
             ) from exc
-        created += 1
+        created_ids[row.row_number] = student.pk
 
+    _record_created(locked, created_ids)
     return _mark_committed(
         locked,
         actor=actor,
         summary={
             "total": preview.total,
-            "created": created,
+            "created": len(created_ids),
             "skipped_existing": preview.skip_existing,
             "review_required": preview.review_required,
+            "excluded": preview.excluded,
         },
-        configuration={"column_mapping": column_mapping},
-        record_count=created,
+        configuration=locked.configuration_json,
+        record_count=len(created_ids),
         what="student(s)",
     )
+
+
+def _record_created(locked: ImportBatch, created_ids: dict[int, int]) -> None:
+    """Note on each row what it became, for the results page."""
+    stored_rows = list(locked.rows.filter(row_number__in=created_ids))
+    for stored in stored_rows:
+        stored.created_id = str(created_ids[stored.row_number])
+    ImportRow.objects.bulk_update(stored_rows, ["created_id"], batch_size=500)
 
 
 # --- historical grading workbook preview/commit -----------------------------
@@ -785,6 +1148,46 @@ def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
     return _parse_legacy_workbook(_read_source_file(batch), error_key="batch")
 
 
+def _legacy_values(row: CanonicalLegacyRow) -> dict[str, str]:
+    """A historical row's values, as the review table shows them."""
+    return {
+        "name": row.source_name,
+        "period": f"{row.cycle_month:02d}/{row.cycle_year}",
+        "current_rank": row.source_current_rank_text,
+        "testing_for_rank": row.source_testing_for_rank_text,
+        "outcome": row.source_outcome_text,
+        "report": row.comments,
+    }
+
+
+def _stored_legacy_rows(
+    locked: ImportBatch,
+    *,
+    include_excluded: bool = False,
+) -> list[tuple[ImportRow, CanonicalLegacyRow]]:
+    stored = locked.rows.order_by("row_number")
+    if not include_excluded:
+        stored = stored.filter(excluded=False)
+    return [(row, CanonicalLegacyRow(**row.raw)) for row in stored]
+
+
+def _require_legacy(locked: ImportBatch) -> None:
+    if locked.kind != ImportBatch.Kind.LEGACY_GRADINGS:
+        raise DjangoValidationError(
+            {"batch": ["This is not a historical gradings import."]},
+        )
+
+
+def _save_rank_mappings(
+    locked: ImportBatch,
+    rank_mappings: dict[str, str | None],
+) -> dict[str, str]:
+    normalised = _normalise_rank_mappings(rank_mappings)
+    locked.configuration_json["rank_mappings"] = normalised
+    locked.save(update_fields=["configuration_json", "updated_at"])
+    return normalised
+
+
 @dataclass(frozen=True)
 class RankMappingSuggestion:
     source_text: str
@@ -802,6 +1205,7 @@ class LegacyImportPreview:
     unresolved_outcome: int
     warnings: list[str]
     rank_suggestions: list[RankMappingSuggestion]
+    excluded: int = 0
 
 
 def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
@@ -855,31 +1259,23 @@ def _rank_resolver(
     return resolve
 
 
+@transaction.atomic
 def preview_legacy_grading_import(
     batch: ImportBatch,
     *,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> LegacyImportPreview:
-    parsed = _load_legacy_workbook(batch)
-    rows = parsed.rows
-    resolve = _rank_resolver(_normalise_rank_mappings(rank_mappings))
+    """Save the rank choices (when given) and count what the import would do."""
+    locked = _lock_uncommitted(batch, "checked")
+    _require_legacy(locked)
+    _ensure_rows_stored(locked)
+    if rank_mappings is not None:
+        _save_rank_mappings(locked, rank_mappings)
+    rows = [row for _, row in _stored_legacy_rows(locked)]
+    resolve = _rank_resolver(locked.configuration_json.get("rank_mappings", {}))
 
     def unresolved(text: str) -> bool:
         return bool(text.strip()) and resolve(text) is None
-
-    unresolved_current = sum(
-        1 for row in rows if unresolved(row.source_current_rank_text)
-    )
-    unresolved_testing = sum(
-        1 for row in rows if unresolved(row.source_testing_for_rank_text)
-    )
-    unresolved_outcome = sum(
-        1
-        for row in rows
-        if row.record_kind == LegacyRecordKind.GRADING_RESULT
-        and row.source_outcome_text.strip()
-        and row.outcome is None
-    )
 
     suggestions = []
     ranks = _active_rank_lookup()
@@ -892,22 +1288,30 @@ def preview_legacy_grading_import(
             ),
         )
 
+    def kind_count(kind: str) -> int:
+        return sum(1 for row in rows if row.record_kind == kind)
+
     return LegacyImportPreview(
         total=len(rows),
-        grading_result=sum(
-            1 for r in rows if r.record_kind == LegacyRecordKind.GRADING_RESULT
+        grading_result=kind_count(LegacyRecordKind.GRADING_RESULT),
+        auxiliary_note=kind_count(LegacyRecordKind.AUXILIARY_NOTE),
+        did_not_attend=kind_count(LegacyRecordKind.DID_NOT_ATTEND),
+        unresolved_current_rank=sum(
+            1 for row in rows if unresolved(row.source_current_rank_text)
         ),
-        auxiliary_note=sum(
-            1 for r in rows if r.record_kind == LegacyRecordKind.AUXILIARY_NOTE
+        unresolved_testing_for_rank=sum(
+            1 for row in rows if unresolved(row.source_testing_for_rank_text)
         ),
-        did_not_attend=sum(
-            1 for r in rows if r.record_kind == LegacyRecordKind.DID_NOT_ATTEND
+        unresolved_outcome=sum(
+            1
+            for row in rows
+            if row.record_kind == LegacyRecordKind.GRADING_RESULT
+            and row.source_outcome_text.strip()
+            and row.outcome is None
         ),
-        unresolved_current_rank=unresolved_current,
-        unresolved_testing_for_rank=unresolved_testing,
-        unresolved_outcome=unresolved_outcome,
-        warnings=parsed.warnings,
+        warnings=list(locked.configuration_json.get("warnings", [])),
         rank_suggestions=suggestions,
+        excluded=locked.rows.filter(excluded=True).count(),
     )
 
 
@@ -918,13 +1322,23 @@ def commit_legacy_grading_import(
     actor: User,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "imported again")
+    """Create a historical record for every row not left out, all or nothing.
 
-    # Never trusts a stale frontend preview - re-parses the source file and
-    # re-resolves every rank mapping right now.
-    rows = _load_legacy_workbook(locked).rows
-    normalised_mappings = _normalise_rank_mappings(rank_mappings)
+    The rank choices are the stored ones unless given here. Each is resolved
+    again now against the active ranks, so a screen's stale view is never
+    trusted.
+    """
+    locked = _lock_uncommitted(batch, "imported again")
+    _require_legacy(locked)
+    _ensure_rows_stored(locked)
+    if rank_mappings is not None:
+        _save_rank_mappings(locked, rank_mappings)
+    normalised_mappings: dict[str, str] = locked.configuration_json.get(
+        "rank_mappings",
+        {},
+    )
     resolve = _rank_resolver(normalised_mappings)
+    stored_rows = _stored_legacy_rows(locked)
 
     counts: dict[str, int] = {
         LegacyRecordKind.GRADING_RESULT: 0,
@@ -933,11 +1347,12 @@ def commit_legacy_grading_import(
     }
     unresolved_current = 0
     unresolved_testing = 0
+    created_ids: dict[int, int] = {}
 
-    for row in rows:
+    for stored, row in stored_rows:
         current_rank = resolve(row.source_current_rank_text)
         testing_for_rank = resolve(row.source_testing_for_rank_text)
-        create_legacy_grading_record(
+        created = create_legacy_grading_record(
             source_batch=locked,
             record_kind=row.record_kind,
             source_sheet=row.source_sheet,
@@ -956,25 +1371,28 @@ def commit_legacy_grading_import(
             comments=row.comments,
             admin_note=row.admin_note,
         )
+        created_ids[stored.row_number] = created.pk
         counts[row.record_kind] = counts.get(row.record_kind, 0) + 1
         if row.source_current_rank_text.strip() and current_rank is None:
             unresolved_current += 1
         if row.source_testing_for_rank_text.strip() and testing_for_rank is None:
             unresolved_testing += 1
 
+    _record_created(locked, created_ids)
     return _mark_committed(
         locked,
         actor=actor,
         summary={
-            "total": len(rows),
+            "total": len(stored_rows),
             "grading_result": counts[LegacyRecordKind.GRADING_RESULT],
             "auxiliary_note": counts[LegacyRecordKind.AUXILIARY_NOTE],
             "did_not_attend": counts[LegacyRecordKind.DID_NOT_ATTEND],
             "unresolved_current_rank": unresolved_current,
             "unresolved_testing_for_rank": unresolved_testing,
+            "excluded": locked.rows.filter(excluded=True).count(),
         },
-        configuration={"rank_mappings": normalised_mappings},
-        record_count=len(rows),
+        configuration=locked.configuration_json,
+        record_count=len(stored_rows),
         what="historical record(s)",
     )
 
@@ -982,6 +1400,7 @@ def commit_legacy_grading_import(
 __all__ = [
     "STUDENT_REQUIRED_TARGET_FIELDS",
     "CreateImportBatchResult",
+    "ImportStep",
     "LegacyImportPreview",
     "RankMappingSuggestion",
     "StudentImportPreview",
@@ -990,9 +1409,17 @@ __all__ = [
     "cancel_import_batch",
     "commit_legacy_grading_import",
     "commit_student_import",
+    "correct_import_row",
     "create_import_batch",
     "expire_import_batch",
+    "next_step",
     "preview_legacy_grading_import",
     "preview_student_import",
+    "prune_finished_import_rows",
     "remove_orphaned_uploads",
+    "ROW_COUNT_NAMES",
+    "row_counts",
+    "save_import_mapping",
+    "set_import_row_excluded",
+    "with_row_counts",
 ]

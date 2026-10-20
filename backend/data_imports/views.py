@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 from django.core.files.uploadedfile import UploadedFile
 from django.db.models import QuerySet
-from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema
-from rest_framework import status
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    PolymorphicProxySerializer,
+    extend_schema,
+)
+from rest_framework import mixins, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -14,11 +19,15 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from data_imports.models import ImportBatch
+from data_imports.models import ImportBatch, ImportRow
 from data_imports.serializers import (
     ImportBatchCreatedSerializer,
     ImportBatchCreateSerializer,
     ImportBatchSerializer,
+    ImportMappingSerializer,
+    ImportRowCorrectionSerializer,
+    ImportRowExclusionSerializer,
+    ImportRowSerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
     StudentImportPreviewSerializer,
@@ -28,10 +37,23 @@ from data_imports.services import (
     cancel_import_batch,
     commit_legacy_grading_import,
     commit_student_import,
+    correct_import_row,
     create_import_batch,
     preview_legacy_grading_import,
     preview_student_import,
+    save_import_mapping,
+    set_import_row_excluded,
+    with_row_counts,
 )
+from kukgrade.filtering import choice, search
+
+# The review table's filters. Not a `list` action, so they are checked here
+# rather than by DeclaredQueryFilters - unknown ones are refused all the same.
+_ROW_FILTERS = (
+    choice("outcome", "outcome", ImportRow.Outcome.values),
+    search("search", ("search_text",), "Matches any of the row's values."),
+)
+_ROW_PARAMETERS = frozenset({"outcome", "search", "page", "page_size", "format"})
 
 # Preview and commit take, and preview returns, a different shape per batch
 # kind: a student roster's column mapping, or a legacy workbook's rank
@@ -48,7 +70,19 @@ _IMPORT_PREVIEW = PolymorphicProxySerializer(
 )
 
 
-class ImportBatchViewSet(GenericViewSet):
+def _given(request: Request, serializer: Any, name: str) -> Any:
+    """A field's value if the request sent it, else None - so a field left
+    out keeps what is stored, rather than its empty default replacing it."""
+    if name not in request.data:
+        return None
+    return serializer.validated_data.get(name)
+
+
+class ImportBatchViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    GenericViewSet,
+):
     """Administrator-only bulk data import (import Decision 1).
 
     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
@@ -59,18 +93,134 @@ class ImportBatchViewSet(GenericViewSet):
     permission_classes = [HasRequiredPermissions]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_map = {
+        "list": ("data_imports.view_importbatch",),
+        "retrieve": ("data_imports.view_importbatch",),
         "create": ("data_imports.add_importbatch",),
         "cancel": ("data_imports.change_importbatch",),
         "preview": ("data_imports.view_importbatch",),
         "commit": ("data_imports.can_commit_import",),
+        "mapping": ("data_imports.change_importbatch",),
+        "rows": ("data_imports.view_importbatch",),
+        "row": ("data_imports.change_importbatch",),
+        "row_exclusion": ("data_imports.change_importbatch",),
     }
+    query_filters = (
+        choice("status", "status", ImportBatch.Status.values),
+        choice("kind", "kind", ImportBatch.Kind.values),
+    )
 
     def get_queryset(self) -> QuerySet[ImportBatch]:
-        return ImportBatch.objects.select_related(
-            "uploaded_by",
-            "committed_by",
-            "cancelled_by",
+        return with_row_counts(
+            ImportBatch.objects.select_related(
+                "uploaded_by",
+                "committed_by",
+                "cancelled_by",
+            ),
         ).order_by("-uploaded_at", "-pk")
+
+    def _batch_response(self, request: Request, batch: ImportBatch) -> Response:
+        # Read again through the queryset, so its counts are the current ones.
+        fresh = self.get_queryset().get(pk=batch.pk)
+        return Response(ImportBatchSerializer(fresh, context={"request": request}).data)
+
+    @extend_schema(request=ImportMappingSerializer, responses=ImportBatchSerializer)
+    @action(detail=True, methods=["post"])
+    def mapping(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Match a roster's columns to KukGrade's fields, and check every row."""
+        batch = self.get_object()
+        payload = ImportMappingSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        save_import_mapping(
+            batch,
+            column_mapping=payload.validated_data["column_mapping"],
+        )
+        return self._batch_response(request, batch)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "outcome",
+                str,
+                enum=ImportRow.Outcome.values,
+                description="Only rows with this outcome.",
+            ),
+            OpenApiParameter(
+                "search",
+                str,
+                description="Matches any of the row's values.",
+            ),
+        ],
+        responses=ImportRowSerializer(many=True),
+    )
+    # No batch filters here: a row list takes only its own (_ROW_FILTERS).
+    @action(detail=True, methods=["get"], filter_backends=[])
+    def rows(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """The import's rows, a page at a time, in file order."""
+        batch = self.get_object()
+        unknown = sorted(set(request.query_params) - _ROW_PARAMETERS)
+        if unknown:
+            raise ValidationError(
+                {name: ["This list cannot be filtered that way."] for name in unknown},
+            )
+        rows: QuerySet[ImportRow] = batch.rows.order_by("row_number")
+        for row_filter in _ROW_FILTERS:
+            value = request.query_params.get(row_filter.name)
+            if value:
+                rows = row_filter.apply(rows, value)
+        page = self.paginate_queryset(rows)
+        assert page is not None
+        return self.get_paginated_response(ImportRowSerializer(page, many=True).data)
+
+    @extend_schema(request=ImportRowCorrectionSerializer, responses=ImportRowSerializer)
+    @action(
+        detail=True,
+        methods=["patch"],
+        url_path=r"rows/(?P<row_number>[0-9]+)",
+        filter_backends=[],
+    )
+    def row(
+        self,
+        request: Request,
+        row_number: str,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Fix a roster row's values; every row is checked again."""
+        batch = self.get_object()
+        payload = ImportRowCorrectionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        changes: dict[str, Any] = dict(payload.validated_data)
+        corrected = correct_import_row(
+            batch,
+            row_number=int(row_number),
+            changes=changes,
+        )
+        return Response(ImportRowSerializer(corrected).data)
+
+    @extend_schema(request=ImportRowExclusionSerializer, responses=ImportRowSerializer)
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"rows/(?P<row_number>[0-9]+)/exclusion",
+        filter_backends=[],
+    )
+    def row_exclusion(
+        self,
+        request: Request,
+        row_number: str,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Leave a row out of the import, or bring it back."""
+        batch = self.get_object()
+        payload = ImportRowExclusionSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        changed = set_import_row_excluded(
+            batch,
+            row_number=int(row_number),
+            excluded=payload.validated_data["excluded"],
+        )
+        return Response(ImportRowSerializer(changed).data)
 
     @extend_schema(
         request=ImportBatchCreateSerializer,
@@ -107,7 +257,7 @@ class ImportBatchViewSet(GenericViewSet):
             legacy_input.is_valid(raise_exception=True)
             legacy_preview = preview_legacy_grading_import(
                 batch,
-                rank_mappings=legacy_input.validated_data.get("rank_mappings"),
+                rank_mappings=_given(request, legacy_input, "rank_mappings"),
             )
             return Response(LegacyImportPreviewSerializer(legacy_preview).data)
 
@@ -116,13 +266,15 @@ class ImportBatchViewSet(GenericViewSet):
         preview = preview_student_import(
             batch,
             column_mapping=input_serializer.validated_data["column_mapping"],
-            corrections=input_serializer.validated_data.get("corrections"),
+            corrections=_given(request, input_serializer, "corrections"),
         )
         return Response(StudentImportPreviewSerializer(preview).data)
 
     @extend_schema(request=_IMPORT_REQUEST, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])
     def commit(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Finish the import. With no body, the stored mapping, fixes and rank
+        choices are used; any given here replace them first."""
         batch = self.get_object()
 
         if batch.kind == ImportBatch.Kind.LEGACY_GRADINGS:
@@ -131,22 +283,19 @@ class ImportBatchViewSet(GenericViewSet):
             legacy_committed = commit_legacy_grading_import(
                 batch,
                 actor=cast(User, request.user),
-                rank_mappings=legacy_input.validated_data.get("rank_mappings"),
+                rank_mappings=_given(request, legacy_input, "rank_mappings"),
             )
-            serialized = ImportBatchSerializer(
-                legacy_committed,
-                context={"request": request},
-            )
-            return Response(serialized.data)
+            return self._batch_response(request, legacy_committed)
 
+        if not request.data:
+            committed = commit_student_import(batch, actor=cast(User, request.user))
+            return self._batch_response(request, committed)
         input_serializer = StudentImportSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
         committed = commit_student_import(
             batch,
             actor=cast(User, request.user),
             column_mapping=input_serializer.validated_data["column_mapping"],
-            corrections=input_serializer.validated_data.get("corrections"),
+            corrections=_given(request, input_serializer, "corrections"),
         )
-        return Response(
-            ImportBatchSerializer(committed, context={"request": request}).data,
-        )
+        return self._batch_response(request, committed)

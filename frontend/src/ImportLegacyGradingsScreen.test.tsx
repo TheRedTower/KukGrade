@@ -46,6 +46,7 @@ const initialPreview: LegacyImportPreview = {
   unresolved_current_rank: 1,
   unresolved_testing_for_rank: 0,
   unresolved_outcome: 0,
+  excluded: 0,
   warnings: [],
   rank_suggestions: [
     { source_text: "Yellow",  suggested_rank_code: "YELLOW" },
@@ -54,6 +55,21 @@ const initialPreview: LegacyImportPreview = {
 
 const committedBatch: DataImportBatch = {
   id: 7,
+  kind: "LEGACY_GRADINGS",
+  kind_display: "Historical grading records",
+  status: "COMMITTED",
+  status_display: "Imported",
+  original_filename: "file.xlsx",
+  file_size: 1024,
+  uploaded_at: "2026-10-20T09:00:00Z",
+  uploaded_by_name: "Admin",
+  committed_at: "2026-10-20T09:05:00Z",
+  committed_by_name: "Admin",
+  cancelled_at: null,
+  next_step: "CLOSED",
+  detected_headers: [],
+  column_mapping: {},
+  row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
   summary_json: {
     total: 2,
     grading_result: 1,

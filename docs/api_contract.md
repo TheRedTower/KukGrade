@@ -774,9 +774,15 @@ Status: implemented for both batch kinds - student-roster import
 
 | Method | Endpoint                                        | Description                                      |
 |--------|--------------------------------------------------|---------------------------------------------------|
-| POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); requires `data_imports.add_importbatch` |
-| POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify it; nothing is committed; requires `data_imports.view_importbatch` |
-| POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and commit, all-or-nothing; requires `data_imports.can_commit_import` |
+| GET    | /api/data-imports/batches/                        | List imports, newest first; filters `status`, `kind`; requires `data_imports.view_importbatch` |
+| GET    | /api/data-imports/batches/{id}/                   | One import: kind, status, file, who and when, `next_step` (`MATCH_COLUMNS`, `REVIEW`, `CLOSED`), `detected_headers`, `column_mapping`, `row_counts`; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); every row is read and stored; requires `data_imports.add_importbatch` |
+| POST   | /api/data-imports/batches/{id}/mapping/           | A roster's `column_mapping`; stores it and checks every row; returns the import; requires `data_imports.change_importbatch` |
+| GET    | /api/data-imports/batches/{id}/rows/              | The stored rows, paginated, in file order; filters `outcome`, `search`; each has `values` by KukGrade field, `issues`, `outcome`, `excluded`, `corrected_fields`, `created_id`; requires `data_imports.view_importbatch` |
+| PATCH  | /api/data-imports/batches/{id}/rows/{row_number}/ | Fix a roster row's values by field (null takes a fix away); every row is checked again; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/rows/{row_number}/exclusion/ | `{excluded}`: leave a row out of the import, or bring it back; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/preview/           | Store the mapping (and, if sent, every row's corrections) and check every row; nothing is committed; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/{id}/commit/            | Re-check every stored row and commit, all-or-nothing; with no body the stored mapping, fixes and rank choices are used; requires `data_imports.can_commit_import` |
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
 
 `kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
@@ -786,7 +792,9 @@ historical workbook with no records in it, with the parser's warnings as
 further messages. `preview`/`commit` request/response shape depends on
 `kind`:
 
-Commit returns the batch's `id` and `summary_json` (safe counts only).
+Commit returns the import as `GET /{id}/` does, with `summary_json` (safe
+counts only). A field left out of a `preview` or `commit` body keeps what is
+stored rather than being emptied.
 Creating a batch returns its `id` plus three one-shot fields that are not
 stored: `already_imported_warning` (the same file was already committed),
 `detected_headers` (a roster's own header row), and `suggested_mapping` (a

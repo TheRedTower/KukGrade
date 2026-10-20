@@ -820,12 +820,36 @@ def test_orphan_sweep_removes_only_old_files_no_batch_names() -> None:
     storage.delete(new_orphan)
 
 
-def test_preview_of_a_batch_whose_file_went_missing_is_a_clear_error() -> None:
+def test_a_check_reads_the_stored_rows_not_the_file() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
     import_upload_storage().delete(batch.source_file.name)
 
+    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+
+    assert preview.ready == 1
+
+
+def test_an_open_import_from_before_rows_were_stored_reads_its_file_once() -> None:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
+    # As an import uploaded before this release left it: no rows.
+    batch.rows.all().delete()
+    batch.configuration_json = {}
+    batch.save()
+
+    assert preview_student_import(batch, column_mapping=STANDARD_MAPPING).ready == 1
+    assert batch.rows.count() == 1
+
+    import_upload_storage().delete(batch.source_file.name)
+    gone = upload_batch(
+        content=student_workbook([CLEAN_ROW]),
+        uploaded_by=batch.uploaded_by,
+    )
+    gone.rows.all().delete()
+    gone.configuration_json = {}
+    gone.save()
+    import_upload_storage().delete(gone.source_file.name)
     with pytest.raises(Exception, match="no longer available"):
-        preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+        preview_student_import(gone, column_mapping=STANDARD_MAPPING)
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:

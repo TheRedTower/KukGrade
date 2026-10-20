@@ -47,6 +47,7 @@ const readyPreview: StudentImportPreview = {
   ready: 1,
   review_required: 0,
   skip_existing: 0,
+  excluded: 0,
   rows: [
     {
       row_number: 2,
@@ -64,6 +65,21 @@ const readyPreview: StudentImportPreview = {
 
 const committedBatch: DataImportBatch = {
   id: 42,
+  kind: "STUDENT_ROSTER",
+  kind_display: "Student roster",
+  status: "COMMITTED",
+  status_display: "Imported",
+  original_filename: "file.xlsx",
+  file_size: 1024,
+  uploaded_at: "2026-10-20T09:00:00Z",
+  uploaded_by_name: "Admin",
+  committed_at: "2026-10-20T09:05:00Z",
+  committed_by_name: "Admin",
+  cancelled_at: null,
+  next_step: "CLOSED",
+  detected_headers: [],
+  column_mapping: {},
+  row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
   summary_json: { total: 1, created: 1, skipped_existing: 0, review_required: 0 },
 };
 

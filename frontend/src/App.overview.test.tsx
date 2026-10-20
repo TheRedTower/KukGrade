@@ -37,6 +37,9 @@ describe("Overview screen (Operational Ledger)", () => {
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
@@ -134,7 +137,10 @@ describe("Overview screen (Operational Ledger)", () => {
         if (url.includes("/api/gradings/sessions/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
-        if (url.includes("/api/audit-events/")) {
+        if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
+      if (url.includes("/api/audit-events/")) {
           return jsonResponse(200, { count: events.length, next: null, previous: null, results: events });
         }
         return jsonResponse(404, {});
@@ -261,6 +267,9 @@ describe("Overview screen (Operational Ledger)", () => {
           results: assessments,
         });
       }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, {
           count: 2,
@@ -361,6 +370,9 @@ describe("Overview screen (Operational Ledger)", () => {
       }
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
       }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });

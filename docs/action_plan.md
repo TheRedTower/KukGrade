@@ -23,7 +23,7 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    `current-system.md`, "Accessibility pass over the rest of the app").
 4. **Plain-language sweep of every screen's wording** (done 2026-10-20:
    `current-system.md`, "Plain wording").
-5. **Housekeeping**, revisited (decision log, Open decisions 3).
+5. **Housekeeping** (done 2026-10-20: decision log, Open decisions 3).
 
 Later, when the owner asks: release assurance (KG-A24); rehearsing the
 historical import against a sanitised copy of the real KSW Colchester

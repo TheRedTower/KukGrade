@@ -2902,9 +2902,11 @@ decisions" above.
    open there: whether a leaver's student number is ever reused.
 2. **Roster import (F-19)** - deferred to the planned import overhaul. A
    5,000-row commit takes about a minute in one request.
-3. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by
-   nothing (FDR-048 keeps it as the source artwork); 5,950 orphaned local
-   files in `backend/var/import_uploads/` (F-11).
+3. **Housekeeping** - done 2026-10-20: the logo's source artwork moved to
+   `frontend/Frontend-Design-Register/brand/`, beside FDR-048, out of the
+   app's code; the 5,949 orphaned dev upload files were removed with
+   `expire_stale_import_batches`. Tests write to a temporary folder, so they
+   do not return (F-11).
 
 Raised by the owner, to come back to and elaborate:
 

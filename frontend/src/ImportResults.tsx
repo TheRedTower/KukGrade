@@ -1,41 +1,35 @@
-import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import {
   type DataImportBatch,
   type DataImportRow,
   type LegacyPerson,
-  bulkLinkLegacyRecords,
   errorMessage,
   getDataImportRows,
   getLegacyGradingRecords,
   getLegacyPeople,
-  unlinkLegacyGradingRecord,
   voidDataImportRecords,
 } from "./api";
 import { useAuth } from "./auth";
-import { formatShortDateTime } from "./dates";
+import { formatMonthYear, formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
+import { ImportPager } from "./ImportPager";
+import { usePagedRows } from "./useImportRows";
+import { counted, importKindLabel, importRowName } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { useLegacyLinking } from "./useLegacyLinking";
 
 const ROWS_PAGE_SIZE = 50;
 const LINK_GROUPS_SHOWN = 4;
 
-type RowFilter = "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected";
-
-function counted(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
+type RowFilter = "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected" | "status" | "current_rank";
 
 /** "2025-06" as "Jun 2025". */
 function periodLabel(period: string): string {
   const [year, month] = period.split("-").map(Number);
-  if (!year || !month) return period;
-  return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
-    month: "short",
-    year: "numeric",
-  });
+  return year && month ? formatMonthYear(year, month) : period;
 }
 
 function periodRange(person: LegacyPerson): string {
@@ -44,17 +38,13 @@ function periodRange(person: LegacyPerson): string {
   return first === last ? first : `${first} to ${last}`;
 }
 
-function rowName(row: DataImportRow, roster: boolean): string {
-  if (!roster) return row.values.name || "(no name)";
-  return [row.values.first_name, row.values.last_name].filter(Boolean).join(" ") || "(no name)";
-}
-
-function rowDetail(row: DataImportRow, roster: boolean): string {
+function rowDetail(row: DataImportRow, batch: DataImportBatch): string {
   const values = row.values;
-  if (roster) {
-    const fixes = row.corrected_fields.length
-      ? `your fix to ${row.corrected_fields.map((field) => field.replaceAll("_", " ")).join(", ")}`
-      : "";
+  if (batch.kind === "STUDENT_ROSTER") {
+    const names = row.corrected_fields.map(
+      (field) => batch.target_fields.find((target) => target.field === field)?.name ?? field,
+    );
+    const fixes = names.length ? `your fix: ${names.join(", ")}` : "";
     return [values.wksa_id, values.current_rank, fixes].filter(Boolean).join(" · ");
   }
   if (values.note && !values.current_rank && !values.testing_for_rank) return `“${values.note}”`;
@@ -72,12 +62,11 @@ function rowState(row: DataImportRow, roster: boolean): { label: string; tone: s
 /** Past gradings: who each record is, linked on the spot (FDR-054). */
 function LinkPanel({ batch }: { batch: DataImportBatch }) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const canLink = Boolean(user?.can_reconcile_imported_history);
+  const { link, undo } = useLegacyLinking();
   // Linked here, so a name stays on screen (with Undo) once it leaves the
   // "not linked" list the server returns.
   const [linked, setLinked] = useState<Record<string, { person: LegacyPerson; name: string }>>({});
-  const [failed, setFailed] = useState<string | null>(null);
 
   const awaiting = useQuery({
     queryKey: ["legacyRecords", "awaitingLinkCount", batch.id],
@@ -89,35 +78,25 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
     enabled: canLink,
   });
 
-  async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ["legacyRecords"] });
-    await queryClient.invalidateQueries({ queryKey: ["legacyPeople"] });
+  function linkAll(person: LegacyPerson, student: number, name: string) {
+    undo.reset();
+    link.mutate(
+      { records: person.record_ids, student },
+      { onSuccess: () => setLinked((current) => ({ ...current, [person.source_name]: { person, name } })) },
+    );
   }
 
-  const link = useMutation({
-    mutationFn: ({ person, student }: { person: LegacyPerson; student: number; name: string }) =>
-      bulkLinkLegacyRecords(person.record_ids.map((record) => ({ record, student }))),
-    onSuccess: async (_records, { person, name }) => {
-      setFailed(null);
-      setLinked((current) => ({ ...current, [person.source_name]: { person, name } }));
-      await refresh();
-    },
-    onError: (error) => setFailed(errorMessage(error, "Those records could not be linked.")),
-  });
-  const undo = useMutation({
-    mutationFn: (person: LegacyPerson) =>
-      Promise.all(person.record_ids.map((id) => unlinkLegacyGradingRecord(id))),
-    onSuccess: async (_records, person) => {
-      setFailed(null);
-      setLinked((current) => {
-        const next = { ...current };
-        delete next[person.source_name];
-        return next;
-      });
-      await refresh();
-    },
-    onError: (error) => setFailed(errorMessage(error, "Those records could not be unlinked.")),
-  });
+  function undoLink(person: LegacyPerson) {
+    link.reset();
+    undo.mutate(person.record_ids, {
+      onSuccess: () =>
+        setLinked((current) => {
+          const next = { ...current };
+          delete next[person.source_name];
+          return next;
+        }),
+    });
+  }
 
   const fromServer = people.data?.results ?? [];
   const shown = [
@@ -126,13 +105,18 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
   ].slice(0, LINK_GROUPS_SHOWN + Object.keys(linked).length);
   const waiting = awaiting.data?.count;
   const busy = link.isPending || undo.isPending;
+  const failed = link.isError
+    ? errorMessage(link.error, "Those records could not be linked.")
+    : undo.isError
+      ? errorMessage(undo.error, "Those records could not be unlinked.")
+      : null;
 
   return (
     <section aria-labelledby="ix-link-h" className="ix-card ix-gold-edge">
-      <div className="ix-row" style={{ alignItems: "flex-end" }}>
-        <div className="ix-row-main" style={{ flexBasis: "24rem" }}>
+      <div className="ix-row ix-align-end">
+        <div className="ix-row-main">
           <p className="ix-eyebrow">Next job</p>
-          <h2 id="ix-link-h" style={{ margin: "0 0 0.25rem", fontSize: "1.375rem" }}>
+          <h2 className="ix-title" id="ix-link-h">
             Who is each record?
           </h2>
           <p className="ix-muted ix-small">
@@ -141,7 +125,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
           </p>
         </div>
         {waiting !== undefined ? (
-          <p className="ix-small" style={{ margin: 0 }}>
+          <p className="ix-small ix-flush">
             <strong>{counted(waiting, "record", "records")}</strong> still to link
           </p>
         ) : null}
@@ -163,46 +147,37 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
           const done = linked[person.source_name];
           const [best] = person.candidates;
           return (
-            <div
-              className="ix-row"
-              key={person.source_name}
-              style={done ? { background: "var(--color-success-surface)" } : undefined}
-            >
-              <div className="ix-row-main" style={{ flexBasis: "14rem" }}>
+            <div className={`ix-row${done ? " ix-row-done" : ""}`} key={person.source_name}>
+              <div className="ix-row-main ix-row-name">
                 <p className="ix-strong">
                   “{person.source_name}” · {counted(person.records, "record", "records")}
                 </p>
                 <p className="ix-muted ix-small">{periodRange(person)}</p>
               </div>
-              <div className="ix-actions" style={{ flex: "2 1 20rem" }}>
+              <div className="ix-actions ix-row-choice">
                 {done ? (
                   <>
-                    <span className="ix-success-text" style={{ fontWeight: 700 }}>
-                      ✓ Linked to {done.name}
-                    </span>
+                    <span className="ix-success-text ix-bold">✓ Linked to {done.name}</span>
                     <button
+                      aria-label={`Undo linking “${person.source_name}”`}
                       className="ix-link-button"
                       disabled={busy}
                       type="button"
-                      onClick={() => undo.mutate(person)}
+                      onClick={() => undoLink(person)}
                     >
                       Undo
                     </button>
                   </>
                 ) : person.shared && person.candidates.length > 1 ? (
                   <>
-                    <span className="ix-warning-text ix-small" style={{ flexBasis: "100%", fontWeight: 600 }}>
-                      Students share this name. Choose one.
-                    </span>
+                    <span className="ix-warning-text ix-small ix-semibold ix-full">Students share this name. Choose one.</span>
                     {person.candidates.slice(0, 3).map((candidate) => (
                       <button
                         className="btn-secondary"
                         disabled={busy}
                         key={candidate.student}
                         type="button"
-                        onClick={() =>
-                          link.mutate({ person, student: candidate.student, name: candidate.full_name })
-                        }
+                        onClick={() => linkAll(person, candidate.student, candidate.full_name)}
                       >
                         {candidate.full_name} · {candidate.current_rank_name}
                       </button>
@@ -210,35 +185,30 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                   </>
                 ) : best ? (
                   <>
-                    <span style={{ flex: "1 1 12rem", minWidth: 0 }}>
-                      <span className="ix-muted ix-small" style={{ display: "block" }}>
-                        Suggested
-                      </span>
-                      <span style={{ display: "block", fontWeight: 600 }}>
+                    <span className="ix-suggested">
+                      <span className="ix-muted ix-small">Suggested</span>
+                      <span className="ix-semibold">
                         {best.full_name} · {best.current_rank_name}
                       </span>
-                      {best.reasons.length ? (
-                        <span className="ix-muted ix-small" style={{ display: "block" }}>
-                          {best.reasons.join(" · ")}
-                        </span>
-                      ) : null}
+                      {best.reasons.length ? <span className="ix-muted ix-small">{best.reasons.join(" · ")}</span> : null}
                     </span>
                     <button
+                      aria-label={`${person.records === 1 ? "Link it" : `Link all ${person.records}`}: “${person.source_name}” to ${best.full_name}`}
                       className="btn-primary"
                       disabled={busy}
                       type="button"
-                      onClick={() => link.mutate({ person, student: best.student, name: best.full_name })}
+                      onClick={() => linkAll(person, best.student, best.full_name)}
                     >
                       {person.records === 1 ? "Link it" : `Link all ${person.records}`}
                     </button>
-                    <Link className="btn-ghost" to="/gradings/legacy-records">
+                    <Link className="btn-ghost" to="/imports/records">
                       Someone else
                     </Link>
                   </>
                 ) : (
                   <>
                     <span className="ix-muted ix-small">No student looks like this.</span>
-                    <Link className="btn-secondary" to="/gradings/legacy-records">
+                    <Link className="btn-secondary" to="/imports/records">
                       Find a student
                     </Link>
                   </>
@@ -254,13 +224,13 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
         </p>
       ) : null}
       {canLink ? (
-        <div className="ix-row" style={{ justifyContent: "space-between" }}>
+        <div className="ix-row ix-actions-split">
           <span className="ix-muted ix-small">
             {people.data && people.data.count > fromServer.length
               ? `${fromServer.length} of ${people.data.count} names shown. The rest are on the linking page.`
               : "Every name still to link is shown."}
           </span>
-          <Link className="btn-secondary" to="/gradings/legacy-records">
+          <Link className="btn-secondary" to="/imports/records">
             Open the linking page
           </Link>
         </div>
@@ -269,37 +239,50 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
   );
 }
 
+/** How many of a roster's added rows match a filter, for the second look. */
+function useAddedCount(batch: DataImportBatch, filter: "corrected" | "status" | "current_rank") {
+  return useQuery({
+    queryKey: ["imports", "rows", batch.id, "addedCount", filter],
+    queryFn: () =>
+      getDataImportRows(batch.id, {
+        outcome: "READY",
+        ...(filter === "corrected" ? { corrected: true } : { filled: filter }),
+        page_size: 1,
+      }),
+  }).data?.count;
+}
+
 /** Students: what KukGrade filled in, for a second look (FDR-054). */
-function SecondLook({
-  batch,
-  onShowFixes,
-}: {
-  batch: DataImportBatch;
-  onShowFixes: () => void;
-}) {
-  const fixes = useQuery({
-    queryKey: ["imports", "rows", batch.id, "correctedCount"],
-    queryFn: () => getDataImportRows(batch.id, { corrected: true, page_size: 1 }),
-  });
-  const items: { title: string; body: string; action?: { label: string; run: () => void } }[] = [];
-  const fixed = fixes.data?.count ?? 0;
+function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
+  const fixed = useAddedCount(batch, "corrected") ?? 0;
+  const givenStatus = useAddedCount(batch, "status") ?? 0;
+  const givenRank = useAddedCount(batch, "current_rank") ?? 0;
+  const items: { title: string; body: string; show?: RowFilter; count?: number }[] = [];
+  if (givenStatus) {
+    const status = batch.defaults.status ?? "ACTIVE";
+    items.push({
+      title: `${counted(givenStatus, "student", "students")} given the status ${status.charAt(0)}${status.slice(1).toLowerCase()}`,
+      body: batch.defaults.status
+        ? "The file gave them no status, so the status you set for the whole file was used."
+        : "The file gave them no status, so KukGrade used Active.",
+      show: "status",
+      count: givenStatus,
+    });
+  }
+  if (givenRank && batch.defaults.current_rank) {
+    items.push({
+      title: `${counted(givenRank, "student", "students")} given the rank ${batch.defaults.current_rank}`,
+      body: "The file gave them no rank, so the rank you set for the whole file was used.",
+      show: "current_rank",
+      count: givenRank,
+    });
+  }
   if (fixed) {
     items.push({
       title: counted(fixed, "student with your fixes", "students with your fixes"),
       body: "Values you typed in or corrected before importing.",
-      action: { label: `See the ${fixed}`, run: onShowFixes },
-    });
-  }
-  if (batch.defaults.current_rank) {
-    items.push({
-      title: `Rank ${batch.defaults.current_rank} given where the file had none`,
-      body: "The rank you set for the whole file.",
-    });
-  }
-  if (batch.defaults.status) {
-    items.push({
-      title: `Status ${batch.defaults.status.toLowerCase()} given where the file had none`,
-      body: "The status you set for the whole file.",
+      show: "corrected",
+      count: fixed,
     });
   }
   if (batch.extra_columns.length) {
@@ -314,7 +297,7 @@ function SecondLook({
       <div className="ix-row">
         <div className="ix-row-main">
           <p className="ix-eyebrow">Worth a second look</p>
-          <h2 id="ix-look-h" style={{ margin: "0 0 0.25rem", fontSize: "1.375rem" }}>
+          <h2 className="ix-title" id="ix-look-h">
             What KukGrade filled in for you
           </h2>
           <p className="ix-muted ix-small">
@@ -329,12 +312,12 @@ function SecondLook({
         items.map((item) => (
           <div className="ix-row" key={item.title}>
             <div className="ix-row-main">
-              <p style={{ fontWeight: 700 }}>{item.title}</p>
+              <p className="ix-bold">{item.title}</p>
               <p className="ix-muted ix-small">{item.body}</p>
             </div>
-            {item.action ? (
-              <button className="btn-secondary" type="button" onClick={item.action.run}>
-                {item.action.label}
+            {item.show ? (
+              <button className="btn-secondary" type="button" onClick={() => onShow(item.show!)}>
+                See the {item.count}
               </button>
             ) : null}
           </div>
@@ -354,21 +337,18 @@ function RowsLedger({
   onFilter: (filter: RowFilter) => void;
 }) {
   const roster = batch.kind === "STUDENT_ROSTER";
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());
-  const rows = useQuery({
-    queryKey: ["imports", "rows", batch.id, filter, debounced, page],
-    placeholderData: keepPreviousData,
-    queryFn: () =>
-      getDataImportRows(batch.id, {
-        outcome: filter === "all" || filter === "corrected" ? undefined : filter,
-        corrected: filter === "corrected" ? true : undefined,
-        search: debounced || undefined,
-        page,
-        page_size: ROWS_PAGE_SIZE,
-      }),
-  });
+  const rows = usePagedRows(
+    batch.id,
+    {
+      outcome: filter === "READY" || filter === "SKIP_EXISTING" || filter === "EXCLUDED" ? filter : undefined,
+      corrected: filter === "corrected" ? true : undefined,
+      filled: filter === "status" || filter === "current_rank" ? filter : undefined,
+      search: debounced || undefined,
+    },
+    ROWS_PAGE_SIZE,
+  );
   const summary = batch.summary_json;
   const tabs: { key: RowFilter; label: string; count?: number }[] = roster
     ? [
@@ -383,15 +363,16 @@ function RowsLedger({
         { key: "READY", label: "Imported", count: summary.total },
         { key: "EXCLUDED", label: "Left out", count: summary.excluded },
       ];
-  const list = rows.data?.results ?? [];
-  const total = rows.data?.count ?? 0;
-  const pages = Math.max(1, Math.ceil(total / ROWS_PAGE_SIZE));
-  const cleared = !rows.isPending && total === 0 && filter === "all" && !debounced;
+  // A second-look filter shows as a chip of its own while it is in use.
+  if (filter === "status") tabs.push({ key: "status", label: "Given a status" });
+  if (filter === "current_rank") tabs.push({ key: "current_rank", label: "Given a rank" });
+  const list = rows.query.data?.results ?? [];
+  const cleared = !rows.query.isPending && rows.total === 0 && filter === "all" && !debounced;
 
   return (
     <section aria-labelledby="ix-rows-h" className="ix-card">
-      <div className="ix-row" style={{ alignItems: "flex-end" }}>
-        <h2 id="ix-rows-h" style={{ margin: 0, fontSize: "1.25rem", flex: "1 1 12rem" }}>
+      <div className="ix-row ix-align-end">
+        <h2 className="ix-heading ix-flush ix-grow" id="ix-rows-h">
           {roster ? "Every row" : "Every record"}
         </h2>
         <label className="ix-field">
@@ -400,43 +381,31 @@ function RowsLedger({
             placeholder={roster ? "Name or WKSA ID" : "Name or comment"}
             type="search"
             value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setPage(1);
-            }}
+            onChange={(event) => setSearch(event.target.value)}
           />
         </label>
       </div>
-      <div className="ix-chips" role="group" aria-label="Show" style={{ padding: "0 1.5rem 1rem" }}>
+      <div aria-label="Show" className="ix-chips ix-chips-inset" role="group">
         {tabs.map((tab) => (
-          <button
-            aria-pressed={filter === tab.key}
-            className="ix-chip"
-            key={tab.key}
-            type="button"
-            onClick={() => {
-              onFilter(tab.key);
-              setPage(1);
-            }}
-          >
+          <button aria-pressed={filter === tab.key} className="ix-chip" key={tab.key} type="button" onClick={() => onFilter(tab.key)}>
             {tab.label}
             {tab.count !== undefined ? <span className="ix-chip-count">{tab.count}</span> : null}
           </button>
         ))}
       </div>
-      {rows.isError ? (
+      {rows.query.isError ? (
         <p className="ix-row ix-danger-text" role="alert">
-          {errorMessage(rows.error, "The rows could not be loaded.")}
+          {errorMessage(rows.query.error, "The rows could not be loaded.")}
         </p>
       ) : cleared ? (
         <p className="ix-row ix-muted">
           The row-by-row list is kept for 30 days after an import, and this one’s has been
           cleared. The counts above stay for good.
         </p>
-      ) : list.length === 0 && !rows.isPending ? (
+      ) : list.length === 0 && !rows.query.isPending ? (
         <p className="ix-row ix-muted">Nothing here.</p>
       ) : (
-        <div className="ix-table-wrap" style={{ borderTop: "1px solid var(--color-border)" }}>
+        <div className="ix-table-wrap ix-ruled">
           <table className="ix-table">
             <thead>
               <tr>
@@ -452,23 +421,20 @@ function RowsLedger({
             <tbody>
               {list.map((row) => {
                 const state = rowState(row, roster);
+                const name = importRowName(row, batch.kind);
                 return (
                   <tr key={row.row_number}>
                     <td className="ix-muted ix-nowrap">
                       {roster ? row.row_number : row.source_locator.replaceAll("!", " · ")}
                     </td>
-                    <td style={{ fontWeight: 600 }}>{rowName(row, roster)}</td>
-                    <td className="ix-muted">{rowDetail(row, roster)}</td>
+                    <td className="ix-semibold">{name}</td>
+                    <td className="ix-muted">{rowDetail(row, batch)}</td>
                     <td>
                       <span className={`ix-pill ix-pill-${state.tone}`}>{state.label}</span>
                     </td>
-                    <td className="ix-nowrap" style={{ textAlign: "right" }}>
+                    <td className="ix-cell-action">
                       {roster && row.created_id ? (
-                        <Link
-                          aria-label={`Open ${rowName(row, roster)}`}
-                          className="ix-link-button"
-                          to={`/students/${row.created_id}`}
-                        >
+                        <Link aria-label={`Open ${name}`} className="ix-link-button" to={`/students/${row.created_id}`}>
                           Open
                         </Link>
                       ) : null}
@@ -480,19 +446,7 @@ function RowsLedger({
           </table>
         </div>
       )}
-      <div className="ix-table-foot">
-        <span>
-          Page {page} of {pages} · {ROWS_PAGE_SIZE} a page
-        </span>
-        <div className="ix-actions">
-          <button className="btn-ghost" disabled={page <= 1} type="button" onClick={() => setPage(page - 1)}>
-            Previous
-          </button>
-          <button className="btn-ghost" disabled={page >= pages} type="button" onClick={() => setPage(page + 1)}>
-            Next
-          </button>
-        </div>
-      </div>
+      <ImportPager page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
     </section>
   );
 }
@@ -503,8 +457,10 @@ function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () =>
   const voiding = useMutation({
     mutationFn: () => voidDataImportRecords(batch.id, reason.trim()),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["legacyRecords"] });
-      await queryClient.invalidateQueries({ queryKey: ["legacyPeople"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["legacyRecords"] }),
+        queryClient.invalidateQueries({ queryKey: ["legacyPeople"] }),
+      ]);
       onClose();
     },
   });
@@ -520,7 +476,7 @@ function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () =>
       onClose={onClose}
       onConfirm={() => voiding.mutate()}
     >
-      <p className="ix-muted" style={{ margin: 0 }}>
+      <p className="ix-muted">
         They are kept, marked void with your reason, and leave every student’s history. This
         cannot be undone except by importing the workbook again.
       </p>
@@ -529,6 +485,17 @@ function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () =>
       </label>
       <textarea id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
     </ImportDialog>
+  );
+}
+
+/** One more thing to do from the results page, in the side panel. */
+function AlsoItem({ title, body, children }: { title: string; body: string; children: ReactNode }) {
+  return (
+    <div className="ix-section ix-also">
+      <p className="ix-bold">{title}</p>
+      <p className="ix-muted ix-small">{body}</p>
+      {children}
+    </div>
   );
 }
 
@@ -545,16 +512,22 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const headline = roster
     ? `${counted(created, "student", "students")} added`
     : `${counted(total, "historical record", "historical records")} imported`;
-  const banner = roster
-    ? [
-        summary.skipped_existing
-          ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${summary.skipped_existing === 1 ? "was" : "were"} skipped and not changed.`
-          : null,
-        summary.excluded ? `${counted(summary.excluded, "row", "rows")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.` : null,
-      ]
-    : [
-        summary.excluded ? `${counted(summary.excluded, "record", "records")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.` : null,
-      ];
+  const banner = (
+    roster
+      ? [
+          summary.skipped_existing
+            ? `${counted(summary.skipped_existing, "student", "students")} already in KukGrade ${summary.skipped_existing === 1 ? "was" : "were"} skipped and not changed.`
+            : null,
+          summary.excluded
+            ? `${counted(summary.excluded, "row", "rows")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
+            : null,
+        ]
+      : [
+          summary.excluded
+            ? `${counted(summary.excluded, "record", "records")} you left out ${summary.excluded === 1 ? "was" : "were"} not imported.`
+            : null,
+        ]
+  ).filter(Boolean);
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
@@ -563,84 +536,61 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>
-        <h1 id="ix-results-title" style={{ margin: "0.25rem 0 0.25rem", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.75rem", overflowWrap: "anywhere" }}>
+        <h1 className="ix-page-title ix-results-title" id="ix-results-title">
           {batch.original_filename}
-          <span className="ix-pill ix-pill-success" style={{ fontSize: "0.9rem" }}>
-            Imported
-          </span>
+          <span className="ix-pill ix-pill-success">Imported</span>
         </h1>
         <p className="ix-muted ix-small">
-          {roster ? "Students" : "Past gradings"} · imported by {batch.committed_by_name} on{" "}
-          {formatShortDateTime(batch.committed_at)}
+          {importKindLabel(batch.kind)} · imported by {batch.committed_by_name} on {formatShortDateTime(batch.committed_at)}
         </p>
       </div>
 
       <div className="ix-banner ix-banner-success" role="status">
-        <span aria-hidden="true" className="ix-mark ix-mark-ok" style={{ width: "2.25rem", height: "2.25rem", background: "var(--color-surface)" }}>
+        <span aria-hidden="true" className="ix-mark ix-mark-ok ix-mark-large ix-mark-on-surface">
           ✓
         </span>
-        <p style={{ flex: "1 1 20rem" }}>
-          <strong style={{ fontSize: "1.1rem" }}>{headline}</strong>
-          {banner.filter(Boolean).length ? (
-            <span style={{ display: "block" }} className="ix-small">
-              {banner.filter(Boolean).join(" ")}
-            </span>
-          ) : null}
+        <p>
+          <strong className="ix-headline">{headline}</strong>
+          {banner.length ? <span className="ix-small ix-block">{banner.join(" ")}</span> : null}
         </p>
       </div>
 
-      {roster ? (
-        <SecondLook batch={batch} onShowFixes={() => setFilter("corrected")} />
-      ) : (
-        <LinkPanel batch={batch} />
-      )}
+      {roster ? <SecondLook batch={batch} onShow={setFilter} /> : <LinkPanel batch={batch} />}
 
       <div className="ix-two-col">
         <RowsLedger batch={batch} filter={filter} onFilter={setFilter} />
         <aside aria-labelledby="ix-also-h" className="ix-card ix-card-pad ix-section">
-          <h2 id="ix-also-h" style={{ margin: 0, fontSize: "1.125rem" }}>
+          <h2 className="ix-minor" id="ix-also-h">
             Also
           </h2>
           {roster ? (
             <>
-              <div className="ix-section" style={{ gap: "0.4rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
-                <p style={{ margin: 0, fontWeight: 700 }}>See the new students</p>
-                <p className="ix-muted ix-small">The Students page, showing only those this import added.</p>
-                <Link className="btn-secondary" style={{ alignSelf: "flex-start" }} to={`/students?source_import=${batch.id}`}>
+              <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
+                <Link className="btn-secondary ix-start" to={`/students?source_import=${batch.id}`}>
                   Go to Students
                 </Link>
-              </div>
-              <div className="ix-section" style={{ gap: "0.4rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
-                <p style={{ margin: 0, fontWeight: 700 }}>Bring in their past gradings</p>
-                <p className="ix-muted ix-small">Import the grading record workbook, then link it to these students.</p>
-                <Link className="btn-secondary" style={{ alignSelf: "flex-start" }} to="/imports/new?kind=LEGACY_GRADINGS">
+              </AlsoItem>
+              <AlsoItem body="Import the grading record workbook, then link it to these students." title="Bring in their past gradings">
+                <Link className="btn-secondary ix-start" to="/imports/new?kind=LEGACY_GRADINGS">
                   Import past gradings
                 </Link>
-              </div>
+              </AlsoItem>
             </>
           ) : (
             <>
               {unresolvedRanks ? (
-                <div className="ix-section" style={{ gap: "0.4rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
-                  <p style={{ margin: 0, fontWeight: 700 }}>Match the last ranks</p>
-                  <p className="ix-muted ix-small">
-                    {counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.
-                  </p>
-                  <Link className="btn-secondary" style={{ alignSelf: "flex-start" }} to="/gradings/legacy-records">
+                <AlsoItem body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`} title="Match the last ranks">
+                  <Link className="btn-secondary ix-start" to="/imports/records">
                     Match ranks
                   </Link>
-                </div>
+                </AlsoItem>
               ) : null}
               {user?.can_reconcile_imported_history ? (
-                <div className="ix-section" style={{ gap: "0.4rem", borderTop: "1px solid var(--color-border)", paddingTop: "0.75rem" }}>
-                  <p style={{ margin: 0, fontWeight: 700 }}>Wrong workbook?</p>
-                  <p className="ix-muted ix-small">
-                    Void the whole import. Its records are kept, marked void, with your reason.
-                  </p>
-                  <button className="btn-ghost ix-danger-text" style={{ alignSelf: "flex-start" }} type="button" onClick={() => setVoiding(true)}>
+                <AlsoItem body="Void the whole import. Its records are kept, marked void, with your reason." title="Wrong workbook?">
+                  <button className="btn-ghost ix-danger-text ix-start" type="button" onClick={() => setVoiding(true)}>
                     Void this import
                   </button>
-                </div>
+                </AlsoItem>
               ) : null}
             </>
           )}

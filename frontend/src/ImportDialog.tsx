@@ -57,7 +57,7 @@ export function ImportDialog({
             {error}
           </p>
         ) : null}
-        <div className="ix-actions" style={{ justifyContent: "flex-end", marginTop: "1.25rem" }}>
+        <div className="ix-actions ix-dialog-actions">
           <button type="button" className="btn-ghost" disabled={pending} onClick={onClose}>
             {cancelLabel}
           </button>

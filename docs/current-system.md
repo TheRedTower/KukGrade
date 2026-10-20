@@ -471,25 +471,22 @@ checks on each push and pull request.
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
 - **Implemented frontend workflows**: operational overview, student list,
-  student creation and detail/edit, administrator-only bulk student-roster
-  import (upload, column mapping pre-filled from the file's own headers,
-  row-by-row review with inline correction, commit), the new Imports area
-  being built on `feat/imports-frontend` (an **Imports** navigation entry for
-  holders of `can_import_data`: the hub at `/imports` (FDR-049), choosing the
-  file at `/imports/new` (FDR-050) and an import's results at `/imports/:id`
-  (FDR-054); the matching, review and linking steps are still to come, so
-  the earlier import screens stay in place until they are), the syllabus cumulative
+  student creation and detail/edit, the **Imports** area (FDR-049 to
+  FDR-055; a navigation entry for holders of `can_import_data`, replacing
+  the import buttons on Students and Gradings): the hub at `/imports`, a
+  guided import at `/imports/new` then `/imports/:id` (choose the file;
+  match a roster's columns on its first rows, typing in what is missing, or
+  a workbook's rank spellings; review every row, the ones needing attention
+  first, with a last look; confirm on the same page; the results page), and
+  linking historical records at `/imports/records`, one name at a time
+  beside the students it could be (`can_reconcile_imported_history`); the
+  old routes redirect there), the syllabus cumulative
   current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
   progress counts, like the overview's, are served with each session
   rather than derived from a first page of assessments - KG-A15),
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
-  the promotion ledger. The administrator-only historical-import wizard
-  (upload the workbook, review rank-mapping suggestions per distinct source
-  value - never auto-applied, commit) and the historical-records
-  reconciliation screen (filter by link/void status; link to a student
-  found by name/WKSA-ID search, unlink, resolve either rank, or void with a
-  required reason) sit off the Gradings list header, administrator-only.
+  the promotion ledger.
   A student's "Grading history" card shows the unified native-plus-historical
   timeline with `KukGrade`/`Historical` source badges and Did-Not-Attend
   rendered distinctly from Fail, rather than being derived from Promotions

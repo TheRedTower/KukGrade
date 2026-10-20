@@ -14,7 +14,7 @@ import {
   getDataImportBatch,
 } from "./api";
 import { ImportStepBar } from "./ImportStepBar";
-import { importKindTitle } from "./importSteps";
+import { counted, importKindTitle } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
 import "./Imports.css";
 
@@ -69,10 +69,6 @@ function fileSize(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function counted(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
 /** Why the browser can refuse a file before sending it, or null. */
 function clientRefusal(file: File, kind: DataImportKind): string | null {
   if (!allowedSuffixes(kind).includes(suffixOf(file.name))) {
@@ -119,7 +115,7 @@ function GuideList({ kind }: { kind: DataImportKind }) {
         {guide.fields.map((field) => (
           <li key={field.name}>
             <span>
-              <p style={{ fontWeight: 600 }}>{field.name}</p>
+              <p className="ix-semibold">{field.name}</p>
               {field.hint ? <p className="ix-muted ix-small">{field.hint}</p> : null}
             </span>
             <span className={`ix-tag${field.needed ? "" : " ix-muted"}`}>
@@ -128,7 +124,7 @@ function GuideList({ kind }: { kind: DataImportKind }) {
           </li>
         ))}
       </ul>
-      <p className="ix-small" style={{ margin: 0 }}>
+      <p className="ix-small ix-flush">
         {guide.foot}
       </p>
     </>
@@ -201,7 +197,7 @@ function FoundChecklist({
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>What KukGrade found</h3>
+      <h3 className="ix-h3">What KukGrade found</h3>
       <ul className="ix-checklist">
         {items.map((item) => (
           <li key={item.title}>
@@ -209,7 +205,7 @@ function FoundChecklist({
               {item.ok ? "✓" : "!"}
             </span>
             <span>
-              <p style={{ fontWeight: 600 }}>{item.title}</p>
+              <p className="ix-semibold">{item.title}</p>
               <p className="ix-muted ix-small">{item.detail}</p>
             </span>
           </li>
@@ -301,7 +297,7 @@ export function ImportStartScreen() {
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>
-        <h1 id="ix-start-title" style={{ margin: "0.25rem 0 0" }}>
+        <h1 className="ix-page-title" id="ix-start-title">
           {importKindTitle(kind)}
         </h1>
       </div>
@@ -309,12 +305,12 @@ export function ImportStartScreen() {
       <ImportStepBar current={0} kind={kind} />
 
       {loaded && created ? (
-        <section aria-labelledby="ix-your-file" className="ix-card ix-card-pad ix-section" style={{ gap: "1.25rem" }}>
-          <h2 id="ix-your-file" style={{ margin: 0, fontSize: "1.375rem" }} tabIndex={-1}>
+        <section aria-labelledby="ix-your-file" className="ix-card ix-card-pad ix-section ix-roomy">
+          <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
             Your file
           </h2>
           <div className="ix-file">
-            <div className="ix-row-main" style={{ flexBasis: "14rem" }}>
+            <div className="ix-row-main">
               <p className="ix-strong">{loaded.original_filename}</p>
               <p className="ix-muted ix-small">{fileSize(loaded.file_size)}</p>
             </div>
@@ -324,7 +320,7 @@ export function ImportStartScreen() {
           </div>
           <FoundChecklist batch={loaded} created={created} kind={kind} />
           {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
-            <label className="ix-field" style={{ maxWidth: "22rem" }}>
+            <label className="ix-field ix-field-narrow">
               Sheet to read
               <select
                 disabled={sheet.isPending}
@@ -337,7 +333,7 @@ export function ImportStartScreen() {
                   </option>
                 ))}
               </select>
-              <span className="ix-small" style={{ fontWeight: 400 }}>
+              <span className="ix-small ix-hint">
                 {sheet.isPending
                   ? "Reading that sheet…"
                   : `The workbook has ${loaded.sheet_names.length} sheets. KukGrade picked the one it opens on.`}
@@ -349,7 +345,7 @@ export function ImportStartScreen() {
               {errorMessage(sheet.error, "That sheet could not be read.")}
             </p>
           ) : null}
-          <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "0.25rem" }}>
+          <div className="ix-fold">
             <button
               aria-controls="ix-guide"
               aria-expanded={guideOpen}
@@ -361,7 +357,7 @@ export function ImportStartScreen() {
               What KukGrade looks for
             </button>
             {guideOpen ? (
-              <div className="ix-section" id="ix-guide" style={{ paddingTop: "0.5rem" }}>
+              <div className="ix-section ix-fold-body" id="ix-guide">
                 <GuideList kind={kind} />
               </div>
             ) : null}
@@ -369,9 +365,9 @@ export function ImportStartScreen() {
         </section>
       ) : (
         <div className="ix-split">
-          <section aria-labelledby="ix-choose" className="ix-card ix-card-pad ix-section" style={{ gap: "1.25rem" }}>
+          <section aria-labelledby="ix-choose" className="ix-card ix-card-pad ix-section ix-roomy">
             <div>
-              <h2 id="ix-choose" style={{ margin: "0 0 0.25rem", fontSize: "1.375rem" }}>
+              <h2 className="ix-title" id="ix-choose">
                 Choose your file
               </h2>
               <p className="ix-muted">
@@ -392,7 +388,7 @@ export function ImportStartScreen() {
               <span className="ix-muted">
                 <UploadIcon />
               </span>
-              <p style={{ fontSize: "1.05rem", fontWeight: 700 }}>Drag your file here</p>
+              <p className="ix-drop-title">Drag your file here</p>
               <p className="ix-muted ix-small">or</p>
               <input
                 ref={inputRef}
@@ -418,18 +414,18 @@ export function ImportStartScreen() {
               </p>
             </div>
             {fileError ? (
-              <p className="ix-danger-text" role="alert" style={{ margin: 0 }}>
+              <p className="ix-danger-text ix-flush" role="alert">
                 {fileError}
               </p>
             ) : null}
           </section>
           <aside aria-labelledby="ix-looks-for" className="ix-card ix-card-pad ix-sunken ix-section">
-            <h2 id="ix-looks-for" style={{ margin: 0, fontSize: "1.125rem" }}>
+            <h2 className="ix-minor" id="ix-looks-for">
               What KukGrade looks for
             </h2>
             <GuideList kind={kind} />
             {kind === "STUDENT_ROSTER" ? (
-              <button className="btn-secondary" style={{ alignSelf: "flex-start" }} type="button" onClick={downloadStandardTemplate}>
+              <button className="btn-secondary ix-start" type="button" onClick={downloadStandardTemplate}>
                 Download the template
               </button>
             ) : null}

@@ -61,20 +61,8 @@ const ImportStartScreen = lazy(() =>
 const ImportScreen = lazy(() =>
   import("./ImportScreen").then((module) => ({ default: module.ImportScreen })),
 );
-const ImportStudentsScreen = lazy(() =>
-  import("./ImportStudentsScreen").then((module) => ({
-    default: module.ImportStudentsScreen,
-  })),
-);
-const ImportLegacyGradingsScreen = lazy(() =>
-  import("./ImportLegacyGradingsScreen").then((module) => ({
-    default: module.ImportLegacyGradingsScreen,
-  })),
-);
-const LegacyReconciliationScreen = lazy(() =>
-  import("./LegacyReconciliationScreen").then((module) => ({
-    default: module.LegacyReconciliationScreen,
-  })),
+const LinkRecordsScreen = lazy(() =>
+  import("./LinkRecordsScreen").then((module) => ({ default: module.LinkRecordsScreen })),
 );
 
 function UserManagementFallback(): React.ReactElement {
@@ -492,38 +480,11 @@ function App() {
                 <Route element={<Navigate replace to="/" />} path="overview" />
                 <Route element={<StudentsScreen />} path="students" />
                 <Route element={<AddStudentScreen />} path="students/new" />
-                <Route
-                  element={
-                    <RequireAccess flag="can_import_data">
-                      <Suspense fallback={<ImportFallback />}>
-                        <ImportStudentsScreen />
-                      </Suspense>
-                    </RequireAccess>
-                  }
-                  path="students/import"
-                />
+                <Route element={<Navigate replace to="/imports/new?kind=STUDENT_ROSTER" />} path="students/import" />
                 <Route element={<StudentDetailScreen />} path="students/:id" />
                 <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
-                <Route
-                  element={
-                    <RequireAccess flag="can_import_data">
-                      <Suspense fallback={<ImportFallback />}>
-                        <ImportLegacyGradingsScreen />
-                      </Suspense>
-                    </RequireAccess>
-                  }
-                  path="gradings/import-legacy"
-                />
-                <Route
-                  element={
-                    <RequireAccess flag="can_reconcile_imported_history">
-                      <Suspense fallback={<ImportFallback />}>
-                        <LegacyReconciliationScreen />
-                      </Suspense>
-                    </RequireAccess>
-                  }
-                  path="gradings/legacy-records"
-                />
+                <Route element={<Navigate replace to="/imports/new?kind=LEGACY_GRADINGS" />} path="gradings/import-legacy" />
+                <Route element={<Navigate replace to="/imports/records" />} path="gradings/legacy-records" />
                 <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
                 <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
                 <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
@@ -558,6 +519,16 @@ function App() {
                     </RequireAccess>
                   }
                   path="imports/new"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_reconcile_imported_history">
+                      <Suspense fallback={<ImportFallback />}>
+                        <LinkRecordsScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="imports/records"
                 />
                 <Route
                   element={

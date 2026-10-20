@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{id}/rows/leave-out-attention/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave out every roster row still needing attention, in one go. */
+        post: operations["data_imports_batches_rows_leave_out_attention_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/data-imports/batches/{id}/sheet/": {
         parameters: {
             query?: never;
@@ -1788,6 +1805,16 @@ export interface components {
             readonly sheet: string;
             /** @description Every sheet a roster workbook has, to choose another. */
             readonly sheet_names: string[];
+            /** @description A roster's likely column for each field, from its headings. */
+            readonly suggested_mapping: {
+                [key: string]: string;
+            };
+            /** @description The fields a roster's columns are matched to; empty otherwise. */
+            readonly target_fields: components["schemas"]["ImportField"][];
+            /** @description A historical import's chosen rank for each spelling, by the spelling lowercased; a spelling not here is left as written. */
+            readonly rank_mappings: {
+                [key: string]: string;
+            };
             /** @description A historical workbook's grading sheets that were read. */
             readonly grading_sheets: string[];
             /** @description What the reading of the file left out, such as an unknown sheet. */
@@ -1825,12 +1852,22 @@ export interface components {
          * @enum {string}
          */
         ImportBatchStatusEnum: "UPLOADED" | "COMMITTED" | "CANCELLED" | "EXPIRED";
+        /** @description One field of KukGrade's a roster's columns are matched to. */
+        ImportField: {
+            field: string;
+            /** @description The field's name on screen. */
+            name: string;
+            /** @description Every student must have it. */
+            needed: boolean;
+            /** @description It can be given once for the whole file. */
+            whole_file: boolean;
+        };
         /**
          * @description POST /{id}/mapping/: how a roster maps onto KukGrade.
          *
          *     A column for each field, a whole-file value for a field the file lacks
          *     (current_rank or status only), and the columns to keep as extra
-         *     information. Each required field needs a column or a whole-file value.
+         *     information. A needed field with neither is typed into each row as a fix.
          */
         ImportMappingRequest: {
             column_mapping: {
@@ -1865,7 +1902,10 @@ export interface components {
             values: {
                 [key: string]: string;
             };
+            /** @description A roster row's problems, or a historical record's reasons to look at it (none of which stop the import). */
             issues: string[];
+            /** @description The fields the issues are about (a roster's), to mark them. */
+            issue_fields: string[];
             /** @description The fields whose value is the importer's fix, not the file's. */
             readonly corrected_fields: string[];
             /** @description The row's values in the columns kept as extra information. */
@@ -1979,6 +2019,8 @@ export interface components {
             unresolved_testing_for_rank: number;
             unresolved_outcome: number;
             excluded: number;
+            /** @description Records not left out that have issues: a reason to look. */
+            worth_a_look: number;
             warnings: string[];
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
         };
@@ -3140,6 +3182,8 @@ export interface operations {
             query?: {
                 /** @description Only rows with (or without) a fix of the importer's. */
                 corrected?: boolean;
+                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
+                filled?: "current_rank" | "status";
                 /** @description Only rows with this outcome. */
                 outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
                 /** @description A page number within the paginated result set. */
@@ -3148,8 +3192,12 @@ export interface operations {
                 page_size?: number;
                 /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
                 rank_text?: string;
+                /** @description A historical import's rows of these kinds, comma-separated: GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND. */
+                record_kind?: string;
                 /** @description Matches any of the row's values. */
                 search?: string;
+                /** @description Only rows with (or without) issues. */
+                worth_a_look?: boolean;
             };
             header?: never;
             path: {
@@ -3224,6 +3272,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_leave_out_attention_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };

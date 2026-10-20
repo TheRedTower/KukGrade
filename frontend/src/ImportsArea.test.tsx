@@ -4,16 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ApiError,
-  type AuthUser,
-  type CreateDataImportBatchResponse,
-  type DataImportBatch,
-  type DataImportRow,
-  type LegacyPerson,
-} from "./api";
+import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
+import { batch, page, person, row } from "./importTestFixtures";
 import { ImportStartScreen } from "./ImportStartScreen";
 import { ImportsHubScreen } from "./ImportsHubScreen";
 
@@ -47,81 +41,6 @@ vi.mock("./auth", () => ({
   useAuth: () => ({ user: auth.user, status: "authenticated" }),
 }));
 
-function page<T>(results: T[], count = results.length) {
-  return { count, next: null, previous: null, results };
-}
-
-function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch {
-  return {
-    id: 7,
-    kind: "STUDENT_ROSTER",
-    kind_display: "Student roster",
-    status: "UPLOADED",
-    status_display: "Uploaded",
-    original_filename: "spring-roster.xlsx",
-    file_size: 219_136,
-    uploaded_at: "2026-10-20T09:42:00Z",
-    uploaded_by_name: "Sam Taylor",
-    committed_at: null,
-    committed_by_name: "",
-    cancelled_at: null,
-    next_step: "REVIEW",
-    detected_headers: ["WKSA No", "First", "Surname", "DOB", "Belt", "Parent phone", "Joined"],
-    column_mapping: {},
-    defaults: {},
-    extra_columns: [],
-    sheet: "Members",
-    sheet_names: ["Members"],
-    grading_sheets: [],
-    warnings: [],
-    row_counts: { total: 212, ready: 198, review_required: 9, skip_existing: 5, excluded: 0 },
-    summary_json: {},
-    ...overrides,
-  };
-}
-
-function row(overrides: Partial<DataImportRow> = {}): DataImportRow {
-  return {
-    row_number: 2,
-    source_locator: "R2",
-    outcome: "READY",
-    outcome_display: "Ready",
-    excluded: false,
-    values: { wksa_id: "104-2-311", first_name: "Mia", last_name: "Reynolds", current_rank: "Yellow" },
-    issues: [],
-    corrected_fields: [],
-    extra: {},
-    cells: {},
-    file_values: {},
-    created_id: "31",
-    ...overrides,
-  };
-}
-
-function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
-  return {
-    source_name: "Mia R",
-    record_ids: [101, 102, 103],
-    records: 3,
-    first_period: "2025-03",
-    last_period: "2025-09",
-    linked_student: null,
-    shared: false,
-    candidates: [
-      {
-        student: 31,
-        full_name: "Mia Reynolds",
-        wksa_id: "104-2-311",
-        current_rank_name: "Yellow",
-        status_display: "Active",
-        score: 10,
-        reasons: ["Same first name and initial"],
-      },
-    ],
-    ...overrides,
-  };
-}
-
 function Where() {
   const location = useLocation();
   return <p data-testid="where">{`${location.pathname}${location.search}`}</p>;
@@ -138,7 +57,7 @@ function renderAt(path: string) {
           <Route element={<ImportScreen />} path="/imports/:id" />
           <Route element={<h1>Students reached</h1>} path="/students" />
           <Route element={<h1>Student page</h1>} path="/students/:id" />
-          <Route element={<h1>Linking page</h1>} path="/gradings/legacy-records" />
+          <Route element={<h1>Linking page</h1>} path="/imports/records" />
         </Routes>
         <Where />
       </MemoryRouter>
@@ -394,6 +313,8 @@ describe("An import's results", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("5 students with your fixes")).toBeInTheDocument();
     expect(screen.getByText("“Parent phone” kept")).toBeInTheDocument();
+    expect(await screen.findByText("2 students given the status Active")).toBeInTheDocument();
+    expect(api.getDataImportRows).toHaveBeenCalledWith(7, { outcome: "READY", filled: "status", page_size: 1 });
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
     expect(screen.getByText("Already in KukGrade", { selector: ".ix-pill" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute(
@@ -450,7 +371,7 @@ describe("An import's results", () => {
       expect(await screen.findByText("“Mia R” · 3 records")).toBeInTheDocument();
       expect(screen.getByText("Mia Reynolds · Yellow")).toBeInTheDocument();
       expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: 7, linked: false, page_size: 4 });
-      await user.click(screen.getByRole("button", { name: "Link all 3" }));
+      await user.click(screen.getByRole("button", { name: "Link all 3: “Mia R” to Mia Reynolds" }));
 
       await waitFor(() =>
         expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([
@@ -460,7 +381,7 @@ describe("An import's results", () => {
         ]),
       );
       expect(await screen.findByText("✓ Linked to Mia Reynolds")).toBeInTheDocument();
-      await user.click(screen.getByRole("button", { name: "Undo" }));
+      await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
       await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
     });
 

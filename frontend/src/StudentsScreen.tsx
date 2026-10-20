@@ -9,7 +9,6 @@ import {
   getStudents,
 } from "./api";
 import { useRanksQuery } from "./queries";
-import { useAuth } from "./auth";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -97,18 +96,15 @@ function ChevronRightIcon() {
 const PAGE_SIZE = 15;
 
 export function StudentsScreen() {
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
-  // Set by an import's results ("See the new students"); no control edits it.
+  // Set by an import's results ("See the new students"); cleared by "Show every student".
   const [searchParams, setSearchParams] = useSearchParams();
   const sourceImport = Number(searchParams.get("source_import")) || undefined;
-
-  const canImportStudents = Boolean(user?.can_import_data);
 
   // 1. Fetch available ranks for filter dropdown
   const ranksQuery = useRanksQuery();
@@ -187,16 +183,6 @@ export function StudentsScreen() {
           <p className="students-subtitle">Manage student records and grading history</p>
         </div>
         <div className="students-header-actions">
-          {canImportStudents && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => navigate("/students/import")}
-              aria-label="Import students from a file"
-            >
-              Import students
-            </button>
-          )}
           <button
             type="button"
             className="btn-add-student"

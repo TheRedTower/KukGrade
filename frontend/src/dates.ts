@@ -122,6 +122,13 @@ export function formatDayMonth(value: string | null | undefined, fallback = ""):
   return formatApiDate(value, { day: "2-digit", month: "short" }, fallback);
 }
 
+/** "Jun 2025" - a historical record's grading month, given as numbers. */
+export function formatMonthYear(year: number, month: number): string {
+  return new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric" }).format(
+    new Date(year, month - 1, 1),
+  );
+}
+
 /**
  * How many calendar days before `now` an API value falls, in the reader's own
  * timezone: 0 for today, 1 for yesterday. `null` when it cannot be parsed.

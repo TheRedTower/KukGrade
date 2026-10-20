@@ -13,20 +13,13 @@ import {
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
-import { importStepIndex, importStepNames } from "./importSteps";
+import { ImportPager } from "./ImportPager";
+import { counted, importKindLabel, importStepIndex, importStepNames } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
 import "./Imports.css";
 
 const PAST_PAGE_SIZE = 10;
 const FINISHED = "COMMITTED,CANCELLED,EXPIRED";
-
-function kindLabel(kind: DataImportKind): string {
-  return kind === "STUDENT_ROSTER" ? "Students" : "Past gradings";
-}
-
-function counted(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
 
 /** What an unfinished import's rows look like so far, in a line. */
 function unfinishedCounts(batch: DataImportBatch): string {
@@ -86,14 +79,14 @@ function UnfinishedImports({
           return (
             <div className="ix-row" key={batch.id}>
               <div className="ix-row-main">
-                <p className="ix-kind">{kindLabel(batch.kind)}</p>
+                <p className="ix-kind">{importKindLabel(batch.kind)}</p>
                 <p className="ix-strong">{batch.original_filename}</p>
                 <p className="ix-muted ix-small">
                   Uploaded {formatShortDateTime(batch.uploaded_at)} by {batch.uploaded_by_name}
                 </p>
               </div>
               <div className="ix-row-main">
-                <p className="ix-small" style={{ fontWeight: 600 }}>
+                <p className="ix-small ix-semibold">
                   Step {step + 1} of 5 · {importStepNames(batch.kind)[step]}
                 </p>
                 <div aria-hidden="true" className="ix-progress">
@@ -131,7 +124,7 @@ function UnfinishedImports({
 function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefined; canLink: boolean }) {
   return (
     <section aria-labelledby="ix-start" className="ix-section">
-      <h2 id="ix-start" style={{ margin: 0, fontSize: "1.25rem" }}>
+      <h2 className="ix-heading ix-flush" id="ix-start">
         Start an import
       </h2>
       <div className="ix-grid-2">
@@ -166,14 +159,14 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
           </div>
           {awaitingLink ? (
             <div className="ix-panel-foot">
-              <p className="ix-small" style={{ flex: "1 1 12rem", margin: 0 }}>
+              <p className="ix-small">
                 <strong className="ix-warning-text">
                   {counted(awaitingLink, "imported record", "imported records")}
                 </strong>{" "}
                 {awaitingLink === 1 ? "is" : "are"} not linked to a student yet.
               </p>
               {canLink ? (
-                <Link className="ix-link-button" to="/gradings/legacy-records">
+                <Link className="ix-link-button" to="/imports/records">
                   Link records
                 </Link>
               ) : null}
@@ -219,12 +212,10 @@ function PastImports() {
 
   const batches = past.data?.results ?? [];
   const total = past.data?.count ?? 0;
-  const first = total === 0 ? 0 : (page - 1) * PAST_PAGE_SIZE + 1;
-  const last = Math.min(total, page * PAST_PAGE_SIZE);
 
   return (
     <section aria-labelledby="ix-past" className="ix-section">
-      <div className="ix-section-head" style={{ alignItems: "flex-end" }}>
+      <div className="ix-section-head ix-align-end">
         <h2 id="ix-past">Past imports</h2>
         <div className="ix-filters">
           <label className="ix-field">
@@ -279,7 +270,7 @@ function PastImports() {
                   {batches.map((batch) => (
                     <tr key={batch.id}>
                       <td className="ix-strong">{batch.original_filename}</td>
-                      <td>{kindLabel(batch.kind)}</td>
+                      <td>{importKindLabel(batch.kind)}</td>
                       <td>{statePill(batch)}</td>
                       <td>{finishedResult(batch)}</td>
                       <td className="ix-muted ix-nowrap">
@@ -287,7 +278,7 @@ function PastImports() {
                         {" · "}
                         {batch.committed_by_name || batch.uploaded_by_name}
                       </td>
-                      <td className="ix-nowrap" style={{ textAlign: "right" }}>
+                      <td className="ix-cell-action">
                         <Link
                           aria-label={`View ${batch.original_filename}`}
                           className="ix-link-button"
@@ -301,29 +292,7 @@ function PastImports() {
                 </tbody>
               </table>
             </div>
-            <div className="ix-table-foot">
-              <span>
-                Showing {first}–{last} of {total}
-              </span>
-              <div className="ix-actions">
-                <button
-                  className="btn-ghost"
-                  disabled={page <= 1}
-                  type="button"
-                  onClick={() => setPage(page - 1)}
-                >
-                  Previous
-                </button>
-                <button
-                  className="btn-ghost"
-                  disabled={last >= total}
-                  type="button"
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
+            <ImportPager page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
           </>
         )}
       </div>
@@ -359,7 +328,7 @@ export function ImportsHubScreen() {
   return (
     <section aria-labelledby="ix-title" className="ix-page">
       <div className="ix-header">
-        <div style={{ maxWidth: "42rem" }}>
+        <div className="ix-header-text">
           <p className="ix-eyebrow">Administration</p>
           <h1 id="ix-title">Imports</h1>
           <p className="ix-lead">
@@ -399,7 +368,7 @@ export function ImportsHubScreen() {
           }}
           onConfirm={() => cancel.mutate(cancelling)}
         >
-          <p className="ix-muted" style={{ margin: 0 }}>
+          <p className="ix-muted">
             The file and everything you did with it are removed, and nothing is imported. You can
             start again with the file at any time.
           </p>

@@ -1,6 +1,6 @@
 // The client-side roster template download. Every header must be one that
 // data_imports/mappings.py's suggest_column_mapping recognises.
-export const STANDARD_TEMPLATE_HEADERS = [
+const STANDARD_TEMPLATE_HEADERS = [
   "WKSA ID",
   "First Name",
   "Last Name",

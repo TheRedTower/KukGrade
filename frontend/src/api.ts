@@ -756,39 +756,6 @@ export async function createDataImportBatch(
   });
 }
 
-export type StudentImportRowResult = Schemas["StudentImportRowResult"];
-export type StudentImportPreview = Schemas["StudentImportPreview"];
-export type StudentImportRowCorrection = Schemas["StudentImportCorrectionRequest"];
-export type StudentImportRequestPayload = Schemas["StudentImportRequest"];
-
-export async function previewStudentImport(
-  batchId: number,
-  payload: StudentImportRequestPayload,
-): Promise<StudentImportPreview> {
-  return apiRequest<StudentImportPreview>(
-    `/api/data-imports/batches/${batchId}/preview/`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export async function commitStudentImport(
-  batchId: number,
-  payload: StudentImportRequestPayload,
-): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(
-    `/api/data-imports/batches/${batchId}/commit/`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export type DataImportStatus = Schemas["ImportBatchStatusEnum"];
-export type DataImportStep = Schemas["NextStepEnum"];
 export type DataImportRow = Schemas["ImportRow"];
 
 export async function getDataImportBatches(
@@ -834,6 +801,62 @@ export async function voidDataImportRecords(
   );
 }
 
+export type DataImportMapping = Schemas["ImportMappingRequest"];
+export type DataImportRowChanges = Schemas["PatchedImportRowCorrectionRequest"];
+
+/** Match a roster's columns to KukGrade's fields; every row is checked again. */
+export async function saveDataImportMapping(
+  batchId: number,
+  mapping: DataImportMapping,
+): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/mapping/`, {
+    method: "POST",
+    body: JSON.stringify(mapping),
+  });
+}
+
+/** Fix a roster row's values by field; null takes a fix away. */
+export async function correctDataImportRow(
+  batchId: number,
+  rowNumber: number,
+  changes: DataImportRowChanges,
+): Promise<DataImportRow> {
+  return apiRequest<DataImportRow>(
+    `/api/data-imports/batches/${batchId}/rows/${rowNumber}/`,
+    { method: "PATCH", body: JSON.stringify(changes) },
+  );
+}
+
+/** Leave a row out of the import, or bring it back. */
+export async function setDataImportRowExcluded(
+  batchId: number,
+  rowNumber: number,
+  excluded: boolean,
+): Promise<DataImportRow> {
+  return apiRequest<DataImportRow>(
+    `/api/data-imports/batches/${batchId}/rows/${rowNumber}/exclusion/`,
+    { method: "POST", body: JSON.stringify({ excluded }) },
+  );
+}
+
+/** Leave out every roster row still needing attention. */
+export async function leaveOutDataImportRowsNeedingAttention(
+  batchId: number,
+): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(
+    `/api/data-imports/batches/${batchId}/rows/leave-out-attention/`,
+    { method: "POST" },
+  );
+}
+
+/** Import what the stored rows say, all or nothing. */
+export async function commitDataImport(batchId: number): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/commit/`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function cancelDataImportBatch(batchId: number): Promise<void> {
   return apiRequest<void>(`/api/data-imports/batches/${batchId}/cancel/`, {
     method: "POST",
@@ -841,27 +864,13 @@ export async function cancelDataImportBatch(batchId: number): Promise<void> {
 }
 
 export type LegacyImportPreview = Schemas["LegacyImportPreview"];
-export type LegacyImportRequestPayload = Schemas["LegacyImportRequest"];
 
 export async function previewLegacyGradingImport(
   batchId: number,
-  payload: LegacyImportRequestPayload,
+  payload: Schemas["LegacyImportRequest"],
 ): Promise<LegacyImportPreview> {
   return apiRequest<LegacyImportPreview>(
     `/api/data-imports/batches/${batchId}/preview/`,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
-}
-
-export async function commitLegacyGradingImport(
-  batchId: number,
-  payload: LegacyImportRequestPayload,
-): Promise<DataImportBatch> {
-  return apiRequest<DataImportBatch>(
-    `/api/data-imports/batches/${batchId}/commit/`,
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -878,7 +887,6 @@ export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legac
 }
 
 export type LegacyPerson = Schemas["LegacyPerson"];
-export type SuggestedStudent = Schemas["SuggestedStudent"];
 
 /** Historical records grouped by the name as written, with suggested students. */
 export async function getLegacyPeople(
@@ -897,19 +905,6 @@ export async function bulkLinkLegacyRecords(
     method: "POST",
     body: JSON.stringify({ links }),
   });
-}
-
-export async function linkLegacyGradingRecord(
-  id: number,
-  studentId: number,
-): Promise<LegacyGradingRecord> {
-  return apiRequest<LegacyGradingRecord>(
-    `/api/gradings/legacy-records/${id}/link-student/`,
-    {
-      method: "POST",
-      body: JSON.stringify({ student: studentId }),
-    },
-  );
 }
 
 export async function unlinkLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {

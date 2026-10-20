@@ -38,6 +38,7 @@ from data_imports.ksw_adapter import (
     parse_ksw_colchester_workbook,
 )
 from data_imports.mappings import (
+    EXTRA_LABEL_MAX_LENGTH,
     STUDENT_REQUIRED_TARGET_FIELDS,
     STUDENT_TARGET_FIELDS,
     suggest_column_mapping,
@@ -594,12 +595,32 @@ def _active_rank_lookup() -> dict[str, Rank]:
     return lookup
 
 
-def _map_row(raw_row: dict[str, Any], column_mapping: dict[str, str]) -> dict[str, Any]:
+def _map_row(
+    raw_row: dict[str, Any],
+    column_mapping: dict[str, str],
+    defaults: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """A row's value for each KukGrade field: its own cell, or the whole-file
+    value where it has none (no column, or a blank cell)."""
     values: dict[str, Any] = {}
     for target_field in STUDENT_TARGET_FIELDS:
         source_header = column_mapping.get(target_field)
-        values[target_field] = raw_row.get(source_header) if source_header else None
+        value = raw_row.get(source_header) if source_header else None
+        if (value is None or str(value).strip() == "") and defaults:
+            value = defaults.get(target_field, value)
+        values[target_field] = value
     return values
+
+
+def extra_values(raw_row: dict[str, Any], extra_columns: list[str]) -> dict[str, str]:
+    """The kept columns' values in this row, by header; blanks left out."""
+    extra: dict[str, str] = {}
+    for header in extra_columns:
+        value = raw_row.get(header)
+        text = "" if value is None else str(value).strip()
+        if text:
+            extra[header] = text
+    return extra
 
 
 _STUDENT_FIELD_LABELS = {
@@ -774,9 +795,10 @@ def _classify_roster(locked: ImportBatch) -> StudentImportPreview:
         "column_mapping",
         {},
     )
+    defaults: dict[str, str] = locked.configuration_json.get("defaults", {})
     stored_rows = list(locked.rows.order_by("row_number"))
     mapped = [
-        (stored, _map_row(stored.raw, column_mapping), stored.correction)
+        (stored, _map_row(stored.raw, column_mapping, defaults), stored.correction)
         for stored in stored_rows
     ]
     ranks = _active_rank_lookup()
@@ -892,10 +914,55 @@ def _require_roster(locked: ImportBatch) -> None:
         )
 
 
-def _save_column_mapping(locked: ImportBatch, column_mapping: dict[str, str]) -> None:
-    locked.configuration_json["column_mapping"] = {
-        field: header for field, header in column_mapping.items() if header
+def _save_column_mapping(
+    locked: ImportBatch,
+    column_mapping: dict[str, str],
+    *,
+    defaults: dict[str, str] | None = None,
+    extra_columns: list[str] | None = None,
+) -> None:
+    """Store how the file maps onto KukGrade: a column per field, whole-file
+    values, and the columns kept as extra information. Each named column must
+    be one of the file's own, and a column is used once."""
+    chosen = {field: header for field, header in column_mapping.items() if header}
+    headers = set(locked.configuration_json.get("detected_headers", []))
+    errors: dict[str, list[str]] = {}
+    missing = sorted(set(chosen.values()) - headers)
+    if missing:
+        errors["column_mapping"] = [
+            f"The file has no column named {', '.join(map(repr, missing))}.",
+        ]
+    kept = list(dict.fromkeys(extra_columns or []))
+    if set(kept) - headers:
+        errors["extra_columns"] = [
+            "The file has no column named "
+            f"{', '.join(map(repr, sorted(set(kept) - headers)))}.",
+        ]
+    elif set(kept) & set(chosen.values()):
+        errors["extra_columns"] = [
+            "A column matched to a KukGrade field cannot also be kept as extra "
+            "information.",
+        ]
+    elif any(len(header) > EXTRA_LABEL_MAX_LENGTH for header in kept):
+        errors["extra_columns"] = [
+            f"A column kept as extra information needs a heading of at most "
+            f"{EXTRA_LABEL_MAX_LENGTH} characters.",
+        ]
+    cleaned_defaults = {
+        field: value.strip()
+        for field, value in (defaults or {}).items()
+        if value.strip()
     }
+    if "status" in cleaned_defaults:
+        cleaned_defaults["status"] = cleaned_defaults["status"].upper()
+    rank_default = cleaned_defaults.get("current_rank")
+    if rank_default and rank_default.upper() not in _active_rank_lookup():
+        errors["defaults"] = [f"{rank_default!r} is not a rank KukGrade recognises."]
+    if errors:
+        raise DjangoValidationError(errors)
+    locked.configuration_json["column_mapping"] = chosen
+    locked.configuration_json["defaults"] = cleaned_defaults
+    locked.configuration_json["extra_columns"] = kept
     locked.save(update_fields=["configuration_json", "updated_at"])
 
 
@@ -914,12 +981,24 @@ def save_import_mapping(
     batch: ImportBatch,
     *,
     column_mapping: dict[str, str],
+    defaults: dict[str, str] | None = None,
+    extra_columns: list[str] | None = None,
 ) -> ImportBatch:
-    """Match a roster's columns to KukGrade's fields, and check every row."""
+    """Match a roster's columns to KukGrade's fields, and check every row.
+
+    `defaults` gives a whole-file value for a field the file lacks or leaves
+    blank (STUDENT_WHOLE_FILE_FIELDS); `extra_columns` are the columns kept
+    as each student's extra information.
+    """
     locked = _lock_uncommitted(batch, "changed")
     _require_roster(locked)
     _ensure_rows_stored(locked)
-    _save_column_mapping(locked, column_mapping)
+    _save_column_mapping(
+        locked,
+        column_mapping,
+        defaults=defaults,
+        extra_columns=extra_columns,
+    )
     _classify_roster(locked)
     return locked
 
@@ -1000,7 +1079,12 @@ def preview_student_import(
     locked = _lock_uncommitted(batch, "checked")
     _require_roster(locked)
     _ensure_rows_stored(locked)
-    _save_column_mapping(locked, column_mapping)
+    _save_column_mapping(
+        locked,
+        column_mapping,
+        defaults=locked.configuration_json.get("defaults"),
+        extra_columns=locked.configuration_json.get("extra_columns"),
+    )
     if corrections is not None:
         _replace_corrections(locked, corrections)
     return _classify_roster(locked)
@@ -1038,11 +1122,18 @@ def commit_student_import(
     _require_roster(locked)
     _ensure_rows_stored(locked)
     if column_mapping is not None:
-        _save_column_mapping(locked, column_mapping)
+        _save_column_mapping(
+            locked,
+            column_mapping,
+            defaults=locked.configuration_json.get("defaults"),
+            extra_columns=locked.configuration_json.get("extra_columns"),
+        )
     if corrections is not None:
         _replace_corrections(locked, corrections)
     _require_mapping(locked)
     preview = _classify_roster(locked)
+    extra_columns: list[str] = locked.configuration_json.get("extra_columns", [])
+    raw_by_row = dict(locked.rows.values_list("row_number", "raw"))
     ready_rows = [
         row for row in preview.rows if row.outcome == StudentImportRowOutcome.READY
     ]
@@ -1063,6 +1154,9 @@ def commit_student_import(
                 date_of_birth=row.date_of_birth,
                 current_rank=rank,
                 status=row.status,
+                extra_information=tuple(
+                    extra_values(raw_by_row[row.row_number], extra_columns).items(),
+                ),
             ),
         )
     # All at once, all or nothing (the recorded commit-semantics deviation).
@@ -1070,7 +1164,11 @@ def commit_student_import(
     # the same WKSA ID created elsewhere - and the whole batch rolls back
     # rather than silently skipping the row.
     try:
-        created = create_students(new_students, actor=actor)
+        created = create_students(
+            new_students,
+            actor=actor,
+            source_import=locked.pk,
+        )
     except DjangoValidationError as exc:
         by_id = {row.wksa_id: row for row in ready_rows}
         first_id, messages = next(iter(exc.message_dict.items()))
@@ -1167,6 +1265,10 @@ def _legacy_values(row: CanonicalLegacyRow) -> dict[str, str]:
         "testing_for_rank": row.source_testing_for_rank_text,
         "outcome": row.source_outcome_text,
         "report": row.comments,
+        # Where on the sheet: blank for the main table, else its side table
+        # or the column a sheet note was in.
+        "section": row.source_section,
+        "note": row.admin_note,
     }
 
 
@@ -1202,6 +1304,42 @@ def _save_rank_mappings(
 class RankMappingSuggestion:
     source_text: str
     suggested_rank_code: str | None
+    # The source marks its own doubt ("Red stripe?"): the rank it suggests is
+    # what was written, not something known.
+    doubtful: bool = False
+    rows: int = 0
+
+
+# How the club's workbook writes ranks that KukGrade names otherwise
+# (2026-10-20, from the real workbook), for suggestions only - a suggestion is
+# never applied until chosen (import Decision 4). Fixed spellings, never a
+# near miss: "DNB", a slip for DBN, is still left for the importer. Keys are
+# upper-cased, with any trailing "BELT" taken off.
+_RANK_TEXT_ALIASES = {
+    "DBN": "DAHN_BO",
+    "DAHN BO NIM": "DAHN_BO",
+}
+
+
+def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
+    """The active rank a source text most likely means, and whether the source
+    itself doubted it. "White Belt" suggests White; "DBN" Dahn Bo."""
+    cleaned = " ".join(text.split())
+    doubtful = cleaned.endswith("?")
+    key = cleaned.rstrip("?").strip().upper()
+    if key.endswith(" BELT"):
+        key = key.removesuffix(" BELT").strip()
+    rank = ranks.get(key)
+    if rank is None and key in _RANK_TEXT_ALIASES:
+        rank = next(
+            (
+                found
+                for found in ranks.values()
+                if found.code == _RANK_TEXT_ALIASES[key]
+            ),
+            None,
+        )
+    return rank, doubtful
 
 
 @dataclass(frozen=True)
@@ -1289,12 +1427,21 @@ def preview_legacy_grading_import(
 
     suggestions = []
     ranks = _active_rank_lookup()
+    uses: dict[str, int] = {}
+    for row in rows:
+        for text in {
+            row.source_current_rank_text.strip().lower(),
+            row.source_testing_for_rank_text.strip().lower(),
+        } - {""}:
+            uses[text] = uses.get(text, 0) + 1
     for text in _distinct_rank_texts(rows):
-        suggested = ranks.get(text.upper()) if text else None
+        suggested, doubtful = suggest_rank(text, ranks)
         suggestions.append(
             RankMappingSuggestion(
                 source_text=text,
                 suggested_rank_code=suggested.code if suggested else None,
+                doubtful=doubtful,
+                rows=uses.get(text.lower(), 0),
             ),
         )
 
@@ -1422,6 +1569,7 @@ __all__ = [
     "correct_import_row",
     "create_import_batch",
     "expire_import_batch",
+    "extra_values",
     "next_step",
     "preview_legacy_grading_import",
     "preview_student_import",

@@ -133,6 +133,8 @@ class ImportBatchViewSet(
         save_import_mapping(
             batch,
             column_mapping=payload.validated_data["column_mapping"],
+            defaults=payload.validated_data["defaults"],
+            extra_columns=payload.validated_data["extra_columns"],
         )
         return self._batch_response(request, batch)
 
@@ -169,7 +171,12 @@ class ImportBatchViewSet(
                 rows = row_filter.apply(rows, value)
         page = self.paginate_queryset(rows)
         assert page is not None
-        return self.get_paginated_response(ImportRowSerializer(page, many=True).data)
+        return self.get_paginated_response(
+            ImportRowSerializer(page, many=True, context=self._row_context(batch)).data,
+        )
+
+    def _row_context(self, batch: ImportBatch) -> dict[str, Any]:
+        return {"extra_columns": batch.configuration_json.get("extra_columns", [])}
 
     @extend_schema(request=ImportRowCorrectionSerializer, responses=ImportRowSerializer)
     @action(
@@ -195,7 +202,9 @@ class ImportBatchViewSet(
             row_number=int(row_number),
             changes=changes,
         )
-        return Response(ImportRowSerializer(corrected).data)
+        return Response(
+            ImportRowSerializer(corrected, context=self._row_context(batch)).data,
+        )
 
     @extend_schema(request=ImportRowExclusionSerializer, responses=ImportRowSerializer)
     @action(
@@ -220,7 +229,9 @@ class ImportBatchViewSet(
             row_number=int(row_number),
             excluded=payload.validated_data["excluded"],
         )
-        return Response(ImportRowSerializer(changed).data)
+        return Response(
+            ImportRowSerializer(changed, context=self._row_context(batch)).data,
+        )
 
     @extend_schema(
         request=ImportBatchCreateSerializer,

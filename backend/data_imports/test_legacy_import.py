@@ -95,21 +95,34 @@ def test_preview_suggests_an_exact_rank_match() -> None:
     assert suggestion.suggested_rank_code == "YELLOW"
 
 
-def test_preview_does_not_suggest_a_near_miss_no_fuzzy_matching() -> None:
-    # "Yellow Belt" is a very plausible near-miss for the "Yellow" rank, but
-    # exact-match-only means it is deliberately left unsuggested rather than
-    # guessed (import Decision 4 - only the admin resolves ambiguous rank text).
-    content = standard_workbook(
-        [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", ""]],
-    )
+@pytest.mark.parametrize(
+    ("text", "code", "doubtful"),
+    [
+        # How the club's workbook writes them (2026-10-20): fixed spellings,
+        # suggested only - nothing is applied until the importer chooses.
+        ("Yellow Belt", "YELLOW", False),
+        ("red belt", "RED", False),
+        ("DBN", "DAHN_BO", False),
+        ("DBn", "DAHN_BO", False),
+        ("Red stripe?", "RED_STRIPE", True),
+        ("Brown Stripe ?", "BROWN_STRIPE", True),
+    ],
+)
+def test_the_workbooks_own_spellings_are_suggested(
+    text: str,
+    code: str,
+    doubtful: bool,
+) -> None:
+    content = standard_workbook([["A. Example", text, "", "Pass", ""]])
     batch = legacy_batch(content)
 
     preview = preview_legacy_grading_import(batch)
 
-    suggestion = next(
-        s for s in preview.rank_suggestions if s.source_text == "Yellow Belt"
-    )
-    assert suggestion.suggested_rank_code is None
+    [suggestion] = preview.rank_suggestions
+    assert (suggestion.suggested_rank_code, suggestion.doubtful) == (code, doubtful)
+    assert suggestion.rows == 1
+    # Suggested, not applied: the row's rank stays unresolved until chosen.
+    assert preview.unresolved_current_rank == 1
 
 
 def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
@@ -118,6 +131,7 @@ def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
 
     preview = preview_legacy_grading_import(batch)
 
+    # A slip for DBN, but a near miss is never guessed (import Decision 4).
     suggestion = next(s for s in preview.rank_suggestions if s.source_text == "DNB")
     assert suggestion.suggested_rank_code is None
 

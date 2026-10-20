@@ -135,6 +135,7 @@ describe("Students registry screen (/students)", () => {
           ...testStudents[0],
           wksa_id_can_change: true,
           previous_wksa_ids: [],
+    extra_information: [],
         });
       }
       if (url.includes("/api/students/")) {
@@ -555,6 +556,7 @@ describe("Student detail screen (/students/:id)", () => {
     wksa_id: "UK-5001",
     wksa_id_can_change: true,
     previous_wksa_ids: [],
+    extra_information: [],
     first_name: "Alex",
     last_name: "Carter",
     date_of_birth: "2012-04-24",

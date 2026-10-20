@@ -32,7 +32,9 @@ after the owner's approval):
   decision log); A1 stored rows and A2 the batch API (list, mapping, paged rows,
   per-row fixes; done 2026-10-20); A3 a fast bulk roster commit with a lower row limit and no
   worker (done 2026-10-20: 1,000 rows, 0.6 s); A4 mapping onto KukGrade's fields, whole-file values, extra
-  information and the grading report; A5 and A6 per-row historical preview
+  information and the grading report (done 2026-10-20 for rosters and the
+  Colchester workbook, side tables included; a mapping for other grading
+  spreadsheets waits for a second real file); A5 and A6 per-row historical preview
   and suggested student links; A7 voiding a wrong batch, choosing the sheet.
 - Frontend: B1 a design register entry and mocks; B2 one Imports area; B3 a
   guided flow (file, match columns, review rows, confirm, results); B4 a

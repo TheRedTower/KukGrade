@@ -206,3 +206,41 @@ def wksa_id_ever_held(wksa_id: str) -> bool:
         PreviousWksaId.objects.filter(wksa_id=wksa_id).exists()
         or RetiredWksaId.objects.filter(wksa_id=wksa_id).exists()
     )
+
+
+class StudentExtraInfo(models.Model):
+    """Something a file said about a student that KukGrade has no field for.
+
+    A column the importer chose to keep (decision log, 2026-10-20 import
+    overhaul) - a parent's phone, a note - stored as the file labelled it,
+    rather than dropped or turned into a new field. Personal data like the
+    rest of the student, and deleted with them.
+    """
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="extra_information",
+    )
+    label = models.CharField(max_length=150)
+    value = models.TextField()
+    # Which import it came from, by number: an import is never deleted, but
+    # the student app does not depend on the imports app.
+    source_import = models.PositiveIntegerField(null=True, blank=True)
+    added_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["student", "label"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "label"],
+                name="student_extra_info_one_per_label",
+            ),
+            models.CheckConstraint(
+                condition=~Q(label="") & ~Q(value=""),
+                name="student_extra_info_not_blank",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.label}: {self.value}"

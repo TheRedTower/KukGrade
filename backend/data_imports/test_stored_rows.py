@@ -102,6 +102,8 @@ def test_a_historical_workbook_stores_each_record_as_ready() -> None:
     assert [row.outcome for row in rows] == ["READY", "READY"]
     assert rows[0].values["name"] == "A. Example"
     assert rows[0].values["report"] == "Good."
+    assert rows[0].values["section"] == ""
+    assert rows[0].values["note"] == ""
     assert rows[0].source_locator.endswith("!R2")
 
 

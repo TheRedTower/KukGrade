@@ -22,7 +22,7 @@ from audit.recording import record, record_many
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
-from students.models import PreviousWksaId, RetiredWksaId, Student
+from students.models import PreviousWksaId, RetiredWksaId, Student, StudentExtraInfo
 
 
 def _snapshot(student: Student) -> dict[str, Any]:
@@ -98,6 +98,8 @@ class NewStudent:
     date_of_birth: date
     current_rank: Rank
     status: str = Student.Status.ACTIVE
+    # (label, value) pairs a file had no field for; blank values are dropped.
+    extra_information: tuple[tuple[str, str], ...] = ()
 
 
 TAKEN_MESSAGE = "This WKSA ID is now held by a student."
@@ -130,6 +132,7 @@ def create_students(
     new_students: Sequence[NewStudent],
     *,
     actor: User | None = None,
+    source_import: int | None = None,
 ) -> list[Student]:
     """Many students at once - each as create_student makes one, together.
 
@@ -172,6 +175,20 @@ def create_students(
         raise ValidationError(errors)
 
     created = Student.objects.bulk_create(candidates, batch_size=500)
+    StudentExtraInfo.objects.bulk_create(
+        [
+            StudentExtraInfo(
+                student=student,
+                label=label.strip()[:150],
+                value=value.strip(),
+                source_import=source_import,
+            )
+            for student, new in zip(created, new_students, strict=True)
+            for label, value in new.extra_information
+            if label.strip() and value.strip()
+        ],
+        batch_size=500,
+    )
     record_many(
         AuditAction.STUDENT_CREATED,
         [(student, f"Student {student} created.") for student in created],

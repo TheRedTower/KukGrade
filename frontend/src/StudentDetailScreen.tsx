@@ -380,6 +380,21 @@ export function StudentDetailScreen() {
             </dl>
           </div>
 
+          {/* What an imported file said that KukGrade has no field for. */}
+          {student.extra_information.length > 0 ? (
+            <div className="detail-section-card">
+              <h2 className="detail-section-title">Extra information</h2>
+              <dl className="detail-kv-grid">
+                {student.extra_information.map((info) => (
+                  <div className="detail-kv-row" key={info.label}>
+                    <dt className="detail-kv-label">{info.label}</dt>
+                    <dd className="detail-kv-value">{info.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
+
           {/* Card 2: Grading history - native + linked historical records */}
           <div className="detail-section-card">
             <h2 className="detail-section-title">Grading history</h2>

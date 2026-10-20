@@ -18,7 +18,7 @@ from gradings.read_models import (
     StudentRankTimeline,
 )
 from students import wksa_ids
-from students.models import PreviousWksaId, Student
+from students.models import PreviousWksaId, Student, StudentExtraInfo
 from students.services import create_student, update_student
 from syllabus.models import AgeBand
 
@@ -168,6 +168,13 @@ class PreviousWksaIdSerializer(serializers.ModelSerializer[PreviousWksaId]):
         read_only_fields = fields
 
 
+class StudentExtraInfoSerializer(serializers.ModelSerializer[StudentExtraInfo]):
+    class Meta:
+        model = StudentExtraInfo
+        fields = ("label", "value")
+        read_only_fields = fields
+
+
 class StudentSerializer(serializers.ModelSerializer[Student]):
     """Detail, create and update.
 
@@ -185,6 +192,11 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     age_band_display = serializers.CharField(read_only=True)
     wksa_id_can_change = serializers.SerializerMethodField()
     previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
+    extra_information = StudentExtraInfoSerializer(
+        many=True,
+        read_only=True,
+        help_text="What an import's file said that KukGrade has no field for.",
+    )
 
     class Meta:
         model = Student
@@ -193,6 +205,7 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "wksa_id",
             "wksa_id_can_change",
             "previous_wksa_ids",
+            "extra_information",
             "first_name",
             "last_name",
             "date_of_birth",

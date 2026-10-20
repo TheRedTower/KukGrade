@@ -9,7 +9,12 @@ from django.http import HttpRequest
 from accounts.models import User
 from kukgrade.admin_mixins import ServiceDeleteMixin
 from students import wksa_ids
-from students.models import PreviousWksaId, RetiredWksaId, Student
+from students.models import (
+    PreviousWksaId,
+    RetiredWksaId,
+    Student,
+    StudentExtraInfo,
+)
 from students.services import create_student, delete_student, update_student
 
 
@@ -20,6 +25,21 @@ class PreviousWksaIdInline(admin.TabularInline):
     extra = 0
     can_delete = False
     fields = ("wksa_id", "replaced_at")
+    readonly_fields = fields
+
+    def has_add_permission(
+        self, request: HttpRequest, obj: Student | None = None
+    ) -> bool:
+        return False
+
+
+class StudentExtraInfoInline(admin.TabularInline):
+    """Read-only: what an import kept that KukGrade has no field for."""
+
+    model = StudentExtraInfo
+    extra = 0
+    can_delete = False
+    fields = ("label", "value", "source_import", "added_at")
     readonly_fields = fields
 
     def has_add_permission(
@@ -46,7 +66,7 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
         "first_name",
         "last_name",
     )
-    inlines = (PreviousWksaIdInline,)
+    inlines = (PreviousWksaIdInline, StudentExtraInfoInline)
     ordering = ("last_name", "first_name", "wksa_id")
 
     def get_readonly_fields(

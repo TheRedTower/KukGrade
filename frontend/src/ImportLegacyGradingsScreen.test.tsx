@@ -49,7 +49,7 @@ const initialPreview: LegacyImportPreview = {
   excluded: 0,
   warnings: [],
   rank_suggestions: [
-    { source_text: "Yellow",  suggested_rank_code: "YELLOW" },
+    { source_text: "Yellow", suggested_rank_code: "YELLOW", doubtful: false, rows: 1 },
   ],
 };
 
@@ -69,6 +69,8 @@ const committedBatch: DataImportBatch = {
   next_step: "CLOSED",
   detected_headers: [],
   column_mapping: {},
+  defaults: {},
+  extra_columns: [],
   row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
   summary_json: {
     total: 2,

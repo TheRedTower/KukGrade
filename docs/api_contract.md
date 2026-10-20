@@ -215,7 +215,9 @@ black belt rank (JKN and above) must hold a black belt ID. After creation the
 ID changes once at most: a student ID to a black belt ID, through `PATCH`;
 every other change is refused, and `wksa_id_can_change` on the detail says
 whether that change is still to come. The student ID it replaces is kept: the
-detail carries `previous_wksa_ids` (`[{wksa_id, replaced_at}]`, oldest first),
+detail carries `previous_wksa_ids` (`[{wksa_id, replaced_at}]`, oldest first)
+and `extra_information` (`[{label, value}]`, what an import's file said that
+KukGrade has no field for),
 the list's `search` matches a current or a previous ID, and a new student may
 never take an ID any student has held, including a deleted student's
 (`wksa_id` field error), because the school owner confirmed a number is never
@@ -777,8 +779,8 @@ Status: implemented for both batch kinds - student-roster import
 | GET    | /api/data-imports/batches/                        | List imports, newest first; filters `status`, `kind`; requires `data_imports.view_importbatch` |
 | GET    | /api/data-imports/batches/{id}/                   | One import: kind, status, file, who and when, `next_step` (`MATCH_COLUMNS`, `REVIEW`, `CLOSED`), `detected_headers`, `column_mapping`, `row_counts`; requires `data_imports.view_importbatch` |
 | POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); every row is read and stored; requires `data_imports.add_importbatch` |
-| POST   | /api/data-imports/batches/{id}/mapping/           | A roster's `column_mapping`; stores it and checks every row; returns the import; requires `data_imports.change_importbatch` |
-| GET    | /api/data-imports/batches/{id}/rows/              | The stored rows, paginated, in file order; filters `outcome`, `search`; each has `values` by KukGrade field, `issues`, `outcome`, `excluded`, `corrected_fields`, `created_id`; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/{id}/mapping/           | A roster's `column_mapping` (each column the file's own, used once), optional `defaults` (`current_rank` and/or `status`, used where a row has none - a required field needs a column or one of these) and `extra_columns` (columns kept as each new student's `extra_information`); stores them and checks every row; returns the import; requires `data_imports.change_importbatch` |
+| GET    | /api/data-imports/batches/{id}/rows/              | The stored rows, paginated, in file order; filters `outcome`, `search`; each has `values` by KukGrade field, `extra` (its kept columns), `issues`, `outcome`, `excluded`, `corrected_fields`, `created_id`; requires `data_imports.view_importbatch` |
 | PATCH  | /api/data-imports/batches/{id}/rows/{row_number}/ | Fix a roster row's values by field (null takes a fix away); every row is checked again; requires `data_imports.change_importbatch` |
 | POST   | /api/data-imports/batches/{id}/rows/{row_number}/exclusion/ | `{excluded}`: leave a row out of the import, or bring it back; requires `data_imports.change_importbatch` |
 | POST   | /api/data-imports/batches/{id}/preview/           | Store the mapping (and, if sent, every row's corrections) and check every row; nothing is committed; requires `data_imports.view_importbatch` |

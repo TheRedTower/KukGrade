@@ -229,8 +229,23 @@ structure only:
 - Recognises `Unaccounted`/`Missing`/`Current belt` as `AUXILIARY_NOTE`
   sections and `Did not attend` as its own `DID_NOT_ATTEND` section, each
   producing classified rows rather than being forced into a fake grading
-  result.
-- Outcome text: `Pass`/`Fail`/`Conditional` map deterministically; `DNA`/
+  result - whether written below the main table or, as the real workbook
+  writes them (2026-10-20), **beside it in the same rows**. A side table
+  starts at its heading; it claims the headed columns after it that it has
+  (`Outcome`, `Comments`, `Current belt`) and the unheaded ones after those,
+  which hold its notes. An `Unaccounted` table with its own Outcome and
+  Comments is a set of grading results; `Missing` is notes; `Did not attend`
+  keeps the current belt. A second copy of a main column (`Name` twice) is
+  read once, with a warning. A main-table column KukGrade has no field for
+  is kept on each row's record as `Heading: value` in `admin_note`.
+- **Nothing non-blank on a grading sheet is dropped.** A cell no table
+  claims - a "General Comments" column, a note typed beside the table - is
+  kept as an `AUXILIARY_NOTE` named `Sheet note`, sectioned by its column's
+  heading (or "Beside the table") and located by its cell (`062026!G2`), and
+  the preview warns how many each sheet has. Before 2026-10-20 the adapter
+  silently dropped every side table of the real workbook.
+- Outcome text: `Pass`/`Fail`/`Conditional` map deterministically, a
+  closing full stop allowed (`Pass.`, kept as written in the source text); `DNA`/
   `Did not attend` (in the main table's Outcome column, not just the
   auxiliary section) become `DID_NOT_ATTEND` attendance, never a `Fail`;
   anything else (`N/A`, free-form text) is preserved verbatim in
@@ -251,8 +266,12 @@ Unlike the roster importer, rank text here is reviewed **once per distinct
 value across the whole batch**, not per row -
 `preview_legacy_grading_import()` collects every distinct
 `source_current_rank_text`/`source_testing_for_rank_text`, case-insensitive,
-and suggests an exact `Rank.code`/`Rank.name` match for each (never a
-fuzzy/probabilistic one). The admin's `rank_mappings` (source text -> chosen
+and suggests a `Rank.code`/`Rank.name` match for each: exact, or (since
+2026-10-20, from the real workbook) through fixed spellings - a trailing
+"Belt" dropped ("White Belt" is White), "DBN" for Dahn Bo - and a trailing
+"?" read as the source's own doubt (`doubtful`). Never a near miss or a
+fuzzy/probabilistic match: "DNB" is left for the importer. Each suggestion
+also says how many rows use the text. The admin's `rank_mappings` (source text -> chosen
 rank code, or explicitly `null`/omitted for "leave unresolved") is supplied
 at both preview and commit time, and **never blocks a row from being
 committed** - unlike the roster importer's required `current_rank`, an
@@ -330,8 +349,8 @@ against a sanitised copy of the actual KSW Colchester workbook in a
 non-production environment, compare per-sheet record counts against the
 source, and explicitly verify zero native `Promotion`s, zero native
 `CandidateOutcome`s, and zero `Student.current_rank` changes resulted. The
-adapter's sheet-structure assumptions (header row detection, auxiliary
-section names, the `-`/`.` sheet-name separator finding above) are a
-best-effort reading of the workbook's written description, built without ever
-having the real file in this repository, and should be expected to need
-adjustment once tested against it.
+adapter was checked against the owner's real workbook on 2026-10-20 (read
+outside the repository): its six quarterly sheets are titled `MMYYYY` with
+no separator, and it reads 214 records - 196 in the main tables and 18 from
+side tables and notes the earlier adapter dropped - with every non-blank cell
+kept. The rehearsal's database checks are still to do.

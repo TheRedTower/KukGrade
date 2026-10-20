@@ -5,16 +5,22 @@ from typing import Any
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from data_imports.mappings import STUDENT_REQUIRED_TARGET_FIELDS, STUDENT_TARGET_FIELDS
+from data_imports.mappings import (
+    STUDENT_REQUIRED_TARGET_FIELDS,
+    STUDENT_TARGET_FIELDS,
+    STUDENT_WHOLE_FILE_FIELDS,
+)
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.services import (
     ROW_COUNT_NAMES,
     CreateImportBatchResult,
     ImportStep,
     StudentImportRowOutcome,
+    extra_values,
     next_step,
     row_counts,
 )
+from students.models import Student
 
 
 class ImportRowCountsSerializer(serializers.Serializer):
@@ -41,6 +47,12 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     column_mapping = serializers.SerializerMethodField(
         help_text="A roster's chosen column for each KukGrade field.",
     )
+    defaults = serializers.SerializerMethodField(
+        help_text="A roster's whole-file value for a field, where a row has none.",
+    )
+    extra_columns = serializers.SerializerMethodField(
+        help_text="A roster's columns kept as each student's extra information.",
+    )
     row_counts = serializers.SerializerMethodField()
     # Declared rather than inferred from JSONField, which would type it as
     # "anything": summary_json only ever holds safe counts.
@@ -66,6 +78,8 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "next_step",
             "detected_headers",
             "column_mapping",
+            "defaults",
+            "extra_columns",
             "row_counts",
             "summary_json",
         ]
@@ -87,6 +101,12 @@ class ImportBatchSerializer(serializers.ModelSerializer):
 
     def get_column_mapping(self, batch: ImportBatch) -> dict[str, str]:
         return dict(batch.configuration_json.get("column_mapping", {}))
+
+    def get_defaults(self, batch: ImportBatch) -> dict[str, str]:
+        return dict(batch.configuration_json.get("defaults", {}))
+
+    def get_extra_columns(self, batch: ImportBatch) -> list[str]:
+        return list(batch.configuration_json.get("extra_columns", []))
 
     @extend_schema_field(ImportRowCountsSerializer)
     def get_row_counts(self, batch: ImportBatch) -> dict[str, int]:
@@ -110,12 +130,15 @@ class ImportRowSerializer(serializers.ModelSerializer):
             "The row's values by KukGrade field, as checked - for a roster "
             "wksa_id, first_name, last_name, date_of_birth, current_rank and "
             "status; for historical gradings name, period, current_rank, "
-            "testing_for_rank, outcome and report."
+            "testing_for_rank, outcome, report, section and note."
         ),
     )
     issues = serializers.ListField(child=serializers.CharField())
     corrected_fields = serializers.SerializerMethodField(
         help_text="The fields whose value is the importer's fix, not the file's.",
+    )
+    extra = serializers.SerializerMethodField(
+        help_text="The row's values in the columns kept as extra information.",
     )
 
     class Meta:
@@ -129,6 +152,7 @@ class ImportRowSerializer(serializers.ModelSerializer):
             "values",
             "issues",
             "corrected_fields",
+            "extra",
             "created_id",
         ]
         read_only_fields = fields
@@ -136,17 +160,63 @@ class ImportRowSerializer(serializers.ModelSerializer):
     def get_corrected_fields(self, row: ImportRow) -> list[str]:
         return sorted(row.correction)
 
+    def get_extra(self, row: ImportRow) -> dict[str, str]:
+        # The batch's kept columns come in the context (ImportBatchViewSet).
+        return extra_values(row.raw, self.context.get("extra_columns", []))
+
 
 class ImportMappingSerializer(serializers.Serializer):
-    """POST /{id}/mapping/: a roster's column for each KukGrade field."""
+    """POST /{id}/mapping/: how a roster maps onto KukGrade.
+
+    A column for each field, a whole-file value for a field the file lacks
+    (current_rank or status only), and the columns to keep as extra
+    information. Each required field needs a column or a whole-file value.
+    """
 
     column_mapping = serializers.DictField(
         child=serializers.CharField(allow_blank=True),
     )
+    defaults = serializers.DictField(
+        child=serializers.CharField(allow_blank=True),
+        required=False,
+        default=dict,
+        help_text="current_rank and/or status, used where a row has none.",
+    )
+    extra_columns = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="The file's columns to keep as each student's extra information.",
+    )
 
-    def validate_column_mapping(self, value: dict[str, str]) -> dict[str, str]:
-        _validate_column_mapping(value)
+    def validate_defaults(self, value: dict[str, str]) -> dict[str, str]:
+        if set(value) - set(STUDENT_WHOLE_FILE_FIELDS):
+            raise serializers.ValidationError(
+                "Only current rank and status can be given for the whole file.",
+            )
+        status = value.get("status", "").strip().upper()
+        if status and status not in Student.Status.values:
+            raise serializers.ValidationError(f"Status {status!r} is not recognised.")
         return value
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        mapping = attrs["column_mapping"]
+        unknown = sorted(set(mapping) - set(STUDENT_TARGET_FIELDS))
+        if unknown:
+            raise serializers.ValidationError(
+                {"column_mapping": [f"Unknown field(s): {', '.join(unknown)}."]},
+            )
+        given = {field for field, value in attrs["defaults"].items() if value.strip()}
+        missing = [
+            field
+            for field in STUDENT_REQUIRED_TARGET_FIELDS
+            if not mapping.get(field) and field not in given
+        ]
+        if missing:
+            raise serializers.ValidationError(
+                {"column_mapping": [f"Choose a column for: {', '.join(missing)}."]},
+            )
+        return attrs
 
 
 class ImportRowExclusionSerializer(serializers.Serializer):
@@ -306,6 +376,10 @@ class LegacyImportSerializer(serializers.Serializer):
 class RankMappingSuggestionSerializer(serializers.Serializer):
     source_text = serializers.CharField()
     suggested_rank_code = serializers.CharField(allow_null=True)
+    doubtful = serializers.BooleanField(
+        help_text="The source marks its own doubt, as in 'Red stripe?'.",
+    )
+    rows = serializers.IntegerField(help_text="How many rows use this text.")
 
 
 class LegacyImportPreviewSerializer(serializers.Serializer):

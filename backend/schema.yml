@@ -3572,6 +3572,18 @@ components:
             type: string
           readOnly: true
           description: A roster's chosen column for each KukGrade field.
+        defaults:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's whole-file value for a field, where a row has none.
+        extra_columns:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A roster's columns kept as each student's extra information.
         row_counts:
           allOf:
           - $ref: '#/components/schemas/ImportRowCounts'
@@ -3586,7 +3598,9 @@ components:
       - column_mapping
       - committed_at
       - committed_by_name
+      - defaults
       - detected_headers
+      - extra_columns
       - file_size
       - id
       - kind
@@ -3652,12 +3666,28 @@ components:
         * `EXPIRED` - Expired
     ImportMappingRequest:
       type: object
-      description: 'POST /{id}/mapping/: a roster''s column for each KukGrade field.'
+      description: |-
+        POST /{id}/mapping/: how a roster maps onto KukGrade.
+
+        A column for each field, a whole-file value for a field the file lacks
+        (current_rank or status only), and the columns to keep as extra
+        information. Each required field needs a column or a whole-file value.
       properties:
         column_mapping:
           type: object
           additionalProperties:
             type: string
+        defaults:
+          type: object
+          additionalProperties:
+            type: string
+          description: current_rank and/or status, used where a row has none.
+        extra_columns:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: The file's columns to keep as each student's extra information.
       required:
       - column_mapping
     ImportPreview:
@@ -3695,7 +3725,7 @@ components:
           description: The row's values by KukGrade field, as checked - for a roster
             wksa_id, first_name, last_name, date_of_birth, current_rank and status;
             for historical gradings name, period, current_rank, testing_for_rank,
-            outcome and report.
+            outcome, report, section and note.
         issues:
           type: array
           items:
@@ -3706,6 +3736,12 @@ components:
             type: string
           readOnly: true
           description: The fields whose value is the importer's fix, not the file's.
+        extra:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: The row's values in the columns kept as extra information.
         created_id:
           type: string
           readOnly: true
@@ -3713,6 +3749,7 @@ components:
       - corrected_fields
       - created_id
       - excluded
+      - extra
       - issues
       - outcome
       - outcome_display
@@ -4718,7 +4755,15 @@ components:
         suggested_rank_code:
           type: string
           nullable: true
+        doubtful:
+          type: boolean
+          description: The source marks its own doubt, as in 'Red stripe?'.
+        rows:
+          type: integer
+          description: How many rows use this text.
       required:
+      - doubtful
+      - rows
       - source_text
       - suggested_rank_code
     ReadinessResponse:
@@ -4864,6 +4909,12 @@ components:
           items:
             $ref: '#/components/schemas/PreviousWksaId'
           readOnly: true
+        extra_information:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentExtraInfo'
+          readOnly: true
+          description: What an import's file said that KukGrade has no field for.
         first_name:
           type: string
           maxLength: 150
@@ -4896,6 +4947,7 @@ components:
       - current_rank
       - current_rank_name
       - date_of_birth
+      - extra_information
       - first_name
       - id
       - last_name
@@ -4903,6 +4955,18 @@ components:
       - status_display
       - wksa_id
       - wksa_id_can_change
+    StudentExtraInfo:
+      type: object
+      properties:
+        label:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+      required:
+      - label
+      - value
     StudentGradingHistory:
       type: object
       description: |-

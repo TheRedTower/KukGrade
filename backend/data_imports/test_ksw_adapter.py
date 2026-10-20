@@ -10,6 +10,7 @@ import pytest
 from openpyxl.workbook import Workbook
 
 from data_imports.ksw_adapter import (
+    CanonicalLegacyRow,
     WorkbookStructureError,
     parse_ksw_colchester_workbook,
 )
@@ -284,3 +285,238 @@ def test_sheet_with_no_recognisable_header_produces_a_warning_and_no_rows() -> N
 def test_malformed_file_raises_workbook_structure_error() -> None:
     with pytest.raises(WorkbookStructureError):
         parse_ksw_colchester_workbook(b"not a real workbook")
+
+
+# --- the real workbook's layouts (2026-10-20), rebuilt from made-up values ----
+
+
+def sheet(*rows: list[object], title: str = "062025") -> bytes:
+    def build(workbook: Workbook) -> None:
+        ws = workbook.create_sheet(title)
+        for row in rows:
+            ws.append(row)
+
+    return workbook_bytes(build)
+
+
+def by_section(content: bytes) -> dict[str, list[CanonicalLegacyRow]]:
+    grouped: dict[str, list[CanonicalLegacyRow]] = {}
+    for row in parse_ksw_colchester_workbook(content).rows:
+        grouped.setdefault(row.source_section, []).append(row)
+    return grouped
+
+
+def test_an_unaccounted_table_beside_the_main_one_is_read_as_results() -> None:
+    content = sheet(
+        [*MAIN_TABLE_HEADER, "Unaccounted", "Outcome", "Comments"],
+        [
+            "A. Example",
+            "White Belt",
+            "Yellow Stripe",
+            "Pass",
+            "Good.",
+            "Q. Side",
+            "Conditional.",
+            "Etiquette.",
+        ],
+        [
+            "B. Example",
+            "White Belt",
+            "Yellow Stripe",
+            "Fail",
+            "",
+            "R. Side",
+            "N/A",
+            "Not grading.",
+        ],
+    )
+
+    result = parse_ksw_colchester_workbook(content)
+    side = [row for row in result.rows if row.source_section == "Unaccounted"]
+
+    assert [row.source_name for row in side] == ["Q. Side", "R. Side"]
+    assert side[0].record_kind == LegacyRecordKind.GRADING_RESULT
+    assert side[0].outcome == LegacyOutcome.CONDITIONAL
+    assert side[0].source_outcome_text == "Conditional."
+    assert side[0].comments == "Etiquette."
+    assert side[1].outcome is None
+    assert side[0].source_locator == "062025!Unaccounted!R2"
+    main = [row for row in result.rows if row.source_section == ""]
+    assert [row.source_name for row in main] == ["A. Example", "B. Example"]
+    assert main[0].comments == "Good."
+    assert result.warnings == []
+
+
+def test_a_missing_table_keeps_its_unheaded_notes() -> None:
+    content = sheet(
+        [*MAIN_TABLE_HEADER, None, None, None, "Missing"],
+        [
+            "A. Example",
+            "White",
+            "Yellow",
+            "Pass",
+            "",
+            None,
+            None,
+            None,
+            "C. Gone",
+            "Did not take part",
+        ],
+    )
+
+    [missing] = by_section(content)["Missing"]
+
+    assert missing.record_kind == LegacyRecordKind.AUXILIARY_NOTE
+    assert missing.source_name == "C. Gone"
+    assert missing.admin_note == "Did not take part"
+
+
+def test_a_did_not_attend_table_keeps_the_current_belt_and_its_note() -> None:
+    content = sheet(
+        [*MAIN_TABLE_HEADER, None, "Did not attend", "Current belt"],
+        [
+            "A. Example",
+            "White",
+            "Yellow",
+            "Pass",
+            "",
+            None,
+            "D. Away",
+            "Red stripe?",
+            "Paid?",
+        ],
+    )
+
+    [away] = by_section(content)["Did not attend"]
+
+    assert away.record_kind == LegacyRecordKind.DID_NOT_ATTEND
+    assert away.attendance_status == LegacyAttendance.DID_NOT_ATTEND
+    assert away.source_current_rank_text == "Red stripe?"
+    assert away.admin_note == "Paid?"
+
+
+def test_a_repeated_main_column_is_read_once_with_a_warning() -> None:
+    content = sheet(
+        ["Name", "Name", "Current Rank", "Testing For", "Outcome", "Comments"],
+        ["A. Example", "A. Example", "White", "Yellow", "Pass", "Fine."],
+        title="092026",
+    )
+
+    result = parse_ksw_colchester_workbook(content)
+
+    [row] = result.rows
+    assert (row.source_name, row.source_current_rank_text, row.comments) == (
+        "A. Example",
+        "White",
+        "Fine.",
+    )
+    assert result.warnings == [
+        "Sheet '092026' repeats a column of the main table; only the first was read.",
+    ]
+
+
+def test_notes_in_no_table_are_kept_with_a_warning_never_dropped() -> None:
+    content = sheet(
+        [*MAIN_TABLE_HEADER, None, "General Comments - juniors"],
+        ["A. Example", "White", "Yellow", "Pass", "", None, "Low stances."],
+        ["B. Example", "White", "Yellow", "Pass", "", "These two need more.", None],
+        title="062026",
+    )
+
+    result = parse_ksw_colchester_workbook(content)
+    notes = [row for row in result.rows if row.source_name == "Sheet note"]
+
+    assert [
+        (row.source_section, row.admin_note, row.source_locator) for row in notes
+    ] == [
+        ("General Comments - juniors", "Low stances.", "062026!G2"),
+        ("Beside the table", "These two need more.", "062026!F3"),
+    ]
+    assert all(row.record_kind == LegacyRecordKind.AUXILIARY_NOTE for row in notes)
+    assert result.warnings == [
+        "Sheet '062026' has 2 note(s) in no table; each is kept as a note named "
+        "'Sheet note'.",
+    ]
+
+
+def test_a_main_table_column_kukgrade_has_no_field_for_is_kept_on_the_record() -> None:
+    content = sheet(
+        ["Name", "Current Rank", "Testing For", "Outcome", "Examiner", "Comments"],
+        ["A. Example", "White", "Yellow", "Pass", "KSN Lee", "Fine."],
+        ["B. Example", "White", "Yellow", "Pass", "", ""],
+    )
+
+    first, second = parse_ksw_colchester_workbook(content).rows
+
+    assert first.admin_note == "Examiner: KSN Lee"
+    assert first.comments == "Fine."
+    assert second.admin_note == ""
+
+
+def test_every_non_blank_cell_of_a_grading_sheet_is_kept_somewhere() -> None:
+    rows: list[list[object]] = [
+        [
+            *MAIN_TABLE_HEADER,
+            "Unaccounted",
+            "Outcome",
+            "Comments",
+            None,
+            "Missing",
+            None,
+            "Did not attend",
+            "Current belt",
+            None,
+            "Notes",
+        ],
+        [
+            "A",
+            "White",
+            "Yellow",
+            "Pass",
+            "c1",
+            "Q",
+            "Pass.",
+            "c2",
+            "loose",
+            "M",
+            "m-note",
+            "D",
+            "Red",
+            "d-note",
+            "n1",
+        ],
+        [
+            "B",
+            "White",
+            "Yellow",
+            "Fail",
+            "c3",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        ],
+    ]
+    content = sheet(*rows)
+
+    result = parse_ksw_colchester_workbook(content)
+    kept = set()
+    for row in result.rows:
+        for value in (
+            row.source_name,
+            row.source_current_rank_text,
+            row.source_testing_for_rank_text,
+            row.source_outcome_text,
+            row.comments,
+            *row.admin_note.split("\n"),
+        ):
+            kept.add(value)
+    data_cells = {str(cell) for row in rows[1:] for cell in row if cell}
+
+    assert data_cells - kept == set()

@@ -1836,7 +1836,8 @@ roster importer) and four explicit corrections -
 `void_legacy_record` - each auditing itself individually. A rank mapping
 is reviewed once per distinct source-text value across a batch, not per
 row, with an exact-match-only suggestion (never fuzzy, never
-auto-applied); leaving it unresolved never blocks a row from being
+auto-applied; since 2026-10-20 also the workbook's fixed spellings, "White
+Belt" and "DBN", still never a near miss); leaving it unresolved never blocks a row from being
 committed, unlike the roster importer's required `Student.current_rank` -
 it is correctable at any time afterwards via the reconciliation API.
 Reading an imported record (`GET /api/gradings/legacy-records/`) matches

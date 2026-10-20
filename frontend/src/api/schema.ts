@@ -1684,6 +1684,12 @@ export interface components {
             readonly column_mapping: {
                 [key: string]: string;
             };
+            /** @description A roster's whole-file value for a field, where a row has none. */
+            readonly defaults: {
+                [key: string]: string;
+            };
+            /** @description A roster's columns kept as each student's extra information. */
+            readonly extra_columns: string[];
             readonly row_counts: components["schemas"]["ImportRowCounts"];
             readonly summary_json: {
                 [key: string]: number;
@@ -1715,11 +1721,23 @@ export interface components {
          * @enum {string}
          */
         ImportBatchStatusEnum: "UPLOADED" | "COMMITTED" | "CANCELLED" | "EXPIRED";
-        /** @description POST /{id}/mapping/: a roster's column for each KukGrade field. */
+        /**
+         * @description POST /{id}/mapping/: how a roster maps onto KukGrade.
+         *
+         *     A column for each field, a whole-file value for a field the file lacks
+         *     (current_rank or status only), and the columns to keep as extra
+         *     information. Each required field needs a column or a whole-file value.
+         */
         ImportMappingRequest: {
             column_mapping: {
                 [key: string]: string;
             };
+            /** @description current_rank and/or status, used where a row has none. */
+            defaults?: {
+                [key: string]: string;
+            };
+            /** @description The file's columns to keep as each student's extra information. */
+            extra_columns?: string[];
         };
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
@@ -1730,13 +1748,17 @@ export interface components {
             readonly outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
             readonly outcome_display: string;
             readonly excluded: boolean;
-            /** @description The row's values by KukGrade field, as checked - for a roster wksa_id, first_name, last_name, date_of_birth, current_rank and status; for historical gradings name, period, current_rank, testing_for_rank, outcome and report. */
+            /** @description The row's values by KukGrade field, as checked - for a roster wksa_id, first_name, last_name, date_of_birth, current_rank and status; for historical gradings name, period, current_rank, testing_for_rank, outcome, report, section and note. */
             values: {
                 [key: string]: string;
             };
             issues: string[];
             /** @description The fields whose value is the importer's fix, not the file's. */
             readonly corrected_fields: string[];
+            /** @description The row's values in the columns kept as extra information. */
+            readonly extra: {
+                [key: string]: string;
+            };
             readonly created_id: string;
         };
         ImportRowCounts: {
@@ -2253,6 +2275,10 @@ export interface components {
         RankMappingSuggestion: {
             source_text: string;
             suggested_rank_code: string | null;
+            /** @description The source marks its own doubt, as in 'Red stripe?'. */
+            doubtful: boolean;
+            /** @description How many rows use this text. */
+            rows: number;
         };
         ReadinessResponse: {
             status: string;
@@ -2328,6 +2354,8 @@ export interface components {
             wksa_id: string;
             readonly wksa_id_can_change: boolean;
             readonly previous_wksa_ids: components["schemas"]["PreviousWksaId"][];
+            /** @description What an import's file said that KukGrade has no field for. */
+            readonly extra_information: components["schemas"]["StudentExtraInfo"][];
             first_name: string;
             last_name: string;
             /** Format: date */
@@ -2339,6 +2367,10 @@ export interface components {
             readonly age_band_display: string;
             /** Format: date-time */
             readonly created_at: string;
+        };
+        StudentExtraInfo: {
+            readonly label: string;
+            readonly value: string;
         };
         /**
          * @description Combines finalised native outcomes with linked, non-voided legacy

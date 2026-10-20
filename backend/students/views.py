@@ -145,7 +145,7 @@ class StudentViewSet(
             return with_current_grading(
                 with_age_band_on(students, self._age_band_date()),
             )
-        return students.prefetch_related("previous_wksa_ids")
+        return students.prefetch_related("previous_wksa_ids", "extra_information")
 
     def _age_band_date(self) -> date:
         """The date a list's age bands are worked out on.

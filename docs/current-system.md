@@ -122,7 +122,11 @@ checks on each push and pull request.
   fixing a row and leaving one out work on those rows under the batch lock,
   so an import can be left and resumed, and finishing re-checks every row
   against the database. Rows go when an import is cancelled or expires, and
-  30 days after it finishes (`expire_stale_import_batches`). See
+  30 days after it finishes (`expire_stale_import_batches`). A roster maps
+  onto KukGrade's fields with whole-file values for rank and status, and
+  columns KukGrade has no field for kept as the student's extra information
+  (`students.models.StudentExtraInfo`, on the student page). The Colchester
+  workbook's side tables and loose notes are read, not dropped (A4). See
   `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW

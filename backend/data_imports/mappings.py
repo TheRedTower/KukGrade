@@ -26,6 +26,14 @@ STUDENT_REQUIRED_TARGET_FIELDS: tuple[str, ...] = (
     "current_rank",
 )
 
+# Fields one value can be given for the whole file, used where a row has
+# none (no column, or a blank cell). Never a field that is each person's own -
+# an ID, a name or a date of birth given for everyone would be invented.
+STUDENT_WHOLE_FILE_FIELDS: tuple[str, ...] = ("current_rank", "status")
+
+# An extra column is kept under its header, which must fit the label.
+EXTRA_LABEL_MAX_LENGTH = 150
+
 _HEADER_ALIASES: dict[str, tuple[str, ...]] = {
     "wksa_id": ("wksa id", "wksa_id", "member no", "member number", "id"),
     "first_name": ("first name", "first_name", "forename", "given name"),

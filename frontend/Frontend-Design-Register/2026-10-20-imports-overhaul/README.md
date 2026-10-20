@@ -1,6 +1,6 @@
 # Imports overhaul - proposed directions (2026-10-20)
 
-Status: **in progress, screen by screen.** Selected so far: 1D, 2D, 3D and 4D. Each screen is proposed as
+Status: **in progress, screen by screen.** Selected so far: 1D, 2D, 3D, 4D and 5C. Each screen is proposed as
 competing directions, one is selected, and the selection is recorded in
 `../FRONTEND_DESIGN_REGISTER.md` before the next screen is designed.
 
@@ -82,3 +82,19 @@ written and can only be left out.
 added at the owner's request so a person can give everything being imported
 a last check: every row that will be saved, in file order, fixes marked,
 each with Leave out.
+
+4D was amended the same day: a row still needing attention must be fixed or
+left out before Continue is available, with "Leave out the N left" for all
+that remain (owner: only rows whose KukGrade fields are right are imported).
+
+## Screen 5 - Confirm
+
+Each board shows the import ready, saving and refused (someone changed
+something since the check, so nothing was saved), and every one confirms
+through the same two-sentence dialog (FDR-040).
+
+| | Direction | Idea | Cost |
+| --- | --- | --- | --- |
+| 5A | Receipt | One ledger of what the import does, line by line (new, skipped, left out, extra information, status, rank), each with a link back to its step. | Reads as a list of numbers. |
+| 5B | Before and After | The file's rows on one side, what KukGrade holds afterwards on the other: a proportional bar and a group per outcome that opens to show who. | More to take in for a small import. |
+| **5C** | **Seal on the Review Page** (selected 2026-10-20, FDR-053, SCR-033) | No separate page: once every row is sorted, an action banner on the review page carries the summary and the button, above the last-look list. | The review and the confirmation share one screen. |

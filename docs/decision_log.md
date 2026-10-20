@@ -18,7 +18,7 @@ Consequences:
 
 ## Accepted decisions
 
-### 2026-10-20 - The import screens: four screens chosen, and what they ask of the backend
+### 2026-10-20 - The import screens: five screens chosen, and what they ask of the backend
 
 Status: Accepted (design); the screens are not built yet
 
@@ -39,6 +39,9 @@ The owner chose the import screens one at a time from proposed directions
 - **Review rows (FDR-052):** the rows that need attention first, fixable in
   place or left out, and a "Look over all" list of exactly what will be
   imported, fixes marked, for a person's last check before confirming.
+- **Confirm (FDR-053):** on the review page itself: once every row is
+  sorted, a banner with the summary and the button appears above the last
+  look, and the button opens a two-sentence confirmation.
 - **An unfinished import is still cleared 24 hours after upload.** Asked
   whether that limit is needed, the owner kept it: the uploaded file and its
   rows are personal data held outside the records, and a day is a sane time.
@@ -48,8 +51,8 @@ The owner chose the import screens one at a time from proposed directions
 
 Context:
 The 2026-10-20 import overhaul built the backend first. These choices
-complete the design of the steps up to confirming; the confirm and results
-steps and the linking of historical records follow.
+complete the design of the steps up to and including confirming; the
+results step and the linking of historical records follow.
 
 Consequences:
 - The backend must accept a roster mapping that has no column for a needed
@@ -57,9 +60,12 @@ Consequences:
   missing is ever imported; today the mapping is refused.
 - The row list must also serve each cell as the file has it (for the columns
   not imported), and the historical rows behind one rank spelling.
-- Rows still needing attention at the end are not imported, and the screen
-  says so beside Continue. Whether they should instead stop the import is
-  open.
+- **A row is only imported once KukGrade's own fields are right** (owner,
+  2026-10-20). A row still needing attention is never imported quietly:
+  each one is fixed or deliberately left out before the import can be
+  confirmed, and a single "Leave out the rest" does the latter for all that
+  remain. Today commit imports the ready rows and passes over the rest
+  without a word; it is to refuse while any row needs attention.
 
 ### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
 

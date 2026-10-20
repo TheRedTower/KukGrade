@@ -186,8 +186,9 @@ a:hover{color:#6b4705}
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
 <button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); font-weight: 600; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Back</button>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
-<span style="color: var(--color-text-muted); font-size: 14px">{{continueNote}}</span>
-<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text); font-weight: 600; font-size: 14px">Continue to confirm<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+<span id="continue-why-4d" style="color: {{continueColor}}; font-size: 14px; font-weight: 600">{{continueNote}}</span>
+<sc-if value="{{hasOpen}}" hint-placeholder-val="{{ true }}"><button type="button" onClick="{{leaveRest}}" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-weight: 600; font-size: 14px">Leave out the {{openCount}} left</button></sc-if>
+<button type="button" disabled="{{hasOpen}}" aria-describedby="continue-why-4d" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text); font-weight: 600; font-size: 14px; opacity: {{continueOpacity}}">Continue to confirm<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
 </div>
 </div>
 
@@ -372,7 +373,16 @@ class Component extends DCLogic {
         listLead: list.lead,
         listRows: list.rows,
         listFoot: list.foot,
-        continueNote: stillOpen ? stillOpen + ' rows still need attention and will not be imported as they are.' : 'Every row is ready or left out.'
+        continueNote: stillOpen ? 'Fix or leave out the ' + stillOpen + ' rows that need attention first.' : 'Every row is ready or left out.',
+        continueColor: stillOpen ? 'var(--color-danger)' : 'var(--color-text-muted)',
+        hasOpen: stillOpen > 0,
+        openCount: stillOpen,
+        continueOpacity: stillOpen ? 0.5 : 1,
+        leaveRest: () => {
+          const next = { ...out };
+          rows.forEach((r) => { if (!r.left && !r.ok) next[r.n] = true; });
+          this.setState({ out: next });
+        }
       };
     }
 
@@ -458,7 +468,12 @@ class Component extends DCLogic {
       listLead: list.lead,
       listRows: list.rows,
       listFoot: list.foot,
-      continueNote: 'Ranks still to match can be matched later, when linking records.'
+      continueNote: 'Ranks still to match can be matched later, when linking records.',
+      continueColor: 'var(--color-text-muted)',
+      hasOpen: false,
+      openCount: 0,
+      continueOpacity: 1,
+      leaveRest: () => {}
     };
   }
 }

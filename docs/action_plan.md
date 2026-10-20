@@ -53,9 +53,11 @@ Recorded, not yet fixed.
 
 ## Needs a decision first
 
-- **Enforcing the WKSA ID scheme** (`NNN-N-NNN` for students, `A-NNNNN` for
-  black belts, previous IDs kept on promotion; decision log 2026-10-20):
-  waits on whether a leaver's student number is ever given to someone new.
+- **Previous WKSA IDs** (decision log 2026-10-20): recording a student's
+  black belt ID, keeping the student ID it replaces, and finding a student by
+  either. The two forms are already enforced. Whether a leaver's student
+  number can be given to someone new decides whether previous IDs stay
+  unique; the school owner is to answer.
 
 - Whether offline grading is required, and its conflict policy, before any
   PWA, IndexedDB, or outbox work.

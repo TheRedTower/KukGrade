@@ -26,7 +26,8 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
    name as it should appear in the top bar, and `DJANGO_TIME_ZONE` to the
    club's IANA time zone (default `Europe/London`; it decides what "today"
-   means for ages and grading dates). Set mode
+   means for ages and grading dates), and `KUKGRADE_SCHOOL_PREFIX` if the
+   school's student IDs do not start `206-2`. Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
 5. Requests pass through Cloudflare and then Traefik, so
    `DJANGO_NUM_PROXIES=2`. That count is only right if Traefik trusts

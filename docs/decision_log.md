@@ -20,8 +20,9 @@ Consequences:
 
 ### 2026-10-20 - The WKSA ID scheme
 
-Status: Accepted (format and the owner's answers); implementation waits for
-the one question below
+Status: Accepted (format and the owner's answers). The two forms are
+enforced since 2026-10-20; previous IDs and recording a black belt ID are
+still to build
 
 Decision:
 A WKSA ID is never free text. It is the identifier a student is known and
@@ -2832,10 +2833,9 @@ Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`). The owner's
 answers to the rest are under "2026-10-18 - Owner answers on the audit's open
 decisions" above.
 
-1. **WKSA ID case and uniqueness (F-30)** - the format is decided ("2026-10-20
-   - The WKSA ID scheme" above); building it waits on that entry's last
-   question, whether student numbers are ever reused. Until then only the Add student screen upper-cases the ID; the
-   API and roster import store it as typed.
+1. **WKSA ID case and uniqueness (F-30)** - settled by "2026-10-20 - The
+   WKSA ID scheme" above: the two forms are enforced on every path. Still
+   open there: whether a leaver's student number is ever reused.
 2. **Roster import (F-19)** - deferred to the planned import overhaul. A
    5,000-row commit takes about a minute in one request.
 3. **Housekeeping** - `frontend/src/assets/kukgrade-logo.jpg` is imported by

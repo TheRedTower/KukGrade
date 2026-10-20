@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -306,6 +307,14 @@ SPECTACULAR_SETTINGS = {
 
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
+
+# The school's own prefix in its student IDs, 206-2 for Colchester
+# (students/wksa_ids.py). Shown as the example; a transfer's ID may carry
+# another school's.
+SCHOOL_ID_PREFIX = os.environ.get("KUKGRADE_SCHOOL_PREFIX", "").strip() or "206-2"
+if not re.fullmatch("[0-9]{3}-[0-9]", SCHOOL_ID_PREFIX):
+    msg = "KUKGRADE_SCHOOL_PREFIX must look like 206-2."
+    raise ImproperlyConfigured(msg)
 
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",

@@ -41,6 +41,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "KUKGRADE_CLUB_NAME",
         "DJANGO_TIME_ZONE",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
+        "KUKGRADE_SCHOOL_PREFIX",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -282,3 +283,26 @@ def test_a_temporary_password_lifetime_under_an_hour_refuses_to_start(
             **PRODUCTION_ENV,
             KUKGRADE_TEMPORARY_PASSWORD_HOURS="0",
         )
+
+
+def test_the_school_prefix_defaults_to_colchester_unless_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    default = load_settings(monkeypatch, **PRODUCTION_ENV)
+    configured = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        KUKGRADE_SCHOOL_PREFIX=" 301-4 ",
+    )
+
+    assert default.SCHOOL_ID_PREFIX == "206-2"
+    assert configured.SCHOOL_ID_PREFIX == "301-4"
+
+
+@pytest.mark.parametrize("prefix", ["206", "206-22", "2062", "A-2"])
+def test_a_school_prefix_in_the_wrong_form_refuses_to_start(
+    monkeypatch: pytest.MonkeyPatch,
+    prefix: str,
+) -> None:
+    with pytest.raises(ImproperlyConfigured):
+        load_settings(monkeypatch, **PRODUCTION_ENV, KUKGRADE_SCHOOL_PREFIX=prefix)

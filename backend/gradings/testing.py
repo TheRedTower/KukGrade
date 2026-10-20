@@ -74,7 +74,7 @@ def grading_session(**overrides: object) -> GradingSession:
 
 def student(**overrides: object) -> Student:
     data: dict[str, object] = {
-        "wksa_id": f"WKSA{Student.objects.count() + 1:04d}",
+        "wksa_id": f"206-2-{Student.objects.count() + 1:03d}",
         "first_name": "Alex",
         "last_name": "Kim",
         "date_of_birth": date(2017, 3, 20),

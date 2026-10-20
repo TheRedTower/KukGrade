@@ -36,7 +36,7 @@ def test_instructor_can_list_legacy_records() -> None:
 
 def test_instructor_cannot_link_unlink_resolve_or_void() -> None:
     record = legacy_record()
-    target = student(wksa_id="RECON001")
+    target = student(wksa_id="206-2-500")
     client = APIClient()
     client.force_authenticate(user=instructor())
 
@@ -57,7 +57,7 @@ def test_instructor_cannot_link_unlink_resolve_or_void() -> None:
 
 def test_admin_links_and_unlinks_a_record_via_the_api() -> None:
     record = legacy_record()
-    target = student(wksa_id="RECON002")
+    target = student(wksa_id="206-2-501")
     client = APIClient()
     client.force_authenticate(user=admin())
 
@@ -138,7 +138,7 @@ def test_linked_filter_narrows_the_list() -> None:
     batch = legacy_batch(uploaded_by=admin("recon-filter-uploader@example.com"))
     linked = legacy_record(source_batch=batch, source_locator="06-2025!R3")
     unlinked = legacy_record(source_batch=batch, source_locator="06-2025!R4")
-    target = student(wksa_id="RECON003")
+    target = student(wksa_id="206-2-502")
     link_legacy_record_to_student(linked, target, actor=admin())
 
     client = APIClient()
@@ -165,7 +165,7 @@ def test_linking_does_not_change_source_name() -> None:
     """Decision 3/24.4: a link/unlink correction never touches source
     identity text."""
     record = legacy_record(source_name="Original Name")
-    target = student(wksa_id="RECON004")
+    target = student(wksa_id="206-2-503")
     client = APIClient()
     client.force_authenticate(user=admin())
 

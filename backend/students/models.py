@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from ranks.models import Rank
+from students import wksa_ids
 
 
 class Student(models.Model):
@@ -46,9 +47,11 @@ class Student(models.Model):
     class Meta:
         ordering = ["last_name", "first_name", "wksa_id"]
         constraints = [
+            # Either form and nothing else, whatever path wrote the row
+            # (students/wksa_ids.py).
             models.CheckConstraint(
-                condition=~Q(wksa_id=""),
-                name="student_wksa_id_not_blank",
+                condition=Q(wksa_id__regex=wksa_ids.DATABASE_PATTERN),
+                name="student_wksa_id_format",
             ),
             models.CheckConstraint(
                 condition=Q(status__in=["ACTIVE", "INACTIVE", "LEFT"]),
@@ -65,13 +68,15 @@ class Student(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        self.wksa_id = (self.wksa_id or "").strip()
+        self.wksa_id = wksa_ids.normalise(self.wksa_id)
         self.first_name = (self.first_name or "").strip()
         self.last_name = (self.last_name or "").strip()
 
         errors: dict[str, list[str]] = {}
         if not self.wksa_id:
             errors["wksa_id"] = ["WKSA ID is required."]
+        elif wksa_ids.form_of(self.wksa_id) is None:
+            errors["wksa_id"] = [wksa_ids.format_message()]
         if not self.first_name:
             errors["first_name"] = ["First name is required."]
         if not self.last_name:

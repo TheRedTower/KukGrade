@@ -9,7 +9,7 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
-import { useRanksQuery } from "./queries";
+import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
 import { LockIcon } from "./Icons";
@@ -17,6 +17,11 @@ import { LockIcon } from "./Icons";
 export function AddStudentScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // The two forms a WKSA ID takes, as the server enforces them.
+  const idForms = useSiteSettingsQuery().data?.wksa_id.forms ?? [];
+  const idExamples = idForms.map(
+    (form) => `${form.label.charAt(0).toLowerCase()}${form.label.slice(1)} such as ${form.example}`,
+  );
 
   // Form State
   const [firstName, setFirstName] = useState("");
@@ -82,7 +87,8 @@ export function AddStudentScreen() {
       const newStudent = await createStudent({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        wksa_id: wksaId.trim().toUpperCase(),
+        // As typed: the server tidies spacing and case, and checks the form.
+        wksa_id: wksaId,
         date_of_birth: dateOfBirth,
         current_rank: effectiveRankId!,
         status,
@@ -209,7 +215,7 @@ export function AddStudentScreen() {
               id="wksa-id-input"
               type="text"
               className={`form-text-input ${getFieldError("wksa_id") ? "input-error" : ""}`}
-              placeholder="e.g. KG-0264 or UK12345"
+              placeholder={idForms.length ? `e.g. ${idForms.map((form) => form.example).join(" or ")}` : undefined}
               value={wksaId}
               onChange={(e) => setWksaId(e.target.value)}
               disabled={isSubmitting}
@@ -221,7 +227,8 @@ export function AddStudentScreen() {
               <p className="form-field-error" id="wksa-id-error" role="alert">{getFieldError("wksa_id")}</p>
             ) : (
               <p className="form-field-help">
-                This identifier cannot be changed after the record is created.
+                {idExamples.length ? `A ${idExamples.join(", or a ")}. ` : ""}
+                It cannot be changed after the record is created.
               </p>
             )}
           </div>

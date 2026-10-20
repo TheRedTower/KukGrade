@@ -19,6 +19,7 @@ const served: SiteSettings = {
     ],
     checked_on_save: ["Not a commonly used password"],
   },
+  wksa_id: { school_prefix: "206-2", forms: [] },
 };
 
 function renderWith(password: string) {

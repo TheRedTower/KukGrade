@@ -17,6 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from accounts.password_policy import policy as password_policy
+from students import wksa_ids
 
 
 @require_safe
@@ -54,9 +55,25 @@ class PasswordPolicySerializer(serializers.Serializer):
     )
 
 
+class WksaIdFormSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    # As on PasswordCharacterRuleSerializer.
+    label = serializers.CharField()  # type: ignore[assignment]
+    pattern = serializers.CharField(
+        help_text="A regular expression the whole ID must match.",
+    )
+    example = serializers.CharField()
+
+
+class WksaIdSchemeSerializer(serializers.Serializer):
+    school_prefix = serializers.CharField()
+    forms = WksaIdFormSerializer(many=True)
+
+
 class SiteSettingsSerializer(serializers.Serializer):
     club_name = serializers.CharField()
     password_policy = PasswordPolicySerializer()
+    wksa_id = WksaIdSchemeSerializer()
 
 
 @extend_schema(responses=SiteSettingsSerializer)
@@ -66,12 +83,17 @@ def site_settings(_request: Request) -> Response:
     """Deployment settings the frontend shows, such as the club's name.
 
     Public, like the health check: the sign-in screen may show them too, and
-    nothing here is personal data. The password policy is the one the server
-    enforces (accounts/password_policy.py), served so the screens never keep
-    a copy of their own.
+    nothing here is personal data. The password policy and the WKSA ID forms
+    are the ones the server enforces (accounts/password_policy.py,
+    students/wksa_ids.py), served so the screens never keep a copy of their
+    own.
     """
     return Response(
         SiteSettingsSerializer(
-            {"club_name": settings.CLUB_NAME, "password_policy": password_policy()},
+            {
+                "club_name": settings.CLUB_NAME,
+                "password_policy": password_policy(),
+                "wksa_id": wksa_ids.described(),
+            },
         ).data,
     )

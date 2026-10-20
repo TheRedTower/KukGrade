@@ -48,6 +48,7 @@ from data_imports.storage import import_upload_storage
 from gradings.legacy_services import create_legacy_grading_record
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.models import Rank
+from students import wksa_ids
 from students.models import Student
 from students.services import create_student
 
@@ -483,7 +484,9 @@ def _labelled(name: str, message: str) -> str:
 
 
 def _row_wksa_id(values: dict[str, Any], correction: dict[str, str]) -> str:
-    return str(correction.get("wksa_id", values.get("wksa_id")) or "").strip()
+    # Tidied as Student.clean() tidies it, so a file's "a-20819" is found as
+    # the existing A-20819 and counted once.
+    return wksa_ids.normalise(correction.get("wksa_id", values.get("wksa_id")))
 
 
 def _classify_student_row(

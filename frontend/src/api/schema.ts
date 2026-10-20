@@ -822,9 +822,10 @@ export interface paths {
          * @description Deployment settings the frontend shows, such as the club's name.
          *
          *     Public, like the health check: the sign-in screen may show them too, and
-         *     nothing here is personal data. The password policy is the one the server
-         *     enforces (accounts/password_policy.py), served so the screens never keep
-         *     a copy of their own.
+         *     nothing here is personal data. The password policy and the WKSA ID forms
+         *     are the ones the server enforces (accounts/password_policy.py,
+         *     students/wksa_ids.py), served so the screens never keep a copy of their
+         *     own.
          */
         get: operations["site_retrieve"];
         put?: never;
@@ -2010,6 +2011,7 @@ export interface components {
         SiteSettings: {
             club_name: string;
             password_policy: components["schemas"]["PasswordPolicy"];
+            wksa_id: components["schemas"]["WksaIdScheme"];
         };
         /**
          * @description * `KUKGRADE` - KUKGRADE
@@ -2250,6 +2252,17 @@ export interface components {
          * @enum {string}
          */
         WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "OTHER";
+        WksaIdForm: {
+            code: string;
+            label: string;
+            /** @description A regular expression the whole ID must match. */
+            pattern: string;
+            example: string;
+        };
+        WksaIdScheme: {
+            school_prefix: string;
+            forms: components["schemas"]["WksaIdForm"][];
+        };
     };
     responses: never;
     parameters: never;

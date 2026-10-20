@@ -297,7 +297,7 @@ describe("Add student screen (/students/new)", () => {
     expect(screen.getByLabelText(/First name/i)).toBeVisible();
     expect(screen.getByLabelText(/Last name/i)).toBeVisible();
     expect(screen.getByLabelText(/WKSA ID/i)).toBeVisible();
-    expect(screen.getByText("This identifier cannot be changed after the record is created.")).toBeVisible();
+    expect(screen.getByText(/It cannot be changed after the record is created\./)).toBeVisible();
 
     // Section 2: Grading details
     expect(screen.getByRole("heading", { name: "Grading details" })).toBeVisible();
@@ -371,6 +371,19 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
       }
+      if (url.includes("/api/site/")) {
+        return jsonResponse(200, {
+          club_name: "Test Club",
+          password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
+          wksa_id: {
+            school_prefix: "206-2",
+            forms: [
+              { code: "student", label: "Student ID", pattern: "x", example: "206-2-150" },
+              { code: "black_belt", label: "Black belt ID", pattern: "x", example: "A-20819" },
+            ],
+          },
+        });
+      }
       if (url.includes("/api/students/") && options?.method === "POST") {
         createdPayload = JSON.parse(options.body as string);
         return jsonResponse(201, {
@@ -422,7 +435,13 @@ describe("Add student screen (/students/new)", () => {
     // Fill form
     await user.type(screen.getByLabelText(/First name/i), "Alex");
     await user.type(screen.getByLabelText(/Last name/i), "Carter");
-    await user.type(screen.getByLabelText(/WKSA ID/i), "UK-9999");
+    // The forms come from the server; the ID goes as typed, for it to tidy.
+    expect(
+      await screen.findByText(
+        /A student ID such as 206-2-150, or a black belt ID such as A-20819\./,
+      ),
+    ).toBeVisible();
+    await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");
     await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
 
     // Select Yellow Stripe (id 2)
@@ -439,7 +458,7 @@ describe("Add student screen (/students/new)", () => {
     expect(createdPayload).toEqual({
       first_name: "Alex",
       last_name: "Carter",
-      wksa_id: "UK-9999",
+      wksa_id: " a-20819",
       date_of_birth: "2005-04-12",
       current_rank: 2,
       status: "ACTIVE",

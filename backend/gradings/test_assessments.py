@@ -726,7 +726,7 @@ def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() ->
     # Admin and the shell reach the model directly, not the serializer.
     built = build_candidate(
         session=grading_session(),
-        student=student(wksa_id="REGWD003"),
+        student=student(wksa_id="206-2-500"),
         testing_for_rank=rank("YELLOW_STRIPE"),
     )
     built.status = GradingCandidate.Status.COMPLETED
@@ -811,7 +811,7 @@ def test_assessment_item_result_update_rejected_in_draft_session() -> None:
 def test_candidate_core_fields_cannot_change_after_assessment_generation() -> None:
     generated = assessment()
     built = generated.candidate
-    built.student = student(wksa_id="CHANGEDCORE")
+    built.student = student(wksa_id="206-2-501")
 
     with pytest.raises(ValidationError):
         built.save()

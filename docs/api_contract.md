@@ -79,7 +79,7 @@ not the response.
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
-| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist. |
+| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist, and `wksa_id` - `{school_prefix, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take, with `school_prefix` from `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
 
 ## 1. Authentication
 
@@ -200,7 +200,10 @@ List, retrieve, create, update, and an administrator-only delete.
 
 The list representation omits `date_of_birth`; the detail representation
 includes it. The list carries `can_be_graded` (false only for `LEFT`), which
-the cohort builder filters on rather than re-deriving the rule. `wksa_id` is writable on create and read-only afterwards. See
+the cohort builder filters on rather than re-deriving the rule. `wksa_id` is writable on create and read-only afterwards, and
+must be a student ID (`NNN-N-NNN`, such as `206-2-150`) or a black belt ID
+(`A-NNNNN`, such as `A-20819`); surrounding space is dropped and the `A`
+upper-cased, and anything else is a `wksa_id` field error. See
 `docs/current-system.md` for the rationale.
 
 `DELETE` (2026-09-22) is deliberately routine, not a rare erasure path -

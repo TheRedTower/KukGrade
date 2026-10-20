@@ -1545,9 +1545,10 @@ paths:
         Deployment settings the frontend shows, such as the club's name.
 
         Public, like the health check: the sign-in screen may show them too, and
-        nothing here is personal data. The password policy is the one the server
-        enforces (accounts/password_policy.py), served so the screens never keep
-        a copy of their own.
+        nothing here is personal data. The password policy and the WKSA ID forms
+        are the ones the server enforces (accounts/password_policy.py,
+        students/wksa_ids.py), served so the screens never keep a copy of their
+        own.
       tags:
       - site
       security:
@@ -4167,9 +4168,12 @@ components:
           type: string
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
+        wksa_id:
+          $ref: '#/components/schemas/WksaIdScheme'
       required:
       - club_name
       - password_policy
+      - wksa_id
     SourceEnum:
       enum:
       - KUKGRADE
@@ -4712,6 +4716,35 @@ components:
         * `WITHDREW` - Withdrew voluntarily
         * `ABSENT` - Did not attend
         * `OTHER` - Other
+    WksaIdForm:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        pattern:
+          type: string
+          description: A regular expression the whole ID must match.
+        example:
+          type: string
+      required:
+      - code
+      - example
+      - label
+      - pattern
+    WksaIdScheme:
+      type: object
+      properties:
+        school_prefix:
+          type: string
+        forms:
+          type: array
+          items:
+            $ref: '#/components/schemas/WksaIdForm'
+      required:
+      - forms
+      - school_prefix
   securitySchemes:
     cookieAuth:
       type: apiKey

@@ -9,8 +9,23 @@ from django.http import HttpRequest
 from accounts.models import User
 from kukgrade.admin_mixins import ServiceDeleteMixin
 from students import wksa_ids
-from students.models import Student
+from students.models import PreviousWksaId, RetiredWksaId, Student
 from students.services import create_student, delete_student, update_student
+
+
+class PreviousWksaIdInline(admin.TabularInline):
+    """Read-only: written only when an ID is replaced (students/services.py)."""
+
+    model = PreviousWksaId
+    extra = 0
+    can_delete = False
+    fields = ("wksa_id", "replaced_at")
+    readonly_fields = fields
+
+    def has_add_permission(
+        self, request: HttpRequest, obj: Student | None = None
+    ) -> bool:
+        return False
 
 
 @admin.register(Student)
@@ -25,7 +40,13 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
         "status",
     )
     list_filter = ("current_rank", "status")
-    search_fields = ("wksa_id", "first_name", "last_name")
+    search_fields = (
+        "wksa_id",
+        "previous_wksa_ids__wksa_id",
+        "first_name",
+        "last_name",
+    )
+    inlines = (PreviousWksaIdInline,)
     ordering = ("last_name", "first_name", "wksa_id")
 
     def get_readonly_fields(
@@ -77,3 +98,28 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
             status=obj.status if "status" in changed_data else None,
             actor=cast(User, request.user),
         )
+
+
+@admin.register(RetiredWksaId)
+class RetiredWksaIdAdmin(admin.ModelAdmin):
+    """Read-only: the IDs of deleted students, kept from reuse."""
+
+    list_display = ("wksa_id", "retired_at")
+    search_fields = ("wksa_id",)
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: RetiredWksaId | None = None,
+    ) -> bool:
+        return False
+
+    def has_delete_permission(
+        self,
+        request: HttpRequest,
+        obj: RetiredWksaId | None = None,
+    ) -> bool:
+        return False

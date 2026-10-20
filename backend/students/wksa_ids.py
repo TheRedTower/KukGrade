@@ -13,7 +13,12 @@ A student at a black belt rank (JKN and above, `Rank.Category.BLACK_BELT`)
 holds a black belt ID. WKSA hands it out at the national grading where they
 are promoted, so it takes effect at once: their student ID is changed to it,
 once, when their instructor next records it, and from then on it never
-changes - later ranks and certificates come under the same ID.
+changes - later ranks and certificates come under the same ID. The student
+ID it replaced is kept as one of the student's previous IDs
+(`students.models.PreviousWksaId`): the school owner confirmed (2026-10-20)
+that a number stays with its student for good and is never given to anyone
+else, so no ID, current or previous, is ever held by two people - nor one whose
+student was deleted (`students.models.RetiredWksaId`).
 
 `Student.clean()` normalises and checks an ID against these forms, so the
 API, Django admin and the roster import all apply them; the database refuses
@@ -50,6 +55,10 @@ FORMS: tuple[IdForm, ...] = (STUDENT_ID, BLACK_BELT_ID)
 DATABASE_PATTERN = "^(" + "|".join(form.pattern for form in FORMS) + ")$"
 
 
+# A previous ID is always a student ID (see students.models.PreviousWksaId).
+STUDENT_ID_DATABASE_PATTERN = "^" + STUDENT_ID.pattern + "$"
+
+
 def normalise(value: object) -> str:
     """As typed, less surrounding space, with the black belt `A` upper-cased."""
     return str(value or "").strip().upper()
@@ -61,6 +70,10 @@ def form_of(value: str) -> IdForm | None:
 
 BLACK_BELT_RANK_MESSAGE = "A black belt rank needs a black belt ID, such as A-20819."
 BLACK_BELT_ID_FIXED_MESSAGE = "A black belt ID never changes."
+PREVIOUS_ID_TAKEN_MESSAGE = (
+    "That ID belonged to a student earlier. A number stays with its student and "
+    "is never given to anyone else."
+)
 STUDENT_ID_CHANGE_MESSAGE = (
     "A student ID can only be changed to the black belt ID WKSA hands out at "
     "the national grading, such as A-20819."

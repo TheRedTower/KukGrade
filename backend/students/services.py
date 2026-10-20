@@ -11,14 +11,15 @@ from datetime import date
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import connection, models, transaction
 
 from accounts.models import User
 from audit.models import AuditAction
 from audit.recording import record
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
-from students.models import Student
+from students import wksa_ids
+from students.models import PreviousWksaId, RetiredWksaId, Student
 
 
 def _snapshot(student: Student) -> dict[str, Any]:
@@ -33,6 +34,24 @@ def _snapshot(student: Student) -> dict[str, Any]:
     }
 
 
+def lock_wksa_ids(*ids: str) -> None:
+    """Hold each ID's transaction lock, in a fixed order, until commit.
+
+    An ID is never held by two people, current or previous. The student table's
+    unique index covers the current ones, but an ID moves from one table to
+    the other when a student becomes a black belt, so a student created with
+    that ID at the same moment could pass both checks. Whoever creates a
+    student with an ID, or replaces one, takes its lock first; the other then
+    waits and sees the committed result.
+    """
+    with connection.cursor() as cursor:
+        for wksa_id in sorted(set(ids)):
+            cursor.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                [f"wksa_id:{wksa_id}"],
+            )
+
+
 @transaction.atomic
 def create_student(
     *,
@@ -44,6 +63,7 @@ def create_student(
     status: str | None = None,
     actor: User | None = None,
 ) -> Student:
+    lock_wksa_ids(wksa_ids.normalise(wksa_id))
     student = Student.objects.create(
         wksa_id=wksa_id,
         first_name=first_name,
@@ -85,6 +105,7 @@ def update_student(
     # any other change (students/wksa_ids.py).
     if wksa_id is not None:
         locked.wksa_id = wksa_id
+        lock_wksa_ids(before["wksa_id"], wksa_ids.normalise(wksa_id))
     if first_name is not None:
         locked.first_name = first_name
     if last_name is not None:
@@ -105,6 +126,9 @@ def update_student(
         # no row update and no audit event.
         return locked
     locked.save()
+    if before["wksa_id"] != after["wksa_id"]:
+        # The ID it replaced stays with them for good.
+        PreviousWksaId.objects.create(student=locked, wksa_id=before["wksa_id"])
 
     # One event per call, not one per changed field and not both a generic
     # and a specific event for the same edit. A status change is the more
@@ -221,6 +245,16 @@ def delete_student(student: Student, actor: User) -> None:
     for legacy_record in legacy_records:
         unlink_legacy_record_from_student(legacy_record, actor=actor)
 
+    # Their numbers go with them, never to anyone else (owner, 2026-10-20).
+    retired = [
+        locked.wksa_id,
+        *locked.previous_wksa_ids.values_list("wksa_id", flat=True),
+    ]
+    lock_wksa_ids(*retired)
+    RetiredWksaId.objects.bulk_create(
+        [RetiredWksaId(wksa_id=wksa_id) for wksa_id in retired],
+    )
+
     record(
         AuditAction.STUDENT_DELETED,
         locked,
@@ -228,6 +262,7 @@ def delete_student(student: Student, actor: User) -> None:
         actor=actor,
         metadata={
             "wksa_id": locked.wksa_id,
+            "previous_wksa_ids": retired[1:],
             "cascaded_grading_candidates": [
                 {"id": candidate_id, "session_id": session_id, "session_title": title}
                 for candidate_id, session_id, title in cascaded_candidates

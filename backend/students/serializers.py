@@ -18,7 +18,7 @@ from gradings.read_models import (
     StudentRankTimeline,
 )
 from students import wksa_ids
-from students.models import Student
+from students.models import PreviousWksaId, Student
 from students.services import create_student, update_student
 from syllabus.models import AgeBand
 
@@ -161,6 +161,13 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
         return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
 
 
+class PreviousWksaIdSerializer(serializers.ModelSerializer[PreviousWksaId]):
+    class Meta:
+        model = PreviousWksaId
+        fields = ("wksa_id", "replaced_at")
+        read_only_fields = fields
+
+
 class StudentSerializer(serializers.ModelSerializer[Student]):
     """Detail, create and update.
 
@@ -177,6 +184,7 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     age_band_display = serializers.CharField(read_only=True)
     wksa_id_can_change = serializers.SerializerMethodField()
+    previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
 
     class Meta:
         model = Student
@@ -184,6 +192,7 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "id",
             "wksa_id",
             "wksa_id_can_change",
+            "previous_wksa_ids",
             "first_name",
             "last_name",
             "date_of_birth",

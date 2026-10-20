@@ -56,16 +56,10 @@ None recorded.
 
 ## Needs a decision first
 
-- **Previous WKSA IDs** (decision log 2026-10-20) - **decided, ready to
-  build**: the school owner answered that a student's number stays with them
-  even after they leave and is never reused, so every ID, current or
-  previous, is unique for good. To build: a list of the IDs each student has
-  held, with the date each was replaced; lookups (the roster import, search)
-  check the current ID and then that list; no new student may take an ID any
-  student has held. The two forms, the black belt rank rule and the one
-  change are built; the replaced ID is in that change's audit event
-  meanwhile. One small question for the owner when it is built: whether a
-  deleted student's number is also kept from reuse.
+- **Previous WKSA IDs**: built 2026-10-20, with a deleted student's IDs
+  retired too (decision log, "The WKSA ID scheme"). Not built: a deliberate
+  way to release a retired number, for a student deleted by mistake and
+  re-added; decide whether it is wanted.
 
 - **Black belt testing** (owner, 2026-10-20): the owner is to explain how
   black belt gradings work - the national grading, where the black belt ID

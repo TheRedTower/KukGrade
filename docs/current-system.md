@@ -87,8 +87,13 @@ checks on each push and pull request.
   on every path including promotion, which is refused until the ID is
   recorded. The ID changes once at most: a student ID to the black belt ID
   WKSA hands out at the national grading, through the student edit (API and
-  Django admin); the old ID stays in that edit's audit event. Filters: `status`, `current_rank_code`, `search`
-  (name and WKSA ID). Each list row carries `current_grading` - the
+  Django admin); the replaced student ID is kept as one of the student's
+  previous IDs (`students.models.PreviousWksaId`, students migration 0007),
+  shown on the student page and in Django admin, matched by search and by the
+  roster import, and never available to another student - a number is never
+  reused (school owner, 2026-10-20). Deleting a student retires their IDs
+  (`students.models.RetiredWksaId`) so no one else can take them either. Filters: `status`, `current_rank_code`, `search`
+  (name, current WKSA ID or a previous one). Each list row carries `current_grading` - the
   registration not yet at its result and its stage - which the Students
   screen shows as "Current grading" (2026-10-19). **Hard delete (2026-09-22, administrator-only)**:
   `DELETE /api/students/{id}/` (`students.services.delete_student`) cascades

@@ -128,7 +128,11 @@ class StudentViewSet(
         by_id("current_rank", "current_rank_id"),
         _AGE_BAND,
         _ELIGIBLE_FOR_SESSION,
-        search("search", ("first_name", "last_name", "wksa_id")),
+        search(
+            "search",
+            ("first_name", "last_name", "wksa_id", "previous_wksa_ids__wksa_id"),
+            "Matches a name, the current WKSA ID or a previous one.",
+        ),
     )
 
     def get_queryset(self) -> QuerySet[Student]:
@@ -141,7 +145,7 @@ class StudentViewSet(
             return with_current_grading(
                 with_age_band_on(students, self._age_band_date()),
             )
-        return students
+        return students.prefetch_related("previous_wksa_ids")
 
     def _age_band_date(self) -> date:
         """The date a list's age bands are worked out on.

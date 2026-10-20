@@ -27,6 +27,11 @@ class Student(models.Model):
         # if they come back. Grading history is retained either way.
         LEFT = "LEFT", "Left"
 
+    # Set by a caller that has already checked a whole batch of IDs against
+    # the previous IDs in one query (the roster preview), so validating each
+    # row does not query again. Saving always checks.
+    previous_ids_checked = False
+
     wksa_id = models.CharField(max_length=32, unique=True)
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
@@ -86,6 +91,12 @@ class Student(models.Model):
             errors["wksa_id"] = ["WKSA ID is required."]
         elif form is None:
             errors["wksa_id"] = [wksa_ids.format_message()]
+        elif (
+            not self.previous_ids_checked
+            and (self._state.adding or (stored and stored["wksa_id"] != self.wksa_id))
+            and wksa_id_ever_held(self.wksa_id)
+        ):
+            errors["wksa_id"] = [wksa_ids.PREVIOUS_ID_TAKEN_MESSAGE]
         elif stored and (
             refusal := wksa_ids.change_refusal(stored["wksa_id"], self.wksa_id)
         ):
@@ -130,3 +141,68 @@ class Student(models.Model):
         from syllabus.models import AgeBand
 
         return AgeBand(self.age_band).label
+
+
+class PreviousWksaId(models.Model):
+    """A student ID a student held before WKSA gave them a black belt ID.
+
+    Written only when the ID changes (`students.services.update_student`),
+    never edited. A number is never reused, so each is unique for good and
+    anything outside KukGrade that still quotes one is found by it
+    (decision log, 2026-10-20). Always a student ID: a black belt ID never
+    changes, so it is never replaced.
+    """
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name="previous_wksa_ids",
+    )
+    wksa_id = models.CharField(max_length=32, unique=True)
+    replaced_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["replaced_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(wksa_id__regex=wksa_ids.STUDENT_ID_DATABASE_PATTERN),
+                name="previous_wksa_id_student_form",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.wksa_id} (replaced {self.replaced_at:%Y-%m-%d})"
+
+
+class RetiredWksaId(models.Model):
+    """An ID whose student was deleted: still never given to anyone else.
+
+    Written by `students.services.delete_student` for the deleted student's
+    current ID and every previous one (owner, 2026-10-20: "same for
+    deletions"). Either form, since a deleted black belt's ID is retired too.
+    Nothing else about the student is kept here; the deletion's audit event
+    has the rest.
+    """
+
+    wksa_id = models.CharField(max_length=32, unique=True)
+    retired_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["retired_at", "pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(wksa_id__regex=wksa_ids.DATABASE_PATTERN),
+                name="retired_wksa_id_format",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.wksa_id} (retired {self.retired_at:%Y-%m-%d})"
+
+
+def wksa_id_ever_held(wksa_id: str) -> bool:
+    """Whether a student held `wksa_id` before: replaced, or deleted."""
+    return (
+        PreviousWksaId.objects.filter(wksa_id=wksa_id).exists()
+        or RetiredWksaId.objects.filter(wksa_id=wksa_id).exists()
+    )

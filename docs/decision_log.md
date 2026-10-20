@@ -143,7 +143,7 @@ refused.
 Status: Accepted (format and the owner's answers). The two forms are
 enforced since 2026-10-20, with a black belt rank requiring a black belt ID
 and the one change from a student ID to it; the list of previous IDs is
-still to build, now unblocked by the owner's answer on reuse (below)
+the list of previous IDs is built (2026-10-20), after the owner's answer on reuse (below)
 
 Decision:
 A WKSA ID is never free text. It is the identifier a student is known and
@@ -213,13 +213,22 @@ student became a black belt - is unique for good, current or previous. A
 lookup by a previous ID is never ambiguous, and KukGrade can hold that as a
 rule: no new student may take an ID any student holds or has held. The
 remaining work is the list of previous IDs itself (see "How previous IDs are
-kept" above), now unblocked.
+kept" above), built 2026-10-20: `students.models.PreviousWksaId`, written when
+`update_student` replaces an ID, with the replaced IDs already in the audit
+trail carried over by the migration; unique, student-form only (a database
+check), refused to any new student (`Student.clean()`), and protected against
+a creation racing the change by a per-ID transaction lock
+(`students.services.lock_wksa_ids`). The student page shows them, the list
+and Django admin search them, and a roster row quoting one is an existing
+student, not a new one.
 
-Edge to settle when it is built: deleting a student (an administrator-only
-cleanup) removes their row, so their number would otherwise look free. The
-number is kept in the audit event of the deletion; whether a deleted student's
-number must also be blocked from reuse is a small follow-up decision for the
-owner.
+Deleted students too (owner, 2026-10-20: "same for deletions"): deleting a
+student retires their current ID and every previous one
+(`students.models.RetiredWksaId`), and no new student may take a retired ID.
+The migration retires the IDs that earlier deletions' audit events name. A
+consequence to know: re-adding a student deleted by mistake under their own
+number is refused; that needs a deliberate way to release a retired number,
+not built yet.
 
 ### 2026-10-19 - Email and credential lifecycle: the packet as amended
 

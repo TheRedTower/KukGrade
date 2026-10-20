@@ -131,7 +131,11 @@ describe("Students registry screen (/students)", () => {
         });
       }
       if (url.match(/\/api\/students\/\d+\//)) {
-        return jsonResponse(200, testStudents[0]);
+        return jsonResponse(200, {
+          ...testStudents[0],
+          wksa_id_can_change: true,
+          previous_wksa_ids: [],
+        });
       }
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testStudents });
@@ -550,6 +554,7 @@ describe("Student detail screen (/students/:id)", () => {
     id: 10,
     wksa_id: "UK-5001",
     wksa_id_can_change: true,
+    previous_wksa_ids: [],
     first_name: "Alex",
     last_name: "Carter",
     date_of_birth: "2012-04-24",
@@ -880,7 +885,12 @@ describe("Student detail screen (/students/:id)", () => {
         }
         if (url.includes("/api/students/10/") && options?.method === "PATCH") {
           sent.push(JSON.parse(options.body as string));
-          student = { ...student, wksa_id: "A-20819", wksa_id_can_change: false };
+          student = {
+            ...student,
+            wksa_id: "A-20819",
+            wksa_id_can_change: false,
+            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id, replaced_at: "2026-10-20T09:00:00Z" }],
+          };
           return jsonResponse(200, student);
         }
         if (url.includes("/api/students/10/")) return jsonResponse(200, student);
@@ -899,6 +909,8 @@ describe("Student detail screen (/students/:id)", () => {
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toMatchObject({ wksa_id: "A-20819" });
+    // The student ID it replaced stays on the page, with the new one.
+    expect(await screen.findByText(/Previously/)).toHaveTextContent(`Previously ${testStudent.wksa_id}`);
 
     await user.click(await screen.findByRole("button", { name: "Edit student" }));
     expect(await screen.findByLabelText("WKSA ID")).toBeDisabled();

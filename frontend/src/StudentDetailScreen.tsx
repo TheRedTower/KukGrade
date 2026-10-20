@@ -312,6 +312,17 @@ export function StudentDetailScreen() {
           </div>
           <p className="detail-wksa-id">
             WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
+            {student.previous_wksa_ids.length > 0 ? (
+              <span className="detail-previous-ids">
+                {" "}
+                Previously{" "}
+                {student.previous_wksa_ids.map((previous) => (
+                  <span className="wksa-id-pill" key={previous.wksa_id}>
+                    {previous.wksa_id}
+                  </span>
+                ))}
+              </span>
+            ) : null}
           </p>
         </div>
 

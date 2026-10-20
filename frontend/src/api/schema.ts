@@ -2006,6 +2006,11 @@ export interface components {
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
         };
+        PreviousWksaId: {
+            readonly wksa_id: string;
+            /** Format: date-time */
+            readonly replaced_at: string;
+        };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
          *     * `ADULT` - Adult & Youth
@@ -2117,6 +2122,7 @@ export interface components {
             readonly id: number;
             wksa_id: string;
             readonly wksa_id_can_change: boolean;
+            readonly previous_wksa_ids: components["schemas"]["PreviousWksaId"][];
             first_name: string;
             last_name: string;
             /** Format: date */
@@ -3697,6 +3703,7 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Matches a name, the current WKSA ID or a previous one. */
                 search?: string;
                 /** @description Comma-separated; one of ACTIVE, INACTIVE, LEFT. */
                 status?: string;

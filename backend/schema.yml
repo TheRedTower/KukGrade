@@ -1680,7 +1680,7 @@ paths:
       - name: search
         required: false
         in: query
-        description: ''
+        description: Matches a name, the current WKSA ID or a previous one.
         schema:
           type: string
       - name: status
@@ -4098,6 +4098,19 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
+    PreviousWksaId:
+      type: object
+      properties:
+        wksa_id:
+          type: string
+          readOnly: true
+        replaced_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - replaced_at
+      - wksa_id
     ProgrammeEnum:
       enum:
       - JUNIOR
@@ -4350,6 +4363,11 @@ components:
         wksa_id_can_change:
           type: boolean
           readOnly: true
+        previous_wksa_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreviousWksaId'
+          readOnly: true
         first_name:
           type: string
           maxLength: 150
@@ -4385,6 +4403,7 @@ components:
       - first_name
       - id
       - last_name
+      - previous_wksa_ids
       - status_display
       - wksa_id
       - wksa_id_can_change

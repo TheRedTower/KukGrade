@@ -49,7 +49,7 @@ from gradings.legacy_services import create_legacy_grading_record
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.models import Rank
 from students import wksa_ids
-from students.models import Student
+from students.models import PreviousWksaId, RetiredWksaId, Student
 from students.services import create_student
 
 logger = logging.getLogger(__name__)
@@ -469,6 +469,8 @@ def _student_model_issues(
     }
     unset = {name for name, value in given.items() if not value}
     candidate = Student(**{name: given[name] for name in given.keys() - unset})
+    # The roster check against previous IDs is one query for the whole file.
+    candidate.previous_ids_checked = True
     # Not validated as a field - it was just read from the catalogue - but
     # clean() needs it: a black belt rank requires a black belt ID.
     if rank is not None:
@@ -508,6 +510,8 @@ def _classify_student_row(
     seen_wksa_ids: set[str],
     ranks: dict[str, Rank],
     existing_wksa_ids: set[str],
+    replaced_wksa_ids: dict[str, str],
+    retired_wksa_ids: set[str],
 ) -> StudentImportRowResult:
     issues: list[str] = []
 
@@ -552,12 +556,23 @@ def _classify_student_row(
         ),
     )
 
+    if wksa_id in retired_wksa_ids:
+        issues.append(
+            "This ID belonged to a student who was deleted. A number is never "
+            "given to anyone else.",
+        )
     if wksa_id and wksa_id in seen_wksa_ids:
         issues.append("Duplicate WKSA ID within this file.")
     if wksa_id:
         seen_wksa_ids.add(wksa_id)
 
-    if wksa_id in existing_wksa_ids:
+    if wksa_id in replaced_wksa_ids:
+        # An old student ID is still its student's: a number is never reused.
+        issues.append(
+            f"This ID belongs to a student who now holds {replaced_wksa_ids[wksa_id]}.",
+        )
+        outcome = StudentImportRowOutcome.SKIP_EXISTING
+    elif wksa_id in existing_wksa_ids:
         outcome = StudentImportRowOutcome.SKIP_EXISTING
     elif issues:
         outcome = StudentImportRowOutcome.REVIEW_REQUIRED
@@ -604,6 +619,19 @@ def preview_student_import(
             flat=True,
         ),
     )
+    # Old student IDs that a black belt ID replaced, by the ID now held.
+    replaced_wksa_ids = dict(
+        PreviousWksaId.objects.filter(wksa_id__in=wanted - {""}).values_list(
+            "wksa_id",
+            "student__wksa_id",
+        ),
+    )
+    retired_wksa_ids = set(
+        RetiredWksaId.objects.filter(wksa_id__in=wanted - {""}).values_list(
+            "wksa_id",
+            flat=True,
+        ),
+    )
     seen_wksa_ids: set[str] = set()
     rows = [
         _classify_student_row(
@@ -613,6 +641,8 @@ def preview_student_import(
             seen_wksa_ids,
             ranks,
             existing_wksa_ids,
+            replaced_wksa_ids,
+            retired_wksa_ids,
         )
         for row_number, values, correction in mapped
     ]

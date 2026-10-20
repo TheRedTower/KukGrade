@@ -214,7 +214,12 @@ upper-cased, and anything else is a `wksa_id` field error. A student at a
 black belt rank (JKN and above) must hold a black belt ID. After creation the
 ID changes once at most: a student ID to a black belt ID, through `PATCH`;
 every other change is refused, and `wksa_id_can_change` on the detail says
-whether that change is still to come. Promoting a student to a black belt
+whether that change is still to come. The student ID it replaces is kept: the
+detail carries `previous_wksa_ids` (`[{wksa_id, replaced_at}]`, oldest first),
+the list's `search` matches a current or a previous ID, and a new student may
+never take an ID any student has held, including a deleted student's
+(`wksa_id` field error), because the school owner confirmed a number is never
+reused. Promoting a student to a black belt
 rank is refused until their black belt ID is recorded. See
 `docs/current-system.md` for the rationale.
 

@@ -329,6 +329,54 @@ def void_legacy_record(
     return locked
 
 
+@transaction.atomic
+def void_legacy_records_from(
+    batch_id: int,
+    *,
+    reason: str,
+    actor: User,
+) -> int:
+    """Void every record not yet voided that import `batch_id` created.
+
+    Each as void_legacy_record would, with its own LEGACY_GRADING_VOIDED
+    event marked as part of the whole import's void; all or nothing.
+    """
+    cleaned_reason = (reason or "").strip()
+    if not cleaned_reason:
+        raise ValidationError(
+            {"void_reason": ["A reason is required to void a record."]}
+        )
+    records = list(
+        LegacyGradingRecord.objects.select_for_update(of=("self",))
+        .filter(source_batch_id=batch_id, is_void=False)
+        .order_by("pk"),
+    )
+    if not records:
+        raise ValidationError(
+            {"batch": ["Every record from this import is already voided."]},
+        )
+    voided_at = timezone.now()
+    for locked in records:
+        locked.is_void = True
+        locked.void_reason = cleaned_reason
+        locked.voided_by = actor
+        locked.voided_at = voided_at
+        locked.save()
+        record(
+            AuditAction.LEGACY_GRADING_VOIDED,
+            locked,
+            f"Historical grading record voided with its whole import: {cleaned_reason}",
+            actor=actor,
+            metadata={
+                "legacy_record_id": locked.pk,
+                "reason": cleaned_reason,
+                "batch_id": batch_id,
+                "whole_import": True,
+            },
+        )
+    return len(records)
+
+
 __all__ = [
     "bulk_link_legacy_records",
     "create_legacy_grading_record",
@@ -337,4 +385,5 @@ __all__ = [
     "resolve_legacy_testing_for_rank",
     "unlink_legacy_record_from_student",
     "void_legacy_record",
+    "void_legacy_records_from",
 ]

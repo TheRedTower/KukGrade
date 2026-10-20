@@ -287,6 +287,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-imports/batches/{id}/sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Read a roster from another sheet of its workbook; the column matches
+         *     and fixes made for the old sheet go.
+         */
+        post: operations["data_imports_batches_sheet_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/void-records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Void every record a finished historical import created - for a
+         *     wrong file imported. Records are never deleted.
+         */
+        post: operations["data_imports_batches_void_records_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/assessment-items/": {
         parameters: {
             query?: never;
@@ -1744,6 +1784,10 @@ export interface components {
             };
             /** @description A roster's columns kept as each student's extra information. */
             readonly extra_columns: string[];
+            /** @description A roster workbook's sheet being read; blank for a CSV. */
+            readonly sheet: string;
+            /** @description Every sheet a roster workbook has, to choose another. */
+            readonly sheet_names: string[];
             readonly row_counts: components["schemas"]["ImportRowCounts"];
             readonly summary_json: {
                 [key: string]: number;
@@ -1753,6 +1797,8 @@ export interface components {
             kind: components["schemas"]["KindEnum"];
             /** Format: binary */
             file: string;
+            /** @description A roster workbook's sheet to read; else the one it opens on. */
+            sheet?: string;
         };
         /**
          * @description The new batch's id, plus one-shot creation-response extras: a
@@ -1794,6 +1840,15 @@ export interface components {
             extra_columns?: string[];
         };
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
+        /** @description POST /{id}/void-records/: void every record a historical import made. */
+        ImportRecordsVoidRequest: {
+            /** @description Why, kept on every record. */
+            reason: string;
+        };
+        ImportRecordsVoided: {
+            /** @description How many records were voided. */
+            voided: number;
+        };
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /** @description One stored row and what the last check made of it. */
         ImportRow: {
@@ -1825,6 +1880,10 @@ export interface components {
         ImportRowExclusionRequest: {
             /** @description True leaves the row out of the import; false brings it back. */
             excluded: boolean;
+        };
+        /** @description POST /{id}/sheet/: read a roster from another sheet of its workbook. */
+        ImportSheetRequest: {
+            sheet: string;
         };
         /**
          * @description The account, with the temporary password just issued for it.
@@ -3144,6 +3203,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_sheet_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportSheetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportSheetRequest"];
+                "application/json": components["schemas"]["ImportSheetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_void_records_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportRecordsVoidRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRecordsVoidRequest"];
+                "application/json": components["schemas"]["ImportRecordsVoidRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordsVoided"];
                 };
             };
         };

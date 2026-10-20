@@ -595,6 +595,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportRow'
           description: ''
+  /api/data-imports/batches/{id}/sheet/:
+    post:
+      operationId: data_imports_batches_sheet_create
+      description: |-
+        Read a roster from another sheet of its workbook; the column matches
+        and fixes made for the old sheet go.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/void-records/:
+    post:
+      operationId: data_imports_batches_void_records_create
+      description: |-
+        Void every record a finished historical import created - for a
+        wrong file imported. Records are never deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRecordsVoided'
+          description: ''
   /api/gradings/assessment-items/:
     get:
       operationId: gradings_assessment_items_list
@@ -3712,6 +3784,16 @@ components:
             type: string
           readOnly: true
           description: A roster's columns kept as each student's extra information.
+        sheet:
+          type: string
+          readOnly: true
+          description: A roster workbook's sheet being read; blank for a CSV.
+        sheet_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: Every sheet a roster workbook has, to choose another.
         row_counts:
           allOf:
           - $ref: '#/components/schemas/ImportRowCounts'
@@ -3736,6 +3818,8 @@ components:
       - next_step
       - original_filename
       - row_counts
+      - sheet
+      - sheet_names
       - status
       - status_display
       - summary_json
@@ -3749,6 +3833,9 @@ components:
         file:
           type: string
           format: binary
+        sheet:
+          type: string
+          description: A roster workbook's sheet to read; else the one it opens on.
       required:
       - file
       - kind
@@ -3822,6 +3909,25 @@ components:
       oneOf:
       - $ref: '#/components/schemas/StudentImportPreview'
       - $ref: '#/components/schemas/LegacyImportPreview'
+    ImportRecordsVoidRequest:
+      type: object
+      description: 'POST /{id}/void-records/: void every record a historical import
+        made.'
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          description: Why, kept on every record.
+      required:
+      - reason
+    ImportRecordsVoided:
+      type: object
+      properties:
+        voided:
+          type: integer
+          description: How many records were voided.
+      required:
+      - voided
     ImportRequestRequest:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
@@ -3911,6 +4017,15 @@ components:
           description: True leaves the row out of the import; false brings it back.
       required:
       - excluded
+    ImportSheetRequest:
+      type: object
+      description: 'POST /{id}/sheet/: read a roster from another sheet of its workbook.'
+      properties:
+        sheet:
+          type: string
+          minLength: 1
+      required:
+      - sheet
     IssuedTemporaryPassword:
       type: object
       description: |-

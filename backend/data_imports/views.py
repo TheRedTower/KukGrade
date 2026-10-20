@@ -25,9 +25,12 @@ from data_imports.serializers import (
     ImportBatchCreateSerializer,
     ImportBatchSerializer,
     ImportMappingSerializer,
+    ImportRecordsVoidedSerializer,
+    ImportRecordsVoidSerializer,
     ImportRowCorrectionSerializer,
     ImportRowExclusionSerializer,
     ImportRowSerializer,
+    ImportSheetSerializer,
     LegacyImportPreviewSerializer,
     LegacyImportSerializer,
     StudentImportPreviewSerializer,
@@ -35,6 +38,7 @@ from data_imports.serializers import (
 )
 from data_imports.services import (
     cancel_import_batch,
+    choose_import_sheet,
     commit_legacy_grading_import,
     commit_student_import,
     correct_import_row,
@@ -43,6 +47,7 @@ from data_imports.services import (
     preview_student_import,
     save_import_mapping,
     set_import_row_excluded,
+    void_import_records,
     with_row_counts,
 )
 from kukgrade.filtering import choice, search
@@ -103,6 +108,8 @@ class ImportBatchViewSet(
         "rows": ("data_imports.view_importbatch",),
         "row": ("data_imports.change_importbatch",),
         "row_exclusion": ("data_imports.change_importbatch",),
+        "sheet": ("data_imports.change_importbatch",),
+        "void_records": ("gradings.can_reconcile_imported_history",),
     }
     query_filters = (
         choice("status", "status", ImportBatch.Status.values),
@@ -122,6 +129,40 @@ class ImportBatchViewSet(
         # Read again through the queryset, so its counts are the current ones.
         fresh = self.get_queryset().get(pk=batch.pk)
         return Response(ImportBatchSerializer(fresh, context={"request": request}).data)
+
+    @extend_schema(request=ImportSheetSerializer, responses=ImportBatchSerializer)
+    @action(detail=True, methods=["post"])
+    def sheet(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Read a roster from another sheet of its workbook; the column matches
+        and fixes made for the old sheet go."""
+        batch = self.get_object()
+        payload = ImportSheetSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        choose_import_sheet(batch, sheet=payload.validated_data["sheet"])
+        return self._batch_response(request, batch)
+
+    @extend_schema(
+        request=ImportRecordsVoidSerializer,
+        responses=ImportRecordsVoidedSerializer,
+    )
+    @action(detail=True, methods=["post"], url_path="void-records")
+    def void_records(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Void every record a finished historical import created - for a
+        wrong file imported. Records are never deleted."""
+        batch = self.get_object()
+        payload = ImportRecordsVoidSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        voided = void_import_records(
+            batch,
+            reason=payload.validated_data["reason"],
+            actor=cast(User, request.user),
+        )
+        return Response(ImportRecordsVoidedSerializer({"voided": voided}).data)
 
     @extend_schema(request=ImportMappingSerializer, responses=ImportBatchSerializer)
     @action(detail=True, methods=["post"])
@@ -244,6 +285,7 @@ class ImportBatchViewSet(
             kind=input_serializer.validated_data["kind"],
             upload=cast(UploadedFile, input_serializer.validated_data["file"]),
             uploaded_by=cast(User, request.user),
+            sheet=input_serializer.validated_data.get("sheet"),
         )
         created = ImportBatchCreatedSerializer(
             result.batch,

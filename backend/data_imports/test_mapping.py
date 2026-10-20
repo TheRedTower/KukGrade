@@ -294,3 +294,47 @@ def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
     preview: Any = preview_student_import(batch, column_mapping=MAPPING)
 
     assert preview.ready == 1
+
+
+@pytest.mark.parametrize(
+    ("written", "code", "issue"),
+    [
+        ("White Belt", "WHITE", ""),
+        ("yellow belt", "YELLOW", ""),
+        ("DBN", "DAHN_BO", ""),
+        (
+            "Red stripe?",
+            None,
+            "Rank 'Red stripe?' is marked as uncertain in the file: confirm it.",
+        ),
+        ("Bown Stripe", None, "Rank 'Bown Stripe' is not a rank KukGrade recognises."),
+    ],
+)
+def test_a_roster_takes_the_clubs_own_rank_spellings_but_never_a_doubt_or_a_slip(
+    written: str,
+    code: str | None,
+    issue: str,
+) -> None:
+    admin = admin_user()
+    batch = club_file(row("206-2-001", belt=written), admin=admin)
+
+    save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
+
+    stored = batch.rows.get()
+    if code is None:
+        assert stored.outcome == "REVIEW_REQUIRED"
+        assert issue in stored.issues
+    else:
+        assert stored.outcome == "READY"
+        commit_student_import(batch, actor=admin)
+        assert Student.objects.get().current_rank.code == code
+
+
+def test_a_whole_file_rank_may_be_written_the_clubs_way() -> None:
+    batch = club_file(row("206-2-001"))
+
+    save_import_mapping(
+        batch, column_mapping=MAPPING, defaults={"current_rank": "White Belt"}
+    )
+
+    assert batch.rows.get().outcome == "READY"

@@ -45,6 +45,10 @@ class TabularData:
     # (source row number, header -> value); blank rows are left out, so the
     # numbers are the spreadsheet's own row numbers, header being row 1.
     rows: list[tuple[int, dict[str, Any]]]
+    # A workbook's sheet that was read, and every sheet it has; blank for a
+    # CSV, which has no sheets.
+    sheet: str = ""
+    sheet_names: tuple[str, ...] = ()
 
 
 def file_suffix(filename: str) -> str:
@@ -136,7 +140,15 @@ def _read(rows: Iterator[Sequence[Any]]) -> TabularData:
     return TabularData(headers=headers, rows=data)
 
 
-def load_tabular_dataset(*, content: bytes, filename: str) -> TabularData:
+def load_tabular_dataset(
+    *,
+    content: bytes,
+    filename: str,
+    sheet: str | None = None,
+) -> TabularData:
+    """A file's rows. A workbook's `sheet` is read - the one it opens on when
+    none is named - so a roster on another tab is never silently missed: the
+    sheet read and every sheet's name come back with the rows."""
     suffix = file_suffix(filename)
     if suffix not in _SUPPORTED_SUFFIXES:
         msg = f"Unsupported file type: .{suffix or '?'}"
@@ -144,5 +156,19 @@ def load_tabular_dataset(*, content: bytes, filename: str) -> TabularData:
     if suffix == "csv":
         return _read(_csv_rows(content))
     with open_workbook(content) as workbook:
+        names = tuple(workbook.sheetnames)
+        if sheet is None:
+            worksheet = workbook.active
+        elif sheet in names:
+            worksheet = workbook[sheet]
+        else:
+            msg = f"The workbook has no sheet named {sheet!r}."
+            raise UnsupportedImportFileError(msg)
         # One column past the limit is read, so an over-wide header is seen.
-        return _read(worksheet_rows(workbook.active, max_col=MAX_COLUMNS + 1))
+        data = _read(worksheet_rows(worksheet, max_col=MAX_COLUMNS + 1))
+        return TabularData(
+            headers=data.headers,
+            rows=data.rows,
+            sheet=worksheet.title,
+            sheet_names=names,
+        )

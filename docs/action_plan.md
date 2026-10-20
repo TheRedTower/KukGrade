@@ -35,7 +35,8 @@ after the owner's approval):
   information and the grading report (done 2026-10-20 for rosters and the
   Colchester workbook, side tables included; a mapping for other grading
   spreadsheets waits for a second real file); A5 and A6 per-row historical preview
-  and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet.
+  and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet (done 2026-10-20).
+  The backend is done; the frontend waits for a full test of it.
 - Frontend: B1 a design register entry and mocks; B2 one Imports area; B3 a
   guided flow (file, match columns, review rows, confirm, results); B4 a
   redone Historical records screen; B5 hooks, tests and accessibility.

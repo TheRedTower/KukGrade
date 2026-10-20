@@ -68,6 +68,11 @@ of these to an Instructor. See `permissions.md`.
 
 ### Accepted formats
 
+A roster workbook is read from the sheet it opens on unless another is named
+at upload, and every sheet's name is shown, so a roster on another tab is
+never silently missed; `POST .../sheet/` reads another sheet instead
+(2026-10-20).
+
 `.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 1,000 rows (5,000 until 2026-10-20)
 after the header (blank rows included) and 50 columns; an `.xlsx` may also
 expand to no more than 50 MiB. Each limit is enforced while the file is
@@ -117,6 +122,11 @@ upload (create_import_batch) - every row read once and stored (ImportRow)
   to a `Student`). A row is checked with `Student.full_clean()` - the
   validation `create_student` runs - so a `READY` row is one commit can
   create, field lengths included.
+- **A roster's rank** is matched to an active rank's code or name, or to
+  the club's fixed spellings of one ("White Belt" is White, "DBN" Dahn Bo -
+  `ranks/matching.py`, 2026-10-20); a rank the file marks as doubtful ("Red
+  stripe?") or misspells needs the importer, and a whole-file rank may be
+  written either way.
 - **An existing WKSA ID is always skipped, never silently updated.** Any
   future bulk-update-existing-students feature is a separate, undesigned
   piece of work.
@@ -315,6 +325,11 @@ each locking the row, saving, and recording one audit event
   to be overwritten silently), and the student is locked before the record,
   the order deleting a student takes. `bulk_link_legacy_records` links many
   at once, all or nothing, each with its own audit event.
+- **A wrong workbook imported is voided as a whole**
+  (`POST /api/data-imports/batches/{id}/void-records/`, 2026-10-20): every
+  record it created is voided with the reason, each with its own event, and
+  leaves its student's history. Records are never deleted (import Decision
+  16); re-importing the right file is the way back.
 - **A voided record is left as it is**: linking, unlinking and resolving a
   rank are refused on it (2026-10-20). Deleting its student still unlinks it.
 - `resolve_legacy_current_rank(record, rank_or_none, actor=...)` /

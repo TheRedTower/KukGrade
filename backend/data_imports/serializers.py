@@ -53,6 +53,12 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     extra_columns = serializers.SerializerMethodField(
         help_text="A roster's columns kept as each student's extra information.",
     )
+    sheet = serializers.SerializerMethodField(
+        help_text="A roster workbook's sheet being read; blank for a CSV.",
+    )
+    sheet_names = serializers.SerializerMethodField(
+        help_text="Every sheet a roster workbook has, to choose another.",
+    )
     row_counts = serializers.SerializerMethodField()
     # Declared rather than inferred from JSONField, which would type it as
     # "anything": summary_json only ever holds safe counts.
@@ -80,6 +86,8 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "column_mapping",
             "defaults",
             "extra_columns",
+            "sheet",
+            "sheet_names",
             "row_counts",
             "summary_json",
         ]
@@ -107,6 +115,12 @@ class ImportBatchSerializer(serializers.ModelSerializer):
 
     def get_extra_columns(self, batch: ImportBatch) -> list[str]:
         return list(batch.configuration_json.get("extra_columns", []))
+
+    def get_sheet(self, batch: ImportBatch) -> str:
+        return str(batch.configuration_json.get("sheet", ""))
+
+    def get_sheet_names(self, batch: ImportBatch) -> list[str]:
+        return list(batch.configuration_json.get("sheet_names", []))
 
     @extend_schema_field(ImportRowCountsSerializer)
     def get_row_counts(self, batch: ImportBatch) -> dict[str, int]:
@@ -261,6 +275,27 @@ class ImportBatchCreatedSerializer(serializers.ModelSerializer):
 class ImportBatchCreateSerializer(serializers.Serializer):
     kind = serializers.ChoiceField(choices=ImportBatch.Kind.choices)
     file = serializers.FileField()
+    sheet = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="A roster workbook's sheet to read; else the one it opens on.",
+    )
+
+
+class ImportSheetSerializer(serializers.Serializer):
+    """POST /{id}/sheet/: read a roster from another sheet of its workbook."""
+
+    sheet = serializers.CharField()
+
+
+class ImportRecordsVoidSerializer(serializers.Serializer):
+    """POST /{id}/void-records/: void every record a historical import made."""
+
+    reason = serializers.CharField(help_text="Why, kept on every record.")
+
+
+class ImportRecordsVoidedSerializer(serializers.Serializer):
+    voided = serializers.IntegerField(help_text="How many records were voided.")
 
 
 def _validate_column_mapping(value: dict[str, str]) -> None:

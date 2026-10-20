@@ -51,7 +51,10 @@ from data_imports.parsers import (
     load_tabular_dataset,
 )
 from data_imports.storage import import_upload_storage
-from gradings.legacy_services import create_legacy_grading_record
+from gradings.legacy_services import (
+    create_legacy_grading_record,
+    void_legacy_records_from,
+)
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.matching import active_rank_lookup, suggest_rank
 from ranks.models import Rank
@@ -99,6 +102,7 @@ def create_import_batch(
     kind: str,
     upload: UploadedFile,
     uploaded_by: User,
+    sheet: str | None = None,
 ) -> CreateImportBatchResult:
     allowed = _ALLOWED_EXTENSIONS.get(kind)
     if allowed is None:
@@ -134,7 +138,11 @@ def create_import_batch(
     detected_headers: list[str] = []
     if kind == ImportBatch.Kind.STUDENT_ROSTER:
         try:
-            dataset = load_tabular_dataset(content=content, filename=filename)
+            dataset = load_tabular_dataset(
+                content=content,
+                filename=filename,
+                sheet=sheet or None,
+            )
         except UnsupportedImportFileError as exc:
             raise DjangoValidationError({"file": [str(exc)]}) from exc
         detected_headers = dataset.headers
@@ -168,7 +176,14 @@ def create_import_batch(
         sha256=digest,
         file_size=len(content),
         uploaded_by=uploaded_by,
-        configuration_json={"detected_headers": detected_headers},
+        configuration_json={
+            "detected_headers": detected_headers,
+            **(
+                {"sheet": dataset.sheet, "sheet_names": list(dataset.sheet_names)}
+                if kind == ImportBatch.Kind.STUDENT_ROSTER
+                else {}
+            ),
+        },
     )
     if kind == ImportBatch.Kind.STUDENT_ROSTER:
         _store_roster_rows(batch, dataset)
@@ -250,6 +265,8 @@ def _ensure_rows_stored(locked: ImportBatch) -> None:
     if locked.kind == ImportBatch.Kind.STUDENT_ROSTER:
         dataset = _load_batch_dataset(locked)
         locked.configuration_json.setdefault("detected_headers", dataset.headers)
+        locked.configuration_json.setdefault("sheet", dataset.sheet)
+        locked.configuration_json.setdefault("sheet_names", list(dataset.sheet_names))
         _store_roster_rows(locked, dataset)
     else:
         _store_legacy_rows(locked, _load_legacy_workbook(locked))
@@ -530,12 +547,68 @@ def remove_orphaned_uploads(*, max_age: timedelta) -> int:
     return removed
 
 
-def _load_batch_dataset(batch: ImportBatch) -> TabularData:
+def _load_batch_dataset(batch: ImportBatch, sheet: str | None = None) -> TabularData:
     content = _read_source_file(batch)
     try:
-        return load_tabular_dataset(content=content, filename=batch.original_filename)
+        return load_tabular_dataset(
+            content=content,
+            filename=batch.original_filename,
+            sheet=sheet or batch.configuration_json.get("sheet") or None,
+        )
     except UnsupportedImportFileError as exc:
         raise DjangoValidationError({"batch": [str(exc)]}) from exc
+
+
+@transaction.atomic
+def void_import_records(
+    batch: ImportBatch,
+    *,
+    reason: str,
+    actor: User,
+) -> int:
+    """Void every record a finished historical import created - the undo for
+    the wrong file imported, since a record is never deleted (import
+    Decision 16). Each is voided as one alone would be, with its own event;
+    records already voided are left as they are. Returns how many."""
+    if (
+        batch.kind != ImportBatch.Kind.LEGACY_GRADINGS
+        or batch.status != ImportBatch.Status.COMMITTED
+    ):
+        raise DjangoValidationError(
+            {
+                "batch": [
+                    "Only a finished historical gradings import has records to void."
+                ]
+            },
+        )
+    return void_legacy_records_from(batch.pk, reason=reason, actor=actor)
+
+
+@transaction.atomic
+def choose_import_sheet(batch: ImportBatch, *, sheet: str) -> ImportBatch:
+    """Read a roster from another sheet of its workbook.
+
+    The rows are read again from that sheet, and the column matches, whole-
+    file values, kept columns and fixes made for the old sheet go: they were
+    about other columns.
+    """
+    locked = _lock_uncommitted(batch, "changed")
+    _require_roster(locked)
+    if sheet not in locked.configuration_json.get("sheet_names", []):
+        raise DjangoValidationError(
+            {"sheet": [f"The workbook has no sheet named {sheet!r}."]},
+        )
+    try:
+        dataset = _load_batch_dataset(locked, sheet)
+    except DjangoValidationError as exc:
+        raise DjangoValidationError({"sheet": exc.messages}) from exc
+    _drop_rows(locked)
+    for stale in ("column_mapping", "defaults", "extra_columns"):
+        locked.configuration_json.pop(stale, None)
+    locked.configuration_json["sheet"] = dataset.sheet
+    locked.configuration_json["detected_headers"] = dataset.headers
+    _store_roster_rows(locked, dataset)
+    return locked
 
 
 # --- student roster preview/commit -----------------------------------------
@@ -712,9 +785,17 @@ def _classify_student_row(
     elif parsed_dob is None:
         issues.append(f"Date of birth {dob_display!r} could not be parsed.")
 
-    rank = ranks.get(rank_text.upper())
+    # The club's own fixed spellings are the rank they spell ("White Belt"
+    # is White, "DBN" Dahn Bo - ranks.matching); a rank the file marks as
+    # doubtful ("Red stripe?") is for the importer to confirm, never taken.
+    rank, doubtful = suggest_rank(rank_text, ranks) if rank_text else (None, False)
     if not rank_text:
         issues.append("Current rank is required.")
+    elif doubtful:
+        issues.append(
+            f"Rank {rank_text!r} is marked as uncertain in the file: confirm it.",
+        )
+        rank = None
     elif rank is None:
         issues.append(f"Rank {rank_text!r} is not a rank KukGrade recognises.")
 
@@ -943,7 +1024,12 @@ def _save_column_mapping(
     if "status" in cleaned_defaults:
         cleaned_defaults["status"] = cleaned_defaults["status"].upper()
     rank_default = cleaned_defaults.get("current_rank")
-    if rank_default and rank_default.upper() not in active_rank_lookup():
+    rank_default_found, rank_default_doubtful = (
+        suggest_rank(rank_default, active_rank_lookup())
+        if rank_default
+        else (None, False)
+    )
+    if rank_default and (rank_default_found is None or rank_default_doubtful):
         errors["defaults"] = [f"{rank_default!r} is not a rank KukGrade recognises."]
     if errors:
         raise DjangoValidationError(errors)
@@ -1520,6 +1606,7 @@ __all__ = [
     "StudentImportRowResult",
     "cancel_import_batch",
     "commit_legacy_grading_import",
+    "choose_import_sheet",
     "commit_student_import",
     "correct_import_row",
     "create_import_batch",
@@ -1533,6 +1620,7 @@ __all__ = [
     "ROW_COUNT_NAMES",
     "row_counts",
     "save_import_mapping",
+    "void_import_records",
     "set_import_row_excluded",
     "with_row_counts",
 ]

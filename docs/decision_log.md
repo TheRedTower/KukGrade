@@ -18,6 +18,49 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The import screens: four screens chosen, and what they ask of the backend
+
+Status: Accepted (design); the screens are not built yet
+
+Decision:
+The owner chose the import screens one at a time from proposed directions
+(`frontend/Frontend-Design-Register/2026-10-20-imports-overhaul/`):
+
+- **Imports hub (FDR-049):** one Imports area replaces the import buttons on
+  Students and Gradings: unfinished imports first, two plain start panels,
+  then every past import, filterable and paged.
+- **Choose file (FDR-050):** the guide to what KukGrade reads beside the drop
+  area, then a checklist of what was found once the file is read.
+- **Match columns and ranks (FDR-051):** the file's first rows with a field
+  chooser above each column, read live. The owner asked that what is missing
+  can be typed in by whoever knows it: any cell under a matched column can be
+  fixed, and a needed field the file has no column for can be typed in row by
+  row ("Type each one in").
+- **Review rows (FDR-052):** the rows that need attention first, fixable in
+  place or left out, and a "Look over all" list of exactly what will be
+  imported, fixes marked, for a person's last check before confirming.
+- **An unfinished import is still cleared 24 hours after upload.** Asked
+  whether that limit is needed, the owner kept it: the uploaded file and its
+  rows are personal data held outside the records, and a day is a sane time.
+- **Past gradings are never retyped.** Their records keep the workbook's
+  words exactly; what a person adds is what the words mean (a spelling's
+  rank, later the student), and a record can be left out.
+
+Context:
+The 2026-10-20 import overhaul built the backend first. These choices
+complete the design of the steps up to confirming; the confirm and results
+steps and the linking of historical records follow.
+
+Consequences:
+- The backend must accept a roster mapping that has no column for a needed
+  field. Such rows stay Needs attention until each is filled, so nothing
+  missing is ever imported; today the mapping is refused.
+- The row list must also serve each cell as the file has it (for the columns
+  not imported), and the historical rows behind one rank spelling.
+- Rows still needing attention at the end are not imported, and the screen
+  says so beside Continue. Whether they should instead stop the import is
+  open.
+
 ### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
 
 Status: Accepted; the backend built 2026-10-20 (A0-A7, below), the screens

@@ -1,0 +1,33 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-20T12:00:00Z"},
+  "title": "KukGrade Imports",
+  "launch": {"view": "canvas", "page": "review"},
+  "pages": [{"id": "hub", "name": "1 · Imports hub"}, {"id": "file", "name": "2 · Choose file"}, {"id": "match", "name": "3 · Match columns and ranks"}, {"id": "review", "name": "4 · Review rows"}],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1180, "title": "1A · Import Ledger", "expand": "fill", "page": "hub"},
+    "S1B-Two-Lanes.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1180, "title": "1B · Two Lanes", "expand": "fill", "page": "hub"},
+    "S1C-Start-Here.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1180, "title": "1C · Start Here", "expand": "fill", "page": "hub"},
+    "S1D-Combined.dc.html": {"x": 0, "y": 1620, "w": 1440, "h": 1320, "title": "1D · Combined (A + B + C) · Selected", "expand": "fill", "page": "hub"},
+    "S2A-Guided-Column.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1080, "title": "2A · Guided Column", "expand": "fill", "page": "file", "is_interactive": true},
+    "S2B-Expectations-Beside.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1080, "title": "2B · What KukGrade Looks For", "expand": "fill", "page": "file", "is_interactive": true},
+    "S2C-First-Rows.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1080, "title": "2C · First Rows", "expand": "fill", "page": "file", "is_interactive": true},
+    "S2D-Combined.dc.html": {"x": 0, "y": 1500, "w": 1440, "h": 1180, "title": "2D · Combined (A + B) · Selected", "expand": "fill", "page": "file", "is_interactive": true},
+    "S3A-File-Columns.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1240, "title": "3A · Your Columns", "expand": "fill", "page": "match", "is_interactive": true},
+    "S3B-KukGrade-Fields.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1240, "title": "3B · KukGrade's Fields", "expand": "fill", "page": "match", "is_interactive": true},
+    "S3C-Live-Preview.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1240, "title": "3C · Live Preview", "expand": "fill", "page": "match", "is_interactive": true},
+    "S3D-Preview-You-Can-Fix.dc.html": {"x": 0, "y": 1560, "w": 1440, "h": 1300, "title": "3D · Live Preview you can fix · Selected", "expand": "fill", "page": "match", "is_interactive": true},
+    "S4A-Exceptions-First.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 1240, "title": "4A · Exceptions First", "expand": "fill", "page": "review", "is_interactive": true},
+    "S4B-Whole-Sheet.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 1240, "title": "4B · Whole Sheet", "expand": "fill", "page": "review", "is_interactive": true},
+    "S4C-One-At-A-Time.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 1240, "title": "4C · One at a Time", "expand": "fill", "page": "review", "is_interactive": true},
+    "S4D-Exceptions-And-Final-Check.dc.html": {"x": 0, "y": 1560, "w": 1440, "h": 1360, "title": "4D · Exceptions First with a final look · Selected", "expand": "fill", "page": "review", "is_interactive": true}
+  },
+  "order": ["Main.dc.html", "S1B-Two-Lanes.dc.html", "S1C-Start-Here.dc.html", "S1D-Combined.dc.html", "S2A-Guided-Column.dc.html", "S2B-Expectations-Beside.dc.html", "S2C-First-Rows.dc.html", "S2D-Combined.dc.html", "S3A-File-Columns.dc.html", "S3B-KukGrade-Fields.dc.html", "S3C-Live-Preview.dc.html", "S3D-Preview-You-Can-Fix.dc.html", "S4A-Exceptions-First.dc.html", "S4B-Whole-Sheet.dc.html", "S4C-One-At-A-Time.dc.html", "S4D-Exceptions-And-Final-Check.dc.html"],
+  "notes": {
+    "hubTitle": {"x": 0, "y": -320, "text": "Screen 1 · Imports hub: three directions", "kind": "title1", "maxW": 4480, "page": "hub"},
+    "fileTitle": {"x": 0, "y": -320, "text": "Screen 2 · Choose file: three directions", "kind": "title1", "maxW": 4480, "page": "file"},
+    "matchTitle": {"x": 0, "y": -320, "text": "Screen 3 · Match columns (students) and ranks (past gradings): three directions", "kind": "title1", "maxW": 4480, "page": "match"},
+    "reviewTitle": {"x": 0, "y": -320, "text": "Screen 4 · Review rows (students) and records (past gradings): three directions", "kind": "title1", "maxW": 4480, "page": "review"}
+  },
+  "designSystems": []
+}

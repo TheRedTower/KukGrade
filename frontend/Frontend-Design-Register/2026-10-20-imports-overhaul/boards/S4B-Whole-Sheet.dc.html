@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Review · Whole Sheet</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+a{color:#8f5f07}
+a:hover{color:#6b4705}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-surface-sunken:#f5f1e8;--color-rail:#15130f;--color-rail-border:transparent;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#8f5f07;--btn-bg:#f2a71b;--btn-text:#17140f;--btn-border:#d6900e;--color-success:#1a6e42;--color-success-surface:#e1f3e7;--color-warning:#8f5a00;--color-warning-surface:#fbead0;--color-danger:#b42318;--color-danger-surface:#fff1ef;--color-neutral-surface:#efeadf;--color-info:#1d4ed8;--color-info-surface:#eff6ff}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-surface-sunken:#1c1914;--color-rail:#241f18;--color-rail-border:#3a3226;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#ffbb3d;--btn-bg:#e8a838;--btn-text:#14110c;--btn-border:#ffbb3d;--color-success:#4cbf84;--color-success-surface:#1d3227;--color-warning:#e8a93b;--color-warning-surface:#3a2e17;--color-danger:#f27a6e;--color-danger-surface:#3a1f1b;--color-neutral-surface:#2c2720;--color-info:#93c5fd;--color-info-surface:#1b2a44}
+.tk a{color:var(--color-accent-text)}
+.tk table{border-collapse:collapse}
+.tk input:focus,.tk select:focus{outline:2px solid var(--color-gold);outline-offset:1px}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="display: flex; flex-wrap: wrap; min-height: 1240px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside aria-label="Sidebar" style="flex: 1 1 240px; max-width: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; padding: 24px 16px; background: var(--color-rail); border-right: 1px solid var(--color-rail-border); color: var(--color-on-ink)">
+<div style="display: flex; flex-direction: column; gap: 24px">
+<div style="padding: 8px 12px 0">
+<p style="margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.01em">Kuk<span style="color: var(--color-gold)">Grade</span></p>
+<p style="margin: 0; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase">People · Progress · Purpose</p>
+</div>
+<nav aria-label="Main navigation" style="display: flex; flex-direction: column; gap: 6px">
+<a href="#overview" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Overview</a>
+<a href="#students" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7"></path><path d="M18 14.5c2.2.7 3.5 2.7 3.5 5.5"></path></svg>Students</a>
+<a href="#gradings" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4V3h6v1"></path><path d="m9 13 2 2 4-4"></path></svg>Gradings</a>
+<a href="#syllabus" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"></path></svg>Syllabus</a>
+<a href="#imports" aria-current="page" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px 10px 11px; border-radius: 6px; border-left: 3px solid var(--color-gold); background: rgba(242, 167, 27, 0.12); color: var(--color-on-ink); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="m7.5 9.5 4.5 4.5 4.5-4.5"></path><path d="M3 14v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4"></path></svg>Imports</a>
+<a href="#audit" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"></path><path d="M9 12h6"></path><path d="M9 15.5h4"></path></svg>Audit</a>
+<a href="#users" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Users</a>
+</nav>
+</div>
+<div style="border-top: 1px solid var(--color-rail-border); padding: 20px 12px 8px">
+<p style="margin: 0 0 8px; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase">A stronger generation through discipline</p>
+<p style="margin: 0; color: var(--color-gold); font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase">Staff only</p>
+</div>
+</aside>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-border)">
+<p style="margin: 0; font-weight: 700">Imports</p>
+<p style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--color-text-muted)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-rail); color: var(--color-on-ink); font-size: 12px; font-weight: 700">ST</span>Sam Taylor · Administrator</p>
+</header>
+
+<main style="width: 100%; max-width: 1220px; padding: 32px; display: flex; flex-direction: column; gap: 20px">
+
+<div>
+<a href="#imports" style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Imports</a>
+<h1 style="margin: 4px 0 0; font-size: 32px; line-height: 1.1">{{title}}</h1>
+<p style="margin: 4px 0 0; color: var(--color-text-muted); font-size: 14px">{{file}}</p>
+</div>
+
+<nav aria-label="Import steps">
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<li aria-current="{{s.current}}" style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span aria-hidden="true" style="height: 4px; border-radius: 2px; background: {{s.bar}}"></span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: {{s.weight}}; color: {{s.color}}"><span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; border: 1px solid {{s.bar}}; background: {{s.dotBg}}; color: {{s.dotFg}}; font-size: 12px; font-weight: 700">{{s.mark}}</span><span style="min-width: 0; overflow-wrap: anywhere">{{s.name}}</span></span>
+</li>
+</sc-for>
+</ol>
+</nav>
+
+<section aria-labelledby="sheet-h" style="display: flex; flex-direction: column; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 20px; padding: 20px 24px">
+<div style="flex: 1 1 360px; min-width: 0">
+<h2 id="sheet-h" tabindex="-1" style="margin: 0 0 4px; font-size: 22px">{{heading}}</h2>
+<p style="margin: 0; color: var(--color-text-muted); font-size: 14px">{{lead}}</p>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--color-text-muted)">Search
+<input type="search" placeholder="{{searchHint}}" style="min-height: 44px; width: 240px; max-width: 100%; padding: 0 12px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text)"></input>
+</label>
+</div>
+<div role="group" aria-label="Show" style="display: flex; flex-wrap: wrap; gap: 6px; padding: 0 24px 16px">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="5">
+<button type="button" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: var(--color-text); font-weight: {{t.weight}}; font-size: 14px">{{t.label}}<span style="padding: 0 8px; border-radius: 999px; background: {{t.countBg}}; color: {{t.countFg}}; font-size: 12px; font-weight: 700">{{t.count}}</span></button>
+</sc-for>
+</div>
+
+<div style="overflow-x: auto; border-top: 1px solid var(--color-border)">
+<table style="width: 100%; min-width: {{tableMin}}; font-size: 14px">
+<thead>
+<tr style="background: var(--color-surface-sunken); text-align: left">
+<sc-for list="{{headers}}" as="h" hint-placeholder-count="8"><th scope="col" style="padding: 10px 8px; font-size: 12px; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap">{{h}}</th></sc-for>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<tr style="border-top: 1px solid var(--color-border); vertical-align: top; background: {{r.bg}}; opacity: {{r.opacity}}">
+<td style="padding: 12px 8px 12px 16px; color: var(--color-text-muted); font-size: 12px; white-space: nowrap">{{r.n}}</td>
+<sc-for list="{{r.cells}}" as="c" hint-placeholder-count="6">
+<td style="padding: 6px">
+<sc-if value="{{c.editable}}" hint-placeholder-val="{{ true }}"><input value="{{c.text}}" onChange="{{c.change}}" aria-label="{{c.label}}" aria-invalid="{{c.invalid}}" placeholder="{{c.placeholder}}" style="width: 100%; min-width: {{c.minW}}; min-height: 40px; padding: 0 8px; border-radius: 6px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: var(--color-text); font-size: 14px"></input></sc-if>
+<sc-if value="{{c.plain}}" hint-placeholder-val="{{ false }}"><span style="display: block; padding: 8px 2px; min-width: {{c.minW}}; color: {{c.color}}; white-space: {{c.wrap}}">{{c.text}}</span></sc-if>
+</td>
+</sc-for>
+<td style="padding: 10px 8px; min-width: 200px"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; background: {{r.pillBg}}; color: {{r.pillFg}}; font-weight: 600; font-size: 13px; white-space: nowrap"><span aria-hidden="true">{{r.mark}}</span>{{r.state}}</span><sc-if value="{{r.hasIssue}}" hint-placeholder-val="{{ false }}"><span style="display: block; margin-top: 4px; color: var(--color-text-muted); font-size: 13px">{{r.issue}}</span></sc-if></td>
+<td style="padding: 6px 16px 6px 8px; white-space: nowrap"><label style="display: inline-flex; align-items: center; gap: 8px; min-height: 40px; font-size: 13px; font-weight: 600; cursor: pointer"><input type="checkbox" checked="{{r.left}}" onChange="{{r.toggle}}" style="width: 20px; height: 20px; margin: 0; accent-color: var(--color-gold)"></input>Leave out</label></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--color-border); color: var(--color-text-muted); font-size: 14px">
+<span>{{pageNote}}</span>
+<div style="display: flex; gap: 8px"><button type="button" disabled="disabled" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); font-weight: 600">Previous</button><button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-weight: 600">Next</button></div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); font-weight: 600; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Back</button>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<span style="color: var(--color-text-muted); font-size: 14px">{{continueNote}}</span>
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text); font-weight: 600; font-size: 14px">Continue to confirm<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+</div>
+</div>
+
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"kind":{"editor":"enum","options":["Students","Past gradings"],"default":"Students"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? false;
+    const students = (this.props.kind ?? 'Students') === 'Students';
+    const st = this.state || {};
+    const names = students
+      ? ['Choose file', 'Match columns', 'Review rows', 'Confirm', 'Results']
+      : ['Choose file', 'Match ranks', 'Review records', 'Confirm', 'Results'];
+    const steps = names.map((name, i) => ({
+      name,
+      mark: i < 2 ? '✓' : String(i + 1),
+      current: i === 2 ? 'step' : 'false',
+      bar: i <= 2 ? 'var(--color-gold)' : 'var(--color-border)',
+      dotBg: i === 2 ? 'var(--color-gold)' : (i < 2 ? 'var(--color-success-surface)' : 'transparent'),
+      dotFg: i === 2 ? '#17140f' : (i < 2 ? 'var(--color-success)' : 'var(--color-text-muted)'),
+      color: i <= 2 ? 'var(--color-text)' : 'var(--color-text-muted)',
+      weight: i === 2 ? 700 : 500
+    }));
+    const rankNames = ['White', 'Yellow stripe', 'Yellow', 'Blue stripe', 'Blue', 'Red stripe', 'Red', 'Brown stripe', 'Brown', 'Black stripe', 'Dahn Bo Nim', 'Jo Kyo Nim', 'Kyo Sa Nim', 'Pu Sa Buhm Nim', 'Sa Buhm Nim', 'Pyung Kwahn Jung Nim'];
+    const view = st.view || 'all';
+    const out = st.out || {};
+    const edits = st.edits || {};
+    const tabsFrom = (defs, counts) => defs.map(([key, label, tone]) => ({
+      label,
+      count: counts[key],
+      pressed: view === key ? 'true' : 'false',
+      border: view === key ? 'var(--color-gold)' : 'var(--color-border)',
+      bg: view === key ? 'var(--color-surface-sunken)' : 'transparent',
+      weight: view === key ? 700 : 500,
+      countBg: tone === 'warn' ? 'var(--color-warning-surface)' : 'var(--color-neutral-surface)',
+      countFg: tone === 'warn' ? 'var(--color-warning)' : 'var(--color-text)',
+      pick: () => this.setState({ view: key })
+    }));
+
+    if (students) {
+      const base = [
+        { n: 2, wksa_id: '104-2-311', first_name: 'Mia', last_name: 'Reynolds', date_of_birth: '14/03/2015', current_rank: 'Yellow', status: 'Active', phone: '07700 900123' },
+        { n: 3, wksa_id: '104-2-312', first_name: 'Theo', last_name: 'Barker', date_of_birth: '02/11/2013', current_rank: 'Blue stripe', status: 'Active', phone: '07700 900456' },
+        { n: 4, wksa_id: '104-2-318', first_name: 'Priya', last_name: 'Shah', date_of_birth: '31/02/2010', current_rank: 'Red', status: 'Active', phone: '07700 900789' },
+        { n: 5, wksa_id: '104-2-205', first_name: 'Sam', last_name: 'Ortiz', date_of_birth: '19/06/2012', current_rank: 'Blue', status: 'Active', phone: '' },
+        { n: 6, wksa_id: '', first_name: 'Ella', last_name: 'Moss', date_of_birth: '30/05/2016', current_rank: 'White', status: 'Inactive', phone: '07700 900321' },
+        { n: 7, wksa_id: '104-2-215', first_name: 'Lily', last_name: 'Grant', date_of_birth: '08/10/2014', current_rank: 'Yellow stripe', status: 'Active', phone: '07700 900654' },
+        { n: 8, wksa_id: '104-2-219', first_name: 'Noah', last_name: 'King', date_of_birth: '27/01/2011', current_rank: 'Red', status: 'Inactive', phone: '' },
+        { n: 12, wksa_id: 'A-20311', first_name: 'Grace', last_name: 'Holt', date_of_birth: '04/04/1990', current_rank: 'Jo Kyo Nim', status: 'Active', phone: '', existing: true },
+        { n: 19, wksa_id: '1042317', first_name: 'Jack', last_name: 'Finch', date_of_birth: '11/08/2012', current_rank: 'Yellow', status: 'Active', phone: '07700 900987' },
+        { n: 27, wksa_id: '104-2-327', first_name: 'Ruby', last_name: 'Lane', date_of_birth: '05/04/2014', current_rank: 'Purple', status: 'Active', phone: '' }
+      ];
+      const val = (r, k) => (edits[r.n] && k in edits[r.n] ? edits[r.n][k] : r[k]);
+      const validDate = (t) => {
+        const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t || '');
+        if (!m) return false;
+        const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+        return d.getDate() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1;
+      };
+      const problem = (r, k) => {
+        const v = val(r, k);
+        if (k === 'wksa_id') return !v ? 'No WKSA ID' : (!/^\d{3}-\d-\d{3}$/.test(v) && !/^A-\d{5}$/.test(v) ? '“' + v + '” is not a WKSA ID' : '');
+        if (k === 'date_of_birth') return validDate(v) ? '' : '“' + v + '” is not a real date';
+        if (k === 'current_rank') return rankNames.includes(v) ? '' : '“' + v + '” is not a KukGrade rank';
+        if (k === 'status') return ['Active', 'Inactive', 'Left'].includes(v) ? '' : '“' + v + '” is not a status';
+        return v ? '' : 'No ' + (k === 'first_name' ? 'first name' : 'last name');
+      };
+      const keys = ['wksa_id', 'first_name', 'last_name', 'date_of_birth', 'current_rank', 'status'];
+      const labels = { wksa_id: 'WKSA ID', first_name: 'First name', last_name: 'Last name', date_of_birth: 'Date of birth', current_rank: 'Rank', status: 'Status' };
+      const all = base.map((r) => {
+        const left = Boolean(out[r.n]);
+        const issues = r.existing ? [] : keys.map((k) => problem(r, k)).filter(Boolean);
+        const state = left ? 'out' : (r.existing ? 'skip' : (issues.length ? 'attention' : 'ready'));
+        const look = {
+          ready: ['Ready', '✓', 'var(--color-success-surface)', 'var(--color-success)'],
+          attention: ['Needs attention', '!', 'var(--color-warning-surface)', 'var(--color-warning)'],
+          skip: ['Already in KukGrade', '↷', 'var(--color-neutral-surface)', 'var(--color-text)'],
+          out: ['Left out', '–', 'var(--color-neutral-surface)', 'var(--color-text-muted)']
+        }[state];
+        return {
+          n: r.n,
+          group: state,
+          left,
+          bg: state === 'attention' ? 'rgba(251, 234, 208, 0.25)' : 'transparent',
+          opacity: left ? 0.6 : 1,
+          state: look[0], mark: look[1], pillBg: look[2], pillFg: look[3],
+          hasIssue: state === 'attention' || state === 'skip',
+          issue: state === 'skip' ? 'A student with this WKSA ID is here already. Skipped.' : issues.join(' · '),
+          toggle: () => this.setState({ out: { ...out, [r.n]: !left } }),
+          cells: keys.map((k) => {
+            const v = val(r, k);
+            const bad = !r.existing && Boolean(problem(r, k));
+            const own = v !== r[k];
+            const editable = !r.existing && !left;
+            return {
+              editable,
+              plain: !editable,
+              text: v,
+              label: labels[k] + ', row ' + r.n,
+              invalid: bad ? 'true' : 'false',
+              placeholder: k === 'date_of_birth' ? 'dd/mm/yyyy' : '',
+              minW: k === 'current_rank' ? '120px' : '100px',
+              border: bad ? 'var(--color-danger)' : (own ? 'var(--color-info)' : 'var(--color-border)'),
+              bg: bad ? 'var(--color-danger-surface)' : 'var(--color-surface)',
+              color: 'var(--color-text-muted)',
+              wrap: 'nowrap',
+              change: (e) => this.setState({ edits: { ...edits, [r.n]: { ...(edits[r.n] || {}), [k]: e.target.value } } })
+            };
+          }).concat([{ editable: false, plain: true, text: r.phone || '(blank)', minW: '110px', color: 'var(--color-text-muted)', wrap: 'nowrap' }])
+        };
+      });
+      const extra = { attention: 0, ready: 0 };
+      all.forEach((r) => { if (r.group in extra) extra[r.group] += 1; });
+      const counts = { all: 212, attention: extra.attention + 5, ready: 193 + extra.ready, skip: 5, out: all.filter((r) => r.left).length };
+      const rows = view === 'all' ? all : all.filter((r) => r.group === view);
+      return {
+        theme: dark ? 'dark' : 'light',
+        title: 'Import students',
+        file: 'spring-roster.xlsx · sheet “Members” · 212 rows',
+        steps,
+        heading: 'Review every row',
+        lead: 'The whole file, as KukGrade will import it. Type into any cell to fix it; each fix is saved and checked straight away.',
+        searchHint: 'Name or WKSA ID',
+        tabs: tabsFrom([['all', 'All rows'], ['attention', 'Need attention', 'warn'], ['ready', 'Ready'], ['skip', 'Already in KukGrade'], ['out', 'Left out']], counts),
+        tableMin: '1180px',
+        headers: ['Row', 'WKSA ID', 'First name', 'Last name', 'Date of birth', 'Rank', 'Status', 'Parent phone (extra)', 'Check', ''],
+        rows,
+        pageNote: view === 'all' ? 'Rows 2–27 of 212 · 50 a page' : 'Showing ' + rows.length + ' on this page',
+        continueNote: counts.attention ? counts.attention + ' rows need attention and will not be imported as they are.' : 'Every row is ready or left out.'
+      };
+    }
+
+    const base = [
+      { n: 'Mar 2025 · 2', name: 'Mia R', held: 'White Belt', tested: 'Yellow stripe', outcome: 'Pass', report: 'Ki Cho Hyung 1 clean. Good focus throughout.', kind: 'Result' },
+      { n: 'Mar 2025 · 3', name: 'Theo', held: 'Yellow Belt', tested: 'Blue stripe?', outcome: 'Pass.', report: 'Needs work on falls.', kind: 'Result', doubt: true },
+      { n: 'Mar 2025 · 4', name: 'Priya S', held: 'Blue Belt', tested: 'Red stripe', outcome: 'Conditional', report: 'Re-test Ki Cho Hyung 4 at the next class grading.', kind: 'Result' },
+      { n: 'Mar 2025 · 5', name: 'Jake', held: 'Red Belt', tested: 'Brown stripe', outcome: 'DNA', report: '', kind: 'Result' },
+      { n: 'Mar 2025 · G4', name: 'Ella M', held: 'Yellow stripe', tested: '', outcome: '', report: '', kind: 'Did not attend' },
+      { n: 'Jun 2025 · 14', name: 'Leo', held: 'Red Belt', tested: 'Brn stripe', outcome: 'Pass', report: 'BJ- strong kicks, stances need depth.', kind: 'Result', rank: true },
+      { n: 'Sep 2025 · 3', name: 'Noah', held: 'Purple', tested: '', outcome: 'N/A', report: '', kind: 'Result', rank: true },
+      { n: 'Sep 2025 · Note', name: '', held: '', tested: '', outcome: '', report: 'Re-test the three red stripes in October.', kind: 'Sheet note' }
+    ];
+    const all = base.map((r, i) => {
+      const left = Boolean(out[i]);
+      const group = left ? 'out' : (r.rank ? 'rank' : (r.kind === 'Result' ? 'result' : 'note'));
+      const look = {
+        result: ['Grading result', '✓', 'var(--color-success-surface)', 'var(--color-success)'],
+        rank: ['Rank to match', '!', 'var(--color-warning-surface)', 'var(--color-warning)'],
+        note: [r.kind, 'i', 'var(--color-info-surface)', 'var(--color-info)'],
+        out: ['Left out', '–', 'var(--color-neutral-surface)', 'var(--color-text-muted)']
+      }[group];
+      const cell = (text, minW, wrap) => ({ editable: false, plain: true, text: text || '—', minW, color: text ? 'var(--color-text)' : 'var(--color-text-muted)', wrap: wrap || 'nowrap' });
+      return {
+        n: r.n,
+        group,
+        left,
+        bg: 'transparent',
+        opacity: left ? 0.6 : 1,
+        state: look[0], mark: look[1], pillBg: look[2], pillFg: look[3],
+        hasIssue: group === 'rank' || Boolean(r.doubt),
+        issue: group === 'rank' ? 'Imported as written; match it now or when linking.' : 'The workbook doubts this rank. Kept as doubtful.',
+        toggle: () => this.setState({ out: { ...out, [i]: !left } }),
+        cells: [cell(r.name || '(no name)', '90px'), cell(r.held, '110px'), cell(r.tested, '110px'), cell(r.outcome, '90px'), cell(r.report, '260px', 'normal')]
+      };
+    });
+    const c = { result: 0, rank: 0, note: 0, out: 0 };
+    all.forEach((r) => { c[r.group] += 1; });
+    const counts = { all: 231, result: 190 + c.result, rank: 3 + c.rank, note: 25 + c.note, out: c.out };
+    const rows = view === 'all' ? all : all.filter((r) => r.group === view);
+    return {
+      theme: dark ? 'dark' : 'light',
+      title: 'Import past gradings',
+      file: 'grading-record-2025.xlsx · 5 grading sheets · 231 records',
+      steps,
+      heading: 'Review every record',
+      lead: 'Every record the workbook gave, exactly as written. Nothing here can be retyped: tick Leave out for anything that should not be imported.',
+      searchHint: 'Name or comment',
+      tabs: tabsFrom([['all', 'All records'], ['result', 'Grading results'], ['rank', 'Rank to match', 'warn'], ['note', 'Did not attend and notes'], ['out', 'Left out']], counts),
+      tableMin: '1100px',
+      headers: ['Sheet · row', 'Name', 'Rank held', 'Tested for', 'Outcome', 'Comments (the grading report)', 'Check', ''],
+      rows,
+      pageNote: view === 'all' ? 'Records 1–8 of 231 · 50 a page' : 'Showing ' + rows.length + ' on this page',
+      continueNote: 'Ranks still to match can be matched later, when linking records.'
+    };
+  }
+}
+</script>
+</body>
+</html>

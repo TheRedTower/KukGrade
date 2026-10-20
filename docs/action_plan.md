@@ -25,9 +25,23 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    `current-system.md`, "Plain wording").
 5. **Housekeeping** (done 2026-10-20: decision log, Open decisions 3).
 
+**The import overhaul** (decision log 2026-10-20, in slices, each committed
+after the owner's approval):
+
+- Backend: A0 read the real workbook (done 2026-10-20: findings in the
+  decision log); A1 stored rows and A2 the batch API (list, mapping, paged rows,
+  per-row fixes); A3 a fast bulk roster commit with a lower row limit and no
+  worker; A4 mapping onto KukGrade's fields, whole-file values, extra
+  information and the grading report; A5 and A6 per-row historical preview
+  and suggested student links; A7 voiding a wrong batch, choosing the sheet.
+- Frontend: B1 a design register entry and mocks; B2 one Imports area; B3 a
+  guided flow (file, match columns, review rows, confirm, results); B4 a
+  redone Historical records screen; B5 hooks, tests and accessibility.
+
 Later, when the owner asks: release assurance (KG-A24); rehearsing the
 historical import against a sanitised copy of the real KSW Colchester
-workbook (`data-import-and-legacy-migration.md`).
+workbook (`data-import-and-legacy-migration.md`) - the overhaul's A0 reads
+the owner's sample, but the full rehearsal is separate.
 
 ## Known defects
 
@@ -42,12 +56,16 @@ None recorded.
 
 ## Needs a decision first
 
-- **Previous WKSA IDs** (decision log 2026-10-20): keeping the student ID a
-  black belt ID replaced as a previous ID, and finding a student by either.
-  The two forms, the black belt rank rule and the one change are built; the
-  replaced ID is in that change's audit event meanwhile. Whether a leaver's
-  student number can be given to someone new decides whether previous IDs
-  stay unique; the school owner is to answer.
+- **Previous WKSA IDs** (decision log 2026-10-20) - **decided, ready to
+  build**: the school owner answered that a student's number stays with them
+  even after they leave and is never reused, so every ID, current or
+  previous, is unique for good. To build: a list of the IDs each student has
+  held, with the date each was replaced; lookups (the roster import, search)
+  check the current ID and then that list; no new student may take an ID any
+  student has held. The two forms, the black belt rank rule and the one
+  change are built; the replaced ID is in that change's audit event
+  meanwhile. One small question for the owner when it is built: whether a
+  deleted student's number is also kept from reuse.
 
 - **Black belt testing** (owner, 2026-10-20): the owner is to explain how
   black belt gradings work - the national grading, where the black belt ID

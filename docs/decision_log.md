@@ -18,6 +18,73 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
+
+Status: Accepted (direction); built in slices after this entry
+
+Decision:
+Imports are rebuilt backend first, then the screens. The owner's choices:
+
+- **Rows are kept.** Every parsed row is stored with its result and any fix,
+  so an import can be left and resumed, rows are reviewed page by page, and
+  what happened to each row can be seen afterwards. This replaces the
+  stateless preview (a fresh parse on every check, fixes resent by the
+  browser, skipped rows dropped) and the claim that review rows are "held".
+- **No background worker.** A large roster is made fast by validating once
+  and saving in bulk, still all-or-nothing, and the row limit comes down to
+  what the club needs. F-19 (about a minute for 5,000 rows) is closed by
+  this, not deferred.
+- **Imports map onto KukGrade's own fields.** Whatever a file has that
+  matches a field is imported there; what it lacks can be supplied by the
+  person importing for the whole file; columns KukGrade has no field for are
+  kept as labelled extra information, not dropped and not new database
+  fields. For historical gradings the comment text is kept in full as the
+  grading report. No keyword tagging, AI or OCR for now.
+- **Links are suggested, never made.** Historical records are matched to
+  students by suggestion that a person confirms singly or in bulk. Import
+  decision 3 (no auto-linking) stands, as do 4, 5, 6 and 16: rank text is
+  never silently normalised, uncertainty never blocks an import, a
+  historical Pass never creates a native promotion, and records are voided,
+  never deleted.
+
+Context:
+Findings from the owner's real workbook (read 2026-10-20: an Information sheet
+and six quarterly sheets, `062025` to `092026`, 196 rows; kept outside the
+repository):
+
+- Sheet titles are bare `MMYYYY` with no separator, which confirms the
+  adapter's pattern. Months only: no row carries a day, a WKSA ID or a date.
+- The existing adapter reads all 196 main-table rows (126 Pass, 39
+  Conditional, 24 Fail, 7 with no recognised outcome) with no warnings, but
+  **silently drops every side table**: "Unaccounted" with its own Outcome and
+  Comments (062025), "Missing" and its notes (122025), "Did not attend" and
+  "Current belt" (032026, 092026), a "General Comments - juniors" column
+  (062026) and loose notes beside the table. They sit to the right of the
+  main table in the same rows, not below it, which the adapter does not see.
+  A rehearsal would have passed while losing them; the overhaul reads each as
+  its own table or a sheet-level note, and shows anything it cannot place.
+- 092026 has two "Name" columns (the second a duplicate of the first, with a
+  merged cell), shifting the rest right by one. Header detection by content
+  copes today; the mapping step must show both and let the importer choose.
+- Names are first names only in the older sheets and full names in the
+  newer ones, and the same person recurs across sheets ("Name" and "Name
+  Surname"), so records should be grouped by person before suggesting a
+  student, with a "several students share this name" state.
+- Ranks are written "White Belt", "Yellow Belt" and so on (KukGrade: White,
+  Yellow), "DBN" (KukGrade: Dahn Bo) and its typos "DNB" and "DBn", case
+  variants ("red belt"), and "?" marking doubt.
+- Outcomes include "Pass." and "Fail." with full stops, "DNA", "did not
+  attend" and "N/A"; one outcome cell holds a free note.
+- Sheets are padded to about 1,000 empty rows.
+
+Consequences:
+The plan is in `docs/action_plan.md` under the import overhaul. Statements in
+`docs/data-import-and-legacy-migration.md` about the stateless preview and
+held review rows are superseded as each slice lands. Previous WKSA IDs are
+decided (never reused) and are best built before the roster import's matching
+slice, since a roster row may quote an old student ID; email, the Settings
+page and release assurance are untouched.
+
 ### 2026-10-20 - The first administrator is set up from the site, with a code from the log
 
 Status: Accepted, built 2026-10-20
@@ -76,7 +143,7 @@ refused.
 Status: Accepted (format and the owner's answers). The two forms are
 enforced since 2026-10-20, with a black belt rank requiring a black belt ID
 and the one change from a student ID to it; the list of previous IDs is
-still to build
+still to build, now unblocked by the owner's answer on reuse (below)
 
 Decision:
 A WKSA ID is never free text. It is the identifier a student is known and
@@ -139,11 +206,20 @@ Consequences:
   recording a black belt ID (built 2026-10-20), which will move the old one
   into the list of previous IDs once that list exists.
 
-Question to answer before previous IDs are built:
-- When a student leaves, can their student number later be given to a new
-  student? If it can, an old ID can belong to two people at different times,
-  and a lookup by a previous ID has to be told which period it is about; if
-  it cannot, every ID - current or previous - is unique for good.
+Answered 2026-10-20 (school owner, by message): "The number that is allocated
+stays with the student even if the student leaves." A number is never given
+to a second person, so a student ID - and the one it was replaced by when a
+student became a black belt - is unique for good, current or previous. A
+lookup by a previous ID is never ambiguous, and KukGrade can hold that as a
+rule: no new student may take an ID any student holds or has held. The
+remaining work is the list of previous IDs itself (see "How previous IDs are
+kept" above), now unblocked.
+
+Edge to settle when it is built: deleting a student (an administrator-only
+cleanup) removes their row, so their number would otherwise look free. The
+number is kept in the audit event of the deletion; whether a deleted student's
+number must also be blocked from reuse is a small follow-up decision for the
+owner.
 
 ### 2026-10-19 - Email and credential lifecycle: the packet as amended
 
@@ -2898,8 +2974,9 @@ answers to the rest are under "2026-10-18 - Owner answers on the audit's open
 decisions" above.
 
 1. **WKSA ID case and uniqueness (F-30)** - settled by "2026-10-20 - The
-   WKSA ID scheme" above: the two forms are enforced on every path. Still
-   open there: whether a leaver's student number is ever reused.
+   WKSA ID scheme" above: the two forms are enforced on every path, and the
+   school owner confirmed a number is never reused, so every ID is unique
+   for good.
 2. **Roster import (F-19)** - deferred to the planned import overhaul. A
    5,000-row commit takes about a minute in one request.
 3. **Housekeeping** - done 2026-10-20: the logo's source artwork moved to

@@ -18,7 +18,7 @@ Consequences:
 
 ## Accepted decisions
 
-### 2026-10-20 - The import screens: six screens chosen, and what they ask of the backend
+### 2026-10-20 - The import screens: seven screens chosen, and what they ask of the backend
 
 Status: Accepted (design); the screens are not built yet
 
@@ -45,6 +45,9 @@ The owner chose the import screens one at a time from proposed directions
 - **Results (FDR-054):** the import's own page, with the next job on top
   (linking records to students, or a second look at what KukGrade filled
   in) and every row and what happened to it below.
+- **Linking historical records (FDR-055):** one name at a time, its
+  records beside the students it could be, each saying whether the ranks
+  fit; tick the records, choose the student, link and move on.
 - **An unfinished import is still cleared 24 hours after upload.** Asked
   whether that limit is needed, the owner kept it: the uploaded file and its
   rows are personal data held outside the records, and a day is a sane time.
@@ -54,8 +57,7 @@ The owner chose the import screens one at a time from proposed directions
 
 Context:
 The 2026-10-20 import overhaul built the backend first. These choices
-complete the import's steps, through to its results; the full page for
-linking historical records follows.
+cover every import screen, from the hub to linking historical records.
 
 Consequences:
 - The backend must accept a roster mapping that has no column for a needed

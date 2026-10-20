@@ -1,6 +1,6 @@
 # Imports overhaul - proposed directions (2026-10-20)
 
-Status: **in progress, screen by screen.** Selected so far: 1D, 2D, 3D, 4D, 5C and 6D. Each screen is proposed as
+Status: **selected 2026-10-20**: 1D, 2D, 3D, 4D, 5C, 6D and 7B, chosen screen by screen. Each screen is proposed as
 competing directions, one is selected, and the selection is recorded in
 `../FRONTEND_DESIGN_REGISTER.md` before the next screen is designed.
 
@@ -114,3 +114,15 @@ results. The row-by-row list is kept 30 days (the counts for good).
 import page (status, every row filterable and linked, a side panel) with
 6C's next job in a gold-edged panel above the rows: linking for past
 gradings, "Worth a second look" for students.
+
+## Screen 7 - Link historical records
+
+The full page behind 6D's linking panel: every imported record not yet
+linked, grouped by the name as written. KukGrade only suggests; a person
+links.
+
+| | Direction | Idea | Cost |
+| --- | --- | --- | --- |
+| 7A | People Queue | One row per name with its suggestion, Link, Someone else, or a choice where two students share it; opens to its records (match rank, void). Tick names, or every name with one clear suggestion, and review every link before it is made. | Little room to compare two candidates. |
+| **7B** | **Side by Side** (selected 2026-10-20, FDR-055, SCR-035) | A queue of names beside one name's records and the students it could be, each saying whether the ranks fit; tick which records, choose the student, link and move on. | One name at a time. |
+| 7C | Student First | Choose a student; see the imported records that could be theirs, most likely first, and tick the ones that are. | Needs the backend to suggest records for a student, the reverse of today's suggestions. |

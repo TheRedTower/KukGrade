@@ -7,7 +7,7 @@
   "title": "KukGrade Imports",
   "launch": {
     "view": "canvas",
-    "page": "results"
+    "page": "link"
   },
   "pages": [
     {
@@ -33,6 +33,10 @@
     {
       "id": "results",
       "name": "6 · Results"
+    },
+    {
+      "id": "link",
+      "name": "7 · Link historical records"
     }
   ],
   "boards": {
@@ -261,6 +265,36 @@
       "expand": "fill",
       "page": "results",
       "is_interactive": true
+    },
+    "S7A-People-Queue.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1300,
+      "title": "7A · People Queue",
+      "expand": "fill",
+      "page": "link",
+      "is_interactive": true
+    },
+    "S7B-Side-By-Side.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1300,
+      "title": "7B · Side by Side · Selected",
+      "expand": "fill",
+      "page": "link",
+      "is_interactive": true
+    },
+    "S7C-Student-First.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1300,
+      "title": "7C · Student First",
+      "expand": "fill",
+      "page": "link",
+      "is_interactive": true
     }
   },
   "order": [
@@ -286,7 +320,10 @@
     "S6A-Done-Page.dc.html",
     "S6B-Results-Ledger.dc.html",
     "S6C-Hand-Off.dc.html",
-    "S6D-Ledger-With-Hand-Off.dc.html"
+    "S6D-Ledger-With-Hand-Off.dc.html",
+    "S7A-People-Queue.dc.html",
+    "S7B-Side-By-Side.dc.html",
+    "S7C-Student-First.dc.html"
   ],
   "notes": {
     "hubTitle": {
@@ -336,6 +373,14 @@
       "kind": "title1",
       "maxW": 4480,
       "page": "results"
+    },
+    "linkTitle": {
+      "x": 0,
+      "y": -320,
+      "text": "Screen 7 · Link historical records to students: three directions",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "link"
     }
   },
   "designSystems": []

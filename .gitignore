@@ -44,3 +44,6 @@ tmp/
 
 # Local agent workspace
 .claude/
+
+# Local audit notes, never committed
+audit/

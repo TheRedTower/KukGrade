@@ -45,6 +45,7 @@ const managedUser: ManagedUser = {
   can_view_grading_audit_log: false,
   must_change_password: false,
   temporary_password_expires_at: null,
+  manageable: true,
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -224,6 +225,19 @@ describe("UserDetailScreen", () => {
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
     await user.keyboard("{Escape}");
     expect(screen.getByRole("dialog", { name: "Reset password" })).toBeInTheDocument();
+  });
+
+  it("offers no change to an account only a superuser may change", async () => {
+    mockGetManagedUser.mockResolvedValue({ ...managedUser, manageable: false });
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    expect(screen.getByText("Only a superuser can change this account.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete account" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Role")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save account details" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
   });
 
   it("prevents self-service role, status, and authority changes", async () => {

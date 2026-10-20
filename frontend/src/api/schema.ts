@@ -1557,6 +1557,8 @@ export interface components {
             readonly date_joined: string;
             /** Format: date-time */
             readonly last_login: string | null;
+            /** @description Whether the signed-in user may change this account; only a superuser changes one that can use the Django admin site. */
+            readonly manageable: boolean;
             readonly temporary_password: string;
         };
         /**
@@ -2224,6 +2226,8 @@ export interface components {
             readonly date_joined: string;
             /** Format: date-time */
             readonly last_login: string | null;
+            /** @description Whether the signed-in user may change this account; only a superuser changes one that can use the Django admin site. */
+            readonly manageable: boolean;
         };
         /**
          * @description List, retrieve, create and update for the administrator-facing API.

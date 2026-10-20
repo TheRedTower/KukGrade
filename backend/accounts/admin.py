@@ -19,6 +19,7 @@ from accounts.admin_site import admin_notice
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import (
     TemporaryPassword,
+    can_manage,
     create_platform_user,
     delete_platform_user,
     reset_password,
@@ -278,6 +279,16 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         add_never_cache_headers(response)
         return response
 
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> bool:
+        # View-only where the services would refuse every change.
+        if obj is not None and not can_manage(obj, cast(User, request.user)):
+            return False
+        return super().has_change_permission(request, obj)
+
     def has_delete_permission(
         self,
         request: HttpRequest,
@@ -285,4 +296,18 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ) -> bool:
         if obj is not None and obj.pk == request.user.pk:
             return False
+        if obj is not None and not can_manage(obj, cast(User, request.user)):
+            return False
         return super().has_delete_permission(request, obj)
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> tuple[str, ...]:
+        # Admin site access is granted by a superuser only
+        # (set_admin_site_access): anyone else could make themselves one.
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if not request.user.is_superuser:
+            fields += ("is_staff", "is_superuser")
+        return fields

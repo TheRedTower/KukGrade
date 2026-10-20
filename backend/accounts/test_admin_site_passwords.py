@@ -241,9 +241,7 @@ def test_only_a_superuser_can_reset_a_superuser_on_the_admin_site() -> None:
     shown = client.get(f"/admin/accounts/user/{superuser.pk}/password/")
     sent = client.post(f"/admin/accounts/user/{superuser.pk}/password/")
 
-    for response in (shown, sent):
-        assert response.context["message"] == (
-            "Only a superuser can reset this account's password."
-        )
+    # The superuser's record is view-only to them, password page included.
+    assert shown.status_code == sent.status_code == 403
     superuser.refresh_from_db()
     assert superuser.check_password(OWNER_PASSWORD)

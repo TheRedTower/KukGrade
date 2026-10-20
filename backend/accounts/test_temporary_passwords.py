@@ -234,7 +234,7 @@ def test_only_a_superuser_can_reset_an_account_with_admin_site_access(
 
     assert refused.status_code == 400
     assert refused.json()["error"]["message"] == (
-        "Only a superuser can reset this account's password."
+        "Only a superuser can change this account."
     )
     target.refresh_from_db()
     assert target.check_password("Owner-Chosen-Pass-9!")

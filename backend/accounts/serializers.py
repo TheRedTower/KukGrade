@@ -20,6 +20,7 @@ from accounts.permissions import (
     prime_permission_cache,
 )
 from accounts.services import (
+    can_manage,
     change_own_password,
     set_user_authority,
     update_platform_user,
@@ -179,6 +180,14 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
 
     full_name = serializers.CharField(source="get_full_name", read_only=True)
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    # From the rule the services enforce (accounts.services.can_manage), so
+    # the screen offers no change the server would refuse.
+    manageable = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the signed-in user may change this account; only a "
+            "superuser changes one that can use the Django admin site."
+        ),
+    )
 
     # No password field: the server generates every password an administrator
     # issues (UserViewSet.create and set-password), so none is ever typed here.
@@ -202,6 +211,7 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "temporary_password_expires_at",
             "date_joined",
             "last_login",
+            "manageable",
         )
         # is_staff and is_superuser are not in this API at all: Django admin
         # access is not something it should be able to hand out. Role and
@@ -220,6 +230,9 @@ class UserManagementSerializer(AuthorityFields, serializers.ModelSerializer):
             "date_joined",
             "last_login",
         )
+
+    def get_manageable(self, user: User) -> bool:
+        return can_manage(user, self.context["request"].user)
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         request = self.context["request"]

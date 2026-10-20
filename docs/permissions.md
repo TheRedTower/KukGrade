@@ -110,53 +110,30 @@ administrator-only user-management exclusion for both.
 
 The syllabus catalogue is read-only while syllabus versioning is deferred.
 
-## Backend Enforcement
+### What an Administrator can do to other accounts (2026-10-20)
 
-- Every endpoint requires authentication except `/api/health/`,
-  `/api/ready/`, `/api/site/`, and login.
-- Every viewset declares a `permission_map` from action to required Django
-  permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
-  action is denied, so a new endpoint fails closed.
-- An account whose password somebody else chose (`must_change_password`, set
-  on creation and by an administrator reset) may do nothing but read who it is,
-  change its password, and sign out, whatever permissions it holds
-  (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
-  this to every view at once, so a new endpoint is gated without declaring
-  anything; see `api_contract.md`. Once that temporary password expires, the
-  account cannot sign in at all until an administrator issues a new one.
-- A password reset hands the administrator a password that signs in as that
-  account, so only a superuser may reset an account that can use the Django
-  admin site (`is_staff` or `is_superuser`), and nobody may reset their own
-  (`accounts.services.validate_can_reset_password`).
-- Final decisions, promotion, and locked-session withdrawal/cancellation each
-  add a per-user authority check on top, pinned by
-  `accounts/test_permission_matrix.py`.
-- Models refuse illegal states (locked or finalised records, immutable
-  history), so admin, the shell, and bulk querysets cannot bypass the API's
-  rules.
-- Every sensitive write records an audit event in its own transaction.
+The table above is what each role can do; this is what a non-superuser
+Administrator may do to a particular account, mapped by request on
+2026-10-20 and closed by the owner's decision of the same day
+(`decision_log.md`). A superuser can do all of it to any account but their
+own, and is the only account with the Django admin site unless one grants it
+to another (`is_staff`, which the API never sets).
 
-Frontend controls reflect these permissions but are never the enforcement
-boundary.
+| To this account | Edit name, email | Change role | Activate / deactivate | Grant / revoke authority | Reset password | Delete |
+| --- | --- | --- | --- | --- | --- | --- |
+| An instructor | Yes | Yes | Yes | Yes | Yes | Yes |
+| Another administrator | Yes | Yes | Yes | Yes (never final decisions) | Yes | Yes |
+| A superuser, or any account with admin site access | No | No | No | No | No | No |
+| Their own | Yes (name also from the account menu) | No | No | No | No - change it instead | No |
 
-## Audit Requirements
+Every "No" is refused by the service that makes the change
+(`accounts.services.can_manage` for the third row; `update_platform_user`
+for your own role and status), so the API and Django admin agree; the Users
+API serves `manageable` on each account and the user page offers no change
+it would refuse. Admin site access itself (`is_staff`, `is_superuser`) is
+granted or removed only by a superuser, and Django admin shows another
+superuser's record view-only to anyone else.
 
-Audit events should capture at least:
-
-- actor.
-- action.
-- entity type and identifier.
-- timestamp.
-- summary.
-- relevant metadata, avoiding unnecessary personal data duplication.
-
-Actions requiring audit include syllabus changes, permission changes, final decisions, overrides, rank changes, student status changes, and changes to submitted or finalised grading records.
-
-## Privacy Rules
-
-- Student details, attendance, grading comments, and outcomes are personal data.
-- Development data must be anonymised or synthetic.
-- Access should be limited to users with a real operational need.
 - Assessment comments, grading outcomes, student status, and audit logs need stricter access than general reference data.
 
 ## Open questions

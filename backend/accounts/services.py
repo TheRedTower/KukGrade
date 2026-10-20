@@ -47,6 +47,30 @@ def _snapshot(user: User) -> dict[str, Any]:
     }
 
 
+SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
+OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
+
+
+def can_manage(target: User, actor: User) -> bool:
+    """Whether `actor` may change `target` at all (2026-10-20).
+
+    An account that can use the Django admin site - a superuser's, or one a
+    superuser gave `is_staff` - is changed only by a superuser: its details,
+    role, status, authority, password and existence. Anyone less could
+    otherwise take it over, lock it out or delete it. Your own account has
+    rules of its own: no role or status change (update_platform_user), no
+    reset, authority change or deletion.
+    """
+    if target.pk == actor.pk:
+        return True
+    return actor.is_superuser or not (target.is_staff or target.is_superuser)
+
+
+def _validate_can_manage(target: User, actor: User) -> None:
+    if not can_manage(target, actor):
+        raise ValidationError({"user": [SUPERUSER_ONLY_MESSAGE]})
+
+
 @dataclass(frozen=True)
 class TemporaryPassword:
     """A temporary password just issued, for the administrator to pass on.
@@ -192,6 +216,15 @@ def update_platform_user(
         # A no-op PATCH writes nothing: an audit trail exists to show what
         # changed, and nothing did.
         return locked
+    if actor is not None:
+        _validate_can_manage(locked, actor)
+        # The screen never offers it, and the server refuses it too: nobody
+        # demotes or deactivates themselves, so the last administrator
+        # cannot leave the school with none.
+        if locked.pk == actor.pk and (
+            before["role"] != after["role"] or before["is_active"] != after["is_active"]
+        ):
+            raise ValidationError({"user": [OWN_ROLE_OR_STATUS_MESSAGE]})
 
     locked.save()
     record(
@@ -238,6 +271,7 @@ def delete_platform_user(target: User, actor: User) -> User:
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
+    _validate_can_manage(target, actor)
 
     placeholder = get_deleted_user_placeholder()
     if target.pk == placeholder.pk:
@@ -331,6 +365,7 @@ def validate_authority_change(
                 ],
             },
         )
+    _validate_can_manage(target, actor)
 
     if (
         flags.get("can_make_final_grading_decision")
@@ -406,7 +441,6 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
 OWN_PASSWORD_RESET_MESSAGE = (
     "Change your own password from your account menu, which asks for your current one."
 )
-ADMIN_SITE_ACCOUNT_RESET_MESSAGE = "Only a superuser can reset this account's password."
 
 
 def validate_can_reset_password(target: User, actor: User) -> None:
@@ -415,15 +449,13 @@ def validate_can_reset_password(target: User, actor: User) -> None:
     Not your own: a reset asks for no current password, so on your own
     account it let whoever held a signed-in session replace the password and
     lock the owner out (audit F-04); change_own_password, behind the current
-    password, is the way. And not an account that can use the Django admin
-    site unless you are a superuser: the temporary password signs in as that
-    account, so anyone less would be handing themselves admin site access,
-    which the users API never grants.
+    password, is the way. And, as with every change, not an account that can
+    use the Django admin site unless you are a superuser (can_manage): the
+    temporary password signs in as that account.
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": [OWN_PASSWORD_RESET_MESSAGE]})
-    if (target.is_staff or target.is_superuser) and not actor.is_superuser:
-        raise ValidationError({"user": [ADMIN_SITE_ACCOUNT_RESET_MESSAGE]})
+    _validate_can_manage(target, actor)
 
 
 @transaction.atomic
@@ -496,7 +528,8 @@ def set_admin_site_access(
     is_superuser: bool | None = None,
 ) -> User:
     """Django admin's own two flags, which the API never sets, audited like
-    every other account change (KG-A14)."""
+    every other account change (KG-A14). Only a superuser grants or removes
+    them - anyone else could make themselves one."""
     locked = _lock_user(target.pk)
     before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
     if is_staff is not None:
@@ -506,6 +539,8 @@ def set_admin_site_access(
     after = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
     if before == after:
         return locked
+    if not actor.is_superuser:
+        raise ValidationError({"user": [SUPERUSER_ONLY_MESSAGE]})
     locked.save(update_fields=["is_staff", "is_superuser"])
     record(
         AuditAction.USER_UPDATED,

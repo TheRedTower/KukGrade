@@ -1352,11 +1352,9 @@ def test_search_and_role_filters_work() -> None:
 
 
 def admin_operator_request(email: str) -> Any:
+    # A superuser: admin site access is theirs alone to grant.
     request = RequestFactory().post("/admin/")
-    request.user = User.objects.create_user(
-        email=email,
-        role=User.Role.ADMINISTRATOR,
-    )
+    request.user = User.objects.create_superuser(email=email)
     return request
 
 

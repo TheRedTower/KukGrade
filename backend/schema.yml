@@ -3293,6 +3293,11 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        manageable:
+          type: boolean
+          readOnly: true
+          description: Whether the signed-in user may change this account; only a
+            superuser changes one that can use the Django admin site.
         temporary_password:
           type: string
           readOnly: true
@@ -3306,6 +3311,7 @@ components:
       - full_name
       - id
       - last_login
+      - manageable
       - must_change_password
       - role_display
       - temporary_password
@@ -4647,6 +4653,11 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        manageable:
+          type: boolean
+          readOnly: true
+          description: Whether the signed-in user may change this account; only a
+            superuser changes one that can use the Django admin site.
       required:
       - can_make_final_grading_decision
       - can_override_locked_session
@@ -4657,6 +4668,7 @@ components:
       - full_name
       - id
       - last_login
+      - manageable
       - must_change_password
       - role_display
       - temporary_password_expires_at

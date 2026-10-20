@@ -175,7 +175,13 @@ Administrator group.
 | POST   | /api/users/{id}/set-password/ | Reset another user's password: no request body; returns `200` with the account and a new generated `temporary_password`, once. Their previous password, temporary or not, stops working. Refused with 400 (`fields.user`) for your own account - change it with `/api/auth/change-password/` - and, unless you are a superuser, for an account that can use the Django admin site |
 
 `is_staff` and `is_superuser` are not part of this API - it cannot hand out
-Django admin access. `role` is `instructor` or `administrator`; changing
+Django admin access. An account that has it (a superuser's, or one a
+superuser gave `is_staff`) is changed only by a superuser: any edit,
+authority change, password reset or delete of it by anyone else is a `400`
+(`fields.user`, "Only a superuser can change this account."). Nobody changes
+their own `role` or `is_active` (`400`, "You cannot change your own role or
+account status."). Each account carries `manageable`: whether the caller may
+change it. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
 resource. Responses include read-only `date_joined`, nullable `last_login`

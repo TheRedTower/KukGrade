@@ -6,28 +6,30 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-1. **Finish the 2026-09-29 audit remediation**
-   (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05
-   and A07 to A23; KG-A06 no longer applies (the filter it
-   describes was removed). Remaining, in the audit's order:
-   - KG-A24: release assurance.
-2. **Go live.** Before it: map what the Administrator role - not superuser -
-   can and cannot do, and build the first-deployment prompt that sets up the
-   first administrator (a superuser; no default password exists). Found so
-   far: only a superuser may reset the password of an account that can use
-   the Django admin site (enforced since the 2026-10-19 review); an
-   Administrator can still change such an account's email, role or status
-   through the Users API, which matters most once email recovery exists. Then
-   connect the production image to the real Traefik and PostgreSQL host, cap
-   the request body at Traefik, and verify backup, restore, and monitoring
-   before describing it as live (`deployment.md`).
-3. **Rehearse the historical import** against a sanitised copy of the real
-   KSW Colchester workbook. Every adapter fixture is synthetic, so expect
-   adjustments (`data-import-and-legacy-migration.md`).
-4. **Extend the accessibility pass to the other screens**: the four grading
+In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
+(KG-A24, 2026-09-29 audit) waits until the owner asks for it.
+
+1. **Go live.** Before it: map what the Administrator role - not superuser -
+   can and cannot do (done 2026-10-20: `permissions.md`, "What an
+   Administrator can do to other accounts"), and build the first-deployment
+   prompt that sets up the first
+   administrator (a superuser; no default password exists). Then connect the
+   production image to the real Traefik and PostgreSQL host, cap the request
+   body at Traefik, and verify backup, restore, and monitoring before
+   describing it as live (`deployment.md`).
+2. **The syllabus row-divider defect** under "Known defects" below.
+3. **Extend the accessibility pass to the other screens**: the four grading
    surfaces were measured in slice 8; the rest of the app has only been
    checked visually. Known: the session screen's breadcrumb, banner button,
    search and filter are under 44px.
+4. **Plain-language sweep of every screen's wording** (owner, 2026-10-19):
+   no technical terms or internal detail a user does not need, for
+   administrators too; reword or drop each one.
+5. **Housekeeping**, revisited (decision log, Open decisions 3).
+
+Later, when the owner asks: release assurance (KG-A24); rehearsing the
+historical import against a sanitised copy of the real KSW Colchester
+workbook (`data-import-and-legacy-migration.md`).
 
 ## Known defects
 
@@ -60,6 +62,9 @@ Recorded, not yet fixed.
   student number can be given to someone new decides whether previous IDs
   stay unique; the school owner is to answer.
 
+- **Black belt testing** (owner, 2026-10-20): the owner is to explain how
+  black belt gradings work - the national grading, where the black belt ID
+  is handed out - before KukGrade models them beyond the ID rule.
 - Whether offline grading is required, and its conflict policy, before any
   PWA, IndexedDB, or outbox work.
 - Reports and exports, from an accepted reporting specification.

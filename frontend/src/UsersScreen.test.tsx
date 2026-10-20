@@ -34,6 +34,7 @@ const managedUser: ManagedUser = {
   can_view_grading_audit_log: false,
   must_change_password: false,
   temporary_password_expires_at: null,
+  manageable: true,
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };

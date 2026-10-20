@@ -386,6 +386,9 @@ export function UserDetailScreen(): React.ReactElement {
 
   const managedUser = query.data;
   const isSelf = managedUser.id === currentUser?.id;
+  // The server's answer: only a superuser changes an account that can use
+  // the Django admin site, so the page offers no change it would refuse.
+  const viewOnly = !managedUser.manageable;
   const formKey = [
     managedUser.id,
     managedUser.email,
@@ -421,6 +424,8 @@ export function UserDetailScreen(): React.ReactElement {
             the server refuses it on your own account. */}
         {isSelf ? (
           <p className="users-self-password-hint">Change your own password from your account menu.</p>
+        ) : viewOnly ? (
+          <p className="users-self-password-hint">Only a superuser can change this account.</p>
         ) : (
           <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Reset password</button>
         )}
@@ -430,16 +435,18 @@ export function UserDetailScreen(): React.ReactElement {
 
       <div className="user-detail-layout">
         <main>
-          <section className="user-detail-section">
-            <h2>Account details</h2>
-            <AccountForm key={`account-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
-          </section>
-          <section className="user-detail-section">
-            <h2>Master authority</h2>
-            <p>These permissions are independent of the user's role.</p>
-            <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
-          </section>
-          {!isSelf && (
+          <fieldset className="user-detail-fieldset" disabled={viewOnly}>
+            <section className="user-detail-section">
+              <h2>Account details</h2>
+              <AccountForm key={`account-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+            <section className="user-detail-section">
+              <h2>Master authority</h2>
+              <p>These permissions are independent of the user's role.</p>
+              <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+          </fieldset>
+          {!isSelf && !viewOnly && (
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>

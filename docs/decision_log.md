@@ -18,6 +18,33 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - Who may change which account
+
+Status: Accepted
+
+Decision:
+1. Only a superuser changes an account that can use the Django admin site -
+   a superuser's, or one a superuser gave `is_staff`: its details, role,
+   status, authority, password and existence. Administrators still see it.
+2. Nobody changes their own role or account status; the server refuses what
+   the Users screen already did not offer.
+3. Administrators otherwise manage instructors and each other as before,
+   including creating administrators.
+Admin site access itself is granted or removed only by a superuser.
+
+Context:
+The go-live mapping of the Administrator role (`permissions.md`) found that
+an Administrator could change the superuser's email, role or status, grant
+it authority and delete it, and could demote or deactivate themselves
+through the API although the screen hid those controls. Django admin let a
+staff account with user permissions make itself a superuser.
+
+Consequences:
+`accounts.services.can_manage` is the one rule, used by every account
+service, by Django admin's change and delete permissions, and served as
+`manageable` so the user page goes view-only where a change would be
+refused.
+
 ### 2026-10-20 - The WKSA ID scheme
 
 Status: Accepted (format and the owner's answers). The two forms are

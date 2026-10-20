@@ -293,7 +293,12 @@ checks on each push and pull request.
   caller is a superuser - an account that can use the Django admin site,
   since its temporary password would sign in as that account. The Django
   admin site's reset applies the same rules. `is_staff` and `is_superuser`
-  are not part of the API.
+  are not part of the API. **Since 2026-10-20** only a superuser changes an
+  account that can use the Django admin site - its details, role, status,
+  authority, password or existence - and nobody changes their own role or
+  status; both are enforced in `accounts.services`, so the API and Django
+  admin agree, and `manageable` on each account keeps the user page from
+  offering a refused change (`permissions.md`).
 - **Temporary passwords (2026-10-19)**: nobody types a password for someone
   else in the app. Creating a user and resetting a password each generate a
   temporary one (`generate_temporary_password`, drawn from the password

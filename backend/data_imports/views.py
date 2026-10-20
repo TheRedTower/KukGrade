@@ -19,6 +19,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
+from data_imports.mappings import STUDENT_WHOLE_FILE_FIELDS
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.serializers import (
     ImportBatchCreatedSerializer,
@@ -43,13 +44,16 @@ from data_imports.services import (
     commit_student_import,
     correct_import_row,
     create_import_batch,
+    leave_out_rows_needing_attention,
     preview_legacy_grading_import,
     preview_student_import,
+    rows_given_a_value,
     save_import_mapping,
     set_import_row_excluded,
     void_import_records,
     with_row_counts,
 )
+from gradings.models import LegacyRecordKind
 from kukgrade.filtering import QueryFilter, choice, choices_in, search
 
 
@@ -73,14 +77,37 @@ def _rows_corrected(rows: QuerySet[ImportRow], value: str) -> QuerySet[ImportRow
     return rows.none()
 
 
+def _rows_worth_a_look(rows: QuerySet[ImportRow], value: str) -> QuerySet[ImportRow]:
+    """Rows with (or without) issues - for a historical import, the records
+    worth a look, left out or not."""
+    if value == "true":
+        return rows.exclude(issues=[])
+    if value == "false":
+        return rows.filter(issues=[])
+    return rows.none()
+
+
 _ROW_FILTERS = (
     choice("outcome", "outcome", ImportRow.Outcome.values),
     search("search", ("search_text",), "Matches any of the row's values."),
     QueryFilter("rank_text", _rows_with_rank_text),
     QueryFilter("corrected", _rows_corrected),
+    QueryFilter("worth_a_look", _rows_worth_a_look),
+    choices_in("record_kind", "raw__record_kind", LegacyRecordKind.values),
 )
 _ROW_PARAMETERS = frozenset(
-    {"outcome", "search", "rank_text", "corrected", "page", "page_size", "format"},
+    {
+        "outcome",
+        "search",
+        "rank_text",
+        "corrected",
+        "worth_a_look",
+        "record_kind",
+        "filled",
+        "page",
+        "page_size",
+        "format",
+    },
 )
 
 # Preview and commit take, and preview returns, a different shape per batch
@@ -133,6 +160,7 @@ class ImportBatchViewSet(
         "rows": ("data_imports.view_importbatch",),
         "row": ("data_imports.change_importbatch",),
         "row_exclusion": ("data_imports.change_importbatch",),
+        "leave_out_attention": ("data_imports.change_importbatch",),
         "sheet": ("data_imports.change_importbatch",),
         "void_records": ("gradings.can_reconcile_imported_history",),
     }
@@ -230,6 +258,29 @@ class ImportBatchViewSet(
                     "held or tested for (any case)."
                 ),
             ),
+            OpenApiParameter(
+                "worth_a_look",
+                bool,
+                description="Only rows with (or without) issues.",
+            ),
+            OpenApiParameter(
+                "record_kind",
+                str,
+                description=(
+                    "A historical import's rows of these kinds, comma-separated: "
+                    f"{', '.join(LegacyRecordKind.values)}."
+                ),
+            ),
+            OpenApiParameter(
+                "filled",
+                str,
+                enum=list(STUDENT_WHOLE_FILE_FIELDS),
+                description=(
+                    "A roster's rows whose value for this field the file did not "
+                    "give and nobody typed in, so the whole-file value or "
+                    "KukGrade's default was used."
+                ),
+            ),
         ],
         responses=ImportRowSerializer(many=True),
     )
@@ -248,6 +299,9 @@ class ImportBatchViewSet(
             value = request.query_params.get(row_filter.name)
             if value:
                 rows = row_filter.apply(rows, value)
+        filled = request.query_params.get("filled")
+        if filled:
+            rows = rows_given_a_value(batch, rows, filled)
         page = self.paginate_queryset(rows)
         assert page is not None
         return self.get_paginated_response(
@@ -316,6 +370,24 @@ class ImportBatchViewSet(
         return Response(
             ImportRowSerializer(changed, context=self._row_context(batch)).data,
         )
+
+    @extend_schema(request=None, responses=ImportBatchSerializer)
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="rows/leave-out-attention",
+        filter_backends=[],
+    )
+    def leave_out_attention(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """Leave out every roster row still needing attention, in one go."""
+        batch = self.get_object()
+        leave_out_rows_needing_attention(batch)
+        return self._batch_response(request, batch)
 
     @extend_schema(
         request=ImportBatchCreateSerializer,

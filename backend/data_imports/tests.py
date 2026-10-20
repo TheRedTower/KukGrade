@@ -466,7 +466,7 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
     assert "now held by a student" in message
-    assert message.endswith("Nothing was imported - check the file again.")
+    assert message.endswith("Nothing was imported.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
 

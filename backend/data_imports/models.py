@@ -162,6 +162,8 @@ class ImportRow(models.Model):
         default=Outcome.REVIEW_REQUIRED,
     )
     issues = models.JSONField(default=list, blank=True)
+    # The KukGrade fields the issues are about, so a screen can mark them.
+    issue_fields = models.JSONField(default=list, blank=True)
     # The row's values as the last check read them, by KukGrade field, for
     # the review table; and the same, lower-cased, for search.
     values = models.JSONField(default=dict, blank=True)

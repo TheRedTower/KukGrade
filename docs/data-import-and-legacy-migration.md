@@ -107,8 +107,9 @@ used - the suggestion is never authoritative.
 upload (create_import_batch) - every row read once and stored (ImportRow)
   -> match columns (save_import_mapping) - every row checked
   -> fix a row (correct_import_row) / leave one out (set_import_row_excluded)
-     - repeatable, nothing committed; preview_student_import does all three
-     in one call for the current screen
+     - repeatable, nothing committed; the import screens save each as they
+     go, and preview_student_import does all three in one call for an API
+     client holding the mapping and fixes itself
   -> commit (commit_student_import) - or cancel (cancel_import_batch)
 ```
 
@@ -176,11 +177,11 @@ upload (create_import_batch) - every row read once and stored (ImportRow)
 
 ### Rank resolution
 
-Exact match only, against `Rank.code` or `Rank.name`, case-insensitive,
-active ranks only. A row whose rank text doesn't resolve is
-`REVIEW_REQUIRED`, not silently dropped or guessed. This is simpler than
-the historical importer's rank-review workflow will need to be (see below)
-because a clean roster export is expected to already use real rank names.
+Against `Rank.code` or `Rank.name`, case-insensitive, active ranks only,
+plus the club's fixed spellings ("White Belt", "DBN" - `ranks/matching.py`)
+and never a near miss. A row whose rank text doesn't resolve, or that the
+file marks as doubtful ("Red stripe?"), is `REVIEW_REQUIRED`, not silently
+dropped or guessed: the importer chooses the rank in the review step.
 
 ### Audit trail
 
@@ -301,6 +302,13 @@ committed** - unlike the roster importer's required `current_rank`, an
 unresolved historical rank is a normal, expected outcome, correctable at any
 time afterwards via the reconciliation actions below.
 
+**Records worth a look** (2026-10-21, FDR-052): each stored row carries its
+reasons in `issues` - a rank not matched yet or marked uncertain, an outcome
+KukGrade does not know, a sheet note - found at upload and again whenever
+`rank_mappings` are saved. They only point the review step at a record;
+none of them stops the import. The rows list filters them (`worth_a_look`)
+and by kind (`record_kind`), and the preview counts them (`worth_a_look`).
+
 ### Commit
 
 `commit_legacy_grading_import()` - reads the stored rows not left out and
@@ -364,9 +372,11 @@ each locking the row, saving, and recording one audit event
 actions above as
 `POST .../link-student/`, `.../unlink-student/`, `.../resolve-current-rank/`,
 `.../resolve-testing-for-rank/`, `.../void/`. The frontend
-(`LegacyReconciliationScreen.tsx`, reachable from the Gradings list header)
-filters by link/void status and expands a row into an inline panel for
-each action, including a name/WKSA-ID student search for linking.
+(`LinkRecordsScreen.tsx` at `/imports/records`, FDR-055) takes one name at
+a time from `people/`: its records in full beside the suggested students,
+with a search for anyone else; the ticked records are linked through
+`bulk-link/`, a rank still as written is matched and a record voided in
+place. An import's results page links on the spot the same way (FDR-054).
 
 **Suggested students** (`gradings/legacy_matching.py`, 2026-10-20):
 `GET .../people/` groups records by the name as written and suggests, for

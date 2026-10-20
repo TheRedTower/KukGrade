@@ -472,6 +472,15 @@ paths:
         schema:
           type: boolean
         description: Only rows with (or without) a fix of the importer's.
+      - in: query
+        name: filled
+        schema:
+          type: string
+          enum:
+          - current_rank
+          - status
+        description: A roster's rows whose value for this field the file did not give
+          and nobody typed in, so the whole-file value or KukGrade's default was used.
       - in: path
         name: id
         schema:
@@ -507,10 +516,21 @@ paths:
         description: A historical import's rows that write a rank this way, held or
           tested for (any case).
       - in: query
+        name: record_kind
+        schema:
+          type: string
+        description: 'A historical import''s rows of these kinds, comma-separated:
+          GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND.'
+      - in: query
         name: search
         schema:
           type: string
         description: Matches any of the row's values.
+      - in: query
+        name: worth_a_look
+        schema:
+          type: boolean
+        description: Only rows with (or without) issues.
       tags:
       - data-imports
       security:
@@ -600,6 +620,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{id}/rows/leave-out-attention/:
+    post:
+      operationId: data_imports_batches_rows_leave_out_attention_create
+      description: Leave out every roster row still needing attention, in one go.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
           description: ''
   /api/data-imports/batches/{id}/sheet/:
     post:
@@ -3802,6 +3844,25 @@ components:
             type: string
           readOnly: true
           description: Every sheet a roster workbook has, to choose another.
+        suggested_mapping:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's likely column for each field, from its headings.
+        target_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportField'
+          readOnly: true
+          description: The fields a roster's columns are matched to; empty otherwise.
+        rank_mappings:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A historical import's chosen rank for each spelling, by the
+            spelling lowercased; a spelling not here is left as written.
         grading_sheets:
           type: array
           items:
@@ -3838,12 +3899,15 @@ components:
       - kind_display
       - next_step
       - original_filename
+      - rank_mappings
       - row_counts
       - sheet
       - sheet_names
       - status
       - status_display
+      - suggested_mapping
       - summary_json
+      - target_fields
       - uploaded_at
       - uploaded_by_name
       - warnings
@@ -3901,6 +3965,26 @@ components:
         * `COMMITTED` - Imported
         * `CANCELLED` - Cancelled
         * `EXPIRED` - Expired
+    ImportField:
+      type: object
+      description: One field of KukGrade's a roster's columns are matched to.
+      properties:
+        field:
+          type: string
+        name:
+          type: string
+          description: The field's name on screen.
+        needed:
+          type: boolean
+          description: Every student must have it.
+        whole_file:
+          type: boolean
+          description: It can be given once for the whole file.
+      required:
+      - field
+      - name
+      - needed
+      - whole_file
     ImportMappingRequest:
       type: object
       description: |-
@@ -3908,7 +3992,7 @@ components:
 
         A column for each field, a whole-file value for a field the file lacks
         (current_rank or status only), and the columns to keep as extra
-        information. Each required field needs a column or a whole-file value.
+        information. A needed field with neither is typed into each row as a fix.
       properties:
         column_mapping:
           type: object
@@ -3986,6 +4070,13 @@ components:
           type: array
           items:
             type: string
+          description: A roster row's problems, or a historical record's reasons to
+            look at it (none of which stop the import).
+        issue_fields:
+          type: array
+          items:
+            type: string
+          description: The fields the issues are about (a roster's), to mark them.
         corrected_fields:
           type: array
           items:
@@ -4022,6 +4113,7 @@ components:
       - excluded
       - extra
       - file_values
+      - issue_fields
       - issues
       - outcome
       - outcome_display
@@ -4294,6 +4386,9 @@ components:
           type: integer
         excluded:
           type: integer
+        worth_a_look:
+          type: integer
+          description: 'Records not left out that have issues: a reason to look.'
         warnings:
           type: array
           items:
@@ -4313,6 +4408,7 @@ components:
       - unresolved_outcome
       - unresolved_testing_for_rank
       - warnings
+      - worth_a_look
     LegacyImportRequest:
       type: object
       description: |-

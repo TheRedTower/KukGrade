@@ -39,7 +39,9 @@ from data_imports.ksw_adapter import (
 )
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
+    STUDENT_FIELD_LABELS,
     STUDENT_TARGET_FIELDS,
+    STUDENT_WHOLE_FILE_FIELDS,
     suggest_column_mapping,
 )
 from data_imports.models import COMMITTED_ROWS_KEPT_FOR, ImportBatch, ImportRow
@@ -237,6 +239,7 @@ def _store_roster_rows(batch: ImportBatch, dataset: TabularData) -> None:
 
 
 def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
+    issues = _legacy_issue_finder({})
     ImportRow.objects.bulk_create(
         [
             ImportRow(
@@ -245,6 +248,7 @@ def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
                 source_locator=row.source_locator,
                 raw={name: _jsonable(value) for name, value in asdict(row).items()},
                 outcome=ImportRow.Outcome.READY,
+                issues=issues(row),
                 values=_legacy_values(row),
                 search_text=_search_text(_legacy_values(row)),
             )
@@ -632,6 +636,8 @@ class StudentImportRowResult:
     current_rank_code: str | None
     status: str
     issues: list[str] = field(default_factory=list)
+    # The fields the issues are about, so a screen can mark them.
+    issue_fields: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -708,12 +714,30 @@ def roster_file_values(
     }
 
 
-_STUDENT_FIELD_LABELS = {
-    "wksa_id": "WKSA ID",
-    "first_name": "First name",
-    "last_name": "Last name",
-    "date_of_birth": "Date of birth",
-}
+def rows_given_a_value(
+    batch: ImportBatch,
+    rows: models.QuerySet[ImportRow],
+    field_name: str,
+) -> models.QuerySet[ImportRow]:
+    """A roster's rows whose `field_name` (current_rank or status) the file
+    did not give - no column, or a blank cell - and nobody typed in, so the
+    whole-file value or KukGrade's own default (Active) was used."""
+    if (
+        batch.kind != ImportBatch.Kind.STUDENT_ROSTER
+        or field_name not in STUDENT_WHOLE_FILE_FIELDS
+    ):
+        return rows.none()
+    header = batch.configuration_json.get("column_mapping", {}).get(field_name)
+    given = [
+        row_number
+        for row_number, raw, correction in rows.values_list(
+            "row_number",
+            "raw",
+            "correction",
+        )
+        if field_name not in correction and not (header and cell_text(raw.get(header)))
+    ]
+    return rows.filter(row_number__in=given)
 
 
 def _student_model_issues(
@@ -723,8 +747,9 @@ def _student_model_issues(
     last_name: str,
     date_of_birth: date | None,
     rank: Rank | None,
-) -> list[str]:
-    """What `Student`'s own validation says of an unsaved row (KG-A09).
+) -> list[tuple[str, str]]:
+    """What `Student`'s own validation says of an unsaved row (KG-A09), as
+    (field, message) - the field blank for a rule about the whole student.
 
     The field and `clean()` rules `create_student` runs on save - lengths,
     blanks, a future date of birth - so a row preview calls ready is one
@@ -757,7 +782,7 @@ def _student_model_issues(
         )
     except DjangoValidationError as exc:
         return [
-            _labelled(name, message)
+            (name if name in given else "", _labelled(name, message))
             for name, messages in exc.message_dict.items()
             for message in messages
         ]
@@ -765,7 +790,7 @@ def _student_model_issues(
 
 
 def _labelled(name: str, message: str) -> str:
-    label = _STUDENT_FIELD_LABELS.get(name)
+    label = STUDENT_FIELD_LABELS.get(name)
     if label is None or message.startswith(label):
         return message
     return f"{label}: {message}"
@@ -788,6 +813,12 @@ def _classify_student_row(
     retired_wksa_ids: set[str],
 ) -> StudentImportRowResult:
     issues: list[str] = []
+    issue_fields: set[str] = set()
+
+    def issue(name: str, message: str) -> None:
+        issues.append(message)
+        if name:
+            issue_fields.add(name)
 
     wksa_id = _row_wksa_id(values, correction)
     first_name = str(
@@ -806,52 +837,54 @@ def _classify_student_row(
     dob_display = "" if dob_raw is None else str(dob_raw).strip()
     parsed_dob = _coerce_date(dob_raw)
     if not dob_display:
-        issues.append("Date of birth is required.")
+        issue("date_of_birth", "Date of birth is required.")
     elif parsed_dob is None:
-        issues.append(f"Date of birth {dob_display!r} could not be parsed.")
+        issue("date_of_birth", f"Date of birth {dob_display!r} could not be parsed.")
 
     # The club's own fixed spellings are the rank they spell ("White Belt"
     # is White, "DBN" Dahn Bo - ranks.matching); a rank the file marks as
     # doubtful ("Red stripe?") is for the importer to confirm, never taken.
     rank, doubtful = suggest_rank(rank_text, ranks) if rank_text else (None, False)
     if not rank_text:
-        issues.append("Current rank is required.")
+        issue("current_rank", "Current rank is required.")
     elif doubtful:
-        issues.append(
+        issue(
+            "current_rank",
             f"Rank {rank_text!r} is marked as uncertain in the file: choose the "
             "rank it should be.",
         )
         rank = None
     elif rank is None:
-        issues.append(f"Rank {rank_text!r} is not a rank KukGrade recognises.")
+        issue("current_rank", f"Rank {rank_text!r} is not a rank KukGrade recognises.")
 
     if status_text not in Student.Status.values:
-        issues.append(f"Status {status_text!r} is not recognised.")
+        issue("status", f"Status {status_text!r} is not recognised.")
         status_text = Student.Status.ACTIVE
 
-    issues.extend(
-        _student_model_issues(
-            wksa_id=wksa_id,
-            first_name=first_name,
-            last_name=last_name,
-            date_of_birth=parsed_dob,
-            rank=rank,
-        ),
-    )
+    for name, message in _student_model_issues(
+        wksa_id=wksa_id,
+        first_name=first_name,
+        last_name=last_name,
+        date_of_birth=parsed_dob,
+        rank=rank,
+    ):
+        issue(name, message)
 
     if wksa_id in retired_wksa_ids:
-        issues.append(
+        issue(
+            "wksa_id",
             "This ID belonged to a student who was deleted. A number is never "
             "given to anyone else.",
         )
     if wksa_id and wksa_id in seen_wksa_ids:
-        issues.append("Duplicate WKSA ID within this file.")
+        issue("wksa_id", "Duplicate WKSA ID within this file.")
     if wksa_id:
         seen_wksa_ids.add(wksa_id)
 
     if wksa_id in replaced_wksa_ids:
         # An old student ID is still its student's: a number is never reused.
-        issues.append(
+        issue(
+            "wksa_id",
             f"This ID belongs to a student who now holds {replaced_wksa_ids[wksa_id]}.",
         )
         outcome = StudentImportRowOutcome.SKIP_EXISTING
@@ -875,6 +908,7 @@ def _classify_student_row(
         current_rank_code=rank.code if rank else None,
         status=status_text,
         issues=issues,
+        issue_fields=sorted(issue_fields),
     )
 
 
@@ -936,12 +970,13 @@ def _classify_roster(locked: ImportBatch) -> StudentImportPreview:
         shown = _roster_values(result)
         stored.outcome = result.outcome
         stored.issues = list(result.issues)
+        stored.issue_fields = list(result.issue_fields)
         stored.values = shown
         stored.search_text = _search_text(shown)
         results.append(result)
     ImportRow.objects.bulk_update(
         stored_rows,
-        ["outcome", "issues", "values", "search_text"],
+        ["outcome", "issues", "issue_fields", "values", "search_text"],
         batch_size=500,
     )
 
@@ -1140,6 +1175,22 @@ def correct_import_row(
 
 
 @transaction.atomic
+def leave_out_rows_needing_attention(batch: ImportBatch) -> int:
+    """Leave out every roster row still needing attention, in one go - the
+    importer's "Leave out the rest". Returns how many were left out."""
+    locked = _lock_uncommitted(batch, "changed")
+    _require_roster(locked)
+    _ensure_rows_stored(locked)
+    _require_mapping(locked)
+    left_out = locked.rows.filter(
+        outcome=ImportRow.Outcome.REVIEW_REQUIRED,
+        excluded=False,
+    ).update(excluded=True, outcome=ImportRow.Outcome.EXCLUDED)
+    _classify_roster(locked)
+    return left_out
+
+
+@transaction.atomic
 def set_import_row_excluded(
     batch: ImportBatch,
     *,
@@ -1179,8 +1230,9 @@ def preview_student_import(
 ) -> StudentImportPreview:
     """Save the mapping (and, when given, every row's corrections) and check.
 
-    The single-request check the current roster screen uses: corrections
-    given here replace the stored ones, as that screen sends them all.
+    A whole check in one request, for an API client holding the mapping and
+    every fix itself: corrections given here replace the stored ones. The
+    import screens save the mapping and each fix as they go instead.
     """
     locked = _lock_uncommitted(batch, "checked")
     _require_roster(locked)
@@ -1204,7 +1256,7 @@ def _row_no_longer_valid(
         {
             "rows": [
                 f"Row {row.row_number} ({row.wksa_id}) is no longer valid: "
-                f"{reason} Nothing was imported - check the file again.",
+                f"{reason} Nothing was imported.",
             ],
         },
     )
@@ -1220,9 +1272,9 @@ def commit_student_import(
 ) -> ImportBatch:
     """Create a student for every ready row, all or nothing.
 
-    The mapping and corrections are the stored ones unless given here (as the
-    current roster screen sends them). Never trusts what a screen last
-    showed - every row is checked again now, under the batch's lock.
+    The mapping and corrections are the stored ones unless given here (by an
+    API client holding them itself). Never trusts what a screen last showed -
+    every row is checked again now, under the batch's lock.
     """
     locked = _lock_uncommitted(batch, "imported again")
     _require_roster(locked)
@@ -1290,7 +1342,7 @@ def commit_student_import(
             {
                 "rows": [
                     "A row conflicts with a change saved since the check. "
-                    "Nothing was imported - check the file again.",
+                    "Nothing was imported.",
                 ],
             },
         ) from exc
@@ -1403,6 +1455,48 @@ def _stored_legacy_rows(
     return [(row, CanonicalLegacyRow(**row.raw)) for row in stored]
 
 
+def _legacy_issue_finder(
+    normalised_mappings: dict[str, str],
+) -> Callable[[CanonicalLegacyRow], list[str]]:
+    """Why a historical record is worth a look before importing. None of it
+    stops the import: every record is kept exactly as the workbook has it."""
+    resolve = _rank_resolver(normalised_mappings)
+    ranks = active_rank_lookup()
+
+    def issues(row: CanonicalLegacyRow) -> list[str]:
+        found: list[str] = []
+        written = (row.source_current_rank_text, row.source_testing_for_rank_text)
+        for text in dict.fromkeys(value.strip() for value in written if value.strip()):
+            if suggest_rank(text, ranks)[1]:
+                found.append(f"The workbook marks rank {text!r} as uncertain.")
+            if resolve(text) is None:
+                found.append(f"Rank {text!r} is not matched to a KukGrade rank yet.")
+        outcome_text = row.source_outcome_text.strip()
+        if (
+            row.record_kind == LegacyRecordKind.GRADING_RESULT
+            and outcome_text
+            and row.outcome is None
+        ):
+            found.append(f"Outcome {outcome_text!r} is not one KukGrade knows.")
+        if row.record_kind == LegacyRecordKind.AUXILIARY_NOTE:
+            found.append(
+                "A note on the sheet, kept with that grading, not as anyone's result.",
+            )
+        return found
+
+    return issues
+
+
+def _find_legacy_issues(locked: ImportBatch) -> None:
+    """Store each historical row's reasons to look at it, after the rank
+    choices change."""
+    issues = _legacy_issue_finder(locked.configuration_json.get("rank_mappings", {}))
+    stored_rows = list(locked.rows.all())
+    for stored in stored_rows:
+        stored.issues = issues(CanonicalLegacyRow(**stored.raw))
+    ImportRow.objects.bulk_update(stored_rows, ["issues"], batch_size=500)
+
+
 def _require_legacy(locked: ImportBatch) -> None:
     if locked.kind != ImportBatch.Kind.LEGACY_GRADINGS:
         raise DjangoValidationError(
@@ -1442,6 +1536,8 @@ class LegacyImportPreview:
     warnings: list[str]
     rank_suggestions: list[RankMappingSuggestion]
     excluded: int = 0
+    # Records not left out with a reason to look at them (their `issues`).
+    worth_a_look: int = 0
 
 
 def _distinct_rank_texts(rows: list[CanonicalLegacyRow]) -> list[str]:
@@ -1507,6 +1603,7 @@ def preview_legacy_grading_import(
     _ensure_rows_stored(locked)
     if rank_mappings is not None:
         _save_rank_mappings(locked, rank_mappings)
+        _find_legacy_issues(locked)
     rows = [row for _, row in _stored_legacy_rows(locked)]
     resolve = _rank_resolver(locked.configuration_json.get("rank_mappings", {}))
 
@@ -1557,6 +1654,7 @@ def preview_legacy_grading_import(
         warnings=list(locked.configuration_json.get("warnings", [])),
         rank_suggestions=suggestions,
         excluded=locked.rows.filter(excluded=True).count(),
+        worth_a_look=locked.rows.filter(excluded=False).exclude(issues=[]).count(),
     )
 
 
@@ -1663,8 +1761,10 @@ __all__ = [
     "create_import_batch",
     "expire_import_batch",
     "extra_values",
+    "leave_out_rows_needing_attention",
     "roster_cells",
     "roster_file_values",
+    "rows_given_a_value",
     "next_step",
     "preview_legacy_grading_import",
     "preview_student_import",

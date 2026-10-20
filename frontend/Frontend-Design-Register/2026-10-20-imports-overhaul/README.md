@@ -1,6 +1,6 @@
 # Imports overhaul - proposed directions (2026-10-20)
 
-Status: **in progress, screen by screen.** Selected so far: 1D, 2D, 3D, 4D and 5C. Each screen is proposed as
+Status: **in progress, screen by screen.** Selected so far: 1D, 2D, 3D, 4D, 5C and 6D. Each screen is proposed as
 competing directions, one is selected, and the selection is recorded in
 `../FRONTEND_DESIGN_REGISTER.md` before the next screen is designed.
 
@@ -98,3 +98,19 @@ through the same two-sentence dialog (FDR-040).
 | 5A | Receipt | One ledger of what the import does, line by line (new, skipped, left out, extra information, status, rank), each with a link back to its step. | Reads as a list of numbers. |
 | 5B | Before and After | The file's rows on one side, what KukGrade holds afterwards on the other: a proportional bar and a group per outcome that opens to show who. | More to take in for a small import. |
 | **5C** | **Seal on the Review Page** (selected 2026-10-20, FDR-053, SCR-033) | No separate page: once every row is sorted, an action banner on the review page carries the summary and the button, above the last-look list. | The review and the confirmation share one screen. |
+
+## Screen 6 - Results
+
+What the import did, once it is saved; reached again from the hub's View
+results. The row-by-row list is kept 30 days (the counts for good).
+
+| | Direction | Idea | Cost |
+| --- | --- | --- | --- |
+| 6A | Done Page | A centred "203 students added" with three plain facts and the next action, and "What happened to each row" folded below. | The detail is one click away. |
+| 6B | Results Ledger | The import's own page: status, a banner, every row with what happened to it (filterable, searchable, linked), and a Next panel beside it. | Busier; the same page serves an import viewed weeks later. |
+| 6C | Hand-off to the Next Job | One line of result, then the next job itself: past gradings start linking on the spot (suggested student per name, Link all, choose between two who share a name); students show what KukGrade filled in and where to go next. | Mixes the import's result with the next task. |
+
+**6D, selected 2026-10-20 (FDR-054, SCR-034)**, proposed after the owner asked for 6B and 6C together: 6B's
+import page (status, every row filterable and linked, a side panel) with
+6C's next job in a gold-edged panel above the rows: linking for past
+gradings, "Worth a second look" for students.

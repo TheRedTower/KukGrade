@@ -18,7 +18,7 @@ Consequences:
 
 ## Accepted decisions
 
-### 2026-10-20 - The import screens: five screens chosen, and what they ask of the backend
+### 2026-10-20 - The import screens: six screens chosen, and what they ask of the backend
 
 Status: Accepted (design); the screens are not built yet
 
@@ -42,6 +42,9 @@ The owner chose the import screens one at a time from proposed directions
 - **Confirm (FDR-053):** on the review page itself: once every row is
   sorted, a banner with the summary and the button appears above the last
   look, and the button opens a two-sentence confirmation.
+- **Results (FDR-054):** the import's own page, with the next job on top
+  (linking records to students, or a second look at what KukGrade filled
+  in) and every row and what happened to it below.
 - **An unfinished import is still cleared 24 hours after upload.** Asked
   whether that limit is needed, the owner kept it: the uploaded file and its
   rows are personal data held outside the records, and a day is a sane time.
@@ -51,8 +54,8 @@ The owner chose the import screens one at a time from proposed directions
 
 Context:
 The 2026-10-20 import overhaul built the backend first. These choices
-complete the design of the steps up to and including confirming; the
-results step and the linking of historical records follow.
+complete the import's steps, through to its results; the full page for
+linking historical records follows.
 
 Consequences:
 - The backend must accept a roster mapping that has no column for a needed
@@ -60,6 +63,7 @@ Consequences:
   missing is ever imported; today the mapping is refused.
 - The row list must also serve each cell as the file has it (for the columns
   not imported), and the historical rows behind one rank spelling.
+- The Students list must be filterable to the students one import added.
 - **A row is only imported once KukGrade's own fields are right** (owner,
   2026-10-20). A row still needing attention is never imported quietly:
   each one is fixed or deliberately left out before the import can be

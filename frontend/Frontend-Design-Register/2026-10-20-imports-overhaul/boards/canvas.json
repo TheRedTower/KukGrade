@@ -7,7 +7,7 @@
   "title": "KukGrade Imports",
   "launch": {
     "view": "canvas",
-    "page": "confirm"
+    "page": "results"
   },
   "pages": [
     {
@@ -29,6 +29,10 @@
     {
       "id": "confirm",
       "name": "5 · Confirm"
+    },
+    {
+      "id": "results",
+      "name": "6 · Results"
     }
   ],
   "boards": {
@@ -217,6 +221,46 @@
       "expand": "fill",
       "page": "confirm",
       "is_interactive": true
+    },
+    "S6A-Done-Page.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1180,
+      "title": "6A · Done Page",
+      "expand": "fill",
+      "page": "results",
+      "is_interactive": true
+    },
+    "S6B-Results-Ledger.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1180,
+      "title": "6B · Results Ledger",
+      "expand": "fill",
+      "page": "results",
+      "is_interactive": true
+    },
+    "S6C-Hand-Off.dc.html": {
+      "x": 3040,
+      "y": 0,
+      "w": 1440,
+      "h": 1180,
+      "title": "6C · Hand-off to the Next Job",
+      "expand": "fill",
+      "page": "results",
+      "is_interactive": true
+    },
+    "S6D-Ledger-With-Hand-Off.dc.html": {
+      "x": 0,
+      "y": 1500,
+      "w": 1440,
+      "h": 1500,
+      "title": "6D · Ledger with Hand-off · Selected",
+      "expand": "fill",
+      "page": "results",
+      "is_interactive": true
     }
   },
   "order": [
@@ -238,7 +282,11 @@
     "S4D-Exceptions-And-Final-Check.dc.html",
     "S5A-Receipt.dc.html",
     "S5B-Before-And-After.dc.html",
-    "S5C-Seal-On-Review.dc.html"
+    "S5C-Seal-On-Review.dc.html",
+    "S6A-Done-Page.dc.html",
+    "S6B-Results-Ledger.dc.html",
+    "S6C-Hand-Off.dc.html",
+    "S6D-Ledger-With-Hand-Off.dc.html"
   ],
   "notes": {
     "hubTitle": {
@@ -280,6 +328,14 @@
       "kind": "title1",
       "maxW": 4480,
       "page": "confirm"
+    },
+    "resultsTitle": {
+      "x": 0,
+      "y": -320,
+      "text": "Screen 6 · Results: three directions",
+      "kind": "title1",
+      "maxW": 4480,
+      "page": "results"
     }
   },
   "designSystems": []

@@ -319,7 +319,7 @@ describe("SyllabusScreen", () => {
     });
 
     // Belt track
-    expect(screen.getByRole("region", { name: "Belt Rank Chapters" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Ranks" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Yellow" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -359,7 +359,7 @@ describe("SyllabusScreen", () => {
 
     // Footer
     expect(
-      screen.getByText("Past assessments retain their generated wording."),
+      screen.getByText("Past assessments keep the wording they were graded on."),
     ).toBeVisible();
     expect(
       screen.getByText("Preliminary reference: WKSA curriculum chart, 2014"),

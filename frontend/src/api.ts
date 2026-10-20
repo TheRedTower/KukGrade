@@ -151,7 +151,7 @@ async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    let message = `API request failed with status ${response.status}`;
+    let message = "Something went wrong. Try again in a moment.";
     let code: string | undefined;
     let fields: FieldErrors | undefined;
     try {
@@ -610,6 +610,11 @@ export async function finaliseCandidateOutcome(
       body: JSON.stringify(data),
     },
   );
+}
+
+/** The names of the audit event and record types, for the audit filters. */
+export async function getAuditLabels(): Promise<Schemas["AuditLabels"]> {
+  return apiRequest<Schemas["AuditLabels"]>("/api/audit-events/labels/");
 }
 
 export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {

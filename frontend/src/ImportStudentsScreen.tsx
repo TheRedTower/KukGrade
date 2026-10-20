@@ -134,7 +134,7 @@ export function ImportStudentsScreen() {
       setCheckedCorrections(sent);
       setStep("preview");
     } catch (err) {
-      setError(errorMessage(err, "Could not check that mapping. Every required field needs a column."));
+      setError(errorMessage(err, "Could not check those columns. Every required field needs one."));
     } finally {
       setIsChecking(false);
     }
@@ -172,7 +172,7 @@ export function ImportStudentsScreen() {
       await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
       setStep("result");
     } catch (err) {
-      setError(errorMessage(err, "Could not commit this import."));
+      setError(errorMessage(err, "Could not finish this import."));
     } finally {
       setIsCommitting(false);
     }
@@ -253,7 +253,7 @@ export function ImportStudentsScreen() {
           Import students
         </h1>
         <p className="add-student-subtitle">
-          Bulk-create student records from a spreadsheet. An existing WKSA ID is always
+          Add many students at once from a spreadsheet. An existing WKSA ID is always
           skipped, never overwritten.
         </p>
       </div>
@@ -276,7 +276,7 @@ export function ImportStudentsScreen() {
         <div className="form-section-card">
           <h2 className="form-section-title">1. Upload a file</h2>
           <p className="imp-help-text">
-            Accepts .xlsx or .csv, up to 5 MiB. Use the standard template below, or map your
+            Excel (.xlsx) or CSV (.csv) files, up to 5 MB. Use the standard template below, or map your
             own column headers in the next step.
           </p>
           <button type="button" className="btn-secondary imp-template-link" onClick={downloadStandardTemplate}>
@@ -309,7 +309,7 @@ export function ImportStudentsScreen() {
             <thead>
               <tr>
                 <th scope="col">KukGrade field</th>
-                <th scope="col">Source column</th>
+                <th scope="col">Column in your file</th>
               </tr>
             </thead>
             <tbody>
@@ -327,7 +327,7 @@ export function ImportStudentsScreen() {
                         setColumnMapping((prev) => ({ ...prev, [field]: event.target.value }))
                       }
                     >
-                      <option value="">— not mapped —</option>
+                      <option value="">— not used —</option>
                       {batch.detected_headers.map((header) => (
                         <option key={header} value={header}>
                           {header}

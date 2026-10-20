@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/audit-events/labels/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The event and record types the caller may filter by, with their
+         *     names - the same events visible_to() lets them read.
+         */
+        get: operations["audit_events_labels_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/change-password/": {
         parameters: {
             query?: never;
@@ -1114,20 +1134,20 @@ export interface components {
         /**
          * @description * `SESSION_CREATED` - Grading session created
          *     * `SESSION_UPDATED` - Grading session updated
-         *     * `SESSION_TRANSITIONED` - Grading session transitioned
+         *     * `SESSION_TRANSITIONED` - Grading session status changed
          *     * `SESSION_DELETED` - Grading session deleted
          *     * `CANDIDATE_REGISTERED` - Candidate registered
          *     * `CANDIDATE_UPDATED` - Candidate updated
          *     * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
          *     * `CANDIDATE_DELETED` - Candidate deleted
-         *     * `ASSESSMENT_GENERATED` - Assessment generated
+         *     * `ASSESSMENT_GENERATED` - Assessment form prepared
          *     * `ASSESSMENT_STARTED` - Assessment started
          *     * `ASSESSMENT_UPDATED` - Assessment notes updated
          *     * `ASSESSMENT_COMPLETED` - Assessment completed
          *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
          *     * `ITEM_RESULT_RECORDED` - Assessment item result recorded
-         *     * `OUTCOME_CREATED` - Outcome created
+         *     * `OUTCOME_CREATED` - Outcome record opened
          *     * `OUTCOME_PROPOSED` - Outcome proposed
          *     * `OUTCOME_FINALISED` - Outcome finalised
          *     * `PROMOTION_RECORDED` - Promotion recorded
@@ -1139,13 +1159,13 @@ export interface components {
          *     * `USER_UPDATED` - User updated
          *     * `USER_AUTHORITY_CHANGED` - User authority changed
          *     * `USER_DELETED` - User deleted
-         *     * `IMPORT_BATCH_COMMITTED` - Import batch committed
-         *     * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
-         *     * `IMPORT_BATCH_EXPIRED` - Import batch expired
-         *     * `LEGACY_GRADING_LINKED` - Legacy grading record linked
-         *     * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
-         *     * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
-         *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
+         *     * `IMPORT_BATCH_COMMITTED` - Import finished
+         *     * `IMPORT_BATCH_CANCELLED` - Import cancelled
+         *     * `IMPORT_BATCH_EXPIRED` - Import expired
+         *     * `LEGACY_GRADING_LINKED` - Historical record linked
+         *     * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
+         *     * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
+         *     * `LEGACY_GRADING_VOIDED` - Historical record voided
          * @enum {string}
          */
         ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
@@ -1209,6 +1229,10 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
+        AuditChoice: {
+            value: string;
+            label: string;
+        };
         /**
          * @description * `GradingSession` - Grading session
          *     * `GradingCandidate` - Candidate
@@ -1218,7 +1242,7 @@ export interface components {
          *     * `Promotion` - Promotion
          *     * `Student` - Student
          *     * `User` - User
-         *     * `ImportBatch` - Import batch
+         *     * `ImportBatch` - Import
          *     * `LegacyGradingRecord` - Historical grading record
          * @enum {string}
          */
@@ -1230,12 +1254,21 @@ export interface components {
             readonly action: components["schemas"]["ActionEnum"];
             readonly action_display: string;
             readonly entity_type: components["schemas"]["AuditEntityEnum"];
+            readonly entity_type_display: string;
             readonly entity_id: string;
             /** Format: email */
             readonly actor_email: string;
             readonly actor_name: string;
             readonly summary: string;
             readonly metadata: unknown;
+        };
+        /**
+         * @description GET /api/audit-events/labels/: the names of the event and record
+         *     types, so the audit screen's filters keep no list of their own.
+         */
+        AuditLabels: {
+            actions: components["schemas"]["AuditChoice"][];
+            entities: components["schemas"]["AuditChoice"][];
         };
         /**
          * @description * `WHITE` - White
@@ -1593,7 +1626,7 @@ export interface components {
         };
         /**
          * @description * `STUDENT_ROSTER` - Student roster
-         *     * `LEGACY_GRADINGS` - Legacy grading records
+         *     * `LEGACY_GRADINGS` - Historical grading records
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
@@ -2358,6 +2391,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedAuditEventList"];
+                };
+            };
+        };
+    };
+    audit_events_labels_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLabels"];
                 };
             };
         };

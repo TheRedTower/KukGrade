@@ -727,7 +727,8 @@ no single-event route, so the list is the only way to read an event.
 
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|
-| GET    | /api/audit-events/           | List audit events, newest first       |
+| GET    | /api/audit-events/           | List audit events, newest first; each carries `action_display` and `entity_type_display`, the names to show |
+| GET    | /api/audit-events/labels/    | `{actions: [{value, label}], entities: [{value, label}]}`: the event and record types the caller may filter by, named - user-management actions only for those who may read them. The audit screen's filters keep no list of their own. |
 
 Every event has `actor_email` and `actor_name` (who acted, copied when the
 event was written; empty for a system action - the `actor` foreign key is

@@ -114,7 +114,7 @@ def test_a_transition_after_expiry_in_flight_is_refused(other: str) -> None:
 
     assert first is True
     assert isinstance(second, ValidationError), second
-    assert "already EXPIRED" in str(second)
+    assert "already expired" in str(second)
     assert fresh(batch).status == ImportBatch.Status.EXPIRED
     assert batch_events(batch) == [AuditAction.IMPORT_BATCH_EXPIRED]
     assert not Student.objects.filter(wksa_id=CLEAN_ROW[0]).exists()

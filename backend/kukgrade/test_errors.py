@@ -108,7 +108,7 @@ def test_multiple_validation_messages_keep_a_generic_summary() -> None:
     error = envelope(response)
     assert response.status_code == 400
     assert set(error["fields"]) == {"title", "grading_date"}
-    assert error["message"] == "The request contained invalid data."
+    assert error["message"] == "Some details need correcting."
 
 
 def test_serializer_level_errors_are_keyed_under_non_field_errors() -> None:
@@ -167,7 +167,7 @@ def test_domain_rule_violation_reaches_the_client_with_its_field() -> None:
     error = envelope(response)
     assert response.status_code == 400
     assert "status" in error["fields"]
-    assert "Cannot transition" in error["fields"]["status"][0]
+    assert error["fields"]["status"] == ["A draft session cannot become locked."]
 
 
 def test_unhandled_server_errors_are_enveloped_too() -> None:

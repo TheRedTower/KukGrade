@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
 import pytest
 from django.contrib.admin.sites import site as admin_site
@@ -17,7 +18,12 @@ from accounts.models import User
 from accounts.permissions import FINAL_GRADING_DECISION_PERMISSION
 from accounts.testing import grant_permission
 from audit.admin import AuditEventAdmin
-from audit.models import AuditAction, AuditEvent
+from audit.models import (
+    USER_MANAGEMENT_ACTIONS,
+    AuditAction,
+    AuditEntity,
+    AuditEvent,
+)
 from audit.recording import record
 from audit.testing import (
     draft_session_with_candidates,
@@ -498,3 +504,48 @@ def test_admin_hides_user_management_events_exactly_as_the_api_does() -> None:
 
     assert user_event not in master_admin.get_queryset(master_request)
     assert user_event in admin_admin.get_queryset(admin_request)
+
+
+# ---------------------------------------------------------------------------
+# The names the audit screen's filters show, served (2026-10-20)
+# ---------------------------------------------------------------------------
+
+
+def labels_for(viewer: User) -> Any:
+    client = APIClient()
+    client.force_authenticate(user=viewer)
+    return client.get("/api/audit-events/labels/")
+
+
+def test_administrators_get_every_event_and_record_type_by_name() -> None:
+    response = labels_for(administrator("audit-labels-admin@example.com"))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["actions"] == [
+        {"value": value, "label": label} for value, label in AuditAction.choices
+    ]
+    assert body["entities"] == [
+        {"value": value, "label": label} for value, label in AuditEntity.choices
+    ]
+
+
+def test_other_log_readers_are_not_offered_user_management_types() -> None:
+    response = labels_for(audit_log_reader("audit-labels-reader@example.com"))
+
+    offered = {row["value"] for row in response.json()["actions"]}
+    assert offered == set(AuditAction.values) - set(USER_MANAGEMENT_ACTIONS)
+
+
+def test_the_labels_need_audit_log_access() -> None:
+    assert labels_for(user("audit-labels-nobody@example.com")).status_code == 403
+
+
+def test_each_event_carries_its_record_types_name() -> None:
+    event = user_created_event()
+    client = APIClient()
+    client.force_authenticate(user=administrator("audit-labels-names@example.com"))
+
+    rows = client.get(f"/api/audit-events/?entity_id={event.entity_id}").json()
+
+    assert rows["results"][0]["entity_type_display"] == "User"

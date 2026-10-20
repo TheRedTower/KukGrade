@@ -121,7 +121,7 @@ def create_candidate_outcome(
 
 def _validate_outcome_choice(value: str, field_name: str) -> None:
     if value not in CandidateOutcome.Outcome.values:
-        raise ValidationError({field_name: ["Invalid candidate outcome."]})
+        raise ValidationError({field_name: ["That is not a valid outcome."]})
 
 
 @transaction.atomic
@@ -145,7 +145,7 @@ def propose_candidate_outcome(
     validate_outcome_assessment_state(locked_outcome)
     if locked_outcome.status == CandidateOutcome.Status.FINALISED:
         raise ValidationError(
-            {"status": ["Finalised candidate outcomes cannot be reproposed."]},
+            {"status": ["A final decision cannot be proposed again."]},
         )
     if locked_outcome.status not in {
         CandidateOutcome.Status.DRAFT,
@@ -337,7 +337,7 @@ def validate_promotion_eligibility(
             {"status": ["Only finalised candidate outcomes can be promoted."]},
         )
     if outcome.final_outcome != CandidateOutcome.Outcome.PASS:
-        raise ValidationError({"final_outcome": ["Only PASS outcomes are promotable."]})
+        raise ValidationError({"final_outcome": ["Only a pass can be promoted."]})
     if candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be promoted."]},

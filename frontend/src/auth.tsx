@@ -72,7 +72,7 @@ function isAnonymousResponse(error: unknown): boolean {
 function describeAuthFailure(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status >= 500) {
-      return "KukGrade is not responding. Your session is unaffected - try again in a moment.";
+      return "KukGrade is not responding. You are still signed in - try again in a moment.";
     }
     return error.message;
   }

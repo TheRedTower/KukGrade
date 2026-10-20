@@ -189,9 +189,9 @@ def require_pinned(pk: int, pinned: Collection[int], name: str) -> None:
         raise ValidationError(
             {
                 name: [
-                    f"This {name} changed while the batch was running - it was "
-                    "removed or moved to another grading session. Reload and "
-                    "try again.",
+                    f"This {name} changed while the change was being made - it "
+                    "was removed or moved to another grading session. Reload "
+                    "and try again.",
                 ],
             },
         )

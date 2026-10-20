@@ -20,12 +20,12 @@ from data_imports.storage import import_upload_path, import_upload_storage
 class ImportBatch(models.Model):
     class Kind(models.TextChoices):
         STUDENT_ROSTER = "STUDENT_ROSTER", "Student roster"
-        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Legacy grading records"
+        LEGACY_GRADINGS = "LEGACY_GRADINGS", "Historical grading records"
 
     class Status(models.TextChoices):
         # The one open state; the other three are final.
         UPLOADED = "UPLOADED", "Uploaded"
-        COMMITTED = "COMMITTED", "Committed"
+        COMMITTED = "COMMITTED", "Imported"
         CANCELLED = "CANCELLED", "Cancelled"
         EXPIRED = "EXPIRED", "Expired"
 

@@ -97,6 +97,7 @@ describe("UserDetailScreen", () => {
         action: "USER_AUTHORITY_CHANGED",
         action_display: "User authority changed",
         entity_type: "User",
+        entity_type_display: "User",
         entity_id: "target-user",
         actor: "admin-user",
         actor_email: "admin@example.com",

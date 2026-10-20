@@ -66,7 +66,7 @@ def test_source_fields_are_immutable_after_creation() -> None:
     record = legacy_record()
 
     record.source_name = "Someone Else"
-    with pytest.raises(ValidationError, match="immutable after import"):
+    with pytest.raises(ValidationError, match="cannot be changed after import"):
         record.save()
 
 
@@ -74,7 +74,7 @@ def test_outcome_is_immutable_no_resolution_service_exists() -> None:
     record = legacy_record(outcome=LegacyOutcome.PASS)
 
     record.outcome = LegacyOutcome.FAIL
-    with pytest.raises(ValidationError, match="immutable after import"):
+    with pytest.raises(ValidationError, match="cannot be changed after import"):
         record.save()
 
 

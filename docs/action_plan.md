@@ -21,9 +21,8 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    stays a table cell, `Syllabus.css`).
 3. **Extend the accessibility pass to the other screens** (done 2026-10-20:
    `current-system.md`, "Accessibility pass over the rest of the app").
-4. **Plain-language sweep of every screen's wording** (owner, 2026-10-19):
-   no technical terms or internal detail a user does not need, for
-   administrators too; reword or drop each one.
+4. **Plain-language sweep of every screen's wording** (done 2026-10-20:
+   `current-system.md`, "Plain wording").
 5. **Housekeeping**, revisited (decision log, Open decisions 3).
 
 Later, when the owner asks: release assurance (KG-A24); rehearsing the

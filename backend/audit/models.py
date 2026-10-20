@@ -18,13 +18,13 @@ from django.db import models
 if TYPE_CHECKING:
     from accounts.models import User
 
-IMMUTABLE_MESSAGE = "Audit events are append-only and cannot be changed or deleted."
+IMMUTABLE_MESSAGE = "Audit events are permanent: they cannot be changed or deleted."
 
 
 class AuditAction(models.TextChoices):
     SESSION_CREATED = "SESSION_CREATED", "Grading session created"
     SESSION_UPDATED = "SESSION_UPDATED", "Grading session updated"
-    SESSION_TRANSITIONED = "SESSION_TRANSITIONED", "Grading session transitioned"
+    SESSION_TRANSITIONED = "SESSION_TRANSITIONED", "Grading session status changed"
     SESSION_DELETED = "SESSION_DELETED", "Grading session deleted"
 
     CANDIDATE_REGISTERED = "CANDIDATE_REGISTERED", "Candidate registered"
@@ -32,7 +32,7 @@ class AuditAction(models.TextChoices):
     CANDIDATE_WITHDRAWN = "CANDIDATE_WITHDRAWN", "Candidate withdrawn"
     CANDIDATE_DELETED = "CANDIDATE_DELETED", "Candidate deleted"
 
-    ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment generated"
+    ASSESSMENT_GENERATED = "ASSESSMENT_GENERATED", "Assessment form prepared"
     ASSESSMENT_STARTED = "ASSESSMENT_STARTED", "Assessment started"
     ASSESSMENT_UPDATED = "ASSESSMENT_UPDATED", "Assessment notes updated"
     ASSESSMENT_COMPLETED = "ASSESSMENT_COMPLETED", "Assessment completed"
@@ -40,7 +40,7 @@ class AuditAction(models.TextChoices):
     ASSESSMENT_DELETED = "ASSESSMENT_DELETED", "Assessment deleted"
     ITEM_RESULT_RECORDED = "ITEM_RESULT_RECORDED", "Assessment item result recorded"
 
-    OUTCOME_CREATED = "OUTCOME_CREATED", "Outcome created"
+    OUTCOME_CREATED = "OUTCOME_CREATED", "Outcome record opened"
     OUTCOME_PROPOSED = "OUTCOME_PROPOSED", "Outcome proposed"
     OUTCOME_FINALISED = "OUTCOME_FINALISED", "Outcome finalised"
 
@@ -56,20 +56,20 @@ class AuditAction(models.TextChoices):
     USER_AUTHORITY_CHANGED = "USER_AUTHORITY_CHANGED", "User authority changed"
     USER_DELETED = "USER_DELETED", "User deleted"
 
-    IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import batch committed"
-    IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import batch cancelled"
-    IMPORT_BATCH_EXPIRED = "IMPORT_BATCH_EXPIRED", "Import batch expired"
+    IMPORT_BATCH_COMMITTED = "IMPORT_BATCH_COMMITTED", "Import finished"
+    IMPORT_BATCH_CANCELLED = "IMPORT_BATCH_CANCELLED", "Import cancelled"
+    IMPORT_BATCH_EXPIRED = "IMPORT_BATCH_EXPIRED", "Import expired"
 
-    LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Legacy grading record linked"
+    LEGACY_GRADING_LINKED = "LEGACY_GRADING_LINKED", "Historical record linked"
     LEGACY_GRADING_UNLINKED = (
         "LEGACY_GRADING_UNLINKED",
-        "Legacy grading record unlinked",
+        "Historical record unlinked",
     )
     LEGACY_GRADING_RANK_RESOLVED = (
         "LEGACY_GRADING_RANK_RESOLVED",
-        "Legacy grading record rank resolved",
+        "Historical record rank resolved",
     )
-    LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Legacy grading record voided"
+    LEGACY_GRADING_VOIDED = "LEGACY_GRADING_VOIDED", "Historical record voided"
 
 
 class AuditEntity(models.TextChoices):
@@ -83,7 +83,7 @@ class AuditEntity(models.TextChoices):
     PROMOTION = "Promotion", "Promotion"
     STUDENT = "Student", "Student"
     USER = "User", "User"
-    IMPORT_BATCH = "ImportBatch", "Import batch"
+    IMPORT_BATCH = "ImportBatch", "Import"
     LEGACY_GRADING_RECORD = "LegacyGradingRecord", "Historical grading record"
 
 
@@ -100,14 +100,20 @@ USER_MANAGEMENT_ACTIONS: tuple[str, ...] = (
 )
 
 
+def hidden_actions(user: User) -> tuple[str, ...]:
+    """The actions `user` may not read: user management, unless they may
+    open the Users API themselves (see USER_MANAGEMENT_ACTIONS)."""
+    if user.has_perm("accounts.view_user"):
+        return ()
+    return USER_MANAGEMENT_ACTIONS
+
+
 class AuditEventQuerySet(models.QuerySet["AuditEvent"]):
     def visible_to(self, user: User) -> AuditEventQuerySet:
         """The events `user` may read, once permitted to read the log at all
         (accounts.permissions.can_view_audit_log). Shared by the API and
         Django admin so the two cannot disagree."""
-        if user.has_perm("accounts.view_user"):
-            return self
-        return self.exclude(action__in=USER_MANAGEMENT_ACTIONS)
+        return self.exclude(action__in=hidden_actions(user))
 
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError({"audit": [IMMUTABLE_MESSAGE]})

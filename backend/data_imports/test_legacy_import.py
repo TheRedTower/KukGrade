@@ -240,7 +240,7 @@ def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
     batch = legacy_batch(uploaded_by=admin)
     commit_legacy_grading_import(batch, actor=admin)
 
-    with pytest.raises(Exception, match="cannot be committed again"):
+    with pytest.raises(Exception, match="cannot be imported again"):
         commit_legacy_grading_import(batch, actor=admin)
 
 

@@ -627,7 +627,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Active student in regular training. Eligible for grading cohorts and session entry.
+                        Active student in regular training. Can be registered for gradings.
                       </p>
                     </div>
                   </label>
@@ -649,7 +649,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Temporary break or medical leave. Blocks nothing, preserves all history, and never flags errors.
+                        Temporary break or medical leave. Blocks nothing, and keeps all history.
                       </p>
                     </div>
                   </label>
@@ -671,7 +671,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Departed student. Blocks new grading registration while fully retaining all historical records.
+                        Has left. Cannot be registered for gradings; all history is kept.
                       </p>
                     </div>
                   </label>
@@ -742,10 +742,7 @@ export function StudentDetailScreen() {
             <div className="modal-body">
               <p className="modal-lead-text">
                 Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
-                record? This cannot be undone, and cascades through every grading-session
-                registration, assessment, outcome and promotion involving them - any rank they
-                were promoted to is reverted along with it. A linked historical grading record
-                is unlinked, not deleted, and stays available for reconciliation.
+                record? This cannot be undone. It also deletes every grading registration, assessment, outcome and promotion of theirs, and puts back any rank they were promoted to. Historical grading records linked to them are kept, just no longer linked.
               </p>
             </div>
 

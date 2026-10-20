@@ -142,7 +142,7 @@ describe("API error envelope", () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(502);
-    expect(error.message).toBe("API request failed with status 502");
+    expect(error.message).toBe("Something went wrong. Try again in a moment.");
     expect(error.fields).toBeUndefined();
   });
 });

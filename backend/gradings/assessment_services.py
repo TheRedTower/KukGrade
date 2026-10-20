@@ -37,6 +37,10 @@ ASSESSMENT_GENERATION_SESSION_STATUSES = {
 }
 
 
+def _status_label(status: str) -> str:
+    return str(CandidateAssessment.Status(status).label).lower()
+
+
 def validate_assessment_deletion_promotion(
     promotion: Promotion,
     student: Student,
@@ -186,7 +190,7 @@ def generate_candidate_assessment(
     validate_assessment_generation_candidate(locked_candidate)
     if hasattr(locked_candidate, "assessment"):
         raise ValidationError(
-            {"candidate": ["Candidate already has an assessment snapshot."]},
+            {"candidate": ["This candidate already has an assessment form."]},
         )
 
     # The cumulative syllabus, exactly as the syllabus screen shows it: every
@@ -229,7 +233,7 @@ def generate_candidate_assessment(
         if not unique_violation_on(exc, CandidateAssessment):
             raise
         raise ValidationError(
-            {"candidate": ["Candidate already has an assessment snapshot."]},
+            {"candidate": ["This candidate already has an assessment form."]},
         ) from exc
     record(
         AuditAction.ASSESSMENT_GENERATED,
@@ -329,7 +333,7 @@ def update_candidate_assessment(
         name="assessment",
     )
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
-        raise ValidationError({"status": ["Completed assessments are immutable."]})
+        raise ValidationError({"status": ["A completed assessment cannot be changed."]})
 
     previous_notes = locked_assessment.notes
     if notes is not None:
@@ -359,8 +363,9 @@ def update_candidate_assessment(
             raise ValidationError(
                 {
                     "status": [
-                        f"Cannot transition assessment from "
-                        f"{locked_assessment.status} to {status}.",
+                        f"An assessment that is "
+                        f"{_status_label(locked_assessment.status)} cannot become "
+                        f"{_status_label(status)}.",
                     ],
                 },
             )
@@ -484,7 +489,9 @@ def bulk_start_candidate_assessments(
 def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
     assessment = item.assessment
     if assessment.status == CandidateAssessment.Status.COMPLETED:
-        raise ValidationError({"assessment": ["Completed assessments are immutable."]})
+        raise ValidationError(
+            {"assessment": ["A completed assessment cannot be changed."]}
+        )
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
         raise ValidationError(
             {
@@ -528,7 +535,7 @@ def update_candidate_assessment_item(
 
     if result is not None and result != locked_item.result:
         if result not in CandidateAssessmentItem.Result.values:
-            raise ValidationError({"result": ["Invalid assessment item result."]})
+            raise ValidationError({"result": ["That is not a valid result."]})
         locked_item.result = result
         if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
             locked_item.assessor = None

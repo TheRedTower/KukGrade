@@ -1060,7 +1060,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const confirm = screen.getByTestId("caw-clear-confirm-1001");
     expect(confirm).toHaveTextContent("casey@example.com");
-    expect(confirm).toHaveTextContent("Attribution cannot be restored");
+    expect(confirm).toHaveTextContent("removes the record of who assessed it");
+    expect(confirm).toHaveTextContent("that cannot be restored");
     expect(patchCount).toBe(0);
 
     // Backing out writes nothing.

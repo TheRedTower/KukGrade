@@ -399,7 +399,7 @@ export function BuildGradingCohortScreen() {
     return (
       <section aria-labelledby="bgc-invalid-id-heading" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
-          <h2 id="bgc-invalid-id-heading">Invalid Grading Session ID</h2>
+          <h2 id="bgc-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the grading sessions list.</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
@@ -409,10 +409,10 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Grading session cohort workspace" className="bgc-page" data-testid="bgc-page">
+      <section aria-label="Build grading cohort" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
-          <p>Loading grading session cohort workspace...</p>
+          <p>Loading the grading session…</p>
         </div>
       </section>
     );
@@ -1160,7 +1160,7 @@ export function BuildGradingCohortScreen() {
                 type="button"
                 className="modal-close-btn"
                 onClick={() => setExceptionsModalOpen(false)}
-                aria-label="Close modal"
+                aria-label="Close"
               >
                 ✕
               </button>

@@ -117,6 +117,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAuditEventList'
           description: ''
+  /api/audit-events/labels/:
+    get:
+      operationId: audit_events_labels_retrieve
+      description: |-
+        The event and record types the caller may filter by, with their
+        names - the same events visible_to() lets them read.
+      tags:
+      - audit-events
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLabels'
+          description: ''
   /api/auth/change-password/:
     post:
       operationId: auth_change_password_create
@@ -2202,20 +2219,20 @@ components:
       description: |-
         * `SESSION_CREATED` - Grading session created
         * `SESSION_UPDATED` - Grading session updated
-        * `SESSION_TRANSITIONED` - Grading session transitioned
+        * `SESSION_TRANSITIONED` - Grading session status changed
         * `SESSION_DELETED` - Grading session deleted
         * `CANDIDATE_REGISTERED` - Candidate registered
         * `CANDIDATE_UPDATED` - Candidate updated
         * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
         * `CANDIDATE_DELETED` - Candidate deleted
-        * `ASSESSMENT_GENERATED` - Assessment generated
+        * `ASSESSMENT_GENERATED` - Assessment form prepared
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_UPDATED` - Assessment notes updated
         * `ASSESSMENT_COMPLETED` - Assessment completed
         * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
-        * `OUTCOME_CREATED` - Outcome created
+        * `OUTCOME_CREATED` - Outcome record opened
         * `OUTCOME_PROPOSED` - Outcome proposed
         * `OUTCOME_FINALISED` - Outcome finalised
         * `PROMOTION_RECORDED` - Promotion recorded
@@ -2227,13 +2244,13 @@ components:
         * `USER_UPDATED` - User updated
         * `USER_AUTHORITY_CHANGED` - User authority changed
         * `USER_DELETED` - User deleted
-        * `IMPORT_BATCH_COMMITTED` - Import batch committed
-        * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
-        * `IMPORT_BATCH_EXPIRED` - Import batch expired
-        * `LEGACY_GRADING_LINKED` - Legacy grading record linked
-        * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
-        * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
-        * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
+        * `IMPORT_BATCH_COMMITTED` - Import finished
+        * `IMPORT_BATCH_CANCELLED` - Import cancelled
+        * `IMPORT_BATCH_EXPIRED` - Import expired
+        * `LEGACY_GRADING_LINKED` - Historical record linked
+        * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
+        * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
+        * `LEGACY_GRADING_VOIDED` - Historical record voided
     AgeBand:
       type: object
       description: 'One age band, from its code: label, description and programme.'
@@ -2374,6 +2391,16 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
+    AuditChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
     AuditEntityEnum:
       enum:
       - GradingSession
@@ -2396,7 +2423,7 @@ components:
         * `Promotion` - Promotion
         * `Student` - Student
         * `User` - User
-        * `ImportBatch` - Import batch
+        * `ImportBatch` - Import
         * `LegacyGradingRecord` - Historical grading record
     AuditEvent:
       type: object
@@ -2418,6 +2445,9 @@ components:
         entity_type:
           allOf:
           - $ref: '#/components/schemas/AuditEntityEnum'
+          readOnly: true
+        entity_type_display:
+          type: string
           readOnly: true
         entity_id:
           type: string
@@ -2441,10 +2471,28 @@ components:
       - actor_name
       - entity_id
       - entity_type
+      - entity_type_display
       - id
       - metadata
       - occurred_at
       - summary
+    AuditLabels:
+      type: object
+      description: |-
+        GET /api/audit-events/labels/: the names of the event and record
+        types, so the audit screen's filters keep no list of their own.
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditChoice'
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditChoice'
+      required:
+      - actions
+      - entities
     BeltColourEnum:
       enum:
       - WHITE
@@ -3374,7 +3422,7 @@ components:
       type: string
       description: |-
         * `STUDENT_ROSTER` - Student roster
-        * `LEGACY_GRADINGS` - Legacy grading records
+        * `LEGACY_GRADINGS` - Historical grading records
     LegacyGradingRecord:
       type: object
       description: |-

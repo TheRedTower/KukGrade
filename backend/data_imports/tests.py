@@ -174,7 +174,7 @@ def test_create_import_batch_accepts_valid_xlsx_and_computes_hash() -> None:
 
 def test_create_import_batch_rejects_csv_for_legacy_gradings_kind() -> None:
     content = student_workbook([CLEAN_ROW], file_format="csv")
-    with pytest.raises(Exception, match="Unsupported file type"):
+    with pytest.raises(Exception, match="KukGrade cannot read"):
         create_import_batch(
             kind=ImportBatch.Kind.LEGACY_GRADINGS,
             upload=SimpleUploadedFile("roster.csv", content),
@@ -184,7 +184,7 @@ def test_create_import_batch_rejects_csv_for_legacy_gradings_kind() -> None:
 
 def test_create_import_batch_rejects_oversized_file() -> None:
     huge = b"a" * (6 * 1024 * 1024)
-    with pytest.raises(Exception, match="MiB limit"):
+    with pytest.raises(Exception, match="MB limit"):
         create_import_batch(
             kind=ImportBatch.Kind.STUDENT_ROSTER,
             upload=SimpleUploadedFile("roster.csv", huge),
@@ -292,7 +292,7 @@ def test_preview_flags_unresolved_rank_as_review_required() -> None:
     batch = upload_batch(content=student_workbook([row]))
     preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
-    assert "did not match the rank catalogue" in preview.rows[0].issues[0]
+    assert "is not a rank KukGrade recognises" in preview.rows[0].issues[0]
 
 
 def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> None:
@@ -386,7 +386,7 @@ PARITY_CASES = {
     "unrecognised status": ({"status": "GONE"}, "Status 'GONE' is not recognised."),
     "unknown rank": (
         {"current_rank": "Purple"},
-        "Rank 'Purple' did not match the rank catalogue.",
+        "Rank 'Purple' is not a rank KukGrade recognises.",
     ),
 }
 
@@ -460,7 +460,7 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
     assert "already exists" in message
-    assert message.endswith("Nothing was imported - preview the file again.")
+    assert message.endswith("Nothing was imported - check the file again.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
 
@@ -571,7 +571,7 @@ def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    with pytest.raises(Exception, match="cannot be committed again"):
+    with pytest.raises(Exception, match="cannot be imported again"):
         commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
 
@@ -833,7 +833,7 @@ def test_cancel_a_committed_batch_is_refused() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    with pytest.raises(Exception, match="already COMMITTED"):
+    with pytest.raises(Exception, match="already imported"):
         cancel_import_batch(batch, actor=admin)
 
 

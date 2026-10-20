@@ -337,8 +337,8 @@ def delete_platform_user(target: User, actor: User) -> User:
     record(
         AuditAction.USER_DELETED,
         target,
-        f"User account {target.email} deleted; historical attribution "
-        "reassigned to the placeholder account.",
+        f"User account {target.email} deleted; their history is kept under "
+        "the Deleted user account.",
         actor=actor,
         metadata={
             "email": target.email,

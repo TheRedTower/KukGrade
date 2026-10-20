@@ -685,7 +685,7 @@ describe("PromotionLedgerScreen", () => {
     );
 
     const tray = screen.getByRole("region", {
-      name: "Pinned batch confirmation preview",
+      name: "Promotion summary",
     });
     expect(tray).toBeInTheDocument();
     expect(screen.getByText("2 Candidates Selected")).toBeInTheDocument();
@@ -706,7 +706,7 @@ describe("PromotionLedgerScreen", () => {
 
     // Confirm batch promotion
     const confirmBatchBtn = screen.getByRole("button", {
-      name: /Confirm Batch Promotion/i,
+      name: /Confirm promotions/i,
     });
     await user.click(confirmBatchBtn);
 
@@ -719,7 +719,7 @@ describe("PromotionLedgerScreen", () => {
         screen.getByText("Successfully promoted all 2 qualified candidates!"),
       ).toBeInTheDocument();
     });
-    expect(screen.queryByRole("region", { name: "Pinned batch confirmation preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Promotion summary" })).not.toBeInTheDocument();
   });
 
   it("can close the pinned batch preview tray without promoting", async () => {
@@ -740,16 +740,16 @@ describe("PromotionLedgerScreen", () => {
       }),
     );
     expect(
-      screen.getByRole("region", { name: "Pinned batch confirmation preview" }),
+      screen.getByRole("region", { name: "Promotion summary" }),
     ).toBeInTheDocument();
 
     const closeBtn = screen.getByRole("button", {
-      name: "Close batch preview tray",
+      name: "Close the promotion summary",
     });
     await user.click(closeBtn);
 
     expect(
-      screen.queryByRole("region", { name: "Pinned batch confirmation preview" }),
+      screen.queryByRole("region", { name: "Promotion summary" }),
     ).not.toBeInTheDocument();
     expect(mockBulkPromoteCandidateOutcomes).not.toHaveBeenCalled();
   });
@@ -768,9 +768,9 @@ describe("PromotionLedgerScreen", () => {
       ).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText("Promotion Authority Required")).toBeInTheDocument();
+    expect(screen.getByText("Promotion authority needed")).toBeInTheDocument();
     expect(
-      screen.getByText(/You do not hold the/),
+      screen.getByText(/promoting students needs promotion authority/),
     ).toBeInTheDocument();
 
     // Cohort promotion CTA is disabled
@@ -817,7 +817,7 @@ describe("PromotionLedgerScreen", () => {
     );
 
     const confirmBatchBtn = screen.getByRole("button", {
-      name: /Confirm Batch Promotion/i,
+      name: /Confirm promotions/i,
     });
     await user.click(confirmBatchBtn);
 

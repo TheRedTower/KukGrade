@@ -98,7 +98,7 @@ function LoginPage() {
     } catch (loginError) {
       if (loginError instanceof ApiError) {
         if (loginError.status === 403) {
-          setError("Session verification failed. Refresh the page and try again.");
+          setError("Your sign-in could not be checked. Refresh the page and try again.");
         } else if (loginError.status === 429) {
           // The server's own message names how long to wait.
           setError(loginError.message);
@@ -205,7 +205,7 @@ function NavigationRail({ user }: { user: AuthUser }) {
   const canViewUsers = user.can_manage_users;
 
   return (
-    <aside aria-label="Navigation rail" className="nav-rail">
+    <aside aria-label="Sidebar" className="nav-rail">
       <div className="nav-brand">
         <KukGradeLogo className="nav-logo" />
         <p className="nav-brand-tagline">People &middot; Progress &middot; Purpose</p>

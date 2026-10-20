@@ -199,7 +199,7 @@ class DeclaredQueryFilters(BaseFilterBackend):
             if unknown:
                 raise ValidationError(
                     {
-                        name: ["This list has no such query parameter."]
+                        name: ["This list cannot be filtered that way."]
                         for name in unknown
                     },
                 )

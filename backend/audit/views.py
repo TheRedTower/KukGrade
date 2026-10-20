@@ -3,13 +3,17 @@ from __future__ import annotations
 from typing import cast
 
 from django.db.models import QuerySet
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins
+from rest_framework.decorators import action
+from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import CanViewAuditLog, HasRequiredPermissions
-from audit.models import AuditAction, AuditEntity, AuditEvent
-from audit.serializers import AuditEventSerializer
+from audit.models import AuditAction, AuditEntity, AuditEvent, hidden_actions
+from audit.serializers import AuditEventSerializer, AuditLabelsSerializer
 from kukgrade.filtering import choice, exact, on_date, search
 
 
@@ -26,6 +30,7 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
     permission_classes = [HasRequiredPermissions, CanViewAuditLog]
     permission_map = {
         "list": (),
+        "labels": (),
     }
 
     query_filters = (
@@ -50,4 +55,26 @@ class AuditEventViewSet(mixins.ListModelMixin, GenericViewSet):
             AuditEvent.objects.visible_to(cast(User, self.request.user)).order_by(
                 "-occurred_at", "-pk"
             )
+        )
+
+    @extend_schema(responses=AuditLabelsSerializer)
+    @action(detail=False, pagination_class=None)
+    def labels(self, request: Request) -> Response:
+        """The event and record types the caller may filter by, with their
+        names - the same events visible_to() lets them read."""
+        hidden = hidden_actions(cast(User, request.user))
+        return Response(
+            AuditLabelsSerializer(
+                {
+                    "actions": [
+                        {"value": value, "label": label}
+                        for value, label in AuditAction.choices
+                        if value not in hidden
+                    ],
+                    "entities": [
+                        {"value": value, "label": label}
+                        for value, label in AuditEntity.choices
+                    ],
+                },
+            ).data,
         )

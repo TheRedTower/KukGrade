@@ -52,7 +52,7 @@ function StudentPicker({
           type="text"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="e.g. Alex Kim or UK-1234"
+          placeholder="e.g. Alex Kim or 206-2-150"
         />
       </label>
       {results.length > 0 && (
@@ -209,8 +209,7 @@ export function LegacyReconciliationScreen() {
           Historical records
         </h1>
         <p className="add-student-subtitle">
-          Link imported historical grading records to students, resolve rank mappings, or
-          void a mistaken row. Source text is never changed by any of these actions.
+          Link imported historical grading records to students, match their ranks, or void a mistaken row. What the workbook says is never changed by any of these.
         </p>
       </div>
 
@@ -275,7 +274,7 @@ export function LegacyReconciliationScreen() {
           <table className="students-data-table" aria-label="Historical records">
             <thead>
               <tr>
-                <th scope="col">Cycle</th>
+                <th scope="col">Grading period</th>
                 <th scope="col">Name</th>
                 <th scope="col">Current rank</th>
                 <th scope="col">Testing for</th>
@@ -366,7 +365,7 @@ export function LegacyReconciliationScreen() {
                               <div className="lr-action-group">
                                 <h3>Current rank</h3>
                                 <p className="imp-help-text">
-                                  Source text: {record.source_current_rank_text || "—"}
+                                  As written: {record.source_current_rank_text || "—"}
                                 </p>
                                 <select
                                   aria-label="Resolve current rank"
@@ -388,7 +387,7 @@ export function LegacyReconciliationScreen() {
                               <div className="lr-action-group">
                                 <h3>Testing-for rank</h3>
                                 <p className="imp-help-text">
-                                  Source text: {record.source_testing_for_rank_text || "—"}
+                                  As written: {record.source_testing_for_rank_text || "—"}
                                 </p>
                                 <select
                                   aria-label="Resolve testing-for rank"

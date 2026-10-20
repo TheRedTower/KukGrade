@@ -283,7 +283,7 @@ export function OverviewScreen() {
       {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert" role="alert">
           <p className="form-error">
-            Failed to load operational ledger. Please check your connection.
+            The overview could not be loaded. Check your connection and try again.
           </p>
         </div>
       ) : null}
@@ -475,9 +475,9 @@ export function OverviewScreen() {
         </div>
 
         {recentActivities.length > 0 ? (
-          <div className="ledger-table-wrapper" tabIndex={0} role="region" aria-label="Recent activity ledger">
+          <div className="ledger-table-wrapper" tabIndex={0} role="region" aria-label="Recent activity">
             {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-            <table className="ledger-table" aria-label="Recent activity ledger">
+            <table className="ledger-table" aria-label="Recent activity">
               <thead>
                 <tr>
                   <th scope="col">Time</th>
@@ -517,7 +517,7 @@ export function OverviewScreen() {
           <div className="activity-empty-state" role="status">
             <p>
               {isInitialLoading
-                ? "Loading activity ledger..."
+                ? "Loading recent activity…"
                 : "No recent activity recorded."}
             </p>
           </div>

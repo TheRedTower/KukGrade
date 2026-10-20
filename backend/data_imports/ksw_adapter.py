@@ -358,6 +358,6 @@ def _check_locators_unique(rows: list[CanonicalLegacyRow]) -> None:
     seen: set[str] = set()
     for row in rows:
         if row.source_locator in seen:
-            msg = f"Duplicate source locator: {row.source_locator}"
+            msg = f"The workbook lists the same row twice: {row.source_locator}"
             raise WorkbookStructureError(msg)
         seen.add(row.source_locator)

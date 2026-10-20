@@ -47,7 +47,7 @@ describe("Students registry screen (/students)", () => {
     expect(screen.getByText("Manage student records and grading history")).toBeVisible();
     expect(await screen.findByText("No students registered yet")).toBeVisible();
     expect(
-      screen.getByText("Get started by registering your first student record in the registry."),
+      screen.getByText("Add your first student to get started."),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
   });

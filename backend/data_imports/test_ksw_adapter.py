@@ -191,7 +191,7 @@ def test_duplicate_source_locator_is_rejected() -> None:
             source_name="B",
         ),
     ]
-    with pytest.raises(WorkbookStructureError, match="Duplicate source locator"):
+    with pytest.raises(WorkbookStructureError, match="lists the same row twice"):
         _check_locators_unique(rows)
 
 

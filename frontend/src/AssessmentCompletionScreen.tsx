@@ -162,7 +162,7 @@ export function AssessmentCompletionScreen() {
       <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-load-error">
         <div className="caw-error-banner" role="alert">
           <p>
-            The assessment rollup could not be loaded, so the record cannot be reviewed or
+            The assessment summary could not be loaded, so the record cannot be reviewed or
             sealed right now. Reload to try again.
           </p>
           <Link to={scoringPath} className="btn-secondary">
@@ -373,8 +373,7 @@ export function AssessmentCompletionScreen() {
             <>
               <p className="acp-section-note">
                 Editable until the record is sealed. This is the only point at which the overall
-                assessment note can be written — it is submitted with the record and is immutable
-                afterwards.
+                assessment note can be written — it is saved with the record and cannot be changed afterwards.
               </p>
               <textarea
                 id="general-assessment-notes"
@@ -423,12 +422,12 @@ export function AssessmentCompletionScreen() {
         </article>
 
         {/* ── Provenance, counts and the seal controls ───────────────────── */}
-        <aside aria-label="Record provenance and seal controls" className="acp-aside">
+        <aside aria-label="Record details and seal" className="acp-aside">
           <div className="acp-card">
-            <h2 className="acp-card-title">Provenance</h2>
+            <h2 className="acp-card-title">Record details</h2>
             <dl className="acp-dl">
               <div>
-                <dt>Snapshot frozen</dt>
+                <dt>Form prepared</dt>
                 <dd>{assessment.generated_at ? formatShortDate(assessment.generated_at, "") : "—"}</dd>
               </div>
               <div>
@@ -436,7 +435,7 @@ export function AssessmentCompletionScreen() {
                 <dd>{assessment.generated_by_email || "—"}</dd>
               </div>
               <div>
-                <dt>Source track</dt>
+                <dt>Age group</dt>
                 <dd>{candidate.age_band_display}</dd>
               </div>
               <div>

@@ -116,8 +116,9 @@ def validate_session_transition(
         raise ValidationError(
             {
                 "status": [
-                    f"Cannot transition grading session from "
-                    f"{current_status} to {next_status}.",
+                    f"A {GradingSession.Status(current_status).label.lower()} "
+                    f"session cannot become "
+                    f"{GradingSession.Status(next_status).label.lower()}.",
                 ],
             },
         )
@@ -397,15 +398,17 @@ def withdraw_locked_candidate(
         raise ValidationError(
             {
                 "session": [
-                    "This withdrawal path is only for locked sessions. Use an "
-                    "ordinary candidate update while the session is draft or open.",
+                    "This is only for locked sessions. While the session is "
+                    "draft or open, withdraw the candidate from its roster instead.",
                 ],
             },
         )
     if locked_candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError({"candidate": ["Candidate is already withdrawn."]})
     if reason not in GradingCandidate.WithdrawalReason.values:
-        raise ValidationError({"withdrawal_reason": ["Invalid withdrawal reason."]})
+        raise ValidationError(
+            {"withdrawal_reason": ["Choose a reason for the withdrawal."]}
+        )
 
     outcome = getattr(locked_candidate, "outcome", None)
     discarded_proposal: dict[str, object] | None = None
@@ -636,7 +639,7 @@ def validate_candidate_assessment_changes(
             raise ValidationError(
                 {
                     "status": [
-                        "Candidate completion is controlled by assessment completion.",
+                        "A candidate is completed by completing their assessment.",
                     ],
                 },
             )
@@ -647,7 +650,7 @@ def validate_candidate_assessment_changes(
             {
                 "candidate": [
                     "Session and testing-for rank cannot be changed "
-                    "after an assessment snapshot has been generated.",
+                    "after the assessment form has been prepared.",
                 ],
             },
         )
@@ -655,7 +658,7 @@ def validate_candidate_assessment_changes(
         raise ValidationError(
             {
                 "status": [
-                    "Candidate completion is controlled by assessment completion.",
+                    "A candidate is completed by completing their assessment.",
                 ],
             },
         )
@@ -708,7 +711,7 @@ def validate_candidate_can_be_deleted(
         raise ValidationError(
             {
                 "candidate": [
-                    "Candidates with assessment snapshots can only be deleted "
+                    "Candidates with an assessment form can only be deleted "
                     "while the session is draft and the assessment has not "
                     "started.",
                 ],

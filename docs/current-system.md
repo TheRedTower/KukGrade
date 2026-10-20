@@ -585,6 +585,16 @@ checks on each push and pull request.
   phone the board's rows become cards so the decision controls stay on
   screen; choosing a row there moves focus to the detail pane, and after
   recording, focus moves to the result message.
+- **Plain wording (2026-10-20)**: every string a screen shows and every
+  message the server sends were read for technical terms and internal
+  detail, administrators' screens included, and reworded or dropped: no
+  "snapshot", "immutable", "rollup", "metadata", "entity", "batch",
+  "commit", "MiB", "API" or raw status codes (`COMMITTED`, `DRAFT`) in what
+  a user reads - status changes are named in words ("A draft session cannot
+  become locked."). The audit and import labels changed with them (audit
+  0008, data_imports 0004 - labels only). Audit events written before keep
+  their original summaries. Messages only a programming error can reach are
+  left as they are.
 - **Accessibility pass over the rest of the app (2026-10-20)**: every other
   screen - sign-in, setup, overview, the account menu, students and their
   forms and imports, grading sessions, registration, promotions, historical

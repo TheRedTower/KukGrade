@@ -54,7 +54,7 @@ describe("Navigation rail and role-gated routes", () => {
     await screen.findByText("Casey Instructor");
     expect(screen.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
     expect(
-      within(screen.getByRole("complementary", { name: "Navigation rail" })).getByRole("img", {
+      within(screen.getByRole("complementary", { name: "Sidebar" })).getByRole("img", {
         name: "KukGrade",
       }),
     ).toBeVisible();

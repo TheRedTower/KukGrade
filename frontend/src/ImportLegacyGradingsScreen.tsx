@@ -108,7 +108,7 @@ export function ImportLegacyGradingsScreen() {
       setCommitResult(result);
       setStep("result");
     } catch (err) {
-      setError(errorMessage(err, "Could not commit this import."));
+      setError(errorMessage(err, "Could not finish this import."));
     } finally {
       setIsCommitting(false);
     }
@@ -179,7 +179,7 @@ export function ImportLegacyGradingsScreen() {
       {step === "upload" && (
         <div className="form-section-card">
           <h2 className="form-section-title">1. Upload a workbook</h2>
-          <p className="imp-help-text">Accepts .xlsx only, up to 5 MiB.</p>
+          <p className="imp-help-text">Excel workbooks (.xlsx) only, up to 5 MB.</p>
           <ImportUploadRow
             accept=".xlsx"
             ariaLabel="Historical grading workbook file"
@@ -205,7 +205,7 @@ export function ImportLegacyGradingsScreen() {
             <li>{preview.total} row(s) found</li>
             <li>{preview.grading_result} grading result(s)</li>
             <li>{preview.did_not_attend} did not attend</li>
-            <li>{preview.auxiliary_note} auxiliary note(s)</li>
+            <li>{preview.auxiliary_note} other note(s)</li>
             <li>{preview.unresolved_current_rank} unresolved current rank</li>
             <li>{preview.unresolved_testing_for_rank} unresolved testing-for rank</li>
             <li>{preview.unresolved_outcome} unresolved outcome</li>
@@ -220,8 +220,7 @@ export function ImportLegacyGradingsScreen() {
           )}
 
           <p className="imp-help-text">
-            Every rank value below is a suggestion only - nothing is applied until you pick
-            it and commit. Leaving a rank unresolved never blocks its record; it can be
+            Every rank value below is a suggestion only - nothing is applied until you pick it and import. Leaving a rank unresolved never blocks its record; it can be
             resolved later from the historical records screen.
           </p>
 
@@ -229,7 +228,7 @@ export function ImportLegacyGradingsScreen() {
             <table className="imp-mapping-table">
               <thead>
                 <tr>
-                  <th scope="col">Source text</th>
+                  <th scope="col">As written</th>
                   <th scope="col">Rank</th>
                 </tr>
               </thead>
@@ -279,7 +278,7 @@ export function ImportLegacyGradingsScreen() {
             {String(commitResult.summary_json.total ?? 0)} historical record(s) created
             ({String(commitResult.summary_json.grading_result ?? 0)} grading results,{" "}
             {String(commitResult.summary_json.did_not_attend ?? 0)} did not attend,{" "}
-            {String(commitResult.summary_json.auxiliary_note ?? 0)} auxiliary notes).{" "}
+            {String(commitResult.summary_json.auxiliary_note ?? 0)} other notes).{" "}
             {String(commitResult.summary_json.unresolved_current_rank ?? 0)} current rank(s)
             and {String(commitResult.summary_json.unresolved_testing_for_rank ?? 0)}{" "}
             testing-for rank(s) remain unresolved - use the historical records screen to

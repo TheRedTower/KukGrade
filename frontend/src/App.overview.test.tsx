@@ -105,6 +105,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action,
         action_display,
         entity_type: "CandidateOutcome",
+        entity_type_display: "Outcome",
         entity_id: String(id),
         actor_email: "master@example.com",
         actor_name: "Morgan Master",
@@ -142,7 +143,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     render(<App />);
 
-    const ledger = await screen.findByRole("table", { name: "Recent activity ledger" });
+    const ledger = await screen.findByRole("table", { name: "Recent activity" });
     const statusOf = (summary: string) =>
       within(ledger).getByText(summary).closest("tr")!.querySelector(".status-pill-badge")!;
     expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
@@ -223,6 +224,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action: "ASSESSMENT_COMPLETED",
         action_display: "Assessment Completed",
         entity_type: "CandidateAssessment",
+        entity_type_display: "Assessment",
         entity_id: "401",
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
@@ -235,6 +237,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action: "ASSESSMENT_STARTED",
         action_display: "Assessment Started",
         entity_type: "CandidateAssessment",
+        entity_type_display: "Assessment",
         entity_id: "402",
         actor_email: authUser.email,
         actor_name: "Casey Instructor",

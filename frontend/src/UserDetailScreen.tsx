@@ -96,7 +96,7 @@ function AccountForm({
         </label>
       </div>
       <p className="users-form-note">
-        Roles control system access. Master authority is granted separately.
+        The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
       {error && <div className="users-error" role="alert">{error.message}</div>}
@@ -325,8 +325,7 @@ function DeleteUserDialog({
         </header>
         <p>
           Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
-          undone. Any grading history attributed to this account is kept and reassigned to a
-          placeholder "Deleted User" account, not erased.
+          undone. Their grading history is kept, credited to a "Deleted user" account.
         </p>
         {error && <div className="users-error" role="alert">{error.message}</div>}
         <div className="users-dialog-actions">
@@ -450,9 +449,9 @@ export function UserDetailScreen(): React.ReactElement {
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>
-                Permanently delete this account. Grading history stays intact, reassigned to a
-                placeholder account - use this for corruption or test-data cleanup, not routine
-                offboarding (deactivate via account status instead).
+                Permanently delete this account. Their grading history is kept, credited to a
+                &ldquo;Deleted user&rdquo; account. For someone who has left, set the account to
+                Inactive instead.
               </p>
               <button
                 ref={deleteButtonRef}

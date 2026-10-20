@@ -97,8 +97,8 @@ def create_import_batch(
         raise DjangoValidationError(
             {
                 "file": [
-                    f"Unsupported file type .{suffix or '?'} for {kind}. "
-                    f"Allowed: {', '.join(sorted(allowed))}.",
+                    f"KukGrade cannot read .{suffix or '?'} files for this import. "
+                    f"Use {' or '.join(sorted(allowed))}.",
                 ],
             },
         )
@@ -107,7 +107,7 @@ def create_import_batch(
     # too, so a wrong declared size cannot make it read past the limit.
     limit = settings.IMPORT_UPLOAD_MAX_BYTES
     too_large = DjangoValidationError(
-        {"file": [f"File exceeds the {limit / (1024 * 1024):g} MiB limit."]},
+        {"file": [f"The file is larger than the {limit / (1024 * 1024):g} MB limit."]},
     )
     if upload.size is not None and upload.size > limit:
         raise too_large
@@ -202,14 +202,20 @@ def _lock_uncommitted(batch: ImportBatch, verb: str) -> ImportBatch:
     locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
     if locked.status != ImportBatch.Status.UPLOADED:
         raise DjangoValidationError(
-            {"batch": [f"Batch is already {locked.status} and cannot be {verb}."]},
+            {
+                "batch": [
+                    f"This import is already "
+                    f"{ImportBatch.Status(locked.status).label.lower()} and cannot "
+                    f"be {verb}.",
+                ],
+            },
         )
     return locked
 
 
 _SOURCE_FILE_GONE = (
-    "This batch's source file is no longer available "
-    "(already committed, cancelled, or expired)."
+    "This import's file is no longer available: it was already imported, "
+    "cancelled or expired. Upload the file again."
 )
 
 
@@ -257,7 +263,7 @@ def _mark_committed(
     record(
         AuditAction.IMPORT_BATCH_COMMITTED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) committed: "
+        f"Import #{locked.pk} ({locked.get_kind_display()}) finished: "
         f"{record_count} {what} created.",
         actor=actor,
         metadata={
@@ -289,7 +295,7 @@ def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
     record(
         AuditAction.IMPORT_BATCH_CANCELLED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) cancelled.",
+        f"Import #{locked.pk} ({locked.get_kind_display()}) cancelled.",
         actor=actor,
         metadata={"batch_id": locked.pk, "kind": locked.kind},
     )
@@ -320,7 +326,8 @@ def expire_import_batch(batch_id: int, *, max_age: timedelta) -> bool:
     record(
         AuditAction.IMPORT_BATCH_EXPIRED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) expired after {hours}h.",
+        f"Import #{locked.pk} ({locked.get_kind_display()}) expired after "
+        f"{hours} hours.",
         metadata={"batch_id": locked.pk, "kind": locked.kind},
     )
     return True
@@ -529,7 +536,7 @@ def _classify_student_row(
     if not rank_text:
         issues.append("Current rank is required.")
     elif rank is None:
-        issues.append(f"Rank {rank_text!r} did not match the rank catalogue.")
+        issues.append(f"Rank {rank_text!r} is not a rank KukGrade recognises.")
 
     if status_text not in Student.Status.values:
         issues.append(f"Status {status_text!r} is not recognised.")
@@ -631,7 +638,7 @@ def _row_no_longer_valid(
         {
             "rows": [
                 f"Row {row.row_number} ({row.wksa_id}) is no longer valid: "
-                f"{reason} Nothing was imported - preview the file again.",
+                f"{reason} Nothing was imported - check the file again.",
             ],
         },
     )
@@ -645,7 +652,7 @@ def commit_student_import(
     column_mapping: dict[str, str],
     corrections: dict[str, dict[str, str]] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "committed again")
+    locked = _lock_uncommitted(batch, "imported again")
 
     # Never trusts a stale frontend preview - re-runs the exact same
     # validation against the source file right now.
@@ -881,7 +888,7 @@ def commit_legacy_grading_import(
     actor: User,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "committed again")
+    locked = _lock_uncommitted(batch, "imported again")
 
     # Never trusts a stale frontend preview - re-parses the source file and
     # re-resolves every rank mapping right now.

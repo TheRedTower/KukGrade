@@ -577,7 +577,7 @@ class CandidatePromotionSerializer(serializers.Serializer):
         if forbidden_fields:
             raise serializers.ValidationError(
                 {
-                    field: ["This field is server-controlled."]
+                    field: ["KukGrade sets this; it cannot be changed here."]
                     for field in sorted(forbidden_fields)
                 },
             )

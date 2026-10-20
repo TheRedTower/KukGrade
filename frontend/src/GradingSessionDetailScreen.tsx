@@ -546,7 +546,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     return (
       <section aria-labelledby="gsd-invalid-id-heading" className="gsd-page" data-testid="gsd-page">
         <div className="gsd-error-state">
-          <h2 id="gsd-invalid-id-heading">Invalid Grading Session ID</h2>
+          <h2 id="gsd-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the sessions list.</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
@@ -870,7 +870,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Lifecycle Progression Track ─────────────────────────────────── */}
       {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-      <section className="gsd-lifecycle-section" tabIndex={0} aria-label="Session Lifecycle Progress">
+      <section className="gsd-lifecycle-section" tabIndex={0} aria-label="Session progress">
         <div className="gsd-lifecycle-track">
           {lifecycle.map((step, idx) => (
             <React.Fragment key={step.key}>

@@ -106,7 +106,7 @@ def link_legacy_record_to_student(
     record(
         AuditAction.LEGACY_GRADING_LINKED,
         locked,
-        f"Legacy grading record linked to {student}.",
+        f"Historical grading record linked to {student}.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,
@@ -132,7 +132,7 @@ def unlink_legacy_record_from_student(
     record(
         AuditAction.LEGACY_GRADING_UNLINKED,
         locked,
-        "Legacy grading record unlinked from student.",
+        "Historical grading record unlinked from its student.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,
@@ -144,8 +144,8 @@ def unlink_legacy_record_from_student(
 
 
 _RANK_FIELD_LABELS = {
-    "current_rank": "current-rank",
-    "testing_for_rank": "testing-for-rank",
+    "current_rank": "current rank",
+    "testing_for_rank": "testing-for rank",
 }
 
 
@@ -168,8 +168,7 @@ def _resolve_legacy_rank(
     record(
         AuditAction.LEGACY_GRADING_RANK_RESOLVED,
         locked,
-        f"Legacy record {_RANK_FIELD_LABELS[field]} mapping resolved to "
-        f"{resolved_display}.",
+        f"Historical record {_RANK_FIELD_LABELS[field]} set to {resolved_display}.",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,
@@ -227,7 +226,7 @@ def void_legacy_record(
     record(
         AuditAction.LEGACY_GRADING_VOIDED,
         locked,
-        f"Legacy grading record voided: {cleaned_reason}",
+        f"Historical grading record voided:  {cleaned_reason}",
         actor=actor,
         metadata={
             "legacy_record_id": locked.pk,

@@ -67,7 +67,7 @@ function SyllabusLedgerTable({
               Range
             </th>
             <th scope="col" style={{ width: "30%" }}>
-              Provenance
+              Since
             </th>
             <th scope="col" style={{ width: "15%", textAlign: "right" }}>
               Requirement
@@ -280,7 +280,7 @@ export function SyllabusScreen() {
           ref={beltTrackRef}
           className="syl-belt-track"
           role="region"
-          aria-label="Belt Rank Chapters"
+          aria-label="Ranks"
           tabIndex={0}
         >
           {ranks.map((rank) => {
@@ -400,7 +400,7 @@ export function SyllabusScreen() {
         <div className="syl-footer-brand">
           <strong>KukGrade</strong>
           <span className="syl-footer-divider">|</span>
-          <span>Past assessments retain their generated wording.</span>
+          <span>Past assessments keep the wording they were graded on.</span>
         </div>
         <div className="syl-footer-reference">
           Preliminary reference: WKSA curriculum chart, 2014

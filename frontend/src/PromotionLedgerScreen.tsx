@@ -173,7 +173,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
           const outcomeId = sentOutcomes[Number(index)];
           return (
             rows.find((r) => r.outcome?.id === outcomeId)?.candidate.student_display_name ??
-            `Outcome #${outcomeId}`
+            "A candidate"
           );
         };
         const details = failures
@@ -193,7 +193,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: err.message || "Failed to execute batch promotion.",
+        message: err.message || "Could not promote the selected candidates.",
       });
     },
   });
@@ -245,8 +245,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             {session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
           </h1>
           <p className="pl-subtitle">
-            Review finalised candidates, confirm destination ranks, and execute official student
-            promotions with locked session grading dates.
+            Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day.
           </p>
         </div>
         <div className="pl-header-actions">
@@ -267,11 +266,9 @@ export function PromotionLedgerScreen(): React.ReactElement {
             🔒
           </span>
           <div>
-            <strong>Promotion Authority Required</strong>
+            <strong>Promotion authority needed</strong>
             <p>
-              You do not hold the <code>can_promote_student</code> permission. The promotion
-              ledger is displayed in read-only inspection mode. Only authorised Masters or
-              administrators may confer ranks.
+              You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
             </p>
           </div>
         </div>
@@ -515,14 +512,14 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {isBatchTrayOpen && eligibleCohort.length > 0 && (
         <aside
           className="pl-batch-tray"
-          aria-label="Pinned batch confirmation preview"
+          aria-label="Promotion summary"
           role="region"
         >
           <div className="pl-batch-tray-content">
             {/* Left Section: Header & Candidate Pills List */}
             <div className="pl-batch-left">
               <div className="pl-batch-header">
-                <h2 className="pl-batch-title">Pinned batch confirmation preview</h2>
+                <h2 className="pl-batch-title">Promotion summary</h2>
                 <span className="pl-batch-count-tag">
                   {eligibleCohort.length} Candidates Selected
                 </span>
@@ -552,7 +549,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 type="button"
                 className="pl-batch-close-btn"
                 onClick={() => setIsBatchTrayOpen(false)}
-                aria-label="Close batch preview tray"
+                aria-label="Close the promotion summary"
               >
                 ✕
               </button>
@@ -584,7 +581,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 ) : (
                   <>
                     <span aria-hidden="true">✓</span>
-                    <span>Confirm Batch Promotion</span>
+                    <span>Confirm promotions</span>
                   </>
                 )}
               </button>
@@ -637,7 +634,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                   <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
                 </p>
                 <p className="pl-modal-date-notice">
-                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (locked to grading date).
+                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
                 </p>
               </div>
 

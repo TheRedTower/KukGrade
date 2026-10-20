@@ -121,7 +121,7 @@ def test_an_undeclared_list_parameter_is_refused_not_ignored() -> None:
     assert response.status_code == 400
     error = response.json()["error"]
     assert error["code"] == "validation_error"
-    assert error["fields"] == {"sesion": ["This list has no such query parameter."]}
+    assert error["fields"] == {"sesion": ["This list cannot be filtered that way."]}
 
 
 def test_declared_filters_and_paging_are_still_accepted() -> None:

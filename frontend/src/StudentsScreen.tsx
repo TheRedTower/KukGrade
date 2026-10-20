@@ -314,7 +314,7 @@ export function StudentsScreen() {
               <div className="empty-zero-container">
                 <p className="empty-state-title">No students registered yet</p>
                 <p className="empty-state-description">
-                  Get started by registering your first student record in the registry.
+                  Add your first student to get started.
                 </p>
                 <button
                   type="button"

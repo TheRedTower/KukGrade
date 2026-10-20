@@ -175,8 +175,8 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
 )
 OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
 CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
-    "A candidate is registered as REGISTERED, then withdrawn afterwards with "
-    "a reason if they do not grade."
+    "A candidate is registered first, then withdrawn afterwards with a "
+    "reason if they do not grade."
 )
 
 
@@ -549,7 +549,7 @@ class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
         # shell with no validation and no trace.
         if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
             raise ValidationError(
-                {"status": ["Finalised candidate outcomes are immutable."]},
+                {"status": ["A final decision cannot be changed."]},
             )
         return super().update(**kwargs)
 
@@ -802,7 +802,7 @@ class CandidateOutcome(models.Model):
                     )
                     if protected_changes:
                         errors["status"] = [
-                            "Finalised candidate outcomes are immutable.",
+                            "A final decision cannot be changed.",
                         ]
 
         if self.status == self.Status.DRAFT:
@@ -1092,7 +1092,7 @@ class CandidateAssessmentItem(models.Model):
 class PromotionQuerySet(models.QuerySet["Promotion"]):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+            {"promotion": ["A promotion cannot be deleted."]},
         )
 
     def update(self, **kwargs: Any) -> int:
@@ -1100,7 +1100,7 @@ class PromotionQuerySet(models.QuerySet["Promotion"]):
         # (no clean(), no delete()) and was the one path left that could
         # silently rewrite a promotion's rank or attribution from a shell.
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be changed."]},
+            {"promotion": ["A promotion cannot be changed."]},
         )
 
 
@@ -1180,7 +1180,7 @@ class Promotion(models.Model):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+            {"promotion": ["A promotion cannot be deleted."]},
         )
 
     def clean(self) -> None:
@@ -1251,7 +1251,7 @@ class Promotion(models.Model):
                 ]
                 if changed_fields:
                     errors["promotion"] = [
-                        "Promotion records are immutable after creation.",
+                        "A promotion cannot be changed once recorded.",
                     ]
 
         if errors:
@@ -1263,7 +1263,7 @@ class LegacyGradingRecordQuerySet(models.QuerySet["LegacyGradingRecord"]):
         raise ValidationError(
             {
                 "legacy_grading_record": [
-                    "Legacy grading records cannot be deleted - void instead.",
+                    "Historical grading records cannot be deleted - void them instead.",
                 ],
             },
         )
@@ -1502,7 +1502,7 @@ class LegacyGradingRecord(models.Model):
         raise ValidationError(
             {
                 "legacy_grading_record": [
-                    "Legacy grading records cannot be deleted - void instead.",
+                    "Historical grading records cannot be deleted - void them instead.",
                 ],
             },
         )
@@ -1543,7 +1543,7 @@ class LegacyGradingRecord(models.Model):
                 ]
                 if changed_fields:
                     errors["non_field_errors"] = [
-                        "Source fields are immutable after import: "
+                        "What the workbook said cannot be changed after import: "
                         + ", ".join(sorted(changed_fields))
                         + ".",
                     ]

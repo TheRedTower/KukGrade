@@ -73,7 +73,7 @@ class SyllabusRequirementViewSet(GenericViewSet):
             if rank is None:
                 errors["rank_code"] = ["No active rank matches this code."]
         if age_band not in AgeBand.values:
-            errors["age_band"] = ["A valid age_band is required."]
+            errors["age_band"] = ["Choose an age group."]
         if errors:
             raise serializers.ValidationError(errors)
 

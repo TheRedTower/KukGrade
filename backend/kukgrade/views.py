@@ -74,6 +74,12 @@ class WksaIdSchemeSerializer(serializers.Serializer):
 
 class SiteSettingsSerializer(serializers.Serializer):
     club_name = serializers.CharField()
+    time_zone = serializers.CharField(
+        help_text=(
+            "The club's time zone (an IANA name). Times are shown in it, and "
+            "'today' is today there."
+        ),
+    )
     password_policy = PasswordPolicySerializer()
     wksa_id = WksaIdSchemeSerializer()
 
@@ -82,7 +88,8 @@ class SiteSettingsSerializer(serializers.Serializer):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def site_settings(_request: Request) -> Response:
-    """Deployment settings the frontend shows, such as the club's name.
+    """Deployment settings the frontend shows, such as the club's name and
+    time zone (DJANGO_TIME_ZONE).
 
     Public, like the health check: the sign-in screen may show them too, and
     nothing here is personal data. The password policy and the WKSA ID forms
@@ -94,6 +101,7 @@ def site_settings(_request: Request) -> Response:
         SiteSettingsSerializer(
             {
                 "club_name": settings.CLUB_NAME,
+                "time_zone": settings.TIME_ZONE,
                 "password_policy": password_policy(),
                 "wksa_id": wksa_ids.described(),
             },

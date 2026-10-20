@@ -34,6 +34,7 @@ function newDeployment(onSetup: (body: Record<string, string>) => Response) {
     if (url.includes("/api/site/")) {
       return jsonResponse(200, {
         club_name: "Test Club",
+        time_zone: "Europe/London",
         password_policy: policy,
         wksa_id: { hint: "", forms: [] },
       });

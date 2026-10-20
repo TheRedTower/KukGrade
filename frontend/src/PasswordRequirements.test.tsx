@@ -10,6 +10,7 @@ import { PasswordRequirements } from "./PasswordRequirements";
 // server serves, keeping no rules of its own.
 const served: SiteSettings = {
   club_name: "Test Club",
+  time_zone: "Europe/London",
   password_policy: {
     min_length: 5,
     max_length: 6,

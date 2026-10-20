@@ -1062,7 +1062,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Deployment settings the frontend shows, such as the club's name.
+         * @description Deployment settings the frontend shows, such as the club's name and
+         *     time zone (DJANGO_TIME_ZONE).
          *
          *     Public, like the health check: the sign-in screen may show them too, and
          *     nothing here is personal data. The password policy and the WKSA ID forms
@@ -2545,6 +2546,8 @@ export interface components {
         };
         SiteSettings: {
             club_name: string;
+            /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
+            time_zone: string;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
         };

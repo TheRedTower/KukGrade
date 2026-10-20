@@ -401,6 +401,7 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/site/")) {
         return jsonResponse(200, {
           club_name: "Test Club",
+          time_zone: "Europe/London",
           password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
           wksa_id: {
             hint: "Use a student ID such as 206-2-150 or a black belt ID such as A-20819.",

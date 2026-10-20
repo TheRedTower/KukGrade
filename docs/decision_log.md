@@ -586,6 +586,33 @@ Changing the variable changes which day a late-evening or early-morning
 request falls on, so ages and session "today" can shift by a day at the
 boundary. It is set once per deployment, in `.env.production`.
 
+### 2026-10-21 - The screens show times in the club's time zone
+
+Status: Accepted. Supersedes the "frontend is unchanged" line of
+2026-09-30 and the reader's-own-zone rule of 2026-09-24 for timestamps.
+
+Decision:
+The club's zone, `DJANGO_TIME_ZONE`, is served as `time_zone` by
+`GET /api/site/`, and `frontend/src/dates.ts` uses it: timestamps are shown
+as the club's clock reads, "today" (`todayIsoDate`, `currentYear`) and
+"days ago" (`calendarDaysAgo`) are the club's calendar day, counted as
+calendar days so a clock change does not move them. Date-only values
+(`grading_date`, `date_of_birth`, `effective_date`) still take no zone at
+all, so a day never moves whatever the browser or club zone. The zone is
+applied as the site settings load; until then, or for a name the browser does
+not know, the browser's zone is used (what the screens did before). No second
+`TZ` variable was added.
+
+- This also agrees the screens with the server: the audit date filter
+  already ran in the club zone while times were shown in the browser's.
+- CI still runs the suite in UTC and America/Los_Angeles; the club zone is
+  tested across both by setting it to zones far from each.
+
+Consequences:
+A reader abroad sees the club's time, not their own. Times carry no zone
+label. Changing the zone in the application (rather than the environment)
+is a later, separate decision.
+
 ### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
 
 Status: Accepted

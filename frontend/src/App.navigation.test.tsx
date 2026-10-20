@@ -311,7 +311,7 @@ describe("Instructor profile menu and Master capabilities", () => {
       "fetch",
       vi.fn().mockImplementation(async (url: string) =>
         url.includes("/api/site/")
-          ? jsonResponse(200, { club_name: "Kuk Sool Won Testville" })
+          ? jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" })
           : signedInResponse(url, authUser),
       ),
     );

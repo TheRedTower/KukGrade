@@ -2072,7 +2072,8 @@ paths:
     get:
       operationId: site_retrieve
       description: |-
-        Deployment settings the frontend shows, such as the club's name.
+        Deployment settings the frontend shows, such as the club's name and
+        time zone (DJANGO_TIME_ZONE).
 
         Public, like the health check: the sign-in screen may show them too, and
         nothing here is personal data. The password policy and the WKSA ID forms
@@ -5354,6 +5355,10 @@ components:
       properties:
         club_name:
           type: string
+        time_zone:
+          type: string
+          description: The club's time zone (an IANA name). Times are shown in it,
+            and 'today' is today there.
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
@@ -5361,6 +5366,7 @@ components:
       required:
       - club_name
       - password_policy
+      - time_zone
       - wksa_id
     SourceEnum:
       enum:

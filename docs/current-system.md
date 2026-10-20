@@ -641,7 +641,8 @@ checks on each push and pull request.
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
   local year/month/day, while timestamps (`created_at`, `promoted_at`,
   `generated_at`, `completed_at`) keep normal parsing so they render in the
-  reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
+  club's time zone (`time_zone` from `/api/site/`, 2026-10-21; the browser's
+  until it is known). `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
   is the API's own `age_band_display`, never recomputed in the browser - on
@@ -656,7 +657,7 @@ checks on each push and pull request.
   `formatDateTime`, `formatShortDateTime`, `formatTime`, `formatDayMonth`,
   `formatSessionDate` or `formatApiDate`, with "today"/"yesterday" decided by
   `calendarDaysAgo` - with no per-screen formatter of its own, and "today" for a date input or a
-  comparison with a date-only value is `todayIsoDate()` (local), never
+  comparison with a date-only value is `todayIsoDate()` (the club's day), never
   `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and

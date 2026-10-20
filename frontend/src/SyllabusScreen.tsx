@@ -55,7 +55,8 @@ function SyllabusLedgerTable({
   rows: EffectiveSyllabusRequirement[];
 }) {
   return (
-    <div className="syl-table-wrapper">
+    // Focusable, so a keyboard can scroll it sideways when it is wider than the screen.
+    <div className="syl-table-wrapper" tabIndex={0} role="region" aria-label={`${title} for this rank`}>
       <table className="syl-table" aria-label={`${title} for this rank`}>
         <thead>
           <tr>

@@ -332,7 +332,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
       </section>
 
       {/* Candidates Promotion Ledger Table */}
-      <div className="pl-table-container">
+      {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
+      <div className="pl-table-container" tabIndex={0} role="region" aria-label="Promotion ledger">
         {ledgerFailed ? (
           <div className="pl-loading-state" role="alert">
             <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>

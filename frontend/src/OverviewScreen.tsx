@@ -475,7 +475,8 @@ export function OverviewScreen() {
         </div>
 
         {recentActivities.length > 0 ? (
-          <div className="ledger-table-wrapper">
+          <div className="ledger-table-wrapper" tabIndex={0} role="region" aria-label="Recent activity ledger">
+            {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
             <table className="ledger-table" aria-label="Recent activity ledger">
               <thead>
                 <tr>

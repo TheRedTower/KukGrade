@@ -71,6 +71,39 @@ button:disabled {
   border: 0;
 }
 
+/* FDR-007: every control is at least a 44px target, everywhere. Specific
+   enough (one class, through :not) to outrank a component's own smaller
+   size, so no screen restates it. Checkboxes and radios take their label as
+   the target; the theme toggle stays a compact pill (it is above WCAG's
+   24px minimum, by the owner's choice of 2026-10-20). */
+button:not(.theme-toggle-option, .visually-hidden),
+select:not(.visually-hidden),
+input:not([type="checkbox"], [type="radio"], [type="hidden"], .visually-hidden),
+textarea:not(.visually-hidden) {
+  min-height: 44px;
+}
+
+button:not(.theme-toggle-option, .visually-hidden) {
+  min-width: 44px;
+}
+
+/* Links that act as controls - breadcrumbs, names in a table - are inline
+   text, which no height reaches; they become boxes of the same size. */
+.breadcrumb-link-btn,
+.cgs-breadcrumb-link,
+.gsd-breadcrumb-link,
+.bgc-breadcrumb-link,
+.pl-breadcrumb-link,
+.users-back-link,
+.users-audit-link,
+.current-grading-link,
+.bgc-student-name-link,
+.bgc-review-exceptions-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -210,7 +243,7 @@ button:disabled {
 }
 
 .theme-toggle-option[aria-pressed="true"] {
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
 }
 
 .theme-toggle-option:hover {
@@ -218,7 +251,7 @@ button:disabled {
 }
 
 .theme-toggle-option[aria-pressed="true"]:hover {
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
 }
 
 .login-content {
@@ -367,7 +400,7 @@ button:disabled {
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -943,7 +976,7 @@ h2 {
 }
 
 .footer-brand-accent {
-  color: var(--color-gold);
+  color: var(--color-accent-text);
 }
 
 .footer-separator {
@@ -1140,7 +1173,7 @@ h2 {
 
 .btn-pagination:hover:not(:disabled):not(.active) {
   border-color: var(--color-accent);
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .btn-pagination.active {
@@ -1247,7 +1280,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 1.1rem;
   border-radius: 8px;
   border: 1px solid var(--color-border);
@@ -1545,4 +1578,12 @@ h2 {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
+   focus like any other control. */
+[role="region"][tabindex="0"]:focus-visible,
+section[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
 }

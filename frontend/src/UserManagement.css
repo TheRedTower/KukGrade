@@ -50,7 +50,7 @@
 .users-filters button,
 .users-pagination button,
 .users-state button {
-  min-height: 2.7rem;
+  min-height: 44px;
   border-radius: 0.4rem;
   font: inherit;
   font-weight: 750;
@@ -154,7 +154,7 @@
 .users-filters select,
 .users-form-grid input,
 .users-form-grid select {
-  min-height: 2.7rem;
+  min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 0.4rem;
@@ -317,7 +317,7 @@
   padding: 0.85rem 1rem;
 }
 
-.users-pagination button { min-height: 2.2rem; padding: 0.4rem 0.65rem; }
+.users-pagination button { min-height: 44px; padding: 0.4rem 0.65rem; }
 
 .users-state {
   min-height: 18rem;
@@ -377,7 +377,7 @@
 }
 
 .users-dialog h2 { margin: 0; font-size: 1.45rem; }
-.users-link-button { border: 0; background: none; color: var(--color-accent); font: inherit; font-weight: 750; padding: 0.35rem; cursor: pointer; }
+.users-link-button { border: 0; background: none; color: var(--color-accent-text); font: inherit; font-weight: 750; padding: 0.35rem; cursor: pointer; }
 
 .users-dialog-form,
 .users-password-dialog form {
@@ -452,7 +452,7 @@
 
 .users-back-link,
 .users-audit-link {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   font-weight: 700;
   text-decoration: none;
 }
@@ -465,7 +465,7 @@
 }
 
 .users-back-link:hover,
-.users-audit-link:hover { color: var(--color-accent-strong); text-decoration: underline; }
+.users-audit-link:hover { color: var(--color-accent-text); text-decoration: underline; }
 
 .user-detail-header { align-items: center; }
 .user-detail-header p { display: flex; align-items: center; gap: 0.65rem; }

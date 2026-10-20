@@ -869,7 +869,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       </header>
 
       {/* ── Lifecycle Progression Track ─────────────────────────────────── */}
-      <section className="gsd-lifecycle-section" aria-label="Session Lifecycle Progress">
+      {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
+      <section className="gsd-lifecycle-section" tabIndex={0} aria-label="Session Lifecycle Progress">
         <div className="gsd-lifecycle-track">
           {lifecycle.map((step, idx) => (
             <React.Fragment key={step.key}>

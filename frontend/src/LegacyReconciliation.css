@@ -19,7 +19,7 @@
 }
 
 .lr-filter-bar select {
-  min-height: 38px;
+  min-height: 44px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -51,7 +51,7 @@
 
 .lr-action-group select,
 .lr-action-group input {
-  min-height: 38px;
+  min-height: 44px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -74,7 +74,7 @@
 }
 
 .lr-picker-label input {
-  min-height: 38px;
+  min-height: 44px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);

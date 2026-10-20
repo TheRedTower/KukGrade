@@ -585,6 +585,20 @@ checks on each push and pull request.
   phone the board's rows become cards so the decision controls stay on
   screen; choosing a row there moves focus to the detail pane, and after
   recording, focus moves to the result message.
+- **Accessibility pass over the rest of the app (2026-10-20)**: every other
+  screen - sign-in, setup, overview, the account menu, students and their
+  forms and imports, grading sessions, registration, promotions, historical
+  records, syllabus, audit, users and their dialogs - measured in a browser
+  with axe (WCAG 2.2 A and AA), for 44px targets, horizontal overflow and a
+  visible focus on every tab stop, in light and dark at desktop, tablet and
+  phone widths, and left clean. Accent-coloured text uses
+  `--color-accent-text` (at least 4.5:1 in light; the fill and border
+  accents are too light to read); status greens use the success tokens;
+  muted text is no longer faded with opacity. Scrolling table wrappers can
+  be reached by keyboard. Every control is at least 44px (FDR-007) through
+  one base rule in `App.css`, links acting as controls included; only the
+  theme toggle stays a compact pill, by the owner's choice. Inputs and
+  filters show the solid `--color-accent-strong` focus outline.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
@@ -707,10 +721,6 @@ checks on each push and pull request.
 
 ## Known Gaps
 
-- Per-element contrast, target sizes and focus were measured on the four
-  grading surfaces only; the rest of the app has been checked visually. The
-  session screen's breadcrumb, banner button, search and filter are under
-  44px.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required
   before a production import.

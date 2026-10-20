@@ -74,7 +74,7 @@
 .audit-filter input,
 .audit-filter select {
   width: 100%;
-  min-height: 2.7rem;
+  min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 0.45rem;
@@ -109,7 +109,7 @@
 }
 
 .audit-search-button {
-  min-height: 2.7rem;
+  min-height: 44px;
   border: 1px solid var(--btn-primary-border);
   border-left: 0;
   border-radius: 0 0.45rem 0.45rem 0;
@@ -142,7 +142,7 @@
 .audit-dialog-close {
   border: 0;
   background: transparent;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   font: inherit;
   font-weight: 750;
   padding: 0.2rem;
@@ -152,7 +152,7 @@
 .audit-filter-summary button:hover,
 .audit-view-button:hover,
 .audit-dialog-close:hover {
-  color: var(--color-accent-strong);
+  color: var(--color-accent-text);
   text-decoration: underline;
   text-underline-offset: 0.2rem;
 }
@@ -256,8 +256,8 @@
 }
 
 .audit-page-buttons button {
-  min-width: 2.15rem;
-  min-height: 2.15rem;
+  min-width: 44px;
+  min-height: 44px;
   border: 1px solid transparent;
   border-radius: 0.35rem;
   background: transparent;

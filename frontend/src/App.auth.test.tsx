@@ -12,6 +12,7 @@ import {
   jsonResponse,
   emptyResponse,
   authRequiredResponse,
+  signedOutResponse,
 } from "./appTestSupport";
 
 describe("App authentication", () => {
@@ -55,7 +56,7 @@ describe("App authentication", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) =>
-        url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : authRequiredResponse(),
+        url.includes("/api/auth/me/") ? jsonResponse(200, authUser) : signedOutResponse(url),
       ),
     );
 
@@ -66,7 +67,7 @@ describe("App authentication", () => {
 
   it("protects authenticated routes from anonymous users", async () => {
     window.history.replaceState({}, "", "/sessions");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -83,7 +84,7 @@ describe("App authentication", () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
       if (url.includes("/api/auth/login/")) {
         signedIn = true;
@@ -132,6 +133,7 @@ describe("App authentication", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(authRequiredResponse())
+      .mockResolvedValueOnce(jsonResponse(200, { setup_needed: false }))
       .mockResolvedValueOnce(
         jsonResponse(400, {
           error: {
@@ -162,6 +164,7 @@ describe("App authentication", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(authRequiredResponse())
+      .mockResolvedValueOnce(jsonResponse(200, { setup_needed: false }))
       .mockResolvedValueOnce(
         jsonResponse(429, {
           error: {
@@ -192,7 +195,7 @@ describe("App authentication", () => {
     let signedIn = true;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
       if (url.includes("/api/auth/logout/")) {
         signedIn = false;
@@ -275,7 +278,7 @@ describe("App authentication", () => {
     let rosterRequests = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return signedInAs ? jsonResponse(200, signedInAs) : authRequiredResponse();
+        return signedInAs ? jsonResponse(200, signedInAs) : signedOutResponse(url);
       }
       if (url.includes("/api/auth/logout/")) {
         signedInAs = null;
@@ -447,7 +450,7 @@ describe("Connection failures are not sign-outs", () => {
       vi.fn().mockImplementation(async (url: string) => {
         if (url.includes("/api/auth/me/")) {
           meCalls += 1;
-          return meCalls === 1 ? jsonResponse(200, authUser) : authRequiredResponse();
+          return meCalls === 1 ? jsonResponse(200, authUser) : signedOutResponse(url);
         }
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }),
@@ -465,7 +468,7 @@ describe("Connection failures are not sign-outs", () => {
   });
 
   it("still treats a genuine authentication answer as anonymous", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -519,7 +522,7 @@ describe("First-time login copy", () => {
   });
 
   it("greets a browser that has never signed in with 'Sign in', not 'Welcome back'", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -531,7 +534,7 @@ describe("First-time login copy", () => {
     let signedIn = false;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) {
-        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+        return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
       }
       if (url.includes("/api/auth/login/")) {
         signedIn = true;
@@ -580,7 +583,7 @@ describe("Login theme toggle", () => {
   });
 
   it("defaults to following the system preference with no stored choice", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -611,7 +614,7 @@ describe("Login theme toggle", () => {
           removeEventListener: () => {},
         }) as unknown as MediaQueryList,
     );
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
 
     render(<App />);
 
@@ -624,7 +627,7 @@ describe("Login theme toggle", () => {
   });
 
   it("pins an explicit choice to the page and remembers it for next time", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(authRequiredResponse()));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));
     const user = userEvent.setup();
 
     render(<App />);

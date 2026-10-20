@@ -12,9 +12,11 @@ import {
   ApiError,
   type AuthUser,
   changePassword as changePasswordApi,
+  completeSetup,
   getCurrentUser,
   loginUser,
   logoutUser,
+  type SetupDetails,
   updateCurrentUser,
 } from "./api";
 
@@ -29,6 +31,8 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateName: (firstName: string, lastName: string) => Promise<void>;
+  /** Create the first administrator (the setup page) and sign them in. */
+  setUp: (details: SetupDetails) => Promise<void>;
   /** Re-run the session check after a transport failure. */
   retry: () => void;
 };
@@ -90,6 +94,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentUserQuery = useQuery({
     queryKey: CURRENT_USER_QUERY_KEY,
     queryFn: getCurrentUser,
+  });
+
+  // Like signing in: the server signs the new administrator in, and the
+  // cache starts afresh - which also drops the "setup needed" answer.
+  const setUpMutation = useMutation({
+    mutationFn: completeSetup,
+    onSuccess: (authenticatedUser) => {
+      forgetSession();
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
+    },
   });
 
   const loginMutation = useMutation({
@@ -221,6 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [changePasswordMutation],
   );
 
+  const setUp = useCallback(
+    async (details: SetupDetails) => {
+      await setUpMutation.mutateAsync(details);
+    },
+    [setUpMutation],
+  );
+
   const updateName = useCallback(
     async (firstName: string, lastName: string) => {
       await updateNameMutation.mutateAsync({ firstName, lastName });
@@ -229,8 +250,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, error, login, logout, changePassword, updateName, retry }),
-    [changePassword, error, login, logout, retry, status, updateName, user],
+    () => ({ user, status, error, login, logout, changePassword, updateName, setUp, retry }),
+    [changePassword, error, login, logout, retry, setUp, status, updateName, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

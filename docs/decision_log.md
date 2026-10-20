@@ -18,6 +18,32 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The first administrator is set up from the site, with a code from the log
+
+Status: Accepted, built 2026-10-20
+
+Decision:
+On a new deployment, visiting the site shows a setup page while no
+administrator exists; whoever completes it becomes the main administrator, a
+superuser. To stop a stranger or a bot claiming the site first, the page
+also asks for a one-time setup code that each server start writes to the
+server's own log while setup is needed - which only the host's owner can
+read. The code works once, for 24 hours; a restart issues a new one. The
+terminal setup command considered first is not kept, and Django's
+`createsuperuser` stays switched off.
+
+Context:
+Amendment 10 of the credential lifecycle (2026-10-19): no default password;
+the first administrator is prompted for at first deployment. The owner chose
+a web page over a terminal prompt, and the setup code over "first visitor
+wins" or "only from the server's network".
+
+Consequences:
+`accounts/setup.py` holds the rule; `/api/setup/` serves it; the
+`issue_setup_code` startup command writes the code; `SetupCode` keeps only
+its hash. `SetupPage.tsx` is the page, shown to a signed-out visitor on any
+path while setup is needed; it is also where the theme is first chosen.
+
 ### 2026-10-20 - Who may change which account
 
 Status: Accepted

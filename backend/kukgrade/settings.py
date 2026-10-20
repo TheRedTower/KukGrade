@@ -257,7 +257,11 @@ REST_FRAMEWORK = {
     # one that sets it today, since unlimited password attempts is the risk
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_change": "10/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",
+        "password_change": "10/min",
+        "setup": "10/min",
+    },
     # Production sits behind Cloudflare and then Traefik: two trusted hops,
     # so the client address is the second-to-last X-Forwarded-For entry.
     # Zero ignores untrusted X-Forwarded-For in native development.

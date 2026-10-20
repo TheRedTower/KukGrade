@@ -134,6 +134,55 @@ it would refuse. Admin site access itself (`is_staff`, `is_superuser`) is
 granted or removed only by a superuser, and Django admin shows another
 superuser's record view-only to anyone else.
 
+## Backend Enforcement
+
+- Every endpoint requires authentication except `/api/health/`,
+  `/api/ready/`, `/api/site/`, login, and `/api/setup/` - which only creates
+  the first administrator, given the one-time code in the server's log.
+- Every viewset declares a `permission_map` from action to required Django
+  permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
+  action is denied, so a new endpoint fails closed.
+- An account whose password somebody else chose (`must_change_password`, set
+  on creation and by an administrator reset) may do nothing but read who it is,
+  change its password, and sign out, whatever permissions it holds
+  (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
+  this to every view at once, so a new endpoint is gated without declaring
+  anything; see `api_contract.md`. Once that temporary password expires, the
+  account cannot sign in at all until an administrator issues a new one.
+- Only a superuser changes an account that can use the Django admin site
+  (`is_staff` or `is_superuser`) - a reset included, since its temporary
+  password signs in as that account - and nobody resets their own or changes
+  their own role or status (`accounts.services.can_manage`, see "What an
+  Administrator can do to other accounts" above).
+- Final decisions, promotion, and locked-session withdrawal/cancellation each
+  add a per-user authority check on top, pinned by
+  `accounts/test_permission_matrix.py`.
+- Models refuse illegal states (locked or finalised records, immutable
+  history), so admin, the shell, and bulk querysets cannot bypass the API's
+  rules.
+- Every sensitive write records an audit event in its own transaction.
+
+Frontend controls reflect these permissions but are never the enforcement
+boundary.
+
+## Audit Requirements
+
+Audit events should capture at least:
+
+- actor.
+- action.
+- entity type and identifier.
+- timestamp.
+- summary.
+- relevant metadata, avoiding unnecessary personal data duplication.
+
+Actions requiring audit include syllabus changes, permission changes, final decisions, overrides, rank changes, student status changes, and changes to submitted or finalised grading records.
+
+## Privacy Rules
+
+- Student details, attendance, grading comments, and outcomes are personal data.
+- Development data must be anonymised or synthetic.
+- Access should be limited to users with a real operational need.
 - Assessment comments, grading outcomes, student status, and audit logs need stricter access than general reference data.
 
 ## Open questions

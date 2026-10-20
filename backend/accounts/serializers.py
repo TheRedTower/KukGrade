@@ -312,3 +312,40 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def update(self, instance: User, validated_data: dict[str, Any]) -> User:
         return change_own_password(instance, password=validated_data["new_password"])
+
+
+class SetupStatusSerializer(serializers.Serializer):
+    """GET /api/setup/."""
+
+    setup_needed = serializers.BooleanField(
+        help_text="True until the deployment's first administrator exists.",
+    )
+
+
+class SetupSerializer(serializers.Serializer):
+    """POST /api/setup/: the first administrator, and the code proving it is
+    the deployment's owner (accounts/setup.py)."""
+
+    code = serializers.CharField(
+        write_only=True,
+        help_text="The one-time setup code from the server's log.",
+    )
+    email = serializers.EmailField(write_only=True)
+    first_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=150,
+    )
+    last_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=150,
+    )
+    # Untrimmed, as sign-in reads it.
+    password = serializers.CharField(
+        write_only=True,
+        style={"input_type": "password"},
+        trim_whitespace=False,
+    )

@@ -134,3 +134,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self) -> str:
         return self.first_name or self.email
+
+
+class SetupCode(models.Model):
+    """The one-time code that proves who sets up a new deployment.
+
+    While no administrator exists, each server start issues one and writes
+    it to the server's own log, which only the host's owner can read; the
+    setup page asks for it with the first administrator's details
+    (accounts/setup.py). Only its hash is kept, at most one row exists, and
+    it is deleted the moment setup succeeds.
+    """
+
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Setup code, expires {self.expires_at:%Y-%m-%d %H:%M}"

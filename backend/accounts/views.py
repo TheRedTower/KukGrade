@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.db.models import QuerySet
@@ -25,6 +25,8 @@ from accounts.serializers import (
     IssuedTemporaryPasswordSerializer,
     LoginSerializer,
     SelfProfileSerializer,
+    SetupSerializer,
+    SetupStatusSerializer,
     UserAuthoritySerializer,
     UserManagementSerializer,
     UserSerializer,
@@ -35,6 +37,7 @@ from accounts.services import (
     delete_platform_user,
     reset_password,
 )
+from accounts.setup import complete_setup, setup_needed
 from kukgrade.filtering import boolean, choice, search
 
 
@@ -52,6 +55,37 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login(request, serializer.validated_data["user"])
         return Response(UserSerializer(request.user).data)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+@method_decorator(ensure_csrf_cookie, name="get")
+class SetupView(APIView):
+    """Setting up a new deployment's first administrator (accounts/setup.py).
+
+    Public, as the sign-in is: nobody can sign in before it is done. Taking a
+    code is rate-limited like a password guess; asking whether setup is
+    needed is not, and also hands the setup page its CSRF cookie.
+    """
+
+    authentication_classes: Sequence[type[BaseAuthentication]] = ()
+    permission_classes = [AllowAny]
+    throttle_scope = "setup"
+
+    def get_throttles(self) -> list[Any]:
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    @extend_schema(responses=SetupStatusSerializer)
+    def get(self, request: Request) -> Response:
+        return Response({"setup_needed": setup_needed()})
+
+    @extend_schema(request=SetupSerializer, responses={201: UserSerializer})
+    def post(self, request: Request) -> Response:
+        serializer = SetupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = complete_setup(**serializer.validated_data)
+        # Straight in: they just proved who they are, twice over.
+        login(request, user, backend="accounts.backends.AccountBackend")
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 class LogoutView(APIView):

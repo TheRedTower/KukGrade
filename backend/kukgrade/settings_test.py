@@ -42,5 +42,9 @@ from kukgrade.settings import REST_FRAMEWORK  # noqa: E402
 # exercise the limit.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
-    "DEFAULT_THROTTLE_RATES": {"login": "1000/min", "password_change": "1000/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "1000/min",
+        "password_change": "1000/min",
+        "setup": "1000/min",
+    },
 }

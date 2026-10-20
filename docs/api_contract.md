@@ -79,6 +79,8 @@ not the response.
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
+| GET | /api/setup/ | Anonymous: `{"setup_needed": bool}`, true until the deployment's first administrator exists. Sets the CSRF cookie the setup page needs. |
+| POST | /api/setup/ | Anonymous, CSRF-checked, rate-limited like login: `{code, email, first_name?, last_name?, password}` creates the first administrator - a superuser - and signs them in (`201`, the current user). `code` is the one-time setup code from the server's log; a wrong, expired or already-used code, a password outside the policy, or any request once an administrator exists is a `400` field error. See `accounts/setup.py`. |
 | GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist, and `wksa_id` - `{hint, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take and the rule in a sentence (the same one a refused ID is told), the student example using `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
 
 ## 1. Authentication

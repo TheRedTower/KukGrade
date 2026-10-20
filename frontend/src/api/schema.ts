@@ -811,6 +811,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Setting up a new deployment's first administrator (accounts/setup.py).
+         *
+         *     Public, as the sign-in is: nobody can sign in before it is done. Taking a
+         *     code is rate-limited like a password guess; asking whether setup is
+         *     needed is not, and also hands the setup page its CSRF cookie.
+         */
+        get: operations["setup_retrieve"];
+        put?: never;
+        /**
+         * @description Setting up a new deployment's first administrator (accounts/setup.py).
+         *
+         *     Public, as the sign-in is: nobody can sign in before it is done. Taking a
+         *     code is rate-limited like a password guess; asking whether setup is
+         *     needed is not, and also hands the setup page its CSRF cookie.
+         */
+        post: operations["setup_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/site/": {
         parameters: {
             query?: never;
@@ -2012,6 +2042,24 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "instructor" | "administrator";
+        /**
+         * @description POST /api/setup/: the first administrator, and the code proving it is
+         *     the deployment's owner (accounts/setup.py).
+         */
+        SetupRequest: {
+            /** @description The one-time setup code from the server's log. */
+            code: string;
+            /** Format: email */
+            email: string;
+            first_name?: string;
+            last_name?: string;
+            password: string;
+        };
+        /** @description GET /api/setup/. */
+        SetupStatus: {
+            /** @description True until the deployment's first administrator exists. */
+            setup_needed: boolean;
+        };
         SiteSettings: {
             club_name: string;
             password_policy: components["schemas"]["PasswordPolicy"];
@@ -3517,6 +3565,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReadinessResponse"];
+                };
+            };
+        };
+    };
+    setup_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    setup_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SetupRequest"];
+                "multipart/form-data": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
                 };
             };
         };

@@ -4,30 +4,28 @@ import {
   ReactNode,
   Suspense,
   useState,
-  type CSSProperties,
 } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
-import { ApiError, type AuthUser } from "./api";
+import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { useSiteSettingsQuery } from "./queries";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
+import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import {
   AuditIcon,
   GradingsIcon,
-  MonitorIcon,
-  MoonIcon,
   OverviewIcon,
   StudentsIcon,
-  SunIcon,
   SyllabusIcon,
   UsersIcon,
 } from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { ProfileMenu } from "./ProfileMenu";
 import { MustChangePassword } from "./MustChangePassword";
+import { SetupPage } from "./SetupPage";
 import { OverviewScreen } from "./OverviewScreen";
 import { StudentsScreen } from "./StudentsScreen";
 import { AddStudentScreen } from "./AddStudentScreen";
@@ -41,7 +39,6 @@ import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
-import { useTheme, type ThemePreference } from "./useTheme";
 
 const UsersScreen = lazy(() =>
   import("./UsersScreen").then((module) => ({ default: module.UsersScreen })),
@@ -76,57 +73,6 @@ function UserManagementFallback(): React.ReactElement {
 
 function ImportFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading import…</div>;
-}
-
-const THEME_OPTIONS: { value: ThemePreference; label: string; icon: ReactNode }[] = [
-  { value: "light", label: "Light", icon: <SunIcon /> },
-  { value: "system", label: "System", icon: <MonitorIcon /> },
-  { value: "dark", label: "Dark", icon: <MoonIcon /> },
-];
-
-function ThemeToggle() {
-  const { preference, setTheme } = useTheme();
-  const activeIndex = THEME_OPTIONS.findIndex((option) => option.value === preference);
-
-  return (
-    <div aria-label="Theme" className="theme-toggle" role="group">
-      <div
-        className="theme-toggle-track"
-        style={{ "--theme-toggle-active-index": String(activeIndex) } as CSSProperties}
-      >
-        <div aria-hidden className="theme-toggle-thumb" />
-        {THEME_OPTIONS.map((option) => (
-          <button
-            aria-pressed={preference === option.value}
-            className="theme-toggle-option"
-            key={option.value}
-            onClick={() => setTheme(option.value)}
-            title={option.label}
-            type="button"
-          >
-            {option.icon}
-            <span className="visually-hidden">{option.label}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function LoginBrandPanel() {
-  return (
-    <aside className="auth-brand">
-      <div>
-        <KukGradeLogo className="auth-logo" />
-        <p className="auth-brand-tagline">Staff grading management</p>
-        <p className="auth-brand-values">People &middot; Progress &middot; Purpose</p>
-      </div>
-      <div className="auth-brand-footer">
-        <p>Built for instructors.</p>
-        <p>Focused on what matters.</p>
-      </div>
-    </aside>
-  );
 }
 
 function LoginPage() {
@@ -444,6 +390,32 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return children;
 }
 
+/**
+ * A new deployment shows only its setup page, on every path, until the
+ * first administrator exists. Asked only of a signed-out visitor: before
+ * setup nobody can be signed in, so a signed-in session already answers it.
+ * A failure to ask falls through to the usual screens.
+ */
+function SetupGate({ children }: { children: ReactNode }) {
+  const { status } = useAuth();
+  const anonymous = status === "anonymous";
+  const setup = useQuery({
+    queryKey: ["setupStatus"],
+    queryFn: getSetupStatus,
+    enabled: anonymous,
+  });
+
+  if (anonymous && setup.isPending) {
+    return <LoadingPage />;
+  }
+
+  if (anonymous && setup.data?.setup_needed) {
+    return <SetupPage />;
+  }
+
+  return children;
+}
+
 function LoginRoute() {
   const { status, user } = useAuth();
 
@@ -487,97 +459,99 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route element={<LoginRoute />} path="/login" />
-            <Route
-              element={
-                <RequireAuth>
-                  <ApplicationShell />
-                </RequireAuth>
-              }
-            >
-              <Route element={<OverviewScreen />} index />
-              <Route element={<Navigate replace to="/" />} path="overview" />
-              <Route element={<StudentsScreen />} path="students" />
-              <Route element={<AddStudentScreen />} path="students/new" />
+          <SetupGate>
+            <Routes>
+              <Route element={<LoginRoute />} path="/login" />
               <Route
                 element={
-                  <RequireAccess flag="can_import_data">
-                    <Suspense fallback={<ImportFallback />}>
-                      <ImportStudentsScreen />
+                  <RequireAuth>
+                    <ApplicationShell />
+                  </RequireAuth>
+                }
+              >
+                <Route element={<OverviewScreen />} index />
+                <Route element={<Navigate replace to="/" />} path="overview" />
+                <Route element={<StudentsScreen />} path="students" />
+                <Route element={<AddStudentScreen />} path="students/new" />
+                <Route
+                  element={
+                    <RequireAccess flag="can_import_data">
+                      <Suspense fallback={<ImportFallback />}>
+                        <ImportStudentsScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="students/import"
+                />
+                <Route element={<StudentDetailScreen />} path="students/:id" />
+                <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
+                <Route
+                  element={
+                    <RequireAccess flag="can_import_data">
+                      <Suspense fallback={<ImportFallback />}>
+                        <ImportLegacyGradingsScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="gradings/import-legacy"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_reconcile_imported_history">
+                      <Suspense fallback={<ImportFallback />}>
+                        <LegacyReconciliationScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="gradings/legacy-records"
+                />
+                <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
+                <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
+                <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
+                <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
+                <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
+                <Route
+                  element={
+                    <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
+                      <GradingSessionDetailScreen />
                     </Suspense>
-                  </RequireAccess>
-                }
-                path="students/import"
-              />
-              <Route element={<StudentDetailScreen />} path="students/:id" />
-              <Route element={<CreateGradingSessionScreen />} path="gradings/new" />
-              <Route
-                element={
-                  <RequireAccess flag="can_import_data">
-                    <Suspense fallback={<ImportFallback />}>
-                      <ImportLegacyGradingsScreen />
-                    </Suspense>
-                  </RequireAccess>
-                }
-                path="gradings/import-legacy"
-              />
-              <Route
-                element={
-                  <RequireAccess flag="can_reconcile_imported_history">
-                    <Suspense fallback={<ImportFallback />}>
-                      <LegacyReconciliationScreen />
-                    </Suspense>
-                  </RequireAccess>
-                }
-                path="gradings/legacy-records"
-              />
-              <Route element={<BuildGradingCohortScreen />} path="gradings/:id/register" />
-              <Route element={<CohortAdjudicationScreen />} path="gradings/:id/decisions" />
-              <Route element={<PromotionLedgerScreen />} path="gradings/:id/promotions" />
-              <Route element={<AssessmentCompletionScreen />} path="gradings/:sessionId/assessments/:candidateId/review" />
-              <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
-              <Route
-                element={
-                  <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
-                    <GradingSessionDetailScreen />
-                  </Suspense>
-                }
-                path="gradings/:id"
-              />
-              <Route element={<GradingSessionsScreen />} path="gradings" />
-              <Route element={<SyllabusScreen />} path="syllabus" />
-              <Route
-                element={
-                  <RequireAccess flag="can_read_audit_log">
-                    <AuditScreen />
-                  </RequireAccess>
-                }
-                path="audit"
-              />
-              <Route
-                element={
-                  <RequireAccess flag="can_manage_users">
-                    <Suspense fallback={<UserManagementFallback />}>
-                      <UsersScreen />
-                    </Suspense>
-                  </RequireAccess>
-                }
-                path="users"
-              />
-              <Route
-                element={
-                  <RequireAccess flag="can_manage_users">
-                    <Suspense fallback={<UserManagementFallback />}>
-                      <UserDetailScreen />
-                    </Suspense>
-                  </RequireAccess>
-                }
-                path="users/:id"
-              />
-              <Route element={<Navigate replace to="/" />} path="*" />
-            </Route>
-          </Routes>
+                  }
+                  path="gradings/:id"
+                />
+                <Route element={<GradingSessionsScreen />} path="gradings" />
+                <Route element={<SyllabusScreen />} path="syllabus" />
+                <Route
+                  element={
+                    <RequireAccess flag="can_read_audit_log">
+                      <AuditScreen />
+                    </RequireAccess>
+                  }
+                  path="audit"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_manage_users">
+                      <Suspense fallback={<UserManagementFallback />}>
+                        <UsersScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="users"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_manage_users">
+                      <Suspense fallback={<UserManagementFallback />}>
+                        <UserDetailScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="users/:id"
+                />
+                <Route element={<Navigate replace to="/" />} path="*" />
+              </Route>
+            </Routes>
+          </SetupGate>
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

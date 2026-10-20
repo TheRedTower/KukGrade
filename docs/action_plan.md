@@ -9,12 +9,12 @@ structural choice records it in `decision_log.md` first.
 In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
 (KG-A24, 2026-09-29 audit) waits until the owner asks for it.
 
-1. **Go live.** Before it: map what the Administrator role - not superuser -
-   can and cannot do (done 2026-10-20: `permissions.md`, "What an
-   Administrator can do to other accounts"), and build the first-deployment
-   prompt that sets up the first
-   administrator (a superuser; no default password exists). Then connect the
-   production image to the real Traefik and PostgreSQL host, cap the request
+1. **Go live.** Done before it (2026-10-20): what the Administrator role -
+   not superuser - can and cannot do (`permissions.md`, "What an
+   Administrator can do to other accounts"), and the server side of setting
+   up the first administrator (`/api/setup/` with a one-time code from the
+   log, `deployment.md`) and the setup page the site shows until then
+   (`SetupPage.tsx`). Then connect the production image to the real Traefik and PostgreSQL host, cap the request
    body at Traefik, and verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).
 2. **The syllabus row-divider defect** under "Known defects" below.

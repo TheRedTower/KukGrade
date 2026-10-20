@@ -238,6 +238,21 @@ export async function logoutUser(): Promise<void> {
   });
 }
 
+export type SetupDetails = Schemas["SetupRequest"];
+
+/** Whether the deployment still needs its first administrator. */
+export async function getSetupStatus(): Promise<Schemas["SetupStatus"]> {
+  return apiRequest<Schemas["SetupStatus"]>("/api/setup/");
+}
+
+/** Create the first administrator and sign them in. */
+export async function completeSetup(details: SetupDetails): Promise<AuthUser> {
+  return apiRequest<AuthUser>("/api/setup/", {
+    method: "POST",
+    body: JSON.stringify(details),
+  });
+}
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string,

@@ -1538,6 +1538,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
           description: ''
+  /api/setup/:
+    get:
+      operationId: setup_retrieve
+      description: |-
+        Setting up a new deployment's first administrator (accounts/setup.py).
+
+        Public, as the sign-in is: nobody can sign in before it is done. Taking a
+        code is rate-limited like a password guess; asking whether setup is
+        needed is not, and also hands the setup page its CSRF cookie.
+      tags:
+      - setup
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+          description: ''
+    post:
+      operationId: setup_create
+      description: |-
+        Setting up a new deployment's first administrator (accounts/setup.py).
+
+        Public, as the sign-in is: nobody can sign in before it is done. Taking a
+        code is rate-limited like a password guess; asking whether setup is
+        needed is not, and also hands the setup page its CSRF cookie.
+      tags:
+      - setup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/site/:
     get:
       operationId: site_retrieve
@@ -4169,6 +4220,47 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
+    SetupRequest:
+      type: object
+      description: |-
+        POST /api/setup/: the first administrator, and the code proving it is
+        the deployment's owner (accounts/setup.py).
+      properties:
+        code:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: The one-time setup code from the server's log.
+        email:
+          type: string
+          format: email
+          writeOnly: true
+          minLength: 1
+        first_name:
+          type: string
+          writeOnly: true
+          maxLength: 150
+        last_name:
+          type: string
+          writeOnly: true
+          maxLength: 150
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - code
+      - email
+      - password
+    SetupStatus:
+      type: object
+      description: GET /api/setup/.
+      properties:
+        setup_needed:
+          type: boolean
+          description: True until the deployment's first administrator exists.
+      required:
+      - setup_needed
     SiteSettings:
       type: object
       properties:

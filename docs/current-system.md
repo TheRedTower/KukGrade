@@ -318,11 +318,18 @@ checks on each push and pull request.
   counts), not a common password and not too similar to the account's own
   details. Defined once in `accounts/password_policy.py` and run through
   `AUTH_PASSWORD_VALIDATORS`, so the API, generated temporary passwords and
-  an interactive `createsuperuser` all enforce it; `/api/site/` serves it and
+  the first-administrator setup all enforce it; `/api/site/` serves it and
   the password forms tick it off as you type. It applies when a password is
-  next set - existing passwords keep working. `createsuperuser --noinput`
-  and its "bypass validation" prompt skip it; the first-administrator setup
-  planned for go-live replaces that path.
+  next set - existing passwords keep working. Django's `createsuperuser`,
+  whose `--noinput` form and "bypass validation" prompt skipped it, is
+  switched off (2026-10-20): a new deployment's first administrator is set
+  up through `/api/setup/` with the one-time setup code each start writes to
+  the server's log while none exists (`accounts/setup.py`, `deployment.md`).
+  Until then a signed-out visitor sees only the setup page
+  (`SetupPage.tsx`), on any path: the code, the administrator's email, name
+  and password with the policy checklist, and the first choice of display
+  theme, on the sign-in page's layout and light and dark themes. It signs
+  the new administrator straight in.
 - **Forced password change (enforced server-side)**: creation and an
   administrator reset both set `must_change_password`, which the owner
   choosing their own password clears along with the expiry. While it is set,

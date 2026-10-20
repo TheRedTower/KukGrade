@@ -39,9 +39,15 @@ Day to day:
 ```sh
 uv sync
 uv run python manage.py migrate          # needs `docker compose up -d db`
+uv run python manage.py issue_setup_code # fresh database only, see below
 uv run python manage.py runserver 0.0.0.0:8000
 uv run pytest
 ```
+
+A fresh database has no accounts, and `createsuperuser` is switched off.
+`issue_setup_code` prints a one-time setup code; open the site and enter it
+on the setup page with the first administrator's details
+(`accounts/setup.py`). It prints nothing once an administrator exists.
 
 ## How the code is organised
 

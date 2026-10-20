@@ -76,13 +76,3 @@ def with_age_band_on(students: QuerySet[Student], on_date: date) -> QuerySet[Stu
     return students.annotate(age_in_years=_age_in_years_on(on_date)).annotate(
         age_band_on_date=band,
     )
-
-
-def students_in_age_band(
-    students: QuerySet[Student],
-    band: str,
-    on_date: date,
-) -> QuerySet[Student]:
-    """The students `resolve_age_band` would place in `band` on `on_date`."""
-    # Keyword by dict: the stubs cannot see an annotation added in a helper.
-    return with_age_band_on(students, on_date).filter(**{"age_band_on_date": band})

@@ -636,7 +636,7 @@ def test_students_filter_by_age_band_agrees_with_the_age_band_they_are_served() 
 
 
 def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
-    from gradings.age import calculate_age_on, students_in_age_band
+    from gradings.age import calculate_age_on, with_age_band_on
 
     Student.objects.create(
         **student_kwargs(wksa_id="206-2-529", date_of_birth=date(2016, 2, 29))
@@ -649,10 +649,10 @@ def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
         assert calculate_age_on(date(2016, 2, 29), on_date) == (
             8 if on_date.month == 2 else 9
         )
-        assert students_in_age_band(Student.objects.all(), band, on_date).count() == 1
-    assert not students_in_age_band(
-        Student.objects.all(), "AGE_9_TO_12", date(2025, 2, 28)
-    ).exists()
+        banded = with_age_band_on(Student.objects.all(), on_date)
+        # Keyword by dict: the stubs cannot see an annotation added in a helper.
+        assert banded.filter(**{"age_band_on_date": band}).count() == 1
+        assert banded.count() == 1
 
 
 def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:

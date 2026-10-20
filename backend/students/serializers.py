@@ -188,9 +188,10 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
 
     One serializer rather than three: create and update share every field,
     and splitting them would just copy the same fields into different
-    classes. wksa_id changes after creation only from a student ID to the
-    black belt ID WKSA hands out (Student.clean() refuses anything else);
-    wksa_id_can_change says whether that change is still to come.
+    classes. wksa_id can be corrected if mistyped, and a student ID becomes
+    the black belt ID WKSA hands out; a black belt ID never goes back to a
+    student ID (Student.clean()). wksa_id_can_change says whether the change
+    to a black belt ID is still to come.
     """
 
     current_rank_name = serializers.CharField(
@@ -198,7 +199,12 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     age_band_display = serializers.CharField(read_only=True)
-    wksa_id_can_change = serializers.SerializerMethodField()
+    wksa_id_can_change = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the ID is still a student ID, so the change to a black "
+            "belt ID is still to come. Either form can be corrected."
+        ),
+    )
     previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
     extra_information = StudentExtraInfoSerializer(
         many=True,

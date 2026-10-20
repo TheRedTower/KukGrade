@@ -4917,9 +4917,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         wksa_id:
           type: string
@@ -5242,9 +5243,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         id:
           type: integer
@@ -5255,6 +5257,8 @@ components:
         wksa_id_can_change:
           type: boolean
           readOnly: true
+          description: Whether the ID is still a student ID, so the change to a black
+            belt ID is still to come. Either form can be corrected.
         previous_wksa_ids:
           type: array
           items:
@@ -5523,9 +5527,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         wksa_id:
           type: string

@@ -846,7 +846,7 @@ export function StudentDetailScreen() {
                     className={`form-text-input ${getEditFieldError("wksa_id") ? "input-error" : ""}`}
                     value={editWksaId}
                     onChange={(e) => setEditWksaId(e.target.value)}
-                    disabled={!student.wksa_id_can_change || isSavingEdit}
+                    disabled={isSavingEdit}
                     aria-invalid={!!getEditFieldError("wksa_id")}
                     aria-describedby={getEditFieldError("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
@@ -857,8 +857,8 @@ export function StudentDetailScreen() {
                   ) : (
                     <p className="form-field-help" id="edit-wksa-id-help">
                       {student.wksa_id_can_change
-                        ? "Change this only to record the black belt ID handed out at the national grading."
-                        : "A black belt ID never changes."}
+                        ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
+                        : "Correct a mistyped black belt ID. It never goes back to a student ID."}
                     </p>
                   )}
                 </div>

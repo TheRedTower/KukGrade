@@ -3,8 +3,9 @@
 `LegacyGradingRecord` is deliberately a weaker, distinct evidence model from
 the native grading workflow (see its docstring in gradings/models.py). Every
 function here either creates a record from already-parsed, already-validated
-data (`create_legacy_grading_record`, called once per row from a data_imports
-commit service) or performs one of the five explicit corrections a record
+data (`create_legacy_grading_records`, every record of a data_imports
+commit in one write, with no audit event of its own: the commit records one
+for the whole batch) or performs one of the five explicit corrections a record
 allows - nothing here ever touches `outcome`/`comments`/other source-derived
 fields once a record exists; `LegacyGradingRecord.clean()` enforces that even
 if a caller tried.
@@ -12,8 +13,8 @@ if a caller tried.
 
 from __future__ import annotations
 
-from datetime import date
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -22,67 +23,13 @@ from django.utils import timezone
 from audit.models import AuditAction
 from audit.recording import record
 from gradings.locking import lock_student, lock_students
-from gradings.models import LegacyAttendance, LegacyDatePrecision, LegacyGradingRecord
+from gradings.models import LegacyGradingRecord
 
 if TYPE_CHECKING:
     from accounts.models import User
     from data_imports.models import ImportBatch
     from ranks.models import Rank
     from students.models import Student
-
-
-@transaction.atomic
-def create_legacy_grading_record(
-    *,
-    source_batch: ImportBatch,
-    record_kind: str,
-    source_sheet: str,
-    source_locator: str,
-    cycle_year: int,
-    cycle_month: int,
-    source_name: str,
-    source_section: str = "",
-    grading_date: date | None = None,
-    date_precision: str = LegacyDatePrecision.MONTH,
-    source_current_rank_text: str = "",
-    current_rank: Rank | None = None,
-    source_testing_for_rank_text: str = "",
-    testing_for_rank: Rank | None = None,
-    source_outcome_text: str = "",
-    outcome: str | None = None,
-    attendance_status: str = LegacyAttendance.UNKNOWN,
-    comments: str = "",
-    admin_note: str = "",
-) -> LegacyGradingRecord:
-    """Create one canonical row. No audit event of its own.
-
-    Called once per parsed row from a data_imports commit service, which
-    records a single batch-level audit event covering the whole cascade -
-    the same "one event per commit, not one per row" rule already applied
-    to student-roster import (see data_imports.services.
-    commit_student_import's IMPORT_BATCH_COMMITTED event).
-    """
-    return LegacyGradingRecord.objects.create(
-        source_batch=source_batch,
-        record_kind=record_kind,
-        source_sheet=source_sheet,
-        source_section=source_section,
-        source_locator=source_locator,
-        cycle_year=cycle_year,
-        cycle_month=cycle_month,
-        grading_date=grading_date,
-        date_precision=date_precision,
-        source_name=source_name,
-        source_current_rank_text=source_current_rank_text,
-        current_rank=current_rank,
-        source_testing_for_rank_text=source_testing_for_rank_text,
-        testing_for_rank=testing_for_rank,
-        source_outcome_text=source_outcome_text,
-        outcome=outcome,
-        attendance_status=attendance_status,
-        comments=comments,
-        admin_note=admin_note,
-    )
 
 
 VOIDED_MESSAGE = (
@@ -93,6 +40,35 @@ LINKED_ELSEWHERE_MESSAGE = (
     "This record is already linked to another student. Unlink it first, or "
     "confirm the change."
 )
+
+
+@transaction.atomic
+def create_legacy_grading_records(
+    source_batch: ImportBatch,
+    rows: Sequence[dict[str, Any]],
+) -> list[LegacyGradingRecord]:
+    """Every record of one import, in one write. No audit event of its own:
+    the commit records one IMPORT_BATCH_COMMITTED event for the whole batch.
+
+    Each is checked by the model's own field and clean() rules; the checks
+    that would ask the database once per record - the batch and ranks it
+    names, a locator repeated in the batch - are the database's own
+    constraints on insert, and the batch and ranks were just read by the
+    caller. All or nothing, like the commit that calls it.
+    """
+    records = [LegacyGradingRecord(source_batch=source_batch, **row) for row in rows]
+    for record_ in records:
+        try:
+            record_.full_clean(
+                exclude=["source_batch", "student", "current_rank", "testing_for_rank"],
+                validate_unique=False,
+                validate_constraints=False,
+            )
+        except ValidationError as refused:
+            raise ValidationError(
+                {"rows": [f"{record_.source_locator}: {' '.join(refused.messages)}"]},
+            ) from refused
+    return LegacyGradingRecord.objects.bulk_create(records, batch_size=500)
 
 
 def _locked(pk: int, *, allow_void: bool = False) -> LegacyGradingRecord:
@@ -379,7 +355,7 @@ def void_legacy_records_from(
 
 __all__ = [
     "bulk_link_legacy_records",
-    "create_legacy_grading_record",
+    "create_legacy_grading_records",
     "link_legacy_record_to_student",
     "resolve_legacy_current_rank",
     "resolve_legacy_testing_for_rank",

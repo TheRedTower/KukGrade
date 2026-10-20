@@ -85,9 +85,11 @@ checks on each push and pull request.
   migration 0006 tidies existing IDs and stops, listing them, if any fit
   neither form. A black belt rank (JKN and above) requires a black belt ID,
   on every path including promotion, which is refused until the ID is
-  recorded. The ID changes once at most: a student ID to the black belt ID
-  WKSA hands out at the national grading, through the student edit (API and
-  Django admin); the replaced student ID is kept as one of the student's
+  recorded. Through the student edit (API and Django admin) a student ID
+  becomes the black belt ID WKSA hands out at the national grading, and a
+  mistyped ID of either form can be corrected (2026-10-20; a black belt ID
+  never goes back to a student ID, and a corrected typo is not kept, only
+  audited); the student ID a black belt ID replaced is kept as one of the student's
   previous IDs (`students.models.PreviousWksaId`, students migration 0007),
   shown on the student page and in Django admin, matched by search and by the
   roster import, and never available to another student - a number is never

@@ -168,6 +168,13 @@ class PreviousWksaId(models.Model):
                 condition=Q(wksa_id__regex=wksa_ids.STUDENT_ID_DATABASE_PATTERN),
                 name="previous_wksa_id_student_form",
             ),
+            # A student ID changes once, to the black belt ID, so a student
+            # has at most one previous ID - which also keeps a search by it
+            # to one row per student.
+            models.UniqueConstraint(
+                fields=["student"],
+                name="previous_wksa_id_one_per_student",
+            ),
         ]
 
     def __str__(self) -> str:

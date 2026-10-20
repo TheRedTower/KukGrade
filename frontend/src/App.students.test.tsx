@@ -873,7 +873,7 @@ describe("Student detail screen (/students/:id)", () => {
     expect(editBtn).toHaveFocus();
   });
 
-  it("records the black belt ID once, and never changes it after", async () => {
+  it("records the black belt ID, which can still be corrected after", async () => {
     let student: StudentDetail = { ...testStudent };
     const sent: unknown[] = [];
     vi.stubGlobal(
@@ -916,8 +916,11 @@ describe("Student detail screen (/students/:id)", () => {
     expect(await screen.findByText(/Previously/)).toHaveTextContent(`Previously ${testStudent.wksa_id}`);
 
     await user.click(await screen.findByRole("button", { name: "Edit student" }));
-    expect(await screen.findByLabelText("WKSA ID")).toBeDisabled();
-    expect(screen.getByText("A black belt ID never changes.")).toBeVisible();
+    // A mistyped ID of either form can be corrected.
+    expect(await screen.findByLabelText("WKSA ID")).toBeEnabled();
+    expect(
+      screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID."),
+    ).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {

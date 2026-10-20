@@ -230,27 +230,33 @@ def test_a_student_id_changes_once_to_the_black_belt_id_and_is_kept() -> None:
 
 
 @pytest.mark.parametrize(
-    ("current", "new", "message"),
+    ("current", "new"),
     [
-        (
-            "206-2-150",
-            "206-2-151",
-            "A student ID can only be changed to the black belt ID WKSA hands "
-            "out at the national grading, such as A-20819.",
-        ),
-        ("A-20819", "A-20820", "A black belt ID never changes."),
-        ("A-20819", "206-2-150", "A black belt ID never changes."),
+        ("206-2-150", "206-2-151"),
+        ("A-20819", "A-20891"),
     ],
 )
-def test_no_other_change_is_allowed(current: str, new: str, message: str) -> None:
+def test_a_mistyped_id_of_either_form_can_be_corrected(current: str, new: str) -> None:
     student = at_rank(current, "DAHN_BO")
 
     response = patch(staff(), student, new)
 
-    assert response.status_code == 400
-    assert response.json()["error"]["fields"]["wksa_id"] == [message]
+    assert response.status_code == 200, response.json()
     student.refresh_from_db()
-    assert student.wksa_id == current
+    assert student.wksa_id == new
+
+
+def test_a_black_belt_id_never_goes_back_to_a_student_id() -> None:
+    student = at_rank("A-20819", "DAHN_BO")
+
+    response = patch(staff(), student, "206-2-150")
+
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"]["wksa_id"] == [
+        "A black belt ID never goes back to a student ID.",
+    ]
+    student.refresh_from_db()
+    assert student.wksa_id == "A-20819"
 
 
 def test_promotion_to_a_black_belt_rank_waits_for_the_black_belt_id() -> None:

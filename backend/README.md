@@ -117,7 +117,10 @@ notes.
 KSW Colchester grading workbook - through one `ImportBatch` lifecycle.
 Uploaded files sit in private storage (`STORAGES["import_uploads"]`, never a
 public URL) until commit, cancel, or `manage.py expire_stale_import_batches
---hours 24`, and are deleted only once that transaction has committed.
+--hours 24`, and are deleted only once that transaction has committed. Each
+file's rows are read once, at upload, into `ImportRow`s, which the later
+steps work on; they go with a cancelled or expired import, and 30 days after
+one finishes.
 Spreadsheets are read row by row with openpyxl and `csv`, under limits
 checked while reading (`data_imports/parsers.py`). Full detail in
 `../docs/data-import-and-legacy-migration.md`.

@@ -71,7 +71,9 @@ of these to an Instructor. See `permissions.md`.
 A roster workbook is read from the sheet it opens on unless another is named
 at upload, and every sheet's name is shown, so a roster on another tab is
 never silently missed; `POST .../sheet/` reads another sheet instead
-(2026-10-20).
+(2026-10-20). A column with no heading that holds something is named by its
+letter ("Column F") so it can be matched or kept, and a heading used twice is
+refused at upload, as one column would hide the other.
 
 `.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 1,000 rows (5,000 until 2026-10-20)
 after the header (blank rows included) and 50 columns; an `.xlsx` may also
@@ -156,7 +158,8 @@ upload (create_import_batch) - every row read once and stored (ImportRow)
   or via an external cron - no background worker exists in this codebase)
   takes the same batch lock as commit and cancel and rechecks each batch
   under it, so it never overwrites a batch committed in the meantime. It
-  also deletes stored files no batch names once they are older than
+  deletes an expired batch's stored rows with it, and the rows of batches
+  finished more than 30 days ago. It also deletes stored files no batch names once they are older than
   `--hours`: a file left by an upload that failed, or whose delete after a
   commit failed.
 - Re-uploading a file with an identical SHA-256 to one already `COMMITTED`
@@ -251,8 +254,10 @@ structure only:
 - **Nothing non-blank on a grading sheet is dropped.** A cell no table
   claims - a "General Comments" column, a note typed beside the table - is
   kept as an `AUXILIARY_NOTE` named `Sheet note`, sectioned by its column's
-  heading (or "Beside the table") and located by its cell (`062026!G2`), and
-  the preview warns how many each sheet has. Before 2026-10-20 the adapter
+  heading (or "Beside the table", or "Above the table" for a title over it)
+  and located by its cell (`062026!Note!G2`), and the preview warns how many
+  each sheet has. A main-table row with no name - a comment run on from the
+  row above - is kept the same way, cell by cell. Before 2026-10-20 the adapter
   silently dropped every side table of the real workbook.
 - Outcome text: `Pass`/`Fail`/`Conditional` map deterministically, a
   closing full stop allowed (`Pass.`, kept as written in the source text); `DNA`/
@@ -292,8 +297,11 @@ time afterwards via the reconciliation actions below.
 
 `commit_legacy_grading_import()` - reads the stored rows not left out and
 re-resolves every rank mapping from scratch (never trusts a stale preview), creates one
-`LegacyGradingRecord` per row via `gradings.legacy_services.
-create_legacy_grading_record` inside one all-or-nothing transaction, and
+`LegacyGradingRecord` per row - all of them in one write since 2026-10-20,
+through `gradings.legacy_services.create_legacy_grading_records`, under each
+record's own field and `clean()` rules (the real workbook's 214 records in
+0.1 s and 30 queries, against 1.7 s and 3,665 one at a time) - inside one
+all-or-nothing transaction, and
 records a single `IMPORT_BATCH_COMMITTED` audit event for the whole batch
 (counts only - `total`, per-`record_kind` counts, unresolved-rank counts;
 never row content). No native `Promotion`, `CandidateOutcome`, or

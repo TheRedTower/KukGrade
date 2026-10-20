@@ -17,6 +17,7 @@ from io import BytesIO, StringIO
 from typing import Any
 
 import openpyxl
+from openpyxl.utils import get_column_letter
 
 # One school's roster is a few hundred students; a file needing more is not
 # one school's (owner, 2026-10-20 import overhaul).
@@ -115,28 +116,70 @@ def worksheet_rows(worksheet: Any, *, max_col: int) -> Iterator[tuple[Any, ...]]
         raise UnsupportedImportFileError(_UNREADABLE_XLSX) from exc
 
 
+def _last_filled(cells: Sequence[Any]) -> int:
+    """How many cells reach the last non-blank one."""
+    for index in range(len(cells) - 1, -1, -1):
+        if cells[index] is not None and str(cells[index]).strip():
+            return index + 1
+    return 0
+
+
 def _read(rows: Iterator[Sequence[Any]]) -> TabularData:
+    """A table: the first row's headings, and every non-blank row after it.
+
+    A column with no heading that holds something is named after its letter
+    ("Column F"), so it can still be matched or kept rather than silently
+    lost; a heading used twice is refused, as either column's cells would
+    hide the other's.
+    """
     header_cells = next(rows, None)
     if header_cells is None or is_blank(header_cells):
         raise UnsupportedImportFileError("The file has no header row.")
-    headers = ["" if cell is None else str(cell).strip() for cell in header_cells]
-    while headers and not headers[-1]:
-        headers.pop()
-    if len(headers) > MAX_COLUMNS:
-        msg = f"Too many columns (limit {MAX_COLUMNS})."
-        raise UnsupportedImportFileError(msg)
-
-    data: list[tuple[int, dict[str, Any]]] = []
+    raw_rows: list[tuple[int, list[Any]]] = []
+    width = _last_filled(header_cells)
     for row_number, cells in enumerate(rows, start=2):
         if row_number - 1 > MAX_ROWS:
             msg = f"Too many rows (limit {MAX_ROWS}, blank rows included)."
             raise UnsupportedImportFileError(msg)
-        # Cells past the last header have nowhere to map to.
-        cells = list(cells[: len(headers)])
         if is_blank(cells):
             continue
-        cells += [None] * (len(headers) - len(cells))
-        data.append((row_number, dict(zip(headers, cells, strict=True))))
+        raw_rows.append((row_number, list(cells)))
+        width = max(width, _last_filled(cells))
+    if width > MAX_COLUMNS:
+        msg = f"Too many columns (limit {MAX_COLUMNS})."
+        raise UnsupportedImportFileError(msg)
+
+    headers = [
+        ""
+        if index >= len(header_cells) or header_cells[index] is None
+        else str(header_cells[index]).strip()
+        for index in range(width)
+    ]
+    headers = [
+        heading or f"Column {get_column_letter(index + 1)}"
+        for index, heading in enumerate(headers)
+    ]
+    repeated = sorted({heading for heading in headers if headers.count(heading) > 1})
+    if repeated:
+        msg = (
+            f"The column heading {', '.join(map(repr, repeated))} appears more "
+            "than once. Give each column its own heading."
+        )
+        raise UnsupportedImportFileError(msg)
+
+    data = [
+        (
+            row_number,
+            dict(
+                zip(
+                    headers,
+                    [*cells[:width], *[None] * (width - len(cells))],
+                    strict=True,
+                )
+            ),
+        )
+        for row_number, cells in raw_rows
+    ]
     return TabularData(headers=headers, rows=data)
 
 

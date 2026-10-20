@@ -20,7 +20,8 @@ Consequences:
 
 ### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
 
-Status: Accepted (direction); built in slices after this entry
+Status: Accepted; the backend built 2026-10-20 (A0-A7, below), the screens
+to follow
 
 Decision:
 Imports are rebuilt backend first, then the screens. The owner's choices:
@@ -67,7 +68,7 @@ repository):
   its own table or a sheet-level note, and shows anything it cannot place.
 - 092026 has two "Name" columns (the second a duplicate of the first, with a
   merged cell), shifting the rest right by one. Header detection by content
-  copes today; the mapping step must show both and let the importer choose.
+  copes; the adapter reads the first and warns of the repeat.
 - Names are first names only in the older sheets and full names in the
   newer ones, and the same person recurs across sheets ("Name" and "Name
   Surname"), so records should be grouped by person before suggesting a
@@ -78,6 +79,21 @@ repository):
 - Outcomes include "Pass." and "Fail." with full stops, "DNA", "did not
   attend" and "N/A"; one outcome cell holds a free note.
 - Sheets are padded to about 1,000 empty rows.
+
+Built (2026-10-20), as decided above, with two choices made on the way:
+
+- A roster takes the club's fixed rank spellings ("White Belt" is White,
+  "DBN" Dahn Bo) as the rank, since a student is created at it; a rank the
+  file marks as doubtful ("Red stripe?") or misspells is left for the
+  importer. A historical record's rank text stays a suggestion only.
+- Nothing non-blank on a grading sheet is dropped: a cell no table claims, a
+  title above the table and a nameless row (a comment run on) are kept as
+  sheet notes, and the preview says how many.
+
+Both commits are one write: 1,000 roster rows in 0.6 s, and the real
+workbook's 214 records in 0.1 s. An end-to-end run against the production
+image on a throwaway database passed all 53 of its checks (owner-approved
+plan, 2026-10-20).
 
 Consequences:
 The plan is in `docs/action_plan.md` under the import overhaul. Statements in
@@ -180,7 +196,12 @@ When the black belt ID is given (the owner, 2026-10-20): at the national
 grading, straight after the promotion, so it takes effect at once - there is
 no period as a black belt with a student ID. When the instructor or Master is
 back they change the student's ID to it; that one change is the only one an
-ID ever takes. A black belt ID then stays with the student for good: later
+ID ever takes, apart from correcting a mistyped ID (owner, 2026-10-20: "the
+ID should be editable if it's mistyped" - either form may be corrected, a
+black belt ID never goes back to a student ID, and a corrected typo is not
+kept as a previous ID or retired, since it was never the student's and may
+be someone else's real number; the edit's audit event records it). A black
+belt ID then stays with the student for good: later
 ranks and certificates come under the same ID. So a black belt rank (JKN and
 above) requires a black belt ID, and promotion to one waits for it to be
 recorded. Until previous IDs are built, the old student ID is kept in the
@@ -229,8 +250,8 @@ student retires their current ID and every previous one
 (`students.models.RetiredWksaId`), and no new student may take a retired ID.
 The migration retires the IDs that earlier deletions' audit events name. A
 consequence to know: re-adding a student deleted by mistake under their own
-number is refused; that needs a deliberate way to release a retired number,
-not built yet.
+number is refused. A mistyped ID needs no release: it is corrected, not
+deleted (above), so the real holder of that number is never blocked.
 
 ### 2026-10-19 - Email and credential lifecycle: the packet as amended
 
@@ -1827,7 +1848,8 @@ hand-maintained list - and physical deletion is blocked at every layer
 (`Model.delete()`, `QuerySet.delete()`, `QuerySet.update()`); void is the
 only removal path and is itself one-shot (a second void is refused). The
 only mutation path is five service functions
-(`gradings/legacy_services.py`): `create_legacy_grading_record` (called
+(`gradings/legacy_services.py`): `create_legacy_grading_record` (since
+2026-10-20 `create_legacy_grading_records`, every record in one write; called
 once per parsed row from the commit service, no audit event of its own -
 one `IMPORT_BATCH_COMMITTED` event covers the whole batch, matching the
 roster importer) and four explicit corrections -

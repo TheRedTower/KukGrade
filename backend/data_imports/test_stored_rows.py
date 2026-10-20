@@ -489,3 +489,65 @@ def test_finishing_costs_the_same_queries_for_two_rows_as_for_forty() -> None:
 
     assert Student.objects.count() == 42
     assert len(many.captured_queries) == len(few.captured_queries)
+
+
+def test_a_historical_import_finishes_in_the_same_queries_however_many_records() -> (
+    None
+):
+    def workbook(count: int) -> bytes:
+        return standard_workbook(
+            [
+                [f"Person {index}", "White", "Yellow", "Pass", ""]
+                for index in range(count)
+            ],
+        )
+
+    admin = admin_user()
+    small = upload_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        content=workbook(2),
+        uploaded_by=admin,
+    )
+    large = upload_batch(
+        kind=ImportBatch.Kind.LEGACY_GRADINGS,
+        content=workbook(40),
+        uploaded_by=admin,
+    )
+
+    with CaptureQueriesContext(connection) as few:
+        commit_legacy_grading_import(small, actor=admin)
+    with CaptureQueriesContext(connection) as many:
+        commit_legacy_grading_import(large, actor=admin)
+
+    assert LegacyGradingRecord.objects.count() == 42
+    assert len(many.captured_queries) == len(few.captured_queries)
+    assert all(row.created_id for row in large.rows.all())
+
+
+@pytest.mark.parametrize("action", ["preview", "mapping"])
+def test_viewing_imports_is_not_enough_to_check_or_change_one(action: str) -> None:
+    """A check stores the mapping and fixes it is sent, so it needs the
+    permission matching columns does, not only the permission to look."""
+    from django.contrib.auth.models import Permission
+
+    batch = roster(CLEAN_ROW)
+    viewer = User.objects.create_user(email="import-viewer@example.com")
+    viewer.user_permissions.add(
+        Permission.objects.get(
+            content_type__app_label="data_imports",
+            codename="view_importbatch",
+        ),
+    )
+    client = client_for(viewer)
+
+    assert client.get(f"{BASE}{batch.pk}/rows/").status_code == 200
+    response = client.post(
+        f"{BASE}{batch.pk}/{action}/",
+        {"column_mapping": STANDARD_MAPPING},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert (
+        "column_mapping" not in ImportBatch.objects.get(pk=batch.pk).configuration_json
+    )

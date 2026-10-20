@@ -1,8 +1,15 @@
-"""Reading a rank from how a source wrote it - for suggestions only.
+"""Reading a rank from how a source wrote it.
 
-Shared by the imports (a rank text in a file) and historical-record matching
-(a student's rank in a record). A match here is a suggestion: nothing is ever
-set from one until a person chooses it (import Decision 4).
+Shared by the imports and historical-record matching. What a match is used
+for differs:
+
+- a historical record's rank text is only ever a suggestion - nothing is set
+  from it until a person chooses (import Decision 4);
+- a roster's rank is the rank a student is created at, so an exact name or
+  code, or one of the club's fixed spellings below, is taken as that rank,
+  and anything doubtful or misspelt is left for the importer
+  (data_imports.services, 2026-10-20);
+- record matching reads a record's rank to judge whether a student fits.
 """
 
 from __future__ import annotations
@@ -25,9 +32,8 @@ def active_rank_lookup() -> dict[str, Rank]:
 
 
 # How the club's workbook writes ranks that KukGrade names otherwise
-# (2026-10-20, from the real workbook), for suggestions only - a suggestion is
-# never applied until chosen (import Decision 4). Fixed spellings, never a
-# near miss: "DNB", a slip for DBN, is still left for the importer. Keys are
+# (2026-10-20, from the real workbook). Fixed spellings, never a near miss:
+# "DNB", a slip for DBN, is still left for the importer. Keys are
 # upper-cased, with any trailing "BELT" taken off.
 _RANK_TEXT_ALIASES = {
     "DBN": "DAHN_BO",

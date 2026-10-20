@@ -36,7 +36,8 @@ after the owner's approval):
   Colchester workbook, side tables included; a mapping for other grading
   spreadsheets waits for a second real file); A5 and A6 per-row historical preview
   and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet (done 2026-10-20).
-  The backend is done; the frontend waits for a full test of it.
+  The backend is done and tested end to end (53/53 against the
+  production image); the frontend starts with B1.
 - Frontend: B1 a design register entry and mocks; B2 one Imports area; B3 a
   guided flow (file, match columns, review rows, confirm, results); B4 a
   redone Historical records screen; B5 hooks, tests and accessibility.
@@ -60,9 +61,8 @@ None recorded.
 ## Needs a decision first
 
 - **Previous WKSA IDs**: built 2026-10-20, with a deleted student's IDs
-  retired too (decision log, "The WKSA ID scheme"). Not built: a deliberate
-  way to release a retired number, for a student deleted by mistake and
-  re-added; decide whether it is wanted.
+  retired too (decision log, "The WKSA ID scheme"); a mistyped ID is
+  corrected through the student edit, never kept or retired.
 
 - **Black belt testing** (owner, 2026-10-20): the owner is to explain how
   black belt gradings work - the national grading, where the black belt ID

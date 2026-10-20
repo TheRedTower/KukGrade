@@ -212,9 +212,13 @@ the cohort builder filters on rather than re-deriving the rule. `wksa_id` must b
 (`A-NNNNN`, such as `A-20819`); surrounding space is dropped and the `A`
 upper-cased, and anything else is a `wksa_id` field error. A student at a
 black belt rank (JKN and above) must hold a black belt ID. After creation the
-ID changes once at most: a student ID to a black belt ID, through `PATCH`;
-every other change is refused, and `wksa_id_can_change` on the detail says
-whether that change is still to come. The student ID it replaces is kept: the
+ID changes through `PATCH` in two ways: a student ID to the black belt ID
+WKSA hands out, or a mistyped ID of either form corrected (2026-10-20); a
+black belt ID never goes back to a student ID. `wksa_id_can_change` on the
+detail says whether the change to a black belt ID is still to come. A
+corrected ID is not kept - it was never the student's, and may be someone
+else's real number - only the edit's audit event records it. The student ID a
+black belt ID replaces is kept: the
 detail carries `previous_wksa_ids` (`[{wksa_id, replaced_at}]`, oldest first)
 and `extra_information` (`[{label, value}]`, what an import's file said that
 KukGrade has no field for),
@@ -785,7 +789,7 @@ Status: implemented for both batch kinds - student-roster import
 | GET    | /api/data-imports/batches/{id}/rows/              | The stored rows, paginated, in file order; filters `outcome`, `search`; each has `values` by KukGrade field, `extra` (its kept columns), `issues`, `outcome`, `excluded`, `corrected_fields`, `created_id`; requires `data_imports.view_importbatch` |
 | PATCH  | /api/data-imports/batches/{id}/rows/{row_number}/ | Fix a roster row's values by field (null takes a fix away); every row is checked again; requires `data_imports.change_importbatch` |
 | POST   | /api/data-imports/batches/{id}/rows/{row_number}/exclusion/ | `{excluded}`: leave a row out of the import, or bring it back; requires `data_imports.change_importbatch` |
-| POST   | /api/data-imports/batches/{id}/preview/           | Store the mapping (and, if sent, every row's corrections) and check every row; nothing is committed; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/{id}/preview/           | Store the mapping (and, if sent, every row's corrections) and check every row; nothing is committed; requires `data_imports.change_importbatch`, as it stores what it is given |
 | POST   | /api/data-imports/batches/{id}/commit/            | Re-check every stored row and commit, all-or-nothing; with no body the stored mapping, fixes and rank choices are used; requires `data_imports.can_commit_import` |
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
 

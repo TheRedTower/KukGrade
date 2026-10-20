@@ -102,7 +102,9 @@ class ImportBatchViewSet(
         "retrieve": ("data_imports.view_importbatch",),
         "create": ("data_imports.add_importbatch",),
         "cancel": ("data_imports.change_importbatch",),
-        "preview": ("data_imports.view_importbatch",),
+        # A check stores the mapping and fixes it is given, so it changes
+        # the import: the same permission as matching columns.
+        "preview": ("data_imports.change_importbatch",),
         "commit": ("data_imports.can_commit_import",),
         "mapping": ("data_imports.change_importbatch",),
         "rows": ("data_imports.view_importbatch",),

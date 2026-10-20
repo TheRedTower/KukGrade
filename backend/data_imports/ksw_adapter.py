@@ -6,7 +6,7 @@ structure and nothing else. Its only job is:
     historical workbook structure -> canonical legacy rows
 
 It never creates domain models itself (that is
-`gradings.legacy_services.create_legacy_grading_record`, called once per
+`gradings.legacy_services.create_legacy_grading_records`, called with every
 row by a data_imports commit service) and it never resolves a rank or
 links a student - source text is extracted verbatim and normalised fields
 are left unset, because both of those are explicitly admin-review steps
@@ -26,7 +26,7 @@ a sheet note, with a warning saying so.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field, replace
 from typing import Any, TypedDict
 
@@ -291,6 +291,8 @@ class _SheetLayout:
     side_tables: list[_SideTable]
     # Headed columns that are no table's: their cells become sheet notes.
     note_headings: dict[int, str]
+    # The header row's text by column, to name where a note was.
+    headings: list[str]
 
 
 def _sheet_layout(header_row: tuple[Any, ...], main: dict[str, int]) -> _SheetLayout:
@@ -333,7 +335,7 @@ def _sheet_layout(header_row: tuple[Any, ...], main: dict[str, int]) -> _SheetLa
         elif heading:
             current = None
             note_headings[index] = headings[index]
-    return _SheetLayout(main, extra, ignored, side_tables, note_headings)
+    return _SheetLayout(main, extra, ignored, side_tables, note_headings, headings)
 
 
 def _parse_side_row(
@@ -403,7 +405,8 @@ def _sheet_note(
     return CanonicalLegacyRow(
         source_sheet=sheet_name,
         source_section=heading or "Beside the table",
-        source_locator=f"{sheet_name}!{letter}{row_number}",
+        # "Note!" keeps a cell such as R2 apart from the main table's row R2.
+        source_locator=f"{sheet_name}!Note!{letter}{row_number}",
         cycle_year=cycle_year,
         cycle_month=cycle_month,
         record_kind=LegacyRecordKind.AUXILIARY_NOTE,
@@ -456,26 +459,64 @@ def _parse_cycle_sheet(
     )
     sheet_notes = 0
 
+    def place_of(row_index: int) -> _Place:
+        # row_number is the 1-based Excel row number (rows is 0-indexed).
+        return {
+            "sheet_name": sheet_name,
+            "row_number": row_index + 1,
+            "cycle_year": cycle_year,
+            "cycle_month": cycle_month,
+        }
+
+    def notes_for(
+        row: tuple[Any, ...],
+        indexes: Iterable[int],
+        place: _Place,
+        heading: str | None = None,
+    ) -> list[CanonicalLegacyRow]:
+        """A sheet note for each non-blank cell at `indexes`, named by its
+        column's heading unless `heading` names them all."""
+        return [
+            _sheet_note(
+                _clean(row[index]),
+                heading=layout.headings[index]
+                if heading is None and index < len(layout.headings)
+                else heading or "",
+                column=index,
+                **place,
+            )
+            for index in indexes
+            if index < len(row) and _clean(row[index])
+        ]
+
+    # Anything written above the table - a title, a date - is kept too.
+    for row_index in range(header_index):
+        found = notes_for(
+            rows[row_index],
+            range(len(rows[row_index])),
+            place_of(row_index),
+            heading="Above the table",
+        )
+        canonical_rows.extend(found)
+        sheet_notes += len(found)
+
     # Do not stop at the first blank row - auxiliary sections
-    # may follow one further down the same sheet. row_number is the 1-based
-    # Excel row number (rows is 0-indexed).
+    # may follow one further down the same sheet.
     for row_index in range(header_index + 1, len(rows)):
         row = rows[row_index]
-        row_number = row_index + 1
+        place = place_of(row_index)
         if is_blank(row):
             continue
 
         section = _auxiliary_section_name(row)
         if section is not None:
             current_section = section
+            # The section's heading row holds nothing else, or a note.
+            found = notes_for(row, range(1, len(row)), place, heading="")
+            canonical_rows.extend(found)
+            sheet_notes += len(found)
             continue
 
-        place: _Place = {
-            "sheet_name": sheet_name,
-            "row_number": row_number,
-            "cycle_year": cycle_year,
-            "cycle_month": cycle_month,
-        }
         if current_section is not None:
             parsed = _parse_auxiliary_row(row, section_name=current_section, **place)
             if parsed is not None:
@@ -483,19 +524,23 @@ def _parse_cycle_sheet(
             continue
 
         parsed = _parse_main_table_row(row, columns, **place)
-        extra = [
-            f"{heading}: {_clean(row[index])}"
-            for index, heading in layout.extra.items()
-            if index < len(row) and _clean(row[index])
-        ]
         if parsed is not None:
+            extra = [
+                f"{heading}: {_clean(row[index])}"
+                for index, heading in layout.extra.items()
+                if index < len(row) and _clean(row[index])
+            ]
             canonical_rows.append(_with_extra(parsed, extra))
         else:
-            for text in extra:
-                canonical_rows.append(
-                    _sheet_note(text, heading="", column=0, **place),
-                )
-                sheet_notes += 1
+            # A main-table row with no name - a comment run on from the row
+            # above, say - is nobody's record, but its cells are kept.
+            found = notes_for(
+                row,
+                sorted({*columns.values(), *layout.extra}),
+                place,
+            )
+            canonical_rows.extend(found)
+            sheet_notes += len(found)
         for table in layout.side_tables:
             side = _parse_side_row(row, table, **place)
             if side is not None:

@@ -176,6 +176,21 @@ def test_a_column_named_must_be_in_the_file_and_used_once(
     assert message in " ".join(refused.value.message_dict[field])
 
 
+def test_a_column_matched_to_two_fields_is_refused() -> None:
+    batch = club_file(row("206-2-001", belt="White"))
+
+    with pytest.raises(ValidationError) as refused:
+        save_import_mapping(
+            batch,
+            column_mapping={**MAPPING, "last_name": "First", "current_rank": "Belt"},
+        )
+
+    assert refused.value.message_dict["column_mapping"] == [
+        "The column 'First' is matched to more than one KukGrade field; match "
+        "each column once.",
+    ]
+
+
 def test_a_kept_columns_heading_must_fit_a_label() -> None:
     long_heading = "Parent " * 30
     batch = upload_batch(
@@ -305,7 +320,8 @@ def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
         (
             "Red stripe?",
             None,
-            "Rank 'Red stripe?' is marked as uncertain in the file: confirm it.",
+            "Rank 'Red stripe?' is marked as uncertain in the file: choose the rank it "
+            "should be.",
         ),
         ("Bown Stripe", None, "Rank 'Bown Stripe' is not a rank KukGrade recognises."),
     ],
@@ -338,3 +354,46 @@ def test_a_whole_file_rank_may_be_written_the_clubs_way() -> None:
     )
 
     assert batch.rows.get().outcome == "READY"
+
+
+def test_a_column_with_no_heading_is_named_by_its_letter_and_can_be_kept() -> None:
+    admin = admin_user()
+    batch = upload_batch(
+        content=student_workbook(
+            [
+                [
+                    "206-2-001",
+                    "Alex",
+                    "Kim",
+                    "2012-05-01",
+                    "White",
+                    None,
+                    "Allergic to nuts",
+                ]
+            ],
+            headers=["ID", "First", "Last", "Born", "Belt"],
+        ),
+        uploaded_by=admin,
+    )
+
+    assert batch.configuration_json["detected_headers"][-2:] == ["Column F", "Column G"]
+    save_import_mapping(
+        batch,
+        column_mapping={**MAPPING, "current_rank": "Belt"},
+        extra_columns=["Column G"],
+    )
+    commit_student_import(batch, actor=admin)
+
+    [info] = StudentExtraInfo.objects.all()
+    assert (info.label, info.value) == ("Column G", "Allergic to nuts")
+
+
+def test_a_heading_used_twice_is_refused_at_upload() -> None:
+    with pytest.raises(ValidationError, match="'Notes' appears more than once"):
+        upload_batch(
+            content=student_workbook(
+                [["206-2-001", "Alex", "Kim", "2012-05-01", "White", "a", "b"]],
+                headers=["ID", "First", "Last", "Born", "Belt", "Notes", "Notes"],
+            ),
+        )
+    assert not ImportBatch.objects.exists()

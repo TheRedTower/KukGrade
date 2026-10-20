@@ -122,7 +122,9 @@ already applied, restore the matching pre-update database backup first.
 The `expire_stale_import_batches` command is currently manual. Run it from
 the host's scheduler with `docker compose ... exec -T app python manage.py
 expire_stale_import_batches --hours 24` so abandoned personal-data uploads
-are deleted, along with any stored file no batch names. It exits non-zero if
+are deleted, along with any stored file no batch names and the stored rows of
+imports finished more than 30 days ago (their personal data; the import's
+record and counts stay). It exits non-zero if
 a batch could not be expired; running it again finishes the job. No worker
 container is required.
 

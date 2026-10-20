@@ -12,7 +12,7 @@ from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_batch, legacy_record
 from gradings.legacy_services import (
-    create_legacy_grading_record,
+    create_legacy_grading_records,
     link_legacy_record_to_student,
     resolve_legacy_current_rank,
     resolve_legacy_testing_for_rank,
@@ -31,20 +31,24 @@ from students.models import Student
 pytestmark = pytest.mark.django_db
 
 
-def test_create_legacy_grading_record_persists_source_facts() -> None:
+def test_create_legacy_grading_records_persists_source_facts() -> None:
     batch = legacy_batch()
-    record = create_legacy_grading_record(
-        source_batch=batch,
-        record_kind=LegacyRecordKind.GRADING_RESULT,
-        source_sheet="06/2025",
-        source_locator="06/2025!A14:E14",
-        cycle_year=2025,
-        cycle_month=6,
-        source_name="A. Example",
-        source_current_rank_text="Yellow Belt",
-        source_testing_for_rank_text="Blue Stripe",
-        source_outcome_text="Pass",
-        outcome=LegacyOutcome.PASS,
+    [record] = create_legacy_grading_records(
+        batch,
+        [
+            {
+                "record_kind": LegacyRecordKind.GRADING_RESULT,
+                "source_sheet": "06/2025",
+                "source_locator": "06/2025!A14:E14",
+                "cycle_year": 2025,
+                "cycle_month": 6,
+                "source_name": "  A. Example ",
+                "source_current_rank_text": "Yellow Belt",
+                "source_testing_for_rank_text": "Blue Stripe",
+                "source_outcome_text": "Pass",
+                "outcome": LegacyOutcome.PASS,
+            },
+        ],
     )
     assert record.pk is not None
     assert record.student is None
@@ -52,6 +56,30 @@ def test_create_legacy_grading_record_persists_source_facts() -> None:
     assert record.is_void is False
     assert record.outcome == LegacyOutcome.PASS
     assert str(record) == "06/2025!06/2025!A14:E14: A. Example"
+    # Each record's own clean() ran: the name was tidied, as save() tidies it.
+    record.refresh_from_db()
+    assert record.source_name == "A. Example"
+
+
+def test_a_record_the_model_refuses_stops_the_whole_write() -> None:
+    batch = legacy_batch()
+    row = {
+        "record_kind": LegacyRecordKind.GRADING_RESULT,
+        "source_sheet": "06-2025",
+        "cycle_year": 2025,
+        "cycle_month": 6,
+    }
+
+    with pytest.raises(ValidationError, match="06-2025!R3: Source name is required"):
+        create_legacy_grading_records(
+            batch,
+            [
+                {**row, "source_locator": "06-2025!R2", "source_name": "A. Example"},
+                {**row, "source_locator": "06-2025!R3", "source_name": "  "},
+            ],
+        )
+
+    assert not LegacyGradingRecord.objects.filter(source_batch=batch).exists()
 
 
 def test_duplicate_source_locator_within_a_batch_is_rejected() -> None:

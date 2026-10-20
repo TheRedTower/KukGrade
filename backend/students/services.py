@@ -175,6 +175,9 @@ def create_students(
         raise ValidationError(errors)
 
     created = Student.objects.bulk_create(candidates, batch_size=500)
+    for student in created:
+        # Checked above for these IDs only; a later save checks again.
+        student.previous_ids_checked = False
     StudentExtraInfo.objects.bulk_create(
         [
             StudentExtraInfo(
@@ -217,8 +220,8 @@ def update_student(
     locked = lock_student(student.pk)
     before = _snapshot(locked)
 
-    # Only ever a student ID becoming a black belt ID; Student.clean() refuses
-    # any other change (students/wksa_ids.py).
+    # A student ID becoming the black belt ID, or a mistyped ID corrected;
+    # Student.clean() refuses anything else (students/wksa_ids.py).
     if wksa_id is not None:
         locked.wksa_id = wksa_id
         lock_wksa_ids(before["wksa_id"], wksa_ids.normalise(wksa_id))
@@ -242,8 +245,10 @@ def update_student(
         # no row update and no audit event.
         return locked
     locked.save()
-    if before["wksa_id"] != after["wksa_id"]:
-        # The ID it replaced stays with them for good.
+    if wksa_ids.is_black_belt_change(before["wksa_id"], after["wksa_id"]):
+        # The student ID a black belt ID replaced stays with them for good. A
+        # corrected typo does not: it was never theirs, and may be someone
+        # else's real number (the edit's audit event keeps both).
         PreviousWksaId.objects.create(student=locked, wksa_id=before["wksa_id"])
 
     # One event per call, not one per changed field and not both a generic

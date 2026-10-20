@@ -52,7 +52,7 @@ from data_imports.parsers import (
 )
 from data_imports.storage import import_upload_storage
 from gradings.legacy_services import (
-    create_legacy_grading_record,
+    create_legacy_grading_records,
     void_legacy_records_from,
 )
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
@@ -136,6 +136,10 @@ def create_import_batch(
     # unusable upload is refused now rather than discovered at preview. A
     # roster's headers also go back, so the mapping UI needs no second trip.
     detected_headers: list[str] = []
+    if sheet and (kind != ImportBatch.Kind.STUDENT_ROSTER or suffix != "xlsx"):
+        raise DjangoValidationError(
+            {"sheet": ["Only a roster workbook (.xlsx) has sheets to choose from."]},
+        )
     if kind == ImportBatch.Kind.STUDENT_ROSTER:
         try:
             dataset = load_tabular_dataset(
@@ -404,8 +408,8 @@ _SOURCE_FILE_GONE = (
 
 
 def _read_source_file(batch: ImportBatch) -> bytes:
-    # A preview holds no lock, so the batch can close - and its file go -
-    # between loading the row and opening the file.
+    # Read once at upload, and again only to store an older import's rows or
+    # to read another sheet - by then the file may have gone with its batch.
     if not batch.source_file:
         raise DjangoValidationError({"batch": [_SOURCE_FILE_GONE]})
     try:
@@ -793,7 +797,8 @@ def _classify_student_row(
         issues.append("Current rank is required.")
     elif doubtful:
         issues.append(
-            f"Rank {rank_text!r} is marked as uncertain in the file: confirm it.",
+            f"Rank {rank_text!r} is marked as uncertain in the file: choose the "
+            "rank it should be.",
         )
         rank = None
     elif rank is None:
@@ -996,9 +1001,16 @@ def _save_column_mapping(
     headers = set(locked.configuration_json.get("detected_headers", []))
     errors: dict[str, list[str]] = {}
     missing = sorted(set(chosen.values()) - headers)
+    used = list(chosen.values())
+    repeated = sorted({header for header in used if used.count(header) > 1})
     if missing:
         errors["column_mapping"] = [
             f"The file has no column named {', '.join(map(repr, missing))}.",
+        ]
+    elif repeated:
+        errors["column_mapping"] = [
+            f"The column {', '.join(map(repr, repeated))} is matched to more than "
+            "one KukGrade field; match each column once.",
         ]
     kept = list(dict.fromkeys(extra_columns or []))
     if set(kept) - headers:
@@ -1545,36 +1557,41 @@ def commit_legacy_grading_import(
     }
     unresolved_current = 0
     unresolved_testing = 0
-    created_ids: dict[int, int] = {}
-
-    for stored, row in stored_rows:
+    fields: list[dict[str, Any]] = []
+    for _stored, row in stored_rows:
         current_rank = resolve(row.source_current_rank_text)
         testing_for_rank = resolve(row.source_testing_for_rank_text)
-        created = create_legacy_grading_record(
-            source_batch=locked,
-            record_kind=row.record_kind,
-            source_sheet=row.source_sheet,
-            source_section=row.source_section,
-            source_locator=row.source_locator,
-            cycle_year=row.cycle_year,
-            cycle_month=row.cycle_month,
-            source_name=row.source_name,
-            source_current_rank_text=row.source_current_rank_text,
-            current_rank=current_rank,
-            source_testing_for_rank_text=row.source_testing_for_rank_text,
-            testing_for_rank=testing_for_rank,
-            source_outcome_text=row.source_outcome_text,
-            outcome=row.outcome,
-            attendance_status=row.attendance_status,
-            comments=row.comments,
-            admin_note=row.admin_note,
+        fields.append(
+            {
+                "record_kind": row.record_kind,
+                "source_sheet": row.source_sheet,
+                "source_section": row.source_section,
+                "source_locator": row.source_locator,
+                "cycle_year": row.cycle_year,
+                "cycle_month": row.cycle_month,
+                "source_name": row.source_name,
+                "source_current_rank_text": row.source_current_rank_text,
+                "current_rank": current_rank,
+                "source_testing_for_rank_text": row.source_testing_for_rank_text,
+                "testing_for_rank": testing_for_rank,
+                "source_outcome_text": row.source_outcome_text,
+                "outcome": row.outcome,
+                "attendance_status": row.attendance_status,
+                "comments": row.comments,
+                "admin_note": row.admin_note,
+            },
         )
-        created_ids[stored.row_number] = created.pk
         counts[row.record_kind] = counts.get(row.record_kind, 0) + 1
         if row.source_current_rank_text.strip() and current_rank is None:
             unresolved_current += 1
         if row.source_testing_for_rank_text.strip() and testing_for_rank is None:
             unresolved_testing += 1
+    # One write for the whole workbook, all or nothing.
+    created = create_legacy_grading_records(locked, fields)
+    created_ids = {
+        stored.row_number: record_.pk
+        for (stored, _row), record_ in zip(stored_rows, created, strict=True)
+    }
 
     _record_created(locked, created_ids)
     return _mark_committed(

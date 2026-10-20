@@ -7,6 +7,8 @@ workbook imported is voided as a whole, since a record is never deleted
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -104,6 +106,36 @@ def test_a_sheet_the_workbook_lacks_is_refused_at_upload() -> None:
             upload=SimpleUploadedFile("roster.xlsx", two_sheet_workbook()),
             uploaded_by=admin_user(),
             sheet="Elsewhere",
+        )
+    assert not ImportBatch.objects.exists()
+
+
+@pytest.mark.parametrize(
+    ("kind", "filename", "content"),
+    [
+        (
+            "STUDENT_ROSTER",
+            "roster.csv",
+            lambda: student_workbook([CLEAN_ROW], file_format="csv"),
+        ),
+        (
+            "LEGACY_GRADINGS",
+            "workbook.xlsx",
+            lambda: standard_workbook([["A. Example", "White", "Yellow", "Pass", ""]]),
+        ),
+    ],
+)
+def test_only_a_roster_workbook_takes_a_sheet_at_upload(
+    kind: str,
+    filename: str,
+    content: Any,
+) -> None:
+    with pytest.raises(ValidationError, match="Only a roster workbook"):
+        create_import_batch(
+            kind=kind,
+            upload=SimpleUploadedFile(filename, content()),
+            uploaded_by=admin_user(),
+            sheet="Roster",
         )
     assert not ImportBatch.objects.exists()
 

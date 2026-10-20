@@ -8,7 +8,6 @@ from django.http import HttpRequest
 
 from accounts.models import User
 from kukgrade.admin_mixins import ServiceDeleteMixin
-from students import wksa_ids
 from students.models import (
     PreviousWksaId,
     RetiredWksaId,
@@ -68,18 +67,6 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
     )
     inlines = (PreviousWksaIdInline, StudentExtraInfoInline)
     ordering = ("last_name", "first_name", "wksa_id")
-
-    def get_readonly_fields(
-        self,
-        request: HttpRequest,
-        obj: Student | None = None,
-    ) -> tuple[str, ...]:
-        # Changeable after creation only while it is a student ID, to the
-        # black belt ID WKSA hands out - here as everywhere else
-        # (students/wksa_ids.py).
-        if obj is None or wksa_ids.can_change(obj.wksa_id):
-            return ()
-        return ("wksa_id",)
 
     def save_model(
         self,

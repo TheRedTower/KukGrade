@@ -57,10 +57,13 @@ def remove_adult_jkn_technique_sets(apps: Any, _schema_editor: Any) -> None:
     Rank = apps.get_model("ranks", "Rank")
     SyllabusRequirement = apps.get_model("syllabus", "SyllabusRequirement")
     jkn = Rank.objects.get(code="JKN")
+    # By id, not instance: unapplied with later migrations, the Rank class
+    # `apps` gives here can be a different rendering from the one the
+    # requirement's foreign key was built against, and Django refuses it.
 
     for item_code, sequence, start_number, end_number in ADDED:
         SyllabusRequirement.objects.filter(
-            rank=jkn,
+            rank_id=jkn.pk,
             age_band=ADULTS,
             item__code=item_code,
             sequence=sequence,
@@ -70,7 +73,7 @@ def remove_adult_jkn_technique_sets(apps: Any, _schema_editor: Any) -> None:
         ).delete()
     for item_code, seeded, sequence in RESEQUENCED:
         SyllabusRequirement.objects.filter(
-            rank=jkn,
+            rank_id=jkn.pk,
             age_band=ADULTS,
             item__code=item_code,
             sequence=sequence,

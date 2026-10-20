@@ -553,21 +553,14 @@ def test_admin_student_update_is_audited() -> None:
     assert after == before + 1
 
 
-def test_admin_can_change_only_a_student_id() -> None:
-    # The one change an ID takes: a student ID to a black belt ID.
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-523"))
+def test_admin_can_correct_any_id() -> None:
+    # Either form can be corrected if mistyped; the rules are Student.clean()'s.
     black_belt = Student.objects.create(**student_kwargs(wksa_id="A-20819"))
     model_admin = StudentAdmin(Student, admin.site)
-    request = admin_request("admin-wksa-guard@example.com")
 
-    assert "wksa_id" not in model_admin.get_readonly_fields(request, learner)
-    assert "wksa_id" in model_admin.get_readonly_fields(request, black_belt)
-    assert (
-        model_admin.get_readonly_fields(
-            admin_request("admin-wksa-guard-add@example.com"),
-            None,
-        )
-        == ()
+    assert "wksa_id" not in model_admin.get_readonly_fields(
+        admin_request("admin-wksa-guard@example.com"),
+        black_belt,
     )
 
 

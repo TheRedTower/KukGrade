@@ -12,9 +12,11 @@ A WKSA ID is the identifier a student is known by, never free text
 A student at a black belt rank (JKN and above, `Rank.Category.BLACK_BELT`)
 holds a black belt ID. WKSA hands it out at the national grading where they
 are promoted, so it takes effect at once: their student ID is changed to it,
-once, when their instructor next records it, and from then on it never
-changes - later ranks and certificates come under the same ID. The student
-ID it replaced is kept as one of the student's previous IDs
+once, when their instructor next records it, and from then on it is theirs
+for good - later ranks and certificates come under the same ID. A mistyped
+ID of either form can be corrected (owner, 2026-10-20): a correction says
+the old ID was never the student's, so it is not kept, only audited. The
+student ID a black belt ID replaced is kept as one of the student's previous IDs
 (`students.models.PreviousWksaId`): the school owner confirmed (2026-10-20)
 that a number stays with its student for good and is never given to anyone
 else, so no ID, current or previous, is ever held by two people - nor one whose
@@ -69,30 +71,37 @@ def form_of(value: str) -> IdForm | None:
 
 
 BLACK_BELT_RANK_MESSAGE = "A black belt rank needs a black belt ID, such as A-20819."
-BLACK_BELT_ID_FIXED_MESSAGE = "A black belt ID never changes."
+BLACK_BELT_ID_FIXED_MESSAGE = "A black belt ID never goes back to a student ID."
 PREVIOUS_ID_TAKEN_MESSAGE = (
     "That ID belonged to a student earlier. A number stays with its student and "
     "is never given to anyone else."
 )
-STUDENT_ID_CHANGE_MESSAGE = (
-    "A student ID can only be changed to the black belt ID WKSA hands out at "
-    "the national grading, such as A-20819."
-)
 
 
 def can_change(wksa_id: str) -> bool:
-    """Only a student ID changes, and only to a black belt ID."""
+    """Whether the change to a black belt ID is still to come: the ID is a
+    student ID. Either form can still be corrected (see change_refusal)."""
     return form_of(wksa_id) is STUDENT_ID
 
 
+def is_black_belt_change(current: str, new: str) -> bool:
+    """A student ID becoming the black belt ID WKSA handed out - the change
+    after which the old ID is kept as the student's previous ID. Any other
+    change of ID is the correction of a mistyped one (owner, 2026-10-20)."""
+    return form_of(current) is STUDENT_ID and form_of(new) is BLACK_BELT_ID
+
+
 def change_refusal(current: str, new: str) -> str | None:
-    """Why `current` may not become `new`, or None if it may."""
+    """Why `current` may not become `new`, or None if it may.
+
+    A mistyped ID may be corrected to another of the same form, and a
+    student ID becomes the black belt ID; a black belt ID never goes back to
+    a student ID.
+    """
     if current == new:
         return None
-    if not can_change(current):
+    if form_of(current) is BLACK_BELT_ID and form_of(new) is STUDENT_ID:
         return BLACK_BELT_ID_FIXED_MESSAGE
-    if form_of(new) is not BLACK_BELT_ID:
-        return STUDENT_ID_CHANGE_MESSAGE
     return None
 
 

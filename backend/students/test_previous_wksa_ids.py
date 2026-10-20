@@ -92,15 +92,48 @@ def test_an_edit_that_leaves_the_id_alone_keeps_nothing() -> None:
     assert not PreviousWksaId.objects.exists()
 
 
-def test_a_refused_change_keeps_nothing() -> None:
+def test_correcting_a_mistyped_id_keeps_nothing_but_the_audit() -> None:
+    """A correction says the old ID was never theirs - it may be someone
+    else's real number - so it is neither kept nor retired."""
     student = dahn_bo()
 
-    with pytest.raises(ValidationError):
-        update_student(student, wksa_id="206-2-151", actor=admin())
+    update_student(student, wksa_id="206-2-151", actor=admin())
 
     assert not PreviousWksaId.objects.exists()
     student.refresh_from_db()
-    assert student.wksa_id == OLD
+    assert student.wksa_id == "206-2-151"
+    event = AuditEvent.objects.filter(entity_id=str(student.pk)).latest("pk")
+    assert event.metadata["before"]["wksa_id"] == OLD
+    # The mistyped number is free for its real holder.
+    create_student(
+        wksa_id=OLD,
+        first_name="Real",
+        last_name="Holder",
+        date_of_birth=date(2012, 5, 1),
+        current_rank=Rank.objects.get(code="WHITE"),
+        actor=admin(),
+    )
+
+
+def test_a_mistyped_black_belt_id_is_corrected_and_its_previous_id_stays() -> None:
+    student = promoted()
+
+    update_student(student, wksa_id="A-20820", actor=admin())
+
+    student.refresh_from_db()
+    assert student.wksa_id == "A-20820"
+    assert list(student.previous_wksa_ids.values_list("wksa_id", flat=True)) == [OLD]
+
+
+def test_a_refused_change_keeps_nothing() -> None:
+    student = promoted()
+
+    with pytest.raises(ValidationError, match="never goes back to a student ID"):
+        update_student(student, wksa_id="206-2-151", actor=admin())
+
+    student.refresh_from_db()
+    assert student.wksa_id == NEW
+    assert list(PreviousWksaId.objects.values_list("wksa_id", flat=True)) == [OLD]
 
 
 def test_nobody_else_can_take_a_previous_id() -> None:
@@ -129,17 +162,21 @@ def test_the_api_refuses_a_previous_id_in_plain_words() -> None:
     assert response.json()["error"]["fields"]["wksa_id"] == [PREVIOUS_ID_TAKEN_MESSAGE]
 
 
-def test_the_same_student_cannot_hold_a_second_previous_id() -> None:
-    student = promoted()
+def test_correcting_to_an_id_someone_holds_or_held_is_refused() -> None:
+    other = promoted()
+    student = dahn_bo("206-2-160")
+    client = api()
 
-    response = api().patch(
-        f"/api/students/{student.pk}/",
-        {"wksa_id": "A-20820"},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert PreviousWksaId.objects.count() == 1
+    for taken in (OLD, NEW):
+        response = client.patch(
+            f"/api/students/{student.pk}/",
+            {"wksa_id": taken},
+            format="json",
+        )
+        assert response.status_code == 400, taken
+    student.refresh_from_db()
+    assert student.wksa_id == "206-2-160"
+    assert other.previous_wksa_ids.count() == 1
 
 
 def test_the_database_holds_each_previous_id_to_one_student_in_student_form() -> None:
@@ -152,6 +189,8 @@ def test_the_database_holds_each_previous_id_to_one_student_in_student_form() ->
         PreviousWksaId.objects.create(student=first, wksa_id="A-20999")
     with pytest.raises(IntegrityError), transaction.atomic():
         RetiredWksaId.objects.create(wksa_id="DEMO-001")
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PreviousWksaId.objects.create(student=first, wksa_id="206-2-777")
 
 
 def test_the_detail_shows_previous_ids_and_the_list_finds_a_student_by_one() -> None:

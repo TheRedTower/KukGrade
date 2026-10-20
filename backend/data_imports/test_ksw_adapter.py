@@ -6,6 +6,8 @@ here is built in-memory from made-up names and values.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import pytest
 from openpyxl.workbook import Workbook
 
@@ -290,7 +292,7 @@ def test_malformed_file_raises_workbook_structure_error() -> None:
 # --- the real workbook's layouts (2026-10-20), rebuilt from made-up values ----
 
 
-def sheet(*rows: list[object], title: str = "062025") -> bytes:
+def sheet(*rows: Sequence[object], title: str = "062025") -> bytes:
     def build(workbook: Workbook) -> None:
         ws = workbook.create_sheet(title)
         for row in rows:
@@ -429,14 +431,49 @@ def test_notes_in_no_table_are_kept_with_a_warning_never_dropped() -> None:
     assert [
         (row.source_section, row.admin_note, row.source_locator) for row in notes
     ] == [
-        ("General Comments - juniors", "Low stances.", "062026!G2"),
-        ("Beside the table", "These two need more.", "062026!F3"),
+        ("General Comments - juniors", "Low stances.", "062026!Note!G2"),
+        ("Beside the table", "These two need more.", "062026!Note!F3"),
     ]
     assert all(row.record_kind == LegacyRecordKind.AUXILIARY_NOTE for row in notes)
     assert result.warnings == [
         "Sheet '062026' has 2 note(s) in no table; each is kept as a note named "
         "'Sheet note'.",
     ]
+
+
+def test_a_row_with_no_name_and_anything_above_the_table_are_kept_as_notes() -> None:
+    content = sheet(
+        ["Grading, June 2025"],
+        ["Name", "Current Rank", "Testing For", "Outcome", "Examiner", "Comments"],
+        ["A. Example", "White", "Yellow", "Pass", "KSN Lee", "Good forms,"],
+        [None, None, None, None, "KSN Kim", "and good kicks."],
+    )
+
+    result = parse_ksw_colchester_workbook(content)
+    notes = [row for row in result.rows if row.source_name == "Sheet note"]
+
+    assert [
+        (row.source_section, row.admin_note, row.source_locator) for row in notes
+    ] == [
+        ("Above the table", "Grading, June 2025", "062025!Note!A1"),
+        ("Examiner", "KSN Kim", "062025!Note!E4"),
+        ("Comments", "and good kicks.", "062025!Note!F4"),
+    ]
+    assert result.warnings == [
+        "Sheet '062025' has 3 note(s) in no table; each is kept as a note named "
+        "'Sheet note'.",
+    ]
+
+
+def test_a_note_far_to_the_right_cannot_be_mistaken_for_a_main_row() -> None:
+    # Column R row 2 is "R2" - the main table's own row 2 is "062025!R2".
+    far = [None] * 17 + ["far note"]
+    row = ["A. Example", "White", "Yellow", "Pass", "", *far[5:]]
+    content = sheet(MAIN_TABLE_HEADER, row)
+
+    locators = [r.source_locator for r in parse_ksw_colchester_workbook(content).rows]
+
+    assert locators == ["062025!R2", "062025!Note!R2"]
 
 
 def test_a_main_table_column_kukgrade_has_no_field_for_is_kept_on_the_record() -> None:

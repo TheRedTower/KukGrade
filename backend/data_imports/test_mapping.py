@@ -15,7 +15,12 @@ from rest_framework.test import APIClient
 
 from accounts.models import User
 from data_imports.models import ImportBatch
-from data_imports.services import commit_student_import, save_import_mapping
+from data_imports.services import (
+    commit_student_import,
+    correct_import_row,
+    save_import_mapping,
+    set_import_row_excluded,
+)
 from data_imports.tests import admin_user, student_workbook, upload_batch
 from kukgrade.testing import results
 from students.models import Student, StudentExtraInfo
@@ -84,9 +89,12 @@ def test_a_whole_file_value_fills_only_blank_cells() -> None:
     assert set(Student.objects.values_list("status", flat=True)) == {"INACTIVE"}
 
 
-def test_without_a_column_or_a_whole_file_value_a_required_field_is_refused() -> None:
+def test_a_needed_field_with_no_column_is_typed_in_row_by_row() -> None:
+    # The owner's request (2026-10-20): what the file lacks can be typed in
+    # by whoever knows it. The mapping is accepted; each row waits until its
+    # value is given.
     admin = admin_user()
-    batch = club_file(row("206-2-001"), admin=admin)
+    batch = club_file(row("206-2-001"), row("206-2-002"), admin=admin)
 
     response = client_for(admin).post(
         f"{BASE}{batch.pk}/mapping/",
@@ -94,10 +102,41 @@ def test_without_a_column_or_a_whole_file_value_a_required_field_is_refused() ->
         format="json",
     )
 
+    assert response.status_code == 200
+    assert response.json()["row_counts"]["review_required"] == 2
+    assert all(
+        "Current rank is required." in issues
+        for issues in batch.rows.values_list("issues", flat=True)
+    )
+
+    for number in (2, 3):
+        correct_import_row(batch, row_number=number, changes={"current_rank": "White"})
+    assert set(batch.rows.values_list("outcome", flat=True)) == {"READY"}
+    commit_student_import(batch, actor=admin)
+    assert Student.objects.filter(current_rank__code="WHITE").count() == 2
+
+
+def test_an_import_with_a_row_still_needing_attention_is_refused_whole() -> None:
+    # Only rows whose KukGrade fields are right are imported (owner,
+    # 2026-10-20): a row needing attention is fixed or left out first.
+    admin = admin_user()
+    batch = club_file(row("206-2-001", belt="White"), row("206-2-002"), admin=admin)
+    save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
+
+    response = client_for(admin).post(f"{BASE}{batch.pk}/commit/", {}, format="json")
+
     assert response.status_code == 400
-    assert response.json()["error"]["fields"]["column_mapping"] == [
-        "Choose a column for: current_rank.",
+    assert response.json()["error"]["fields"]["rows"] == [
+        "1 row needs attention. Fix each one or leave it out, then import again. "
+        "Nothing was imported.",
     ]
+    assert not Student.objects.exists()
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
+
+    set_import_row_excluded(batch, row_number=3, excluded=True)
+    commit_student_import(batch, actor=admin)
+    assert list(Student.objects.values_list("wksa_id", flat=True)) == ["206-2-001"]
 
 
 @pytest.mark.parametrize(
@@ -397,3 +436,35 @@ def test_a_heading_used_twice_is_refused_at_upload() -> None:
             ),
         )
     assert not ImportBatch.objects.exists()
+
+
+# --- an import's own students ---------------------------------------------------
+
+
+def test_the_students_list_shows_just_the_students_an_import_added() -> None:
+    from datetime import date
+
+    from ranks.models import Rank
+
+    admin = admin_user()
+    by_hand = create_student(
+        wksa_id="206-2-009",
+        first_name="By",
+        last_name="Hand",
+        date_of_birth=date(2012, 5, 1),
+        current_rank=Rank.objects.get(code="WHITE"),
+        actor=admin,
+    )
+    assert by_hand.source_import is None
+    first = club_file(row("206-2-001", belt="White"), admin=admin)
+    second = club_file(row("206-2-002", belt="White"), admin=admin)
+    for batch in (first, second):
+        save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
+        commit_student_import(batch, actor=admin)
+    assert Student.objects.get(wksa_id="206-2-002").source_import == second.pk
+    client = client_for(admin)
+
+    listed = results(client.get("/api/students/", {"source_import": first.pk}))
+
+    assert [student["wksa_id"] for student in listed] == ["206-2-001"]
+    assert results(client.get("/api/students/", {"source_import": "x"})) == []

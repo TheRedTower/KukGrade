@@ -126,6 +126,8 @@ class CanonicalLegacyRow:
 class WorkbookParseResult:
     rows: list[CanonicalLegacyRow] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # The grading sheets read, in workbook order.
+    sheets: list[str] = field(default_factory=list)
 
 
 def _clean(value: Any) -> str:
@@ -601,6 +603,7 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
     budget = _RowBudget()
     all_rows: list[CanonicalLegacyRow] = []
     warnings: list[str] = []
+    sheets: list[str] = []
 
     for sheet_name in workbook.sheetnames:
         cleaned_name = sheet_name.strip()
@@ -625,9 +628,10 @@ def _parse_workbook(workbook: Any) -> WorkbookParseResult:
         )
         all_rows.extend(sheet_rows)
         warnings.extend(sheet_warnings)
+        sheets.append(cleaned_name)
 
     _check_locators_unique(all_rows)
-    return WorkbookParseResult(rows=all_rows, warnings=warnings)
+    return WorkbookParseResult(rows=all_rows, warnings=warnings, sheets=sheets)
 
 
 def _check_locators_unique(rows: list[CanonicalLegacyRow]) -> None:

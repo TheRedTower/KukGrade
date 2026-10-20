@@ -39,7 +39,6 @@ from data_imports.ksw_adapter import (
 )
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
-    STUDENT_REQUIRED_TARGET_FIELDS,
     STUDENT_TARGET_FIELDS,
     suggest_column_mapping,
 )
@@ -254,6 +253,7 @@ def _store_legacy_rows(batch: ImportBatch, parsed: WorkbookParseResult) -> None:
         batch_size=500,
     )
     batch.configuration_json["warnings"] = list(parsed.warnings)
+    batch.configuration_json["grading_sheets"] = list(parsed.sheets)
     _mark_rows_stored(batch)
 
 
@@ -680,11 +680,32 @@ def extra_values(raw_row: dict[str, Any], extra_columns: list[str]) -> dict[str,
     """The kept columns' values in this row, by header; blanks left out."""
     extra: dict[str, str] = {}
     for header in extra_columns:
-        value = raw_row.get(header)
-        text = "" if value is None else str(value).strip()
+        text = cell_text(raw_row.get(header))
         if text:
             extra[header] = text
     return extra
+
+
+def cell_text(value: Any) -> str:
+    """A stored cell as the file showed it; blank for an empty cell."""
+    return "" if value is None else str(value).strip()
+
+
+def roster_cells(raw_row: dict[str, Any]) -> dict[str, str]:
+    """Every cell of a roster row, by header, as the file has it."""
+    return {header: cell_text(value) for header, value in raw_row.items()}
+
+
+def roster_file_values(
+    raw_row: dict[str, Any],
+    column_mapping: dict[str, str],
+) -> dict[str, str]:
+    """Each matched field's value as the file has it, before any fix."""
+    return {
+        field: cell_text(raw_row.get(header))
+        for field, header in column_mapping.items()
+        if header
+    }
 
 
 _STUDENT_FIELD_LABELS = {
@@ -1217,6 +1238,11 @@ def commit_student_import(
         _replace_corrections(locked, corrections)
     _require_mapping(locked)
     preview = _classify_roster(locked)
+    # A row is only imported once KukGrade's own fields are right (owner,
+    # 2026-10-20): one still needing attention is fixed or left out first,
+    # never passed over without a word.
+    if preview.review_required:
+        raise DjangoValidationError({"rows": [_rows_need_attention(preview)]})
     extra_columns: list[str] = locked.configuration_json.get("extra_columns", [])
     raw_by_row = dict(locked.rows.values_list("row_number", "raw"))
     ready_rows = [
@@ -1287,6 +1313,15 @@ def commit_student_import(
         configuration=locked.configuration_json,
         record_count=len(created_ids),
         what="student(s)",
+    )
+
+
+def _rows_need_attention(preview: StudentImportPreview) -> str:
+    count = preview.review_required
+    rows = "row needs" if count == 1 else "rows need"
+    return (
+        f"{count} {rows} attention. Fix each one or leave it out, then import "
+        "again. Nothing was imported."
     )
 
 
@@ -1613,7 +1648,6 @@ def commit_legacy_grading_import(
 
 
 __all__ = [
-    "STUDENT_REQUIRED_TARGET_FIELDS",
     "CreateImportBatchResult",
     "ImportStep",
     "LegacyImportPreview",
@@ -1629,6 +1663,8 @@ __all__ = [
     "create_import_batch",
     "expire_import_batch",
     "extra_values",
+    "roster_cells",
+    "roster_file_values",
     "next_step",
     "preview_legacy_grading_import",
     "preview_student_import",

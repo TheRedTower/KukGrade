@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, cast
 
 from django.core.files.uploadedfile import UploadedFile
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from drf_spectacular.utils import (
     OpenApiParameter,
     PolymorphicProxySerializer,
@@ -50,15 +50,38 @@ from data_imports.services import (
     void_import_records,
     with_row_counts,
 )
-from kukgrade.filtering import choice, search
+from kukgrade.filtering import QueryFilter, choice, choices_in, search
+
 
 # The review table's filters. Not a `list` action, so they are checked here
 # rather than by DeclaredQueryFilters - unknown ones are refused all the same.
+def _rows_with_rank_text(rows: QuerySet[ImportRow], value: str) -> QuerySet[ImportRow]:
+    """A historical import's rows that write a rank this way, held or tested
+    for - so a spelling can be judged by the records that use it."""
+    text = value.strip()
+    return rows.filter(
+        Q(values__current_rank__iexact=text) | Q(values__testing_for_rank__iexact=text),
+    )
+
+
+def _rows_corrected(rows: QuerySet[ImportRow], value: str) -> QuerySet[ImportRow]:
+    """Rows with (or without) a fix of the importer's."""
+    if value == "true":
+        return rows.exclude(correction={})
+    if value == "false":
+        return rows.filter(correction={})
+    return rows.none()
+
+
 _ROW_FILTERS = (
     choice("outcome", "outcome", ImportRow.Outcome.values),
     search("search", ("search_text",), "Matches any of the row's values."),
+    QueryFilter("rank_text", _rows_with_rank_text),
+    QueryFilter("corrected", _rows_corrected),
 )
-_ROW_PARAMETERS = frozenset({"outcome", "search", "page", "page_size", "format"})
+_ROW_PARAMETERS = frozenset(
+    {"outcome", "search", "rank_text", "corrected", "page", "page_size", "format"},
+)
 
 # Preview and commit take, and preview returns, a different shape per batch
 # kind: a student roster's column mapping, or a legacy workbook's rank
@@ -114,7 +137,7 @@ class ImportBatchViewSet(
         "void_records": ("gradings.can_reconcile_imported_history",),
     }
     query_filters = (
-        choice("status", "status", ImportBatch.Status.values),
+        choices_in("status", "status", ImportBatch.Status.values),
         choice("kind", "kind", ImportBatch.Kind.values),
     )
 
@@ -194,6 +217,19 @@ class ImportBatchViewSet(
                 str,
                 description="Matches any of the row's values.",
             ),
+            OpenApiParameter(
+                "corrected",
+                bool,
+                description="Only rows with (or without) a fix of the importer's.",
+            ),
+            OpenApiParameter(
+                "rank_text",
+                str,
+                description=(
+                    "A historical import's rows that write a rank this way, "
+                    "held or tested for (any case)."
+                ),
+            ),
         ],
         responses=ImportRowSerializer(many=True),
     )
@@ -219,7 +255,12 @@ class ImportBatchViewSet(
         )
 
     def _row_context(self, batch: ImportBatch) -> dict[str, Any]:
-        return {"extra_columns": batch.configuration_json.get("extra_columns", [])}
+        configuration = batch.configuration_json
+        return {
+            "kind": batch.kind,
+            "extra_columns": configuration.get("extra_columns", []),
+            "column_mapping": configuration.get("column_mapping", {}),
+        }
 
     @extend_schema(request=ImportRowCorrectionSerializer, responses=ImportRowSerializer)
     @action(

@@ -73,6 +73,8 @@ const committedBatch: DataImportBatch = {
   extra_columns: [],
   sheet: "",
   sheet_names: [],
+  grading_sheets: [],
+  warnings: [],
   row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 },
   summary_json: {
     total: 2,

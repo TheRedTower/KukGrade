@@ -136,7 +136,15 @@ upload (create_import_batch) - every row read once and stored (ImportRow)
   never trusts a preview response the frontend is holding onto, since the
   file could have changed nothing, but the database (an existing WKSA ID
   created moments earlier by a different batch, or a rank deactivated in
-  the meantime) could have. Only `READY` rows are ever written.
+  the meantime) could have. Only `READY` rows are ever written, and a
+  commit with any row still `REVIEW_REQUIRED` is refused whole (owner,
+  2026-10-20): each such row is fixed or left out first, never passed over.
+- **A needed field may have no column** (owner, 2026-10-20): the mapping is
+  accepted, and each row's value is typed in as a fix; until it is, the row
+  is `REVIEW_REQUIRED`, so nothing missing is imported.
+- **Each imported student records its import** (`Student.source_import`,
+  by number), so an import's results can show just the students it added
+  (`GET /api/students/?source_import=`).
 - **Every created `Student` goes through the students service**: since
   2026-10-20 (A3) `students.services.create_students`, which creates many at
   once under the same rules as `create_student` - the model's own field and

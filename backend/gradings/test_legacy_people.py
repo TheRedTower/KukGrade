@@ -386,6 +386,25 @@ def test_the_record_list_filters_by_import_name_and_unmatched_rank() -> None:
     assert row["source_batch"] == batch.pk
 
 
+def test_the_record_list_counts_the_records_awaiting_a_student() -> None:
+    batch = legacy_batch()
+    waiting = legacy_record(source_batch=batch, source_name="Zac W")
+    legacy_record(source_batch=batch, source_name="Max", student=student("Max", "Lee"))
+    legacy_record(source_batch=batch, source_name="Sheet note")
+    voided = legacy_record(source_batch=batch, source_name="Ann B")
+    void_legacy_record(voided, reason="Entered twice", actor=admin())
+    client = client_for(admin())
+    url = "/api/gradings/legacy-records/"
+
+    awaiting = client.get(f"{url}?batch={batch.pk}&awaiting_link=true").json()
+    others = results(client.get(f"{url}?batch={batch.pk}&awaiting_link=false"))
+
+    assert [row["id"] for row in awaiting["results"]] == [waiting.pk]
+    assert awaiting["count"] == 1
+    assert len(others) == 3
+    assert results(client.get(url, {"awaiting_link": "maybe"})) == []
+
+
 # --- linking while the student is deleted -----------------------------------------
 
 

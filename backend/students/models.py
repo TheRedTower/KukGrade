@@ -46,6 +46,10 @@ class Student(models.Model):
         choices=Status.choices,
         default=Status.ACTIVE,
     )
+    # The import that added the student, by number, so an import's results
+    # can show just its students; blank for one added by hand. By number for
+    # the reason StudentExtraInfo.source_import is.
+    source_import = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

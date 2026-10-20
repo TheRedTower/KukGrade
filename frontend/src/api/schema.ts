@@ -1788,6 +1788,10 @@ export interface components {
             readonly sheet: string;
             /** @description Every sheet a roster workbook has, to choose another. */
             readonly sheet_names: string[];
+            /** @description A historical workbook's grading sheets that were read. */
+            readonly grading_sheets: string[];
+            /** @description What the reading of the file left out, such as an unknown sheet. */
+            readonly warnings: string[];
             readonly row_counts: components["schemas"]["ImportRowCounts"];
             readonly summary_json: {
                 [key: string]: number;
@@ -1866,6 +1870,14 @@ export interface components {
             readonly corrected_fields: string[];
             /** @description The row's values in the columns kept as extra information. */
             readonly extra: {
+                [key: string]: string;
+            };
+            /** @description A roster row's every cell by column heading, as the file has it, the columns not imported included; empty for historical gradings. */
+            readonly cells: {
+                [key: string]: string;
+            };
+            /** @description A roster row's matched fields as the file has them, before any fix; empty for historical gradings. */
+            readonly file_values: {
                 [key: string]: string;
             };
             readonly created_id: string;
@@ -2952,7 +2964,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
-                status?: "CANCELLED" | "COMMITTED" | "EXPIRED" | "UPLOADED";
+                /** @description Comma-separated; one of CANCELLED, COMMITTED, EXPIRED, UPLOADED. */
+                status?: string;
             };
             header?: never;
             path?: never;
@@ -3125,12 +3138,16 @@ export interface operations {
     data_imports_batches_rows_list: {
         parameters: {
             query?: {
+                /** @description Only rows with (or without) a fix of the importer's. */
+                corrected?: boolean;
                 /** @description Only rows with this outcome. */
                 outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
+                rank_text?: string;
                 /** @description Matches any of the row's values. */
                 search?: string;
             };
@@ -3712,6 +3729,8 @@ export interface operations {
     gradings_legacy_records_list: {
         parameters: {
             query?: {
+                /** @description Someone's record not yet linked to a student: not voided, not a sheet note. */
+                awaiting_link?: boolean;
                 /** @description Records from this import. */
                 batch?: number;
                 linked?: boolean;
@@ -3879,12 +3898,7 @@ export interface operations {
     };
     gradings_legacy_records_bulk_link_create: {
         parameters: {
-            query?: {
-                /** @description A page number within the paginated result set. */
-                page?: number;
-                /** @description Number of results to return per page. */
-                page_size?: number;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
@@ -3902,7 +3916,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
+                    "application/json": components["schemas"]["LegacyGradingRecord"][];
                 };
             };
         };
@@ -4405,6 +4419,8 @@ export interface operations {
                 page_size?: number;
                 /** @description Matches a name, the current WKSA ID or a previous one. */
                 search?: string;
+                /** @description Only the students one import added. */
+                source_import?: number;
                 /** @description Comma-separated; one of ACTIVE, INACTIVE, LEFT. */
                 status?: string;
             };

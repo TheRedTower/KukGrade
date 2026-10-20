@@ -25,7 +25,7 @@ from gradings.assessment_services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from gradings.legacy_matching import person_groups
+from gradings.legacy_matching import SHEET_NOTE_NAME, person_groups
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     resolve_legacy_current_rank,
@@ -661,6 +661,24 @@ def _needs_rank(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     return queryset.none()
 
 
+def _awaiting_link(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    # Someone's record, not yet linked: a voided record and a sheet note are
+    # no one's, so neither waits (legacy_matching leaves both out too).
+    awaiting = Q(student__isnull=True, is_void=False) & ~Q(source_name=SHEET_NOTE_NAME)
+    if value == "true":
+        return queryset.filter(awaiting)
+    if value == "false":
+        return queryset.exclude(awaiting)
+    return queryset.none()
+
+
+_AWAITING_LINK = QueryFilter(
+    "awaiting_link",
+    _awaiting_link,
+    {"type": "boolean"},
+    "Someone's record not yet linked to a student: not voided, not a sheet note.",
+)
+
 _NEEDS_RANK = QueryFilter(
     "needs_rank",
     _needs_rank,
@@ -697,6 +715,7 @@ class LegacyGradingRecordViewSet(
         boolean("voided", "is_void"),
         by_id("batch", "source_batch_id", "Records from this import."),
         _NEEDS_RANK,
+        _AWAITING_LINK,
         exact("source_name", "source_name__iexact", "The name exactly as written."),
         search("search", ("source_name",), "Part of the name as written."),
     )
@@ -844,7 +863,14 @@ class LegacyGradingRecordViewSet(
         request=BulkLinkLegacyRecordsSerializer,
         responses=LegacyGradingRecordSerializer(many=True),
     )
-    @action(detail=False, methods=["post"], url_path="bulk-link", filter_backends=[])
+    # Not paginated: the response is the records just linked, as a list.
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk-link",
+        filter_backends=[],
+        pagination_class=None,
+    )
     def bulk_link(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Link many records at once, all or nothing - one person's history to
         the student confirmed for it, say."""

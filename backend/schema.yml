@@ -263,14 +263,9 @@ paths:
       - name: status
         required: false
         in: query
-        description: ''
+        description: Comma-separated; one of CANCELLED, COMMITTED, EXPIRED, UPLOADED.
         schema:
           type: string
-          enum:
-          - CANCELLED
-          - COMMITTED
-          - EXPIRED
-          - UPLOADED
       tags:
       - data-imports
       security:
@@ -472,6 +467,11 @@ paths:
       operationId: data_imports_batches_rows_list
       description: The import's rows, a page at a time, in file order.
       parameters:
+      - in: query
+        name: corrected
+        schema:
+          type: boolean
+        description: Only rows with (or without) a fix of the importer's.
       - in: path
         name: id
         schema:
@@ -500,6 +500,12 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: rank_text
+        schema:
+          type: string
+        description: A historical import's rows that write a rank this way, held or
+          tested for (any case).
       - in: query
         name: search
         schema:
@@ -1195,6 +1201,13 @@ paths:
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
+      - name: awaiting_link
+        required: false
+        in: query
+        description: 'Someone''s record not yet linked to a student: not voided, not
+          a sheet note.'
+        schema:
+          type: boolean
       - name: batch
         required: false
         in: query
@@ -1443,19 +1456,6 @@ paths:
       description: |-
         Link many records at once, all or nothing - one person's history to
         the student confirmed for it, say.
-      parameters:
-      - name: page
-        required: false
-        in: query
-        description: A page number within the paginated result set.
-        schema:
-          type: integer
-      - name: page_size
-        required: false
-        in: query
-        description: Number of results to return per page.
-        schema:
-          type: integer
       tags:
       - gradings
       requestBody:
@@ -1477,7 +1477,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
   /api/gradings/legacy-records/people/:
     get:
@@ -2101,6 +2103,12 @@ paths:
         description: Matches a name, the current WKSA ID or a previous one.
         schema:
           type: string
+      - name: source_import
+        required: false
+        in: query
+        description: Only the students one import added.
+        schema:
+          type: integer
       - name: status
         required: false
         in: query
@@ -3794,6 +3802,18 @@ components:
             type: string
           readOnly: true
           description: Every sheet a roster workbook has, to choose another.
+        grading_sheets:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A historical workbook's grading sheets that were read.
+        warnings:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: What the reading of the file left out, such as an unknown sheet.
         row_counts:
           allOf:
           - $ref: '#/components/schemas/ImportRowCounts'
@@ -3812,6 +3832,7 @@ components:
       - detected_headers
       - extra_columns
       - file_size
+      - grading_sheets
       - id
       - kind
       - kind_display
@@ -3825,6 +3846,7 @@ components:
       - summary_json
       - uploaded_at
       - uploaded_by_name
+      - warnings
     ImportBatchCreateRequest:
       type: object
       properties:
@@ -3976,14 +3998,30 @@ components:
             type: string
           readOnly: true
           description: The row's values in the columns kept as extra information.
+        cells:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster row's every cell by column heading, as the file has
+            it, the columns not imported included; empty for historical gradings.
+        file_values:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster row's matched fields as the file has them, before
+            any fix; empty for historical gradings.
         created_id:
           type: string
           readOnly: true
       required:
+      - cells
       - corrected_fields
       - created_id
       - excluded
       - extra
+      - file_values
       - issues
       - outcome
       - outcome_display

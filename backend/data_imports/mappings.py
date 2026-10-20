@@ -18,14 +18,6 @@ STUDENT_TARGET_FIELDS: tuple[str, ...] = (
     "status",
 )
 
-STUDENT_REQUIRED_TARGET_FIELDS: tuple[str, ...] = (
-    "wksa_id",
-    "first_name",
-    "last_name",
-    "date_of_birth",
-    "current_rank",
-)
-
 # Fields one value can be given for the whole file, used where a row has
 # none (no column, or a blank cell). Never a field that is each person's own -
 # an ID, a name or a date of birth given for everyone would be invented.

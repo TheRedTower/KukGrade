@@ -17,7 +17,8 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    (`SetupPage.tsx`). Then connect the production image to the real Traefik and PostgreSQL host, cap the request
    body at Traefik, and verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).
-2. **The syllabus row-divider defect** under "Known defects" below.
+2. **The syllabus row-divider defect** (fixed 2026-10-20: the first cell
+   stays a table cell, `Syllabus.css`).
 3. **Extend the accessibility pass to the other screens**: the four grading
    surfaces were measured in slice 8; the rest of the app has only been
    checked visually. Known: the session screen's breadcrumb, banner button,
@@ -33,18 +34,7 @@ workbook (`data-import-and-legacy-migration.md`).
 
 ## Known defects
 
-Recorded, not yet fixed.
-
-- **Syllabus ledger rows show broken divider lines (2026-10-19).** In each
-  ledger table on the syllabus screen (Techniques, Forms, Weapons), the line
-  under a row's first column sits higher than the line under the other three
-  wherever that row is shorter than its neighbours - for example a row with
-  no Korean name, such as Sohn Ppae Ki. Cause:
-  `frontend/src/Syllabus.css` gives `.syl-cell-curriculum` - the `<td>`
-  itself - `display: flex`. That takes the cell out of table layout, so it no
-  longer stretches to the row's height and its `border-bottom` is drawn at
-  its own content height. Fix: keep the `<td>` a table cell and move the flex
-  column onto an inner wrapper; check light, dark and narrow widths.
+None recorded.
 
 ## Waiting on a release
 

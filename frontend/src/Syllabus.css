@@ -318,10 +318,12 @@
   border-bottom: none;
 }
 
-.syl-cell-curriculum {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+/* A table cell like the rest of the row, so its bottom line runs at the
+   row's height: made a flex box, it shrank to its own content and its line
+   sat higher than its neighbours' wherever the row was taller. The name,
+   Korean name and note stack as blocks. */
+.syl-cell-curriculum > * + * {
+  margin-top: 0.15rem;
 }
 
 .syl-item-name {

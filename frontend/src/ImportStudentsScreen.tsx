@@ -14,22 +14,12 @@ import {
   createDataImportBatch,
   previewStudentImport,
 } from "./api";
+import { downloadStandardTemplate } from "./importTemplate";
 import { ImportReviewActions, ImportUploadRow } from "./ImportWizardParts";
 import "./StudentScreens.css";
 import "./ImportStudents.css";
 
 type Step = "upload" | "map" | "preview" | "result";
-
-// The client-side template download. Every header must be one that
-// data_imports/mappings.py's suggest_column_mapping recognises.
-const STANDARD_TEMPLATE_HEADERS = [
-  "WKSA ID",
-  "First Name",
-  "Last Name",
-  "Date of Birth",
-  "Current Rank",
-  "Status",
-];
 
 const TARGET_FIELDS: { field: string; label: string; required: boolean }[] = [
   { field: "wksa_id", label: "WKSA ID", required: true },
@@ -48,19 +38,6 @@ const CORRECTION_FIELDS: { field: keyof StudentImportRowCorrection; label: strin
   { field: "current_rank", label: "Current rank" },
   { field: "status", label: "Status" },
 ];
-
-function downloadStandardTemplate() {
-  const csv = `${STANDARD_TEMPLATE_HEADERS.join(",")}\n`;
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "kukgrade-student-roster-template.csv";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
 
 export function ImportStudentsScreen() {
   const navigate = useNavigate();

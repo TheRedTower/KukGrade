@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   type Rank,
@@ -104,6 +104,9 @@ export function StudentsScreen() {
   const [statusFilter, setStatusFilter] = useState<StudentStatus | "ALL">("ALL");
   const [rankFilter, setRankFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
+  // Set by an import's results ("See the new students"); no control edits it.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sourceImport = Number(searchParams.get("source_import")) || undefined;
 
   const canImportStudents = Boolean(user?.can_import_data);
 
@@ -119,13 +122,14 @@ export function StudentsScreen() {
   // so a name is one request rather than one per keystroke.
   const debouncedSearch = useDebouncedValue(search.trim());
   const studentsQuery = useQuery({
-    queryKey: ["students", "list", debouncedSearch, statusFilter, rankFilter, page],
+    queryKey: ["students", "list", debouncedSearch, statusFilter, rankFilter, sourceImport, page],
     placeholderData: keepPreviousData,
     queryFn: () =>
       getStudents({
         search: debouncedSearch || undefined,
         status: statusFilter !== "ALL" ? statusFilter : undefined,
         current_rank_code: rankFilter !== "ALL" ? rankFilter : undefined,
+        source_import: sourceImport,
         page,
         page_size: PAGE_SIZE,
       }),
@@ -280,6 +284,24 @@ export function StudentsScreen() {
             ))}
           </select>
         </div>
+
+        {sourceImport ? (
+          <div className="results-count-container">
+            <span className="results-count-text">Only the students one import added</span>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete("source_import");
+                setSearchParams(next, { replace: true });
+                setPage(1);
+              }}
+            >
+              Show every student
+            </button>
+          </div>
+        ) : null}
 
         <div className="results-count-container">
           <span className="results-count-text">

@@ -17,6 +17,7 @@ import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import {
   AuditIcon,
   GradingsIcon,
+  ImportsIcon,
   OverviewIcon,
   StudentsIcon,
   SyllabusIcon,
@@ -50,6 +51,15 @@ const GradingSessionDetailScreen = lazy(() =>
   import("./GradingSessionDetailScreen").then((module) => ({
     default: module.GradingSessionDetailScreen,
   })),
+);
+const ImportsHubScreen = lazy(() =>
+  import("./ImportsHubScreen").then((module) => ({ default: module.ImportsHubScreen })),
+);
+const ImportStartScreen = lazy(() =>
+  import("./ImportStartScreen").then((module) => ({ default: module.ImportStartScreen })),
+);
+const ImportScreen = lazy(() =>
+  import("./ImportScreen").then((module) => ({ default: module.ImportScreen })),
 );
 const ImportStudentsScreen = lazy(() =>
   import("./ImportStudentsScreen").then((module) => ({
@@ -241,6 +251,15 @@ function NavigationRail({ user }: { user: AuthUser }) {
           <SyllabusIcon />
           <span>Syllabus</span>
         </NavLink>
+        {user.can_import_data ? (
+          <NavLink
+            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+            to="/imports"
+          >
+            <ImportsIcon />
+            <span>Imports</span>
+          </NavLink>
+        ) : null}
         {canViewAudit ? (
           <NavLink
             className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
@@ -520,6 +539,36 @@ function App() {
                 />
                 <Route element={<GradingSessionsScreen />} path="gradings" />
                 <Route element={<SyllabusScreen />} path="syllabus" />
+                <Route
+                  element={
+                    <RequireAccess flag="can_import_data">
+                      <Suspense fallback={<ImportFallback />}>
+                        <ImportsHubScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="imports"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_import_data">
+                      <Suspense fallback={<ImportFallback />}>
+                        <ImportStartScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="imports/new"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_import_data">
+                      <Suspense fallback={<ImportFallback />}>
+                        <ImportScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="imports/:id"
+                />
                 <Route
                   element={
                     <RequireAccess flag="can_read_audit_log">

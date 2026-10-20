@@ -100,6 +100,16 @@ export function GradingsIcon() {
   );
 }
 
+export function ImportsIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <path d="M12 3v11" />
+      <path d="m7.5 9.5 4.5 4.5 4.5-4.5" />
+      <path d="M3 14v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4" />
+    </svg>
+  );
+}
+
 export function SyllabusIcon() {
   return (
     <svg {...iconProps(NAV_ICON)}>

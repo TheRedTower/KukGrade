@@ -127,7 +127,11 @@ checks on each push and pull request.
   30 days after it finishes (`expire_stale_import_batches`). A roster maps
   onto KukGrade's fields with whole-file values for rank and status, and
   columns KukGrade has no field for kept as the student's extra information
-  (`students.models.StudentExtraInfo`, on the student page). The Colchester
+  (`students.models.StudentExtraInfo`, on the student page). A needed field
+  the file has no column for is typed into each row instead, and a roster
+  is only imported once no row needs attention: each is fixed or left out
+  first. Each imported student records its import (`Student.source_import`),
+  so the Students list can show one import's students. The Colchester
   workbook's side tables and loose notes are read, not dropped (A4).
   Historical records are grouped by the name as written with suggested
   students and their reasons (`gradings/legacy_matching.py`), confirmed one
@@ -469,7 +473,12 @@ checks on each push and pull request.
 - **Implemented frontend workflows**: operational overview, student list,
   student creation and detail/edit, administrator-only bulk student-roster
   import (upload, column mapping pre-filled from the file's own headers,
-  row-by-row review with inline correction, commit), the syllabus cumulative
+  row-by-row review with inline correction, commit), the new Imports area
+  being built on `feat/imports-frontend` (an **Imports** navigation entry for
+  holders of `can_import_data`: the hub at `/imports` (FDR-049), choosing the
+  file at `/imports/new` (FDR-050) and an import's results at `/imports/:id`
+  (FDR-054); the matching, review and linking steps are still to come, so
+  the earlier import screens stay in place until they are), the syllabus cumulative
   current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
   progress counts, like the overview's, are served with each session
   rather than derived from a first page of assessments - KG-A15),

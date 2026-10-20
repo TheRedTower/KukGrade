@@ -787,6 +787,53 @@ export async function commitStudentImport(
   );
 }
 
+export type DataImportStatus = Schemas["ImportBatchStatusEnum"];
+export type DataImportStep = Schemas["NextStepEnum"];
+export type DataImportRow = Schemas["ImportRow"];
+
+export async function getDataImportBatches(
+  params?: ListQuery<"data_imports_batches_list">,
+): Promise<PaginatedResponse<DataImportBatch>> {
+  return apiRequest<PaginatedResponse<DataImportBatch>>(
+    withQuery("/api/data-imports/batches/", params),
+  );
+}
+
+export async function getDataImportBatch(batchId: number): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/`);
+}
+
+export async function getDataImportRows(
+  batchId: number,
+  params?: ListQuery<"data_imports_batches_rows_list">,
+): Promise<PaginatedResponse<DataImportRow>> {
+  return apiRequest<PaginatedResponse<DataImportRow>>(
+    withQuery(`/api/data-imports/batches/${batchId}/rows/`, params),
+  );
+}
+
+/** Read a roster from another sheet of its workbook. */
+export async function chooseDataImportSheet(
+  batchId: number,
+  sheet: string,
+): Promise<DataImportBatch> {
+  return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/sheet/`, {
+    method: "POST",
+    body: JSON.stringify({ sheet }),
+  });
+}
+
+/** Void every record a finished historical import made, with the reason. */
+export async function voidDataImportRecords(
+  batchId: number,
+  reason: string,
+): Promise<Schemas["ImportRecordsVoided"]> {
+  return apiRequest<Schemas["ImportRecordsVoided"]>(
+    `/api/data-imports/batches/${batchId}/void-records/`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+  );
+}
+
 export async function cancelDataImportBatch(batchId: number): Promise<void> {
   return apiRequest<void>(`/api/data-imports/batches/${batchId}/cancel/`, {
     method: "POST",
@@ -828,6 +875,28 @@ export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legac
   return apiRequest<PaginatedResponse<LegacyGradingRecord>>(
     withQuery("/api/gradings/legacy-records/", params),
   );
+}
+
+export type LegacyPerson = Schemas["LegacyPerson"];
+export type SuggestedStudent = Schemas["SuggestedStudent"];
+
+/** Historical records grouped by the name as written, with suggested students. */
+export async function getLegacyPeople(
+  params?: ListQuery<"gradings_legacy_records_people_list">,
+): Promise<PaginatedResponse<LegacyPerson>> {
+  return apiRequest<PaginatedResponse<LegacyPerson>>(
+    withQuery("/api/gradings/legacy-records/people/", params),
+  );
+}
+
+/** Link many records at once, all or nothing. */
+export async function bulkLinkLegacyRecords(
+  links: Schemas["LegacyRecordLinkRequest"][],
+): Promise<LegacyGradingRecord[]> {
+  return apiRequest<LegacyGradingRecord[]>("/api/gradings/legacy-records/bulk-link/", {
+    method: "POST",
+    body: JSON.stringify({ links }),
+  });
 }
 
 export async function linkLegacyGradingRecord(

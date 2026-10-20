@@ -68,7 +68,7 @@ of these to an Instructor. See `permissions.md`.
 
 ### Accepted formats
 
-`.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 5,000 rows
+`.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 1,000 rows (5,000 until 2026-10-20)
 after the header (blank rows included) and 50 columns; an `.xlsx` may also
 expand to no more than 50 MiB. Each limit is enforced while the file is
 read, not after, because a few kilobytes of workbook can describe a million
@@ -125,11 +125,13 @@ upload (create_import_batch) - every row read once and stored (ImportRow)
   file could have changed nothing, but the database (an existing WKSA ID
   created moments earlier by a different batch, or a rank deactivated in
   the meantime) could have. Only `READY` rows are ever written.
-- **Every created `Student` goes through the ordinary
-  `students.services.create_student` service** - the same one a hand-typed
-  student creation uses - so full model validation and the normal
-  `STUDENT_CREATED` audit event happen identically either way. The importer
-  has no separate, weaker write path.
+- **Every created `Student` goes through the students service**: since
+  2026-10-20 (A3) `students.services.create_students`, which creates many at
+  once under the same rules as `create_student` - the model's own field and
+  `clean()` rules for each, every ID's lock, and one check across all of
+  them that no ID is held now, before or by a deleted student - and records
+  the same `STUDENT_CREATED` event for each. The importer has no separate,
+  weaker write path; it is one write instead of one per row.
 - **Commit is all-or-nothing**, inside one database transaction. If a row
   that was `READY` at the start of commit somehow fails when actually
   written (a concurrent change, such as the same WKSA ID created elsewhere

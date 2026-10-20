@@ -38,7 +38,7 @@ from data_imports.storage import import_upload_storage
 from data_imports.testing import workbook_bytes
 from ranks.models import Rank
 from students.models import Student
-from students.services import create_student
+from students.services import create_student, create_students
 
 pytestmark = pytest.mark.django_db
 
@@ -438,19 +438,22 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
 
-    def created_elsewhere_first(**values: Any) -> Student:
+    real_create_students = create_students
+
+    def created_elsewhere_first(new: Any, **kwargs: Any) -> list[Student]:
+        first = new[0]
         Student.objects.create(
-            wksa_id=values["wksa_id"],
+            wksa_id=first.wksa_id,
             first_name="Someone",
             last_name="Else",
-            date_of_birth=values["date_of_birth"],
-            current_rank=values["current_rank"],
+            date_of_birth=first.date_of_birth,
+            current_rank=first.current_rank,
         )
-        return create_student(**values)
+        return real_create_students(new, **kwargs)
 
     with (
         patch(
-            "data_imports.services.create_student",
+            "data_imports.services.create_students",
             side_effect=created_elsewhere_first,
         ),
         pytest.raises(DjangoValidationError) as raised,
@@ -459,7 +462,7 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
 
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
-    assert "already exists" in message
+    assert "now held by a student" in message
     assert message.endswith("Nothing was imported - check the file again.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
@@ -471,7 +474,7 @@ def test_a_database_conflict_during_commit_fails_it_clearly() -> None:
 
     with (
         patch(
-            "data_imports.services.create_student",
+            "data_imports.services.create_students",
             side_effect=IntegrityError("duplicate key"),
         ),
         pytest.raises(DjangoValidationError, match="conflicts with a change saved"),

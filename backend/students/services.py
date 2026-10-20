@@ -7,6 +7,9 @@ thin function per action rather than recording scattered across serializers.
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -15,7 +18,7 @@ from django.db import connection, models, transaction
 
 from accounts.models import User
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, record_many
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
 from students import wksa_ids
@@ -44,12 +47,18 @@ def lock_wksa_ids(*ids: str) -> None:
     student with an ID, or replaces one, takes its lock first; the other then
     waits and sees the committed result.
     """
+    keys = [f"wksa_id:{wksa_id}" for wksa_id in sorted(set(ids))]
+    if not keys:
+        return
     with connection.cursor() as cursor:
-        for wksa_id in sorted(set(ids)):
-            cursor.execute(
-                "SELECT pg_advisory_xact_lock(hashtext(%s))",
-                [f"wksa_id:{wksa_id}"],
-            )
+        # One statement however many: taken in the sorted order given, so two
+        # callers holding overlapping IDs cannot each wait on the other.
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(key)) "
+            "FROM unnest(%s::text[]) AS keys(key)",
+            [keys],
+        )
+        cursor.fetchall()
 
 
 @transaction.atomic
@@ -79,6 +88,96 @@ def create_student(
         actor=actor,
     )
     return student
+
+
+@dataclass(frozen=True)
+class NewStudent:
+    wksa_id: str
+    first_name: str
+    last_name: str
+    date_of_birth: date
+    current_rank: Rank
+    status: str = Student.Status.ACTIVE
+
+
+TAKEN_MESSAGE = "This WKSA ID is now held by a student."
+
+
+def wksa_ids_held(ids: Sequence[str]) -> set[str]:
+    """Which of `ids` a student holds, or held before (replaced or deleted)."""
+    wanted = set(ids)
+    return (
+        set(
+            Student.objects.filter(wksa_id__in=wanted).values_list("wksa_id", flat=True)
+        )
+        | set(
+            PreviousWksaId.objects.filter(wksa_id__in=wanted).values_list(
+                "wksa_id",
+                flat=True,
+            ),
+        )
+        | set(
+            RetiredWksaId.objects.filter(wksa_id__in=wanted).values_list(
+                "wksa_id",
+                flat=True,
+            ),
+        )
+    )
+
+
+@transaction.atomic
+def create_students(
+    new_students: Sequence[NewStudent],
+    *,
+    actor: User | None = None,
+) -> list[Student]:
+    """Many students at once - each as create_student makes one, together.
+
+    The same rules and the same STUDENT_CREATED event per student, but each
+    rule that needs the database is asked once for all of them: every ID's
+    lock is taken in one statement, then whether any is held is one query
+    per table. All or nothing: any refusal raises with the student's ID as
+    the error key, and nothing is created.
+    """
+    candidates = [
+        Student(
+            wksa_id=wksa_ids.normalise(new.wksa_id),
+            first_name=new.first_name,
+            last_name=new.last_name,
+            date_of_birth=new.date_of_birth,
+            current_rank=new.current_rank,
+            status=new.status,
+        )
+        for new in new_students
+    ]
+    errors: dict[str, list[str]] = {}
+    for candidate in candidates:
+        # Checked below for all of them at once.
+        candidate.previous_ids_checked = True
+        try:
+            candidate.full_clean(
+                exclude=["current_rank"],
+                validate_unique=False,
+                validate_constraints=False,
+            )
+        except ValidationError as refused:
+            errors.setdefault(candidate.wksa_id, []).extend(refused.messages)
+    ids = [candidate.wksa_id for candidate in candidates]
+    for repeated in [wksa_id for wksa_id, times in Counter(ids).items() if times > 1]:
+        errors.setdefault(repeated, []).append("This WKSA ID is given twice.")
+    lock_wksa_ids(*ids)
+    for held in wksa_ids_held(ids):
+        errors.setdefault(held, []).append(TAKEN_MESSAGE)
+    if errors:
+        raise ValidationError(errors)
+
+    created = Student.objects.bulk_create(candidates, batch_size=500)
+    record_many(
+        AuditAction.STUDENT_CREATED,
+        [(student, f"Student {student} created.") for student in created],
+        actor=actor,
+    )
+    return created
 
 
 @transaction.atomic

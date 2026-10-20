@@ -460,3 +460,30 @@ def test_a_fix_made_while_the_import_finishes_waits_and_is_refused() -> None:
     assert isinstance(fixed, ValidationError), fixed
     assert "already imported" in " ".join(fixed.messages)
     assert Student.objects.get().first_name == "Alex"
+
+
+def test_finishing_costs_the_same_queries_for_two_rows_as_for_forty() -> None:
+    def roster_of(count: int, start: int) -> list[list[object]]:
+        return [
+            [
+                f"206-2-{start + index:03d}",
+                "Alex",
+                f"Kim{index}",
+                "2012-05-01",
+                "White",
+                "",
+            ]
+            for index in range(count)
+        ]
+
+    admin = admin_user()
+    small = mapped(*roster_of(2, 0), admin=admin)
+    large = mapped(*roster_of(40, 100), admin=admin)
+
+    with CaptureQueriesContext(connection) as few:
+        commit_student_import(small, actor=admin)
+    with CaptureQueriesContext(connection) as many:
+        commit_student_import(large, actor=admin)
+
+    assert Student.objects.count() == 42
+    assert len(many.captured_queries) == len(few.captured_queries)

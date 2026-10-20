@@ -6,10 +6,9 @@ stored rows under the batch's lock, never on a fresh parse (decision log,
 2026-10-20 import overhaul). Finishing still re-checks every row against the
 database as it is at that moment, so nothing a stale screen showed is trusted.
 
-Every created `Student` goes through `students.services.create_student` -
-the exact service a hand-created student uses - so full model validation and
-the normal `STUDENT_CREATED` audit event happen identically either way: a
-bulk importer never bypasses the domain-service layer.
+Every created `Student` goes through `students.services.create_students` -
+the hand-created student's rules and `STUDENT_CREATED` event, for many at
+once - so a bulk importer never bypasses the domain-service layer.
 """
 
 from __future__ import annotations
@@ -56,7 +55,7 @@ from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.models import Rank
 from students import wksa_ids
 from students.models import PreviousWksaId, RetiredWksaId, Student
-from students.services import create_student
+from students.services import NewStudent, create_students
 
 logger = logging.getLogger(__name__)
 
@@ -1049,36 +1048,47 @@ def commit_student_import(
     ]
 
     active_ranks = {rank.pk: rank for rank in Rank.objects.filter(active=True)}
-    created_ids: dict[int, int] = {}
+    new_students: list[NewStudent] = []
     for row in ready_rows:
         # A READY row always has both resolved by _classify_student_row; the
         # None checks narrow the types and catch a rank deactivated since.
         rank = active_ranks.get(row.current_rank_id) if row.current_rank_id else None
         if rank is None or row.date_of_birth is None:
             raise _row_no_longer_valid(row, "its rank is no longer active.")
-        # Checked moments ago, so a refusal here is a concurrent change - such
-        # as the same WKSA ID created elsewhere. All-or-nothing per the
-        # recorded commit-semantics deviation: the whole batch rolls back
-        # rather than silently skipping the row.
-        try:
-            with transaction.atomic():
-                student = create_student(
-                    wksa_id=row.wksa_id,
-                    first_name=row.first_name,
-                    last_name=row.last_name,
-                    date_of_birth=row.date_of_birth,
-                    current_rank=rank,
-                    status=row.status,
-                    actor=actor,
-                )
-        except DjangoValidationError as exc:
-            raise _row_no_longer_valid(row, " ".join(exc.messages)) from exc
-        except IntegrityError as exc:
-            raise _row_no_longer_valid(
-                row,
-                "it conflicts with a change saved since the preview.",
-            ) from exc
-        created_ids[row.row_number] = student.pk
+        new_students.append(
+            NewStudent(
+                wksa_id=row.wksa_id,
+                first_name=row.first_name,
+                last_name=row.last_name,
+                date_of_birth=row.date_of_birth,
+                current_rank=rank,
+                status=row.status,
+            ),
+        )
+    # All at once, all or nothing (the recorded commit-semantics deviation).
+    # Checked moments ago, so a refusal here is a concurrent change - such as
+    # the same WKSA ID created elsewhere - and the whole batch rolls back
+    # rather than silently skipping the row.
+    try:
+        created = create_students(new_students, actor=actor)
+    except DjangoValidationError as exc:
+        by_id = {row.wksa_id: row for row in ready_rows}
+        first_id, messages = next(iter(exc.message_dict.items()))
+        refused = by_id.get(first_id, ready_rows[0])
+        raise _row_no_longer_valid(refused, " ".join(messages)) from exc
+    except IntegrityError as exc:
+        raise DjangoValidationError(
+            {
+                "rows": [
+                    "A row conflicts with a change saved since the check. "
+                    "Nothing was imported - check the file again.",
+                ],
+            },
+        ) from exc
+    created_ids = {
+        row.row_number: student.pk
+        for row, student in zip(ready_rows, created, strict=True)
+    }
 
     _record_created(locked, created_ids)
     return _mark_committed(

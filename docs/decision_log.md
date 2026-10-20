@@ -33,7 +33,9 @@ Imports are rebuilt backend first, then the screens. The owner's choices:
 - **No background worker.** A large roster is made fast by validating once
   and saving in bulk, still all-or-nothing, and the row limit comes down to
   what the club needs. F-19 (about a minute for 5,000 rows) is closed by
-  this, not deferred.
+  this, not deferred: built 2026-10-20 (A3). The limit is 1,000 rows, and
+  1,000 rows now commit in 0.6 s with 44 queries, against 8.2 s and 8,953
+  queries one at a time, measured locally on the same scratch database.
 - **Imports map onto KukGrade's own fields.** Whatever a file has that
   matches a field is imported there; what it lacks can be supplied by the
   person importing for the whole file; columns KukGrade has no field for are
@@ -2986,8 +2988,8 @@ decisions" above.
    WKSA ID scheme" above: the two forms are enforced on every path, and the
    school owner confirmed a number is never reused, so every ID is unique
    for good.
-2. **Roster import (F-19)** - deferred to the planned import overhaul. A
-   5,000-row commit takes about a minute in one request.
+2. **Roster import (F-19)** - done 2026-10-20 by the import overhaul (A3):
+   a bulk commit, and a 1,000-row limit; see the overhaul entry above.
 3. **Housekeeping** - done 2026-10-20: the logo's source artwork moved to
    `frontend/Frontend-Design-Register/brand/`, beside FDR-048, out of the
    app's code; the 5,949 orphaned dev upload files were removed with

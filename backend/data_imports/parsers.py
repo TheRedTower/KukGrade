@@ -18,7 +18,9 @@ from typing import Any
 
 import openpyxl
 
-MAX_ROWS = 5000
+# One school's roster is a few hundred students; a file needing more is not
+# one school's (owner, 2026-10-20 import overhaul).
+MAX_ROWS = 1000
 MAX_COLUMNS = 50
 # Expanded size of every part of an .xlsx archive together. Sizes are the
 # ones the archive declares; Python's zip reader stops at the declared size,

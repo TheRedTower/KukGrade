@@ -37,6 +37,9 @@ describe("Overview screen (Operational Ledger)", () => {
       if (url.includes("/api/gradings/sessions/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
@@ -66,7 +69,26 @@ describe("Overview screen (Operational Ledger)", () => {
       screen.getByText("No future grading sessions are currently scheduled."),
     ).toBeVisible();
 
-    // Recent activity empty state
+    // Recent activity is the audit log's feed: someone who may not read the
+    // log is shown no section at all, not an empty one.
+    expect(screen.queryByText("Recent activity")).not.toBeInTheDocument();
+    expect(screen.queryByText("No recent activity recorded.")).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).includes("/api/audit-events/")),
+    ).toBe(false);
+  });
+
+  it("shows an audit reader that there is no recent activity", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) {
+        return jsonResponse(200, { ...authUser, can_read_audit_log: true });
+      }
+      return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
@@ -86,6 +108,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action,
         action_display,
         entity_type: "CandidateOutcome",
+        entity_type_display: "Outcome",
         entity_id: String(id),
         actor_email: "master@example.com",
         actor_name: "Morgan Master",
@@ -114,7 +137,10 @@ describe("Overview screen (Operational Ledger)", () => {
         if (url.includes("/api/gradings/sessions/")) {
           return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
         }
-        if (url.includes("/api/audit-events/")) {
+        if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
+      if (url.includes("/api/audit-events/")) {
           return jsonResponse(200, { count: events.length, next: null, previous: null, results: events });
         }
         return jsonResponse(404, {});
@@ -123,7 +149,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     render(<App />);
 
-    const ledger = await screen.findByRole("table", { name: "Recent activity ledger" });
+    const ledger = await screen.findByRole("table", { name: "Recent activity" });
     const statusOf = (summary: string) =>
       within(ledger).getByText(summary).closest("tr")!.querySelector(".status-pill-badge")!;
     expect(statusOf("Password reset for someone@example.com.")).toHaveTextContent("User updated");
@@ -204,6 +230,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action: "ASSESSMENT_COMPLETED",
         action_display: "Assessment Completed",
         entity_type: "CandidateAssessment",
+        entity_type_display: "Assessment",
         entity_id: "401",
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
@@ -216,6 +243,7 @@ describe("Overview screen (Operational Ledger)", () => {
         action: "ASSESSMENT_STARTED",
         action_display: "Assessment Started",
         entity_type: "CandidateAssessment",
+        entity_type_display: "Assessment",
         entity_id: "402",
         actor_email: authUser.email,
         actor_name: "Casey Instructor",
@@ -238,6 +266,9 @@ describe("Overview screen (Operational Ledger)", () => {
           previous: null,
           results: assessments,
         });
+      }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
       }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, {
@@ -265,7 +296,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // Needs attention card
     expect(await screen.findByText("Student One")).toBeVisible();
-    expect(screen.getByText("Assessment complete · Awaiting your review")).toBeVisible();
+    expect(screen.getByText("Assessment complete · Awaiting lock")).toBeVisible();
     expect(screen.getByText("Student Two")).toBeVisible();
     expect(screen.getByText("Assessment in progress · Scoring pending")).toBeVisible();
 
@@ -285,6 +316,11 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(await screen.findByText("Assessment complete (ready for review)")).toBeVisible();
     expect(screen.getByText("Assessment started on the mat")).toBeVisible();
     expect(screen.getByRole("button", { name: /View all activity/i })).toBeVisible();
+
+    // An attention item opens that candidate's assessment, not a list to
+    // search: the finished one at its record, the unfinished one to score.
+    await userEvent.setup().click(screen.getByText("Student One"));
+    expect(window.location.pathname).toBe("/gradings/101/assessments/201/review");
   });
 
   it("offers the audit feed by audit-log grant, not by staff flags", async () => {
@@ -335,6 +371,9 @@ describe("Overview screen (Operational Ledger)", () => {
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
+      if (url.includes("/api/audit-events/labels/")) {
+        return jsonResponse(200, { actions: [], entities: [] });
+      }
       if (url.includes("/api/audit-events/")) {
         return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
       }
@@ -348,7 +387,7 @@ describe("Overview screen (Operational Ledger)", () => {
     // Click "Open session →"
     const openSessionButton = await screen.findByRole("button", { name: /Open session/i });
     await user.click(openSessionButton);
-    expect(window.location.pathname).toBe("/gradings");
+    expect(window.location.pathname).toBe("/gradings/101");
 
     // Navigate back to overview
     window.history.replaceState({}, "", "/");

@@ -1,6 +1,7 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import { ApiError } from "./api";
+import { useState, type ReactNode } from "react";
+
 import { useAuth } from "./auth";
+import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
 
 type MustChangePasswordProps = {
@@ -8,61 +9,21 @@ type MustChangePasswordProps = {
 };
 
 export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
-  const { user, changePassword, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
 
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPasswords, setShowPasswords] = useState(false);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{
-    current_password?: string[];
-    new_password?: string[];
-    confirm_password?: string[];
-  }>({});
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setFieldErrors({});
-
-    if (newPassword !== confirmPassword) {
-      setFieldErrors({
-        confirm_password: ["New passwords do not match."],
-      });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setFieldErrors({
-        new_password: ["Password must be at least 8 characters."],
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
+  async function handleSignOut() {
+    setSignOutError(null);
+    setIsSigningOut(true);
     try {
-      await changePassword(currentPassword, newPassword);
-    } catch (submitError) {
-      if (submitError instanceof ApiError) {
-        if (submitError.fields) {
-          setFieldErrors({
-            current_password: submitError.messagesFor("current_password"),
-            new_password: submitError.messagesFor("new_password"),
-          });
-        }
-        if (submitError.nonFieldMessages.length > 0) {
-          setError(submitError.nonFieldMessages.join(" "));
-        } else if (submitError.message && !submitError.fields) {
-          setError(submitError.message);
-        }
-      } else {
-        setError("Could not update password. Check your connection and try again.");
-      }
+      await logout();
+    } catch {
+      // The session may still be live, so the page stays rather than
+      // showing a signed-out screen backed by a valid cookie.
+      setSignOutError("Could not sign out. Check your connection and retry.");
     } finally {
-      setIsSubmitting(false);
+      setIsSigningOut(false);
     }
   }
 
@@ -92,8 +53,8 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
 
         <h1 id="change-password-title">Choose a new password</h1>
         <p className="must-change-password-subtitle">
-          Your account was provisioned with a temporary password. To protect
-          student records and grading outcomes, please set your personal password.
+          You signed in with a temporary password. Choose your own password to
+          continue.
         </p>
 
         {user ? (
@@ -103,104 +64,32 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
           </div>
         ) : null}
 
-        <form
-          aria-labelledby="change-password-title"
+        {/* Succeeding refetches the current user, whose cleared
+            must_change_password lets the app open. */}
+        <ChangePasswordForm
+          actionsClassName="must-change-password-actions"
           className="must-change-password-form"
-          onSubmit={handleSubmit}
-        >
-          <label>
-            Temporary or current password
-            <div className="password-field">
-              <input
-                autoComplete="current-password"
-                name="current_password"
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-                type={showPasswords ? "text" : "password"}
-                value={currentPassword}
-              />
-              <button
-                aria-label={showPasswords ? "Hide passwords" : "Show passwords"}
-                className="password-toggle"
-                onClick={() => setShowPasswords((prev) => !prev)}
-                type="button"
-              >
-                {showPasswords ? "Hide" : "Show"}
-              </button>
-            </div>
-            {fieldErrors.current_password?.map((msg) => (
-              <p className="form-field-error" key={msg}>
-                {msg}
-              </p>
-            ))}
-          </label>
-
-          <label>
-            New password
-            <div className="password-field">
-              <input
-                autoComplete="new-password"
-                name="new_password"
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                type={showPasswords ? "text" : "password"}
-                value={newPassword}
-              />
-            </div>
-            {fieldErrors.new_password?.map((msg) => (
-              <p className="form-field-error" key={msg}>
-                {msg}
-              </p>
-            ))}
-          </label>
-
-          <label>
-            Confirm new password
-            <div className="password-field">
-              <input
-                autoComplete="new-password"
-                name="confirm_password"
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                type={showPasswords ? "text" : "password"}
-                value={confirmPassword}
-              />
-            </div>
-            {fieldErrors.confirm_password?.map((msg) => (
-              <p className="form-field-error" key={msg}>
-                {msg}
-              </p>
-            ))}
-          </label>
-
-          {error ? (
-            <div className="form-error-banner" role="alert">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="must-change-password-actions">
-            <button
-              className="primary-button"
-              disabled={isSubmitting}
-              type="submit"
-            >
-              {isSubmitting ? "Updating password..." : "Update password and continue"}
-            </button>
+          currentPasswordLabel="Temporary password"
+          labelledBy="change-password-title"
+          secondaryAction={(isSubmitting) => (
             <button
               className="secondary-button"
-              disabled={isSubmitting}
-              onClick={() => void logout()}
+              disabled={isSubmitting || isSigningOut}
+              onClick={() => void handleSignOut()}
               type="button"
             >
               Sign out
             </button>
+          )}
+          submitClassName="primary-button"
+          submitLabel="Update password and continue"
+          submittingLabel="Updating password..."
+        />
+        {signOutError ? (
+          <div className="form-error-banner" role="alert">
+            {signOutError}
           </div>
-        </form>
-
-        <p className="security-guarantee-note">
-          Passwords are encrypted using PBKDF2 with SHA-256 and never logged.
-        </p>
+        ) : null}
       </main>
     </div>
   );

@@ -8,71 +8,13 @@ import {
   type AuditEvent,
   ApiError,
   getAuditEvents,
+  getAuditLabels,
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./AuditScreen.css";
 import { calendarDaysAgo, formatApiDate, formatDateTime, formatTime, parseApiDate } from "./dates";
 
 const PAGE_SIZE = 10;
-
-// A Record over the generated enum, so a new backend action cannot be
-// left out of the filter without a type error.
-const ACTION_LABELS: Record<AuditAction, string> = {
-  SESSION_CREATED: "Grading session created",
-  SESSION_UPDATED: "Grading session updated",
-  SESSION_TRANSITIONED: "Grading session transitioned",
-  SESSION_DELETED: "Grading session deleted",
-  CANDIDATE_REGISTERED: "Candidate registered",
-  CANDIDATE_UPDATED: "Candidate updated",
-  CANDIDATE_WITHDRAWN: "Candidate withdrawn",
-  CANDIDATE_DELETED: "Candidate deleted",
-  ASSESSMENT_GENERATED: "Assessment generated",
-  ASSESSMENT_STARTED: "Assessment started",
-  ASSESSMENT_UPDATED: "Assessment notes updated",
-  ASSESSMENT_COMPLETED: "Assessment completed",
-  ASSESSMENT_REOPENED: "Assessment reopened",
-  ASSESSMENT_DELETED: "Assessment deleted",
-  ITEM_RESULT_RECORDED: "Assessment item result recorded",
-  OUTCOME_CREATED: "Outcome created",
-  OUTCOME_PROPOSED: "Outcome proposed",
-  OUTCOME_FINALISED: "Outcome finalised",
-  PROMOTION_RECORDED: "Promotion recorded",
-  STUDENT_CREATED: "Student created",
-  STUDENT_UPDATED: "Student updated",
-  STUDENT_STATUS_CHANGED: "Student status changed",
-  STUDENT_DELETED: "Student deleted",
-  USER_CREATED: "User created",
-  USER_UPDATED: "User updated",
-  USER_AUTHORITY_CHANGED: "User authority changed",
-  USER_DELETED: "User deleted",
-  IMPORT_BATCH_COMMITTED: "Import committed",
-  IMPORT_BATCH_CANCELLED: "Import cancelled",
-  IMPORT_BATCH_EXPIRED: "Import expired",
-  LEGACY_GRADING_LINKED: "Historical record linked",
-  LEGACY_GRADING_UNLINKED: "Historical record unlinked",
-  LEGACY_GRADING_RANK_RESOLVED: "Historical record rank resolved",
-  LEGACY_GRADING_VOIDED: "Historical record voided",
-};
-
-const ACTION_OPTIONS = (Object.entries(ACTION_LABELS) as [AuditAction, string][]).map(
-  ([value, label]) => ({ value, label }),
-);
-
-// A Record over the generated entity enum, for the same reason as actions.
-const ENTITY_LABELS: Record<AuditEntity, string> = {
-  GradingSession: "Grading session",
-  GradingCandidate: "Candidate",
-  CandidateAssessment: "Assessment",
-  CandidateAssessmentItem: "Assessment item",
-  CandidateOutcome: "Outcome",
-  Promotion: "Promotion",
-  Student: "Student",
-  User: "User",
-  ImportBatch: "Import batch",
-  LegacyGradingRecord: "Historical grading record",
-};
-
-const ENTITY_OPTIONS = Object.entries(ENTITY_LABELS) as [AuditEntity, string][];
 
 function eventTime(value: string): { date: string; time: string } {
   const daysAgo = calendarDaysAgo(value);
@@ -102,7 +44,7 @@ function eventMetadata(event: AuditEvent): string {
     event.metadata === undefined ||
     (typeof event.metadata === "object" && Object.keys(event.metadata).length === 0)
   ) {
-    return "No additional metadata recorded.";
+    return "No further details recorded.";
   }
   return JSON.stringify(event.metadata, null, 2);
 }
@@ -128,9 +70,14 @@ export function AuditScreen(): React.ReactElement {
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
   const action = (searchParams.get("action") ?? "") as AuditAction | "";
   const entityType = (searchParams.get("entity_type") ?? "") as AuditEntity | "";
+  // The names come from the server, which owns the list (audit/models.py).
+  const labels = useQuery({ queryKey: ["auditLabels"], queryFn: getAuditLabels });
+  const entityLabel = labels.data?.entities.find((option) => option.value === entityType)?.label;
   const occurredFrom = searchParams.get("occurred_from") ?? "";
   const occurredTo = searchParams.get("occurred_to") ?? "";
   const appliedSearch = searchParams.get("search") ?? "";
+  // Set by links from a record ("View audit events"); no control edits it.
+  const entityId = searchParams.get("entity_id") ?? "";
 
 
   const updateFilters = (updates: Record<string, string>, preservePage = false) => {
@@ -149,6 +96,7 @@ export function AuditScreen(): React.ReactElement {
       page,
       action,
       entityType,
+      entityId,
       occurredFrom,
       occurredTo,
       appliedSearch,
@@ -159,6 +107,7 @@ export function AuditScreen(): React.ReactElement {
         page_size: PAGE_SIZE,
         action: action || undefined,
         entity_type: entityType || undefined,
+        entity_id: entityId || undefined,
         occurred_from: occurredFrom || undefined,
         occurred_to: occurredTo || undefined,
         search: appliedSearch || undefined,
@@ -169,7 +118,9 @@ export function AuditScreen(): React.ReactElement {
   const totalCount = query.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const pageNumbers = useMemo(() => visiblePages(page, totalPages), [page, totalPages]);
-  const hasFilters = Boolean(action || entityType || occurredFrom || occurredTo || appliedSearch);
+  const hasFilters = Boolean(
+    action || entityType || entityId || occurredFrom || occurredTo || appliedSearch,
+  );
 
   // The trigger is restored explicitly: a clicked button is not focused in
   // every browser, so the hook's "whatever had focus" may not be it.
@@ -189,9 +140,9 @@ export function AuditScreen(): React.ReactElement {
           <h1 id="audit-heading">Audit</h1>
           <p>A permanent record of sensitive activity</p>
         </div>
-        <div className="audit-append-only" aria-label="Audit events are append-only">
+        <div className="audit-append-only" aria-label="Audit events are permanent">
           <span aria-hidden="true">●</span>
-          Append-only
+          Permanent
         </div>
       </header>
 
@@ -204,14 +155,14 @@ export function AuditScreen(): React.ReactElement {
         }}
       >
         <label className="audit-filter audit-filter-search">
-          <span>Search entity ID or summary</span>
+          <span>Search record number or summary</span>
           <div className="audit-search-row">
             <input
               key={appliedSearch}
               ref={searchInputRef}
               type="search"
               defaultValue={appliedSearch}
-              placeholder="Search by ID or keyword…"
+              placeholder="Search by number or keyword…"
             />
             <button type="submit" className="audit-search-button">Search</button>
           </div>
@@ -224,21 +175,21 @@ export function AuditScreen(): React.ReactElement {
             onChange={(event) => updateFilters({ action: event.target.value })}
           >
             <option value="">All actions</option>
-            {ACTION_OPTIONS.map((option) => (
+            {labels.data?.actions.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </label>
 
         <label className="audit-filter">
-          <span>Entity type</span>
+          <span>Record type</span>
           <select
             value={entityType}
             onChange={(event) => updateFilters({ entity_type: event.target.value })}
           >
-            <option value="">All entities</option>
-            {ENTITY_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
+            <option value="">All record types</option>
+            {labels.data?.entities.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </label>
@@ -264,7 +215,15 @@ export function AuditScreen(): React.ReactElement {
         </label>
 
         <div className="audit-filter-summary">
-          <span>{totalCount} event{totalCount === 1 ? "" : "s"}</span>
+          <span>
+            {totalCount} event{totalCount === 1 ? "" : "s"}
+            {entityId && (
+              <>
+                {" "}
+                for {entityLabel ?? "record"} #{entityId}
+              </>
+            )}
+          </span>
           {hasFilters && (
             <button
               type="button"
@@ -306,7 +265,7 @@ export function AuditScreen(): React.ReactElement {
                     <th scope="col">Action</th>
                     <th scope="col">Summary</th>
                     <th scope="col">Actor</th>
-                    <th scope="col">Entity</th>
+                    <th scope="col">Record</th>
                     <th scope="col"><span className="visually-hidden">Event details</span></th>
                   </tr>
                 </thead>
@@ -326,7 +285,7 @@ export function AuditScreen(): React.ReactElement {
                         <td>{actorLabel(event)}</td>
                         <td>
                           <span className="audit-entity-type">
-                            {ENTITY_LABELS[event.entity_type]}
+                            {event.entity_type_display}
                           </span>
                           <span className="audit-entity-id">#{event.entity_id}</span>
                         </td>
@@ -428,15 +387,14 @@ export function AuditScreen(): React.ReactElement {
             <dl className="audit-detail-grid">
               <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
               <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-              <div><dt>Entity</dt><dd>{ENTITY_LABELS[selectedEvent.entity_type]} #{selectedEvent.entity_id}</dd></div>
-              <div><dt>Action code</dt><dd><code>{selectedEvent.action}</code></dd></div>
+              <div><dt>Record</dt><dd>{selectedEvent.entity_type_display} #{selectedEvent.entity_id}</dd></div>
             </dl>
             <div className="audit-detail-section">
               <h3>Summary</h3>
               <p>{selectedEvent.summary}</p>
             </div>
             <div className="audit-detail-section">
-              <h3>Recorded metadata</h3>
+              <h3>Recorded details</h3>
               <pre>{eventMetadata(selectedEvent)}</pre>
             </div>
           </section>

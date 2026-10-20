@@ -94,8 +94,8 @@ identical mechanism (`accounts.permissions.AUTHORITY_PERMISSIONS`) as the
 other three, so it is listed alongside them rather than introducing a second
 grant mechanism.
 
-Final-decision authority is administrator-exclusive by decision (2026-09-16,
-see `decision_log.md`): granting it to an administrator, or promoting a
+Final-decision authority is never held by an administrator, by decision
+(2026-09-16, see `decision_log.md`): granting it to an administrator, or promoting a
 holder to administrator, is refused outright. Any number of instructors may
 hold it - a second Master is a normal outcome, not an exception (2026-09-25,
 see `decision_log.md`) - but an administrator never can. Administrators hold
@@ -110,10 +110,35 @@ administrator-only user-management exclusion for both.
 
 The syllabus catalogue is read-only while syllabus versioning is deferred.
 
+### What an Administrator can do to other accounts (2026-10-20)
+
+The table above is what each role can do; this is what a non-superuser
+Administrator may do to a particular account, mapped by request on
+2026-10-20 and closed by the owner's decision of the same day
+(`decision_log.md`). A superuser can do all of it to any account but their
+own, and is the only account with the Django admin site unless one grants it
+to another (`is_staff`, which the API never sets).
+
+| To this account | Edit name, email | Change role | Activate / deactivate | Grant / revoke authority | Reset password | Delete |
+| --- | --- | --- | --- | --- | --- | --- |
+| An instructor | Yes | Yes | Yes | Yes | Yes | Yes |
+| Another administrator | Yes | Yes | Yes | Yes (never final decisions) | Yes | Yes |
+| A superuser, or any account with admin site access | No | No | No | No | No | No |
+| Their own | Yes (name also from the account menu) | No | No | No | No - change it instead | No |
+
+Every "No" is refused by the service that makes the change
+(`accounts.services.can_manage` for the third row; `update_platform_user`
+for your own role and status), so the API and Django admin agree; the Users
+API serves `manageable` on each account and the user page offers no change
+it would refuse. Admin site access itself (`is_staff`, `is_superuser`) is
+granted or removed only by a superuser, and Django admin shows another
+superuser's record view-only to anyone else.
+
 ## Backend Enforcement
 
 - Every endpoint requires authentication except `/api/health/`,
-  `/api/ready/`, `/api/site/`, and login.
+  `/api/ready/`, `/api/site/`, login, and `/api/setup/` - which only creates
+  the first administrator, given the one-time code in the server's log.
 - Every viewset declares a `permission_map` from action to required Django
   permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
   action is denied, so a new endpoint fails closed.
@@ -122,7 +147,13 @@ The syllabus catalogue is read-only while syllabus versioning is deferred.
   change its password, and sign out, whatever permissions it holds
   (2026-09-29). `accounts.middleware.ForcePasswordChangeMiddleware` applies
   this to every view at once, so a new endpoint is gated without declaring
-  anything; see `api_contract.md`.
+  anything; see `api_contract.md`. Once that temporary password expires, the
+  account cannot sign in at all until an administrator issues a new one.
+- Only a superuser changes an account that can use the Django admin site
+  (`is_staff` or `is_superuser`) - a reset included, since its temporary
+  password signs in as that account - and nobody resets their own or changes
+  their own role or status (`accounts.services.can_manage`, see "What an
+  Administrator can do to other accounts" above).
 - Final decisions, promotion, and locked-session withdrawal/cancellation each
   add a per-user authority check on top, pinned by
   `accounts/test_permission_matrix.py`.

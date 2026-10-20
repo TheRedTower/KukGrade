@@ -215,7 +215,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     const adminUser = {
       ...authUser,
       ...ADMINISTRATOR_CAPABILITIES,
-    ...ADMINISTRATOR_CAPABILITIES,
       role_display: "Administrator",
     } satisfies AuthUser;
     const emptyAdminFetch = vi.fn().mockImplementation(async (url: string) => {
@@ -285,22 +284,8 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     const filterFetch = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
-      if (url.includes("/api/gradings/sessions/") && url.includes("page_size=200")) {
-        return jsonResponse(200, {
-          count: 4,
-          next: null,
-          previous: null,
-          results: [...testSessions, cancelledSession],
-        });
-      }
-      if (url.includes("/api/gradings/sessions/") && url.includes("status=CANCELLED")) {
-        return jsonResponse(200, { count: 1, next: null, previous: null, results: [cancelledSession] });
-      }
       if (url.includes("/api/gradings/sessions/")) {
-        return jsonResponse(200, { count: 3, next: null, previous: null, results: testSessions });
-      }
-      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) {
-        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        return sessionsResponse(url, [...testSessions, cancelledSession]);
       }
       return jsonResponse(404, {});
     });
@@ -310,14 +295,20 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Gradings" });
-    // Wait for sessions to load — Autumn Grading appears in spotlight + table
     expect((await screen.findAllByText("Autumn Grading")).length).toBeGreaterThanOrEqual(1);
 
-    // Apply cancelled status filter — spotlight disappears, only cancelled session shown
     const statusSelect = screen.getByRole("combobox", { name: "Status" });
     await user.selectOptions(statusSelect, "CANCELLED");
-
     expect(await screen.findByText("Cancelled Test Grading")).toBeVisible();
+
+    // A status nothing has: the screen says so and offers a reset.
+    await user.selectOptions(statusSelect, "DRAFT");
+    expect(
+      await screen.findByText("No grading sessions match the selected filters."),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Reset filters" }));
+    expect(statusSelect).toHaveValue("ALL");
+    expect(await screen.findByText("Summer Grading")).toBeVisible();
   });
 
   it("allows deleting a cancelled session with no starts from the sessions list", async () => {
@@ -486,7 +477,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     full_name: "Alex Admin",
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
-    can_make_final_grading_decision: true,
+    can_make_final_grading_decision: false,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
@@ -506,11 +497,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
   });
 
   it("renders the creation form for an instructor", async () => {
-    const instructorUser = {
-      ...adminUser,
-      email: "instructor@example.com",
-      role_display: "Instructor",
-    } satisfies AuthUser;
+    const instructorUser = { ...authUser, email: "instructor@example.com" } satisfies AuthUser;
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, instructorUser);
       return jsonResponse(404, {});
@@ -683,6 +670,13 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
     // Click Cancel
     await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(window.location.pathname).toBe("/gradings");
+
+    // And the breadcrumb, from the form again
+    window.history.pushState({}, "", "/gradings/new");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await screen.findByRole("heading", { name: "Create grading session" });
+    await user.click(screen.getByRole("button", { name: "Gradings" }));
     expect(window.location.pathname).toBe("/gradings");
   });
 

@@ -6,6 +6,7 @@ import App from "./App";
 import type {
   AgeBand,
   AuthUser,
+  BulkCandidateRegistrationResponse,
   GradingCandidate,
   GradingSession,
   Rank,
@@ -28,7 +29,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     full_name: "Alex Admin",
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
-    can_make_final_grading_decision: true,
+    can_make_final_grading_decision: false,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
@@ -97,6 +98,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 102,
@@ -111,6 +113,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Inactive",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 103,
@@ -125,6 +128,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_13_TO_17",
       age_band_display: "13-17",
+      current_grading: null,
     },
     {
       id: 104,
@@ -139,6 +143,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Left",
       age_band: "AGE_8_AND_UNDER",
       age_band_display: "8 and under",
+      current_grading: null,
     },
     {
       id: 105,
@@ -153,6 +158,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       status_display: "Active",
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
   ];
 
@@ -174,6 +180,20 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     can_be_removed: false,
     withdrawal_note: "",
   };
+
+  // A registration as the server returns it, for one of the students above.
+  function registeredRow(studentId: number): GradingCandidate {
+    const registered = mockStudents.find((s) => s.id === studentId)!;
+    return {
+      ...mockExistingCandidate,
+      id: 600 + studentId,
+      student: registered.id,
+      student_display_name: `${registered.first_name} ${registered.last_name}`,
+      student_wksa_id: registered.wksa_id,
+      from_rank: registered.current_rank,
+      from_rank_name: registered.current_rank_name,
+    };
+  }
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/gradings/10/register");
@@ -254,7 +274,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Section 1: Find eligible students
     expect(screen.getByRole("heading", { name: "1. Find eligible students" })).toBeVisible();
     expect(
-      screen.getByText("Students with Left status are excluded (not eligible for grading)."),
+      screen.getByText(
+        "Students who have left, or are still registered for another grading that has not reached its result, are not listed.",
+      ),
     ).toBeVisible();
 
     // Total eligible students: 101 (Alice - White), 102 (Bob - White), 103 (Charlie - Yellow stripe).
@@ -468,45 +490,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       bulkRegisterHandler: (body) => {
         capturedPayload = body;
         return jsonResponse(200, {
-          created: [
-            {
-              candidate: {
-                id: 601,
-                session: 10,
-                student: 101,
-                student_display_name: "Alice Smith",
-                student_wksa_id: "KG-0101",
-                from_rank: 1,
-                from_rank_code: "WHITE",
-                from_rank_name: "White",
-                testing_for_rank: 2,
-                testing_for_rank_name: "Yellow stripe",
-                status: "ACTIVE",
-                status_display: "Active",
-                notes: "",
-                registered_at: "2026-09-18T10:00:00Z",
-                registered_by: 1,
-                registered_by_display_name: "Master L. Tan",
-              },
-              assessment: {
-                id: 701,
-                candidate: 601,
-                status: "NOT_STARTED",
-                status_display: "Not started",
-                candidate_student_display_name: "Alice Smith",
-                candidate_student_wksa_id: "KG-0101",
-                candidate_testing_for_rank_name: "Yellow stripe",
-                summary_comments: "",
-                positive_observations: "",
-                started_at: null,
-                completed_at: null,
-                created_at: "2026-09-18T10:00:00Z",
-                updated_at: "2026-09-18T10:00:00Z",
-              },
-            },
-          ],
+          created: [{ candidate: registeredRow(103), assessment: null }],
           errors: {},
-        });
+        } satisfies BulkCandidateRegistrationResponse);
       },
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -542,33 +528,11 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     const fetchMock = setupCohortMock({
       bulkRegisterHandler: () => {
         return jsonResponse(200, {
-          created: [
-            {
-              candidate: {
-                id: 601,
-                session: 10,
-                student: 101,
-                student_display_name: "Alice Smith",
-                student_wksa_id: "KG-0101",
-                from_rank: 1,
-                from_rank_code: "WHITE",
-                from_rank_name: "White",
-                testing_for_rank: 2,
-                testing_for_rank_name: "Yellow stripe",
-                status: "ACTIVE",
-                status_display: "Active",
-                notes: "",
-                registered_at: "2026-09-18T10:00:00Z",
-                registered_by: 1,
-                registered_by_display_name: "Master L. Tan",
-              },
-              assessment: null,
-            },
-          ],
+          created: [{ candidate: registeredRow(101), assessment: null }],
           errors: {
             "1": ["Student is already registered for this session."],
           },
-        });
+        } satisfies BulkCandidateRegistrationResponse);
       },
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -598,5 +562,30 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Finish and view session button navigates back
     await user.click(screen.getByTestId("bgc-finish-view-session-btn"));
     expect(window.location.pathname).toBe("/gradings/10");
+  });
+
+  it("flags a student held by another grading without offering a retry", async () => {
+    const heldElsewhere =
+      "This student is already registered for 'Summer Grading', which has not reached its " +
+      "result yet. A student is registered for one grading at a time; an administrator can " +
+      "correct a registration made in error.";
+    vi.stubGlobal(
+      "fetch",
+      setupCohortMock({
+        bulkRegisterHandler: () =>
+          jsonResponse(200, { created: [], errors: { "0": [heldElsewhere] } }),
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+    await user.click(screen.getByTestId("bgc-add-student-101"));
+    await user.click(screen.getByTestId("bgc-register-candidates-btn"));
+
+    expect(await screen.findByRole("heading", { name: "Resolve flagged candidates" })).toBeVisible();
+    expect(screen.getByText(heldElsewhere)).toBeVisible();
+    expect(screen.getByText("Registered for another grading")).toBeVisible();
+    expect(screen.queryByText("No retry needed")).not.toBeInTheDocument();
   });
 });

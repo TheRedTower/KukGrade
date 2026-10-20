@@ -21,7 +21,11 @@ from syllabus.models import (
     SyllabusItem,
     SyllabusRequirement,
 )
-from syllabus.services import effective_syllabus_requirements, normalize_chart_notation
+from syllabus.services import (
+    cumulative_notation,
+    effective_syllabus_requirements,
+    normalize_chart_notation,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -503,7 +507,7 @@ WORKED_EXAMPLES = [
             *ledger(
                 "FORM",
                 ("KI_CHO_HYUNG", "1-6"),
-                ("CHO_GEUP_HYUNG", "Part 3"),
+                ("CHO_GEUP_HYUNG", "Parts 1-3"),
                 *JKN_FORMS_AFTER_CHO_GEUP,
             ),
             *ledger("WEAPONS", ("SWORD_TECHS", "1-5"), ("BOHNG_DOL_LI_KI", "1-10")),
@@ -594,6 +598,15 @@ def test_effective_syllabus_is_everything_examinable_through_the_rank(
         (row["category"], row["item_code"], row["display_range"] or row["notation"])
         for row in rows
     ] == expected
+    # Which rows are core areas is served, not kept in the browser (F-31).
+    assert {row["category"] for row in rows if row["category_is_core"]} == {
+        "ETIQUETTE",
+        "FUNDAMENTALS",
+        "HAND_TECHNIQUES",
+        "KICKING",
+        "FALLING",
+        "BREAKING",
+    }
     assert all(row["required"] for row in rows)
 
 
@@ -701,6 +714,49 @@ def test_effective_syllabus_requirement_domain_function_matches_api() -> None:
 )
 def test_normalize_chart_notation(notes: str, expected: str) -> None:
     assert normalize_chart_notation(notes) == expected
+
+
+# 8-and-under Cho Geup Hyung is taught in parts: 1 at Blue, 2 at Red stripe,
+# 3 at Red. Every part taught so far is examinable, so the cumulative row
+# names them all (2026-10-18, audit F-09).
+@pytest.mark.parametrize(
+    ("rank_code", "expected"),
+    [
+        ("BLUE", "Part 1"),
+        ("RED_STRIPE", "Parts 1-2"),
+        ("RED", "Parts 1-3"),
+        ("BROWN", "Parts 1-3"),
+    ],
+)
+def test_a_form_taught_in_parts_names_every_part_taught_so_far(
+    rank_code: str,
+    expected: str,
+) -> None:
+    rows = effective_syllabus_requirements(
+        rank=Rank.objects.get(code=rank_code),
+        age_band=AgeBand.AGE_8_AND_UNDER,
+    )
+
+    by_code = {row.requirement.item.code: row for row in rows}
+    assert by_code["CHO_GEUP_HYUNG"].notation == expected
+
+
+@pytest.mark.parametrize(
+    ("notes", "expected"),
+    [
+        # Half the form, then the whole form: the whole form stands.
+        (["Chart notation: (1/2).", ""], ""),
+        (["Chart notation: (1/2)."], "Part 1 of 2"),
+        (["Chart notation: (1/2).", "Chart notation: (2/2)."], "Parts 1-2 of 2"),
+        (["Chart notation: (pt.1).", "Chart notation: (pt.3)."], "Parts 1, 3"),
+        # A range is cumulative already; the latest stands.
+        (["Chart notation: (1-3).", "Chart notation: (1-6)."], "1-6"),
+    ],
+)
+def test_cumulative_notation(notes: list[str], expected: str) -> None:
+    mappings = [SyllabusRequirement(notes=note) for note in notes]
+
+    assert cumulative_notation(mappings) == expected
 
 
 @pytest.mark.parametrize(

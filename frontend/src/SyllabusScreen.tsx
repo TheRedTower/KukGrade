@@ -9,7 +9,6 @@ import {
 import { BeltSwatch } from "./Belt";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import "./Syllabus.css";
-import { isCoreCategory } from "./syllabusCategories";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
   if (row.is_new_at_rank) {
@@ -56,7 +55,8 @@ function SyllabusLedgerTable({
   rows: EffectiveSyllabusRequirement[];
 }) {
   return (
-    <div className="syl-table-wrapper">
+    // Focusable, so a keyboard can scroll it sideways when it is wider than the screen.
+    <div className="syl-table-wrapper" tabIndex={0} role="region" aria-label={`${title} for this rank`}>
       <table className="syl-table" aria-label={`${title} for this rank`}>
         <thead>
           <tr>
@@ -67,7 +67,7 @@ function SyllabusLedgerTable({
               Range
             </th>
             <th scope="col" style={{ width: "30%" }}>
-              Provenance
+              Since
             </th>
             <th scope="col" style={{ width: "15%", textAlign: "right" }}>
               Requirement
@@ -190,8 +190,9 @@ export function SyllabusScreen() {
   );
 
   const rankName = selectedRank ? selectedRank.name : selectedRankCode;
-  const coreAreas = requirements.filter((row) => isCoreCategory(row.category));
-  const ledgers = ledgersByCategory(requirements.filter((row) => !isCoreCategory(row.category)));
+  // Which categories are core areas is served with each row.
+  const coreAreas = requirements.filter((row) => row.category_is_core);
+  const ledgers = ledgersByCategory(requirements.filter((row) => !row.category_is_core));
   // A rank with no syllabus of its own gets nothing back, rather than the
   // earlier ranks' content presented as its whole curriculum.
   const hasNoSyllabus = requirementsQuery.isSuccess && requirements.length === 0;
@@ -279,7 +280,7 @@ export function SyllabusScreen() {
           ref={beltTrackRef}
           className="syl-belt-track"
           role="region"
-          aria-label="Belt Rank Chapters"
+          aria-label="Ranks"
           tabIndex={0}
         >
           {ranks.map((rank) => {
@@ -399,7 +400,7 @@ export function SyllabusScreen() {
         <div className="syl-footer-brand">
           <strong>KukGrade</strong>
           <span className="syl-footer-divider">|</span>
-          <span>Past assessments retain their generated wording.</span>
+          <span>Past assessments keep the wording they were graded on.</span>
         </div>
         <div className="syl-footer-reference">
           Preliminary reference: WKSA curriculum chart, 2014

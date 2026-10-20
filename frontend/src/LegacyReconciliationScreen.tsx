@@ -52,7 +52,7 @@ function StudentPicker({
           type="text"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="e.g. Alex Kim or UK-1234"
+          placeholder="e.g. Alex Kim or 206-2-150"
         />
       </label>
       {results.length > 0 && (
@@ -99,6 +99,12 @@ export function LegacyReconciliationScreen() {
   });
   const ranksQuery = useRanksQuery();
   const ranks = ranksQuery.data?.results ?? [];
+  // A resolved rank shows by name, as the resolve selects do; the code only
+  // if the rank list has not loaded, and the source text while unresolved.
+  function rankLabel(id: number | null, code: string | null, sourceText: string): string {
+    if (id === null) return sourceText;
+    return ranks.find((rank) => rank.id === id)?.name ?? code ?? sourceText;
+  }
 
   const records = recordsQuery.data?.results ?? [];
   const totalCount = recordsQuery.data?.count ?? 0;
@@ -203,8 +209,7 @@ export function LegacyReconciliationScreen() {
           Historical records
         </h1>
         <p className="add-student-subtitle">
-          Link imported historical grading records to students, resolve rank mappings, or
-          void a mistaken row. Source text is never changed by any of these actions.
+          Link imported historical grading records to students, match their ranks, or void a mistaken row. What the workbook says is never changed by any of these.
         </p>
       </div>
 
@@ -249,6 +254,17 @@ export function LegacyReconciliationScreen() {
         <div className="loading-state" role="status">
           Loading historical records…
         </div>
+      ) : recordsQuery.isError ? (
+        <div className="form-alert-banner" role="alert">
+          <p>
+            {recordsQuery.error instanceof ApiError && recordsQuery.error.message
+              ? recordsQuery.error.message
+              : "Historical records could not be loaded."}
+          </p>
+          <button type="button" className="btn-secondary" onClick={() => void recordsQuery.refetch()}>
+            Try again
+          </button>
+        </div>
       ) : records.length === 0 ? (
         <div className="detail-empty-box">
           <p className="detail-empty-title">No historical records match these filters</p>
@@ -258,7 +274,7 @@ export function LegacyReconciliationScreen() {
           <table className="students-data-table" aria-label="Historical records">
             <thead>
               <tr>
-                <th scope="col">Cycle</th>
+                <th scope="col">Grading period</th>
                 <th scope="col">Name</th>
                 <th scope="col">Current rank</th>
                 <th scope="col">Testing for</th>
@@ -274,8 +290,20 @@ export function LegacyReconciliationScreen() {
                   <tr className="student-table-row">
                     <td>{cycleLabel(record)}</td>
                     <td>{record.source_name}</td>
-                    <td>{record.current_rank_code ?? record.source_current_rank_text}</td>
-                    <td>{record.testing_for_rank_code ?? record.source_testing_for_rank_text}</td>
+                    <td>
+                      {rankLabel(
+                        record.current_rank,
+                        record.current_rank_code,
+                        record.source_current_rank_text,
+                      )}
+                    </td>
+                    <td>
+                      {rankLabel(
+                        record.testing_for_rank,
+                        record.testing_for_rank_code,
+                        record.source_testing_for_rank_text,
+                      )}
+                    </td>
                     <td>
                       {record.record_kind === "AUXILIARY_NOTE"
                         ? "—"
@@ -287,7 +315,11 @@ export function LegacyReconciliationScreen() {
                       <button
                         type="button"
                         className="btn-secondary"
-                        onClick={() => setExpandedId(expandedId === record.id ? null : record.id)}
+                        onClick={() => {
+                          // A reason typed for one record never carries to another.
+                          setVoidReason("");
+                          setExpandedId(expandedId === record.id ? null : record.id);
+                        }}
                       >
                         {expandedId === record.id ? "Close" : "Manage"}
                       </button>
@@ -333,7 +365,7 @@ export function LegacyReconciliationScreen() {
                               <div className="lr-action-group">
                                 <h3>Current rank</h3>
                                 <p className="imp-help-text">
-                                  Source text: {record.source_current_rank_text || "—"}
+                                  As written: {record.source_current_rank_text || "—"}
                                 </p>
                                 <select
                                   aria-label="Resolve current rank"
@@ -355,7 +387,7 @@ export function LegacyReconciliationScreen() {
                               <div className="lr-action-group">
                                 <h3>Testing-for rank</h3>
                                 <p className="imp-help-text">
-                                  Source text: {record.source_testing_for_rank_text || "—"}
+                                  As written: {record.source_testing_for_rank_text || "—"}
                                 </p>
                                 <select
                                   aria-label="Resolve testing-for rank"

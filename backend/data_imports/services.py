@@ -21,7 +21,6 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.storage import Storage
 from django.core.files.uploadedfile import UploadedFile
 from django.db import IntegrityError, models, transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from accounts.models import User
@@ -47,8 +46,9 @@ from data_imports.parsers import (
 )
 from data_imports.storage import import_upload_storage
 from gradings.legacy_services import create_legacy_grading_record
-from gradings.models import LegacyRecordKind
+from gradings.models import LegacyGradingRecord, LegacyRecordKind
 from ranks.models import Rank
+from students import wksa_ids
 from students.models import Student
 from students.services import create_student
 
@@ -97,8 +97,8 @@ def create_import_batch(
         raise DjangoValidationError(
             {
                 "file": [
-                    f"Unsupported file type .{suffix or '?'} for {kind}. "
-                    f"Allowed: {', '.join(sorted(allowed))}.",
+                    f"KukGrade cannot read .{suffix or '?'} files for this import. "
+                    f"Use {' or '.join(sorted(allowed))}.",
                 ],
             },
         )
@@ -107,7 +107,7 @@ def create_import_batch(
     # too, so a wrong declared size cannot make it read past the limit.
     limit = settings.IMPORT_UPLOAD_MAX_BYTES
     too_large = DjangoValidationError(
-        {"file": [f"File exceeds the {limit / (1024 * 1024):g} MiB limit."]},
+        {"file": [f"The file is larger than the {limit / (1024 * 1024):g} MB limit."]},
     )
     if upload.size is not None and upload.size > limit:
         raise too_large
@@ -202,14 +202,20 @@ def _lock_uncommitted(batch: ImportBatch, verb: str) -> ImportBatch:
     locked = ImportBatch.objects.select_for_update(of=("self",)).get(pk=batch.pk)
     if locked.status != ImportBatch.Status.UPLOADED:
         raise DjangoValidationError(
-            {"batch": [f"Batch is already {locked.status} and cannot be {verb}."]},
+            {
+                "batch": [
+                    f"This import is already "
+                    f"{ImportBatch.Status(locked.status).label.lower()} and cannot "
+                    f"be {verb}.",
+                ],
+            },
         )
     return locked
 
 
 _SOURCE_FILE_GONE = (
-    "This batch's source file is no longer available "
-    "(already committed, cancelled, or expired)."
+    "This import's file is no longer available: it was already imported, "
+    "cancelled or expired. Upload the file again."
 )
 
 
@@ -257,7 +263,7 @@ def _mark_committed(
     record(
         AuditAction.IMPORT_BATCH_COMMITTED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) committed: "
+        f"Import #{locked.pk} ({locked.get_kind_display()}) finished: "
         f"{record_count} {what} created.",
         actor=actor,
         metadata={
@@ -289,7 +295,7 @@ def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
     record(
         AuditAction.IMPORT_BATCH_CANCELLED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) cancelled.",
+        f"Import #{locked.pk} ({locked.get_kind_display()}) cancelled.",
         actor=actor,
         metadata={"batch_id": locked.pk, "kind": locked.kind},
     )
@@ -320,7 +326,8 @@ def expire_import_batch(batch_id: int, *, max_age: timedelta) -> bool:
     record(
         AuditAction.IMPORT_BATCH_EXPIRED,
         locked,
-        f"Import batch #{locked.pk} ({locked.kind}) expired after {hours}h.",
+        f"Import #{locked.pk} ({locked.get_kind_display()}) expired after "
+        f"{hours} hours.",
         metadata={"batch_id": locked.pk, "kind": locked.kind},
     )
     return True
@@ -405,20 +412,12 @@ def _coerce_date(value: Any) -> date | None:
     return None
 
 
-def _resolve_rank(text: str) -> Rank | None:
-    if not text:
-        return None
-    return Rank.objects.filter(
-        Q(code__iexact=text) | Q(name__iexact=text), active=True
-    ).first()
-
-
 def _active_rank_lookup() -> dict[str, Rank]:
     """Every active rank by upper-cased code and name, read once.
 
-    Answers what `_resolve_rank` does for one text - a rank whose code or name
-    matches, ignoring case, the first by catalogue order when several do - so
-    a roster of thousands of rows needs one read, not one per row.
+    The one rank-text matcher: a rank whose code or name matches, ignoring
+    case, the first by catalogue order when several do. One read serves a
+    roster of thousands of rows, or every distinct text in a workbook.
     """
     lookup: dict[str, Rank] = {}
     for rank in Rank.objects.filter(active=True):
@@ -449,6 +448,7 @@ def _student_model_issues(
     first_name: str,
     last_name: str,
     date_of_birth: date | None,
+    rank: Rank | None,
 ) -> list[str]:
     """What `Student`'s own validation says of an unsaved row (KG-A09).
 
@@ -469,6 +469,10 @@ def _student_model_issues(
     }
     unset = {name for name, value in given.items() if not value}
     candidate = Student(**{name: given[name] for name in given.keys() - unset})
+    # Not validated as a field - it was just read from the catalogue - but
+    # clean() needs it: a black belt rank requires a black belt ID.
+    if rank is not None:
+        candidate.current_rank = rank
     try:
         candidate.full_clean(
             exclude={"current_rank", *unset},
@@ -492,7 +496,9 @@ def _labelled(name: str, message: str) -> str:
 
 
 def _row_wksa_id(values: dict[str, Any], correction: dict[str, str]) -> str:
-    return str(correction.get("wksa_id", values.get("wksa_id")) or "").strip()
+    # Tidied as Student.clean() tidies it, so a file's "a-20819" is found as
+    # the existing A-20819 and counted once.
+    return wksa_ids.normalise(correction.get("wksa_id", values.get("wksa_id")))
 
 
 def _classify_student_row(
@@ -530,7 +536,7 @@ def _classify_student_row(
     if not rank_text:
         issues.append("Current rank is required.")
     elif rank is None:
-        issues.append(f"Rank {rank_text!r} did not match the rank catalogue.")
+        issues.append(f"Rank {rank_text!r} is not a rank KukGrade recognises.")
 
     if status_text not in Student.Status.values:
         issues.append(f"Status {status_text!r} is not recognised.")
@@ -542,6 +548,7 @@ def _classify_student_row(
             first_name=first_name,
             last_name=last_name,
             date_of_birth=parsed_dob,
+            rank=rank,
         ),
     )
 
@@ -631,7 +638,7 @@ def _row_no_longer_valid(
         {
             "rows": [
                 f"Row {row.row_number} ({row.wksa_id}) is no longer valid: "
-                f"{reason} Nothing was imported - preview the file again.",
+                f"{reason} Nothing was imported - check the file again.",
             ],
         },
     )
@@ -645,7 +652,7 @@ def commit_student_import(
     column_mapping: dict[str, str],
     corrections: dict[str, dict[str, str]] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "committed again")
+    locked = _lock_uncommitted(batch, "imported again")
 
     # Never trusts a stale frontend preview - re-runs the exact same
     # validation against the source file right now.
@@ -710,9 +717,38 @@ def commit_student_import(
 
 def _parse_legacy_workbook(content: bytes, *, error_key: str) -> WorkbookParseResult:
     try:
-        return parse_ksw_colchester_workbook(content)
+        parsed = parse_ksw_colchester_workbook(content)
     except WorkbookStructureError as exc:
         raise DjangoValidationError({error_key: [str(exc)]}) from exc
+    _check_legacy_field_lengths(parsed.rows, error_key=error_key)
+    return parsed
+
+
+def _check_legacy_field_lengths(
+    rows: list[CanonicalLegacyRow],
+    *,
+    error_key: str,
+) -> None:
+    """Refuse a cell longer than its record field, naming where it is.
+
+    Source text is kept verbatim (import Decision 7), so it is never
+    truncated; committing it would fail the whole batch with an error that
+    names no row, after a preview that looked clean.
+    """
+    problems: list[str] = []
+    for row in rows:
+        for name, value in vars(row).items():
+            if not isinstance(value, str):
+                continue
+            model_field = LegacyGradingRecord._meta.get_field(name)
+            limit = getattr(model_field, "max_length", None)
+            if limit is not None and len(value) > limit:
+                problems.append(
+                    f"{row.source_locator}: {name.replace('_', ' ')} is "
+                    f"{len(value)} characters; at most {limit} can be kept.",
+                )
+    if problems:
+        raise DjangoValidationError({error_key: problems})
 
 
 def _load_legacy_workbook(batch: ImportBatch) -> WorkbookParseResult:
@@ -816,8 +852,9 @@ def preview_legacy_grading_import(
     )
 
     suggestions = []
+    ranks = _active_rank_lookup()
     for text in _distinct_rank_texts(rows):
-        suggested = _resolve_rank(text)
+        suggested = ranks.get(text.upper()) if text else None
         suggestions.append(
             RankMappingSuggestion(
                 source_text=text,
@@ -851,7 +888,7 @@ def commit_legacy_grading_import(
     actor: User,
     rank_mappings: dict[str, str | None] | None = None,
 ) -> ImportBatch:
-    locked = _lock_uncommitted(batch, "committed again")
+    locked = _lock_uncommitted(batch, "imported again")
 
     # Never trusts a stale frontend preview - re-parses the source file and
     # re-resolves every rank mapping right now.

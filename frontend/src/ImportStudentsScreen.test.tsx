@@ -174,6 +174,10 @@ describe("ImportStudentsScreen", () => {
     await user.clear(firstNameInput);
     await user.type(firstNameInput, "Alex");
 
+    // The shown count was checked without this edit, so it cannot be
+    // committed until it is re-checked.
+    expect(screen.getByRole("button", { name: "Re-check corrections first" })).toBeDisabled();
+
     mockPreviewStudentImport.mockResolvedValueOnce(readyPreview);
     await user.click(screen.getByRole("button", { name: "Re-check" }));
 
@@ -183,6 +187,7 @@ describe("ImportStudentsScreen", () => {
         corrections: { "2": { first_name: "Alex" } },
       });
     });
+    expect(await screen.findByRole("button", { name: "Create 1 student" })).toBeEnabled();
   });
 
   it("surfaces an upload error from the API", async () => {

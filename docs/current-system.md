@@ -63,7 +63,9 @@ checks on each push and pull request.
   `GET /api/syllabus/requirements/effective/` is the one read of it - one row
   per item examinable through a rank for an age band, every category (core
   areas, Techniques, Forms, Weapons) in syllabus order, the latest applicable
-  mapping supplying the range and the earliest where it was introduced. The
+  mapping supplying the range and the earliest where it was introduced. A
+  form taught in parts across ranks names every part taught so far
+  (8-and-under Cho Geup Hyung reads "Parts 1-3" from Red; 2026-10-18). The
   syllabus screen shows it, and assessment generation snapshots exactly these
   rows. A rank with no syllabus of its own recorded (White, KSN and above)
   gets nothing, and the screen says so.
@@ -72,10 +74,23 @@ checks on each push and pull request.
 - **Students API**: list, retrieve, create, partial update.
   `GET /api/students/` and detail exclude no fields except that list omits
   date of birth - the most sensitive field held, shown only on a record an
-  instructor deliberately opened. `wksa_id` is writable on create and
-  read-only afterwards, since it is the external identifier grading records
-  are matched against. Filters: `status`, `current_rank_code`, `search`
-  (name and WKSA ID). **Hard delete (2026-09-22, administrator-only)**:
+  instructor deliberately opened. **Since 2026-10-20 `wksa_id` has one of
+  two forms**: a
+  student ID `NNN-N-NNN` (the school's prefix, `206-2` for Colchester from
+  `KUKGRADE_SCHOOL_PREFIX`, and a three-digit number) or a black belt ID
+  `A-NNNNN`. Defined once in `students/wksa_ids.py`: `Student.clean()` tidies
+  and checks it on every path - API, Django admin, roster import - the
+  database's `student_wksa_id_format` constraint refuses anything else, and
+  `/api/site/` serves the forms to the Add student screen. Students
+  migration 0006 tidies existing IDs and stops, listing them, if any fit
+  neither form. A black belt rank (JKN and above) requires a black belt ID,
+  on every path including promotion, which is refused until the ID is
+  recorded. The ID changes once at most: a student ID to the black belt ID
+  WKSA hands out at the national grading, through the student edit (API and
+  Django admin); the old ID stays in that edit's audit event. Filters: `status`, `current_rank_code`, `search`
+  (name and WKSA ID). Each list row carries `current_grading` - the
+  registration not yet at its result and its stage - which the Students
+  screen shows as "Current grading" (2026-10-19). **Hard delete (2026-09-22, administrator-only)**:
   `DELETE /api/students/{id}/` (`students.services.delete_student`) cascades
   through every grading-session registration, assessment, outcome and
   promotion involving the student - every relationship is `PROTECT`, so
@@ -155,6 +170,11 @@ checks on each push and pull request.
   did not. A `bulk-register` row's `testing_for_rank` is optional and
   resolves to that student's own next active rank when omitted, so a
   mixed-belt group registers in one request with no rank picked at all.
+- **One grading at a time (2026-10-18)**: a student cannot be registered,
+  or a withdrawn registration reinstated, while another registration of theirs
+  has not reached its result (withdrawn, cancelled session, or a finalised
+  Fail/Conditional or promoted Pass settles it). The cohort builder does not
+  list such students; mistakes are corrected by an administrator.
 - **Registrations (2026-09-28)**: `bulk-register` is the only way to register
   a candidate - there is no single-item create. Each roster row offers
   "Move…" (`PATCH` the registration's `session` to another draft or open
@@ -169,7 +189,8 @@ checks on each push and pull request.
   still be edited freely.
 - Assessment generation copies the cumulative syllabus through the testing
   rank into immutable snapshot rows, each with its `position` in syllabus
-  order, and refuses a rank with no recorded syllabus. Every item is required.
+  order and the row's display `notation`, and refuses a rank with no
+  recorded syllabus. Every item is required.
   Assessments generated before 2026-09-29 keep the testing rank's own
   requirements they were generated with. Results are `NOT_ASSESSED`, `MET`,
   `NOT_MET`.
@@ -266,20 +287,64 @@ checks on each push and pull request.
   actions. `PATCH /api/users/{id}/authority/` grants or revokes the four
   sensitive permissions as booleans in the same shape `/api/auth/me/`
   returns them, and refuses a user changing their own authority.
-  `POST /api/users/{id}/set-password/` resets a password, validated by
-  Django's configured password validators. `is_staff` and `is_superuser`
-  are not part of the API.
+  `POST /api/users/{id}/set-password/` resets someone else's password to a
+  new generated temporary one; it refuses your own account (2026-10-19),
+  which is changed behind the current password instead, and - unless the
+  caller is a superuser - an account that can use the Django admin site,
+  since its temporary password would sign in as that account. The Django
+  admin site's reset applies the same rules. `is_staff` and `is_superuser`
+  are not part of the API. **Since 2026-10-20** only a superuser changes an
+  account that can use the Django admin site - its details, role, status,
+  authority, password or existence - and nobody changes their own role or
+  status; both are enforced in `accounts.services`, so the API and Django
+  admin agree, and `manageable` on each account keeps the user page from
+  offering a refused change (`permissions.md`).
+- **Temporary passwords (2026-10-19)**: nobody types a password for someone
+  else in the app. Creating a user and resetting a password each generate a
+  temporary one (`generate_temporary_password`, drawn from the password
+  policy's own rules, without look-alike characters), store only its hash,
+  and return it once with caching disabled; the Users screens show it in a
+  one-time dialog with a copy button. It expires after
+  `KUKGRADE_TEMPORARY_PASSWORD_HOURS` (default 24,
+  `temporary_password_expires_at`), enforced by `accounts.backends.
+  AccountBackend` wherever Django checks a sign-in: the API's login, the
+  admin site's, and every request on an open session; sessions opened before
+  that backend replaced Django's are re-pointed to it rather than signed out
+  (accounts migration 0007). A reset replaces it.
+  Accounts from before this change have no expiry. Django admin's add-user
+  and reset pages issue one the same way.
+- **Password policy (2026-10-19)**: 16 to 64 characters with an uppercase
+  letter, a lowercase letter, a number and a special character (a space
+  counts), not a common password and not too similar to the account's own
+  details. Defined once in `accounts/password_policy.py` and run through
+  `AUTH_PASSWORD_VALIDATORS`, so the API, generated temporary passwords and
+  the first-administrator setup all enforce it; `/api/site/` serves it and
+  the password forms tick it off as you type. It applies when a password is
+  next set - existing passwords keep working. Django's `createsuperuser`,
+  whose `--noinput` form and "bypass validation" prompt skipped it, is
+  switched off (2026-10-20): a new deployment's first administrator is set
+  up through `/api/setup/` with the one-time setup code each start writes to
+  the server's log while none exists (`accounts/setup.py`, `deployment.md`).
+  Until then a signed-out visitor sees only the setup page
+  (`SetupPage.tsx`), on any path: the code, the administrator's email, name
+  and password with the policy checklist, and the first choice of display
+  theme, on the sign-in page's layout and light and dark themes. It signs
+  the new administrator straight in.
 - **Forced password change (enforced server-side)**: creation and an
-  administrator reset both set `must_change_password`. While it is set,
+  administrator reset both set `must_change_password`, which the owner
+  choosing their own password clears along with the expiry. While it is set,
   `accounts.middleware.ForcePasswordChangeMiddleware` refuses every request
   but `/api/auth/me/`, `/api/auth/change-password/`, `/api/auth/logout/`,
   the two health endpoints, `/api/site/` and the frontend shell, answering
   `403` with `error.code = "password_change_required"`. The browser client
   already routed the user to the change-password screen, but that was
-  presentation only and a direct API call went straight past it. Django
-  admin is deliberately outside the gate: `is_staff` is not grantable
-  through KukGrade, and admin's own password flow does not clear the flag,
-  so gating it would strand a staff account.
+  presentation only and a direct API call went straight past it. Since
+  2026-10-19 the Django admin site is closed too, every page but signing
+  out answering `403` with a plain page; the way back is KukGrade's own
+  change-password screen. The admin site (`accounts.admin_site.
+  KukGradeAdminSite`) has no password form for your own account - its
+  "Change password" page and its reset of your own user point to the
+  account menu - so changing your own password has one path.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -305,8 +370,10 @@ checks on each push and pull request.
   user change their own first/last name only - email, role and authority
   stay administrator-only; the account menu's "Edit your name" form calls it
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
-  change their own password, given their current one; throttled the same
-  way login is, validated by the same password validators as every other
+  change their own password, given their current one - from the account
+  menu's "Change password", or the forced change after a temporary password,
+  which share one form (`ChangePasswordForm`); throttled the same
+  way login is, validated by the same password policy as every other
   password path, and never logs the value. The caller keeps their session -
   the auth hash is refreshed, so choosing a new password does not eject them
   to the sign-in screen - while every other session for that account ends.
@@ -441,9 +508,9 @@ checks on each push and pull request.
   `CandidateAssessment.notes` can be written and the 1A scoring screen has no
   overall-note control. Sealing requires an explicit proofread
   acknowledgement. A sealed record shows its seal and offers no write path.
-  `isCoreCategory` in `syllabusCategories.ts` is shared with `SyllabusScreen`,
-  so the syllabus and the permanent record cannot disagree about which
-  categories are core areas.
+  Which categories are core areas is served as `category_is_core` on both
+  syllabus rows and assessment items (`syllabus.models.CORE_CATEGORIES`),
+  so the syllabus and the permanent record cannot disagree about it.
 - **Final decisions are the Cohort Adjudication Board (2026-09-28)**:
   SCR-028/FDR-044 replaced SCR-022's slide-over. `CohortAdjudicationScreen`
   (`/gradings/:id/decisions`) lists every non-withdrawn candidate with the
@@ -466,6 +533,19 @@ checks on each push and pull request.
   (`OutcomeControls.css`) are shared the same way. The drawer no longer
   recounts items or shows a percentage (FDR-046). The summary and item
   queries live once in `queries.ts`.
+  The roster offers "Propose outcome" only on a `LOCKED` session, the only
+  status in which the server creates an outcome; while the session is open a
+  completed assessment offers "View record" instead (2026-10-18).
+  On a locked session the "awaiting final decision" banner shows the served
+  `awaiting_decision_count` - the number Overview and Gradings show - and
+  links to the decisions board. "Confirm attendance" offers only candidates
+  whose assessment has not started, the ones the server lets it withdraw
+  (2026-10-18).
+- **The signed-in screen survives a re-check (2026-10-18)**: once a user is
+  known, `useAuth()` stays `authenticated` while `/api/auth/me/` is refetched
+  (TanStack Query does so on every network reconnect), whether the re-check
+  succeeds or fails, so the screen is not unmounted and nothing typed on it is
+  lost. Only a "not signed in" answer ends the session.
 - **Overview activity is labelled by what happened (2026-09-30, KG-A19)**:
   each event shows the server's own action label, with the outcome where
   there is one ("Outcome finalised · Fail"). Its colour comes from the
@@ -505,6 +585,30 @@ checks on each push and pull request.
   phone the board's rows become cards so the decision controls stay on
   screen; choosing a row there moves focus to the detail pane, and after
   recording, focus moves to the result message.
+- **Plain wording (2026-10-20)**: every string a screen shows and every
+  message the server sends were read for technical terms and internal
+  detail, administrators' screens included, and reworded or dropped: no
+  "snapshot", "immutable", "rollup", "metadata", "entity", "batch",
+  "commit", "MiB", "API" or raw status codes (`COMMITTED`, `DRAFT`) in what
+  a user reads - status changes are named in words ("A draft session cannot
+  become locked."). The audit and import labels changed with them (audit
+  0008, data_imports 0004 - labels only). Audit events written before keep
+  their original summaries. Messages only a programming error can reach are
+  left as they are.
+- **Accessibility pass over the rest of the app (2026-10-20)**: every other
+  screen - sign-in, setup, overview, the account menu, students and their
+  forms and imports, grading sessions, registration, promotions, historical
+  records, syllabus, audit, users and their dialogs - measured in a browser
+  with axe (WCAG 2.2 A and AA), for 44px targets, horizontal overflow and a
+  visible focus on every tab stop, in light and dark at desktop, tablet and
+  phone widths, and left clean. Accent-coloured text uses
+  `--color-accent-text` (at least 4.5:1 in light; the fill and border
+  accents are too light to read); status greens use the success tokens;
+  muted text is no longer faded with opacity. Scrolling table wrappers can
+  be reached by keyboard. Every control is at least 44px (FDR-007) through
+  one base rule in `App.css`, links acting as controls included; only the
+  theme toggle stays a compact pill, by the owner's choice. Inputs and
+  filters show the solid `--color-accent-strong` focus outline.
 - **API dates are parsed through one module (2026-09-24)**: `frontend/src/dates.ts`
   detects date-only values (`grading_date`, `Promotion.effective_date`,
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
@@ -513,7 +617,9 @@ checks on each push and pull request.
   reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
-  is the API's own `age_band_display`, never recomputed in the browser, and
+  is the API's own `age_band_display`, never recomputed in the browser - on
+  the grading date in the cohort builder, whose list is filtered by
+  `eligible_for_session` (2026-10-18) - and
   the age-band controls on the syllabus and cohort-builder screens read their
   bands and programmes from `/api/syllabus/age-bands/`. CI
   runs the frontend suite a second time with `TZ=America/Los_Angeles`, because
@@ -537,10 +643,11 @@ checks on each push and pull request.
   area on those tokens, with `App.css` holding only the shell and shared
   primitives; a few literal colours remain (status tints). Belt colours are
   the `--belt-*` tokens, fixed across themes because they are physical belts. Dark
-  mode follows `prefers-color-scheme` by default; an
-  explicit Light/Dark/System choice sets
-  `[data-theme]` on `<html>` instead, applied before first paint by an inline
-  script in `index.html` so a stored choice does not flash the system default.
+  mode follows `prefers-color-scheme` by default. `<html data-theme>` always
+  holds the resolved theme - the stored Light/Dark choice, else the system
+  preference - set before first paint by an inline script in `index.html`
+  and kept current by `useTheme.ts`, so component overrides written as
+  `[data-theme="dark"] .x` apply under System on a dark OS too.
 - **Login matches the SCR-008 concept screen**: a permanent two-panel layout
   (ink brand panel, form panel) rather than a single centered card - the
   other auth states (loading, connection failure) keep the old centered
@@ -614,8 +721,8 @@ checks on each push and pull request.
   the next person on that browser never sees the previous person's students
   or gradings.
 - **Password validation is consistent everywhere an account can be
-  created**: the users API, `SetPasswordSerializer`, and the Django admin
-  add-user form all run the full configured validator set, including
+  created**: generated temporary passwords, changing your own, and the
+  Django admin forms all run the full configured validator set, including
   `UserAttributeSimilarityValidator` against the account's own email.
 - **Sensitive actions cannot silently lose their authority class**: a
   permission-completeness test pins `finalise`, `promote` and `withdraw` to
@@ -624,10 +731,6 @@ checks on each push and pull request.
 
 ## Known Gaps
 
-- Per-element contrast, target sizes and focus were measured on the four
-  grading surfaces only; the rest of the app has been checked visually. The
-  session screen's breadcrumb, banner button, search and filter are under
-  44px.
 - The historical-workbook adapter has only been exercised on synthetic
   workbooks; a rehearsal on a sanitised copy of the real file is required
   before a production import.

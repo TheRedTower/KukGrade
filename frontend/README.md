@@ -8,7 +8,7 @@ React, TypeScript, and Vite frontend for KukGrade.
 
 | Status | Meaning |
 | --- | --- |
-| `loading` | The session check is in flight. |
+| `loading` | The first session check, or a retry after it failed, is in flight. |
 | `authenticated` | A user is signed in. |
 | `anonymous` | The server answered that nobody is signed in. |
 | `error` | The session is **unknown** - the request failed to complete. |
@@ -18,6 +18,11 @@ React, TypeScript, and Vite frontend for KukGrade.
 not evidence about the viewer's session and produces `error` instead, with a
 retry. Collapsing the two would sign people out mid-grading whenever the
 backend hiccupped.
+
+Once a user is known, a background re-check (TanStack Query refetches the
+current user when the network reconnects) keeps the status `authenticated`
+whether it succeeds or fails, so the screen and anything typed on it stay
+mounted. Only a genuine "not signed in" answer ends the session.
 
 For the same reason, signing out clears local state only after the server has
 confirmed the session ended; a failed sign-out leaves the viewer signed in

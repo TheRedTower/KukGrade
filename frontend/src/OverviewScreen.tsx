@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   type AuditEvent,
   type CandidateAssessment,
+  type CandidateOutcomeOutcome,
   type GradingSession,
   getCandidateAssessments,
   getGradingSessions,
@@ -14,6 +15,7 @@ import { useAuth } from "./auth";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
+import { OUTCOME_LABELS } from "./OutcomeControls";
 
 function CalendarIcon() {
   return (
@@ -118,11 +120,6 @@ type FormattedActivityItem = {
   statusLabel: string;
 };
 
-const OUTCOME_LABELS: Record<string, string> = {
-  PASS: "Pass",
-  FAIL: "Fail",
-  CONDITIONAL: "Conditional",
-};
 
 function metadataString(event: AuditEvent, ...path: string[]): string | undefined {
   let value: unknown = event.metadata;
@@ -159,7 +156,7 @@ function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: st
 
 function formatAuditEvent(event: AuditEvent): FormattedActivityItem {
   const { type, outcome } = activityStatus(event);
-  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome] : undefined;
+  const outcomeLabel = outcome ? OUTCOME_LABELS[outcome as CandidateOutcomeOutcome] : undefined;
   return {
     id: event.id,
     timeDisplay: formatRelativeTime(event.occurred_at),
@@ -230,24 +227,27 @@ export function OverviewScreen() {
   const completedAssessmentsCount = openSession?.completed_assessment_count ?? 0;
   const awaitingDecisionCount = openSession?.awaiting_decision_count ?? 0;
 
-  // Assessments needing attention:
-  // - Completed assessments awaiting proposal/decision
-  // - Assessments in progress
+  // Assessments needing attention in the open session: those still being
+  // scored, and completed ones, which wait for the session to lock before an
+  // outcome can be proposed. Each opens its own assessment.
   const attentionItems = useMemo(() => {
-    return assessments
-      .map((a) => {
-        let statusDescription = "Assessment in progress · Scoring pending";
-        if (a.status === "COMPLETED") {
-          statusDescription = "Assessment complete · Awaiting your review";
-        }
-        return {
-          id: a.id,
-          candidate_student_name: a.candidate_student_name,
-          statusDescription,
-          status: a.status,
-        };
-      });
-  }, [assessments]);
+    return assessments.map((a) => {
+      const base = `/gradings/${openSession?.id}/assessments/${a.candidate}`;
+      return a.status === "COMPLETED"
+        ? {
+            id: a.id,
+            candidate_student_name: a.candidate_student_name,
+            statusDescription: "Assessment complete · Awaiting lock",
+            path: `${base}/review`,
+          }
+        : {
+            id: a.id,
+            candidate_student_name: a.candidate_student_name,
+            statusDescription: "Assessment in progress · Scoring pending",
+            path: base,
+          };
+    });
+  }, [assessments, openSession?.id]);
 
   // Recent activity items
   const recentActivities: FormattedActivityItem[] = useMemo(() => {
@@ -283,7 +283,7 @@ export function OverviewScreen() {
       {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert" role="alert">
           <p className="form-error">
-            Failed to load operational ledger. Please check your connection.
+            The overview could not be loaded. Check your connection and try again.
           </p>
         </div>
       ) : null}
@@ -328,7 +328,7 @@ export function OverviewScreen() {
 
               <button
                 className="action-button-gold"
-                onClick={() => navigate("/gradings")}
+                onClick={() => navigate(`/gradings/${openSession.id}`)}
                 type="button"
               >
                 Open session <span aria-hidden="true">&rarr;</span>
@@ -363,11 +363,11 @@ export function OverviewScreen() {
                 <div
                   className="attention-item-row"
                   key={item.id}
-                  onClick={() => navigate("/gradings")}
+                  onClick={() => navigate(item.path)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      navigate("/gradings");
+                      navigate(item.path);
                     }
                   }}
                   role="listitem"
@@ -412,11 +412,11 @@ export function OverviewScreen() {
           {upcomingSession ? (
             <div
               className="upcoming-session-row"
-              onClick={() => navigate("/gradings")}
+              onClick={() => navigate(`/gradings/${upcomingSession.id}`)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  navigate("/gradings");
+                  navigate(`/gradings/${upcomingSession.id}`);
                 }
               }}
               role="button"
@@ -458,24 +458,26 @@ export function OverviewScreen() {
         </div>
       </div>
 
-      {/* Bottom Section: Recent Activity */}
+      {/* Bottom Section: Recent Activity - the audit log's latest entries,
+          so only for someone who may read it; nobody else is told there is
+          nothing. */}
+      {canViewAudit && (
       <div className="recent-activity-section">
         <div className="activity-section-header">
           <h2 className="activity-section-title">Recent activity</h2>
-          {canViewAudit ? (
-            <button
-              className="view-all-activity-link"
-              onClick={() => navigate("/audit")}
-              type="button"
-            >
-              View all activity <span aria-hidden="true">&rarr;</span>
-            </button>
-          ) : null}
+          <button
+            className="view-all-activity-link"
+            onClick={() => navigate("/audit")}
+            type="button"
+          >
+            View all activity <span aria-hidden="true">&rarr;</span>
+          </button>
         </div>
 
         {recentActivities.length > 0 ? (
-          <div className="ledger-table-wrapper">
-            <table className="ledger-table" aria-label="Recent activity ledger">
+          <div className="ledger-table-wrapper" tabIndex={0} role="region" aria-label="Recent activity">
+            {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
+            <table className="ledger-table" aria-label="Recent activity">
               <thead>
                 <tr>
                   <th scope="col">Time</th>
@@ -515,12 +517,13 @@ export function OverviewScreen() {
           <div className="activity-empty-state" role="status">
             <p>
               {isInitialLoading
-                ? "Loading activity ledger..."
+                ? "Loading recent activity…"
                 : "No recent activity recorded."}
             </p>
           </div>
         )}
       </div>
+      )}
     </section>
   );
 }

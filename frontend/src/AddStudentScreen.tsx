@@ -9,7 +9,7 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
-import { useRanksQuery } from "./queries";
+import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
 import { LockIcon } from "./Icons";
@@ -17,6 +17,8 @@ import { LockIcon } from "./Icons";
 export function AddStudentScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // The two forms a WKSA ID takes, as the server enforces and words them.
+  const idScheme = useSiteSettingsQuery().data?.wksa_id;
 
   // Form State
   const [firstName, setFirstName] = useState("");
@@ -42,8 +44,8 @@ export function AddStudentScreen() {
   const effectiveRankId = useMemo(() => {
     if (currentRank !== null) return currentRank;
     if (ranks.length > 0) {
-      // Find White belt (order 1 or code W) or default to first
-      const defaultRank = ranks.find((r) => r.code === "W" || r.order === 1) || ranks[0];
+      // White belt is the first rank in order; otherwise the first listed
+      const defaultRank = ranks.find((r) => r.order === 1) || ranks[0];
       return defaultRank.id;
     }
     return null;
@@ -82,7 +84,8 @@ export function AddStudentScreen() {
       const newStudent = await createStudent({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
-        wksa_id: wksaId.trim().toUpperCase(),
+        // As typed: the server tidies spacing and case, and checks the form.
+        wksa_id: wksaId,
         date_of_birth: dateOfBirth,
         current_rank: effectiveRankId!,
         status,
@@ -209,7 +212,7 @@ export function AddStudentScreen() {
               id="wksa-id-input"
               type="text"
               className={`form-text-input ${getFieldError("wksa_id") ? "input-error" : ""}`}
-              placeholder="e.g. KG-0264 or UK12345"
+              placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
               value={wksaId}
               onChange={(e) => setWksaId(e.target.value)}
               disabled={isSubmitting}
@@ -221,7 +224,8 @@ export function AddStudentScreen() {
               <p className="form-field-error" id="wksa-id-error" role="alert">{getFieldError("wksa_id")}</p>
             ) : (
               <p className="form-field-help">
-                This identifier cannot be changed after the record is created.
+                {idScheme ? `${idScheme.hint} ` : ""}
+                A student ID changes only once, to the black belt ID handed out at the national grading.
               </p>
             )}
           </div>

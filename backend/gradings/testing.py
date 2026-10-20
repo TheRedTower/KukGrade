@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 from datetime import date
 from typing import Any, cast
+from unittest.mock import patch
 
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
@@ -72,14 +73,20 @@ def grading_session(**overrides: object) -> GradingSession:
 
 
 def student(**overrides: object) -> Student:
+    number = Student.objects.count() + 1
     data: dict[str, object] = {
-        "wksa_id": f"WKSA{Student.objects.count() + 1:04d}",
         "first_name": "Alex",
         "last_name": "Kim",
         "date_of_birth": date(2017, 3, 20),
         "current_rank": rank("WHITE"),
     }
     data.update(overrides)
+    # A black belt rank holds a black belt ID; every other a student ID.
+    black_belt = cast(Rank, data["current_rank"]).category == Rank.Category.BLACK_BELT
+    data.setdefault(
+        "wksa_id",
+        f"A-{number:05d}" if black_belt else f"206-2-{number:03d}",
+    )
     return Student.objects.create(**data)
 
 
@@ -107,6 +114,16 @@ def candidate(**overrides: object) -> GradingCandidate:
     return built
 
 
+def earlier_double_registration(**overrides: object) -> GradingCandidate:
+    """A second unsettled registration of one student.
+
+    Registering one is refused since the 2026-10-18 one-grading-at-a-time
+    rule; this builds the data a database from before it may still hold.
+    """
+    with patch("gradings.services.validate_no_unsettled_registration"):
+        return candidate(**overrides)
+
+
 def assessment(**overrides: object) -> CandidateAssessment:
     built_candidate = cast(GradingCandidate, overrides.pop("candidate", candidate()))
     generated_by = cast(
@@ -119,7 +136,18 @@ def assessment(**overrides: object) -> CandidateAssessment:
             ),
         ),
     )
-    return generate_candidate_assessment(built_candidate, generated_by)
+    # A status is reached through the services, as in the app; anything else
+    # is refused rather than silently dropped, which left tests that asked
+    # for an IN_PROGRESS assessment testing a NOT_STARTED one.
+    status = overrides.pop("status", CandidateAssessment.Status.NOT_STARTED)
+    if overrides:
+        raise TypeError(f"assessment() does not set {sorted(overrides)}")
+    generated = generate_candidate_assessment(built_candidate, generated_by)
+    if status == CandidateAssessment.Status.IN_PROGRESS:
+        return start_assessment(generated)
+    if status == CandidateAssessment.Status.COMPLETED:
+        return complete_assessment(generated)
+    return generated
 
 
 def start_assessment(assessment: CandidateAssessment) -> CandidateAssessment:

@@ -93,8 +93,13 @@ class ServiceDeleteMixin:
         request: HttpRequest,
         queryset: QuerySet[Any],
     ) -> HttpResponse | None:
+        # Django's delete action writes its "deleted" LogEntry rows before
+        # calling delete_queryset, outside any transaction, so a refusal left
+        # them claiming deletions that never happened. One transaction rolls
+        # them back with it. (delete_view is already atomic.)
         try:
-            return super().response_action(request, queryset)  # type: ignore[misc, no-any-return]
+            with transaction.atomic():
+                return super().response_action(request, queryset)  # type: ignore[misc, no-any-return]
         except ValidationError as exc:
             self._refused(request, exc)
             return HttpResponseRedirect(request.get_full_path())

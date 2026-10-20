@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type Rank,
@@ -12,6 +12,7 @@ import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 function ClearIcon() {
   return (
@@ -113,12 +114,16 @@ export function StudentsScreen() {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
   }, [ranksQuery.data]);
 
-  // 2. Fetch paginated students with active filters
+  // 2. Fetch paginated students with active filters. The search waits for a
+  // pause in typing, and the last page stays on screen while the next loads,
+  // so a name is one request rather than one per keystroke.
+  const debouncedSearch = useDebouncedValue(search.trim());
   const studentsQuery = useQuery({
-    queryKey: ["students", "list", search, statusFilter, rankFilter, page],
+    queryKey: ["students", "list", debouncedSearch, statusFilter, rankFilter, page],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       getStudents({
-        search: search.trim() || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== "ALL" ? statusFilter : undefined,
         current_rank_code: rankFilter !== "ALL" ? rankFilter : undefined,
         page,
@@ -165,19 +170,6 @@ export function StudentsScreen() {
         {display || "Left"}
       </span>
     );
-  }
-
-  function resolveNextAction(status: StudentStatus): string {
-    switch (status) {
-      case "ACTIVE":
-        return "Prepare for next grading";
-      case "INACTIVE":
-        return "Follow up required";
-      case "LEFT":
-        return "No further action";
-      default:
-        return "—";
-    }
   }
 
   return (
@@ -322,7 +314,7 @@ export function StudentsScreen() {
               <div className="empty-zero-container">
                 <p className="empty-state-title">No students registered yet</p>
                 <p className="empty-state-description">
-                  Get started by registering your first student record in the registry.
+                  Add your first student to get started.
                 </p>
                 <button
                   type="button"
@@ -344,9 +336,9 @@ export function StudentsScreen() {
                     <th scope="col" className="col-wksa-id">WKSA ID</th>
                     <th scope="col" className="col-rank">Current rank</th>
                     <th scope="col" className="col-status">Status</th>
-                    <th scope="col" className="col-action-suggested">Next action</th>
+                    <th scope="col" className="col-current-grading">Current grading</th>
                     <th scope="col" className="col-cta">
-                      <span className="sr-only">Actions</span>
+                      <span className="visually-hidden">Actions</span>
                     </th>
                   </tr>
                 </thead>
@@ -367,8 +359,25 @@ export function StudentsScreen() {
                       <td className="col-status cell-status">
                         {renderStatusBadge(s.status, s.status_display)}
                       </td>
-                      <td className="col-action-suggested cell-next-action">
-                        {resolveNextAction(s.status)}
+                      {/* The registration the server says is still in
+                          progress, and how far it has got - not a guess
+                          from the student's status (audit F-29). */}
+                      <td className="col-current-grading cell-current-grading">
+                        {s.current_grading ? (
+                          <>
+                            <Link
+                              className="current-grading-link"
+                              to={`/gradings/${s.current_grading.session}`}
+                            >
+                              {s.current_grading.session_title}
+                            </Link>
+                            <span className="current-grading-stage">
+                              {s.current_grading.stage_display}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="current-grading-none">Not registered</span>
+                        )}
                       </td>
                       <td className="col-cta cell-cta">
                         <button

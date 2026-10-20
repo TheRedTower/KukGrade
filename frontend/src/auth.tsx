@@ -12,9 +12,11 @@ import {
   ApiError,
   type AuthUser,
   changePassword as changePasswordApi,
+  completeSetup,
   getCurrentUser,
   loginUser,
   logoutUser,
+  type SetupDetails,
   updateCurrentUser,
 } from "./api";
 
@@ -29,6 +31,8 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateName: (firstName: string, lastName: string) => Promise<void>;
+  /** Create the first administrator (the setup page) and sign them in. */
+  setUp: (details: SetupDetails) => Promise<void>;
   /** Re-run the session check after a transport failure. */
   retry: () => void;
 };
@@ -68,7 +72,7 @@ function isAnonymousResponse(error: unknown): boolean {
 function describeAuthFailure(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status >= 500) {
-      return "KukGrade is not responding. Your session is unaffected - try again in a moment.";
+      return "KukGrade is not responding. You are still signed in - try again in a moment.";
     }
     return error.message;
   }
@@ -90,6 +94,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentUserQuery = useQuery({
     queryKey: CURRENT_USER_QUERY_KEY,
     queryFn: getCurrentUser,
+  });
+
+  // Like signing in: the server signs the new administrator in, and the
+  // cache starts afresh - which also drops the "setup needed" answer.
+  const setUpMutation = useMutation({
+    mutationFn: completeSetup,
+    onSuccess: (authenticatedUser) => {
+      forgetSession();
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, authenticatedUser);
+    },
   });
 
   const loginMutation = useMutation({
@@ -176,19 +190,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Fetching covers both the initial load and a retry, so both read as
-  // "loading" without a separate attempt counter. A query in flight always
-  // takes priority over its previous result or error.
+  // A known user stays signed in through a background re-check (a network
+  // reconnect refetches this query): showing "loading" or "error" then would
+  // unmount the whole app and lose whatever was on screen. Only a genuine
+  // "not signed in" answer ends the session, and that clears the user
+  // through forgetSession. Without a user yet, fetching covers both the
+  // initial load and a retry, so both read as "loading".
+  const neverAnswered = currentUserQuery.data === undefined;
   let status: AuthStatus;
-  if (currentUserQuery.isFetching) {
-    status = "loading";
-  } else if (currentUserQuery.isError) {
-    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
-  } else if (user === null) {
-    // A successful fetch that resolved to no user - true after logout.
-    status = "anonymous";
-  } else {
+  if (user !== null) {
     status = "authenticated";
+  } else if (neverAnswered && currentUserQuery.isFetching) {
+    status = "loading";
+  } else if (neverAnswered && currentUserQuery.isError) {
+    status = isAnonymousResponse(currentUserQuery.error) ? "anonymous" : "error";
+  } else {
+    // Resolved to no user - true after logout or an expired session.
+    status = "anonymous";
   }
 
   const error =
@@ -217,6 +235,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [changePasswordMutation],
   );
 
+  const setUp = useCallback(
+    async (details: SetupDetails) => {
+      await setUpMutation.mutateAsync(details);
+    },
+    [setUpMutation],
+  );
+
   const updateName = useCallback(
     async (firstName: string, lastName: string) => {
       await updateNameMutation.mutateAsync({ firstName, lastName });
@@ -225,8 +250,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ user, status, error, login, logout, changePassword, updateName, retry }),
-    [changePassword, error, login, logout, retry, status, updateName, user],
+    () => ({ user, status, error, login, logout, changePassword, updateName, setUp, retry }),
+    [changePassword, error, login, logout, retry, setUp, status, updateName, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

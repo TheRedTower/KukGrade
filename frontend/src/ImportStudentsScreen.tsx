@@ -72,6 +72,11 @@ export function ImportStudentsScreen() {
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [preview, setPreview] = useState<StudentImportPreview | null>(null);
   const [corrections, setCorrections] = useState<Record<string, StudentImportRowCorrection>>({});
+  // The corrections the shown preview was checked with. The commit button's
+  // count comes from that preview, so an edit since leaves it describing
+  // something else: committing waits for a re-check.
+  const [checkedCorrections, setCheckedCorrections] = useState(corrections);
+  const correctionsUnchecked = checkedCorrections !== corrections;
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
   const [commitResult, setCommitResult] = useState<DataImportBatch | null>(null);
 
@@ -93,6 +98,7 @@ export function ImportStudentsScreen() {
     setColumnMapping({});
     setPreview(null);
     setCorrections({});
+    setCheckedCorrections({});
     setExpandedRow(null);
     setCommitResult(null);
     setError(null);
@@ -118,15 +124,17 @@ export function ImportStudentsScreen() {
     if (!batch) return;
     setError(null);
     setIsChecking(true);
+    const sent = corrections;
     try {
       const result = await previewStudentImport(batch.id, {
         column_mapping: columnMapping,
-        corrections,
+        corrections: sent,
       });
       setPreview(result);
+      setCheckedCorrections(sent);
       setStep("preview");
     } catch (err) {
-      setError(errorMessage(err, "Could not check that mapping. Every required field needs a column."));
+      setError(errorMessage(err, "Could not check those columns. Every required field needs one."));
     } finally {
       setIsChecking(false);
     }
@@ -136,12 +144,14 @@ export function ImportStudentsScreen() {
     if (!batch) return;
     setError(null);
     setIsChecking(true);
+    const sent = corrections;
     try {
       const result = await previewStudentImport(batch.id, {
         column_mapping: columnMapping,
-        corrections,
+        corrections: sent,
       });
       setPreview(result);
+      setCheckedCorrections(sent);
     } catch (err) {
       setError(errorMessage(err, "Could not re-check the file."));
     } finally {
@@ -150,7 +160,7 @@ export function ImportStudentsScreen() {
   }
 
   async function handleCommit() {
-    if (!batch) return;
+    if (!batch || correctionsUnchecked) return;
     setError(null);
     setIsCommitting(true);
     try {
@@ -162,7 +172,7 @@ export function ImportStudentsScreen() {
       await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
       setStep("result");
     } catch (err) {
-      setError(errorMessage(err, "Could not commit this import."));
+      setError(errorMessage(err, "Could not finish this import."));
     } finally {
       setIsCommitting(false);
     }
@@ -243,7 +253,7 @@ export function ImportStudentsScreen() {
           Import students
         </h1>
         <p className="add-student-subtitle">
-          Bulk-create student records from a spreadsheet. An existing WKSA ID is always
+          Add many students at once from a spreadsheet. An existing WKSA ID is always
           skipped, never overwritten.
         </p>
       </div>
@@ -266,7 +276,7 @@ export function ImportStudentsScreen() {
         <div className="form-section-card">
           <h2 className="form-section-title">1. Upload a file</h2>
           <p className="imp-help-text">
-            Accepts .xlsx or .csv, up to 5 MiB. Use the standard template below, or map your
+            Excel (.xlsx) or CSV (.csv) files, up to 5 MB. Use the standard template below, or map your
             own column headers in the next step.
           </p>
           <button type="button" className="btn-secondary imp-template-link" onClick={downloadStandardTemplate}>
@@ -299,7 +309,7 @@ export function ImportStudentsScreen() {
             <thead>
               <tr>
                 <th scope="col">KukGrade field</th>
-                <th scope="col">Source column</th>
+                <th scope="col">Column in your file</th>
               </tr>
             </thead>
             <tbody>
@@ -317,7 +327,7 @@ export function ImportStudentsScreen() {
                         setColumnMapping((prev) => ({ ...prev, [field]: event.target.value }))
                       }
                     >
-                      <option value="">— not mapped —</option>
+                      <option value="">— not used —</option>
                       {batch.detected_headers.map((header) => (
                         <option key={header} value={header}>
                           {header}
@@ -422,8 +432,12 @@ export function ImportStudentsScreen() {
             isCancelling={isCancelling}
             isChecking={isChecking}
             isCommitting={isCommitting}
-            commitDisabled={preview.ready === 0}
-            commitLabel={`Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`}
+            commitDisabled={preview.ready === 0 || correctionsUnchecked}
+            commitLabel={
+              correctionsUnchecked
+                ? "Re-check corrections first"
+                : `Create ${preview.ready} student${preview.ready === 1 ? "" : "s"}`
+            }
             onCancel={() => void handleCancel()}
             onRecheck={() => void handleRecheck()}
             onCommit={() => void handleCommit()}

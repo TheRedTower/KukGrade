@@ -34,7 +34,7 @@ ERROR_CODES: dict[type[Exception], str] = {
     exceptions.ValidationError: "validation_error",
 }
 
-GENERIC_VALIDATION_MESSAGE = "The request contained invalid data."
+GENERIC_VALIDATION_MESSAGE = "Some details need correcting."
 NON_FIELD_KEY = "non_field_errors"
 
 
@@ -133,7 +133,10 @@ def custom_exception_handler(
 
 def csrf_failure(request: HttpRequest, reason: str = "") -> JsonResponse:
     return JsonResponse(
-        error_payload("csrf_failed", "CSRF verification failed."),
+        error_payload(
+            "csrf_failed",
+            "Your sign-in could not be checked. Refresh the page and try again.",
+        ),
         status=status.HTTP_403_FORBIDDEN,
     )
 
@@ -152,7 +155,7 @@ def server_error(request: HttpRequest, *args: Any, **kwargs: Any) -> JsonRespons
     return JsonResponse(
         error_payload(
             "server_error",
-            "Something went wrong on the server. Please try again.",
+            "Something went wrong. Please try again.",
         ),
         status=status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
@@ -167,7 +170,7 @@ def not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
     """
     if request.path.startswith("/api/"):
         return JsonResponse(
-            error_payload("not_found", "No API endpoint matches this URL."),
+            error_payload("not_found", "Not found."),
             status=status.HTTP_404_NOT_FOUND,
         )
     return page_not_found(request, exception)

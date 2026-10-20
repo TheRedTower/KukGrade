@@ -43,6 +43,7 @@ import threading
 from collections.abc import Callable
 from datetime import date
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -488,6 +489,77 @@ def test_registration_and_session_lock_cannot_interleave() -> None:
     ).exists()
 
 
+def test_reinstating_and_registering_elsewhere_cannot_both_hold_the_student() -> None:
+    """One grading at a time (2026-10-18) must hold across two sessions.
+
+    Each operation locks its own session, which does not stop the other. The
+    student is the row they share, so both lock it: the one that waits sees
+    the other's registration and is refused.
+    """
+    first = grading_session(status=GradingSession.Status.OPEN, title="First")
+    later = grading_session(status=GradingSession.Status.OPEN, title="Later")
+    withdrawn = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    reinstater = user("race-reinstate@example.com")
+    registrar = user("race-register-elsewhere@example.com")
+
+    reinstating, registering = interleave(
+        lambda: apply_candidate_update(
+            GradingCandidate.objects.get(pk=withdrawn.pk),
+            status=GradingCandidate.Status.REGISTERED,
+            actor=reinstater,
+        ),
+        lambda: register_candidate(
+            session=GradingSession.objects.get(pk=later.pk),
+            student=Student.objects.get(pk=withdrawn.student_id),
+            testing_for_rank=rank("YELLOW_STRIPE"),
+            actor=registrar,
+        ),
+        pause_first_at="gradings.services.record",
+    )
+
+    assert isinstance(reinstating, GradingCandidate)
+    refused(registering, "has not reached its result yet")
+    assert (
+        GradingCandidate.objects.filter(student_id=withdrawn.student_id)
+        .exclude(status=GradingCandidate.Status.WITHDRAWN)
+        .count()
+        == 1
+    )
+
+
+def test_moving_a_candidate_waits_for_an_edit_to_its_student() -> None:
+    """A move checks the testing rank against the student, so it locks them.
+
+    The candidate was read with its student joined before any student lock;
+    checked against that copy, a move went through on a rank an
+    administrator had just corrected (audit D1).
+    """
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    moving = candidate(session=source)
+    editor = user("race-rank-editor@example.com")
+    mover = user("race-rank-mover@example.com")
+    stale_student = Student.objects.get(pk=moving.student_id)
+    stale_moving = GradingCandidate.objects.get(pk=moving.pk)
+    stale_target = GradingSession.objects.get(pk=target.pk)
+
+    edited, moved = interleave(
+        lambda: update_student(
+            stale_student,
+            current_rank=rank("YELLOW_STRIPE"),
+            actor=editor,
+        ),
+        lambda: apply_candidate_update(stale_moving, session=stale_target, actor=mover),
+        pause_first_at="students.services.record",
+    )
+
+    assert isinstance(edited, Student)
+    # Now Yellow stripe, the student tests for Yellow, not Yellow stripe.
+    refused(moved, "next active rank")
+    moving.refresh_from_db()
+    assert moving.session_id == source.pk
+
+
 def test_candidate_move_and_session_lock_cannot_interleave() -> None:
     """KG-A03: moving a candidate into a session must see that session lock."""
     source = grading_session(status=GradingSession.Status.OPEN, title="Source")
@@ -898,7 +970,10 @@ def test_promotions_of_one_student_from_two_gradings_serialise() -> None:
         grading_session(status=GradingSession.Status.OPEN, title=title)
         for title in ("First grading", "Second grading")
     ]
-    both = [completed_candidate(session, graded) for session in gradings]
+    # Two unsettled registrations of one student: refused since the
+    # 2026-10-18 one-grading-at-a-time rule, but earlier data may hold them.
+    with patch("gradings.services.validate_no_unsettled_registration"):
+        both = [completed_candidate(session, graded) for session in gradings]
     for session in gradings:
         transition_grading_session(session, GradingSession.Status.LOCKED)
     first_outcome, second_outcome = (finalised_outcome(built) for built in both)

@@ -83,7 +83,7 @@ def test_the_read_is_capped_even_when_the_declared_size_is_wrong() -> None:
     upload.file = source
     upload.size = 10
 
-    with pytest.raises(ValidationError, match="MiB limit"):
+    with pytest.raises(ValidationError, match="MB limit"):
         create_import_batch(
             kind=ImportBatch.Kind.STUDENT_ROSTER,
             upload=upload,
@@ -205,7 +205,7 @@ def test_an_archive_that_expands_past_the_budget_is_refused() -> None:
             ImportBatch.Kind.STUDENT_ROSTER,
             "roster.xlsx",
             inflated,
-            "expands to more than 1 MiB",
+            "too large once opened",
         )
 
 

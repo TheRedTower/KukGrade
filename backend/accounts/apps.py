@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from django.apps import AppConfig
+from django.contrib.admin import apps as admin_apps
 from django.db.models.signals import post_migrate, post_save
 
 
@@ -53,3 +54,12 @@ class AccountsConfig(AppConfig):
             sender=User,
             dispatch_uid="accounts.apply_role_group",
         )
+
+
+class KukGradeAdminConfig(admin_apps.AdminConfig):
+    """Django admin, on KukGrade's site (accounts/admin_site.py). Here rather
+    than beside the site because an app config is loaded before models are.
+    Named in INSTALLED_APPS, never the default for `accounts`."""
+
+    default = False
+    default_site = "accounts.admin_site.KukGradeAdminSite"

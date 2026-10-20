@@ -2,8 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * "system" means no explicit choice has been made: the page follows
- * prefers-color-scheme automatically (see theme.css) and this hook exists
- * only to offer an override, not to own the default.
+ * prefers-color-scheme. Whatever the preference, the resolved theme is
+ * always written to `<html data-theme>`, so a component's
+ * `[data-theme="dark"] .x` override applies in System mode on a dark OS as
+ * it does after an explicit Dark choice. theme.css keeps its media-query
+ * tokens only for the moment before this runs.
  */
 export type ThemePreference = "light" | "dark" | "system";
 
@@ -19,14 +22,6 @@ function readStoredPreference(): ThemePreference {
     // Private browsing or a blocked store: fall back to the system default.
   }
   return "system";
-}
-
-function applyPreference(preference: ThemePreference): void {
-  if (preference === "system") {
-    document.documentElement.removeAttribute("data-theme");
-  } else {
-    document.documentElement.setAttribute("data-theme", preference);
-  }
 }
 
 function systemPrefersDark(): boolean {
@@ -50,9 +45,6 @@ export function useTheme(): {
     return () => query.removeEventListener("change", handleChange);
   }, []);
 
-  useEffect(() => {
-    applyPreference(preference);
-  }, [preference]);
 
   const setTheme = useCallback((next: ThemePreference) => {
     setPreference(next);
@@ -70,6 +62,10 @@ export function useTheme(): {
 
   const resolvedTheme: "light" | "dark" =
     preference === "system" ? (systemDark ? "dark" : "light") : preference;
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", resolvedTheme);
+  }, [resolvedTheme]);
 
   return { preference, resolvedTheme, setTheme };
 }

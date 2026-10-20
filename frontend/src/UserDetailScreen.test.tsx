@@ -44,6 +44,8 @@ const managedUser: ManagedUser = {
   can_override_locked_session: true,
   can_view_grading_audit_log: false,
   must_change_password: false,
+  temporary_password_expires_at: null,
+  manageable: true,
   date_joined: "2025-02-14T09:00:00Z",
   last_login: "2026-09-14T18:43:00Z",
 };
@@ -95,6 +97,7 @@ describe("UserDetailScreen", () => {
         action: "USER_AUTHORITY_CHANGED",
         action_display: "User authority changed",
         entity_type: "User",
+        entity_type_display: "User",
         entity_id: "target-user",
         actor: "admin-user",
         actor_email: "admin@example.com",
@@ -162,24 +165,50 @@ describe("UserDetailScreen", () => {
     expect(await screen.findByText("Master authority saved.")).toBeInTheDocument();
   });
 
-  it("confirms and resets a password", async () => {
+  it("resets a password and shows the new temporary one once", async () => {
     const user = userEvent.setup();
     renderScreen();
     await screen.findByRole("heading", { name: "Riley Khan" });
+    expect(screen.getByText("Normal access")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Set new password" }));
-    const dialog = screen.getByRole("dialog", { name: "Set a temporary password" });
-    await user.type(within(dialog).getByLabelText("Temporary password"), "Replacement-Password-2026!");
-    await user.type(within(dialog).getByLabelText("Confirm password"), "Replacement-Password-2026!");
-    await user.click(within(dialog).getByRole("button", { name: "Set password" }));
-
-    await waitFor(() => {
-      expect(mockResetManagedUserPassword).toHaveBeenCalledWith(
-        "target-user",
-        "Replacement-Password-2026!",
-      );
+    await user.click(screen.getByRole("button", { name: "Reset password" }));
+    const dialog = screen.getByRole("dialog", { name: "Reset password" });
+    expect(within(dialog).queryByRole("textbox")).not.toBeInTheDocument();
+    const reset = {
+      ...managedUser,
+      must_change_password: true,
+      temporary_password_expires_at: "2099-10-20T14:00:00Z",
+    };
+    mockResetManagedUserPassword.mockResolvedValue({
+      ...reset,
+      temporary_password: "Kq7#mPx4!vRt9@Wa",
     });
-    expect(await screen.findByText(/Temporary password set/)).toBeInTheDocument();
+    // The page refetches rather than keeping the pre-reset record.
+    mockGetManagedUser.mockResolvedValue(reset);
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
+
+    expect(mockResetManagedUserPassword).toHaveBeenCalledWith("target-user");
+    const shown = await screen.findByRole("dialog", { name: "Password reset" });
+    expect(within(shown).getByText("Kq7#mPx4!vRt9@Wa")).toBeInTheDocument();
+    expect(await screen.findByText("Password change required")).toBeInTheDocument();
+    expect(screen.getByText(/^Works until/)).toBeInTheDocument();
+
+    await user.click(within(shown).getByRole("button", { name: "Done" }));
+    expect(screen.queryByText("Kq7#mPx4!vRt9@Wa")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset password" })).toHaveFocus();
+  });
+
+  it("says when a temporary password has expired", async () => {
+    mockGetManagedUser.mockResolvedValue({
+      ...managedUser,
+      must_change_password: true,
+      temporary_password_expires_at: "2020-01-01T09:00:00Z",
+    });
+    renderScreen();
+
+    expect(
+      await screen.findByText(/^Expired .*Reset the password to give them a new one\.$/),
+    ).toBeInTheDocument();
   });
 
   it("cannot close the password dialog while the reset is in flight", async () => {
@@ -188,17 +217,28 @@ describe("UserDetailScreen", () => {
     renderScreen();
     await screen.findByRole("heading", { name: "Riley Khan" });
 
-    await user.click(screen.getByRole("button", { name: "Set new password" }));
-    const dialog = screen.getByRole("dialog", { name: "Set a temporary password" });
-    await user.type(within(dialog).getByLabelText("Temporary password"), "Replacement-Password-2026!");
-    await user.type(within(dialog).getByLabelText("Confirm password"), "Replacement-Password-2026!");
-    await user.click(within(dialog).getByRole("button", { name: "Set password" }));
+    await user.click(screen.getByRole("button", { name: "Reset password" }));
+    const dialog = screen.getByRole("dialog", { name: "Reset password" });
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
 
     await waitFor(() => expect(mockResetManagedUserPassword).toHaveBeenCalled());
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeDisabled();
     await user.keyboard("{Escape}");
-    expect(screen.getByRole("dialog", { name: "Set a temporary password" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Reset password" })).toBeInTheDocument();
+  });
+
+  it("offers no change to an account only a superuser may change", async () => {
+    mockGetManagedUser.mockResolvedValue({ ...managedUser, manageable: false });
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    expect(screen.getByText("Only a superuser can change this account.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete account" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Role")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save account details" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
   });
 
   it("prevents self-service role, status, and authority changes", async () => {
@@ -211,5 +251,11 @@ describe("UserDetailScreen", () => {
     expect(screen.getByRole("checkbox", { name: /Make final grading decisions/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Save authority" })).toBeDisabled();
     expect(screen.getByText("You cannot change your own authority.")).toBeInTheDocument();
+    // Your own password is changed from the account menu, behind the current
+    // one; a reset - which asks for none - is not offered (audit F-04).
+    expect(screen.queryByRole("button", { name: "Reset password" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Change your own password from your account menu."),
+    ).toBeInTheDocument();
   });
 });

@@ -5,10 +5,17 @@ from collections.abc import Mapping
 from datetime import date
 from typing import TypedDict
 
+from django.db import models
 from django.db.models import (
+    Case,
+    CharField,
     Count,
+    OuterRef,
     Q,
     QuerySet,
+    Subquery,
+    Value,
+    When,
 )
 
 from gradings.models import (
@@ -18,8 +25,65 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
+from gradings.services import unsettled_registrations
 from students.models import Student
 from syllabus.models import CATEGORY_ORDER
+
+
+class GradingStage(models.TextChoices):
+    """Where a registration that has not reached its result has got to."""
+
+    REGISTERED = "REGISTERED", "Registered"
+    BEING_ASSESSED = "BEING_ASSESSED", "Being assessed"
+    ASSESSED = "ASSESSED", "Assessed"
+    AWAITING_DECISION = "AWAITING_DECISION", "Awaiting final decision"
+    AWAITING_PROMOTION = "AWAITING_PROMOTION", "Passed, awaiting promotion"
+
+
+def _grading_stage() -> Case:
+    # Latest step first. Only unsettled registrations are staged, so a
+    # finalised outcome here is always a Pass not yet promoted.
+    return Case(
+        When(
+            outcome__status=CandidateOutcome.Status.FINALISED,
+            then=Value(GradingStage.AWAITING_PROMOTION),
+        ),
+        When(
+            outcome__status=CandidateOutcome.Status.PROPOSED,
+            then=Value(GradingStage.AWAITING_DECISION),
+        ),
+        When(
+            assessment__status=CandidateAssessment.Status.COMPLETED,
+            then=Value(GradingStage.ASSESSED),
+        ),
+        When(
+            assessment__status=CandidateAssessment.Status.IN_PROGRESS,
+            then=Value(GradingStage.BEING_ASSESSED),
+        ),
+        default=Value(GradingStage.REGISTERED),
+        output_field=CharField(),
+    )
+
+
+def with_current_grading(students: QuerySet[Student]) -> QuerySet[Student]:
+    """Annotate each student's registration that has not reached its result.
+
+    One grading at a time means there is at most one; a double registration
+    made before that rule shows the earlier grading. Each annotation is None
+    for a student with none: `current_grading_session`, `_title`, `_stage`.
+    """
+    current = (
+        unsettled_registrations()
+        .filter(student=OuterRef("pk"))
+        .order_by("session__grading_date", "session_id")
+    )
+    return students.annotate(
+        current_grading_session=Subquery(current.values("session_id")[:1]),
+        current_grading_title=Subquery(current.values("session__title")[:1]),
+        current_grading_stage=Subquery(
+            current.annotate(stage=_grading_stage()).values("stage")[:1],
+        ),
+    )
 
 
 class OverallAssessmentSummary(TypedDict):

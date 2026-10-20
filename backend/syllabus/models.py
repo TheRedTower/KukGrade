@@ -157,6 +157,21 @@ CATEGORY_ORDER: dict[str, int] = {
     code: index for index, code in enumerate(SyllabusItem.Category.values)
 }
 
+# The six universal core grading areas (FDR-018), which every rank shares;
+# Techniques, Forms, Weapons and Other are rank-specific content. Served as
+# `category_is_core` so screens group by it without keeping their own list
+# (audit F-31).
+CORE_CATEGORIES: frozenset[str] = frozenset(
+    {
+        SyllabusItem.Category.ETIQUETTE,
+        SyllabusItem.Category.FUNDAMENTALS,
+        SyllabusItem.Category.HAND_TECHNIQUES,
+        SyllabusItem.Category.KICKING,
+        SyllabusItem.Category.FALLING,
+        SyllabusItem.Category.BREAKING,
+    },
+)
+
 
 class SyllabusRequirement(models.Model):
     rank = models.ForeignKey(

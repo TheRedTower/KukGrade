@@ -15,6 +15,7 @@ import {
   type UserAuthorityPayload,
   type UserRole,
 } from "./api";
+import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { useDialogFocus } from "./useDialogFocus";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
@@ -95,7 +96,7 @@ function AccountForm({
         </label>
       </div>
       <p className="users-form-note">
-        Roles control system access. Master authority is granted separately.
+        The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
       {error && <div className="users-error" role="alert">{error.message}</div>}
@@ -207,22 +208,26 @@ function AuthorityForm({
 function PasswordResetDialog({
   user,
   onClose,
-  onSaved,
 }: {
   user: ManagedUser;
   onClose: () => void;
-  onSaved: (message: string) => void;
 }): React.ReactElement {
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState("");
-  const [clientError, setClientError] = useState("");
+  const queryClient = useQueryClient();
+  // gcTime 0: the response carries the temporary password, which should
+  // leave memory with this dialog rather than linger in the mutation cache.
   const mutation = useMutation({
-    mutationFn: () => resetManagedUserPassword(user.id, password),
+    mutationFn: () => resetManagedUserPassword(user.id),
+    gcTime: 0,
     onSuccess: () => {
-      onSaved("Temporary password set. The user must change it at next sign-in.");
-      onClose();
+      // Refetched rather than set from the response, which would keep the
+      // password in the query cache: "Next sign-in" and the activity list
+      // show the reset.
+      void queryClient.invalidateQueries({ queryKey: ["managedUser", user.id] });
+      void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
     },
   });
+  const issued = mutation.data;
   const dialogRef = useDialogFocus<HTMLElement>({
     isOpen: true,
     onClose,
@@ -232,61 +237,40 @@ function PasswordResetDialog({
   const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
-    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending) onClose(); }}>
+    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending && !issued) onClose(); }}>
       <section ref={dialogRef} tabIndex={-1} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
         <header>
-          <div><p>Security action</p><h2 id="reset-password-title">Set a temporary password</h2></div>
+          <div><p>Security action</p><h2 id="reset-password-title">{issued ? "Password reset" : "Reset password"}</h2></div>
           <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>Close</button>
         </header>
-        <form onSubmit={(event) => {
-          event.preventDefault();
-          setClientError("");
-          if (password !== confirmation) {
-            setClientError("The password confirmation does not match.");
-            return;
-          }
-          mutation.mutate();
-        }}>
-          <p>Reset the password for <strong>{user.full_name}</strong>. The password itself is never written to the audit log.</p>
-          <input
-            className="visually-hidden"
-            type="email"
-            autoComplete="username"
-            value={user.email}
-            readOnly
-            tabIndex={-1}
-            aria-hidden="true"
-          />
-          <label>
-            <span>Temporary password</span>
-            <input
-              data-dialog-autofocus
-              required
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              aria-invalid={(error?.messagesFor("password").length ?? 0) > 0}
-              aria-describedby={(error?.messagesFor("password").length ?? 0) > 0 ? "reset-password-error" : undefined}
-            />
-          </label>
-          <label><span>Confirm password</span><input required type="password" autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></label>
-          {(error?.messagesFor("password").length ?? 0) > 0 && (
-            <span id="reset-password-error" role="alert">
-              {error?.messagesFor("password").map((message, index) => (
-                <small className="users-field-error" key={index}>{message}</small>
-              ))}
-            </span>
-          )}
-          {(clientError || error) && <div className="users-error" role="alert">{clientError || error?.message}</div>}
-          <div className="users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-            <button type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : "Set password"}</button>
-          </div>
-        </form>
+        {issued ? (
+          <TemporaryPasswordIssued issued={issued} onDone={onClose} />
+        ) : (
+          <form onSubmit={(event) => {
+            event.preventDefault();
+            mutation.mutate();
+          }}>
+            <p>
+              Reset the password for <strong>{user.full_name}</strong>? Their current password stops
+              working straight away, and you'll be given a temporary one to pass on.
+            </p>
+            {error && <div className="users-error" role="alert">{error.message}</div>}
+            <div className="users-dialog-actions">
+              <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+              <button data-dialog-autofocus type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</button>
+            </div>
+          </form>
+        )}
       </section>
     </div>
   );
+}
+
+function temporaryPasswordState(expiresAt: string): string {
+  const when = formatDateTime(expiresAt);
+  return new Date(expiresAt) <= new Date()
+    ? `Expired ${when}. Reset the password to give them a new one.`
+    : `Works until ${when}`;
 }
 
 function DeleteUserDialog({
@@ -341,8 +325,7 @@ function DeleteUserDialog({
         </header>
         <p>
           Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
-          undone. Any grading history attributed to this account is kept and reassigned to a
-          placeholder "Deleted User" account, not erased.
+          undone. Their grading history is kept, credited to a "Deleted user" account.
         </p>
         {error && <div className="users-error" role="alert">{error.message}</div>}
         <div className="users-dialog-actions">
@@ -402,6 +385,9 @@ export function UserDetailScreen(): React.ReactElement {
 
   const managedUser = query.data;
   const isSelf = managedUser.id === currentUser?.id;
+  // The server's answer: only a superuser changes an account that can use
+  // the Django admin site, so the page offers no change it would refuse.
+  const viewOnly = !managedUser.manageable;
   const formKey = [
     managedUser.id,
     managedUser.email,
@@ -433,29 +419,39 @@ export function UserDetailScreen(): React.ReactElement {
           <h1 id="user-detail-heading">{managedUser.full_name}</h1>
           <p>{managedUser.email} <span aria-hidden="true">·</span> <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>{managedUser.is_active ? "Active" : "Inactive"}</span></p>
         </div>
-        <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Set new password</button>
+        {/* A reset sets someone else's password and asks for no current one;
+            the server refuses it on your own account. */}
+        {isSelf ? (
+          <p className="users-self-password-hint">Change your own password from your account menu.</p>
+        ) : viewOnly ? (
+          <p className="users-self-password-hint">Only a superuser can change this account.</p>
+        ) : (
+          <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Reset password</button>
+        )}
       </header>
 
       {notice && <div className="users-success" role="status">{notice}</div>}
 
       <div className="user-detail-layout">
         <main>
-          <section className="user-detail-section">
-            <h2>Account details</h2>
-            <AccountForm key={`account-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
-          </section>
-          <section className="user-detail-section">
-            <h2>Master authority</h2>
-            <p>These permissions are independent of the user's role.</p>
-            <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
-          </section>
-          {!isSelf && (
+          <fieldset className="user-detail-fieldset" disabled={viewOnly}>
+            <section className="user-detail-section">
+              <h2>Account details</h2>
+              <AccountForm key={`account-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+            <section className="user-detail-section">
+              <h2>Master authority</h2>
+              <p>These permissions are independent of the user's role.</p>
+              <AuthorityForm key={`authority-${formKey}`} user={managedUser} isSelf={isSelf} onSaved={setNotice} />
+            </section>
+          </fieldset>
+          {!isSelf && !viewOnly && (
             <section className="user-detail-section">
               <h2>Danger zone</h2>
               <p>
-                Permanently delete this account. Grading history stays intact, reassigned to a
-                placeholder account - use this for corruption or test-data cleanup, not routine
-                offboarding (deactivate via account status instead).
+                Permanently delete this account. Their grading history is kept, credited to a
+                &ldquo;Deleted user&rdquo; account. For someone who has left, set the account to
+                Inactive instead.
               </p>
               <button
                 ref={deleteButtonRef}
@@ -476,6 +472,9 @@ export function UserDetailScreen(): React.ReactElement {
               <div><dt>Last active</dt><dd>{formatDateTime(managedUser.last_login, "Never")}</dd></div>
               <div><dt>Role</dt><dd>{managedUser.role_display}</dd></div>
               <div><dt>Next sign-in</dt><dd>{managedUser.must_change_password ? "Password change required" : "Normal access"}</dd></div>
+              {managedUser.temporary_password_expires_at && (
+                <div><dt>Temporary password</dt><dd>{temporaryPasswordState(managedUser.temporary_password_expires_at)}</dd></div>
+              )}
             </dl>
           </section>
           <section>
@@ -496,7 +495,7 @@ export function UserDetailScreen(): React.ReactElement {
         </aside>
       </div>
 
-      {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} onSaved={setNotice} />}
+      {passwordOpen && <PasswordResetDialog user={managedUser} onClose={closePassword} />}
       {deleteOpen && <DeleteUserDialog user={managedUser} onClose={closeDelete} />}
     </section>
   );

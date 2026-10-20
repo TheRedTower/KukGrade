@@ -9,12 +9,15 @@ from django.conf import settings
 from django.http import Http404, HttpRequest, HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
+
+from accounts.password_policy import policy as password_policy
+from students import wksa_ids
 
 
 @require_safe
@@ -30,18 +33,69 @@ def frontend(_request: HttpRequest, path: str = "") -> HttpResponse:
     return HttpResponse(index.read_text(encoding="utf-8"), content_type="text/html")
 
 
-@extend_schema(
-    responses=inline_serializer(
-        "SiteSettings",
-        fields={"club_name": serializers.CharField()},
-    ),
-)
+# The response is rendered through these, so the schema they declare is the
+# shape actually served: no key can be served undeclared, or declared unserved.
+class PasswordCharacterRuleSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    # DRF lifts declared fields off the class, so this does not replace
+    # Field.label at runtime; the stubs cannot know that.
+    label = serializers.CharField()  # type: ignore[assignment]
+    pattern = serializers.CharField(
+        help_text="A regular expression the password must match.",
+    )
+
+
+class PasswordPolicySerializer(serializers.Serializer):
+    min_length = serializers.IntegerField()
+    max_length = serializers.IntegerField()
+    character_rules = PasswordCharacterRuleSerializer(many=True)
+    checked_on_save = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Rules only the server can check, run when it is saved.",
+    )
+
+
+class WksaIdFormSerializer(serializers.Serializer):
+    code = serializers.CharField()
+    # As on PasswordCharacterRuleSerializer.
+    label = serializers.CharField()  # type: ignore[assignment]
+    pattern = serializers.CharField(
+        help_text="A regular expression the whole ID must match.",
+    )
+    example = serializers.CharField()
+
+
+class WksaIdSchemeSerializer(serializers.Serializer):
+    hint = serializers.CharField(
+        help_text="The rule in a sentence, as a refused ID is told it.",
+    )
+    forms = WksaIdFormSerializer(many=True)
+
+
+class SiteSettingsSerializer(serializers.Serializer):
+    club_name = serializers.CharField()
+    password_policy = PasswordPolicySerializer()
+    wksa_id = WksaIdSchemeSerializer()
+
+
+@extend_schema(responses=SiteSettingsSerializer)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def site_settings(_request: Request) -> Response:
     """Deployment settings the frontend shows, such as the club's name.
 
     Public, like the health check: the sign-in screen may show them too, and
-    nothing here is personal data.
+    nothing here is personal data. The password policy and the WKSA ID forms
+    are the ones the server enforces (accounts/password_policy.py,
+    students/wksa_ids.py), served so the screens never keep a copy of their
+    own.
     """
-    return Response({"club_name": settings.CLUB_NAME})
+    return Response(
+        SiteSettingsSerializer(
+            {
+                "club_name": settings.CLUB_NAME,
+                "password_policy": password_policy(),
+                "wksa_id": wksa_ids.described(),
+            },
+        ).data,
+    )

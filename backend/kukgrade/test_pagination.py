@@ -59,7 +59,7 @@ def many_students() -> int:
     total = DefaultPagination.max_page_size + 10
     Student.objects.bulk_create(
         Student(
-            wksa_id=f"PAGE-{index:04d}",
+            wksa_id=f"206-2-{index:03d}",
             first_name="Page",
             last_name=f"Student {index:04d}",
             date_of_birth=date(2000, 1, 1),
@@ -109,3 +109,32 @@ def test_out_of_range_page_is_rejected_rather_than_returning_an_empty_page() -> 
     response = client().get("/api/ranks/?page=99")
 
     assert response.status_code == 404
+
+
+def test_an_undeclared_list_parameter_is_refused_not_ignored() -> None:
+    # A misspelt filter used to return the unfiltered list, which reads as a
+    # filter that worked.
+    response = client("unknown-param@example.com").get(
+        "/api/gradings/assessments/?sesion=1&page_size=5"
+    )
+
+    assert response.status_code == 400
+    error = response.json()["error"]
+    assert error["code"] == "validation_error"
+    assert error["fields"] == {"sesion": ["This list cannot be filtered that way."]}
+
+
+def test_declared_filters_and_paging_are_still_accepted() -> None:
+    response = client("known-params@example.com").get(
+        "/api/gradings/assessments/?session=1&status=NOT_STARTED&page=1&page_size=5"
+    )
+
+    assert response.status_code == 200
+
+
+def test_actions_that_read_their_own_parameters_are_not_list_filtered() -> None:
+    response = client("action-params@example.com").get(
+        "/api/syllabus/requirements/effective/?rank_code=YELLOW&age_band=AGE_18_AND_OVER"
+    )
+
+    assert response.status_code == 200

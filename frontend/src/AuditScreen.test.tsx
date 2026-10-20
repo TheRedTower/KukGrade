@@ -14,6 +14,17 @@ vi.mock("./api", async () => {
   return {
     ...actual,
     getAuditEvents: (...args: unknown[]) => mockGetAuditEvents(...args),
+    // The server's names for the filters; the screen keeps no list of its own.
+    getAuditLabels: async () => ({
+      actions: [
+        { value: "OUTCOME_FINALISED", label: "Outcome finalised" },
+        { value: "SESSION_CREATED", label: "Grading session created" },
+      ],
+      entities: [
+        { value: "CandidateOutcome", label: "Outcome" },
+        { value: "GradingSession", label: "Grading session" },
+      ],
+    }),
   };
 });
 
@@ -23,6 +34,7 @@ const auditEvent: AuditEvent = {
   action: "OUTCOME_FINALISED",
   action_display: "Outcome finalised",
   entity_type: "CandidateOutcome",
+  entity_type_display: "Outcome",
   entity_id: "103",
   actor_email: "master.kim@kuksoolwon.test",
   actor_name: "In Hyuk Kim",
@@ -68,7 +80,8 @@ describe("AuditScreen", () => {
     await user.click(viewButton);
 
     const dialog = screen.getByRole("dialog", { name: "Outcome finalised" });
-    expect(within(dialog).getByText("OUTCOME_FINALISED")).toBeInTheDocument();
+    // The internal action code is not shown; the summary says what happened.
+    expect(within(dialog).queryByText("OUTCOME_FINALISED")).not.toBeInTheDocument();
     expect(within(dialog).getByText(/"result": "PASS"/)).toBeInTheDocument();
     const closeButton = within(dialog).getByRole("button", { name: "Close event details" });
     expect(closeButton).toHaveFocus();
@@ -84,12 +97,14 @@ describe("AuditScreen", () => {
     const user = userEvent.setup();
     renderScreen();
     await screen.findByText(auditEvent.summary);
+    // The choices are the server's, so they arrive with their own request.
+    await screen.findByRole("option", { name: "Outcome finalised" });
 
     await user.selectOptions(screen.getByLabelText("Action"), "OUTCOME_FINALISED");
-    await user.selectOptions(screen.getByLabelText("Entity type"), "CandidateOutcome");
+    await user.selectOptions(screen.getByLabelText("Record type"), "CandidateOutcome");
     fireEvent.change(screen.getByLabelText("Date from"), { target: { value: "2026-09-01" } });
     fireEvent.change(screen.getByLabelText("Date to"), { target: { value: "2026-09-30" } });
-    await user.type(screen.getByLabelText("Search entity ID or summary"), "Carlos");
+    await user.type(screen.getByLabelText("Search record number or summary"), "Carlos");
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
@@ -142,6 +157,24 @@ describe("AuditScreen", () => {
     await waitFor(() => {
       expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
         expect.objectContaining({ action: undefined, page: 1 }),
+      );
+    });
+  });
+
+  it("shows one record's events when opened from that record's link", async () => {
+    const user = userEvent.setup();
+    renderScreen("/audit?entity_type=GradingSession&entity_id=10");
+
+    await screen.findByText(auditEvent.summary);
+    expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
+      expect.objectContaining({ entity_type: "GradingSession", entity_id: "10" }),
+    );
+    expect(screen.getByText(/for Grading session #10/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    await waitFor(() => {
+      expect(mockGetAuditEvents).toHaveBeenLastCalledWith(
+        expect.objectContaining({ entity_id: undefined }),
       );
     });
   });

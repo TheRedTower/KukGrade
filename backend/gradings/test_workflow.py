@@ -62,7 +62,7 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     student_response = instructor.post(
         "/api/students/",
         {
-            "wksa_id": "WKSAE2E01",
+            "wksa_id": "206-2-500",
             "first_name": "Riley",
             "last_name": "Endo",
             "date_of_birth": "2015-04-01",
@@ -130,9 +130,10 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
 
     required_items = results(
         instructor.get(
-            f"/api/gradings/assessment-items/?assessment={assessment_id}&required=true",
+            f"/api/gradings/assessment-items/?assessment={assessment_id}",
         ),
     )
+    required_items = [item for item in required_items if item["required"]]
     assert required_items
 
     for item in required_items:

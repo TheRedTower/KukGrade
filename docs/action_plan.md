@@ -6,24 +6,52 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-1. **Finish the 2026-09-29 audit remediation**
-   (`audits/2026-09-29-independent-codebase-audit.md`). Done: KG-A01 to A05
-   and A07 to A23; KG-A06 no longer applies (the filter it
-   describes was removed). Remaining, in the audit's order:
-   - KG-A24: release assurance.
-2. **Go live.** Connect the production image to the real Traefik and
-   PostgreSQL host, cap the request body at Traefik, then verify backup,
-   restore, and monitoring before describing it as live (`deployment.md`).
-3. **Rehearse the historical import** against a sanitised copy of the real
-   KSW Colchester workbook. Every adapter fixture is synthetic, so expect
-   adjustments (`data-import-and-legacy-migration.md`).
-4. **Extend the accessibility pass to the other screens**: the four grading
-   surfaces were measured in slice 8; the rest of the app has only been
-   checked visually. Known: the session screen's breadcrumb, banner button,
-   search and filter are under 44px.
+In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
+(KG-A24, 2026-09-29 audit) waits until the owner asks for it.
+
+1. **Go live.** Done before it (2026-10-20): what the Administrator role -
+   not superuser - can and cannot do (`permissions.md`, "What an
+   Administrator can do to other accounts"), and the server side of setting
+   up the first administrator (`/api/setup/` with a one-time code from the
+   log, `deployment.md`) and the setup page the site shows until then
+   (`SetupPage.tsx`). Then connect the production image to the real Traefik and PostgreSQL host, cap the request
+   body at Traefik, and verify backup, restore, and monitoring before
+   describing it as live (`deployment.md`).
+2. **The syllabus row-divider defect** (fixed 2026-10-20: the first cell
+   stays a table cell, `Syllabus.css`).
+3. **Extend the accessibility pass to the other screens** (done 2026-10-20:
+   `current-system.md`, "Accessibility pass over the rest of the app").
+4. **Plain-language sweep of every screen's wording** (done 2026-10-20:
+   `current-system.md`, "Plain wording").
+5. **Housekeeping** (done 2026-10-20: decision log, Open decisions 3).
+
+Later, when the owner asks: release assurance (KG-A24); rehearsing the
+historical import against a sanitised copy of the real KSW Colchester
+workbook (`data-import-and-legacy-migration.md`).
+
+## Known defects
+
+None recorded.
+
+## Waiting on a release
+
+- **Email** (`email-and-credential-lifecycle.md`, slices 5-10): optional
+  Resend email for welcome, reset and password-changed messages, and
+  forgotten-password recovery. Waits for the packet's readiness condition
+  (v1.0.0). The email-free slices 1-4 are built (`current-system.md`).
 
 ## Needs a decision first
 
+- **Previous WKSA IDs** (decision log 2026-10-20): keeping the student ID a
+  black belt ID replaced as a previous ID, and finding a student by either.
+  The two forms, the black belt rank rule and the one change are built; the
+  replaced ID is in that change's audit event meanwhile. Whether a leaver's
+  student number can be given to someone new decides whether previous IDs
+  stay unique; the school owner is to answer.
+
+- **Black belt testing** (owner, 2026-10-20): the owner is to explain how
+  black belt gradings work - the national grading, where the black belt ID
+  is handed out - before KukGrade models them beyond the ID rule.
 - Whether offline grading is required, and its conflict policy, before any
   PWA, IndexedDB, or outbox work.
 - Reports and exports, from an accepted reporting specification.

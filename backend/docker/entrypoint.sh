@@ -6,6 +6,9 @@ if [ "${1:-}" != "serve" ]; then
 fi
 
 python manage.py migrate --noinput
+# While there is no administrator, writes the one-time setup code the setup
+# page asks for to this log (accounts/setup.py).
+python manage.py issue_setup_code
 
 exec gunicorn kukgrade.wsgi:application \
     --bind 0.0.0.0:8000 \

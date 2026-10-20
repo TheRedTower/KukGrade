@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+from datetime import timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -72,7 +74,7 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
 INSTALLED_APPS = [
     "accounts",
-    "django.contrib.admin",
+    "accounts.apps.KukGradeAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -148,22 +150,35 @@ DATABASES = {
     }
 }
 
+# The one password policy (accounts/password_policy.py), run by every path
+# that sets a password. Django's numeric-only check is not listed: the
+# character rules already require letters.
 AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "accounts.password_policy.LengthValidator"},
+    {"NAME": "accounts.password_policy.CharacterRulesValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+    },
     {
         "NAME": (
             "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
         ),
     },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
 ]
+
+# Who may sign in: Django's own rules, and no temporary password past its
+# expiry. One backend, so the API's sign-in, the admin site's and every
+# signed-in request all apply it (accounts/backends.py). Every session records
+# this path: renaming or moving the class signs everyone out unless a
+# migration re-points their sessions, as accounts 0007 did for this one.
+AUTHENTICATION_BACKENDS = ["accounts.backends.AccountBackend"]
+
+# How long a temporary password an administrator issues stays usable.
+_TEMPORARY_PASSWORD_HOURS = env_int("KUKGRADE_TEMPORARY_PASSWORD_HOURS", 24)
+if _TEMPORARY_PASSWORD_HOURS < 1:
+    msg = "KUKGRADE_TEMPORARY_PASSWORD_HOURS must be at least 1."
+    raise ImproperlyConfigured(msg)
+TEMPORARY_PASSWORD_LIFETIME = timedelta(hours=_TEMPORARY_PASSWORD_HOURS)
 
 LANGUAGE_CODE = "en-gb"
 # The club's own zone: "today" for grading dates, student ages and age bands is
@@ -242,7 +257,11 @@ REST_FRAMEWORK = {
     # one that sets it today, since unlimited password attempts is the risk
     # this exists to close.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"login": "10/min", "password_change": "10/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "login": "10/min",
+        "password_change": "10/min",
+        "setup": "10/min",
+    },
     # Production sits behind Cloudflare and then Traefik: two trusted hops,
     # so the client address is the second-to-last X-Forwarded-For entry.
     # Zero ignores untrusted X-Forwarded-For in native development.
@@ -279,11 +298,10 @@ SPECTACULAR_SETTINGS = {
         "CandidateAssessmentStatusEnum": "gradings.models.CandidateAssessment.Status",
         "CandidateOutcomeStatusEnum": "gradings.models.CandidateOutcome.Status",
         "CandidateOutcomeOutcomeEnum": "gradings.models.CandidateOutcome.Outcome",
-        "RankCategoryEnum": "ranks.models.Rank.Category",
         "BeltColourEnum": "ranks.models.BeltColour",
         "SyllabusItemCategoryEnum": "syllabus.models.SyllabusItem.Category",
         "AgeBandEnum": "syllabus.models.AgeBand",
-        "ImportBatchStatusEnum": "data_imports.models.ImportBatch.Status",
+        "GradingStageEnum": "gradings.read_models.GradingStage",
         "AuditEntityEnum": "audit.models.AuditEntity",
         "StudentImportRowOutcomeEnum": (
             "data_imports.services.StudentImportRowOutcome"
@@ -293,6 +311,15 @@ SPECTACULAR_SETTINGS = {
 
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
+
+# The school's own prefix in its student IDs, 206-2 for Colchester
+# (students/wksa_ids.py). Used in the example IDs shown; a transfer's ID may
+# carry another school's. Its pattern is a literal here, since settings
+# cannot import application code.
+SCHOOL_ID_PREFIX = os.environ.get("KUKGRADE_SCHOOL_PREFIX", "").strip() or "206-2"
+if not re.fullmatch("[0-9]{3}-[0-9]", SCHOOL_ID_PREFIX):
+    msg = "KUKGRADE_SCHOOL_PREFIX must look like 206-2."
+    raise ImproperlyConfigured(msg)
 
 CORS_ALLOWED_ORIGINS = env_list(
     "DJANGO_CORS_ALLOWED_ORIGINS",

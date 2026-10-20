@@ -158,17 +158,30 @@ export function PromotionLedgerScreen(): React.ReactElement {
     mutationFn: async (outcomes: number[]) => {
       return bulkPromoteCandidateOutcomes({ outcomes });
     },
-    onSuccess: (res) => {
+    onSuccess: (res, sentOutcomes) => {
       queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       setIsBatchTrayOpen(false);
 
-      const failed = Object.keys(res.errors).length;
-      if (failed > 0) {
+      const failures = Object.entries(res.errors);
+      if (failures.length > 0) {
+        // Errors are keyed by the row's index in the request; name each
+        // candidate and say why, so the admin knows whom to look at rather
+        // than only how many.
+        const nameFor = (index: string) => {
+          const outcomeId = sentOutcomes[Number(index)];
+          return (
+            rows.find((r) => r.outcome?.id === outcomeId)?.candidate.student_display_name ??
+            "A candidate"
+          );
+        };
+        const details = failures
+          .map(([index, reasons]) => `${nameFor(index)}: ${reasons.join(" ")}`)
+          .join("; ");
         setActionFeedback({
           type: "error",
-          message: `Promoted ${res.promoted.length} candidates, but ${failed} encountered errors.`,
+          message: `Promoted ${res.promoted.length} of ${res.promoted.length + failures.length}. Not promoted - ${details}`,
         });
       } else {
         setActionFeedback({
@@ -180,7 +193,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: err.message || "Failed to execute batch promotion.",
+        message: err.message || "Could not promote the selected candidates.",
       });
     },
   });
@@ -232,8 +245,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
             {session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
           </h1>
           <p className="pl-subtitle">
-            Review finalised candidates, confirm destination ranks, and execute official student
-            promotions with locked session grading dates.
+            Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day.
           </p>
         </div>
         <div className="pl-header-actions">
@@ -254,11 +266,9 @@ export function PromotionLedgerScreen(): React.ReactElement {
             🔒
           </span>
           <div>
-            <strong>Promotion Authority Required</strong>
+            <strong>Promotion authority needed</strong>
             <p>
-              You do not hold the <code>can_promote_student</code> permission. The promotion
-              ledger is displayed in read-only inspection mode. Only authorised Masters or
-              administrators may confer ranks.
+              You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
             </p>
           </div>
         </div>
@@ -319,7 +329,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
       </section>
 
       {/* Candidates Promotion Ledger Table */}
-      <div className="pl-table-container">
+      {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
+      <div className="pl-table-container" tabIndex={0} role="region" aria-label="Promotion ledger">
         {ledgerFailed ? (
           <div className="pl-loading-state" role="alert">
             <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
@@ -386,7 +397,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     outcomeLabel = "Fail (Finalised)";
                   }
                 } else if (outcome?.status === "PROPOSED") {
-                  outcomeLabel = `Proposed: ${outcome.proposed_outcome || "Pending"}`;
+                  outcomeLabel = `Proposed: ${outcome.proposed_outcome_display || "Pending"}`;
                 }
 
                 return (
@@ -501,14 +512,14 @@ export function PromotionLedgerScreen(): React.ReactElement {
       {isBatchTrayOpen && eligibleCohort.length > 0 && (
         <aside
           className="pl-batch-tray"
-          aria-label="Pinned batch confirmation preview"
+          aria-label="Promotion summary"
           role="region"
         >
           <div className="pl-batch-tray-content">
             {/* Left Section: Header & Candidate Pills List */}
             <div className="pl-batch-left">
               <div className="pl-batch-header">
-                <h2 className="pl-batch-title">Pinned batch confirmation preview</h2>
+                <h2 className="pl-batch-title">Promotion summary</h2>
                 <span className="pl-batch-count-tag">
                   {eligibleCohort.length} Candidates Selected
                 </span>
@@ -538,13 +549,13 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 type="button"
                 className="pl-batch-close-btn"
                 onClick={() => setIsBatchTrayOpen(false)}
-                aria-label="Close batch preview tray"
+                aria-label="Close the promotion summary"
               >
                 ✕
               </button>
               <div className="pl-batch-meta">
                 <div className="pl-meta-row">
-                  <span className="pl-meta-label">Locked</span>
+                  <span className="pl-meta-label">Grading date</span>
                   <span className="pl-meta-val">
                     {formatShortDate(session?.grading_date)}
                   </span>
@@ -570,7 +581,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 ) : (
                   <>
                     <span aria-hidden="true">✓</span>
-                    <span>Confirm Batch Promotion</span>
+                    <span>Confirm promotions</span>
                   </>
                 )}
               </button>
@@ -623,7 +634,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                   <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
                 </p>
                 <p className="pl-modal-date-notice">
-                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (locked to grading date).
+                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
                 </p>
               </div>
 

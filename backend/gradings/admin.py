@@ -310,6 +310,7 @@ class CandidateAssessmentItemAdmin(admin.ModelAdmin):
         "start_number",
         "end_number",
         "requirement_notes",
+        "notation",
         "assessor",
         "assessed_at",
         "created_at",
@@ -525,7 +526,7 @@ class CandidateOutcomeAdmin(admin.ModelAdmin):
     ) -> None:
         if change and form.changed_data:
             raise DjangoValidationError(
-                "Candidate outcomes are changed through the API workflow services.",
+                "Outcomes are proposed and decided in KukGrade, not here.",
             )
         super().save_model(request, obj, form, change)
 
@@ -601,6 +602,6 @@ class PromotionAdmin(admin.ModelAdmin):
     ) -> None:
         if change and form.changed_data:
             raise DjangoValidationError(
-                "Promotion records are immutable after creation.",
+                "A promotion cannot be changed once recorded.",
             )
         super().save_model(request, obj, form, change)

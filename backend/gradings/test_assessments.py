@@ -13,6 +13,8 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from accounts.models import User
+from accounts.permissions import AUTHORITY_PERMISSIONS
+from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from gradings.assessment_services import (
     delete_candidate_assessment,
@@ -388,6 +390,32 @@ def test_assessment_snapshot_survives_live_syllabus_edits() -> None:
     assert snapshot.requirement_notes != "Changed live notes"
 
 
+def test_snapshot_keeps_the_cumulative_parts_of_a_form_taught_in_parts() -> None:
+    # 8-and-under Cho Geup Hyung: part 1 at Blue, 2 at Red stripe, 3 at Red.
+    # A Red grading assesses all three, and the record keeps that wording
+    # whatever later happens to the syllabus (audit F-09).
+    built = candidate(
+        student=student(
+            date_of_birth=BORN_IN_BAND[AgeBand.AGE_8_AND_UNDER],
+            current_rank=rank("RED_STRIPE"),
+        ),
+        testing_for_rank=rank("RED"),
+    )
+    generated = assessment(candidate=built)
+
+    snapshot = generated.items.get(item_code="CHO_GEUP_HYUNG")
+    assert snapshot.notation == "Parts 1-3"
+    assert snapshot.requirement_notes == "Chart notation: (pt.3)."
+
+    source = snapshot.source_requirement
+    assert source is not None
+    source.notes = "Chart notation: (pt.4)."
+    source.save()
+
+    snapshot.refresh_from_db()
+    assert snapshot.notation == "Parts 1-3"
+
+
 def test_deleting_source_requirement_and_item_preserves_snapshot_display_data() -> None:
     built = candidate()
     source_item = SyllabusItem.objects.create(
@@ -698,7 +726,7 @@ def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() ->
     # Admin and the shell reach the model directly, not the serializer.
     built = build_candidate(
         session=grading_session(),
-        student=student(wksa_id="REGWD003"),
+        student=student(wksa_id="206-2-500"),
         testing_for_rank=rank("YELLOW_STRIPE"),
     )
     built.status = GradingCandidate.Status.COMPLETED
@@ -783,7 +811,7 @@ def test_assessment_item_result_update_rejected_in_draft_session() -> None:
 def test_candidate_core_fields_cannot_change_after_assessment_generation() -> None:
     generated = assessment()
     built = generated.candidate
-    built.student = student(wksa_id="CHANGEDCORE")
+    built.student = student(wksa_id="206-2-501")
 
     with pytest.raises(ValidationError):
         built.save()
@@ -855,9 +883,7 @@ def test_session_lock_and_completion_require_assessments() -> None:
 
 def test_withdrawn_candidates_do_not_block_session_completion() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    built = candidate(session=session)
-    built.status = GradingCandidate.Status.WITHDRAWN
-    built.save()
+    candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
 
     validate_session_transition(
         GradingSession.Status.OPEN,
@@ -916,8 +942,6 @@ def test_assessment_api_generation_lists_and_filters() -> None:
     list_response = client.get(
         "/api/gradings/assessments/"
         f"?candidate={built.id}&session={session.id}"
-        f"&student_wksa_id={built.student.wksa_id}"
-        "&testing_for_rank_code=YELLOW_STRIPE"
         "&status=NOT_STARTED",
     )
     post_response = client.post("/api/gradings/assessments/", {}, format="json")
@@ -1084,6 +1108,34 @@ def test_assessment_delete_requires_the_cleanup_permission() -> None:
     assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
 
 
+def test_only_an_administrator_can_delete_an_assessment_after_lock() -> None:
+    # Kept for emergencies (2026-10-18 owner decision), and only for
+    # administrators: Master authority over the session is not enough.
+    _, generated = locked_completed_candidate()
+    master_instructor = user("locked-delete-master@example.com")
+    for permission in AUTHORITY_PERMISSIONS.values():
+        grant_permission(master_instructor, permission)
+    instructor_client = APIClient()
+    instructor_client.force_authenticate(user=master_instructor)
+
+    refused = instructor_client.delete(f"/api/gradings/assessments/{generated.id}/")
+
+    assert refused.status_code == 403
+    assert CandidateAssessment.objects.filter(pk=generated.pk).exists()
+
+    admin = User.objects.create_user(
+        email="locked-delete-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+    admin_client = APIClient()
+    admin_client.force_authenticate(user=admin)
+
+    allowed = admin_client.delete(f"/api/gradings/assessments/{generated.id}/")
+
+    assert allowed.status_code == 204
+    assert not CandidateAssessment.objects.filter(pk=generated.pk).exists()
+
+
 def test_administrator_can_delete_a_not_started_assessment() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     generated = assessment(candidate=built)
@@ -1134,6 +1186,51 @@ def test_deleting_completed_assessment_cascades_and_reverts_rank() -> None:
         "to": promotion.from_rank.code,
     }
     assert AuditEvent.objects.count() == events_before + 1
+
+
+def test_deleting_a_completed_assessment_registers_its_candidate_again() -> None:
+    from gradings.assessment_services import generate_candidate_assessment
+
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = candidate(session=session)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    complete_assessment(generated)
+    admin = User.objects.create_user(
+        email="assessment-redo-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    delete_candidate_assessment(generated, admin)
+
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+    regenerated = generate_candidate_assessment(built, admin)
+    assert regenerated.status == CandidateAssessment.Status.NOT_STARTED
+
+
+def test_deleting_an_assessment_after_lock_leaves_a_withdrawable_candidate() -> None:
+    from gradings.services import withdraw_locked_candidate
+    from gradings.testing import override_master
+
+    built, generated = locked_completed_candidate()
+    admin = User.objects.create_user(
+        email="assessment-locked-delete-admin@example.com",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    delete_candidate_assessment(generated, admin)
+
+    built.refresh_from_db()
+    assert built.status == GradingCandidate.Status.REGISTERED
+    withdraw_locked_candidate(
+        built,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
+        note="Assessment deleted as test data.",
+        actor=override_master("locked-delete-withdrawer@example.com"),
+    )
+    session = transition_grading_session(built.session, GradingSession.Status.COMPLETED)
+    assert session.status == GradingSession.Status.COMPLETED
 
 
 def test_deleting_an_assessment_is_refused_when_a_later_promotion_exists() -> None:
@@ -1228,6 +1325,42 @@ def test_assessment_item_api_allows_only_result_fields_and_filters() -> None:
     assert delete_response.status_code == 405
 
 
+def test_assessment_item_api_serves_chart_notation_as_display_wording() -> None:
+    # The scoring and completion screens show the same wording the syllabus
+    # does, from the snapshot - never the raw "Chart notation: (...)." seed.
+    built = candidate()
+    for code, notes in (
+        ("PART_NOTATION_ITEM", "Chart notation: (1/2)."),
+        ("PLAIN_NOTE_ITEM", "May be assessed if time allows."),
+    ):
+        SyllabusRequirement.objects.create(
+            rank=built.testing_for_rank,
+            item=SyllabusItem.objects.create(
+                code=code,
+                name=code.title(),
+                category=SyllabusItem.Category.OTHER,
+            ),
+            age_band=built.age_band,
+            sequence=999,
+            notes=notes,
+        )
+    generated = assessment(candidate=built)
+
+    response = auth_client("notation@example.com").get(
+        "/api/gradings/assessment-items/",
+        {"assessment": generated.id, "page_size": 200},
+    )
+
+    assert response.status_code == 200
+    by_name = {row["item_name"]: row for row in results(response)}
+    part = by_name["Part_Notation_Item"]
+    assert part["notation"] == "Part 1 of 2"
+    assert part["requirement_notes"] == "Chart notation: (1/2)."
+    plain = by_name["Plain_Note_Item"]
+    assert plain["notation"] == ""
+    assert plain["requirement_notes"] == "May be assessed if time allows."
+
+
 def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
     built = candidate(
         student=student(
@@ -1257,6 +1390,9 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
         "FALLING",
         "BREAKING",
     ]
+    # The six core areas are flagged as such; rank content is not (F-31).
+    assert all(row["category_is_core"] for row in rows[:6])
+    assert not any(row["category_is_core"] for row in rows[6:])
     assert [row["item_name"] for row in rows if row["category"] == "WEAPONS"] == [
         "Sword Techs",
         "Bohng Dol-li-ki",

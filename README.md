@@ -86,6 +86,10 @@ uv run python manage.py migrate
 uv run python manage.py runserver 0.0.0.0:8000
 ```
 
+On a fresh database, run `uv run python manage.py issue_setup_code` once and
+enter the code it prints on the site's setup page to create the first
+administrator. `createsuperuser` is switched off.
+
 Install and run the frontend:
 
 ```sh

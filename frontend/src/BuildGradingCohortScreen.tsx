@@ -399,7 +399,7 @@ export function BuildGradingCohortScreen() {
     return (
       <section aria-labelledby="bgc-invalid-id-heading" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
-          <h2 id="bgc-invalid-id-heading">Invalid Grading Session ID</h2>
+          <h2 id="bgc-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the grading sessions list.</p>
           <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
         </div>
@@ -409,10 +409,10 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Grading session cohort workspace" className="bgc-page" data-testid="bgc-page">
+      <section aria-label="Build grading cohort" className="bgc-page" data-testid="bgc-page">
         <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
-          <p>Loading grading session cohort workspace...</p>
+          <p>Loading the grading session…</p>
         </div>
       </section>
     );
@@ -536,7 +536,12 @@ export function BuildGradingCohortScreen() {
                     </td>
                     <td className="bgc-td-status">
                       {item.isAlreadyRegistered ? (
-                        <span className="bgc-status-badge bgc-badge-muted">No retry needed</span>
+                        <span className="bgc-status-badge bgc-badge-muted">
+                          {/* One grading at a time: held by another grading, not this one. */}
+                          {item.error.includes("for this session")
+                            ? "No retry needed"
+                            : "Registered for another grading"}
+                        </span>
                       ) : (
                         <span className={`bgc-status-badge bgc-status-${item.student?.status?.toLowerCase()}`}>
                           {item.student?.status_display || item.student?.status}
@@ -771,7 +776,7 @@ export function BuildGradingCohortScreen() {
               <div className="bgc-summary-info">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span className="bgc-info-text">
-                  Students with Left status are excluded (not eligible for grading).
+                  Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
               <div className="bgc-summary-actions">
@@ -1155,7 +1160,7 @@ export function BuildGradingCohortScreen() {
                 type="button"
                 className="modal-close-btn"
                 onClick={() => setExceptionsModalOpen(false)}
-                aria-label="Close modal"
+                aria-label="Close"
               >
                 ✕
               </button>

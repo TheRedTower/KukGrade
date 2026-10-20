@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/audit-events/labels/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The event and record types the caller may filter by, with their
+         *     names - the same events visible_to() lets them read.
+         */
+        get: operations["audit_events_labels_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/change-password/": {
         parameters: {
             query?: never;
@@ -811,6 +831,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Setting up a new deployment's first administrator (accounts/setup.py).
+         *
+         *     Public, as the sign-in is: nobody can sign in before it is done. Taking a
+         *     code is rate-limited like a password guess; asking whether setup is
+         *     needed is not, and also hands the setup page its CSRF cookie.
+         */
+        get: operations["setup_retrieve"];
+        put?: never;
+        /**
+         * @description Setting up a new deployment's first administrator (accounts/setup.py).
+         *
+         *     Public, as the sign-in is: nobody can sign in before it is done. Taking a
+         *     code is rate-limited like a password guess; asking whether setup is
+         *     needed is not, and also hands the setup page its CSRF cookie.
+         */
+        post: operations["setup_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/site/": {
         parameters: {
             query?: never;
@@ -822,7 +872,10 @@ export interface paths {
          * @description Deployment settings the frontend shows, such as the club's name.
          *
          *     Public, like the health check: the sign-in screen may show them too, and
-         *     nothing here is personal data.
+         *     nothing here is personal data. The password policy and the WKSA ID forms
+         *     are the ones the server enforces (accounts/password_policy.py,
+         *     students/wksa_ids.py), served so the screens never keep a copy of their
+         *     own.
          */
         get: operations["site_retrieve"];
         put?: never;
@@ -1066,18 +1119,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * @description The administrator-facing users API.
-         *
-         *     Deactivate via is_active for routine offboarding - that is reversible
-         *     and keeps every attribution intact with no extra work. destroy() is a
-         *     genuine hard delete, gated to accounts.delete_user (Administrator group
-         *     only), for corruption or test-data cleanup: see
-         *     accounts.services.delete_platform_user for how it keeps every PROTECT
-         *     attribution foreign key satisfied by reassigning history to a
-         *     placeholder account rather than erasing it. No PUT: partial_update
-         *     covers every real edit.
-         */
+        /** @description A new temporary password for someone else, replacing theirs. */
         post: operations["users_set_password_create"];
         delete?: never;
         options?: never;
@@ -1092,20 +1134,20 @@ export interface components {
         /**
          * @description * `SESSION_CREATED` - Grading session created
          *     * `SESSION_UPDATED` - Grading session updated
-         *     * `SESSION_TRANSITIONED` - Grading session transitioned
+         *     * `SESSION_TRANSITIONED` - Grading session status changed
          *     * `SESSION_DELETED` - Grading session deleted
          *     * `CANDIDATE_REGISTERED` - Candidate registered
          *     * `CANDIDATE_UPDATED` - Candidate updated
          *     * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
          *     * `CANDIDATE_DELETED` - Candidate deleted
-         *     * `ASSESSMENT_GENERATED` - Assessment generated
+         *     * `ASSESSMENT_GENERATED` - Assessment form prepared
          *     * `ASSESSMENT_STARTED` - Assessment started
          *     * `ASSESSMENT_UPDATED` - Assessment notes updated
          *     * `ASSESSMENT_COMPLETED` - Assessment completed
          *     * `ASSESSMENT_REOPENED` - Assessment reopened
          *     * `ASSESSMENT_DELETED` - Assessment deleted
          *     * `ITEM_RESULT_RECORDED` - Assessment item result recorded
-         *     * `OUTCOME_CREATED` - Outcome created
+         *     * `OUTCOME_CREATED` - Outcome record opened
          *     * `OUTCOME_PROPOSED` - Outcome proposed
          *     * `OUTCOME_FINALISED` - Outcome finalised
          *     * `PROMOTION_RECORDED` - Promotion recorded
@@ -1117,13 +1159,13 @@ export interface components {
          *     * `USER_UPDATED` - User updated
          *     * `USER_AUTHORITY_CHANGED` - User authority changed
          *     * `USER_DELETED` - User deleted
-         *     * `IMPORT_BATCH_COMMITTED` - Import batch committed
-         *     * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
-         *     * `IMPORT_BATCH_EXPIRED` - Import batch expired
-         *     * `LEGACY_GRADING_LINKED` - Legacy grading record linked
-         *     * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
-         *     * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
-         *     * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
+         *     * `IMPORT_BATCH_COMMITTED` - Import finished
+         *     * `IMPORT_BATCH_CANCELLED` - Import cancelled
+         *     * `IMPORT_BATCH_EXPIRED` - Import expired
+         *     * `LEGACY_GRADING_LINKED` - Historical record linked
+         *     * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
+         *     * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
+         *     * `LEGACY_GRADING_VOIDED` - Historical record voided
          * @enum {string}
          */
         ActionEnum: "SESSION_CREATED" | "SESSION_UPDATED" | "SESSION_TRANSITIONED" | "SESSION_DELETED" | "CANDIDATE_REGISTERED" | "CANDIDATE_UPDATED" | "CANDIDATE_WITHDRAWN" | "CANDIDATE_DELETED" | "ASSESSMENT_GENERATED" | "ASSESSMENT_STARTED" | "ASSESSMENT_UPDATED" | "ASSESSMENT_COMPLETED" | "ASSESSMENT_REOPENED" | "ASSESSMENT_DELETED" | "ITEM_RESULT_RECORDED" | "OUTCOME_CREATED" | "OUTCOME_PROPOSED" | "OUTCOME_FINALISED" | "PROMOTION_RECORDED" | "STUDENT_CREATED" | "STUDENT_UPDATED" | "STUDENT_STATUS_CHANGED" | "STUDENT_DELETED" | "USER_CREATED" | "USER_UPDATED" | "USER_AUTHORITY_CHANGED" | "USER_DELETED" | "IMPORT_BATCH_COMMITTED" | "IMPORT_BATCH_CANCELLED" | "IMPORT_BATCH_EXPIRED" | "LEGACY_GRADING_LINKED" | "LEGACY_GRADING_UNLINKED" | "LEGACY_GRADING_RANK_RESOLVED" | "LEGACY_GRADING_VOIDED";
@@ -1187,6 +1229,10 @@ export interface components {
          * @enum {string}
          */
         AttendanceStatusEnum: "ATTENDED" | "DID_NOT_ATTEND" | "UNKNOWN";
+        AuditChoice: {
+            value: string;
+            label: string;
+        };
         /**
          * @description * `GradingSession` - Grading session
          *     * `GradingCandidate` - Candidate
@@ -1196,7 +1242,7 @@ export interface components {
          *     * `Promotion` - Promotion
          *     * `Student` - Student
          *     * `User` - User
-         *     * `ImportBatch` - Import batch
+         *     * `ImportBatch` - Import
          *     * `LegacyGradingRecord` - Historical grading record
          * @enum {string}
          */
@@ -1208,12 +1254,21 @@ export interface components {
             readonly action: components["schemas"]["ActionEnum"];
             readonly action_display: string;
             readonly entity_type: components["schemas"]["AuditEntityEnum"];
+            readonly entity_type_display: string;
             readonly entity_id: string;
             /** Format: email */
             readonly actor_email: string;
             readonly actor_name: string;
             readonly summary: string;
             readonly metadata: unknown;
+        };
+        /**
+         * @description GET /api/audit-events/labels/: the names of the event and record
+         *     types, so the audit screen's filters keep no list of their own.
+         */
+        AuditLabels: {
+            actions: components["schemas"]["AuditChoice"][];
+            entities: components["schemas"]["AuditChoice"][];
         };
         /**
          * @description * `WHITE` - White
@@ -1305,10 +1360,14 @@ export interface components {
             readonly korean_name: string;
             readonly category: components["schemas"]["SyllabusItemCategoryEnum"];
             readonly category_display: string;
+            /** @description Whether the category is one of the six core grading areas every rank shares, rather than rank-specific content. */
+            readonly category_is_core: boolean;
             readonly position: number;
             readonly required: boolean;
             readonly display_range: string;
             readonly requirement_notes: string;
+            /** @description The syllabus's display wording for this item's chart notation - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated; empty when there is none. */
+            readonly notation: string;
             result?: components["schemas"]["ResultEnum"];
             readonly result_display: string;
             /** Format: email */
@@ -1367,9 +1426,9 @@ export interface components {
         /**
          * @description POST /api/auth/change-password/.
          *
-         *     Self-service, unlike SetPasswordSerializer: an administrator resetting
-         *     someone else's password already proved their own authority to manage
-         *     that account, so no current-password check applies there. Here the
+         *     Self-service, unlike set-password: an administrator resetting someone
+         *     else's password already proved their own authority to manage that
+         *     account, so no current-password check applies there. Here the
          *     caller is proving they still control the account, not managing someone
          *     else's - current_password is required precisely because a hijacked
          *     session should not be enough to lock the real owner out.
@@ -1377,6 +1436,13 @@ export interface components {
         ChangePasswordRequest: {
             current_password: string;
             new_password: string;
+        };
+        /** @description The grading a student is registered for that has not reached its result. */
+        CurrentGrading: {
+            session: number;
+            session_title: string;
+            stage: components["schemas"]["GradingStageEnum"];
+            stage_display: string;
         };
         /**
          * @description * `MONTH` - Month
@@ -1399,6 +1465,8 @@ export interface components {
             readonly item_korean_name: string;
             readonly category: string;
             readonly category_display: string;
+            /** @description Whether the category is one of the six core grading areas every rank shares, rather than rank-specific content. */
+            readonly category_is_core: boolean;
             readonly required: boolean;
             readonly display_range: string;
             readonly notation: string;
@@ -1481,6 +1549,15 @@ export interface components {
          * @enum {string}
          */
         GradingSessionStatusEnum: "DRAFT" | "OPEN" | "LOCKED" | "COMPLETED" | "CANCELLED";
+        /**
+         * @description * `REGISTERED` - Registered
+         *     * `BEING_ASSESSED` - Being assessed
+         *     * `ASSESSED` - Assessed
+         *     * `AWAITING_DECISION` - Awaiting final decision
+         *     * `AWAITING_PROMOTION` - Passed, awaiting promotion
+         * @enum {string}
+         */
+        GradingStageEnum: "REGISTERED" | "BEING_ASSESSED" | "ASSESSED" | "AWAITING_DECISION" | "AWAITING_PROMOTION";
         GradingYears: {
             readonly years: number[];
         };
@@ -1515,8 +1592,41 @@ export interface components {
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
         /**
+         * @description The account, with the temporary password just issued for it.
+         *
+         *     The only response that ever carries a password, and only this once: the
+         *     server keeps nothing but its hash, so it cannot be shown again. Sent by
+         *     creating a user and by set-password, with caching disabled.
+         */
+        IssuedTemporaryPassword: {
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: email */
+            email: string;
+            first_name?: string;
+            last_name?: string;
+            readonly full_name: string;
+            role?: components["schemas"]["RoleEnum"];
+            readonly role_display: string;
+            is_active?: boolean;
+            readonly can_make_final_grading_decision: boolean;
+            readonly can_promote_student: boolean;
+            readonly can_override_locked_session: boolean;
+            readonly can_view_grading_audit_log: boolean;
+            readonly must_change_password: boolean;
+            /** Format: date-time */
+            readonly temporary_password_expires_at: string | null;
+            /** Format: date-time */
+            readonly date_joined: string;
+            /** Format: date-time */
+            readonly last_login: string | null;
+            /** @description Whether the signed-in user may change this account; only a superuser changes one that can use the Django admin site. */
+            readonly manageable: boolean;
+            readonly temporary_password: string;
+        };
+        /**
          * @description * `STUDENT_ROSTER` - Student roster
-         *     * `LEGACY_GRADINGS` - Legacy grading records
+         *     * `LEGACY_GRADINGS` - Historical grading records
          * @enum {string}
          */
         KindEnum: "STUDENT_ROSTER" | "LEGACY_GRADINGS";
@@ -1794,6 +1904,19 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["WithdrawalReason"][];
         };
+        PasswordCharacterRule: {
+            code: string;
+            label: string;
+            /** @description A regular expression the password must match. */
+            pattern: string;
+        };
+        PasswordPolicy: {
+            min_length: number;
+            max_length: number;
+            character_rules: components["schemas"]["PasswordCharacterRule"][];
+            /** @description Rules only the server can check, run when it is saved. */
+            checked_on_save: string[];
+        };
         PatchedCandidateAssessmentItemRequest: {
             result?: components["schemas"]["ResultEnum"];
             assessor_notes?: string;
@@ -1837,11 +1960,13 @@ export interface components {
             last_name?: string;
         };
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         PatchedStudentRequest: {
             wksa_id?: string;
@@ -1880,7 +2005,6 @@ export interface components {
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
-            password?: string;
         };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
@@ -1952,17 +2076,27 @@ export interface components {
          */
         RoleEnum: "instructor" | "administrator";
         /**
-         * @description POST /api/users/{id}/set-password/.
-         *
-         *     A separate action rather than a writable field on UserManagementSerializer,
-         *     so a plain PATCH to a user's other details can never carry a password
-         *     change as a side effect.
+         * @description POST /api/setup/: the first administrator, and the code proving it is
+         *     the deployment's owner (accounts/setup.py).
          */
-        SetPasswordRequest: {
+        SetupRequest: {
+            /** @description The one-time setup code from the server's log. */
+            code: string;
+            /** Format: email */
+            email: string;
+            first_name?: string;
+            last_name?: string;
             password: string;
+        };
+        /** @description GET /api/setup/. */
+        SetupStatus: {
+            /** @description True until the deployment's first administrator exists. */
+            setup_needed: boolean;
         };
         SiteSettings: {
             club_name: string;
+            password_policy: components["schemas"]["PasswordPolicy"];
+            wksa_id: components["schemas"]["WksaIdScheme"];
         };
         /**
          * @description * `KUKGRADE` - KUKGRADE
@@ -1971,15 +2105,18 @@ export interface components {
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         Student: {
             readonly id: number;
             wksa_id: string;
+            readonly wksa_id_can_change: boolean;
             first_name: string;
             last_name: string;
             /** Format: date */
@@ -2062,18 +2199,30 @@ export interface components {
             readonly status: components["schemas"]["StudentStatusEnum"];
             readonly status_display: string;
             readonly can_be_graded: boolean;
+            /**
+             * @description On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
+             *
+             *     * `AGE_8_AND_UNDER` - 8 and under
+             *     * `AGE_9_TO_12` - 9-12
+             *     * `AGE_13_TO_17` - 13-17
+             *     * `AGE_18_AND_OVER` - 18+
+             */
             readonly age_band: components["schemas"]["AgeBandEnum"];
             readonly age_band_display: string;
+            /** @description The grading the student is registered for that has not reached its result, and how far it has got; null when there is none. */
+            readonly current_grading: components["schemas"]["CurrentGrading"] | null;
         };
         StudentRankHistory: {
             readonly promotions: components["schemas"]["PromotionRankHistory"][];
         };
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         StudentRequest: {
             wksa_id: string;
@@ -2153,9 +2302,13 @@ export interface components {
             readonly can_view_grading_audit_log: boolean;
             readonly must_change_password: boolean;
             /** Format: date-time */
+            readonly temporary_password_expires_at: string | null;
+            /** Format: date-time */
             readonly date_joined: string;
             /** Format: date-time */
             readonly last_login: string | null;
+            /** @description Whether the signed-in user may change this account; only a superuser changes one that can use the Django admin site. */
+            readonly manageable: boolean;
         };
         /**
          * @description List, retrieve, create and update for the administrator-facing API.
@@ -2173,7 +2326,6 @@ export interface components {
             last_name?: string;
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
-            password: string;
         };
         VoidLegacyRecordRequest: {
             reason: string;
@@ -2192,6 +2344,18 @@ export interface components {
          * @enum {string}
          */
         WithdrawalReasonEnum: "INJURY" | "WITHDREW" | "ABSENT" | "OTHER";
+        WksaIdForm: {
+            code: string;
+            label: string;
+            /** @description A regular expression the whole ID must match. */
+            pattern: string;
+            example: string;
+        };
+        WksaIdScheme: {
+            /** @description The rule in a sentence, as a refused ID is told it. */
+            hint: string;
+            forms: components["schemas"]["WksaIdForm"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -2227,6 +2391,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedAuditEventList"];
+                };
+            };
+        };
+    };
+    audit_events_labels_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLabels"];
                 };
             };
         };
@@ -3438,6 +3621,50 @@ export interface operations {
             };
         };
     };
+    setup_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupStatus"];
+                };
+            };
+        };
+    };
+    setup_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SetupRequest"];
+                "multipart/form-data": components["schemas"]["SetupRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
     site_retrieve: {
         parameters: {
             query?: never;
@@ -3460,11 +3687,11 @@ export interface operations {
     students_list: {
         parameters: {
             query?: {
-                /** @description The age band the student is in today. */
+                /** @description The student's age band - on the session's grading date when eligible_for_session is given, as registration works it out, otherwise today. */
                 age_band?: "AGE_13_TO_17" | "AGE_18_AND_OVER" | "AGE_8_AND_UNDER" | "AGE_9_TO_12";
                 current_rank?: number;
                 current_rank_code?: string;
-                /** @description Students who could still be registered for this grading session: not Left and not already one of its candidates. */
+                /** @description Students who could still be registered for this grading session: not Left, not already one of its candidates, and not registered for another grading that has not reached its result. */
                 eligible_for_session?: number;
                 /** @description A page number within the paginated result set. */
                 page?: number;
@@ -3727,7 +3954,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["UserManagement"];
+                    "application/json": components["schemas"]["IssuedTemporaryPassword"];
                 };
             };
         };
@@ -3841,20 +4068,15 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SetPasswordRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["SetPasswordRequest"];
-                "multipart/form-data": components["schemas"]["SetPasswordRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description No response body */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IssuedTemporaryPassword"];
+                };
             };
         };
     };

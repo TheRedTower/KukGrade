@@ -19,7 +19,7 @@ here does not by itself mean it has shipped.
 | FDR-004 | Use a persistent ink navigation rail in both themes. | Approved | Maintains brand and positional continuity between light and dark modes. |
 | FDR-005 | Use Overview, Students, Gradings and Syllabus for standard instructors; add Audit for the designated Master and administrators, and Users only for administrators. | Approved | Matches the current permission boundary. Reports, Certificates and Settings are excluded from first-release navigation. |
 | FDR-006 | Make Overview an operational ledger rather than an analytics dashboard. | Approved | The selected concept prioritises Now, Needs attention, Upcoming and Recent activity. |
-| FDR-007 | Use comfortable tablet-first density with minimum 44px interactive targets. | Approved | Data tables remain compact but touch-safe. |
+| FDR-007 | Use comfortable tablet-first density with minimum 44px interactive targets. | Approved | Data tables remain compact but touch-safe. Applied app-wide by one base rule in `App.css` (2026-10-20); the theme toggle alone stays a compact pill, by the owner's choice. |
 | FDR-008 | Prefer grouped tables and divider-led lists to repeated cards. | Approved | Cards are reserved for genuinely independent content. |
 | FDR-009 | Treat Active, Inactive and Left as distinct semantics. | Approved | Active uses success; Inactive is neutral or amber; Left uses a stronger blocking treatment. |
 | FDR-010 | Keep the student list privacy-minimised. | Approved | Date of birth appears only on an intentionally opened student record. |
@@ -59,8 +59,8 @@ here does not by itself mean it has shipped.
 | FDR-044 | Rebuild the Authorised Master final decision as the Cohort Adjudication Board. | Implemented 2026-09-28 | Selected from three directions on 2026-09-23. Supersedes FDR-038's slide-over ledger. A locked session's whole cohort becomes a decision queue: rows carry evidence, the instructor proposal and an inline Pass/Conditional/Fail, with a detail pane for the row in focus. Decisions stage, then write one candidate at a time with per-row failures per FDR-028. FDR-037's instructor proposal drawer is retained but restyled to this screen's language - see FDR-047. |
 | FDR-045 | Clearing an item result is destructive and is confirmed inline. | Implemented 2026-09-24 | The `candidate_item_assessor_matches_result` constraint nulls `assessor` and `assessed_at` when a result returns to `NOT_ASSESSED`, and that attribution cannot be restored. `Clear` therefore opens an inline confirmation naming the assessor and time it will erase, per the selected FDR-042 direction. |
 | FDR-046 | Assessment counts are served, not recomputed in React. | Approved | The service `candidate_assessment_summary` is served by `GET /api/gradings/assessments/{id}/summary/`, which carries the required split at any status, and as `overall` on each assessment in the list, so a cohort needs no per-candidate request. The earlier `item_counts` field had no required-split, so it could not drive the completion gate (optional items may be left unassessed), and was removed. Percentages are never shown against results: `CandidateAssessmentItem.Result` is `NOT_ASSESSED`/`MET`/`NOT_MET` and carries no partial credit. See the 2026-09-23 and 2026-09-29 decision log entries. |
-| FDR-047 | Keep the instructor outcome proposal as a drawer, restyled. | Implemented 2026-09-29 | Consequence of selecting FDR-044. The Cohort Adjudication Board is a Master surface; it does not carry the instructor's proposal step. FDR-037's right slide-over is retained for proposals, but adopts the board's evidence presentation so the instructor sees the same sealed assessment ledger the Master does, which the current implementation does not provide. |
-| FDR-048 | Use the KukGrade logo artwork as the brand mark. | Implemented 2026-09-30 | Replaces the typed "KukGrade" wordmark on the navigation rail, the sign-in brand panel and the password-change screen; the footer keeps its small text wordmark. `src/assets/kukgrade-logo.svg` is a two-colour trace of the original artwork (`kukgrade-logo.jpg`): its black strokes are drawn in `currentColor`, so they are light on the ink rail and dark on a light page, and its gold stays the artwork's own `#cca736`. `kukgrade-mark.svg`, the figure without the lettering, is the browser-tab icon and lightens in a dark browser. |
+| FDR-047 | Keep the instructor outcome proposal as a drawer, restyled. | Implemented 2026-09-29 | Consequence of selecting FDR-044. The Cohort Adjudication Board is a Master surface; it does not carry the instructor's proposal step. FDR-037's right slide-over is retained for proposals, but adopts the board's evidence presentation so the instructor sees the same sealed assessment ledger the Master does. |
+| FDR-048 | Use the KukGrade logo artwork as the brand mark. | Implemented 2026-09-30 | Replaces the typed "KukGrade" wordmark on the navigation rail, the sign-in brand panel and the password-change screen; the footer keeps its small text wordmark. `src/assets/kukgrade-logo.svg` is a two-colour trace of the original artwork (`Frontend-Design-Register/brand/kukgrade-logo.jpg`, kept as the source and never bundled): its black strokes are drawn in `currentColor`, so they are light on the ink rail and dark on a light page, and its gold stays the artwork's own `#cca736`. `kukgrade-mark.svg`, the figure without the lettering, is the browser-tab icon and lightens in a dark browser. |
 
 ## Concept screen register
 
@@ -80,7 +80,7 @@ names. The `.dc.html` boards for SCR-026 to SCR-028 remain here.
 | SCR-007 | Add student | Light | `07-add-student.png` | First concept |
 | SCR-008 | Staff login | Light | `08-login.png` | First concept; unsupported persistent-login control removed |
 | SCR-009 | Syllabus rank chapter | Light | `09-syllabus-rank-chapter.png` | Superseded by SCR-025, implemented 2026-09-21 |
-| SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible only to administrators and the designated Master |
+| SCR-010 | Audit event list | Light | `10-audit-log.png` | Implemented; visible to administrators, Masters and holders of the grading-audit grant |
 | SCR-011 | Administrator users list | Light | `11-admin-users-list.png` | Implemented; administrator only |
 | SCR-012 | Administrator user details and authority | Light | `12-admin-user-detail.png` | Implemented; administrator only |
 | SCR-013 | Installed PWA offline shell | Light | `13-pwa-offline-shell.png` | First-release degraded state; no offline writes |
@@ -320,7 +320,7 @@ Verified on `dev` at `4c009f6` on 2026-09-16. Earlier focused bulk-operation tes
 
 ## Assessment grading overhaul (2026-09-23)
 
-Status: **directions selected, implementation not started.**
+Status: **selected 2026-09-23 and implemented** (FDR-042 to FDR-047, 2026-09-24 to 2026-09-29).
 
 Nine directions - three for each of mat-side scoring, completion review and the
 judgement layer - were proposed and are kept in

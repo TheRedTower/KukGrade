@@ -10,6 +10,10 @@ Every filter follows one rule: an absent or blank parameter does not filter,
 and a value that cannot possibly match - a non-numeric id, an unknown choice,
 a malformed date, a boolean other than `true`/`false` - returns an
 empty page rather than a 400 or being silently ignored.
+
+A parameter a list does not declare at all - a misspelling, or a filter that
+was removed - is refused with a 400 naming it. Ignoring it returned the
+unfiltered list, which looks exactly like a filter that worked.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from datetime import date
 from typing import Any
 
 from django.db.models import Q, QuerySet
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -171,6 +176,11 @@ def search(name: str, fields: Sequence[str], description: str = "") -> QueryFilt
     return QueryFilter(name, apply, description=description)
 
 
+# Pagination's own parameters (kukgrade/pagination.py) and DRF's format
+# override, which every list answers whatever its filters are.
+ACCEPTED_ON_EVERY_LIST = frozenset({"page", "page_size", "format"})
+
+
 class DeclaredQueryFilters(BaseFilterBackend):
     """Applies and documents a view's `query_filters`."""
 
@@ -180,7 +190,20 @@ class DeclaredQueryFilters(BaseFilterBackend):
         queryset: QuerySet[Any],
         view: APIView,
     ) -> QuerySet[Any]:
-        for query_filter in getattr(view, "query_filters", ()):
+        declared = getattr(view, "query_filters", ())
+        if getattr(view, "action", None) == "list":
+            known = {
+                query_filter.name for query_filter in declared
+            } | ACCEPTED_ON_EVERY_LIST
+            unknown = sorted(set(request.query_params) - known)
+            if unknown:
+                raise ValidationError(
+                    {
+                        name: ["This list cannot be filtered that way."]
+                        for name in unknown
+                    },
+                )
+        for query_filter in declared:
             value = request.query_params.get(query_filter.name)
             if value:
                 queryset = query_filter.apply(queryset, value)

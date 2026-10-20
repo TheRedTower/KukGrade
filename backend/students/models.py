@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from ranks.models import Rank
+from students import wksa_ids
 
 
 class Student(models.Model):
@@ -46,9 +47,11 @@ class Student(models.Model):
     class Meta:
         ordering = ["last_name", "first_name", "wksa_id"]
         constraints = [
+            # Either form and nothing else, whatever path wrote the row
+            # (students/wksa_ids.py).
             models.CheckConstraint(
-                condition=~Q(wksa_id=""),
-                name="student_wksa_id_not_blank",
+                condition=Q(wksa_id__regex=wksa_ids.DATABASE_PATTERN),
+                name="student_wksa_id_format",
             ),
             models.CheckConstraint(
                 condition=Q(status__in=["ACTIVE", "INACTIVE", "LEFT"]),
@@ -65,25 +68,42 @@ class Student(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        self.wksa_id = (self.wksa_id or "").strip()
+        self.wksa_id = wksa_ids.normalise(self.wksa_id)
         self.first_name = (self.first_name or "").strip()
         self.last_name = (self.last_name or "").strip()
 
+        stored = (
+            Student.objects.filter(pk=self.pk)
+            .values("wksa_id", "current_rank_id")
+            .first()
+            if not self._state.adding and self.pk is not None
+            else None
+        )
+
         errors: dict[str, list[str]] = {}
+        form = wksa_ids.form_of(self.wksa_id)
         if not self.wksa_id:
             errors["wksa_id"] = ["WKSA ID is required."]
+        elif form is None:
+            errors["wksa_id"] = [wksa_ids.format_message()]
+        elif stored and (
+            refusal := wksa_ids.change_refusal(stored["wksa_id"], self.wksa_id)
+        ):
+            errors["wksa_id"] = [refusal]
+        elif (
+            self.current_rank_id is not None
+            and self.current_rank.category == Rank.Category.BLACK_BELT
+            and form is not wksa_ids.BLACK_BELT_ID
+        ):
+            errors["wksa_id"] = [wksa_ids.BLACK_BELT_RANK_MESSAGE]
         if not self.first_name:
             errors["first_name"] = ["First name is required."]
         if not self.last_name:
             errors["last_name"] = ["Last name is required."]
         if self.date_of_birth and self.date_of_birth > timezone.localdate():
             errors["date_of_birth"] = ["Date of birth cannot be in the future."]
-        if not self._state.adding and self.pk is not None:
-            previous_rank_id = (
-                Student.objects.filter(pk=self.pk)
-                .values_list("current_rank_id", flat=True)
-                .first()
-            )
+        if stored:
+            previous_rank_id = stored["current_rank_id"]
             if previous_rank_id != self.current_rank_id and self.promotions.exists():
                 errors["current_rank"] = [
                     "Use the promotion workflow to change current rank after "

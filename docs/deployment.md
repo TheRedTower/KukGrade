@@ -26,7 +26,8 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
    name as it should appear in the top bar, and `DJANGO_TIME_ZONE` to the
    club's IANA time zone (default `Europe/London`; it decides what "today"
-   means for ages and grading dates). Set mode
+   means for ages and grading dates), and `KUKGRADE_SCHOOL_PREFIX` if the
+   school's student IDs do not start `206-2`. Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
 5. Requests pass through Cloudflare and then Traefik, so
    `DJANGO_NUM_PROXIES=2`. That count is only right if Traefik trusts
@@ -63,11 +64,21 @@ pending Django migrations, and waits for `/api/ready/` to report that the app
 and database are available. A failed migration leaves the app unable to serve
 traffic and visible in `docker compose logs app`.
 
-Create the first administrator once, after a successful start:
+Set up the first administrator once, after a successful start. While none
+exists, every start writes a one-time setup code to the app's log:
 
 ```sh
-docker compose --env-file .env.production -f compose.prod.yml exec app python manage.py createsuperuser
+docker compose --env-file .env.production -f compose.prod.yml logs app | grep "setup code"
 ```
+
+Enter that code, with the first administrator's email address, name and
+password, on the site's setup page. The password meets the same policy as
+every other, and the account becomes a superuser with every permission. The
+code works once, for 24 hours, and a restart replaces it; only its hash is
+stored, and guessing it is rate-limited like sign-in. Once an administrator
+exists, setup is refused for good and every later account is added from the
+Users screen. There is no default password, and Django's `createsuperuser`
+is switched off.
 
 Routine inspection:
 

@@ -41,7 +41,7 @@ from gradings.services import (
 )
 from ranks.models import Rank
 from students.models import Student
-from syllabus.models import SyllabusItem
+from syllabus.models import CORE_CATEGORIES, SyllabusItem
 
 
 class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
@@ -395,6 +395,12 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
     result_display = serializers.CharField(source="get_result_display", read_only=True)
     assessor_email = serializers.EmailField(source="assessor.email", read_only=True)
     display_range = serializers.CharField(read_only=True)
+    category_is_core = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the category is one of the six core grading areas every "
+            "rank shares, rather than rank-specific content."
+        ),
+    )
 
     class Meta:
         model = CandidateAssessmentItem
@@ -404,10 +410,12 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
+            "category_is_core",
             "position",
             "required",
             "display_range",
             "requirement_notes",
+            "notation",
             "result",
             "result_display",
             "assessor_email",
@@ -420,14 +428,19 @@ class CandidateAssessmentItemSerializer(serializers.ModelSerializer):
             "korean_name",
             "category",
             "category_display",
+            "category_is_core",
             "position",
             "required",
             "display_range",
             "requirement_notes",
+            "notation",
             "result_display",
             "assessor_email",
             "assessed_at",
         )
+
+    def get_category_is_core(self, obj: CandidateAssessmentItem) -> bool:
+        return obj.category in CORE_CATEGORIES
 
     def update(
         self,
@@ -564,7 +577,7 @@ class CandidatePromotionSerializer(serializers.Serializer):
         if forbidden_fields:
             raise serializers.ValidationError(
                 {
-                    field: ["This field is server-controlled."]
+                    field: ["KukGrade sets this; it cannot be changed here."]
                     for field in sorted(forbidden_fields)
                 },
             )

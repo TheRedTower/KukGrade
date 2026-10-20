@@ -37,6 +37,10 @@ ASSESSMENT_GENERATION_SESSION_STATUSES = {
 }
 
 
+def _status_label(status: str) -> str:
+    return str(CandidateAssessment.Status(status).label).lower()
+
+
 def validate_assessment_deletion_promotion(
     promotion: Promotion,
     student: Student,
@@ -69,14 +73,11 @@ def delete_candidate_assessment(
     sanctioned bypass of both guards, administrator-gated (see
     accounts.groups._DATA_CLEANUP_PERMISSIONS):
 
-    - `CandidateOutcome.objects.filter(...).delete()` goes through Django's
-      default `QuerySet.delete()`, which never calls a model's overridden
-      instance `delete()`, so the FINALISED guard is simply never reached.
-    - `Promotion` closes exactly that loophole with its own queryset
-      override, so the same trick does not work there. Deleting a promotion
-      here instead calls `models.QuerySet.delete` directly - the real,
-      unbound base implementation - bypassing `PromotionQuerySet.delete()`
-      on purpose rather than by omission.
+    - Both `CandidateOutcomeQuerySet.delete()` (for a finalised outcome)
+      and `PromotionQuerySet.delete()` refuse, so the rows are removed here
+      by calling `models.QuerySet.delete` directly - the real, unbound base
+      implementation - bypassing those overrides on purpose rather than by
+      omission.
     """
     locked = lock_in_session(
         CandidateAssessment.objects.select_related(
@@ -102,7 +103,7 @@ def delete_candidate_assessment(
         models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
 
     if outcome is not None:
-        CandidateOutcome.objects.filter(pk=outcome.pk).delete()
+        models.QuerySet.delete(CandidateOutcome.objects.filter(pk=outcome.pk))
 
     record(
         AuditAction.ASSESSMENT_DELETED,
@@ -120,6 +121,14 @@ def delete_candidate_assessment(
         },
     )
     locked.delete()
+    # A candidate is COMPLETED only through its assessment, so without one it
+    # is registered again, as reopening leaves it. In a draft or open session
+    # a new assessment can then be prepared; once the session is locked one
+    # cannot, and the candidate is resolved by an authorised withdrawal.
+    GradingCandidate.objects.filter(
+        pk=locked.candidate_id,
+        status=GradingCandidate.Status.COMPLETED,
+    ).update(status=GradingCandidate.Status.REGISTERED, updated_at=timezone.now())
 
 
 def validate_assessment_generation_candidate(candidate: GradingCandidate) -> None:
@@ -161,6 +170,7 @@ def _snapshot_item(
         start_number=requirement.start_number,
         end_number=requirement.end_number,
         requirement_notes=requirement.notes,
+        notation=effective.notation,
     )
 
 
@@ -180,7 +190,7 @@ def generate_candidate_assessment(
     validate_assessment_generation_candidate(locked_candidate)
     if hasattr(locked_candidate, "assessment"):
         raise ValidationError(
-            {"candidate": ["Candidate already has an assessment snapshot."]},
+            {"candidate": ["This candidate already has an assessment form."]},
         )
 
     # The cumulative syllabus, exactly as the syllabus screen shows it: every
@@ -223,7 +233,7 @@ def generate_candidate_assessment(
         if not unique_violation_on(exc, CandidateAssessment):
             raise
         raise ValidationError(
-            {"candidate": ["Candidate already has an assessment snapshot."]},
+            {"candidate": ["This candidate already has an assessment form."]},
         ) from exc
     record(
         AuditAction.ASSESSMENT_GENERATED,
@@ -323,7 +333,7 @@ def update_candidate_assessment(
         name="assessment",
     )
     if locked_assessment.status == CandidateAssessment.Status.COMPLETED:
-        raise ValidationError({"status": ["Completed assessments are immutable."]})
+        raise ValidationError({"status": ["A completed assessment cannot be changed."]})
 
     previous_notes = locked_assessment.notes
     if notes is not None:
@@ -353,8 +363,9 @@ def update_candidate_assessment(
             raise ValidationError(
                 {
                     "status": [
-                        f"Cannot transition assessment from "
-                        f"{locked_assessment.status} to {status}.",
+                        f"An assessment that is "
+                        f"{_status_label(locked_assessment.status)} cannot become "
+                        f"{_status_label(status)}.",
                     ],
                 },
             )
@@ -478,7 +489,9 @@ def bulk_start_candidate_assessments(
 def validate_assessment_item_can_be_changed(item: CandidateAssessmentItem) -> None:
     assessment = item.assessment
     if assessment.status == CandidateAssessment.Status.COMPLETED:
-        raise ValidationError({"assessment": ["Completed assessments are immutable."]})
+        raise ValidationError(
+            {"assessment": ["A completed assessment cannot be changed."]}
+        )
     if assessment.status == CandidateAssessment.Status.NOT_STARTED:
         raise ValidationError(
             {
@@ -522,7 +535,7 @@ def update_candidate_assessment_item(
 
     if result is not None and result != locked_item.result:
         if result not in CandidateAssessmentItem.Result.values:
-            raise ValidationError({"result": ["Invalid assessment item result."]})
+            raise ValidationError({"result": ["That is not a valid result."]})
         locked_item.result = result
         if result == CandidateAssessmentItem.Result.NOT_ASSESSED:
             locked_item.assessor = None

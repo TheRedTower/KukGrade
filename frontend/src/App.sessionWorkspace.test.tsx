@@ -28,12 +28,19 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     full_name: "Alex Admin",
     ...ADMINISTRATOR_CAPABILITIES,
     role_display: "Administrator",
-    can_make_final_grading_decision: true,
+    // An administrator can never hold final-decision authority (2026-09-16).
+    can_make_final_grading_decision: false,
     can_read_audit_log: true,
     can_promote_student: true,
     can_override_locked_session: true,
     can_view_grading_audit_log: false,
     must_change_password: false,
+  } satisfies AuthUser;
+
+  const masterUser = {
+    ...authUser,
+    can_make_final_grading_decision: true,
+    can_read_audit_log: true,
   } satisfies AuthUser;
 
   const testSession = {
@@ -48,6 +55,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     can_be_deleted: false,
     location: "Colchester Dojang",
     notes: "Please arrive 15 minutes before the start time.",
+  } satisfies GradingSession;
+
+  // Outcomes are created only once a session is locked, so every proposal
+  // test runs against this one.
+  const lockedSession = {
+    ...testSession,
+    status: "LOCKED" as const,
+    status_display: "Locked",
   } satisfies GradingSession;
 
   const testCandidates: GradingCandidate[] = [
@@ -168,6 +183,20 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     },
   ] satisfies CandidateOutcome[];
 
+  // A session locks only once every assessment is completed, which also
+  // completes its candidate - the state every LOCKED test starts from.
+  const completedAssessments = testAssessments.map((item) => ({
+    ...item,
+    status: "COMPLETED" as const,
+    status_display: "Completed",
+    started_at: item.started_at ?? "2026-09-15T09:10:00Z",
+    completed_at: item.completed_at ?? "2026-09-15T10:00:00Z",
+  })) satisfies CandidateAssessment[];
+  const lockedCandidates = testCandidates.map((item) => ({
+    ...item,
+    status: "COMPLETED" as const,
+  })) satisfies GradingCandidate[];
+
   const testStudentsList = [
     {
       id: 1,
@@ -182,6 +211,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 2,
@@ -196,6 +226,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
     {
       id: 3,
@@ -210,6 +241,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       can_be_graded: true,
       age_band: "AGE_18_AND_OVER",
       age_band_display: "18+",
+      current_grading: null,
     },
   ] satisfies StudentListItem[];
 
@@ -224,12 +256,19 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
+  // Defaults follow the session's status: an open session is mid-grading
+  // with no outcomes yet; a locked one has every assessment completed and
+  // the proposals made so far.
   function setupStandardMock(
-    sessionOverrides = {},
-    assessments = testAssessments,
+    sessionOverrides: Partial<GradingSession> = {},
+    assessmentRows?: CandidateAssessment[],
     authenticatedUser: AuthUser = adminUser,
-    candidates: GradingCandidate[] = testCandidates,
+    candidateRows?: GradingCandidate[],
   ) {
+    const locked = sessionOverrides.status === "LOCKED";
+    const assessments = assessmentRows ?? (locked ? completedAssessments : testAssessments);
+    const candidates = candidateRows ?? (locked ? lockedCandidates : testCandidates);
+    const outcomes: CandidateOutcome[] = locked ? testOutcomes : [];
     return vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authenticatedUser);
       if (url.includes("/api/gradings/withdrawal-reasons/")) {
@@ -304,7 +343,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return jsonResponse(200, { count: assessments.length, next: null, previous: null, results: assessments });
       }
       if (url.includes("/api/gradings/outcomes/")) {
-        return jsonResponse(200, { count: testOutcomes.length, next: null, previous: null, results: testOutcomes });
+        return jsonResponse(200, { count: outcomes.length, next: null, previous: null, results: outcomes });
       }
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
@@ -360,8 +399,8 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row2).getByText("Blue")).toBeVisible();
     expect(within(row2).getByText("Red stripe")).toBeVisible();
     expect(within(row2).getByText("Completed")).toBeVisible();
-    expect(within(row2).getByText("Proposed: Pass")).toBeVisible();
-    expect(within(row2).getByText("Review decision →")).toBeVisible();
+    expect(within(row2).getByText("Not proposed")).toBeVisible();
+    expect(within(row2).getByText("View record →")).toBeVisible();
 
     // Candidate 3: Casey Nguyen
     const row3 = screen.getByTestId("candidate-row-103");
@@ -431,7 +470,9 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Confirm attendance" }));
     const dialog = screen.getByRole("dialog", { name: "Confirm attendance" });
-    await user.click(within(dialog).getByRole("checkbox", { name: /Alex Carter/ }));
+    // Alex has started and Brooke has finished: neither can be a no-show.
+    expect(within(dialog).queryByRole("checkbox", { name: /Alex Carter/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("checkbox", { name: /Brooke Ellis/ })).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("checkbox", { name: /Casey Nguyen/ }));
     await user.click(within(dialog).getByRole("button", { name: "Mark selected as no-show" }));
 
@@ -441,12 +482,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         (init as RequestInit | undefined)?.method === "POST",
       );
       expect(JSON.parse((request?.[1] as RequestInit).body as string)).toEqual({
-        candidates: [101, 103],
+        candidates: [103],
         status: "WITHDRAWN",
         withdrawal_reason: "ABSENT",
       });
     });
-    expect(await screen.findByText("2 candidates marked as no-show.")).toBeVisible();
+    expect(await screen.findByText("1 candidate marked as no-show.")).toBeVisible();
   });
 
   it("requires a note before an Other withdrawal can be recorded", async () => {
@@ -502,7 +543,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("does not expose locked withdrawal without override authority", async () => {
     const fetchMock = setupStandardMock(
       { status: "LOCKED", status_display: "Locked" },
-      testAssessments,
+      undefined,
       { ...adminUser, can_override_locked_session: false },
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -516,7 +557,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
   it("shows the recorded reason for a withdrawn candidate without further actions", async () => {
     const withdrawnCandidates = [
       {
-        ...testCandidates[0],
+        ...lockedCandidates[0],
         status: "WITHDRAWN" as const,
         withdrawal_reason: "INJURY" as const,
         withdrawal_reason_display: "Injured during grading",
@@ -524,11 +565,11 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         can_be_removed: false,
         withdrawal_note: "Unable to continue safely.",
       },
-      ...testCandidates.slice(1),
+      ...lockedCandidates.slice(1),
     ] satisfies GradingCandidate[];
     const fetchMock = setupStandardMock(
       { status: "LOCKED", status_display: "Locked" },
-      testAssessments,
+      undefined,
       adminUser,
       withdrawnCandidates,
     );
@@ -544,31 +585,51 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(within(row).queryByRole("link")).not.toBeInTheDocument();
   });
 
-  it("surfaces operational alert banner when candidates await final decision and triggers filter on Review", async () => {
-    const fetchMock = setupStandardMock();
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
+  it("shows a locked session's proposals and the decision a Master can review", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupStandardMock({ status: "LOCKED", status_display: "Locked" }, undefined, masterUser),
+    );
+
+    render(<App />);
+
+    const proposed = await screen.findByTestId("candidate-row-102");
+    expect(within(proposed).getByText("Proposed: Pass")).toBeVisible();
+    expect(within(proposed).getByRole("link", { name: "Review decision →" })).toHaveAttribute(
+      "href",
+      "/gradings/10/decisions?candidate=102",
+    );
+    expect(screen.getByTestId("propose-outcome-btn-101")).toHaveTextContent("Propose outcome →");
+  });
+
+  it("points the awaiting-decision banner at the served count and the decisions board", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupStandardMock({
+        status: "LOCKED",
+        status_display: "Locked",
+        awaiting_decision_count: 3,
+      }),
+    );
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
+    // The server's number, not a recount of proposals on this screen.
+    expect(screen.getByText("3 candidates awaiting final decision")).toBeVisible();
+    expect(screen.getByTestId("gsd-review-decisions-btn")).toHaveAttribute(
+      "href",
+      "/gradings/10/decisions",
+    );
+  });
 
-    // Alert banner
-    expect(screen.getByText("1 candidate awaiting final decision")).toBeVisible();
-    const reviewBtn = screen.getByTestId("gsd-review-decisions-btn");
-    expect(reviewBtn).toBeVisible();
+  it("shows no awaiting-decision banner before the session is locked", async () => {
+    vi.stubGlobal("fetch", setupStandardMock({ awaiting_decision_count: 1 }));
 
-    // Click Review -> filters by Completed assessment
-    await user.click(reviewBtn);
+    render(<App />);
 
-    const statusSelect = screen.getByTestId("gsd-status-filter") as HTMLSelectElement;
-    expect(statusSelect.value).toBe("COMPLETED");
-
-    // Only Brooke Ellis has completed assessment
-    const table = screen.getByTestId("gsd-candidates-table");
-    expect(within(table).getByText("Brooke Ellis")).toBeVisible();
-    expect(within(table).queryByText("Alex Carter")).not.toBeInTheDocument();
-    expect(within(table).queryByText("Casey Nguyen")).not.toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    expect(screen.queryByText(/awaiting final decision/)).not.toBeInTheDocument();
   });
 
   it("filters candidate roster in real-time by search query", async () => {
@@ -924,6 +985,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
+      can_be_deleted: true,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -938,7 +1000,12 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         return new Response(null, { status: 204 });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, { ...testSession, status: "CANCELLED", status_display: "Cancelled" });
+        return jsonResponse(200, {
+          ...testSession,
+          status: "CANCELLED",
+          status_display: "Cancelled",
+          can_be_deleted: true,
+        });
       }
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
@@ -985,6 +1052,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const fetchMock = setupStandardMock({
       status: "CANCELLED",
       status_display: "Cancelled",
+      can_be_deleted: true,
     });
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
@@ -997,6 +1065,54 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // testAssessments includes an IN_PROGRESS entry, so this is the guarded
     // case - only an administrator should see the option.
     expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+  });
+
+  it("offers delete and the session's audit events exactly as the server and grants allow", async () => {
+    const fetchMock = setupStandardMock({ can_be_deleted: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    // An open session an administrator may delete: offered, whatever the status.
+    expect(screen.getByRole("menuitem", { name: "Delete session" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "View audit events" })).toHaveAttribute(
+      "href",
+      "/audit?entity_type=GradingSession&entity_id=10",
+    );
+  });
+
+  it("hides the audit link from a user who cannot read the audit log", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupStandardMock({}, testAssessments, { ...adminUser, can_read_audit_log: false }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+
+    expect(screen.queryByRole("menuitem", { name: "View audit events" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
+  });
+
+  it("requires a reason before a locked session can be cancelled", async () => {
+    vi.stubGlobal("fetch", setupStandardMock({ status: "LOCKED", status_display: "Locked" }));
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+    await user.click(screen.getByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Cancel session" }));
+
+    const confirm = screen.getByTestId("gsd-modal-confirm-btn");
+    expect(screen.getByLabelText("Cancellation reason (required)")).toBeVisible();
+    expect(confirm).toBeDisabled();
+    await user.type(screen.getByLabelText("Cancellation reason (required)"), "Hall flooded.");
+    expect(confirm).toBeEnabled();
   });
 
   it("hides delete for an instructor on a cancelled session with recorded assessment work", async () => {
@@ -1017,6 +1133,28 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
   });
 
+  it("offers no proposal while the session is open, only the completed record", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
+      if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
+      if (url.includes("/api/gradings/outcomes/")) return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    const row = await screen.findByTestId("candidate-row-102");
+
+    expect(screen.queryByTestId("propose-outcome-btn-102")).not.toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: "View record →" })).toHaveAttribute(
+      "href",
+      "/gradings/10/assessments/102/review",
+    );
+  });
+
   it("opens the proposal drawer with the sealed assessment evidence and submits a proposal", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -1027,7 +1165,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         });
       }
       if (url.includes("/api/gradings/sessions/10/")) {
-        return jsonResponse(200, testSession);
+        return jsonResponse(200, lockedSession);
       }
       if (url.includes("/api/gradings/candidates/")) {
         return jsonResponse(200, {
@@ -1069,6 +1207,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
             item_name: `Item ${i}`,
             category: "TECHNIQUE",
             category_display: "Techniques",
+            category_is_core: false,
             required: true,
             result: "MET",
             result_display: "Met",
@@ -1181,7 +1320,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor([]));
@@ -1225,7 +1364,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         return jsonResponse(400, {
           error: { code: "validation_error", message: "The assessment is not completed." },
@@ -1259,7 +1398,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     let proposeAttempts = 0;
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         return jsonResponse(201, { ...testOutcomes[0], id: 401, proposed_outcome: null });
       }
@@ -1305,7 +1444,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const madeOutcome = { ...testOutcomes[0], id: 401, candidate: 102, proposed_outcome: null };
     const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/102/create-outcome/") && init?.method === "POST") {
         // The server made it; the response never arrived.
         created = true;
@@ -1348,7 +1487,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
-      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
+      if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, lockedSession);
       if (url.includes("/api/gradings/candidates/")) return jsonResponse(200, { count: testCandidates.length, next: null, previous: null, results: testCandidates });
       if (url.includes("/api/gradings/assessments/") && !url.includes("/summary/")) return jsonResponse(200, { count: testAssessments.length, next: null, previous: null, results: testAssessments });
       if (url.includes("/api/students/")) return jsonResponse(200, { count: testStudentsList.length, next: null, previous: null, results: testStudentsList });

@@ -45,6 +45,23 @@ def test_preview_reports_the_adapters_structural_warnings() -> None:
     assert preview.warnings == ["Unknown sheet 'Scratch notes' was not imported."]
 
 
+def test_an_over_long_cell_is_refused_at_upload_naming_where_it_is() -> None:
+    # Source text is kept verbatim, so it cannot be cut to fit; the commit
+    # used to fail the whole batch naming no row, after a clean preview.
+    from django.core.exceptions import ValidationError
+
+    long_name = "N" * 201
+    with pytest.raises(ValidationError) as refusal:
+        legacy_batch(
+            standard_workbook([[long_name, "White", "Yellow Stripe", "Pass", ""]])
+        )
+
+    message = refusal.value.message_dict["file"][0]
+    assert message.startswith("06-2025!R2: source name is 201 characters")
+    assert "at most 200" in message
+    assert not ImportBatch.objects.exists()
+
+
 def test_preview_counts_rows_by_record_kind() -> None:
     def build(workbook: Workbook) -> None:
         ws = workbook.create_sheet("06-2025")
@@ -223,7 +240,7 @@ def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
     batch = legacy_batch(uploaded_by=admin)
     commit_legacy_grading_import(batch, actor=admin)
 
-    with pytest.raises(Exception, match="cannot be committed again"):
+    with pytest.raises(Exception, match="cannot be imported again"):
         commit_legacy_grading_import(batch, actor=admin)
 
 

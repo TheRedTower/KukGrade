@@ -39,9 +39,15 @@ Day to day:
 ```sh
 uv sync
 uv run python manage.py migrate          # needs `docker compose up -d db`
+uv run python manage.py issue_setup_code # fresh database only, see below
 uv run python manage.py runserver 0.0.0.0:8000
 uv run pytest
 ```
+
+A fresh database has no accounts, and `createsuperuser` is switched off.
+`issue_setup_code` prints a one-time setup code; open the site and enter it
+on the setup page with the first administrator's details
+(`accounts/setup.py`). It prints nothing once an administrator exists.
 
 ## How the code is organised
 
@@ -77,7 +83,8 @@ everywhere:
   (`kukgrade.pagination.DefaultPagination`: 50 per page, `?page_size=` up to
   200, so one candidate's roughly 40 assessment items fit a page), and every
   query-parameter filter goes through `kukgrade/filtering.py`, where a value
-  that cannot match returns an empty page.
+  that cannot match returns an empty page; a parameter the list does not
+  declare is refused with a 400.
 - **The schema is the contract.** Every custom action declares its request
   and response with `@extend_schema`, and the bulk, summary, and import
   responses serialize through those declared serializers. Regenerate

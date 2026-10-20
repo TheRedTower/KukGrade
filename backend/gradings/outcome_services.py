@@ -31,6 +31,7 @@ from gradings.models import (
 from gradings.service_support import each_independently, unique_violation_on
 from gradings.services import get_next_active_rank
 from ranks.models import Rank
+from students import wksa_ids
 from students.models import Student
 
 OUTCOME_CREATION_SESSION_STATUSES = {
@@ -120,7 +121,7 @@ def create_candidate_outcome(
 
 def _validate_outcome_choice(value: str, field_name: str) -> None:
     if value not in CandidateOutcome.Outcome.values:
-        raise ValidationError({field_name: ["Invalid candidate outcome."]})
+        raise ValidationError({field_name: ["That is not a valid outcome."]})
 
 
 @transaction.atomic
@@ -144,7 +145,7 @@ def propose_candidate_outcome(
     validate_outcome_assessment_state(locked_outcome)
     if locked_outcome.status == CandidateOutcome.Status.FINALISED:
         raise ValidationError(
-            {"status": ["Finalised candidate outcomes cannot be reproposed."]},
+            {"status": ["A final decision cannot be proposed again."]},
         )
     if locked_outcome.status not in {
         CandidateOutcome.Status.DRAFT,
@@ -336,7 +337,7 @@ def validate_promotion_eligibility(
             {"status": ["Only finalised candidate outcomes can be promoted."]},
         )
     if outcome.final_outcome != CandidateOutcome.Outcome.PASS:
-        raise ValidationError({"final_outcome": ["Only PASS outcomes are promotable."]})
+        raise ValidationError({"final_outcome": ["Only a pass can be promoted."]})
     if candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError(
             {"candidate": ["Withdrawn candidates cannot be promoted."]},
@@ -377,6 +378,22 @@ def validate_promotion_eligibility(
                 "to_rank": [
                     "Candidate testing-for rank is no longer the next active "
                     "rank after the student's current rank.",
+                ],
+            },
+        )
+    # The promotion writes the rank directly, past Student.clean(), so the
+    # rule that a black belt holds a black belt ID is checked here too: the
+    # ID WKSA handed out at the national grading is recorded first.
+    if (
+        to_rank.category == Rank.Category.BLACK_BELT
+        and wksa_ids.form_of(student.wksa_id) is not wksa_ids.BLACK_BELT_ID
+    ):
+        raise ValidationError(
+            {
+                "student": [
+                    f"Record {student.first_name} {student.last_name}'s black "
+                    "belt ID, such as A-20819, before promoting them to "
+                    f"{to_rank.name}.",
                 ],
             },
         )

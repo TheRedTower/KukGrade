@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast
+from typing import Any, cast
 
 from django.contrib.auth import login, logout, update_session_auth_hash
 from django.db.models import QuerySet
+from django.utils.cache import add_never_cache_headers
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import extend_schema
@@ -21,14 +22,22 @@ from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.permissions import HasRequiredPermissions
 from accounts.serializers import (
     ChangePasswordSerializer,
+    IssuedTemporaryPasswordSerializer,
     LoginSerializer,
     SelfProfileSerializer,
-    SetPasswordSerializer,
+    SetupSerializer,
+    SetupStatusSerializer,
     UserAuthoritySerializer,
     UserManagementSerializer,
     UserSerializer,
 )
-from accounts.services import delete_platform_user
+from accounts.services import (
+    TemporaryPassword,
+    create_platform_user,
+    delete_platform_user,
+    reset_password,
+)
+from accounts.setup import complete_setup, setup_needed
 from kukgrade.filtering import boolean, choice, search
 
 
@@ -46,6 +55,37 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         login(request, serializer.validated_data["user"])
         return Response(UserSerializer(request.user).data)
+
+
+@method_decorator(csrf_protect, name="dispatch")
+@method_decorator(ensure_csrf_cookie, name="get")
+class SetupView(APIView):
+    """Setting up a new deployment's first administrator (accounts/setup.py).
+
+    Public, as the sign-in is: nobody can sign in before it is done. Taking a
+    code is rate-limited like a password guess; asking whether setup is
+    needed is not, and also hands the setup page its CSRF cookie.
+    """
+
+    authentication_classes: Sequence[type[BaseAuthentication]] = ()
+    permission_classes = [AllowAny]
+    throttle_scope = "setup"
+
+    def get_throttles(self) -> list[Any]:
+        return super().get_throttles() if self.request.method == "POST" else []
+
+    @extend_schema(responses=SetupStatusSerializer)
+    def get(self, request: Request) -> Response:
+        return Response({"setup_needed": setup_needed()})
+
+    @extend_schema(request=SetupSerializer, responses={201: UserSerializer})
+    def post(self, request: Request) -> Response:
+        serializer = SetupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = complete_setup(**serializer.validated_data)
+        # Straight in: they just proved who they are, twice over.
+        login(request, user, backend="accounts.backends.AccountBackend")
+        return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 class LogoutView(APIView):
@@ -133,6 +173,34 @@ class UserViewSet(
         "set_password": ("accounts.change_user",),
     }
 
+    @extend_schema(responses={201: IssuedTemporaryPasswordSerializer})
+    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        issued = create_platform_user(
+            actor=cast(User, request.user),
+            **serializer.validated_data,
+        )
+        return self._issued(request, issued, status.HTTP_201_CREATED)
+
+    def _issued(
+        self,
+        request: Request,
+        issued: TemporaryPassword,
+        status_code: int,
+    ) -> Response:
+        """The account and its new temporary password - shown once, so never
+        stored by a browser or proxy cache."""
+        response = Response(
+            IssuedTemporaryPasswordSerializer(
+                issued.user,
+                context={"request": request, "temporary_password": issued.password},
+            ).data,
+            status=status_code,
+        )
+        add_never_cache_headers(response)
+        return response
+
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()
         delete_platform_user(instance, cast(User, request.user))
@@ -177,7 +245,7 @@ class UserViewSet(
             UserManagementSerializer(updated, context={"request": request}).data,
         )
 
-    @extend_schema(request=SetPasswordSerializer, responses={204: None})
+    @extend_schema(request=None, responses=IssuedTemporaryPasswordSerializer)
     @action(detail=True, methods=["post"], url_path="set-password")
     def set_password(
         self,
@@ -185,12 +253,6 @@ class UserViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        target = self.get_object()
-        serializer = SetPasswordSerializer(
-            target,
-            data=request.data,
-            context={"request": request},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        """A new temporary password for someone else, replacing theirs."""
+        issued = reset_password(self.get_object(), actor=cast(User, request.user))
+        return self._issued(request, issued, status.HTTP_200_OK)

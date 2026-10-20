@@ -12,7 +12,9 @@ type Schemas = components["schemas"];
 type ListQuery<Op extends keyof operations> = NonNullable<operations[Op]["parameters"]["query"]>;
 export type AuthUser = components["schemas"]["User"];
 export type UserRole = components["schemas"]["RoleEnum"];
-export type ManagedUser = Omit<components["schemas"]["UserManagement"], "password">;
+export type ManagedUser = components["schemas"]["UserManagement"];
+/** A managed user with the temporary password just issued for them, shown once. */
+export type IssuedTemporaryPassword = components["schemas"]["IssuedTemporaryPassword"];
 
 export type PaginatedResponse<T> = {
   count: number;
@@ -149,7 +151,7 @@ async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    let message = `API request failed with status ${response.status}`;
+    let message = "Something went wrong. Try again in a moment.";
     let code: string | undefined;
     let fields: FieldErrors | undefined;
     try {
@@ -236,6 +238,21 @@ export async function logoutUser(): Promise<void> {
   });
 }
 
+export type SetupDetails = Schemas["SetupRequest"];
+
+/** Whether the deployment still needs its first administrator. */
+export async function getSetupStatus(): Promise<Schemas["SetupStatus"]> {
+  return apiRequest<Schemas["SetupStatus"]>("/api/setup/");
+}
+
+/** Create the first administrator and sign them in. */
+export async function completeSetup(details: SetupDetails): Promise<AuthUser> {
+  return apiRequest<AuthUser>("/api/setup/", {
+    method: "POST",
+    body: JSON.stringify(details),
+  });
+}
+
 export async function changePassword(
   currentPassword: string,
   newPassword: string,
@@ -263,8 +280,8 @@ export type CreateManagedUserPayload = Schemas["UserManagementRequest"];
 
 export async function createManagedUser(
   data: CreateManagedUserPayload,
-): Promise<ManagedUser> {
-  return apiRequest<ManagedUser>("/api/users/", {
+): Promise<IssuedTemporaryPassword> {
+  return apiRequest<IssuedTemporaryPassword>("/api/users/", {
     method: "POST",
     body: JSON.stringify(data),
   });
@@ -298,13 +315,9 @@ export async function updateManagedUserAuthority(
   });
 }
 
-export async function resetManagedUserPassword(
-  id: string,
-  password: string,
-): Promise<void> {
-  await apiRequest<void>(`/api/users/${id}/set-password/`, {
+export async function resetManagedUserPassword(id: string): Promise<IssuedTemporaryPassword> {
+  return apiRequest<IssuedTemporaryPassword>(`/api/users/${id}/set-password/`, {
     method: "POST",
-    body: JSON.stringify({ password }),
   });
 }
 
@@ -597,6 +610,11 @@ export async function finaliseCandidateOutcome(
       body: JSON.stringify(data),
     },
   );
+}
+
+/** The names of the audit event and record types, for the audit filters. */
+export async function getAuditLabels(): Promise<Schemas["AuditLabels"]> {
+  return apiRequest<Schemas["AuditLabels"]>("/api/audit-events/labels/");
 }
 
 export async function getAuditEvents(params?: ListQuery<"audit_events_list">): Promise<PaginatedResponse<AuditEvent>> {

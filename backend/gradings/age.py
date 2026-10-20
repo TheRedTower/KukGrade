@@ -4,11 +4,14 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db.models import (
+    Case,
+    CharField,
     F,
     Func,
     IntegerField,
     QuerySet,
     Value,
+    When,
 )
 
 from students.models import Student
@@ -44,27 +47,32 @@ def resolve_age_band(date_of_birth: date | None, grading_date: date) -> str:
     raise AssertionError("_AGE_BAND_MAX_AGE has no open-ended band")
 
 
-def students_in_age_band(
-    students: QuerySet[Student],
-    band: str,
-    on_date: date,
-) -> QuerySet[Student]:
-    """The students `resolve_age_band` would place in `band` on `on_date`.
-
-    Postgres `age()` counts a 29 February birthday as reached on 1 March in
-    a common year, the same rule `calculate_age_on` applies.
-    """
-    youngest = 0
-    for candidate, oldest in _AGE_BAND_MAX_AGE.items():
-        if candidate == band:
-            break
-        youngest = (oldest or 0) + 1
-    oldest = _AGE_BAND_MAX_AGE[band]
-    years = Func(
+def _age_in_years_on(on_date: date) -> Func:
+    # Postgres `age()` counts a 29 February birthday as reached on 1 March in
+    # a common year, the same rule `calculate_age_on` applies.
+    return Func(
         Value("year"),
         Func(Value(on_date), F("date_of_birth"), function="age"),
         function="date_part",
         output_field=IntegerField(),
     )
-    bounded = students.annotate(age_on_date=years).filter(age_on_date__gte=youngest)
-    return bounded if oldest is None else bounded.filter(age_on_date__lte=oldest)
+
+
+def with_age_band_on(students: QuerySet[Student], on_date: date) -> QuerySet[Student]:
+    """`students` annotated with `age_band_on_date`: their band on `on_date`.
+
+    The band `resolve_age_band` gives, worked out in the query, so a page of
+    students is banded - and filtered by band - without one row at a time.
+    """
+    band = Case(
+        *(
+            When(age_in_years__lte=oldest, then=Value(band))
+            for band, oldest in _AGE_BAND_MAX_AGE.items()
+            if oldest is not None
+        ),
+        default=Value(AgeBand.AGE_18_AND_OVER),
+        output_field=CharField(),
+    )
+    return students.annotate(age_in_years=_age_in_years_on(on_date)).annotate(
+        age_band_on_date=band,
+    )

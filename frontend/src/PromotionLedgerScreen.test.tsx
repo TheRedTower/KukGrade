@@ -76,6 +76,7 @@ const mockSession: GradingSession = {
 };
 
 
+// A locked session: every candidate's assessment is completed.
 const mockCandidates: GradingCandidate[] = [
   {
     id: 101,
@@ -88,7 +89,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -106,7 +107,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 4,
     testing_for_rank_name: "Blue Stripe",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -124,7 +125,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -142,7 +143,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -160,7 +161,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -178,7 +179,7 @@ const mockCandidates: GradingCandidate[] = [
     testing_for_rank: 3,
     testing_for_rank_name: "Yellow",
     age_band_display: "9-12",
-    status: "REGISTERED",
+    status: "COMPLETED",
     withdrawal_reason: "",
     withdrawal_reason_display: "",
     can_be_moved: false,
@@ -475,7 +476,9 @@ describe("PromotionLedgerScreen", () => {
 
     // Row 106 (Fiona Gallagher): Proposed Pass (Pending finalisation)
     const row106 = screen.getByTestId("promotion-row-106");
-    expect(row106).toHaveTextContent("Proposed: PASS");
+    // The served display, never the raw enum.
+    expect(row106).toHaveTextContent("Proposed: Pass");
+    expect(row106).not.toHaveTextContent("PASS");
     expect(row106).toHaveTextContent("Outcome pending finalisation");
     expect(screen.queryByTestId("promote-candidate-btn-106")).not.toBeInTheDocument();
   });
@@ -682,7 +685,7 @@ describe("PromotionLedgerScreen", () => {
     );
 
     const tray = screen.getByRole("region", {
-      name: "Pinned batch confirmation preview",
+      name: "Promotion summary",
     });
     expect(tray).toBeInTheDocument();
     expect(screen.getByText("2 Candidates Selected")).toBeInTheDocument();
@@ -696,13 +699,14 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Beth Harmon", { selector: ".pl-chip-name" })).toBeInTheDocument();
     expect(screen.getByText("Blue Stripe", { selector: ".pl-chip-target" })).toBeInTheDocument();
 
-    // Metadata in right section
+    // Metadata in right section: the session's grading date, labelled as such.
     expect(screen.getByText("15 Oct 2026", { selector: ".pl-meta-val" })).toBeInTheDocument();
+    expect(screen.getByText("Grading date", { selector: ".pl-meta-label" })).toBeInTheDocument();
     expect(screen.getByText("In Hyuk Kim", { selector: ".pl-meta-val" })).toBeInTheDocument();
 
     // Confirm batch promotion
     const confirmBatchBtn = screen.getByRole("button", {
-      name: /Confirm Batch Promotion/i,
+      name: /Confirm promotions/i,
     });
     await user.click(confirmBatchBtn);
 
@@ -715,7 +719,7 @@ describe("PromotionLedgerScreen", () => {
         screen.getByText("Successfully promoted all 2 qualified candidates!"),
       ).toBeInTheDocument();
     });
-    expect(screen.queryByRole("region", { name: "Pinned batch confirmation preview" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Promotion summary" })).not.toBeInTheDocument();
   });
 
   it("can close the pinned batch preview tray without promoting", async () => {
@@ -736,16 +740,16 @@ describe("PromotionLedgerScreen", () => {
       }),
     );
     expect(
-      screen.getByRole("region", { name: "Pinned batch confirmation preview" }),
+      screen.getByRole("region", { name: "Promotion summary" }),
     ).toBeInTheDocument();
 
     const closeBtn = screen.getByRole("button", {
-      name: "Close batch preview tray",
+      name: "Close the promotion summary",
     });
     await user.click(closeBtn);
 
     expect(
-      screen.queryByRole("region", { name: "Pinned batch confirmation preview" }),
+      screen.queryByRole("region", { name: "Promotion summary" }),
     ).not.toBeInTheDocument();
     expect(mockBulkPromoteCandidateOutcomes).not.toHaveBeenCalled();
   });
@@ -764,9 +768,9 @@ describe("PromotionLedgerScreen", () => {
       ).not.toBeInTheDocument();
     });
 
-    expect(screen.getByText("Promotion Authority Required")).toBeInTheDocument();
+    expect(screen.getByText("Promotion authority needed")).toBeInTheDocument();
     expect(
-      screen.getByText(/You do not hold the/),
+      screen.getByText(/promoting students needs promotion authority/),
     ).toBeInTheDocument();
 
     // Cohort promotion CTA is disabled
@@ -813,15 +817,14 @@ describe("PromotionLedgerScreen", () => {
     );
 
     const confirmBatchBtn = screen.getByRole("button", {
-      name: /Confirm Batch Promotion/i,
+      name: /Confirm promotions/i,
     });
     await user.click(confirmBatchBtn);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText("Promoted 1 candidates, but 1 encountered errors."),
-      ).toBeInTheDocument();
-    });
+    // Row 1 of the request is outcome 102: the candidate is named, with why.
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Promoted 1 of 2. Not promoted - Beth Harmon: Outcome 102 cannot be promoted at this time",
+    );
   });
 
   it("shows informational notice when all candidates are already promoted", async () => {

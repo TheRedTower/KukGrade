@@ -339,7 +339,8 @@ export function CreateGradingSessionScreen() {
               This is how the session will appear in the gradings list after creation.
             </p>
 
-            <div className="cgs-preview-table-wrap">
+            {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
+            <div className="cgs-preview-table-wrap" tabIndex={0} role="region" aria-label="Session preview">
               <table aria-label="Session preview" className="cgs-preview-table">
                 <thead>
                   <tr>

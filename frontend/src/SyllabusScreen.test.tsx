@@ -94,6 +94,7 @@ function effectiveRow(
     item_korean_name: "기본수",
     category: "TECHNIQUE_SET",
     category_display: "Technique set",
+    category_is_core: false,
     required: true,
     display_range: "1-10",
     notation: "",
@@ -122,6 +123,7 @@ const coreAreas: EffectiveSyllabusRequirement[] = [
     item_korean_name,
     category,
     category_display,
+    category_is_core: true,
     display_range: "",
     introduced_rank_code: "YELLOW_STRIPE",
     introduced_rank_name: "Yellow Stripe",
@@ -142,6 +144,7 @@ const mockYellowEffective: EffectiveSyllabusRequirement[] = [
     item_korean_name: "기초형",
     category: "FORM",
     category_display: "Form",
+    category_is_core: false,
     display_range: "1-6",
     is_new_at_rank: true,
   }),
@@ -176,6 +179,7 @@ const mockBlueStripeEffective: EffectiveSyllabusRequirement[] = [
     item_korean_name: "초급형",
     category: "FORM",
     category_display: "Form",
+    category_is_core: false,
     display_range: "",
     notation: "Part 1 of 2",
     notes: "Chart notation: (1/2).",
@@ -196,6 +200,7 @@ const mockJknEffective: EffectiveSyllabusRequirement[] = [
     item_korean_name: "검무형",
     category: "FORM",
     category_display: "Form",
+    category_is_core: false,
     display_range: "",
     introduced_rank_code: "JKN",
     introduced_rank_name: "JKN",
@@ -213,6 +218,7 @@ const mockJknEffective: EffectiveSyllabusRequirement[] = [
       item_korean_name,
       category: "WEAPONS",
       category_display: "Weapons",
+      category_is_core: false,
       display_range,
       introduced_rank_code: "JKN",
       introduced_rank_name: "JKN",
@@ -269,6 +275,32 @@ describe("SyllabusScreen", () => {
     vi.restoreAllMocks();
   });
 
+  // Which categories are core areas is the server's to say (audit F-31): a
+  // category the browser has never heard of follows the served flag.
+  it("places rows by the served core flag, not by a category list of its own", async () => {
+    stubFetch({
+      YELLOW: [
+        ...coreAreas,
+        effectiveRow({
+          item_code: "NEW_CORE_AREA",
+          item_name: "New Core Area",
+          category: "OTHER",
+          category_display: "Other",
+          category_is_core: true,
+          display_range: "",
+        }),
+        ...mockYellowEffective.filter((row) => !row.category_is_core),
+      ],
+    });
+
+    renderScreen();
+
+    const coreHeading = await screen.findByRole("heading", { name: "Core grading areas" });
+    const coreStrip = coreHeading.closest("section, div") as HTMLElement;
+    expect(within(coreStrip.parentElement as HTMLElement).getByText("New Core Area")).toBeVisible();
+    expect(screen.queryByRole("table", { name: "Other for this rank" })).not.toBeInTheDocument();
+  });
+
   it("renders header, filters, belt rail, core areas and a cumulative ledger per category", async () => {
     stubFetch({ YELLOW: mockYellowEffective });
 
@@ -287,7 +319,7 @@ describe("SyllabusScreen", () => {
     });
 
     // Belt track
-    expect(screen.getByRole("region", { name: "Belt Rank Chapters" })).toBeVisible();
+    expect(screen.getByRole("region", { name: "Ranks" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Yellow" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -327,7 +359,7 @@ describe("SyllabusScreen", () => {
 
     // Footer
     expect(
-      screen.getByText("Past assessments retain their generated wording."),
+      screen.getByText("Past assessments keep the wording they were graded on."),
     ).toBeVisible();
     expect(
       screen.getByText("Preliminary reference: WKSA curriculum chart, 2014"),

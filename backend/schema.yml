@@ -117,6 +117,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedAuditEventList'
           description: ''
+  /api/audit-events/labels/:
+    get:
+      operationId: audit_events_labels_retrieve
+      description: |-
+        The event and record types the caller may filter by, with their
+        names - the same events visible_to() lets them read.
+      tags:
+      - audit-events
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLabels'
+          description: ''
   /api/auth/change-password/:
     post:
       operationId: auth_change_password_create
@@ -1538,6 +1555,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
           description: ''
+  /api/setup/:
+    get:
+      operationId: setup_retrieve
+      description: |-
+        Setting up a new deployment's first administrator (accounts/setup.py).
+
+        Public, as the sign-in is: nobody can sign in before it is done. Taking a
+        code is rate-limited like a password guess; asking whether setup is
+        needed is not, and also hands the setup page its CSRF cookie.
+      tags:
+      - setup
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+          description: ''
+    post:
+      operationId: setup_create
+      description: |-
+        Setting up a new deployment's first administrator (accounts/setup.py).
+
+        Public, as the sign-in is: nobody can sign in before it is done. Taking a
+        code is rate-limited like a password guess; asking whether setup is
+        needed is not, and also hands the setup page its CSRF cookie.
+      tags:
+      - setup
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetupRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
   /api/site/:
     get:
       operationId: site_retrieve
@@ -1545,7 +1613,10 @@ paths:
         Deployment settings the frontend shows, such as the club's name.
 
         Public, like the health check: the sign-in screen may show them too, and
-        nothing here is personal data.
+        nothing here is personal data. The password policy and the WKSA ID forms
+        are the ones the server enforces (accounts/password_policy.py,
+        students/wksa_ids.py), served so the screens never keep a copy of their
+        own.
       tags:
       - site
       security:
@@ -1565,7 +1636,8 @@ paths:
       - name: age_band
         required: false
         in: query
-        description: The age band the student is in today.
+        description: The student's age band - on the session's grading date when eligible_for_session
+          is given, as registration works it out, otherwise today.
         schema:
           type: string
           enum:
@@ -1589,7 +1661,8 @@ paths:
         required: false
         in: query
         description: 'Students who could still be registered for this grading session:
-          not Left and not already one of its candidates.'
+          not Left, not already one of its candidates, and not registered for another
+          grading that has not reached its result.'
         schema:
           type: integer
       - name: page
@@ -1931,7 +2004,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserManagement'
+                $ref: '#/components/schemas/IssuedTemporaryPassword'
           description: ''
   /api/users/{id}/:
     get:
@@ -2084,17 +2157,7 @@ paths:
   /api/users/{id}/set-password/:
     post:
       operationId: users_set_password_create
-      description: |-
-        The administrator-facing users API.
-
-        Deactivate via is_active for routine offboarding - that is reversible
-        and keeps every attribution intact with no extra work. destroy() is a
-        genuine hard delete, gated to accounts.delete_user (Administrator group
-        only), for corruption or test-data cleanup: see
-        accounts.services.delete_platform_user for how it keeps every PROTECT
-        attribution foreign key satisfied by reassigning history to a
-        placeholder account rather than erasing it. No PUT: partial_update
-        covers every real edit.
+      description: A new temporary password for someone else, replacing theirs.
       parameters:
       - in: path
         name: id
@@ -2105,23 +2168,15 @@ paths:
         required: true
       tags:
       - users
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/SetPasswordRequest'
-        required: true
       security:
       - cookieAuth: []
       responses:
-        '204':
-          description: No response body
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IssuedTemporaryPassword'
+          description: ''
 components:
   schemas:
     ActionEnum:
@@ -2164,20 +2219,20 @@ components:
       description: |-
         * `SESSION_CREATED` - Grading session created
         * `SESSION_UPDATED` - Grading session updated
-        * `SESSION_TRANSITIONED` - Grading session transitioned
+        * `SESSION_TRANSITIONED` - Grading session status changed
         * `SESSION_DELETED` - Grading session deleted
         * `CANDIDATE_REGISTERED` - Candidate registered
         * `CANDIDATE_UPDATED` - Candidate updated
         * `CANDIDATE_WITHDRAWN` - Candidate withdrawn
         * `CANDIDATE_DELETED` - Candidate deleted
-        * `ASSESSMENT_GENERATED` - Assessment generated
+        * `ASSESSMENT_GENERATED` - Assessment form prepared
         * `ASSESSMENT_STARTED` - Assessment started
         * `ASSESSMENT_UPDATED` - Assessment notes updated
         * `ASSESSMENT_COMPLETED` - Assessment completed
         * `ASSESSMENT_REOPENED` - Assessment reopened
         * `ASSESSMENT_DELETED` - Assessment deleted
         * `ITEM_RESULT_RECORDED` - Assessment item result recorded
-        * `OUTCOME_CREATED` - Outcome created
+        * `OUTCOME_CREATED` - Outcome record opened
         * `OUTCOME_PROPOSED` - Outcome proposed
         * `OUTCOME_FINALISED` - Outcome finalised
         * `PROMOTION_RECORDED` - Promotion recorded
@@ -2189,13 +2244,13 @@ components:
         * `USER_UPDATED` - User updated
         * `USER_AUTHORITY_CHANGED` - User authority changed
         * `USER_DELETED` - User deleted
-        * `IMPORT_BATCH_COMMITTED` - Import batch committed
-        * `IMPORT_BATCH_CANCELLED` - Import batch cancelled
-        * `IMPORT_BATCH_EXPIRED` - Import batch expired
-        * `LEGACY_GRADING_LINKED` - Legacy grading record linked
-        * `LEGACY_GRADING_UNLINKED` - Legacy grading record unlinked
-        * `LEGACY_GRADING_RANK_RESOLVED` - Legacy grading record rank resolved
-        * `LEGACY_GRADING_VOIDED` - Legacy grading record voided
+        * `IMPORT_BATCH_COMMITTED` - Import finished
+        * `IMPORT_BATCH_CANCELLED` - Import cancelled
+        * `IMPORT_BATCH_EXPIRED` - Import expired
+        * `LEGACY_GRADING_LINKED` - Historical record linked
+        * `LEGACY_GRADING_UNLINKED` - Historical record unlinked
+        * `LEGACY_GRADING_RANK_RESOLVED` - Historical record rank resolved
+        * `LEGACY_GRADING_VOIDED` - Historical record voided
     AgeBand:
       type: object
       description: 'One age band, from its code: label, description and programme.'
@@ -2336,6 +2391,16 @@ components:
         * `ATTENDED` - Attended
         * `DID_NOT_ATTEND` - Did not attend
         * `UNKNOWN` - Unknown
+    AuditChoice:
+      type: object
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+      required:
+      - label
+      - value
     AuditEntityEnum:
       enum:
       - GradingSession
@@ -2358,7 +2423,7 @@ components:
         * `Promotion` - Promotion
         * `Student` - Student
         * `User` - User
-        * `ImportBatch` - Import batch
+        * `ImportBatch` - Import
         * `LegacyGradingRecord` - Historical grading record
     AuditEvent:
       type: object
@@ -2380,6 +2445,9 @@ components:
         entity_type:
           allOf:
           - $ref: '#/components/schemas/AuditEntityEnum'
+          readOnly: true
+        entity_type_display:
+          type: string
           readOnly: true
         entity_id:
           type: string
@@ -2403,10 +2471,28 @@ components:
       - actor_name
       - entity_id
       - entity_type
+      - entity_type_display
       - id
       - metadata
       - occurred_at
       - summary
+    AuditLabels:
+      type: object
+      description: |-
+        GET /api/audit-events/labels/: the names of the event and record
+        types, so the audit screen's filters keep no list of their own.
+      properties:
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditChoice'
+        entities:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditChoice'
+      required:
+      - actions
+      - entities
     BeltColourEnum:
       enum:
       - WHITE
@@ -2643,6 +2729,11 @@ components:
         category_display:
           type: string
           readOnly: true
+        category_is_core:
+          type: boolean
+          readOnly: true
+          description: Whether the category is one of the six core grading areas every
+            rank shares, rather than rank-specific content.
         position:
           type: integer
           readOnly: true
@@ -2655,6 +2746,12 @@ components:
         requirement_notes:
           type: string
           readOnly: true
+        notation:
+          type: string
+          readOnly: true
+          description: The syllabus's display wording for this item's chart notation
+            - 'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was generated;
+            empty when there is none.
         result:
           $ref: '#/components/schemas/ResultEnum'
         result_display:
@@ -2676,10 +2773,12 @@ components:
       - assessor_email
       - category
       - category_display
+      - category_is_core
       - display_range
       - id
       - item_name
       - korean_name
+      - notation
       - position
       - required
       - requirement_notes
@@ -2811,9 +2910,9 @@ components:
       description: |-
         POST /api/auth/change-password/.
 
-        Self-service, unlike SetPasswordSerializer: an administrator resetting
-        someone else's password already proved their own authority to manage
-        that account, so no current-password check applies there. Here the
+        Self-service, unlike set-password: an administrator resetting someone
+        else's password already proved their own authority to manage that
+        account, so no current-password check applies there. Here the
         caller is proving they still control the account, not managing someone
         else's - current_password is required precisely because a hijacked
         session should not be enough to lock the real owner out.
@@ -2829,6 +2928,24 @@ components:
       required:
       - current_password
       - new_password
+    CurrentGrading:
+      type: object
+      description: The grading a student is registered for that has not reached its
+        result.
+      properties:
+        session:
+          type: integer
+        session_title:
+          type: string
+        stage:
+          $ref: '#/components/schemas/GradingStageEnum'
+        stage_display:
+          type: string
+      required:
+      - session
+      - session_title
+      - stage
+      - stage_display
     DatePrecisionEnum:
       enum:
       - MONTH
@@ -2863,6 +2980,11 @@ components:
         category_display:
           type: string
           readOnly: true
+        category_is_core:
+          type: boolean
+          readOnly: true
+          description: Whether the category is one of the six core grading areas every
+            rank shares, rather than rank-specific content.
         required:
           type: boolean
           readOnly: true
@@ -2893,6 +3015,7 @@ components:
       required:
       - category
       - category_display
+      - category_is_core
       - display_range
       - effective_since_rank_code
       - effective_since_rank_name
@@ -3112,6 +3235,20 @@ components:
         * `LOCKED` - Locked
         * `COMPLETED` - Completed
         * `CANCELLED` - Cancelled
+    GradingStageEnum:
+      enum:
+      - REGISTERED
+      - BEING_ASSESSED
+      - ASSESSED
+      - AWAITING_DECISION
+      - AWAITING_PROMOTION
+      type: string
+      description: |-
+        * `REGISTERED` - Registered
+        * `BEING_ASSESSED` - Being assessed
+        * `ASSESSED` - Assessed
+        * `AWAITING_DECISION` - Awaiting final decision
+        * `AWAITING_PROMOTION` - Passed, awaiting promotion
     GradingYears:
       type: object
       properties:
@@ -3193,6 +3330,91 @@ components:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
       - $ref: '#/components/schemas/LegacyImportRequest'
+    IssuedTemporaryPassword:
+      type: object
+      description: |-
+        The account, with the temporary password just issued for it.
+
+        The only response that ever carries a password, and only this once: the
+        server keeps nothing but its hash, so it cannot be shown again. Sent by
+        creating a user and by set-password, with caching disabled.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        full_name:
+          type: string
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        role_display:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+        can_make_final_grading_decision:
+          type: boolean
+          readOnly: true
+        can_promote_student:
+          type: boolean
+          readOnly: true
+        can_override_locked_session:
+          type: boolean
+          readOnly: true
+        can_view_grading_audit_log:
+          type: boolean
+          readOnly: true
+        must_change_password:
+          type: boolean
+          readOnly: true
+        temporary_password_expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        manageable:
+          type: boolean
+          readOnly: true
+          description: Whether the signed-in user may change this account; only a
+            superuser changes one that can use the Django admin site.
+        temporary_password:
+          type: string
+          readOnly: true
+      required:
+      - can_make_final_grading_decision
+      - can_override_locked_session
+      - can_promote_student
+      - can_view_grading_audit_log
+      - date_joined
+      - email
+      - full_name
+      - id
+      - last_login
+      - manageable
+      - must_change_password
+      - role_display
+      - temporary_password
+      - temporary_password_expires_at
     KindEnum:
       enum:
       - STUDENT_ROSTER
@@ -3200,7 +3422,7 @@ components:
       type: string
       description: |-
         * `STUDENT_ROSTER` - Student roster
-        * `LEGACY_GRADINGS` - Legacy grading records
+        * `LEGACY_GRADINGS` - Historical grading records
     LegacyGradingRecord:
       type: object
       description: |-
@@ -3697,6 +3919,41 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/WithdrawalReason'
+    PasswordCharacterRule:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        pattern:
+          type: string
+          description: A regular expression the password must match.
+      required:
+      - code
+      - label
+      - pattern
+    PasswordPolicy:
+      type: object
+      properties:
+        min_length:
+          type: integer
+        max_length:
+          type: integer
+        character_rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/PasswordCharacterRule'
+        checked_on_save:
+          type: array
+          items:
+            type: string
+          description: Rules only the server can check, run when it is saved.
+      required:
+      - character_rules
+      - checked_on_save
+      - max_length
+      - min_length
     PatchedCandidateAssessmentItemRequest:
       type: object
       properties:
@@ -3772,11 +4029,13 @@ components:
     PatchedStudentRequest:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         wksa_id:
           type: string
@@ -3839,10 +4098,6 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
-        password:
-          type: string
-          writeOnly: true
-          minLength: 1
     ProgrammeEnum:
       enum:
       - JUNIOR
@@ -4013,28 +4268,60 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
-    SetPasswordRequest:
+    SetupRequest:
       type: object
       description: |-
-        POST /api/users/{id}/set-password/.
-
-        A separate action rather than a writable field on UserManagementSerializer,
-        so a plain PATCH to a user's other details can never carry a password
-        change as a side effect.
+        POST /api/setup/: the first administrator, and the code proving it is
+        the deployment's owner (accounts/setup.py).
       properties:
+        code:
+          type: string
+          writeOnly: true
+          minLength: 1
+          description: The one-time setup code from the server's log.
+        email:
+          type: string
+          format: email
+          writeOnly: true
+          minLength: 1
+        first_name:
+          type: string
+          writeOnly: true
+          maxLength: 150
+        last_name:
+          type: string
+          writeOnly: true
+          maxLength: 150
         password:
           type: string
           writeOnly: true
           minLength: 1
       required:
+      - code
+      - email
       - password
+    SetupStatus:
+      type: object
+      description: GET /api/setup/.
+      properties:
+        setup_needed:
+          type: boolean
+          description: True until the deployment's first administrator exists.
+      required:
+      - setup_needed
     SiteSettings:
       type: object
       properties:
         club_name:
           type: string
+        password_policy:
+          $ref: '#/components/schemas/PasswordPolicy'
+        wksa_id:
+          $ref: '#/components/schemas/WksaIdScheme'
       required:
       - club_name
+      - password_policy
+      - wksa_id
     SourceEnum:
       enum:
       - KUKGRADE
@@ -4046,11 +4333,13 @@ components:
     Student:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         id:
           type: integer
@@ -4058,6 +4347,9 @@ components:
         wksa_id:
           type: string
           maxLength: 32
+        wksa_id_can_change:
+          type: boolean
+          readOnly: true
         first_name:
           type: string
           maxLength: 150
@@ -4095,6 +4387,7 @@ components:
       - last_name
       - status_display
       - wksa_id
+      - wksa_id_can_change
     StudentGradingHistory:
       type: object
       description: |-
@@ -4247,13 +4540,28 @@ components:
           allOf:
           - $ref: '#/components/schemas/AgeBandEnum'
           readOnly: true
+          description: |-
+            On the session's grading date when the list is filtered by eligible_for_session, otherwise today.
+
+            * `AGE_8_AND_UNDER` - 8 and under
+            * `AGE_9_TO_12` - 9-12
+            * `AGE_13_TO_17` - 13-17
+            * `AGE_18_AND_OVER` - 18+
         age_band_display:
           type: string
           readOnly: true
+        current_grading:
+          allOf:
+          - $ref: '#/components/schemas/CurrentGrading'
+          nullable: true
+          readOnly: true
+          description: The grading the student is registered for that has not reached
+            its result, and how far it has got; null when there is none.
       required:
       - age_band
       - age_band_display
       - can_be_graded
+      - current_grading
       - current_rank
       - current_rank_code
       - current_rank_name
@@ -4276,11 +4584,13 @@ components:
     StudentRequest:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         wksa_id:
           type: string
@@ -4469,6 +4779,11 @@ components:
         must_change_password:
           type: boolean
           readOnly: true
+        temporary_password_expires_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
         date_joined:
           type: string
           format: date-time
@@ -4478,6 +4793,11 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        manageable:
+          type: boolean
+          readOnly: true
+          description: Whether the signed-in user may change this account; only a
+            superuser changes one that can use the Django admin site.
       required:
       - can_make_final_grading_decision
       - can_override_locked_session
@@ -4488,8 +4808,10 @@ components:
       - full_name
       - id
       - last_login
+      - manageable
       - must_change_password
       - role_display
+      - temporary_password_expires_at
     UserManagementRequest:
       type: object
       description: |-
@@ -4516,13 +4838,8 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
-        password:
-          type: string
-          writeOnly: true
-          minLength: 1
       required:
       - email
-      - password
     VoidLegacyRecordRequest:
       type: object
       properties:
@@ -4561,6 +4878,36 @@ components:
         * `WITHDREW` - Withdrew voluntarily
         * `ABSENT` - Did not attend
         * `OTHER` - Other
+    WksaIdForm:
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        pattern:
+          type: string
+          description: A regular expression the whole ID must match.
+        example:
+          type: string
+      required:
+      - code
+      - example
+      - label
+      - pattern
+    WksaIdScheme:
+      type: object
+      properties:
+        hint:
+          type: string
+          description: The rule in a sentence, as a refused ID is told it.
+        forms:
+          type: array
+          items:
+            $ref: '#/components/schemas/WksaIdForm'
+      required:
+      - forms
+      - hint
   securitySchemes:
     cookieAuth:
       type: apiKey

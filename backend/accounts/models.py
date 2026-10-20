@@ -86,6 +86,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     must_change_password = models.BooleanField(default=False)
+    # Set with a temporary password - one somebody other than the owner set -
+    # and cleared when the owner chooses their own. Once passed, the account
+    # cannot sign in until an administrator issues a new one
+    # (accounts/backends.py). Null for every password its owner chose.
+    temporary_password_expires_at = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects: ClassVar[UserManager] = UserManager()
@@ -112,6 +117,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     @property
+    def temporary_password_expired(self) -> bool:
+        expires_at = self.temporary_password_expires_at
+        return expires_at is not None and expires_at <= timezone.now()
+
+    @property
     def is_deleted_user_placeholder(self) -> bool:
         return self.email == DELETED_USER_PLACEHOLDER_EMAIL
 
@@ -124,3 +134,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self) -> str:
         return self.first_name or self.email
+
+
+class SetupCode(models.Model):
+    """The one-time code that proves who sets up a new deployment.
+
+    While no administrator exists, each server start issues one and writes
+    it to the server's own log, which only the host's owner can read; the
+    setup page asks for it with the first administrator's details
+    (accounts/setup.py). Only its hash is kept, at most one row exists, and
+    it is deleted the moment setup succeeds.
+    """
+
+    code_hash = models.CharField(max_length=64)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Setup code, expires {self.expires_at:%Y-%m-%d %H:%M}"

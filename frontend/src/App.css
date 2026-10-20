@@ -71,6 +71,39 @@ button:disabled {
   border: 0;
 }
 
+/* FDR-007: every control is at least a 44px target, everywhere. Specific
+   enough (one class, through :not) to outrank a component's own smaller
+   size, so no screen restates it. Checkboxes and radios take their label as
+   the target; the theme toggle stays a compact pill (it is above WCAG's
+   24px minimum, by the owner's choice of 2026-10-20). */
+button:not(.theme-toggle-option, .visually-hidden),
+select:not(.visually-hidden),
+input:not([type="checkbox"], [type="radio"], [type="hidden"], .visually-hidden),
+textarea:not(.visually-hidden) {
+  min-height: 44px;
+}
+
+button:not(.theme-toggle-option, .visually-hidden) {
+  min-width: 44px;
+}
+
+/* Links that act as controls - breadcrumbs, names in a table - are inline
+   text, which no height reaches; they become boxes of the same size. */
+.breadcrumb-link-btn,
+.cgs-breadcrumb-link,
+.gsd-breadcrumb-link,
+.bgc-breadcrumb-link,
+.pl-breadcrumb-link,
+.users-back-link,
+.users-audit-link,
+.current-grading-link,
+.bgc-student-name-link,
+.bgc-review-exceptions-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;
@@ -210,7 +243,7 @@ button:disabled {
 }
 
 .theme-toggle-option[aria-pressed="true"] {
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
 }
 
 .theme-toggle-option:hover {
@@ -218,7 +251,7 @@ button:disabled {
 }
 
 .theme-toggle-option[aria-pressed="true"]:hover {
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
 }
 
 .login-content {
@@ -257,6 +290,46 @@ button:disabled {
   transform: translateY(-50%);
 }
 
+.password-requirements {
+  margin-top: -0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.password-requirements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.password-requirements li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.password-requirements li.is-met {
+  color: var(--color-success);
+}
+
+.password-requirement-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.password-requirements-on-save {
+  margin: 0.4rem 0 0;
+}
+
 .password-toggle:hover {
   color: var(--color-text);
 }
@@ -279,6 +352,42 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+/* The first-time setup page (SetupPage.tsx), on the sign-in layout. */
+.setup-theme {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-sunken);
+  padding: 0.9rem 1rem;
+}
+
+.setup-theme-label {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.setup-theme-help {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+}
+
+.setup-name-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 30rem) {
+  .setup-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 56rem) {
   .login-page {
     grid-template-columns: 1fr;
@@ -291,7 +400,7 @@ button:disabled {
 
 .eyebrow {
   margin: 0 0 0.5rem;
-  color: var(--color-gold-strong);
+  color: var(--color-accent-text);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -751,6 +860,19 @@ h2 {
   gap: 0.5rem;
 }
 
+/* The shared password form renders its submit button first; reversed here so
+   Cancel sits left of it, as in the name form. */
+.profile-password-actions {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+}
+
+.profile-password-changed {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-success);
+}
+
 .profile-name-button {
   min-height: 44px;
   padding: 0 0.85rem;
@@ -854,7 +976,7 @@ h2 {
 }
 
 .footer-brand-accent {
-  color: var(--color-gold);
+  color: var(--color-accent-text);
 }
 
 .footer-separator {
@@ -1034,13 +1156,6 @@ h2 {
   margin-top: 0.5rem;
 }
 
-.security-guarantee-note {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  margin-top: 1.75rem;
-  text-align: center;
-}
-
 .chevron-icon {
   transition: transform 200ms ease;
   font-size: 1.25rem;
@@ -1058,7 +1173,7 @@ h2 {
 
 .btn-pagination:hover:not(:disabled):not(.active) {
   border-color: var(--color-accent);
-  color: var(--color-accent);
+  color: var(--color-accent-text);
 }
 
 .btn-pagination.active {
@@ -1165,7 +1280,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 1.1rem;
   border-radius: 8px;
   border: 1px solid var(--color-border);
@@ -1429,18 +1544,6 @@ h2 {
   font-weight: 500;
 }
 
-@keyframes opdFadeIn {
-  from { opacity: 0; }
-
-  to { opacity: 1; }
-}
-
-@keyframes opdSlideIn {
-  from { transform: translateX(100%); }
-
-  to { transform: translateX(0); }
-}
-
 @keyframes sylSpin {
   to {
     transform: rotate(360deg);
@@ -1475,4 +1578,12 @@ h2 {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
+   focus like any other control. */
+[role="region"][tabindex="0"]:focus-visible,
+section[tabindex="0"]:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
 }

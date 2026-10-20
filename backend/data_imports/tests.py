@@ -27,7 +27,6 @@ from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
     _active_rank_lookup,
-    _resolve_rank,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
@@ -105,7 +104,7 @@ def upload_batch(
     return result.batch
 
 
-CLEAN_ROW = ["000123", "Alex", "Kim", "2012-05-01", "White", "ACTIVE"]
+CLEAN_ROW = ["206-2-500", "Alex", "Kim", "2012-05-01", "White", "ACTIVE"]
 
 
 def stored(name: str) -> bool:
@@ -175,7 +174,7 @@ def test_create_import_batch_accepts_valid_xlsx_and_computes_hash() -> None:
 
 def test_create_import_batch_rejects_csv_for_legacy_gradings_kind() -> None:
     content = student_workbook([CLEAN_ROW], file_format="csv")
-    with pytest.raises(Exception, match="Unsupported file type"):
+    with pytest.raises(Exception, match="KukGrade cannot read"):
         create_import_batch(
             kind=ImportBatch.Kind.LEGACY_GRADINGS,
             upload=SimpleUploadedFile("roster.csv", content),
@@ -185,7 +184,7 @@ def test_create_import_batch_rejects_csv_for_legacy_gradings_kind() -> None:
 
 def test_create_import_batch_rejects_oversized_file() -> None:
     huge = b"a" * (6 * 1024 * 1024)
-    with pytest.raises(Exception, match="MiB limit"):
+    with pytest.raises(Exception, match="MB limit"):
         create_import_batch(
             kind=ImportBatch.Kind.STUDENT_ROSTER,
             upload=SimpleUploadedFile("roster.csv", huge),
@@ -225,13 +224,15 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
         rows: list[list[object]] = []
         for index in range(size):
             rank_text = ("White", "yellow stripe", "Purple")[index % 3]
-            rows.append([f"Q{index:04d}", "Alex", "Kim", "2012-05-01", rank_text, ""])
+            rows.append(
+                [f"206-2-{index:03d}", "Alex", "Kim", "2012-05-01", rank_text, ""]
+            )
         return rows
 
     creator = admin_user("preview-queries-creator@example.com")
     for index in range(0, 40, 4):
         create_student(
-            wksa_id=f"Q{index:04d}",
+            wksa_id=f"206-2-{index:03d}",
             first_name="Existing",
             last_name="Student",
             date_of_birth=date(2012, 5, 1),
@@ -254,21 +255,23 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
     assert len(many.captured_queries) == len(few.captured_queries)
 
 
-def test_the_preloaded_rank_lookup_resolves_exactly_what_a_single_lookup_does() -> None:
+def test_the_rank_lookup_matches_code_or_name_of_active_ranks_ignoring_case() -> None:
     lookup = _active_rank_lookup()
     inactive = rank("YELLOW_STRIPE")
     Rank.objects.filter(pk=inactive.pk).update(active=False)
     lookup_without_it = _active_rank_lookup()
 
-    for text in ("white", "WHITE", "White", "Yellow", "blue stripe", "Purple", "x"):
-        assert lookup.get(text.upper()) == _resolve_rank(text), text
+    for text in ("white", "WHITE", "White"):
+        assert lookup[text.upper()] == rank("WHITE"), text
+    assert lookup["BLUE STRIPE"] == rank("BLUE_STRIPE")
+    for text in ("Purple", "x"):
+        assert text.upper() not in lookup
     for text in ("yellow stripe", "YELLOW_STRIPE"):
         assert lookup_without_it.get(text.upper()) is None
-        assert _resolve_rank(text) is None
 
 
 def test_preview_flags_missing_required_field_as_review_required() -> None:
-    row = ["000124", "", "Kim", "2012-05-01", "White", "ACTIVE"]
+    row = ["206-2-524", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
@@ -277,7 +280,7 @@ def test_preview_flags_missing_required_field_as_review_required() -> None:
 
 def test_preview_flags_future_dob_as_review_required() -> None:
     future = (timezone.localdate() + timedelta(days=1)).isoformat()
-    row = ["000125", "Alex", "Kim", future, "White", "ACTIVE"]
+    row = ["206-2-525", "Alex", "Kim", future, "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
@@ -285,16 +288,16 @@ def test_preview_flags_future_dob_as_review_required() -> None:
 
 
 def test_preview_flags_unresolved_rank_as_review_required() -> None:
-    row = ["000126", "Alex", "Kim", "2012-05-01", "Not A Rank", "ACTIVE"]
+    row = ["206-2-526", "Alex", "Kim", "2012-05-01", "Not A Rank", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
     assert preview.review_required == 1
-    assert "did not match the rank catalogue" in preview.rows[0].issues[0]
+    assert "is not a rank KukGrade recognises" in preview.rows[0].issues[0]
 
 
 def test_preview_flags_existing_wksa_id_as_skip_existing_and_never_updates() -> None:
     Student.objects.create(
-        wksa_id="000123",
+        wksa_id="206-2-500",
         first_name="Existing",
         last_name="Student",
         date_of_birth=timezone.localdate().replace(year=2010),
@@ -317,7 +320,7 @@ def test_preview_flags_duplicate_wksa_id_within_file() -> None:
 
 
 def test_preview_applies_row_correction() -> None:
-    row = ["000127", "", "Kim", "2012-05-01", "White", "ACTIVE"]
+    row = ["206-2-527", "", "Kim", "2012-05-01", "White", "ACTIVE"]
     batch = upload_batch(content=student_workbook([row]))
     preview = preview_student_import(
         batch,
@@ -341,12 +344,25 @@ FIELD_INDEX = {name: index for index, name in enumerate(STANDARD_STUDENT_HEADERS
 # (changes to CLEAN_ROW, the issue preview must report or None for READY).
 # Every case is committed as well as previewed: READY must mean committable.
 PARITY_CASES = {
-    "WKSA ID at its limit": ({"wksa_id": "W" * 32}, None),
-    "WKSA ID over its limit": (
-        {"wksa_id": "W" * 33},
-        "WKSA ID: Ensure this value has at most 32 characters (it has 33).",
+    "a black belt ID": ({"wksa_id": "A-20819"}, None),
+    "a black belt ID typed in lower case, with spaces": (
+        {"wksa_id": " a-20819 "},
+        None,
     ),
-    "WKSA ID within its limit once trimmed": ({"wksa_id": f" {'W' * 32} "}, None),
+    "a transfer's student ID from another school": ({"wksa_id": "206-1-044"}, None),
+    "a black belt rank with a student ID": (
+        {"current_rank": "JKN"},
+        "WKSA ID: A black belt rank needs a black belt ID, such as A-20819.",
+    ),
+    "a black belt rank with a black belt ID": (
+        {"current_rank": "JKN", "wksa_id": "A-20819"},
+        None,
+    ),
+    "an ID in neither form": (
+        {"wksa_id": "UK-5001"},
+        "WKSA ID: Use a student ID such as 206-2-150 or a black belt ID such as "
+        "A-20819.",
+    ),
     "first name at its limit": ({"first_name": "F" * 150}, None),
     "first name over its limit": (
         {"first_name": "F" * 151},
@@ -370,7 +386,7 @@ PARITY_CASES = {
     "unrecognised status": ({"status": "GONE"}, "Status 'GONE' is not recognised."),
     "unknown rank": (
         {"current_rank": "Purple"},
-        "Rank 'Purple' did not match the rank catalogue.",
+        "Rank 'Purple' is not a rank KukGrade recognises.",
     ),
 }
 
@@ -442,9 +458,9 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
         commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
     [message] = raised.value.message_dict["rows"]
-    assert message.startswith("Row 2 (000123) is no longer valid: ")
+    assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
     assert "already exists" in message
-    assert message.endswith("Nothing was imported - preview the file again.")
+    assert message.endswith("Nothing was imported - check the file again.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
 
@@ -476,7 +492,7 @@ def test_commit_creates_students_via_the_normal_service_and_audits_both() -> Non
     )
 
     assert committed.status == ImportBatch.Status.COMMITTED
-    student = Student.objects.get(wksa_id="000123")
+    student = Student.objects.get(wksa_id="206-2-500")
     assert student.current_rank == rank("WHITE")
     assert AuditEvent.objects.filter(
         action=AuditAction.STUDENT_CREATED,
@@ -495,7 +511,7 @@ def test_commit_creates_students_via_the_normal_service_and_audits_both() -> Non
 
 def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     existing = Student.objects.create(
-        wksa_id="000123",
+        wksa_id="206-2-500",
         first_name="Existing",
         last_name="Student",
         date_of_birth=timezone.localdate().replace(year=2010),
@@ -509,13 +525,13 @@ def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     existing.refresh_from_db()
     assert existing.first_name == "Existing"
     assert existing.current_rank == rank("YELLOW")
-    assert Student.objects.filter(wksa_id="000123").count() == 1
+    assert Student.objects.filter(wksa_id="206-2-500").count() == 1
 
 
 def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
     admin = admin_user()
     good_row = CLEAN_ROW
-    bad_row = ["000128", "Blair", "Park", "2012-05-01", "Not A Rank", "ACTIVE"]
+    bad_row = ["206-2-501", "Blair", "Park", "2012-05-01", "Not A Rank", "ACTIVE"]
     batch = upload_batch(
         content=student_workbook([good_row, bad_row]), uploaded_by=admin
     )
@@ -526,8 +542,8 @@ def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
 
     assert committed.summary_json["created"] == 1
     assert committed.summary_json["review_required"] == 1
-    assert Student.objects.filter(wksa_id="000123").exists()
-    assert not Student.objects.filter(wksa_id="000128").exists()
+    assert Student.objects.filter(wksa_id="206-2-500").exists()
+    assert not Student.objects.filter(wksa_id="206-2-501").exists()
 
 
 def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() -> None:
@@ -547,7 +563,7 @@ def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() 
 
     assert committed_b.summary_json["created"] == 0
     assert committed_b.summary_json["skipped_existing"] == 1
-    assert Student.objects.filter(wksa_id="000123").count() == 1
+    assert Student.objects.filter(wksa_id="206-2-500").count() == 1
 
 
 def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
@@ -555,7 +571,7 @@ def test_commit_is_not_idempotent_a_second_attempt_is_refused() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    with pytest.raises(Exception, match="cannot be committed again"):
+    with pytest.raises(Exception, match="cannot be imported again"):
         commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
 
@@ -592,7 +608,7 @@ def test_a_commit_whose_audit_fails_leaves_the_batch_retryable(
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
     assert stored(batch.source_file.name)
-    assert not Student.objects.filter(wksa_id="000123").exists()
+    assert not Student.objects.filter(wksa_id="206-2-500").exists()
     retried = commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
     assert retried.status == ImportBatch.Status.COMMITTED
 
@@ -817,7 +833,7 @@ def test_cancel_a_committed_batch_is_refused() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
     commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    with pytest.raises(Exception, match="already COMMITTED"):
+    with pytest.raises(Exception, match="already imported"):
         cancel_import_batch(batch, actor=admin)
 
 
@@ -920,7 +936,7 @@ def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> No
     assert commit_response.status_code == 200
     assert commit_response.json()["id"] == batch_id
     assert ImportBatch.objects.get(pk=batch_id).status == ImportBatch.Status.COMMITTED
-    assert Student.objects.filter(wksa_id="000123").exists()
+    assert Student.objects.filter(wksa_id="206-2-500").exists()
 
 
 def test_preview_rejects_incomplete_column_mapping() -> None:

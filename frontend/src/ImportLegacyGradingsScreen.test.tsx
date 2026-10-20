@@ -10,6 +10,7 @@ import {
   type CreateDataImportBatchResponse,
   type DataImportBatch,
   type LegacyImportPreview,
+  type Rank,
 } from "./api";
 
 const mockCreateDataImportBatch = vi.fn();
@@ -95,7 +96,7 @@ describe("ImportLegacyGradingsScreen", () => {
       count: 1,
       next: null,
       previous: null,
-      results: [{ id: 3, code: "YELLOW", name: "Yellow", order: 3, category: "COLOURED_BELT", active: true, category_display: "Coloured belt" }],
+      results: [{ id: 3, code: "YELLOW", name: "Yellow", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null } satisfies Rank],
     });
   });
 

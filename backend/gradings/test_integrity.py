@@ -342,3 +342,83 @@ def test_deleting_an_assessor_is_blocked_rather_than_erasing_attribution() -> No
     # proposed_by, decided_by and promoted_by.
     with pytest.raises(ProtectedError):
         judge.delete()
+
+
+def test_a_withdrawal_without_attribution_is_refused_by_the_database() -> None:
+    built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        GradingCandidate.objects.filter(pk=built.pk).update(
+            status=GradingCandidate.Status.WITHDRAWN,
+        )
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_the_attribution_check_keeps_rows_withdrawn_before_it() -> None:
+    """gradings/0012 is NOT VALID: earlier rows stay, new writes are checked."""
+    legacy = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    later = candidate(session=grading_session(status=GradingSession.Status.OPEN))
+    withdraw_unattributed = (
+        "UPDATE gradings_gradingcandidate SET status = 'WITHDRAWN' WHERE id = %s"
+    )
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+    try:
+        executor.migrate([("gradings", "0011_candidateassessmentitem_position")])
+        with connection.cursor() as cursor:
+            cursor.execute(withdraw_unattributed, [legacy.pk])
+
+        executor = MigrationExecutor(connection)
+        executor.migrate([("gradings", "0012_withdrawal_always_attributed")])
+
+        with pytest.raises(IntegrityError), transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(withdraw_unattributed, [later.pk])
+        assert GradingCandidate.objects.get(pk=legacy.pk).status == "WITHDRAWN"
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_existing_assessment_items_get_the_notation_they_already_showed() -> None:
+    generated = assessment()
+    first, second, third = generated.items.order_by("position")[:3]
+    old_target = [("gradings", "0012_withdrawal_always_attributed")]
+    executor = MigrationExecutor(connection)
+    final_targets = executor.loader.graph.leaf_nodes()
+
+    def notation(item_id: int) -> str:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT notation FROM gradings_candidateassessmentitem WHERE id = %s",
+                [item_id],
+            )
+            row = cursor.fetchone()
+        assert row is not None
+        return str(row[0])
+
+    try:
+        executor.migrate(old_target)
+        with connection.cursor() as cursor:
+            for item, notes in (
+                (first, "Chart notation: (pt.3)."),
+                (second, "Chart notation: (1/2)."),
+                (third, "May be assessed if time allows."),
+            ):
+                cursor.execute(
+                    "UPDATE gradings_candidateassessmentitem"
+                    " SET requirement_notes = %s WHERE id = %s",
+                    [notes, item.pk],
+                )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)
+
+        # The wording the screens showed for each before the field existed.
+        assert notation(first.pk) == "Part 3"
+        assert notation(second.pk) == "Part 1 of 2"
+        assert notation(third.pk) == ""
+    finally:
+        executor = MigrationExecutor(connection)
+        executor.migrate(final_targets)

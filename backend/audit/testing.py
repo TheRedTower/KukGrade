@@ -39,7 +39,7 @@ def locked_completed_candidate_with_outcome() -> tuple[CandidateOutcome, User, U
         created_by=creator,
     )
     student = Student.objects.create(
-        wksa_id="AUDIT-001",
+        wksa_id="206-2-901",
         first_name="Audit",
         last_name="Student",
         date_of_birth=date(2010, 1, 1),
@@ -84,7 +84,7 @@ def draft_session_with_candidates() -> tuple[GradingSession, list[GradingCandida
     candidates = []
     for index in range(2):
         student = Student.objects.create(
-            wksa_id=f"CASCADE-{index}",
+            wksa_id=f"206-2-91{index}",
             first_name="Cascade",
             last_name=f"Student{index}",
             date_of_birth=date(2010, 1, 1),

@@ -64,14 +64,14 @@ def _validate_column_mapping(value: dict[str, str]) -> None:
     unknown = set(value) - set(STUDENT_TARGET_FIELDS)
     if unknown:
         raise serializers.ValidationError(
-            f"Unknown target field(s): {', '.join(sorted(unknown))}."
+            f"Unknown field(s): {', '.join(sorted(unknown))}."
         )
     missing = [
         field for field in STUDENT_REQUIRED_TARGET_FIELDS if not value.get(field)
     ]
     if missing:
         raise serializers.ValidationError(
-            f"Missing required column mapping for: {', '.join(missing)}.",
+            f"Choose a column for: {', '.join(missing)}.",
         )
 
 

@@ -198,7 +198,7 @@
 .syl-next-rank-btn {
   background: transparent;
   border: none;
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -277,7 +277,6 @@
 .syl-core-english {
   font-size: 0.75rem;
   color: var(--color-text-muted);
-  opacity: 0.75;
   margin-top: 0.1rem;
 }
 
@@ -318,10 +317,12 @@
   border-bottom: none;
 }
 
-.syl-cell-curriculum {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+/* A table cell like the rest of the row, so its bottom line runs at the
+   row's height: made a flex box, it shrank to its own content and its line
+   sat higher than its neighbours' wherever the row was taller. The name,
+   Korean name and note stack as blocks. */
+.syl-cell-curriculum > * + * {
+  margin-top: 0.15rem;
 }
 
 .syl-item-name {
@@ -387,7 +388,7 @@
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: var(--color-accent-strong);
+  color: var(--color-accent-text);
   background: transparent;
   border: 1px solid var(--color-gold);
   vertical-align: middle;
@@ -509,61 +510,4 @@
 [data-theme="dark"] .syl-empty-state {
   background: #221e18;
   border-color: #332d24;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .syl-belt-btn-active {
-    background: rgba(245, 158, 11, 0.16);
-    border-color: #fbbf24;
-    box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
-  }
-
-  :root:not([data-theme="light"]) .syl-badge-required {
-    background: rgba(34, 197, 94, 0.2);
-    color: #86efac;
-    border-color: rgba(34, 197, 94, 0.4);
-  }
-
-  :root:not([data-theme="light"]) .syl-core-card {
-    background: #221e18;
-    border-color: #332d24;
-  }
-
-  :root:not([data-theme="light"]) .syl-table th {
-    background: #1c1915;
-  }
-
-  :root:not([data-theme="light"]) .syl-filter-bar {
-    background: #221e18;
-    border-color: #332d24;
-  }
-
-  :root:not([data-theme="light"]) .syl-select {
-    background: #181512;
-    border-color: #38332d;
-    color: #f3efe6;
-  }
-
-  :root:not([data-theme="light"]) .syl-belt-btn {
-    background: #221e18;
-    border-color: #332d24;
-    color: #f3efe6;
-  }
-
-  :root:not([data-theme="light"]) .syl-nav-arrow {
-    background: #221e18;
-    border-color: #332d24;
-    color: #f3efe6;
-  }
-
-  :root:not([data-theme="light"]) .syl-table-wrapper {
-    background: #221e18;
-    border-color: #332d24;
-  }
-
-  :root:not([data-theme="light"]) .syl-loading-state,
-  :root:not([data-theme="light"]) .syl-empty-state {
-    background: #221e18;
-    border-color: #332d24;
-  }
 }

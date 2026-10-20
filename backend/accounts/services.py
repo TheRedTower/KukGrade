@@ -7,14 +7,19 @@ rather than one per changed field.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
+from accounts.password_policy import generate_temporary_password
 from accounts.permissions import (
     AUTHORITY_PERMISSIONS,
     FINAL_GRADING_DECISION_PERMISSION,
@@ -42,27 +47,80 @@ def _snapshot(user: User) -> dict[str, Any]:
     }
 
 
+SUPERUSER_ONLY_MESSAGE = "Only a superuser can change this account."
+OWN_ROLE_OR_STATUS_MESSAGE = "You cannot change your own role or account status."
+
+
+def can_manage(target: User, actor: User) -> bool:
+    """Whether `actor` may change `target` at all (2026-10-20).
+
+    An account that can use the Django admin site - a superuser's, or one a
+    superuser gave `is_staff` - is changed only by a superuser: its details,
+    role, status, authority, password and existence. Anyone less could
+    otherwise take it over, lock it out or delete it. Your own account has
+    rules of its own: no role or status change (update_platform_user), no
+    reset, authority change or deletion.
+    """
+    if target.pk == actor.pk:
+        return True
+    return actor.is_superuser or not (target.is_staff or target.is_superuser)
+
+
+def _validate_can_manage(target: User, actor: User) -> None:
+    if not can_manage(target, actor):
+        raise ValidationError({"user": [SUPERUSER_ONLY_MESSAGE]})
+
+
+@dataclass(frozen=True)
+class TemporaryPassword:
+    """A temporary password just issued, for the administrator to pass on.
+
+    The plaintext exists only here, on its way to the one response that shows
+    it: only its hash is stored, and it is never logged or audited.
+    """
+
+    user: User
+    # Out of the repr, so a log line or traceback that prints this cannot
+    # print the password.
+    password: str = field(repr=False)
+
+
+def _temporary_password_expiry() -> datetime:
+    return timezone.now() + settings.TEMPORARY_PASSWORD_LIFETIME
+
+
 @transaction.atomic
 def create_platform_user(
     *,
     email: str,
-    password: str,
     first_name: str = "",
     last_name: str = "",
     role: str | None = None,
     is_active: bool | None = None,
-    must_change_password: bool = True,
     actor: User | None = None,
-) -> User:
+) -> TemporaryPassword:
+    """A new account with a generated temporary password, which expires and
+    which its owner must replace at their first sign-in."""
+    expires_at = _temporary_password_expiry()
     extra: dict[str, Any] = {
         "first_name": first_name,
         "last_name": last_name,
-        "must_change_password": must_change_password,
+        "must_change_password": True,
+        "temporary_password_expires_at": expires_at,
     }
     if role is not None:
         extra["role"] = role
     if is_active is not None:
         extra["is_active"] = is_active
+    # Built unsaved from the submitted details, so the similarity check has
+    # the new account's own name and email to compare against.
+    password = generate_temporary_password(
+        User(
+            email=User.objects.normalize_email(email),
+            first_name=first_name,
+            last_name=last_name,
+        ),
+    )
     # create_user() already calls full_clean(exclude=["password"]) and
     # save() itself; is_staff and is_superuser are not accepted here at
     # all, so this path can never hand out Django admin access.
@@ -72,9 +130,25 @@ def create_platform_user(
         user,
         f"User account created for {user.email}.",
         actor=actor,
-        metadata={"role": user.role},
+        metadata={
+            "role": user.role,
+            "temporary_password_expires_at": expires_at.isoformat(),
+        },
     )
-    return user
+    return TemporaryPassword(user, password)
+
+
+def _granted(user: User, permission: str) -> bool:
+    """Whether `permission` was granted to `user`, directly or by a group.
+
+    Unlike has_perm(), not true for a superuser by default.
+    """
+    app_label, codename = permission.split(".")
+    held = Permission.objects.filter(
+        content_type__app_label=app_label,
+        codename=codename,
+    )
+    return held.filter(user=user).exists() or held.filter(group__user=user).exists()
 
 
 @transaction.atomic
@@ -99,8 +173,13 @@ def update_platform_user(
     locked = _lock_user(user.pk)
     before = _snapshot(locked)
 
-    if role == User.Role.ADMINISTRATOR and locked.has_perm(
-        FINAL_GRADING_DECISION_PERMISSION,
+    # Checked against the grant itself, and only when the role is actually
+    # changing: has_perm() is true for every superuser, so it refused any
+    # edit that resent a superuser's unchanged administrator role.
+    if (
+        role == User.Role.ADMINISTRATOR
+        and locked.role != User.Role.ADMINISTRATOR
+        and _granted(locked, FINAL_GRADING_DECISION_PERMISSION)
     ):
         raise ValidationError(
             {
@@ -137,6 +216,15 @@ def update_platform_user(
         # A no-op PATCH writes nothing: an audit trail exists to show what
         # changed, and nothing did.
         return locked
+    if actor is not None:
+        _validate_can_manage(locked, actor)
+        # The screen never offers it, and the server refuses it too: nobody
+        # demotes or deactivates themselves, so the last administrator
+        # cannot leave the school with none.
+        if locked.pk == actor.pk and (
+            before["role"] != after["role"] or before["is_active"] != after["is_active"]
+        ):
+            raise ValidationError({"user": [OWN_ROLE_OR_STATUS_MESSAGE]})
 
     locked.save()
     record(
@@ -183,6 +271,7 @@ def delete_platform_user(target: User, actor: User) -> User:
     """
     if target.pk == actor.pk:
         raise ValidationError({"user": ["You cannot delete your own account."]})
+    _validate_can_manage(target, actor)
 
     placeholder = get_deleted_user_placeholder()
     if target.pk == placeholder.pk:
@@ -248,8 +337,8 @@ def delete_platform_user(target: User, actor: User) -> User:
     record(
         AuditAction.USER_DELETED,
         target,
-        f"User account {target.email} deleted; historical attribution "
-        "reassigned to the placeholder account.",
+        f"User account {target.email} deleted; their history is kept under "
+        "the Deleted user account.",
         actor=actor,
         metadata={
             "email": target.email,
@@ -276,6 +365,7 @@ def validate_authority_change(
                 ],
             },
         )
+    _validate_can_manage(target, actor)
 
     if (
         flags.get("can_make_final_grading_decision")
@@ -285,8 +375,7 @@ def validate_authority_change(
             {
                 "can_make_final_grading_decision": [
                     "Administrators cannot hold final grading decision "
-                    "authority. Only one designated Master should - grant "
-                    "it to an instructor instead.",
+                    "authority - grant it to an instructor instead.",
                 ],
             },
         )
@@ -299,8 +388,9 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     Not a role: granted per user so authority survives one person being
     unavailable, and self-granting is refused so an administrator cannot
     make themselves a Master unilaterally. Administrators are also refused
-    final-decision authority outright - the confirmed policy is one
-    designated Master, with administrators holding everything else instead.
+    final-decision authority outright: it belongs to instructors - as many
+    Masters as the school has (2026-09-25) - with administrators holding
+    everything else instead.
 
     Checked and changed on the locked row, the same lock
     update_platform_user() takes: a grant and a role change each read the
@@ -348,13 +438,40 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
     return refreshed
 
 
+OWN_PASSWORD_RESET_MESSAGE = (
+    "Change your own password from your account menu, which asks for your current one."
+)
+
+
+def validate_can_reset_password(target: User, actor: User) -> None:
+    """Whether `actor` may issue `target` a temporary password.
+
+    Not your own: a reset asks for no current password, so on your own
+    account it let whoever held a signed-in session replace the password and
+    lock the owner out (audit F-04); change_own_password, behind the current
+    password, is the way. And, as with every change, not an account that can
+    use the Django admin site unless you are a superuser (can_manage): the
+    temporary password signs in as that account.
+    """
+    if target.pk == actor.pk:
+        raise ValidationError({"user": [OWN_PASSWORD_RESET_MESSAGE]})
+    _validate_can_manage(target, actor)
+
+
 @transaction.atomic
-def reset_password(target: User, *, password: str, actor: User) -> User:
-    """Set a password someone else chose, so its owner must replace it (unless
-    the owner is the one setting it)."""
+def reset_password(target: User, *, actor: User) -> TemporaryPassword:
+    """Issue `target` a new temporary password, replacing whatever they had.
+
+    Their old password stops working at once, as does any earlier temporary
+    one; they must choose their own at next sign-in.
+    """
     locked = _lock_user(target.pk)
+    # On the locked row, so a change to its admin site access cannot slip in
+    # between the check and the reset.
+    validate_can_reset_password(locked, actor)
+    password = generate_temporary_password(locked)
     locked.set_password(password)
-    return _password_set(locked, actor=actor)
+    return TemporaryPassword(_password_set(locked, actor=actor), password)
 
 
 @transaction.atomic
@@ -365,22 +482,25 @@ def change_own_password(user: User, *, password: str) -> User:
     return _password_set(locked, actor=user)
 
 
-@transaction.atomic
-def record_admin_password_change(target: User, *, actor: User) -> User:
-    """Django admin's password form has saved `target`'s new password; the
-    rest of an administrator reset follows here, in the same transaction."""
-    return _password_set(_lock_user(target.pk), actor=actor)
-
-
 def _password_set(locked: User, *, actor: User) -> User:
-    # A password its owner chose - including an administrator setting their
-    # own - needs no forced replacement; one someone else chose does.
+    # A password its owner chose is theirs to keep; one someone else set is
+    # temporary - it expires, and must be replaced at next sign-in. The owner
+    # reaches this only through change_own_password: Django admin has no
+    # password form for your own account (accounts/admin_site.py).
     chosen_by_owner = locked.pk == actor.pk
+    expires_at = None if chosen_by_owner else _temporary_password_expiry()
+    locked.must_change_password = not chosen_by_owner
+    locked.temporary_password_expires_at = expires_at
     # One transaction with the password itself, so the change and its record
     # land together or not at all (KG-A14). The value never appears in the
     # summary or metadata.
-    locked.must_change_password = not chosen_by_owner
-    locked.save(update_fields=["password", "must_change_password"])
+    locked.save(
+        update_fields=[
+            "password",
+            "must_change_password",
+            "temporary_password_expires_at",
+        ],
+    )
     record(
         AuditAction.USER_UPDATED,
         locked,
@@ -390,6 +510,11 @@ def _password_set(locked: User, *, actor: User) -> User:
             else f"Password reset for {locked.email}."
         ),
         actor=actor,
+        metadata=(
+            {"temporary_password_expires_at": expires_at.isoformat()}
+            if expires_at
+            else {}
+        ),
     )
     return locked
 
@@ -403,7 +528,8 @@ def set_admin_site_access(
     is_superuser: bool | None = None,
 ) -> User:
     """Django admin's own two flags, which the API never sets, audited like
-    every other account change (KG-A14)."""
+    every other account change (KG-A14). Only a superuser grants or removes
+    them - anyone else could make themselves one."""
     locked = _lock_user(target.pk)
     before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
     if is_staff is not None:
@@ -413,6 +539,8 @@ def set_admin_site_access(
     after = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}
     if before == after:
         return locked
+    if not actor.is_superuser:
+        raise ValidationError({"user": [SUPERUSER_ONLY_MESSAGE]})
     locked.save(update_fields=["is_staff", "is_superuser"])
     record(
         AuditAction.USER_UPDATED,

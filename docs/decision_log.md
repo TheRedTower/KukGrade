@@ -18,6 +18,361 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The first administrator is set up from the site, with a code from the log
+
+Status: Accepted, built 2026-10-20
+
+Decision:
+On a new deployment, visiting the site shows a setup page while no
+administrator exists; whoever completes it becomes the main administrator, a
+superuser. To stop a stranger or a bot claiming the site first, the page
+also asks for a one-time setup code that each server start writes to the
+server's own log while setup is needed - which only the host's owner can
+read. The code works once, for 24 hours; a restart issues a new one. The
+terminal setup command considered first is not kept, and Django's
+`createsuperuser` stays switched off.
+
+Context:
+Amendment 10 of the credential lifecycle (2026-10-19): no default password;
+the first administrator is prompted for at first deployment. The owner chose
+a web page over a terminal prompt, and the setup code over "first visitor
+wins" or "only from the server's network".
+
+Consequences:
+`accounts/setup.py` holds the rule; `/api/setup/` serves it; the
+`issue_setup_code` startup command writes the code; `SetupCode` keeps only
+its hash. `SetupPage.tsx` is the page, shown to a signed-out visitor on any
+path while setup is needed; it is also where the theme is first chosen.
+
+### 2026-10-20 - Who may change which account
+
+Status: Accepted
+
+Decision:
+1. Only a superuser changes an account that can use the Django admin site -
+   a superuser's, or one a superuser gave `is_staff`: its details, role,
+   status, authority, password and existence. Administrators still see it.
+2. Nobody changes their own role or account status; the server refuses what
+   the Users screen already did not offer.
+3. Administrators otherwise manage instructors and each other as before,
+   including creating administrators.
+Admin site access itself is granted or removed only by a superuser.
+
+Context:
+The go-live mapping of the Administrator role (`permissions.md`) found that
+an Administrator could change the superuser's email, role or status, grant
+it authority and delete it, and could demote or deactivate themselves
+through the API although the screen hid those controls. Django admin let a
+staff account with user permissions make itself a superuser.
+
+Consequences:
+`accounts.services.can_manage` is the one rule, used by every account
+service, by Django admin's change and delete permissions, and served as
+`manageable` so the user page goes view-only where a change would be
+refused.
+
+### 2026-10-20 - The WKSA ID scheme
+
+Status: Accepted (format and the owner's answers). The two forms are
+enforced since 2026-10-20, with a black belt rank requiring a black belt ID
+and the one change from a student ID to it; the list of previous IDs is
+still to build
+
+Decision:
+A WKSA ID is never free text. It is the identifier a student is known and
+tracked by, so it must have one of exactly two forms, all digits apart from
+the hyphens and the `A`:
+
+| Kind | Form | Example | Who holds it | Issued by |
+|---|---|---|---|---|
+| Student ID | `NNN-N-NNN` | `206-2-150` | Every student below black belt | The school owner |
+| Black belt ID | `A-NNNNN` | `A-20819` | Every black belt, instructor or student | WKSA |
+
+- In a student ID the first two parts are the school and the last three the
+  student's number within it, always three digits with leading zeros
+  (`206-2-007`). Colchester is `206-2`, and nearly every student holds that
+  prefix; a student transferring in may keep another school's, such as
+  `206-1-044`, in the same form. The home prefix is a deployment setting
+  beside the club name.
+- A black belt ID is `A`, a hyphen and exactly five digits.
+- KukGrade never invents an ID. It records the one the school owner or WKSA
+  issued; nobody using KukGrade - administrators included - chooses the
+  number.
+- Anything else is refused by the model and the database, and so by the
+  API, Django admin and the roster import alike, from one definition on the
+  server; the Add student screen shows the rule the server serves rather than
+  a copy.
+- On promotion to black belt the student's black belt ID replaces their
+  student ID as the one they are known by. The student ID is kept on their
+  record as a previous ID, so anything that still quotes it - an old roster
+  spreadsheet being imported, or a search - finds the same student.
+
+When the black belt ID is given (the owner, 2026-10-20): at the national
+grading, straight after the promotion, so it takes effect at once - there is
+no period as a black belt with a student ID. When the instructor or Master is
+back they change the student's ID to it; that one change is the only one an
+ID ever takes. A black belt ID then stays with the student for good: later
+ranks and certificates come under the same ID. So a black belt rank (JKN and
+above) requires a black belt ID, and promotion to one waits for it to be
+recorded. Until previous IDs are built, the old student ID is kept in the
+audit event of that change.
+
+How previous IDs are kept (recommended, 2026-10-20): every record inside
+KukGrade - gradings, assessments, promotions - already points at the student
+row itself, not at the text of their ID, so none of it needs relinking when
+the ID changes. Only what arrives from outside is matched by ID. So each
+student keeps a short list of the IDs they have held, each with the date it
+was replaced; a lookup by ID checks the current one and then that list, and
+the change is audited like any other.
+
+Context:
+Until this decision `Student.wksa_id` was any text up to 32 characters,
+unique, stored as typed - only the Add student screen upper-cased it (audit
+F-30, left open on 2026-10-18 for this overhaul). That let the same person be
+entered twice under two spellings, and anything at all stand in for the
+identifier the roster import matches students on.
+
+Consequences:
+- A migration checks every existing ID and lists any that fit neither form,
+  for the owner to correct, before the rule is enforced.
+- `wksa_id` stops being read-only after creation in exactly one way:
+  recording a black belt ID (built 2026-10-20), which will move the old one
+  into the list of previous IDs once that list exists.
+
+Question to answer before previous IDs are built:
+- When a student leaves, can their student number later be given to a new
+  student? If it can, an old ID can belong to two people at different times,
+  and a lookup by a previous ID has to be told which period it is about; if
+  it cannot, every ID - current or previous - is unique for good.
+
+### 2026-10-19 - Email and credential lifecycle: the packet as amended
+
+Status: Accepted
+
+Decision:
+`email-and-credential-lifecycle.md` is the accepted design for optional
+transactional email (Resend), administrator-issued temporary credentials,
+forced and signed-in password changes, and forgotten-password recovery. The
+owner's amendments at its top override the sections they name. In short:
+- The parts that work with email disabled are built now (slices 1-4); the
+  email slices wait for the packet's readiness condition (v1.0.0).
+- Passwords are 16 to 64 characters with an uppercase letter, a lowercase
+  letter, a number and a special character, not common and not like the
+  user's details - declared by the server, which the frontend renders.
+- Temporary passwords are generated by the server, shown once, expire, and
+  must be replaced at next sign-in; administrators never choose another
+  person's password. If an email cannot be sent, the administrator is shown
+  the temporary password once instead.
+- Expiry is enforced at sign-in for the API and the Django admin site, and
+  the admin site is closed while a change is required.
+- `email_enabled` is served by `/api/site/`. The Resend package is used
+  behind one transport boundary, with an explicit timeout.
+- No default administrator password: a new deployment prompts for the first
+  administrator, a superuser. Everyone else is created by an administrator.
+- Commits are made per slice, after the owner approves it.
+
+Context:
+The owner wrote the packet as the full design; on 2026-10-19 it was checked
+against the code. Much of the forced-change lifecycle already exists
+(`must_change_password`, `ForcePasswordChangeMiddleware`); temporary
+passwords are typed by administrators today, have no expiry, and the Django
+admin site is outside the gate. This supersedes in part the 2026-10-18 open
+decision on self set-password (F-04), now slice 1.
+
+Consequences:
+API changes to come: user creation stops accepting a password,
+`set-password` stops accepting one and returns the generated temporary
+password once, and `/api/site/` gains `email_enabled` and the password rules.
+One new dependency when email is built (the Resend package, with `requests`).
+
+### 2026-10-19 - The Students list shows each student's current grading (F-29)
+
+Status: Accepted
+
+Decision:
+The "Next action" column is replaced by "Current grading": the grading the
+student is registered for that has not reached its result, linked to the
+session, with how far it has got - Registered, Being assessed, Assessed,
+Awaiting final decision, or Passed, awaiting promotion - or "Not
+registered". The list serves it as `current_grading`
+(`gradings.read_models.with_current_grading`), from the same
+`unsettled_registrations()` the one-grading-at-a-time rule uses, so the
+column and that rule cannot disagree.
+
+Context:
+"Next action" was worked out in the browser from status alone ("Follow up
+required" for Inactive, which blocks nothing). The owner chose this over
+removing the column or showing time at rank.
+
+Consequences:
+API addition: `current_grading` (nullable) on each student list row.
+
+### 2026-10-18 - Owner answers on the audit's open decisions
+
+Status: Accepted
+
+Decision:
+- **A form taught in parts names every part taught so far (F-09).** The
+  cumulative syllabus combines part notation across ranks:
+  8-and-under Cho Geup Hyung (part 1 at Blue, 2 at Red stripe, 3 at Red)
+  reads "Parts 1-2" at Red stripe and "Parts 1-3" from Red, where it read
+  only the latest part. A latest mapping without part notation - the whole
+  form, or a range - stands as before
+  (`syllabus.services.cumulative_notation`). Assessment items now store this
+  wording as `notation` when generated (`gradings/0013`), so a past record
+  keeps it; existing items were given the wording they already showed.
+- **An assessment stays deletable after lock, by administrators only (D2).**
+  Kept for emergencies. Deleting needs the administrator-only cleanup
+  permission; the three Master permissions do not grant it, and Django
+  admin offers no delete. Tested.
+- **The cohort builder bands students by age on the grading date (F-33).**
+  With `eligible_for_session`, the student list's `age_band` and its
+  `age_band` filter are worked out on that session's grading date, as
+  registration does; otherwise today. Banding moved into the query
+  (`gradings.age.with_age_band_on`).
+- **Which categories are core areas is served (F-31).** Syllabus rows and
+  assessment items carry `category_is_core` from
+  `syllabus.models.CORE_CATEGORIES`; the frontend's own list is gone.
+- **Grading services lock the students they rely on explicitly (D1).**
+  `lock_in_session` locked a candidate, assessment or outcome with a query
+  that inherited the model's ordering, which joined the session and
+  student, so `FOR UPDATE` also locked the student - in row order, not
+  ascending, and unstated. The row lock is now bare (`OF self`, no
+  ordering). Of its callers, only `apply_candidate_update` relied on the
+  student: moving a candidate, changing their testing rank and reinstating
+  them now lock and re-read the student after the sessions. Promotion and
+  assessment deletion already locked it explicitly.
+
+Context:
+The owner answered the open list on 2026-10-18. F-04, F-30, F-29 and F-19
+stay open, below. Investigating D1 showed the reinstatement race fixed
+earlier that day was covered by the incidental lock, not only the explicit
+one.
+
+Consequences:
+API additions: `category_is_core` on syllabus rows and assessment items; the
+item's `notation` is now stored. The student list's `age_band` depends on
+`eligible_for_session`. A race test pins the move/student-edit ordering.
+
+### 2026-10-18 - Screens and contract follow the server's rules (F-25, F-26, F-16, F-33)
+
+Status: Accepted
+
+Decision:
+- A list refuses a query parameter it does not declare with a 400 naming it
+  (`kukgrade/filtering.py`). Ignoring it returned the unfiltered list.
+  `page`, `page_size` and `format` are accepted on every list; actions that
+  read their own parameters (the effective syllabus) are unaffected.
+- Registering a student a session already holds - withdrawn or not - and
+  moving a registration onto such a session answer "Student is already
+  registered for this session." on every path, instead of the unique
+  constraint's generic message the cohort builder did not recognise.
+- The session screen offers "Delete session" from the served
+  `can_be_deleted`, in any status, instead of re-deriving the rule. "View
+  audit events" appears only with `can_read_audit_log`, always for this
+  session, and the audit screen honours the link's `entity_id`. Cancelling a
+  locked session asks for its reason as required.
+- The assessment screen prepares a missing assessment in a draft or open
+  session, the statuses generation accepts.
+
+Context:
+The 2026-10-04 audit found each screen restating a server rule and getting it
+wrong, and tests pinning the restated rule.
+
+Consequences:
+Contract change: an undeclared list parameter is a 400. Two backend tests
+that passed parameters no list declares were corrected.
+
+### 2026-10-18 - Integrity guards from the 2026-10-04 audit (F-13, F-14, F-15)
+
+Status: Accepted
+
+Decision:
+- `CandidateOutcomeQuerySet.delete()` refuses a finalised outcome, as
+  `Model.delete()` already did, so a bulk delete cannot erase a Fail or
+  Conditional. The three cleanup services that remove decisions on purpose
+  (`delete_candidate_assessment`, `delete_grading_session`,
+  `delete_student`) call `models.QuerySet.delete` directly, as they already
+  did for promotions.
+- The withdrawal-attribution check now also refuses a `WITHDRAWN`
+  candidate with no reason, actor or time (`gradings/0012`), making the
+  2026-09-26 rule a database guarantee. It is added `NOT VALID`, so rows
+  withdrawn before that decision are left as they are, as that entry
+  promised, and every new write is checked.
+- Deleting an assessment registers its candidate again, as reopening does.
+  In a draft or open session a new assessment can be prepared; after lock
+  the candidate is resolved by an authorised withdrawal.
+
+Context:
+The 2026-10-04 audit reproduced each gap: a bulk delete removed a finalised
+Fail; a queryset update produced a withdrawn candidate with no attribution;
+deleting an assessment after lock left a COMPLETED candidate with no
+assessment, which blocked completing the session.
+
+Consequences:
+Tests that wrote a withdrawn candidate directly now withdraw through the
+service or write the attribution. Whether an assessment should be deletable
+at all once its session is locked is left with the other open questions from
+that audit.
+
+### 2026-10-18 - A student is registered for one grading at a time
+
+Status: Accepted
+
+Decision:
+Registering a student, or reinstating a withdrawn registration, is refused
+while the student has another registration that has not reached its result
+(`gradings.services.validate_no_unsettled_registration`, called from
+`GradingCandidate.clean()`, so the API, bulk registration and Django admin
+all hold). A registration is settled once it is withdrawn, its session is
+cancelled, or its outcome is finalised as Fail or Conditional, or as a Pass
+that has been promoted. `eligible_for_session` leaves such students out, so
+the cohort builder does not offer them. A registration made in error is
+corrected by an administrator, not by registering the student again. Moving
+or removing a registration stays available to instructors where the session
+and assessment rules already allow it (confirmed by the owner the same day:
+"keep as is"). Registration and reinstatement both lock the student, the row
+two sessions share, so two concurrent attempts cannot both succeed.
+
+Context:
+The owner, asked about F-12 of the 2026-10-04 audit: "the student should be
+refused ... mistakes should be done through an administrator. To stop there
+being multiple workflows it will be too much to keep track of." Until a
+grading settles, the student's next rank is not known, so a second
+registration would test them for a rank they may already hold.
+
+Consequences:
+A student who fails or is given a Conditional can be registered for the next
+grading as soon as the Master records the decision; one who passes, once
+promoted. Registering twice in one session keeps its own message. Data from
+before this rule may still hold a double registration; the entry below keeps
+it withdrawable.
+
+### 2026-10-18 - A registration's testing rank is checked when it is chosen
+
+Status: Accepted
+
+Decision:
+`validate_testing_for_rank` runs when a registration's rank is chosen: at
+registration, and when the registration is moved to another session, has its
+rank changed, or is reinstated after a withdrawal. It no longer runs on every
+other save (`GradingCandidate.clean()`, `apply_candidate_update`). Promotion
+still refuses a candidate whose testing rank is no longer the student's next
+rank.
+
+Context:
+The 2026-10-04 audit (F-12) found a student registered in two sessions was
+stranded in the second once promoted in the first: every save re-checked the
+rank against the new current rank, so the second registration could not be
+withdrawn before or after lock, nor moved, and could only be finalised into
+an outcome that can never be promoted.
+
+Consequences:
+The stale registration can be withdrawn (a reason such as Other, "already
+promoted") or removed while that is otherwise allowed. New double
+registrations are refused by the entry above; this keeps any made before it
+recoverable.
+
 ### 2026-09-30 - Fixes from the pre-push review of audit steps 1-6
 
 Status: Accepted
@@ -1445,6 +1800,10 @@ should be expected to need adjustment once tested against the real file.
 
 Status: Accepted
 
+Superseded in part: deviation 1 (Tablib) and deviation 4's reserved `PARTIAL`
+status, by 2026-09-30 "Import files, expiry, preview validity and
+spreadsheet limits".
+
 Decision:
 A new `data_imports` app provides administrator-only bulk student-roster
 import from `.xlsx`/`.csv`, ahead of the originally-recommended v1.0.0
@@ -1669,6 +2028,10 @@ again feels convenient.
 
 Status: Accepted
 
+Superseded in part: the Administrator group carries `audit.view_auditevent`
+again and the check follows that permission, not the role (2026-09-26); a
+per-user grant also reads the log (2026-09-21 "Fourth sensitive permission").
+
 Decision:
 The audit log (`/api/audit-events/` and Django admin's `AuditEventAdmin`) is
 readable only by administrators and holders of Master (final-decision)
@@ -1695,6 +2058,11 @@ in `permission_map`.
 ### 2026-09-16 - Master authority is administrator-exclusive
 
 Status: Accepted
+
+Superseded in part: "exactly one designated Master" in the context below -
+any number of instructors may hold it (2026-09-25 "Multiple Masters are
+permitted"). The rule itself stands: an administrator never holds
+final-decision authority (the title means exclusive of administrators).
 
 Decision:
 `gradings.can_make_final_grading_decision` can never be held by a user whose
@@ -1757,6 +2125,11 @@ an intended feature.
 ### 2026-09-15 - User-management audit events are administrator-only
 
 Status: Accepted
+
+Superseded in part: other events are no longer readable by every signed-in
+user (2026-09-16 "Audit log is administrator-or-Master"), and there is no
+single-event route to answer 404 (2026-09-28 "The API serves what the
+application uses").
 
 Decision:
 `USER_CREATED`, `USER_UPDATED` and `USER_AUTHORITY_CHANGED` audit events are
@@ -1930,7 +2303,7 @@ Candidate registration gains a status check.
 
 ### 2026-09-13 - Syllabus versioning and immutability
 
-Status: Accepted
+Status: Superseded by 2026-09-14 - Syllabus versioning deferred, not cancelled
 
 Decision:
 The syllabus is versioned and set in stone. Introduce `SyllabusVersion` with a
@@ -1976,6 +2349,9 @@ may be a management command.
 ### 2026-09-13 - Capability map and role definitions
 
 Status: Accepted
+
+Superseded in part: instructors authoring and publishing syllabus versions
+was deferred by 2026-09-14 "Syllabus versioning deferred, not cancelled".
 
 Decision:
 Instructors own everything related to Kuk Sool; logistics beyond that is left to
@@ -2287,6 +2663,10 @@ screens, or implement correction/reopening after finalisation.
 
 Status: Accepted
 
+Superseded in part: a session now locks only when every assessment is
+completed, and no result is recorded after lock (2026-09-26 "A session locks
+only when grading is complete").
+
 Decision:
 Create `CandidateAssessment` as a one-to-one assessment package for a
 `GradingCandidate`, and `CandidateAssessmentItem` as immutable
@@ -2508,7 +2888,32 @@ local PostgreSQL only - is still the current setup.
 
 ## Open decisions
 
-None. Every decision arising from the 2026-09-23 assessment grading redesign
-is recorded above. See
+Every decision arising from the 2026-09-23 assessment grading redesign is
+recorded above. See
 `../frontend/Frontend-Design-Register/2026-09-23-assessment-overhaul/README.md`
 for the nine proposed directions.
+
+Left open by the 2026-10-04 audit (`audit/kukgrade-audit.md`). The owner's
+answers to the rest are under "2026-10-18 - Owner answers on the audit's open
+decisions" above.
+
+1. **WKSA ID case and uniqueness (F-30)** - settled by "2026-10-20 - The
+   WKSA ID scheme" above: the two forms are enforced on every path. Still
+   open there: whether a leaver's student number is ever reused.
+2. **Roster import (F-19)** - deferred to the planned import overhaul. A
+   5,000-row commit takes about a minute in one request.
+3. **Housekeeping** - done 2026-10-20: the logo's source artwork moved to
+   `frontend/Frontend-Design-Register/brand/`, beside FDR-048, out of the
+   app's code; the 5,949 orphaned dev upload files were removed with
+   `expire_stale_import_batches`. Tests write to a temporary folder, so they
+   do not return (F-11).
+
+Raised by the owner, to come back to and elaborate:
+
+4. **A Settings page (2026-10-19).** Move most of what the account menu
+   holds today - editing your name, changing your password, the Master
+   capability summary, appearance - onto a dedicated Settings page, so
+   people make these edits on a full page rather than in the small menu
+   panel that covers the screen. What moves, what stays in the menu, and
+   what else the page should hold are to be worked out. Until then the menu
+   keeps them, including "Change password" (credential-lifecycle slice 1).

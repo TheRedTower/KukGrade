@@ -23,7 +23,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from accounts.admin import UserAdmin, UserCreationForm
+from accounts.admin import ISSUED_PASSWORD_ATTR, UserAdmin
 from accounts.groups import ADMINISTRATOR_GROUP, INSTRUCTOR_GROUP
 from accounts.middleware import EXEMPT_URL_NAMES
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
@@ -33,7 +33,7 @@ from accounts.permissions import (
     CanMakeFinalGradingDecision,
     HasRequiredPermissions,
 )
-from accounts.services import reset_password
+from accounts.services import reset_password, set_user_authority
 from accounts.testing import grant_permission
 from audit.models import AuditAction, AuditEvent
 from audit.recording import record
@@ -445,7 +445,7 @@ def test_change_password_enforces_the_configured_validators() -> None:
         "/api/auth/change-password/",
         # Matches the account's own email, which UserAttributeSimilarityValidator
         # rejects - only reachable if the instance is passed through to
-        # validate_password(), same as SetPasswordSerializer.
+        # validate_password().
         {
             "current_password": "OldPassw0rd!",
             "new_password": "change-pw-weak@example.com",
@@ -759,7 +759,6 @@ def admin_client(email: str = "users-api-admin@example.com") -> tuple[APIClient,
 def create_user_via_api(client: APIClient, **overrides: object) -> dict[str, Any]:
     payload: dict[str, object] = {
         "email": "created-user@example.com",
-        "password": "kg-Str0ngPassw0rd!",
         "first_name": "Created",
         "last_name": "User",
     }
@@ -838,83 +837,13 @@ def test_user_list_flags_match_each_users_own_permission_check() -> None:
     assert not rows["flags-inactive@example.com"]["can_make_final_grading_decision"]
 
 
-def test_weak_password_is_rejected_with_a_field_error() -> None:
-    client, _admin = admin_client("weak-password-admin@example.com")
-
-    response = client.post(
-        "/api/users/",
-        {"email": "weak@example.com", "password": "12345678"},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
-    assert not User.objects.filter(email="weak@example.com").exists()
-
-
-def test_password_matching_the_new_accounts_own_email_is_rejected() -> None:
-    # UserAttributeSimilarityValidator has nothing to compare against on
-    # create unless the serializer builds an unsaved User from the other
-    # submitted fields first - this is the case that catches a regression.
-    client, _admin = admin_client("similarity-admin@example.com")
-
-    response = client.post(
-        "/api/users/",
-        {
-            "email": "graham.mitchell@example.com",
-            "password": "graham.mitchell@example.com",
-            "first_name": "Graham",
-            "last_name": "Mitchell",
-        },
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
-    assert not User.objects.filter(email="graham.mitchell@example.com").exists()
-
-
-def test_admin_add_user_form_enforces_the_same_password_validators() -> None:
-    # UserCreationForm is a plain ModelForm subclass, not Django's own
-    # contrib.auth.forms.UserCreationForm - it must validate the password
-    # itself, or admin becomes a second door with a lower standard than
-    # the API.
-    weak = UserCreationForm(
-        data={
-            "email": "weak-admin-form@example.com",
-            "first_name": "Weak",
-            "last_name": "Password",
-            "role": User.Role.INSTRUCTOR,
-            "password1": "12345678",
-            "password2": "12345678",
-        },
-    )
-
-    assert weak.is_valid() is False
-    assert "password2" in weak.errors
-
-    similar = UserCreationForm(
-        data={
-            "email": "graham.mitchell@example.com",
-            "first_name": "Graham",
-            "last_name": "Mitchell",
-            "role": User.Role.INSTRUCTOR,
-            "password1": "graham.mitchell@example.com",
-            "password2": "graham.mitchell@example.com",
-        },
-    )
-
-    assert similar.is_valid() is False
-    assert "password2" in similar.errors
-
-
 def test_duplicate_email_is_a_field_error_not_a_server_error() -> None:
     client, _admin = admin_client("duplicate-email-admin@example.com")
     create_user_via_api(client, email="dup@example.com")
 
     response = client.post(
         "/api/users/",
-        {"email": "dup@example.com", "password": "kg-Str0ngPassw0rd!"},
+        {"email": "dup@example.com"},
         format="json",
     )
 
@@ -969,11 +898,7 @@ def test_patch_cannot_change_the_password() -> None:
     # The password field is removed entirely from the update serializer, not
     # just made optional: password changes go through set-password only.
     client, _admin = admin_client("patch-password-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="patch-password-target@example.com",
-        password="kg-Original-Passw0rd!",
-    )
+    created = create_user_via_api(client, email="patch-password-target@example.com")
 
     response = client.patch(
         f"/api/users/{created['id']}/",
@@ -984,7 +909,7 @@ def test_patch_cannot_change_the_password() -> None:
     assert response.status_code == 200
     assert "password" not in response.json()
     target = User.objects.get(pk=created["id"])
-    assert target.check_password("kg-Original-Passw0rd!") is True
+    assert target.check_password(created["temporary_password"]) is True
     assert target.check_password("kg-Attempted-Change!") is False
 
 
@@ -1257,8 +1182,9 @@ def test_only_administrators_hold_change_user_for_the_authority_action() -> None
 
 
 def test_granting_final_decision_authority_to_an_administrator_is_refused() -> None:
-    # Confirmed policy: exactly one designated Master, never an
-    # administrator - administrators keep every other capability instead.
+    # Confirmed policy: final-decision authority belongs to instructors (as
+    # many Masters as the school has), never an administrator -
+    # administrators keep every other capability instead.
     client, _admin = admin_client("no-master-admin-grantor@example.com")
     created = create_user_via_api(
         client,
@@ -1330,47 +1256,25 @@ def test_promoting_a_master_authority_instructor_to_administrator_is_refused() -
 
 def test_administrator_can_reset_another_users_password() -> None:
     client, _admin = admin_client("reset-password-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-target@example.com",
-        password="kg-Original-Str0ng!",
-    )
+    created = create_user_via_api(client, email="reset-target@example.com")
 
-    response = client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-Replacement-Str0ng!"},
-        format="json",
-    )
+    response = client.post(f"/api/users/{created['id']}/set-password/")
 
-    assert response.status_code == 204
+    assert response.status_code == 200
+    issued = response.json()["temporary_password"]
+    assert issued != created["temporary_password"]
     target = User.objects.get(pk=created["id"])
-    assert target.check_password("kg-Replacement-Str0ng!") is True
-    assert target.check_password("kg-Original-Str0ng!") is False
-
-
-def test_weak_reset_password_is_rejected() -> None:
-    client, _admin = admin_client("weak-reset-admin@example.com")
-    created = create_user_via_api(client, email="weak-reset-target@example.com")
-
-    response = client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "12345678"},
-        format="json",
-    )
-
-    assert response.status_code == 400
-    assert "password" in response.json()["error"]["fields"]
+    assert target.check_password(issued) is True
+    assert target.check_password(created["temporary_password"]) is False
 
 
 def test_password_reset_is_recorded_without_leaking_the_password() -> None:
     client, _admin = admin_client("reset-audit-admin@example.com")
     created = create_user_via_api(client, email="reset-audit-target@example.com")
 
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-NewSecret-Value!"},
-        format="json",
-    )
+    issued = client.post(f"/api/users/{created['id']}/set-password/").json()[
+        "temporary_password"
+    ]
 
     event = AuditEvent.objects.filter(
         entity_type="User",
@@ -1378,31 +1282,28 @@ def test_password_reset_is_recorded_without_leaking_the_password() -> None:
         action=AuditAction.USER_UPDATED,
     ).latest("pk")
     assert event.summary == "Password reset for reset-audit-target@example.com."
-    assert "kg-NewSecret-Value!" not in event.summary
-    assert "kg-NewSecret-Value!" not in str(event.metadata)
+    assert issued not in event.summary
+    assert issued not in str(event.metadata)
 
 
 def test_new_password_actually_works_for_login() -> None:
     client, _admin = admin_client("reset-login-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-login-target@example.com",
-        password="kg-Original-Login!",
-    )
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-New-Login-Value!"},
-        format="json",
-    )
+    created = create_user_via_api(client, email="reset-login-target@example.com")
+    issued = client.post(f"/api/users/{created['id']}/set-password/").json()[
+        "temporary_password"
+    ]
 
     old_login = APIClient().post(
         "/api/auth/login/",
-        {"email": "reset-login-target@example.com", "password": "kg-Original-Login!"},
+        {
+            "email": "reset-login-target@example.com",
+            "password": created["temporary_password"],
+        },
         format="json",
     )
     new_login = APIClient().post(
         "/api/auth/login/",
-        {"email": "reset-login-target@example.com", "password": "kg-New-Login-Value!"},
+        {"email": "reset-login-target@example.com", "password": issued},
         format="json",
     )
 
@@ -1451,11 +1352,9 @@ def test_search_and_role_filters_work() -> None:
 
 
 def admin_operator_request(email: str) -> Any:
+    # A superuser: admin site access is theirs alone to grant.
     request = RequestFactory().post("/admin/")
-    request.user = User.objects.create_user(
-        email=email,
-        role=User.Role.ADMINISTRATOR,
-    )
+    request.user = User.objects.create_superuser(email=email)
     return request
 
 
@@ -1471,16 +1370,13 @@ def test_admin_created_user_is_persisted_and_audited() -> None:
     )
     model_admin = UserAdmin(User, admin.site)
     request = admin_operator_request("user-admin-creator@example.com")
-    form = cast(
-        ModelForm,
-        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
-    )
+    form = cast(ModelForm, SimpleNamespace(cleaned_data={}))
 
     model_admin.save_model(request, obj, form, False)
 
     assert obj.pk is not None
     persisted = User.objects.get(pk=obj.pk)
-    assert persisted.check_password("Str0ng-Passphrase!42")
+    assert persisted.check_password(getattr(request, ISSUED_PASSWORD_ATTR).password)
     assert persisted.is_staff is False
     assert persisted.is_superuser is False
     event = AuditEvent.objects.filter(
@@ -1505,25 +1401,21 @@ def test_admin_can_still_create_a_staff_or_superuser_account() -> None:
     )
     model_admin = UserAdmin(User, admin.site)
     request = admin_operator_request("user-admin-superuser-creator@example.com")
-    form = cast(
-        ModelForm,
-        SimpleNamespace(cleaned_data={"password1": "Str0ng-Passphrase!42"}),
-    )
+    form = cast(ModelForm, SimpleNamespace(cleaned_data={}))
 
     model_admin.save_model(request, obj, form, False)
 
     persisted = User.objects.get(pk=obj.pk)
     assert persisted.is_staff is True
     assert persisted.is_superuser is True
-    # Still exactly one audit event - granting is_staff/is_superuser is a
-    # detail of the same creation, not a second action.
-    assert (
-        AuditEvent.objects.filter(
-            action=AuditAction.USER_CREATED,
-            entity_id=str(obj.pk),
-        ).count()
-        == 1
+    # One creation, and the admin-site flags recorded as their own update
+    # (set_admin_site_access) - every event for the account, not just one kind.
+    actions = list(
+        AuditEvent.objects.filter(entity_id=str(obj.pk))
+        .order_by("pk")
+        .values_list("action", flat=True)
     )
+    assert actions == [AuditAction.USER_CREATED, AuditAction.USER_UPDATED]
 
 
 def test_admin_user_update_is_audited() -> None:
@@ -1573,32 +1465,56 @@ def test_admin_only_access_change_is_not_blocked_by_the_service(field: str) -> N
 
 def test_user_created_via_api_has_must_change_password_flag() -> None:
     client, _admin = admin_client("onboarding-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="onboarded-staff@example.com",
-        password="kg-InitialSecret123!",
-    )
+    created = create_user_via_api(client, email="onboarded-staff@example.com")
     assert created["must_change_password"] is True
     stored = User.objects.get(pk=created["id"])
     assert stored.must_change_password is True
 
 
+def test_admin_cannot_reset_their_own_password() -> None:
+    # A reset asks for no current password, so on your own account a
+    # signed-in session alone could replace it (audit F-04). Your own is
+    # changed through change-password.
+    client, admin = admin_client("reset-own-admin@example.com")
+    admin.set_password("kg-OriginalOwn123!")
+    admin.save(update_fields=["password"])
+    events_before = AuditEvent.objects.count()
+
+    response = client.post(f"/api/users/{admin.pk}/set-password/")
+
+    assert response.status_code == 400
+    assert response.json()["error"]["fields"]["user"] == [
+        "Change your own password from your account menu, which asks for your "
+        "current one."
+    ]
+    admin.refresh_from_db()
+    assert admin.check_password("kg-OriginalOwn123!")
+    assert admin.must_change_password is False
+    assert AuditEvent.objects.count() == events_before
+
+
+def test_reset_password_service_refuses_your_own_account() -> None:
+    admin = User.objects.create_user(
+        email="reset-own-service@example.com",
+        password="kg-OriginalOwn123!",
+        role=User.Role.ADMINISTRATOR,
+    )
+
+    with pytest.raises(ValidationError):
+        reset_password(admin, actor=admin)
+
+    admin.refresh_from_db()
+    assert admin.check_password("kg-OriginalOwn123!")
+
+
 def test_admin_set_password_forces_must_change_password() -> None:
     client, _admin = admin_client("reset-pw-admin@example.com")
-    created = create_user_via_api(
-        client,
-        email="reset-forced@example.com",
-        password="kg-InitialSecret123!",
-    )
+    created = create_user_via_api(client, email="reset-forced@example.com")
     target = User.objects.get(pk=created["id"])
     target.must_change_password = False
     target.save(update_fields=["must_change_password"])
 
-    client.post(
-        f"/api/users/{created['id']}/set-password/",
-        {"password": "kg-ResetAdminPass123!"},
-        format="json",
-    )
+    client.post(f"/api/users/{created['id']}/set-password/")
 
     target.refresh_from_db()
     assert target.must_change_password is True
@@ -1827,28 +1743,6 @@ def admin_site_client(email: str) -> tuple[Client, User]:
     return client, operator
 
 
-def test_an_admin_site_password_change_forces_a_new_one_and_is_audited() -> None:
-    client, operator = admin_site_client("admin-site-password@example.com")
-    target = create_user(email="admin-site-target@example.com")
-
-    response = client.post(
-        f"/admin/accounts/user/{target.pk}/password/",
-        {"password1": NEW_SECRET, "password2": NEW_SECRET},
-    )
-
-    assert response.status_code == 302
-    target.refresh_from_db()
-    assert target.check_password(NEW_SECRET)
-    assert target.must_change_password is True
-    event = AuditEvent.objects.get(
-        action=AuditAction.USER_UPDATED,
-        entity_id=str(target.pk),
-    )
-    assert event.actor == operator
-    assert NEW_SECRET not in event.summary
-    assert NEW_SECRET not in str(event.metadata)
-
-
 @pytest.mark.parametrize("path", ["reset", "own"])
 def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
     client, operator = admin_client("password-audit-fails@example.com")
@@ -1862,7 +1756,7 @@ def test_a_password_change_whose_audit_fails_changes_nothing(path: str) -> None:
             {"current_password": "Orig1nal-Passphrase!", "new_password": NEW_SECRET},
         )
     else:
-        url, body = f"/api/users/{target.pk}/set-password/", {"password": NEW_SECRET}
+        url, body = f"/api/users/{target.pk}/set-password/", {}
 
     with (
         patch("accounts.services.record", side_effect=RuntimeError("audit")),
@@ -1971,40 +1865,47 @@ def test_bulk_admin_delete_that_includes_yourself_is_refused_with_a_message(
     assert "cannot delete your own account" in response.content.decode()
     # All or nothing: the refusal rolled back the other deletion too.
     assert User.objects.filter(pk__in=[me.pk, other.pk]).count() == 2
+    # Including admin's own history: Django logs a deletion before it deletes,
+    # and a refused delete must not leave "deleted" entries behind.
+    from django.contrib.admin.models import DELETION, LogEntry
+
+    assert not LogEntry.objects.filter(action_flag=DELETION).exists()
 
 
-def test_an_administrator_setting_their_own_password_is_not_forced_to_change_it() -> (
+def test_a_superusers_unchanged_administrator_role_can_be_resent() -> None:
+    # A superuser passes every has_perm() check, which used to make any edit
+    # that resent role=administrator look like promoting a Master. The Users
+    # screen always sends the role, so their name could not be saved there.
+    superuser = User.objects.create_superuser(
+        "root-resend@example.com", "Superuser-Pass-2026!"
+    )
+    client = APIClient()
+    client.force_authenticate(superuser)
+
+    response = client.patch(
+        f"/api/users/{superuser.pk}/",
+        {"first_name": "Root", "role": "administrator"},
+        format="json",
+    )
+
+    assert response.status_code == 200, response.content
+    assert response.json()["first_name"] == "Root"
+
+
+def test_an_instructor_holding_final_decision_authority_still_cannot_become_admin() -> (
     None
 ):
-    me = create_user(email="self-reset@example.com", role=User.Role.ADMINISTRATOR)
-
-    reset_password(me, password="kg-MyOwnChoice123!", actor=me)
-
-    me.refresh_from_db()
-    assert me.check_password("kg-MyOwnChoice123!")
-    assert me.must_change_password is False
-    event = AuditEvent.objects.filter(action=AuditAction.USER_UPDATED).latest("pk")
-    assert event.summary == "Password changed by self-reset@example.com."
-
-
-def test_admin_site_password_form_on_your_own_account_is_not_a_reset(
-    settings: Any,
-) -> None:
-    render_admin_pages(settings)
-    me = create_user(
-        email="self-admin-form@example.com", is_staff=True, is_superuser=True
+    client, _admin = admin_client("master-to-admin-actor@example.com")
+    master_user = User.objects.create_user(
+        email="master-to-admin@example.com", role=User.Role.INSTRUCTOR
     )
-    other = create_user(email="other-admin-form@example.com")
-    client = Client()
-    client.force_login(me)
+    set_user_authority(master_user, _admin, can_make_final_grading_decision=True)
 
-    for target in (me, other):
-        response = client.post(
-            f"/admin/accounts/user/{target.pk}/password/",
-            {"password1": "kg-FormChosen123!", "password2": "kg-FormChosen123!"},
-        )
-        assert response.status_code == 302, response.content.decode()[:500]
-        target.refresh_from_db()
+    response = client.patch(
+        f"/api/users/{master_user.pk}/",
+        {"role": "administrator"},
+        format="json",
+    )
 
-    assert me.must_change_password is False
-    assert other.must_change_password is True
+    assert response.status_code == 400
+    assert "role" in response.json()["error"]["fields"]

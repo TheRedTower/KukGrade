@@ -47,7 +47,7 @@ describe("Students registry screen (/students)", () => {
     expect(screen.getByText("Manage student records and grading history")).toBeVisible();
     expect(await screen.findByText("No students registered yet")).toBeVisible();
     expect(
-      screen.getByText("Get started by registering your first student record in the registry."),
+      screen.getByText("Add your first student to get started."),
     ).toBeVisible();
     expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
   });
@@ -73,6 +73,12 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: true,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: {
+          session: 42,
+          session_title: "Spring Grading 2027",
+          stage: "AWAITING_DECISION",
+          stage_display: "Awaiting final decision",
+        },
       },
       {
         id: 2,
@@ -87,6 +93,7 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: true,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: null,
       },
       {
         id: 3,
@@ -101,6 +108,7 @@ describe("Students registry screen (/students)", () => {
         can_be_graded: false,
         age_band: "AGE_18_AND_OVER",
         age_band_display: "18+",
+        current_grading: null,
       },
     ] satisfies StudentListItem[];
 
@@ -147,19 +155,26 @@ describe("Students registry screen (/students)", () => {
     expect(tableScope.getByText("UK-1001")).toBeVisible();
     expect(tableScope.getByText("White Belt")).toBeVisible();
     expect(tableScope.getByText("Active")).toBeVisible();
-    expect(tableScope.getByText("Prepare for next grading")).toBeVisible();
+    // Current grading is the served registration and its stage, linked to
+    // the session; a student with none says so.
+    expect(tableScope.getByRole("link", { name: "Spring Grading 2027" })).toHaveAttribute(
+      "href",
+      "/gradings/42",
+    );
+    expect(tableScope.getByText("Awaiting final decision")).toBeVisible();
+    expect(tableScope.getAllByText("Not registered")).toHaveLength(2);
+    expect(screen.queryByRole("columnheader", { name: "Next action" })).not.toBeInTheDocument();
 
     expect(tableScope.getByText("Clark Kent")).toBeVisible();
     expect(tableScope.getByText("UK-1002")).toBeVisible();
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
     expect(tableScope.getByText("Inactive")).toBeVisible();
-    expect(tableScope.getByText("Follow up required")).toBeVisible();
+    expect(tableScope.queryByText("Follow up required")).not.toBeInTheDocument();
 
     expect(tableScope.getByText("Diana Prince")).toBeVisible();
     expect(tableScope.getByText("UK-1003")).toBeVisible();
     expect(tableScope.getByText("Blue Belt")).toBeVisible();
     expect(tableScope.getByText("Left")).toBeVisible();
-    expect(tableScope.getByText("No further action")).toBeVisible();
 
     // Privacy verification: Date of birth must NOT be rendered in table
     expect(screen.queryByText(/199[0-9]|200[0-9]/)).not.toBeInTheDocument();
@@ -180,7 +195,7 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, category: "COLOUR_BELT", category_display: "Colour Belt", active: true, next_rank: null }],
+          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null } satisfies Rank],
         });
       }
       if (url.includes("/api/students/")) {
@@ -223,6 +238,11 @@ describe("Students registry screen (/students)", () => {
 
     // Filter empty state renders
     expect(await screen.findByText("No matching students found")).toBeVisible();
+    // One request for the typed name, not one per keystroke.
+    const searched = fetchMock.mock.calls
+      .map(([url]) => new URL(String(url), "http://localhost").searchParams.get("search"))
+      .filter((value): value is string => value !== null);
+    expect(searched).toEqual(["Nonexistent"]);
     expect(screen.getByText("No records match your active search and filter criteria.")).toBeVisible();
 
     // Click "Clear all filters"
@@ -277,7 +297,7 @@ describe("Add student screen (/students/new)", () => {
     expect(screen.getByLabelText(/First name/i)).toBeVisible();
     expect(screen.getByLabelText(/Last name/i)).toBeVisible();
     expect(screen.getByLabelText(/WKSA ID/i)).toBeVisible();
-    expect(screen.getByText("This identifier cannot be changed after the record is created.")).toBeVisible();
+    expect(screen.getByText(/A student ID changes only once, to the black belt ID/)).toBeVisible();
 
     // Section 2: Grading details
     expect(screen.getByRole("heading", { name: "Grading details" })).toBeVisible();
@@ -351,6 +371,19 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/ranks/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
       }
+      if (url.includes("/api/site/")) {
+        return jsonResponse(200, {
+          club_name: "Test Club",
+          password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
+          wksa_id: {
+            hint: "Use a student ID such as 206-2-150 or a black belt ID such as A-20819.",
+            forms: [
+              { code: "student", label: "Student ID", pattern: "x", example: "206-2-150" },
+              { code: "black_belt", label: "Black belt ID", pattern: "x", example: "A-20819" },
+            ],
+          },
+        });
+      }
       if (url.includes("/api/students/") && options?.method === "POST") {
         createdPayload = JSON.parse(options.body as string);
         return jsonResponse(201, {
@@ -367,8 +400,6 @@ describe("Add student screen (/students/new)", () => {
           can_be_graded: true,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
-          attendance_count: 0,
-          eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
           updated_at: "2026-09-17T12:00:00Z",
         });
@@ -388,8 +419,6 @@ describe("Add student screen (/students/new)", () => {
           can_be_graded: true,
           age_band: "AGE_18_AND_OVER",
           age_band_display: "18+",
-          attendance_count: 0,
-          eligible_for_grading: false,
           created_at: "2026-09-17T12:00:00Z",
           updated_at: "2026-09-17T12:00:00Z",
         });
@@ -406,7 +435,13 @@ describe("Add student screen (/students/new)", () => {
     // Fill form
     await user.type(screen.getByLabelText(/First name/i), "Alex");
     await user.type(screen.getByLabelText(/Last name/i), "Carter");
-    await user.type(screen.getByLabelText(/WKSA ID/i), "UK-9999");
+    // The forms come from the server; the ID goes as typed, for it to tidy.
+    expect(
+      await screen.findByText(
+        /Use a student ID such as 206-2-150 or a black belt ID such as A-20819\./,
+      ),
+    ).toBeVisible();
+    await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");
     await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
 
     // Select Yellow Stripe (id 2)
@@ -423,7 +458,7 @@ describe("Add student screen (/students/new)", () => {
     expect(createdPayload).toEqual({
       first_name: "Alex",
       last_name: "Carter",
-      wksa_id: "UK-9999",
+      wksa_id: " a-20819",
       date_of_birth: "2005-04-12",
       current_rank: 2,
       status: "ACTIVE",
@@ -494,6 +529,13 @@ describe("Add student screen (/students/new)", () => {
     await user.click(cancelBtn);
 
     expect(window.location.pathname).toBe("/students");
+
+    // And the breadcrumb, from the form again
+    window.history.pushState({}, "", "/students/new");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Students" }));
+    expect(window.location.pathname).toBe("/students");
   });
 });
 
@@ -507,6 +549,7 @@ describe("Student detail screen (/students/:id)", () => {
   const testStudent = {
     id: 10,
     wksa_id: "UK-5001",
+    wksa_id_can_change: true,
     first_name: "Alex",
     last_name: "Carter",
     date_of_birth: "2012-04-24",
@@ -579,11 +622,16 @@ describe("Student detail screen (/students/:id)", () => {
       year: "numeric",
     }).format(new Date("2021-01-08T10:00:00Z"));
     expect(screen.getByText(createdDay)).toBeVisible();
+    // The record's creation date, never presented as when the student joined.
+    expect(screen.getByText("Added to KukGrade")).toBeVisible();
+    expect(screen.queryByText("Joined")).not.toBeInTheDocument();
 
-    // Grading readiness card
+    // Grading readiness card: states the status, and claims no requirement
+    // KukGrade does not check.
     expect(screen.getByRole("heading", { name: "Grading readiness" })).toBeVisible();
     expect(screen.getByText("Yellow Belt")).toBeVisible();
-    expect(screen.getByText("Eligible for registration")).toBeVisible();
+    expect(screen.getByText("Can be registered")).toBeVisible();
+    expect(screen.queryByText(/meets the standard requirements/)).not.toBeInTheDocument();
 
     // Record status card
     expect(screen.getByRole("heading", { name: "Record status" })).toBeVisible();
@@ -792,9 +840,9 @@ describe("Student detail screen (/students/:id)", () => {
     expect(await screen.findByRole("heading", { name: "Edit student record" })).toBeVisible();
     expect(screen.getByLabelText(/First name/i)).toHaveFocus();
 
-    // Verify WKSA ID is disabled
-    const wksaInput = screen.getByLabelText("WKSA ID") as HTMLInputElement;
-    expect(wksaInput).toBeDisabled();
+    // Still a student ID, so it may yet become the black belt ID; left as
+    // it is, it is not sent.
+    expect(screen.getByLabelText("WKSA ID")).toBeEnabled();
 
     // Change first name
     const firstNameInput = screen.getByLabelText(/First name/i);
@@ -815,6 +863,46 @@ describe("Student detail screen (/students/:id)", () => {
 
     expect(screen.queryByRole("heading", { name: "Edit student record" })).not.toBeInTheDocument();
     expect(editBtn).toHaveFocus();
+  });
+
+  it("records the black belt ID once, and never changes it after", async () => {
+    let student: StudentDetail = { ...testStudent };
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/ranks/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+        }
+        if (url.includes("/rank-history/")) {
+          return jsonResponse(200, { ...student, student: 10, promotions: [] });
+        }
+        if (url.includes("/api/students/10/") && options?.method === "PATCH") {
+          sent.push(JSON.parse(options.body as string));
+          student = { ...student, wksa_id: "A-20819", wksa_id_can_change: false };
+          return jsonResponse(200, student);
+        }
+        if (url.includes("/api/students/10/")) return jsonResponse(200, student);
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Alex Carter" });
+    await user.click(screen.getByRole("button", { name: "Edit student" }));
+    const wksaInput = screen.getByLabelText("WKSA ID");
+    await user.clear(wksaInput);
+    await user.type(wksaInput, "A-20819");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ wksa_id: "A-20819" });
+
+    await user.click(await screen.findByRole("button", { name: "Edit student" }));
+    expect(await screen.findByLabelText("WKSA ID")).toBeDisabled();
+    expect(screen.getByText("A black belt ID never changes.")).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {

@@ -116,8 +116,9 @@ def validate_session_transition(
         raise ValidationError(
             {
                 "status": [
-                    f"Cannot transition grading session from "
-                    f"{current_status} to {next_status}.",
+                    f"A {GradingSession.Status(current_status).label.lower()} "
+                    f"session cannot become "
+                    f"{GradingSession.Status(next_status).label.lower()}.",
                 ],
             },
         )
@@ -397,15 +398,17 @@ def withdraw_locked_candidate(
         raise ValidationError(
             {
                 "session": [
-                    "This withdrawal path is only for locked sessions. Use an "
-                    "ordinary candidate update while the session is draft or open.",
+                    "This is only for locked sessions. While the session is "
+                    "draft or open, withdraw the candidate from its roster instead.",
                 ],
             },
         )
     if locked_candidate.status == GradingCandidate.Status.WITHDRAWN:
         raise ValidationError({"candidate": ["Candidate is already withdrawn."]})
     if reason not in GradingCandidate.WithdrawalReason.values:
-        raise ValidationError({"withdrawal_reason": ["Invalid withdrawal reason."]})
+        raise ValidationError(
+            {"withdrawal_reason": ["Choose a reason for the withdrawal."]}
+        )
 
     outcome = getattr(locked_candidate, "outcome", None)
     discarded_proposal: dict[str, object] | None = None
@@ -483,6 +486,71 @@ def validate_session_accepts_candidates(session: GradingSession) -> None:
     }:
         raise ValidationError(
             {"session": ["Candidates can only be added to draft or open sessions."]},
+        )
+
+
+def unsettled_registrations() -> QuerySet[GradingCandidate]:
+    """Registrations whose grading has not reached its result yet.
+
+    Settled means withdrawn, in a cancelled session, or with a finalised
+    outcome that is a Fail or Conditional, or a Pass already promoted. Until
+    then the student's next rank is not known, so a second registration
+    would test them for a rank they may already hold.
+    """
+    settled_by_outcome = Q(outcome__status=CandidateOutcome.Status.FINALISED) & (
+        ~Q(outcome__final_outcome=CandidateOutcome.Outcome.PASS)
+        | Q(promotion__isnull=False)
+    )
+    return (
+        GradingCandidate.objects.exclude(status=GradingCandidate.Status.WITHDRAWN)
+        .exclude(session__status=GradingSession.Status.CANCELLED)
+        .exclude(settled_by_outcome)
+    )
+
+
+def validate_not_already_in_session(candidate: GradingCandidate) -> None:
+    """A student has one registration per session, whatever its status.
+
+    The unique constraint holds this too, but its own message ("Grading
+    candidate with this Session and Student already exists.") names
+    neither the student nor what to do; this gives the one message every
+    path - and the cohort builder - recognises.
+    """
+    if (
+        GradingCandidate.objects.filter(
+            session_id=candidate.session_id,
+            student_id=candidate.student_id,
+        )
+        .exclude(pk=candidate.pk)
+        .exists()
+    ):
+        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]})
+
+
+def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
+    """One grading at a time (owner decision 2026-10-18).
+
+    A student is registered for one grading until it settles. A registration
+    made in error is corrected by an administrator, not by registering again.
+    """
+    other = (
+        unsettled_registrations()
+        .filter(student_id=candidate.student_id)
+        .exclude(pk=candidate.pk)
+        .select_related("session")
+        .first()
+    )
+    if other is not None:
+        raise ValidationError(
+            {
+                "student": [
+                    f"This student is already registered for "
+                    f"'{other.session.title}', which has not reached its "
+                    f"result yet. A student is registered for one grading at "
+                    f"a time; an administrator can correct a registration "
+                    f"made in error.",
+                ],
+            },
         )
 
 
@@ -571,7 +639,7 @@ def validate_candidate_assessment_changes(
             raise ValidationError(
                 {
                     "status": [
-                        "Candidate completion is controlled by assessment completion.",
+                        "A candidate is completed by completing their assessment.",
                     ],
                 },
             )
@@ -582,7 +650,7 @@ def validate_candidate_assessment_changes(
             {
                 "candidate": [
                     "Session and testing-for rank cannot be changed "
-                    "after an assessment snapshot has been generated.",
+                    "after the assessment form has been prepared.",
                 ],
             },
         )
@@ -590,7 +658,7 @@ def validate_candidate_assessment_changes(
         raise ValidationError(
             {
                 "status": [
-                    "Candidate completion is controlled by assessment completion.",
+                    "A candidate is completed by completing their assessment.",
                 ],
             },
         )
@@ -643,7 +711,7 @@ def validate_candidate_can_be_deleted(
         raise ValidationError(
             {
                 "candidate": [
-                    "Candidates with assessment snapshots can only be deleted "
+                    "Candidates with an assessment form can only be deleted "
                     "while the session is draft and the assessment has not "
                     "started.",
                 ],
@@ -718,7 +786,6 @@ def update_candidate(
     )
     if session_changed:
         validate_session_accepts_candidates(new_session)
-    validate_testing_for_rank(candidate.student, new_testing_for_rank)
 
     withdrawing = (
         status == GradingCandidate.Status.WITHDRAWN
@@ -729,6 +796,11 @@ def update_candidate(
         and status != GradingCandidate.Status.WITHDRAWN
         and candidate.status == GradingCandidate.Status.WITHDRAWN
     )
+    # Same rule as GradingCandidate.clean(): the rank is checked when it is
+    # chosen, so a registration whose student was promoted elsewhere can
+    # still be withdrawn.
+    if session_changed or rank_changed or reinstating:
+        validate_testing_for_rank(candidate.student, new_testing_for_rank)
     if withdrawing:
         if withdrawal_reason not in GradingCandidate.WithdrawalReason.values:
             raise ValidationError(
@@ -840,7 +912,9 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
                 current_rank=promotion.from_rank,
             )
             models.QuerySet.delete(Promotion.objects.filter(pk=promotion.pk))
-        CandidateOutcome.objects.filter(candidate__session=locked).delete()
+        models.QuerySet.delete(
+            CandidateOutcome.objects.filter(candidate__session=locked),
+        )
 
     # Recorded before the row goes, so the event still carries its identity.
     #
@@ -1033,6 +1107,26 @@ def apply_candidate_update(
         name="candidate",
         also_lock=[session.pk] if session is not None else [],
     )
+    moving = session is not None and session.pk != locked.session_id
+    rechoosing_rank = (
+        testing_for_rank is not None
+        and testing_for_rank.pk != locked.testing_for_rank_id
+    )
+    reinstating = (
+        status is not None
+        and status != GradingCandidate.Status.WITHDRAWN
+        and locked.status == GradingCandidate.Status.WITHDRAWN
+    )
+    if moving or rechoosing_rank or reinstating:
+        # Each of these is checked against the student - their current rank,
+        # their age on the new grading date, and (reinstating) their
+        # registrations in other sessions, which this session's lock does not
+        # cover. So the student is locked after the sessions, as registration
+        # locks it, and re-read: the copy joined above was read before any
+        # student lock and may already be out of date. Relying instead on the
+        # key-share lock a write happens to take was how the reinstatement
+        # race was first found covered by accident (audit D1, 2026-10-18).
+        locked.student = lock_student(locked.student_id)
     before = _candidate_snapshot(locked)
     updated = update_candidate(
         locked,
@@ -1111,6 +1205,14 @@ def bulk_update_candidate_status(
         [candidate.pk for candidate in candidates],
         "session_id",
     )
+    if new_status != GradingCandidate.Status.WITHDRAWN:
+        # A reinstatement locks its student (see apply_candidate_update); a
+        # bulk operation takes those locks before the first row's savepoint.
+        lock_students(
+            GradingCandidate.objects.filter(pk__in=pinned).values_list(
+                "student_id", flat=True
+            ),
+        )
 
     def update_status(candidate: GradingCandidate) -> GradingCandidate:
         require_pinned(candidate.pk, pinned, "candidate")

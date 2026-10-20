@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Any, cast
 
 from django.db.models import QuerySet
@@ -12,9 +13,14 @@ from rest_framework.viewsets import GenericViewSet
 
 from accounts.models import User
 from accounts.permissions import HasRequiredPermissions
-from gradings.age import students_in_age_band
-from gradings.models import GradingCandidate
-from gradings.read_models import student_rank_timeline, unified_student_grading_history
+from gradings.age import with_age_band_on
+from gradings.models import GradingCandidate, GradingSession
+from gradings.read_models import (
+    student_rank_timeline,
+    unified_student_grading_history,
+    with_current_grading,
+)
+from gradings.services import unsettled_registrations
 from kukgrade.filtering import (
     QueryFilter,
     by_id,
@@ -34,9 +40,11 @@ from syllabus.models import AgeBand
 
 
 def _in_age_band(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    # The list is annotated with each student's band on the list's date
+    # (StudentViewSet.get_queryset), so the filter and the rows agree.
     if value not in AgeBand.values:
         return queryset.none()
-    return students_in_age_band(queryset, value, timezone.localdate())
+    return queryset.filter(age_band_on_date=value)
 
 
 def _eligible_for_session(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
@@ -45,21 +53,31 @@ def _eligible_for_session(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
     registered = GradingCandidate.objects.filter(session_id=int(value)).values(
         "student"
     )
-    return queryset.exclude(status=Student.Status.LEFT).exclude(pk__in=registered)
+    # One grading at a time: a student still registered for another grading
+    # that has not reached its result cannot be registered here.
+    registered_elsewhere = unsettled_registrations().values("student")
+    return (
+        queryset.exclude(status=Student.Status.LEFT)
+        .exclude(pk__in=registered)
+        .exclude(pk__in=registered_elsewhere)
+    )
 
 
 _AGE_BAND = QueryFilter(
     "age_band",
     _in_age_band,
     {"type": "string", "enum": sorted(AgeBand.values)},
-    "The age band the student is in today.",
+    "The student's age band - on the session's grading date when "
+    "eligible_for_session is given, as registration works it out, "
+    "otherwise today.",
 )
 _ELIGIBLE_FOR_SESSION = QueryFilter(
     "eligible_for_session",
     _eligible_for_session,
     {"type": "integer"},
     "Students who could still be registered for this grading session: "
-    "not Left and not already one of its candidates.",
+    "not Left, not already one of its candidates, and not registered for "
+    "another grading that has not reached its result.",
 )
 
 
@@ -114,11 +132,35 @@ class StudentViewSet(
     )
 
     def get_queryset(self) -> QuerySet[Student]:
-        return Student.objects.select_related("current_rank").order_by(
+        students = Student.objects.select_related("current_rank").order_by(
             "last_name",
             "first_name",
             "wksa_id",
         )
+        if self.action == "list":
+            return with_current_grading(
+                with_age_band_on(students, self._age_band_date()),
+            )
+        return students
+
+    def _age_band_date(self) -> date:
+        """The date a list's age bands are worked out on.
+
+        Registering for a session bands a student by their age on its
+        grading date (gradings.age.resolve_age_band), so a list of who could
+        be registered for one says the same - near a birthday, today's band
+        and the grading's differ (audit F-33).
+        """
+        session_id = self.request.query_params.get("eligible_for_session", "")
+        if session_id.isdecimal():
+            grading_date = (
+                GradingSession.objects.filter(pk=int(session_id))
+                .values_list("grading_date", flat=True)
+                .first()
+            )
+            if grading_date is not None:
+                return grading_date
+        return timezone.localdate()
 
     def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
         instance = self.get_object()

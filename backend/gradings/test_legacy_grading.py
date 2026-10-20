@@ -66,7 +66,7 @@ def test_source_fields_are_immutable_after_creation() -> None:
     record = legacy_record()
 
     record.source_name = "Someone Else"
-    with pytest.raises(ValidationError, match="immutable after import"):
+    with pytest.raises(ValidationError, match="cannot be changed after import"):
         record.save()
 
 
@@ -74,7 +74,7 @@ def test_outcome_is_immutable_no_resolution_service_exists() -> None:
     record = legacy_record(outcome=LegacyOutcome.PASS)
 
     record.outcome = LegacyOutcome.FAIL
-    with pytest.raises(ValidationError, match="immutable after import"):
+    with pytest.raises(ValidationError, match="cannot be changed after import"):
         record.save()
 
 
@@ -115,7 +115,7 @@ def test_did_not_attend_has_no_outcome() -> None:
 
 def test_link_and_unlink_record_to_student() -> None:
     record = legacy_record()
-    target = student(wksa_id="LEGACY001")
+    target = student(wksa_id="206-2-500")
     actor = user("legacy-link-admin@example.com")
     events_before = AuditEvent.objects.count()
 
@@ -151,8 +151,8 @@ def test_unlink_an_unlinked_record_is_refused() -> None:
 def test_relinking_to_a_different_student_overwrites_the_link() -> None:
     record = legacy_record()
     actor = user("legacy-relink-admin@example.com")
-    first = student(wksa_id="LEGACY010")
-    second = student(wksa_id="LEGACY011")
+    first = student(wksa_id="206-2-501")
+    second = student(wksa_id="206-2-502")
 
     link_legacy_record_to_student(record, first, actor=actor)
     relinked = link_legacy_record_to_student(record, second, actor=actor)
@@ -179,6 +179,21 @@ def test_resolve_and_clear_current_rank_mapping() -> None:
     ).first()
     assert event is not None
     assert event.metadata["field"] == "current_rank"
+
+
+def test_a_correction_that_changes_nothing_records_nothing() -> None:
+    record = legacy_record(source_current_rank_text="Yellow Belt")
+    actor = user("legacy-noop-admin@example.com")
+    linked = student(wksa_id="206-2-503")
+    link_legacy_record_to_student(record, linked, actor=actor)
+    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
+    events_before = AuditEvent.objects.filter(entity_id=str(record.pk)).count()
+
+    link_legacy_record_to_student(record, linked, actor=actor)
+    resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
+    resolve_legacy_testing_for_rank(record, None, actor=actor)
+
+    assert AuditEvent.objects.filter(entity_id=str(record.pk)).count() == events_before
 
 
 def test_resolve_testing_for_rank_mapping() -> None:
@@ -257,7 +272,7 @@ def test_deleting_a_linked_student_is_protected() -> None:
     from django.db.models.deletion import ProtectedError
 
     record = legacy_record()
-    target = student(wksa_id="LEGACY099")
+    target = student(wksa_id="206-2-504")
     actor = user("legacy-protect-admin@example.com")
     link_legacy_record_to_student(record, target, actor=actor)
 

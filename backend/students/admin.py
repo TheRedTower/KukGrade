@@ -8,6 +8,7 @@ from django.http import HttpRequest
 
 from accounts.models import User
 from kukgrade.admin_mixins import ServiceDeleteMixin
+from students import wksa_ids
 from students.models import Student
 from students.services import create_student, delete_student, update_student
 
@@ -32,9 +33,10 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
         request: HttpRequest,
         obj: Student | None = None,
     ) -> tuple[str, ...]:
-        # wksa_id is the external identifier grading records are matched
-        # against - read-only after creation, here as everywhere else.
-        if obj is None:
+        # Changeable after creation only while it is a student ID, to the
+        # black belt ID WKSA hands out - here as everywhere else
+        # (students/wksa_ids.py).
+        if obj is None or wksa_ids.can_change(obj.wksa_id):
             return ()
         return ("wksa_id",)
 
@@ -65,6 +67,7 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
         changed_data = set(form.changed_data)
         update_student(
             obj,
+            wksa_id=obj.wksa_id if "wksa_id" in changed_data else None,
             first_name=obj.first_name if "first_name" in changed_data else None,
             last_name=obj.last_name if "last_name" in changed_data else None,
             date_of_birth=(

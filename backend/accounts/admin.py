@@ -4,67 +4,44 @@ from typing import cast
 
 from django import forms
 from django.contrib import admin
-from django.contrib.auth import password_validation
+from django.contrib.admin.utils import unquote
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import QuerySet
 from django.forms import ModelForm
-from django.http import HttpRequest, HttpResponse
+from django.http import Http404, HttpRequest, HttpResponse
+from django.template.response import TemplateResponse
+from django.utils.cache import add_never_cache_headers
 from django.utils.translation import gettext_lazy as _
 
+from accounts.admin_site import admin_notice
 from accounts.models import DELETED_USER_PLACEHOLDER_EMAIL, User
 from accounts.services import (
+    TemporaryPassword,
+    can_manage,
     create_platform_user,
     delete_platform_user,
-    record_admin_password_change,
+    reset_password,
     set_admin_site_access,
     update_platform_user,
+    validate_can_reset_password,
 )
 from kukgrade.admin_mixins import ServiceDeleteMixin
 
+# Where save_model leaves the password it just issued for response_add to
+# show: the request, never the ModelAdmin, which every request shares.
+ISSUED_PASSWORD_ATTR = "_kukgrade_issued_password"
+
 
 class UserCreationForm(forms.ModelForm):
-    password1 = forms.CharField(label="Password", widget=forms.PasswordInput)
-    password2 = forms.CharField(
-        label="Password confirmation",
-        widget=forms.PasswordInput,
-    )
+    """Django admin's add-user form. No password: as in the app, one is
+    generated when the account is saved and shown once (UserAdmin.response_add).
+    """
 
     class Meta:
         model = User
         fields = ("email", "first_name", "last_name", "role")
-
-    def clean_password2(self) -> str:
-        password1 = self.cleaned_data.get("password1")
-        password2 = self.cleaned_data.get("password2")
-        if password1 and password2 and password1 != password2:
-            raise ValidationError(_("The two password fields did not match."))
-        return str(password2)
-
-    def _post_clean(self) -> None:
-        # Same pattern Django's own UserCreationForm uses, and for the same
-        # reason: self.instance only has email/first_name/last_name/role on
-        # it after super()._post_clean() runs construct_instance(), so this
-        # is the earliest point UserAttributeSimilarityValidator has
-        # anything real to compare the password against. The API's
-        # equivalent path (accounts/serializers.py) had the same gap.
-        super()._post_clean()  # type: ignore[misc]
-        password = self.cleaned_data.get("password2")
-        if password:
-            try:
-                password_validation.validate_password(password, self.instance)
-            except ValidationError as error:
-                self.add_error("password2", error)
-
-    def save(self, commit: bool = True) -> User:
-        user = super().save(commit=False)
-        user.set_password(self.cleaned_data["password1"])
-        if commit:
-            user.save()
-            self.save_m2m()
-        return cast(User, user)
 
 
 class UserChangeForm(forms.ModelForm):
@@ -93,6 +70,9 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     deletion_service = staticmethod(delete_platform_user)
     form = UserChangeForm
     add_form = UserCreationForm
+    # Django's own add-user template asks for a password, which this form has
+    # none of.
+    add_form_template = "admin/change_form.html"
     model = User
     list_display = (
         "email",
@@ -114,8 +94,16 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     # Groups follow the role, and per-user permissions are Master authority,
     # granted in the app through set_user_authority() and its rules - never
     # edited here, where they would skip both the rules and the audit
-    # (KG-A14). The two dates are Django's bookkeeping.
-    readonly_fields = ("groups", "user_permissions", "last_login", "date_joined")
+    # (KG-A14). The two dates are Django's bookkeeping, and the password
+    # state follows whoever last set the password.
+    readonly_fields = (
+        "groups",
+        "user_permissions",
+        "must_change_password",
+        "temporary_password_expires_at",
+        "last_login",
+        "date_joined",
+    )
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[User]:
         # Internal bookkeeping, not an account anyone administers.
@@ -128,7 +116,17 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         )
 
     fieldsets = (
-        (None, {"fields": ("email", "password")}),
+        (
+            None,
+            {
+                "fields": (
+                    "email",
+                    "password",
+                    "must_change_password",
+                    "temporary_password_expires_at",
+                ),
+            },
+        ),
         (_("Personal info"), {"fields": ("first_name", "last_name")}),
         (
             _("KukGrade access"),
@@ -158,8 +156,6 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
                     "first_name",
                     "last_name",
                     "role",
-                    "password1",
-                    "password2",
                     "is_staff",
                     "is_superuser",
                     "is_active",
@@ -182,15 +178,16 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         # them, the same way the API does, so they are applied as an
         # explicit second step on create rather than routed through it.
         if not change:
-            created = create_platform_user(
+            issued = create_platform_user(
                 email=obj.email,
-                password=form.cleaned_data["password1"],
                 first_name=obj.first_name,
                 last_name=obj.last_name,
                 role=obj.role,
                 is_active=obj.is_active,
                 actor=cast(User, request.user),
             )
+            setattr(request, ISSUED_PASSWORD_ATTR, issued)
+            created = issued.user
             set_admin_site_access(
                 created,
                 actor=cast(User, request.user),
@@ -222,23 +219,75 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
         )
         obj.refresh_from_db()
 
+    def response_add(
+        self,
+        request: HttpRequest,
+        obj: User,
+        post_url_continue: str | None = None,
+    ) -> HttpResponse:
+        issued: TemporaryPassword = getattr(request, ISSUED_PASSWORD_ATTR)
+        return self._temporary_password_page(request, issued.user, issued)
+
     def user_change_password(
         self,
         request: HttpRequest,
         id: str,
         form_url: str = "",
     ) -> HttpResponse:
-        # Django's form sets the password itself; the rest of an
-        # administrator reset - the forced change and its audit event -
-        # follows in the same transaction, as it does through the API.
-        with transaction.atomic():
-            stored = User.objects.filter(pk=id).values_list("password", flat=True)
-            before = stored.first()
-            response = super().user_change_password(request, id, form_url)
-            target = User.objects.filter(pk=id).first()
-            if target is not None and target.password != before:
-                record_admin_password_change(target, actor=cast(User, request.user))
+        """A reset, as in the app: confirm, then a generated temporary
+        password shown once. Nobody types another person's password here, and
+        your own is changed in KukGrade's account menu instead. The same
+        rules as the API's reset, checked before the confirmation too."""
+        target = self.get_object(request, unquote(id))
+        if not self.has_change_permission(request, target):
+            raise PermissionDenied
+        if target is None:
+            raise Http404
+        actor = cast(User, request.user)
+        try:
+            validate_can_reset_password(target, actor)
+            if request.method != "POST":
+                return self._temporary_password_page(request, target, None)
+            issued = reset_password(target, actor=actor)
+        except ValidationError as refused:
+            return admin_notice(
+                request,
+                title="Reset password",
+                message=" ".join(refused.messages),
+            )
+        return self._temporary_password_page(request, issued.user, issued)
+
+    def _temporary_password_page(
+        self,
+        request: HttpRequest,
+        user: User,
+        issued: TemporaryPassword | None,
+    ) -> HttpResponse:
+        """Confirming a reset, or - with `issued` - the password just issued,
+        shown this once and never cached."""
+        response = TemplateResponse(
+            request,
+            "admin/accounts/user/temporary_password.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": "Temporary password" if issued else "Reset password",
+                "opts": self.opts,
+                "original": user,
+                "issued": issued,
+            },
+        )
+        add_never_cache_headers(response)
         return response
+
+    def has_change_permission(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> bool:
+        # View-only where the services would refuse every change.
+        if obj is not None and not can_manage(obj, cast(User, request.user)):
+            return False
+        return super().has_change_permission(request, obj)
 
     def has_delete_permission(
         self,
@@ -247,4 +296,18 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ) -> bool:
         if obj is not None and obj.pk == request.user.pk:
             return False
+        if obj is not None and not can_manage(obj, cast(User, request.user)):
+            return False
         return super().has_delete_permission(request, obj)
+
+    def get_readonly_fields(
+        self,
+        request: HttpRequest,
+        obj: User | None = None,
+    ) -> tuple[str, ...]:
+        # Admin site access is granted by a superuser only
+        # (set_admin_site_access): anyone else could make themselves one.
+        fields = tuple(super().get_readonly_fields(request, obj))
+        if not request.user.is_superuser:
+            fields += ("is_staff", "is_superuser")
+        return fields

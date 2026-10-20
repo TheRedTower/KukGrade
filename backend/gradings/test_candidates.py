@@ -38,6 +38,7 @@ from gradings.testing import (
     assessment,
     auth_client,
     candidate,
+    earlier_double_registration,
     grading_session,
     rank,
     start_assessment,
@@ -457,7 +458,7 @@ def test_reinstating_a_withdrawn_candidate_clears_the_withdrawal() -> None:
 
 def test_candidate_patch_changes_nothing_but_the_session() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
-    other = student(wksa_id="SWAP0002")
+    other = student(wksa_id="206-2-500")
 
     response = auth_client("student-swap@example.com").patch(
         f"/api/gradings/candidates/{built.pk}/",
@@ -484,7 +485,7 @@ def test_candidate_patch_changes_nothing_but_the_session() -> None:
 
 def test_a_registrations_student_cannot_be_changed() -> None:
     built = candidate()
-    built.student = student(wksa_id="SWAP0002")
+    built.student = student(wksa_id="206-2-500")
 
     with pytest.raises(ValidationError):
         built.save()
@@ -503,11 +504,11 @@ def test_boolean_filters_accept_only_true_and_false() -> None:
 
 def test_candidate_api_filters_work() -> None:
     session = grading_session()
-    candidate_student = student(wksa_id="FILTER001")
+    candidate_student = student(wksa_id="206-2-501")
     built = candidate(session=session, student=candidate_student)
     candidate(
         session=grading_session(title="Other Session"),
-        student=student(wksa_id="FILTER002", first_name="Blair"),
+        student=student(wksa_id="206-2-502", first_name="Blair"),
     )
     client = auth_client("candidate-filter@example.com")
 
@@ -603,7 +604,7 @@ def test_candidate_api_delete_rules_work() -> None:
     )
     open_candidate = candidate(
         session=grading_session(status=GradingSession.Status.OPEN),
-        student=student(wksa_id="OPENDELETE"),
+        student=student(wksa_id="206-2-503"),
     )
     locked_candidate = candidate()
     GradingSession.objects.filter(pk=locked_candidate.session_id).update(
@@ -632,10 +633,10 @@ def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
         status=GradingSession.Status.DRAFT,
         title="Draft grading",
     )
-    unassessed = candidate(session=open_session, student=student(wksa_id="FLAG001"))
-    started = candidate(session=open_session, student=student(wksa_id="FLAG002"))
+    unassessed = candidate(session=open_session, student=student(wksa_id="206-2-504"))
+    started = candidate(session=open_session, student=student(wksa_id="206-2-505"))
     start_assessment(assessment(candidate=started))
-    prepared = candidate(session=draft_session, student=student(wksa_id="FLAG003"))
+    prepared = candidate(session=draft_session, student=student(wksa_id="206-2-506"))
     assessment(candidate=prepared)
     client = auth_client("candidate-flags@example.com")
 
@@ -659,8 +660,8 @@ def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
 
 def test_bulk_register_creates_every_candidate_in_one_request() -> None:
     session = grading_session()
-    first_student = student(wksa_id="BULKREG001")
-    second_student = student(wksa_id="BULKREG002", first_name="Sam")
+    first_student = student(wksa_id="206-2-507")
+    second_student = student(wksa_id="206-2-508", first_name="Sam")
     client = auth_client("bulk-register@example.com")
 
     response = client.post(
@@ -699,14 +700,14 @@ def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -
     # one request with no rank picked at all, and each resolves to that
     # student's own next active rank.
     session = grading_session()
-    white_student = student(wksa_id="BULKREG010", current_rank=rank("WHITE"))
+    white_student = student(wksa_id="206-2-509", current_rank=rank("WHITE"))
     blue_student = student(
-        wksa_id="BULKREG011",
+        wksa_id="206-2-510",
         current_rank=rank("BLUE"),
         first_name="Robin",
     )
     brown_stripe_student = student(
-        wksa_id="BULKREG012",
+        wksa_id="206-2-511",
         current_rank=rank("BROWN_STRIPE"),
         first_name="Sam",
     )
@@ -741,8 +742,8 @@ def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -
 
 def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
     session = grading_session()
-    valid_student = student(wksa_id="BULKREG003")
-    already_registered_student = student(wksa_id="BULKREG004")
+    valid_student = student(wksa_id="206-2-512")
+    already_registered_student = student(wksa_id="206-2-513")
     candidate(session=session, student=already_registered_student)
     client = auth_client("bulk-register-partial@example.com")
 
@@ -774,8 +775,8 @@ def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
 
 def test_bulk_register_can_generate_assessments_in_the_same_request() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    first_student = student(wksa_id="BULKREG020")
-    second_student = student(wksa_id="BULKREG021", first_name="Robin")
+    first_student = student(wksa_id="206-2-514")
+    second_student = student(wksa_id="206-2-515", first_name="Robin")
     client = auth_client("bulk-register-generate@example.com")
 
     response = client.post(
@@ -808,9 +809,9 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
     # active rank to resolve to), but that must not block the other row's
     # registration-and-generation in the same request.
     session = grading_session(status=GradingSession.Status.OPEN)
-    registerable_student = student(wksa_id="BULKREG030")
+    registerable_student = student(wksa_id="206-2-516")
     topped_out_student = student(
-        wksa_id="BULKREG031",
+        wksa_id="A-00517",
         current_rank=rank("PKJN"),
         first_name="Robin",
     )
@@ -841,8 +842,8 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
 
 def test_bulk_generate_assessments_creates_every_snapshot_in_one_request() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    first_candidate = candidate(session=session, student=student(wksa_id="BULKGEN001"))
-    second_candidate = candidate(session=session, student=student(wksa_id="BULKGEN002"))
+    first_candidate = candidate(session=session, student=student(wksa_id="206-2-518"))
+    second_candidate = candidate(session=session, student=student(wksa_id="206-2-519"))
     client = auth_client("bulk-generate@example.com")
 
     response = client.post(
@@ -868,8 +869,8 @@ def test_bulk_generate_assessments_creates_every_snapshot_in_one_request() -> No
 
 def test_bulk_generate_assessments_is_independent_per_row() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    fresh_candidate = candidate(session=session, student=student(wksa_id="BULKGEN003"))
-    already_assessed = candidate(session=session, student=student(wksa_id="BULKGEN004"))
+    fresh_candidate = candidate(session=session, student=student(wksa_id="206-2-520"))
+    already_assessed = candidate(session=session, student=student(wksa_id="206-2-521"))
     assessment(candidate=already_assessed)
     client = auth_client("bulk-generate-partial@example.com")
 
@@ -891,10 +892,10 @@ def test_bulk_start_starts_every_assessment_in_one_request() -> None:
     # caller chooses whether to bulk-start assessments or not.
     session = grading_session(status=GradingSession.Status.OPEN)
     first_assessment = assessment(
-        candidate=candidate(session=session, student=student(wksa_id="BULKSTART001")),
+        candidate=candidate(session=session, student=student(wksa_id="206-2-522")),
     )
     second_assessment = assessment(
-        candidate=candidate(session=session, student=student(wksa_id="BULKSTART002")),
+        candidate=candidate(session=session, student=student(wksa_id="206-2-523")),
     )
     client = auth_client("bulk-start@example.com")
 
@@ -926,7 +927,7 @@ def test_bulk_start_is_independent_per_row() -> None:
     fresh_assessment = assessment(
         candidate=candidate(
             session=open_session,
-            student=student(wksa_id="BULKSTART003"),
+            student=student(wksa_id="206-2-524"),
         ),
     )
     # Generated while still draft (allowed), but starting requires the
@@ -935,7 +936,7 @@ def test_bulk_start_is_independent_per_row() -> None:
     draft_session_assessment = assessment(
         candidate=candidate(
             session=grading_session(status=GradingSession.Status.DRAFT),
-            student=student(wksa_id="BULKSTART004"),
+            student=student(wksa_id="206-2-525"),
         ),
     )
     client = auth_client("bulk-start-partial@example.com")
@@ -961,10 +962,10 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
     # not show up, set them WITHDRAWN in one request, and everyone else is
     # left untouched.
     session = grading_session()
-    absent_first = candidate(session=session, student=student(wksa_id="BULKATT001"))
+    absent_first = candidate(session=session, student=student(wksa_id="206-2-526"))
     absent_second = candidate(
         session=session,
-        student=student(wksa_id="BULKATT002", first_name="Robin"),
+        student=student(wksa_id="206-2-527", first_name="Robin"),
     )
     client = auth_client("bulk-attendance@example.com")
 
@@ -1003,9 +1004,9 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
 ):
     open_session_candidate = candidate(
         session=grading_session(status=GradingSession.Status.OPEN),
-        student=student(wksa_id="BULKATT003"),
+        student=student(wksa_id="206-2-528"),
     )
-    locked_session_candidate = candidate(student=student(wksa_id="BULKATT004"))
+    locked_session_candidate = candidate(student=student(wksa_id="206-2-529"))
     GradingSession.objects.filter(
         pk=locked_session_candidate.session_id,
     ).update(status=GradingSession.Status.LOCKED)
@@ -1033,7 +1034,7 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
 
 def test_a_student_who_has_left_cannot_be_registered_for_a_grading() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
-    learner = student(wksa_id="LEFT-001")
+    learner = student(wksa_id="206-2-530")
     learner.status = Student.Status.LEFT
     learner.save()
 
@@ -1049,7 +1050,7 @@ def test_a_student_who_has_left_cannot_be_registered_for_a_grading() -> None:
 
 def test_an_inactive_student_can_still_be_registered() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
-    learner = student(wksa_id="BREAK-001")
+    learner = student(wksa_id="206-2-531")
     learner.status = Student.Status.INACTIVE
     learner.save()
 
@@ -1102,7 +1103,7 @@ def test_a_move_onto_an_existing_registration_is_refused_by_the_service() -> Non
     target = grading_session(status=GradingSession.Status.OPEN, title="Target")
     both = student()
     moving = candidate(session=source, student=both)
-    candidate(session=target, student=both)
+    earlier_double_registration(session=target, student=both)
 
     with (
         patch.object(
@@ -1174,3 +1175,277 @@ def test_admin_candidate_delete_goes_through_the_service() -> None:
         entity_id=str(built.pk),
     )
     assert deleted.actor == request.user
+
+
+def _registered_twice_then_promoted_in_first() -> tuple[GradingCandidate, Student]:
+    """A student registered in two sessions and promoted from the first."""
+    from gradings.outcome_services import promote_candidate
+    from gradings.services import transition_grading_session
+    from gradings.testing import complete_assessment, finalised_outcome, promoter
+
+    pupil = student()
+    first = grading_session(
+        title="First", grading_date=date(2027, 3, 20), status=GradingSession.Status.OPEN
+    )
+    second = grading_session(
+        title="Second",
+        grading_date=date(2027, 6, 20),
+        status=GradingSession.Status.OPEN,
+    )
+    in_first = candidate(session=first, student=pupil)
+    in_second = earlier_double_registration(session=second, student=pupil)
+    first_assessment = assessment(candidate=in_first)
+    start_assessment(first_assessment)
+    complete_assessment(first_assessment)
+    transition_grading_session(first, GradingSession.Status.LOCKED)
+    in_first.refresh_from_db()
+    promote_candidate(finalised_outcome(in_first), promoter())
+    pupil.refresh_from_db()
+    in_second.refresh_from_db()
+    return in_second, pupil
+
+
+def test_a_registration_overtaken_by_a_promotion_can_still_be_withdrawn() -> None:
+    # The testing rank is checked when it is chosen. Re-checking it on every
+    # save stranded this registration: no withdrawal, no move, no promotion.
+    stale, pupil = _registered_twice_then_promoted_in_first()
+    assert pupil.current_rank == stale.testing_for_rank
+
+    apply_candidate_update(
+        stale,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.OTHER,
+        withdrawal_note="Already promoted at the earlier grading.",
+        actor=user("withdrawer@example.com"),
+    )
+
+    stale.refresh_from_db()
+    assert stale.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_a_registration_overtaken_by_a_promotion_can_be_withdrawn_after_lock() -> None:
+    from gradings.services import transition_grading_session, withdraw_locked_candidate
+    from gradings.testing import complete_assessment, override_master
+
+    stale, _pupil = _registered_twice_then_promoted_in_first()
+    stale_assessment = assessment(candidate=stale)
+    start_assessment(stale_assessment)
+    complete_assessment(stale_assessment)
+    transition_grading_session(stale.session, GradingSession.Status.LOCKED)
+    stale.refresh_from_db()
+
+    withdraw_locked_candidate(
+        stale,
+        reason=GradingCandidate.WithdrawalReason.OTHER,
+        note="Already promoted at the earlier grading.",
+        actor=override_master("override@example.com"),
+    )
+
+    stale.refresh_from_db()
+    assert stale.status == GradingCandidate.Status.WITHDRAWN
+
+
+def test_moving_or_reinstating_a_registration_rechecks_its_testing_rank() -> None:
+    stale, _pupil = _registered_twice_then_promoted_in_first()
+    elsewhere = grading_session(
+        title="Elsewhere",
+        grading_date=date(2027, 9, 20),
+        status=GradingSession.Status.OPEN,
+    )
+    actor = user("mover@example.com")
+
+    with pytest.raises(ValidationError) as moved:
+        apply_candidate_update(stale, session=elsewhere, actor=actor)
+    assert "testing_for_rank" in moved.value.message_dict
+
+    apply_candidate_update(
+        stale,
+        status=GradingCandidate.Status.WITHDRAWN,
+        withdrawal_reason=GradingCandidate.WithdrawalReason.ABSENT,
+        actor=actor,
+    )
+    stale.refresh_from_db()
+    with pytest.raises(ValidationError) as reinstated:
+        apply_candidate_update(
+            stale, status=GradingCandidate.Status.REGISTERED, actor=actor
+        )
+    assert "testing_for_rank" in reinstated.value.message_dict
+
+
+ONE_GRADING_REFUSAL = "has not reached its result yet"
+
+
+def _graded_in(first: GradingSession) -> GradingCandidate:
+    from gradings.services import transition_grading_session
+    from gradings.testing import complete_assessment
+
+    built = candidate(session=first)
+    generated = assessment(candidate=built)
+    start_assessment(generated)
+    complete_assessment(generated)
+    transition_grading_session(first, GradingSession.Status.LOCKED)
+    built.refresh_from_db()
+    return built
+
+
+def _register_elsewhere(pupil: Student) -> dict[str, list[str]]:
+    later = grading_session(
+        title="Later", grading_date=date(2027, 9, 20), status=GradingSession.Status.OPEN
+    )
+    _created, errors = bulk_register_candidates(
+        session=later,
+        rows=[{"student": Student.objects.get(pk=pupil.pk)}],
+        actor=user(f"registrar-{later.pk}@example.com"),
+    )
+    return errors
+
+
+def test_a_student_is_registered_for_one_grading_at_a_time() -> None:
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    registered = candidate(session=first)
+
+    errors = _register_elsewhere(registered.student)
+
+    assert list(errors) == ["0"]
+    assert ONE_GRADING_REFUSAL in errors["0"][0]
+    assert "'First'" in errors["0"][0]
+    assert GradingCandidate.objects.filter(student=registered.student).count() == 1
+
+
+def test_a_locked_grading_awaiting_its_decision_still_holds_the_student() -> None:
+    from gradings.outcome_services import (
+        create_candidate_outcome,
+        propose_candidate_outcome,
+    )
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+    outcome = create_candidate_outcome(graded, user("drafter@example.com"))
+    propose_candidate_outcome(
+        outcome, "PASS", "Ready for decision.", user("proposer@example.com")
+    )
+
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+
+def test_a_finalised_pass_holds_the_student_until_promoted() -> None:
+    from gradings.outcome_services import promote_candidate
+    from gradings.testing import finalised_outcome, promoter
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    outcome = finalised_outcome(graded)
+    assert ONE_GRADING_REFUSAL in _register_elsewhere(graded.student)["0"][0]
+
+    promote_candidate(outcome, promoter())
+
+    assert _register_elsewhere(graded.student) == {}
+
+
+@pytest.mark.parametrize("final", ["FAIL", "CONDITIONAL"])
+def test_a_finalised_fail_or_conditional_releases_the_student(final: str) -> None:
+    from gradings.testing import finalised_outcome
+
+    graded = _graded_in(grading_session(status=GradingSession.Status.OPEN))
+    finalised_outcome(
+        graded,
+        proposed=final,
+        final=final,
+        conditional_requirements="Re-test forms." if final == "CONDITIONAL" else "",
+    )
+
+    assert _register_elsewhere(graded.student) == {}
+
+
+def test_a_withdrawal_or_cancelled_session_releases_the_student() -> None:
+    from gradings.services import transition_grading_session
+
+    withdrawn = candidate(
+        session=grading_session(title="Withdrawn", status=GradingSession.Status.OPEN),
+        status=GradingCandidate.Status.WITHDRAWN,
+    )
+    assert _register_elsewhere(withdrawn.student) == {}
+
+    cancelled_session = grading_session(
+        title="Cancelled", status=GradingSession.Status.OPEN
+    )
+    in_cancelled = candidate(session=cancelled_session)
+    transition_grading_session(cancelled_session, GradingSession.Status.CANCELLED)
+    assert _register_elsewhere(in_cancelled.student) == {}
+
+
+def test_reinstating_is_refused_while_another_grading_holds_the_student() -> None:
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    withdrawn = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    assert _register_elsewhere(withdrawn.student) == {}
+
+    with pytest.raises(ValidationError) as refusal:
+        apply_candidate_update(
+            withdrawn,
+            status=GradingCandidate.Status.REGISTERED,
+            actor=user("reinstater@example.com"),
+        )
+
+    assert ONE_GRADING_REFUSAL in refusal.value.message_dict["student"][0]
+
+
+def test_registering_twice_in_one_session_keeps_its_own_message() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    registered = candidate(session=session)
+
+    _created, errors = bulk_register_candidates(
+        session=session,
+        rows=[{"student": registered.student}],
+        actor=user("registrar@example.com"),
+    )
+
+    assert errors == {"0": ["Student is already registered for this session."]}
+
+
+def test_bulk_reinstating_refuses_only_the_student_held_elsewhere() -> None:
+    from gradings.services import bulk_update_candidate_status
+
+    first = grading_session(title="First", status=GradingSession.Status.OPEN)
+    held = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    free = candidate(session=first, status=GradingCandidate.Status.WITHDRAWN)
+    assert _register_elsewhere(held.student) == {}
+
+    updated, errors = bulk_update_candidate_status(
+        candidates=[held, free],
+        new_status=GradingCandidate.Status.REGISTERED,
+        actor=user("bulk-reinstater@example.com"),
+    )
+
+    assert [row.pk for row in updated] == [free.pk]
+    assert list(errors) == ["0"]
+    assert ONE_GRADING_REFUSAL in errors["0"][0]
+
+
+def test_a_withdrawn_registration_in_the_session_gets_the_same_message() -> None:
+    # The unique constraint's own message named neither the student nor the
+    # session; the cohort builder recognises this one.
+    session = grading_session(status=GradingSession.Status.OPEN)
+    withdrawn = candidate(session=session, status=GradingCandidate.Status.WITHDRAWN)
+
+    _created, errors = bulk_register_candidates(
+        session=session,
+        rows=[{"student": withdrawn.student}],
+        actor=user("registrar-again@example.com"),
+    )
+
+    assert errors == {"0": ["Student is already registered for this session."]}
+
+
+def test_moving_onto_a_session_holding_the_student_gets_the_same_message() -> None:
+    source = grading_session(status=GradingSession.Status.OPEN, title="Source")
+    target = grading_session(status=GradingSession.Status.OPEN, title="Target")
+    both = student()
+    candidate(session=target, student=both, status=GradingCandidate.Status.WITHDRAWN)
+    moving = candidate(session=source, student=both)
+
+    with pytest.raises(ValidationError) as refusal:
+        apply_candidate_update(moving, session=target, actor=user("mover2@example.com"))
+
+    assert refusal.value.message_dict == {
+        "student": ["Student is already registered for this session."],
+    }

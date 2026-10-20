@@ -65,7 +65,7 @@ def _check_xlsx_archive(content: bytes) -> None:
         raise UnsupportedImportFileError(msg)
     if sum(member.file_size for member in members) > MAX_XLSX_EXPANDED_BYTES:
         limit = MAX_XLSX_EXPANDED_BYTES // (1024 * 1024)
-        msg = f"The workbook expands to more than {limit} MiB, beyond the limit."
+        msg = f"The workbook is too large once opened (more than {limit} MB)."
         raise UnsupportedImportFileError(msg)
 
 

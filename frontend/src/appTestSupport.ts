@@ -47,6 +47,17 @@ export function jsonResponse(status: number, body: unknown): Response {
   } as Response;
 }
 
+/**
+ * A signed-out visitor's answer to any request: the setup check says a
+ * deployment that is already set up, as it would to anyone; everything else
+ * says not signed in.
+ */
+export function signedOutResponse(url: string): Response {
+  return url.includes("/api/setup/")
+    ? jsonResponse(200, { setup_needed: false })
+    : authRequiredResponse();
+}
+
 export function emptyResponse(status: number): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -104,9 +115,11 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
 
 /** What every endpoint but /api/auth/me/ answers for a signed-in user: an empty page. */
 export function signedInResponse(url: string, user: AuthUser): Response {
-  return url.includes("/api/auth/me/")
-    ? jsonResponse(200, user)
-    : jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+  if (url.includes("/api/auth/me/")) return jsonResponse(200, user);
+  if (url.includes("/api/audit-events/labels/")) {
+    return jsonResponse(200, { actions: [], entities: [] });
+  }
+  return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
 }
 
 export function fetchSignedInAs(user: AuthUser) {

@@ -184,7 +184,7 @@ export function CandidateAssessmentScreen() {
         const before = context.before;
         patchItem(context.itemId, () => before);
       }
-      setActionError(err instanceof ApiError ? err.message : "Could not save item evaluation.");
+      setActionError(err instanceof ApiError ? err.message : "Could not save this result.");
     },
     onSettled: () => {
       // This write still counts as pending here, so 1 means it is the last.
@@ -218,10 +218,10 @@ export function CandidateAssessmentScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-loading">
+      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-loading">
         <div className="caw-loading-state" role="status">
           <span className="status-dot status-dot-pulse" aria-hidden="true" />
-          <p>Loading candidate assessment workspace...</p>
+          <p>Loading the assessment…</p>
         </div>
       </section>
     );
@@ -229,11 +229,10 @@ export function CandidateAssessmentScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-load-error">
+      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-load-error">
         <div className="caw-error-banner" role="alert">
           <p>
-            The assessment rollup could not be loaded. Scoring is held back rather than
-            shown against counts that may be wrong. Reload to try again.
+            The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
           </p>
           <Link to={`/gradings/${sessionId}`} className="btn-secondary">
             ← Return to session roster
@@ -245,7 +244,7 @@ export function CandidateAssessmentScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Candidate assessment workspace" className="caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
           <Link to={`/gradings/${sessionId}`} className="btn-secondary">
@@ -265,6 +264,9 @@ export function CandidateAssessmentScreen() {
   const canComplete = stats.canComplete && !isSavingItems;
   const isAssessmentCompleted = assessment?.status === "COMPLETED";
   const isAssessmentMissing = assessment === null;
+  // The statuses assessment generation accepts (ASSESSMENT_GENERATION_SESSION_
+  // STATUSES); a candidate registered after opening is prepared here too.
+  const canPrepare = session.status === "DRAFT" || session.status === "OPEN";
   const isAssessmentNotStarted = assessment?.status === "NOT_STARTED";
   const isAssessmentInProgress = assessment?.status === "IN_PROGRESS";
   const isEditable = !!isAssessmentInProgress && !isAssessmentCompleted;
@@ -343,21 +345,20 @@ export function CandidateAssessmentScreen() {
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
             <p>
-              Generate the candidate&rsquo;s immutable syllabus snapshot before starting
-              assessment.
+              Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
           <button
             type="button"
             className="btn-primary"
             onClick={() => generateAssessmentMutation.mutate()}
-            disabled={generateAssessmentMutation.isPending || session.status !== "DRAFT"}
+            disabled={generateAssessmentMutation.isPending || !canPrepare}
             data-testid="generate-assessment-btn"
           >
             {generateAssessmentMutation.isPending
               ? "Preparing..."
-              : session.status !== "DRAFT"
-              ? "Session must be Draft to prepare"
+              : !canPrepare
+              ? "Session must be draft or open to prepare"
               : "Prepare assessment form"}
           </button>
         </div>
@@ -393,7 +394,7 @@ export function CandidateAssessmentScreen() {
       <div className="caw-run-scroll">
         {categoryGroups.length === 0 ? (
           <div className="caw-empty-items">
-            <p>No assessment items found in this snapshot.</p>
+            <p>This assessment form has no items.</p>
           </div>
         ) : (
           categoryGroups.map((group) => (
@@ -428,9 +429,9 @@ export function CandidateAssessmentScreen() {
 
         {categoryGroups.length > 0 && (
           <p className="caw-run-end">
-            End of syllabus snapshot · {categoryGroups.length}{" "}
+            End of assessment form · {categoryGroups.length}{" "}
             {categoryGroups.length === 1 ? "category" : "categories"}
-            {assessment?.generated_at && ` · frozen ${formatDayMonth(assessment.generated_at)}`} from{" "}
+            {assessment?.generated_at && ` · prepared ${formatDayMonth(assessment.generated_at)}`} from{" "}
             {candidate.age_band_display}
           </p>
         )}
@@ -680,10 +681,16 @@ function AssessmentItemRow({
           ) : (
             <span className="caw-optional-badge">Optional</span>
           )}
-          {item.display_range && <span className="caw-row-range">{item.display_range}</span>}
+          {(item.display_range || item.notation) && (
+            <span className="caw-row-range">{item.display_range || item.notation}</span>
+          )}
         </div>
 
-        {item.requirement_notes && <p className="caw-row-desc">{item.requirement_notes}</p>}
+        {/* Chart notation is served as wording and shown as the range above,
+            as the syllabus screen does; only other notes print here. */}
+        {!item.notation && item.requirement_notes && (
+          <p className="caw-row-desc">{item.requirement_notes}</p>
+        )}
 
         {/*
           Attribution renders on every scored row. The previous screen showed
@@ -720,9 +727,13 @@ function AssessmentItemRow({
             }}
           >
             <p>
-              Clearing also erases{" "}
-              <strong>{attribution || "this result's attribution"}</strong>. Attribution cannot
-              be restored.
+              Clearing also removes the record of who assessed it
+              {attribution ? (
+                <>
+                  {" "}(<strong>{attribution}</strong>)
+                </>
+              ) : null}
+              , and that cannot be restored.
             </p>
             <div className="caw-clear-confirm-actions">
               <button type="button" className="btn-secondary" onClick={onCancelClear} ref={keepButtonRef}>

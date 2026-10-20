@@ -192,7 +192,9 @@ imported history, only an administrator can correct it.
 most 500 sheets, 50 columns and 50,000 rows across all sheets (blank rows
 and unrecognised sheets included). The whole workbook is parsed at upload:
 one that cannot be read, or that yields no records at all, is refused with
-the adapter's warnings before anything is stored.
+the adapter's warnings before anything is stored. So is one with a cell longer
+than its record field can keep (source text is never cut to fit); the
+refusal names each cell by its locator, such as `06-2025!R14`.
 
 ### The workbook adapter
 
@@ -290,8 +292,8 @@ each locking the row, saving, and recording one audit event
 
 ### Reconciliation screen and API
 
-`GET /api/gradings/legacy-records/` (filters: `student`, `linked`,
-`voided`, `record_kind`, `source_batch`) plus the five actions above as
+`GET /api/gradings/legacy-records/` (filters: `linked`,
+`voided`) plus the five actions above as
 `POST .../link-student/`, `.../unlink-student/`, `.../resolve-current-rank/`,
 `.../resolve-testing-for-rank/`, `.../void/`. The frontend
 (`LegacyReconciliationScreen.tsx`, reachable from the Gradings list header)
@@ -300,7 +302,7 @@ each action, including a name/WKSA-ID student search for linking.
 
 ### Unified grading history
 
-`GET /api/students/{id}/grading-history/` (`gradings.
+`GET /api/students/{id}/grading-history/` (`gradings.read_models.
 unified_student_grading_history`) combines every finalised native
 `CandidateOutcome` with every linked, non-voided `LegacyGradingRecord` for a
 student into one newest-first, source-labelled (`KUKGRADE`/`LEGACY`) list,

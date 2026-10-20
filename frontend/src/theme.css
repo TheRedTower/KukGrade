@@ -7,12 +7,13 @@
  * "Do not treat image-generated spacing or text as exact implementation
  * measurements" note.
  *
- * Every component reads colour through these custom properties, never a
- * literal hex value, so a later palette adjustment or the Settings-page
- * theme toggle (planned, not yet built) only ever has to change this file.
- * Dark mode follows the system preference automatically today; the
- * `[data-theme]` attribute selectors are already wired for that future
- * explicit Light/Dark/System control to set without a token rewrite.
+ * Colour is meant to come through these custom properties. Some component
+ * stylesheets still carry literal colours with a `[data-theme="dark"] .x`
+ * override; those apply because `<html data-theme>` always holds the
+ * resolved theme - the Light/Dark/System toggle's choice, or the system
+ * preference under System (index.html sets it before first paint and
+ * useTheme.ts keeps it current). The media query below covers only the
+ * moment before that script runs.
  */
 
 :root {
@@ -38,6 +39,9 @@
 
   --color-accent: #d6900e;
   --color-accent-strong: #b87b0a;
+  /* The accent as text: at least 4.5:1 on every light surface. The two above
+     are for fills, borders and focus outlines, and are too light to read. */
+  --color-accent-text: #8f5f07;
   --color-on-accent: #17140f;
 
   /* Primary Action Buttons */
@@ -107,6 +111,7 @@
 
     --color-accent: #ffbb3d;
     --color-accent-strong: #ffd073;
+    --color-accent-text: #ffbb3d;
     --color-on-accent: #14110c;
 
     /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
@@ -158,6 +163,7 @@
 
   --color-accent: #ffbb3d;
   --color-accent-strong: #ffd073;
+  --color-accent-text: #ffbb3d;
   --color-on-accent: #14110c;
 
   /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */

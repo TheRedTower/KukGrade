@@ -50,7 +50,7 @@
 .users-filters button,
 .users-pagination button,
 .users-state button {
-  min-height: 2.7rem;
+  min-height: 44px;
   border-radius: 0.4rem;
   font: inherit;
   font-weight: 750;
@@ -108,7 +108,6 @@
 .users-back-link:focus-visible,
 .users-form-grid input:focus,
 .users-form-grid select:focus,
-.users-password-dialog input:focus,
 .user-authority-options input:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
@@ -139,7 +138,7 @@
 .users-filters label > span,
 .users-dialog-form label > span,
 .users-form-grid label > span,
-.users-password-dialog label > span {
+.users-issued-password-value span {
   color: var(--color-text-muted);
   font-size: 0.75rem;
   font-weight: 800;
@@ -154,9 +153,8 @@
 .users-search input,
 .users-filters select,
 .users-form-grid input,
-.users-form-grid select,
-.users-password-dialog input {
-  min-height: 2.7rem;
+.users-form-grid select {
+  min-height: 44px;
   box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: 0.4rem;
@@ -319,7 +317,7 @@
   padding: 0.85rem 1rem;
 }
 
-.users-pagination button { min-height: 2.2rem; padding: 0.4rem 0.65rem; }
+.users-pagination button { min-height: 44px; padding: 0.4rem 0.65rem; }
 
 .users-state {
   min-height: 18rem;
@@ -379,7 +377,7 @@
 }
 
 .users-dialog h2 { margin: 0; font-size: 1.45rem; }
-.users-link-button { border: 0; background: none; color: var(--color-accent); font: inherit; font-weight: 750; padding: 0.35rem; cursor: pointer; }
+.users-link-button { border: 0; background: none; color: var(--color-accent-text); font: inherit; font-weight: 750; padding: 0.35rem; cursor: pointer; }
 
 .users-dialog-form,
 .users-password-dialog form {
@@ -393,14 +391,39 @@
   gap: 1rem;
 }
 
-.users-form-grid label,
-.users-password-dialog label {
+.users-form-grid label {
   display: grid;
   gap: 0.4rem;
 }
 
 .users-form-wide { grid-column: 1 / -1; }
 .users-form-note { margin: 0; }
+
+/* A temporary password, shown once (TemporaryPasswordIssued.tsx). */
+.users-issued-password { display: grid; gap: 0.9rem; }
+.users-issued-password p { margin: 0; }
+.users-issued-password-value {
+  display: grid;
+  gap: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface-sunken);
+  padding: 0.75rem 0.9rem;
+}
+.users-issued-password-value code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.users-issued-password-warning {
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-surface);
+  color: var(--color-text);
+  font-weight: 700;
+  padding: 0.6rem 0.8rem;
+}
 .users-field-error { color: var(--color-danger); }
 
 .users-error,
@@ -429,7 +452,7 @@
 
 .users-back-link,
 .users-audit-link {
-  color: var(--color-accent);
+  color: var(--color-accent-text);
   font-weight: 700;
   text-decoration: none;
 }
@@ -442,7 +465,7 @@
 }
 
 .users-back-link:hover,
-.users-audit-link:hover { color: var(--color-accent-strong); text-decoration: underline; }
+.users-audit-link:hover { color: var(--color-accent-text); text-decoration: underline; }
 
 .user-detail-header { align-items: center; }
 .user-detail-header p { display: flex; align-items: center; gap: 0.65rem; }
@@ -563,3 +586,13 @@
   .users-dialog { padding: 1rem; }
   .user-detail-header p { align-items: flex-start; flex-direction: column; }
 }
+
+.users-self-password-hint {
+  margin: 0;
+  max-width: 16rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+/* Holds the user page's forms so a view-only account disables them all. */
+.user-detail-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }

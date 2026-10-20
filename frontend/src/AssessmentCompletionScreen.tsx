@@ -40,7 +40,6 @@ import {
   useAssessmentNotesDraft,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
-import { isCoreCategory } from "./syllabusCategories";
 import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon } from "./Icons";
@@ -163,7 +162,7 @@ export function AssessmentCompletionScreen() {
       <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-load-error">
         <div className="caw-error-banner" role="alert">
           <p>
-            The assessment rollup could not be loaded, so the record cannot be reviewed or
+            The assessment summary could not be loaded, so the record cannot be reviewed or
             sealed right now. Reload to try again.
           </p>
           <Link to={scoringPath} className="btn-secondary">
@@ -213,14 +212,14 @@ export function AssessmentCompletionScreen() {
 
   /*
     The proof separates the six universal core areas from the rank-specific
-    ledgers (FDR-018, via `syllabusCategories`). Everything that is not a core
+    ledgers (FDR-018, by each item's served `category_is_core`). Everything that is not a core
     area gets a ledger of its own under its served `category_display` - not
     just Techniques and Forms. A Weapons or Other requirement that was scored
     during the grading must still appear, or the permanent record would be
     missing part of what was assessed.
   */
-  const coreGroups = categoryGroups.filter((group) => isCoreCategory(group.category));
-  const ledgerGroups = categoryGroups.filter((group) => !isCoreCategory(group.category));
+  const coreGroups = categoryGroups.filter((group) => group.isCore);
+  const ledgerGroups = categoryGroups.filter((group) => !group.isCore);
 
   // Every recorded note, whichever way the requirement went (FDR-043).
   const notedItems = items.filter((item) => item.assessor_notes);
@@ -374,8 +373,7 @@ export function AssessmentCompletionScreen() {
             <>
               <p className="acp-section-note">
                 Editable until the record is sealed. This is the only point at which the overall
-                assessment note can be written — it is submitted with the record and is immutable
-                afterwards.
+                assessment note can be written — it is saved with the record and cannot be changed afterwards.
               </p>
               <textarea
                 id="general-assessment-notes"
@@ -424,12 +422,12 @@ export function AssessmentCompletionScreen() {
         </article>
 
         {/* ── Provenance, counts and the seal controls ───────────────────── */}
-        <aside aria-label="Record provenance and seal controls" className="acp-aside">
+        <aside aria-label="Record details and seal" className="acp-aside">
           <div className="acp-card">
-            <h2 className="acp-card-title">Provenance</h2>
+            <h2 className="acp-card-title">Record details</h2>
             <dl className="acp-dl">
               <div>
-                <dt>Snapshot frozen</dt>
+                <dt>Form prepared</dt>
                 <dd>{assessment.generated_at ? formatShortDate(assessment.generated_at, "") : "—"}</dd>
               </div>
               <div>
@@ -437,7 +435,7 @@ export function AssessmentCompletionScreen() {
                 <dd>{assessment.generated_by_email || "—"}</dd>
               </div>
               <div>
-                <dt>Source track</dt>
+                <dt>Age group</dt>
                 <dd>{candidate.age_band_display}</dd>
               </div>
               <div>
@@ -568,10 +566,11 @@ function CoreAreaMark({ group }: { group: CategoryGroup }) {
 /**
  * One rank-specific ledger, headed by the category's own served display name.
  * `display_range` is the syllabus numbering the paper chart carries, which the
- * old review screen never showed.
+ * old review screen never showed; `notation` is a form's part ("Part 1 of 2"),
+ * shown in the same column as the scoring and syllabus screens show it.
  */
 function LedgerTable({ group }: { group: CategoryGroup }) {
-  const hasAnyRange = group.items.some((item) => item.display_range);
+  const hasAnyRange = group.items.some((item) => item.display_range || item.notation);
 
   return (
     <>
@@ -592,7 +591,9 @@ function LedgerTable({ group }: { group: CategoryGroup }) {
                 {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
                 {!item.required && <span className="caw-optional-badge">Optional</span>}
               </td>
-              {hasAnyRange && <td className="acp-ledger-range">{item.display_range}</td>}
+              {hasAnyRange && (
+                <td className="acp-ledger-range">{item.display_range || item.notation}</td>
+              )}
               <td>
                 <ResultMark result={item.result} />
               </td>

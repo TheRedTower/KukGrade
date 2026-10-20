@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from gradings.models import (
@@ -12,9 +13,11 @@ from gradings.models import (
 )
 from gradings.read_models import (
     GradingHistoryItem,
+    GradingStage,
     StudentGradingHistory,
     StudentRankTimeline,
 )
+from students import wksa_ids
 from students.models import Student
 from students.services import create_student, update_student
 from syllabus.models import AgeBand
@@ -76,6 +79,15 @@ class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHisto
     items = GradingHistoryItemSerializer(many=True)
 
 
+class CurrentGradingSerializer(serializers.Serializer):
+    """The grading a student is registered for that has not reached its result."""
+
+    session = serializers.IntegerField()
+    session_title = serializers.CharField()
+    stage = serializers.ChoiceField(choices=GradingStage.choices)
+    stage_display = serializers.CharField()
+
+
 class StudentListSerializer(serializers.ModelSerializer[Student]):
     """The list representation. Deliberately excludes date of birth.
 
@@ -92,8 +104,25 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     can_be_graded = serializers.BooleanField(read_only=True)
-    age_band = serializers.ChoiceField(choices=AgeBand.choices, read_only=True)
-    age_band_display = serializers.CharField(read_only=True)
+    # Annotated by the list view (gradings.age.with_age_band_on): on the
+    # grading date when the list is filtered by eligible_for_session,
+    # otherwise today.
+    age_band = serializers.ChoiceField(
+        choices=AgeBand.choices,
+        source="age_band_on_date",
+        read_only=True,
+        help_text=(
+            "On the session's grading date when the list is filtered by "
+            "eligible_for_session, otherwise today."
+        ),
+    )
+    age_band_display = serializers.SerializerMethodField()
+    current_grading = serializers.SerializerMethodField(
+        help_text=(
+            "The grading the student is registered for that has not reached "
+            "its result, and how far it has got; null when there is none."
+        ),
+    )
 
     class Meta:
         model = Student
@@ -110,16 +139,36 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
             "can_be_graded",
             "age_band",
             "age_band_display",
+            "current_grading",
         )
         read_only_fields = fields
 
+    # Annotated by the list view (gradings.read_models.with_current_grading).
+    @extend_schema_field(CurrentGradingSerializer(allow_null=True))
+    def get_current_grading(self, obj: Student) -> dict[str, Any] | None:
+        session = getattr(obj, "current_grading_session", None)
+        if session is None:
+            return None
+        stage = GradingStage(obj.current_grading_stage)  # type: ignore[attr-defined]
+        return {
+            "session": session,
+            "session_title": obj.current_grading_title,  # type: ignore[attr-defined]
+            "stage": stage.value,
+            "stage_display": stage.label,
+        }
+
+    def get_age_band_display(self, obj: Student) -> str:
+        return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
+
 
 class StudentSerializer(serializers.ModelSerializer[Student]):
-    """Detail, create and update. wksa_id is writable only on create.
+    """Detail, create and update.
 
-    One serializer rather than three: create and update share every field
-    except wksa_id, and splitting them further would just be the same
-    fields copied into different classes.
+    One serializer rather than three: create and update share every field,
+    and splitting them would just copy the same fields into different
+    classes. wksa_id changes after creation only from a student ID to the
+    black belt ID WKSA hands out (Student.clean() refuses anything else);
+    wksa_id_can_change says whether that change is still to come.
     """
 
     current_rank_name = serializers.CharField(
@@ -127,12 +176,14 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     age_band_display = serializers.CharField(read_only=True)
+    wksa_id_can_change = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = (
             "id",
             "wksa_id",
+            "wksa_id_can_change",
             "first_name",
             "last_name",
             "date_of_birth",
@@ -151,12 +202,8 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "created_at",
         )
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if self.instance is not None:
-            # wksa_id is the external identifier grading records are matched
-            # against; it must not change once a student exists.
-            self.fields["wksa_id"].read_only = True
+    def get_wksa_id_can_change(self, obj: Student) -> bool:
+        return wksa_ids.can_change(obj.wksa_id)
 
     def create(self, validated_data: dict[str, Any]) -> Student:
         request = self.context["request"]

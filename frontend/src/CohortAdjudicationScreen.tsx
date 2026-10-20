@@ -511,8 +511,7 @@ export function CohortAdjudicationScreen() {
       {canDecide && (
         <footer className="cab-bar">
           <p className="cab-bar-text">
-            Staged decisions are written one candidate at a time. Each row succeeds or fails on its
-            own, and failures stay staged for a retry.
+            Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are kept.
           </p>
           {incomplete.length > 0 && (
             <p className="cab-row-error" role="alert">

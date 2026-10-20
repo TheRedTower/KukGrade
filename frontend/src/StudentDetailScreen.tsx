@@ -63,6 +63,7 @@ export function StudentDetailScreen() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   // Edit modal state
+  const [editWksaId, setEditWksaId] = useState("");
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editDob, setEditDob] = useState("");
@@ -199,6 +200,9 @@ export function StudentDetailScreen() {
     setIsSavingEdit(true);
     try {
       await updateStudent(student.id, {
+        // Sent only when changed: the server allows one change, a student ID
+        // to the black belt ID, and refuses any other.
+        ...(editWksaId !== student.wksa_id ? { wksa_id: editWksaId } : {}),
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
         date_of_birth: editDob,
@@ -316,6 +320,7 @@ export function StudentDetailScreen() {
             type="button"
             className="btn-edit-student"
             onClick={() => {
+              setEditWksaId(student.wksa_id);
               setEditFirstName(student.first_name);
               setEditLastName(student.last_name);
               setEditDob(student.date_of_birth);
@@ -358,7 +363,7 @@ export function StudentDetailScreen() {
               </div>
 
               <div className="detail-kv-row">
-                <dt className="detail-kv-label">Joined</dt>
+                <dt className="detail-kv-label">Added to KukGrade</dt>
                 <dd className="detail-kv-value">{formatLongDate(student.created_at)}</dd>
               </div>
             </dl>
@@ -486,24 +491,24 @@ export function StudentDetailScreen() {
                 {student.status === "ACTIVE" ? (
                   <span className="readiness-badge readiness-eligible">
                     <CheckIcon size={14} />
-                    <span>Eligible for registration</span>
+                    <span>Can be registered</span>
                   </span>
                 ) : student.status === "INACTIVE" ? (
                   <span className="readiness-badge readiness-inactive">
-                    <span>Inactive (Temporary break)</span>
+                    <span>Inactive (temporary break)</span>
                   </span>
                 ) : (
                   <span className="readiness-badge readiness-left">
-                    <span>Departed (Registration blocked)</span>
+                    <span>Left (registration blocked)</span>
                   </span>
                 )}
               </div>
 
               <p className="readiness-guidance">
                 {student.status === "ACTIVE"
-                  ? "This student meets the standard requirements and can be added to the next grading session cohort."
+                  ? "Active students can be added to a grading cohort, one grading at a time. KukGrade does not track training time or attendance, so readiness is the instructor's judgement."
                   : student.status === "INACTIVE"
-                  ? "Student is currently on a temporary break. Transition back to Active when regular training resumes."
+                  ? "On a temporary break. Inactive blocks nothing: the student can still be added to a grading cohort."
                   : "Student has left. Left status blocks grading registration while preserving complete historical records."}
               </p>
             </div>
@@ -622,7 +627,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Active student in regular training. Eligible for grading cohorts and session entry.
+                        Active student in regular training. Can be registered for gradings.
                       </p>
                     </div>
                   </label>
@@ -644,7 +649,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Temporary break or medical leave. Blocks nothing, preserves all history, and never flags errors.
+                        Temporary break or medical leave. Blocks nothing, and keeps all history.
                       </p>
                     </div>
                   </label>
@@ -666,7 +671,7 @@ export function StudentDetailScreen() {
                         </span>
                       </div>
                       <p className="status-radio-desc">
-                        Departed student. Blocks new grading registration while fully retaining all historical records.
+                        Has left. Cannot be registered for gradings; all history is kept.
                       </p>
                     </div>
                   </label>
@@ -737,10 +742,7 @@ export function StudentDetailScreen() {
             <div className="modal-body">
               <p className="modal-lead-text">
                 Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
-                record? This cannot be undone, and cascades through every grading-session
-                registration, assessment, outcome and promotion involving them - any rank they
-                were promoted to is reverted along with it. A linked historical grading record
-                is unlinked, not deleted, and stays available for reconciliation.
+                record? This cannot be undone. It also deletes every grading registration, assessment, outcome and promotion of theirs, and puts back any rank they were promoted to. Historical grading records linked to them are kept, just no longer linked.
               </p>
             </div>
 
@@ -815,13 +817,24 @@ export function StudentDetailScreen() {
                   <input
                     id="edit-wksa-id"
                     type="text"
-                    className="form-text-input"
-                    value={student.wksa_id}
-                    disabled
+                    className={`form-text-input ${getEditFieldError("wksa_id") ? "input-error" : ""}`}
+                    value={editWksaId}
+                    onChange={(e) => setEditWksaId(e.target.value)}
+                    disabled={!student.wksa_id_can_change || isSavingEdit}
+                    aria-invalid={!!getEditFieldError("wksa_id")}
+                    aria-describedby={getEditFieldError("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
-                  <p className="form-field-help">
-                    WKSA ID is immutable and cannot be changed.
-                  </p>
+                  {getEditFieldError("wksa_id") ? (
+                    <p className="form-field-error" id="edit-wksa-id-error" role="alert">
+                      {getEditFieldError("wksa_id")}
+                    </p>
+                  ) : (
+                    <p className="form-field-help" id="edit-wksa-id-help">
+                      {student.wksa_id_can_change
+                        ? "Change this only to record the black belt ID handed out at the national grading."
+                        : "A black belt ID never changes."}
+                    </p>
+                  )}
                 </div>
 
                 <div className="form-row-grid-2">

@@ -66,6 +66,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     status: "ACTIVE",
     can_be_graded: true,
     status_display: "Active",
+    current_grading: null,
   };
 
   const mockAssessment: CandidateAssessment = {
@@ -88,10 +89,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     korean_name: "예의",
     category: "ETIQUETTE",
     category_display: "Etiquette",
+    category_is_core: true,
     position: 1,
     required: true,
     display_range: "",
     requirement_notes: "Proper bow, respect for flags and instructors",
+    notation: "",
     result: "MET",
     result_display: "Met",
     assessor_email: "casey@example.com",
@@ -105,10 +108,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     korean_name: "앞차기",
     category: "KICKING",
     category_display: "Kicking",
+    category_is_core: true,
     position: 2,
     required: true,
     display_range: "",
     requirement_notes: "Full chamber, ball of foot contact",
+    notation: "",
     result: "NOT_MET",
     result_display: "Not Met",
     assessor_email: "casey@example.com",
@@ -122,10 +127,12 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     korean_name: "옆차기",
     category: "KICKING",
     category_display: "Kicking",
+    category_is_core: true,
     position: 3,
     required: true,
     display_range: "",
     requirement_notes: "Pivot on base foot, blade of foot strike",
+    notation: "",
     result: "NOT_ASSESSED",
     result_display: "Not Assessed",
     assessor_email: "",
@@ -201,6 +208,50 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const completeBtn = screen.getByTestId("caw-complete-assessment-btn");
     expect(completeBtn).toBeDisabled();
     expect(completeBtn).toHaveTextContent("Complete assessment (1 required remaining)");
+  });
+
+  // The syllabus screen shows a form's part as "Part 1 of 2"; scoring shows
+  // the same wording in the range slot, not the raw "Chart notation: (...)."
+  it("shows a form's chart notation as served wording while scoring", async () => {
+    const formItem: CandidateAssessmentItem = {
+      ...mockItem3,
+      id: 1005,
+      item_name: "Cho Geup Hyung",
+      category: "FORM",
+      category_display: "Forms",
+      category_is_core: false,
+      display_range: "",
+      requirement_notes: "Chart notation: (1/2).",
+      notation: "Part 1 of 2",
+    };
+    const items = [mockItem1, formItem];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
+        if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
+          return jsonResponse(200, mockCandidate);
+        }
+        if (url.includes("/summary/")) return jsonResponse(200, assessmentSummaryFor(items));
+        if (url.includes("/api/gradings/assessments/")) {
+          return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
+        }
+        if (url.includes("/api/gradings/assessment-items/")) {
+          return jsonResponse(200, { count: 2, next: null, previous: null, results: items });
+        }
+        return jsonResponse(404, { detail: "Not found" });
+      }),
+    );
+
+    render(<App />);
+
+    expect(await screen.findByText("Cho Geup Hyung")).toBeVisible();
+    expect(screen.getByText("Part 1 of 2")).toBeVisible();
+    expect(screen.queryByText(/Chart notation/)).not.toBeInTheDocument();
+    // Other requirement notes still print.
+    expect(screen.getByText("Proper bow, respect for flags and instructors")).toBeVisible();
   });
 
   // The starting rank is the candidate's own snapshot. It used to come from a
@@ -536,6 +587,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       korean_name: "중봉",
       category: "WEAPONS",
       category_display: "Weapons",
+      category_is_core: false,
       position: 4,
       display_range: "1–5",
       result: "MET",
@@ -548,7 +600,24 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
       assessor_email: authUser.email,
       assessed_at: "2026-09-18T10:20:00Z",
     };
-    const proofItems = [mockItem1, mockItem2, assessedItem3, weaponsItem];
+    // A form's part lives in its chart notation, served as wording.
+    const formItem: CandidateAssessmentItem = {
+      ...mockItem3,
+      id: 1005,
+      item_name: "Cho Geup Hyung",
+      korean_name: "",
+      category: "FORM",
+      category_display: "Forms",
+      category_is_core: false,
+      position: 5,
+      display_range: "",
+      requirement_notes: "Chart notation: (1/2).",
+      notation: "Part 1 of 2",
+      result: "MET",
+      assessor_email: authUser.email,
+      assessed_at: "2026-09-18T10:30:00Z",
+    };
+    const proofItems = [mockItem1, mockItem2, assessedItem3, weaponsItem, formItem];
 
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
@@ -562,7 +631,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
         return jsonResponse(200, { count: 1, next: null, previous: null, results: [mockAssessment] });
       }
       if (url.includes("/api/gradings/assessment-items/")) {
-        return jsonResponse(200, { count: 4, next: null, previous: null, results: proofItems });
+        return jsonResponse(200, { count: 5, next: null, previous: null, results: proofItems });
       }
       return jsonResponse(404, { detail: "Not found" });
     });
@@ -580,6 +649,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(weapons).toHaveTextContent("Jung Bong basics");
     expect(weapons).toHaveTextContent("1–5");
     expect(screen.getByRole("heading", { name: "Weapons" })).toBeVisible();
+
+    // The form's part shows where a range does, never as the raw seed text.
+    const forms = screen.getByTestId("acp-ledger-FORM");
+    expect(forms).toHaveTextContent("Part 1 of 2");
+    expect(forms).not.toHaveTextContent("Chart notation");
 
     // Kicking is a core area and stays in the strip, not in a ledger.
     expect(screen.getByTestId("acp-core-KICKING")).toBeVisible();
@@ -986,7 +1060,8 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     const confirm = screen.getByTestId("caw-clear-confirm-1001");
     expect(confirm).toHaveTextContent("casey@example.com");
-    expect(confirm).toHaveTextContent("Attribution cannot be restored");
+    expect(confirm).toHaveTextContent("removes the record of who assessed it");
+    expect(confirm).toHaveTextContent("that cannot be restored");
     expect(patchCount).toBe(0);
 
     // Backing out writes nothing.
@@ -1407,11 +1482,11 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(startPayload).toEqual({ status: "IN_PROGRESS" });
   });
 
-  it("prepares a missing assessment snapshot before offering start", async () => {
+  it.each(["DRAFT", "OPEN"] as const)("prepares a missing assessment snapshot before offering start (%s)", async (sessionStatus) => {
     const draftSession = {
       ...mockSession,
-      status: "DRAFT" as const,
-      status_display: "Draft",
+      status: sessionStatus,
+      status_display: sessionStatus === "DRAFT" ? "Draft" : "Open",
       candidate_count: 0,
       completed_assessment_count: 0,
       awaiting_decision_count: 0,

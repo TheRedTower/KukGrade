@@ -175,8 +175,8 @@ CANDIDATE_STUDENT_FIXED_MESSAGE = (
 )
 OTHER_WITHDRAWAL_NOTE_MESSAGE = "Say what the other reason is."
 CANDIDATE_REGISTERED_ON_CREATION_MESSAGE = (
-    "A candidate is registered as REGISTERED, then withdrawn afterwards with "
-    "a reason if they do not grade."
+    "A candidate is registered first, then withdrawn afterwards with a "
+    "reason if they do not grade."
 )
 
 
@@ -318,7 +318,10 @@ class GradingCandidate(models.Model):
                 condition=~Q(withdrawal_reason="OTHER", withdrawal_note=""),
                 name="grading_candidate_other_withdrawal_has_note",
             ),
-            # Attribution travels together, and only ever on a withdrawal.
+            # Attribution travels together, and only ever on a withdrawal; a
+            # withdrawal always has it (2026-09-26). Added NOT VALID
+            # (gradings/0012): rows withdrawn before that decision are left as
+            # they are, and every new write is checked.
             models.CheckConstraint(
                 condition=(
                     Q(
@@ -326,6 +329,7 @@ class GradingCandidate(models.Model):
                         withdrawn_by__isnull=True,
                         withdrawn_at__isnull=True,
                     )
+                    & ~Q(status="WITHDRAWN")
                     | Q(
                         status="WITHDRAWN",
                         withdrawn_by__isnull=False,
@@ -373,10 +377,20 @@ class GradingCandidate(models.Model):
             from gradings.services import (
                 validate_candidate_assessment_changes,
                 validate_candidate_can_be_changed,
+                validate_no_unsettled_registration,
+                validate_not_already_in_session,
                 validate_session_accepts_candidates,
                 validate_testing_for_rank,
             )
 
+            # The testing rank is checked against the student's current rank
+            # when it is chosen, not on every later save: once the student is
+            # promoted elsewhere, this registration must still be withdrawable
+            # and completable (it can no longer be promoted - see
+            # validate_promotion_eligibility). Moving it, changing its rank or
+            # reinstating it chooses again, so those are checked.
+            rank_is_chosen = True
+            registers_again = True
             if self._state.adding:
                 # Withdrawal and completion each have their own path, which
                 # records why and by whom.
@@ -385,6 +399,7 @@ class GradingCandidate(models.Model):
                         {"status": [CANDIDATE_REGISTERED_ON_CREATION_MESSAGE]},
                     )
                 validate_session_accepts_candidates(self.session)
+                validate_not_already_in_session(self)
             else:
                 validate_candidate_can_be_changed(self)
                 previous = (
@@ -416,7 +431,21 @@ class GradingCandidate(models.Model):
                         else None
                     ),
                 )
-            validate_testing_for_rank(self.student, self.testing_for_rank)
+                registers_again = previous is not None and (
+                    previous["status"] == GradingCandidate.Status.WITHDRAWN
+                    and self.status != GradingCandidate.Status.WITHDRAWN
+                )
+                rank_is_chosen = previous is None or (
+                    previous["session_id"] != self.session_id
+                    or previous["testing_for_rank_id"] != self.testing_for_rank_id
+                    or registers_again
+                )
+                if previous and previous["session_id"] != self.session_id:
+                    validate_not_already_in_session(self)
+            if registers_again:
+                validate_no_unsettled_registration(self)
+            if rank_is_chosen:
+                validate_testing_for_rank(self.student, self.testing_for_rank)
 
 
 class CandidateAssessment(models.Model):
@@ -520,9 +549,21 @@ class CandidateOutcomeQuerySet(models.QuerySet["CandidateOutcome"]):
         # shell with no validation and no trace.
         if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
             raise ValidationError(
-                {"status": ["Finalised candidate outcomes are immutable."]},
+                {"status": ["A final decision cannot be changed."]},
             )
         return super().update(**kwargs)
+
+    def delete(self) -> tuple[int, dict[str, int]]:
+        # Model.delete() refuses a finalised outcome; QuerySet.delete() never
+        # calls it, so without this a bulk delete erased a finalised Fail or
+        # Conditional (a Pass is also held by its promotion). The cleanup
+        # services that remove decisions on purpose call
+        # models.QuerySet.delete directly.
+        if self.filter(status=CandidateOutcome.Status.FINALISED).exists():
+            raise ValidationError(
+                {"status": ["Finalised candidate outcomes cannot be deleted."]},
+            )
+        return super().delete()
 
 
 class CandidateOutcome(models.Model):
@@ -761,7 +802,7 @@ class CandidateOutcome(models.Model):
                     )
                     if protected_changes:
                         errors["status"] = [
-                            "Finalised candidate outcomes are immutable.",
+                            "A final decision cannot be changed.",
                         ]
 
         if self.status == self.Status.DRAFT:
@@ -872,6 +913,18 @@ class CandidateAssessmentItem(models.Model):
     start_number = models.PositiveIntegerField(null=True, blank=True)
     end_number = models.PositiveIntegerField(null=True, blank=True)
     requirement_notes = models.TextField(blank=True)
+    # The syllabus's display wording for this cumulative row ("Part 1 of 2",
+    # "Parts 1-3"), copied when the assessment is generated so the record
+    # keeps the wording it was assessed against.
+    notation = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text=(
+            "The syllabus's display wording for this item's chart notation - "
+            "'Part 1 of 2', 'Parts 1-3' - as it stood when the assessment was "
+            "generated; empty when there is none."
+        ),
+    )
     result = models.CharField(
         max_length=32,
         choices=Result.choices,
@@ -1015,6 +1068,7 @@ class CandidateAssessmentItem(models.Model):
         self.item_name = (self.item_name or "").strip()
         self.korean_name = (self.korean_name or "").strip()
         self.requirement_notes = (self.requirement_notes or "").strip()
+        self.notation = (self.notation or "").strip()
         self.assessor_notes = (self.assessor_notes or "").strip()
 
         errors = numbered_range_errors(self.start_number, self.end_number)
@@ -1038,7 +1092,7 @@ class CandidateAssessmentItem(models.Model):
 class PromotionQuerySet(models.QuerySet["Promotion"]):
     def delete(self) -> tuple[int, dict[str, int]]:
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+            {"promotion": ["A promotion cannot be deleted."]},
         )
 
     def update(self, **kwargs: Any) -> int:
@@ -1046,7 +1100,7 @@ class PromotionQuerySet(models.QuerySet["Promotion"]):
         # (no clean(), no delete()) and was the one path left that could
         # silently rewrite a promotion's rank or attribution from a shell.
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be changed."]},
+            {"promotion": ["A promotion cannot be changed."]},
         )
 
 
@@ -1126,7 +1180,7 @@ class Promotion(models.Model):
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
         raise ValidationError(
-            {"promotion": ["Promotion records are immutable and cannot be deleted."]},
+            {"promotion": ["A promotion cannot be deleted."]},
         )
 
     def clean(self) -> None:
@@ -1197,7 +1251,7 @@ class Promotion(models.Model):
                 ]
                 if changed_fields:
                     errors["promotion"] = [
-                        "Promotion records are immutable after creation.",
+                        "A promotion cannot be changed once recorded.",
                     ]
 
         if errors:
@@ -1209,7 +1263,7 @@ class LegacyGradingRecordQuerySet(models.QuerySet["LegacyGradingRecord"]):
         raise ValidationError(
             {
                 "legacy_grading_record": [
-                    "Legacy grading records cannot be deleted - void instead.",
+                    "Historical grading records cannot be deleted - void them instead.",
                 ],
             },
         )
@@ -1448,7 +1502,7 @@ class LegacyGradingRecord(models.Model):
         raise ValidationError(
             {
                 "legacy_grading_record": [
-                    "Legacy grading records cannot be deleted - void instead.",
+                    "Historical grading records cannot be deleted - void them instead.",
                 ],
             },
         )
@@ -1489,7 +1543,7 @@ class LegacyGradingRecord(models.Model):
                 ]
                 if changed_fields:
                     errors["non_field_errors"] = [
-                        "Source fields are immutable after import: "
+                        "What the workbook said cannot be changed after import: "
                         + ", ".join(sorted(changed_fields))
                         + ".",
                     ]

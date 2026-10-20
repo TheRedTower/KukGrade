@@ -27,7 +27,10 @@ object directly. See `backend/README.md` for the rationale.
 List filters follow one rule on every endpoint: an absent or blank parameter
 does not filter, and a value that cannot match - a non-numeric id, an unknown
 choice, a malformed UUID or date, or a boolean other than `true`/`false` -
-returns an empty page. Each view declares its filters once
+returns an empty page. A parameter the list does not declare at all - a
+misspelling, or a filter that has been removed - is refused with a `400`
+naming it, rather than ignored, which returned the unfiltered list; `page`,
+`page_size` and `format` are accepted on every list. Each view declares its filters once
 (`query_filters`, `kukgrade/filtering.py`), and that declaration both applies
 them and publishes them in `backend/schema.yml`, which is the authoritative
 list; the tables below summarise it.
@@ -55,7 +58,7 @@ monitor that polls it:
 - `code` is stable and machine-readable. Current codes: `validation_error`,
   `authentication_required`, `authentication_failed`, `permission_denied`,
   `password_change_required`, `not_found`, `method_not_allowed`,
-  `csrf_failed`, `throttled`, `error`.
+  `csrf_failed`, `throttled`, `server_error`, `error`.
 - `message` is human-readable and safe to show. When a validation failure has
   exactly one message it is promoted here, because a lone message is nearly
   always a domain rule rather than a form error and should be usable as a
@@ -76,7 +79,9 @@ not the response.
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
-| GET | /api/site/ | Anonymous site settings; returns `{"club_name": "..."}` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"). Shown in the top bar. |
+| GET | /api/setup/ | Anonymous: `{"setup_needed": bool}`, true until the deployment's first administrator exists. Sets the CSRF cookie the setup page needs. |
+| POST | /api/setup/ | Anonymous, CSRF-checked, rate-limited like login: `{code, email, first_name?, last_name?, password}` creates the first administrator - a superuser - and signs them in (`201`, the current user). `code` is the one-time setup code from the server's log; a wrong, expired or already-used code, a password outside the policy, or any request once an administrator exists is a `400` field error. See `accounts/setup.py`. |
+| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist, and `wksa_id` - `{hint, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take and the rule in a sentence (the same one a refused ID is told), the student example using `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
 
 ## 1. Authentication
 
@@ -93,7 +98,8 @@ not the response.
 No other endpoint is throttled.
 
 `POST /api/auth/change-password/` body: `{"current_password": "...",
-"new_password": "..."}`. The current password must check out first - a
+"new_password": "..."}`, each read exactly as sent - never trimmed, as
+sign-in does not trim either. The current password must check out first - a
 hijacked session alone is not enough to lock the real owner out. The new
 password runs through the same Django password validators as every other
 password path in the app. Returns `204` on success; the value is never
@@ -103,16 +109,41 @@ them to the sign-in screen. Every *other* session for that account is ended.
 
 ### Forced password change
 
-`must_change_password` is set whenever somebody other than the owner chose the
+`must_change_password` is set whenever somebody other than the owner set the
 account's password: creation, and `POST /api/users/{id}/set-password/`. While
-it is set, the account may reach only `/api/auth/me/`,
-`/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`, `/api/ready/`
-and `/api/site/`. Every other endpoint answers `403` with
+it is set, the account may reach only `/api/auth/login/`, `/api/auth/me/`,
+`/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`,
+`/api/ready/`, `/api/site/` and the frontend shell. Every other endpoint answers `403` with
 `error.code = "password_change_required"`, whatever the method. A successful
 `POST /api/auth/change-password/` clears the flag and restores normal access.
 Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds
-for direct API callers and not only for the browser client. Django admin is
-outside this gate - see the middleware's docstring.
+for direct API callers and not only for the browser client. The Django admin
+site is closed too: every admin page but signing out answers `403` with a page
+saying to change the password in KukGrade first.
+
+The admin site has no password form for your own account: its "Change
+password" page and its reset page for your own user both point to the account
+menu, so `/api/auth/change-password/` is the one way to change your own
+password. Its reset page for anyone else takes no password - it asks to
+confirm, then shows a generated temporary password once, as `set-password`
+does, and so does its add-user page.
+
+### Temporary passwords
+
+Creation and `set-password` take no password: the server generates a
+temporary one that passes the password policy, stores only its hash, and
+returns it exactly once as `temporary_password` in an
+`IssuedTemporaryPassword` body, sent with `Cache-Control: no-store`. It is
+never logged, audited or served again; issuing another replaces it.
+
+A temporary password expires `KUKGRADE_TEMPORARY_PASSWORD_HOURS` (default 24)
+after it is issued, shown as `temporary_password_expires_at` on the managed
+user (null for a password its owner chose). Once it has passed, the account
+cannot sign in - through the API or the Django admin site - and a session
+already open stops being signed in. The refusal is the same generic error as a
+wrong password. An administrator issuing a new one is the way back; the
+owner choosing their own password clears the expiry. Enforced by
+`accounts.backends.AccountBackend`.
 
 `/api/auth/me/` returns `can_make_final_grading_decision`,
 `can_promote_student`, `can_override_locked_session` and
@@ -137,21 +168,28 @@ Administrator group.
 | Method | Endpoint                      | Description                                   |
 |--------|------------------------------|-----------------------------------------------|
 | GET    | /api/users/                  | List users; filters `role`, `is_active`, `search`. Excludes the "Deleted User" placeholder account. |
-| POST   | /api/users/                  | Create a user; requires `password`, validated against Django's password validators |
+| POST   | /api/users/                  | Create a user. No `password`: returns `201` with the account and its generated `temporary_password`, once (see "Temporary passwords") |
 | GET    | /api/users/{id}/             | Retrieve a user                               |
 | PATCH  | /api/users/{id}/             | Update user details (not `password` - see below) |
 | DELETE | /api/users/{id}/             | Hard-delete, gated to `accounts.delete_user` (Administrator group only). Refuses self-deletion. Reassigns every PROTECT attribution (grading sessions created, candidates withdrawn, assessments generated, outcomes proposed/decided, items assessed, promotions recorded, audit events) to a seeded "Deleted User" placeholder account rather than nulling it, then deletes the row. Records `USER_DELETED`. See `accounts.services.delete_platform_user` and the 2026-09-21 decision log entry. |
 | PUT    | /api/users/{id}/             | 405; not exposed (`PATCH` covers every real edit) |
 | PATCH  | /api/users/{id}/authority/    | Grant or revoke the four sensitive permissions, as booleans in the same shape as `/api/auth/me/`. An administrator cannot change their own authority. |
-| POST   | /api/users/{id}/set-password/ | Reset a user's password; validated the same way as creation |
+| POST   | /api/users/{id}/set-password/ | Reset another user's password: no request body; returns `200` with the account and a new generated `temporary_password`, once. Their previous password, temporary or not, stops working. Refused with 400 (`fields.user`) for your own account - change it with `/api/auth/change-password/` - and, unless you are a superuser, for an account that can use the Django admin site |
 
 `is_staff` and `is_superuser` are not part of this API - it cannot hand out
-Django admin access. `role` is `instructor` or `administrator`; changing
+Django admin access. An account that has it (a superuser's, or one a
+superuser gave `is_staff`) is changed only by a superuser: any edit,
+authority change, password reset or delete of it by anyone else is a `400`
+(`fields.user`, "Only a superuser can change this account."). Nobody changes
+their own `role` or `is_active` (`400`, "You cannot change your own role or
+account status."). Each account carries `manageable`: whether the caller may
+change it. `role` is `instructor` or `administrator`; changing
 it moves the user between the corresponding permission groups. There is no
 `/api/roles/` endpoint: roles are the two fixed values above, not a managed
-resource. Responses include read-only `date_joined` and nullable `last_login`
-timestamps. There is no invite flow; account creation uses a temporary
-password and marks it for mandatory change at first sign-in.
+resource. Responses include read-only `date_joined`, nullable `last_login`
+and nullable `temporary_password_expires_at` timestamps. There is no invite
+flow; account creation issues a generated temporary password that must be
+changed at first sign-in.
 
 ## 3. Students
 
@@ -159,7 +197,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left and not yet a candidate of that session), `search` |
+| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `search`. Each row's `age_band`, and the `age_band` filter, are on that session's grading date when `eligible_for_session` is given - as registration works it out - and today otherwise. Each row carries `current_grading`: `{session, session_title, stage, stage_display}` for the registration that has not reached its result (`stage` one of `REGISTERED`, `BEING_ASSESSED`, `ASSESSED`, `AWAITING_DECISION`, `AWAITING_PROMOTION`), or null. |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -170,7 +208,14 @@ List, retrieve, create, update, and an administrator-only delete.
 
 The list representation omits `date_of_birth`; the detail representation
 includes it. The list carries `can_be_graded` (false only for `LEFT`), which
-the cohort builder filters on rather than re-deriving the rule. `wksa_id` is writable on create and read-only afterwards. See
+the cohort builder filters on rather than re-deriving the rule. `wksa_id` must be a student ID (`NNN-N-NNN`, such as `206-2-150`) or a black belt ID
+(`A-NNNNN`, such as `A-20819`); surrounding space is dropped and the `A`
+upper-cased, and anything else is a `wksa_id` field error. A student at a
+black belt rank (JKN and above) must hold a black belt ID. After creation the
+ID changes once at most: a student ID to a black belt ID, through `PATCH`;
+every other change is refused, and `wksa_id_can_change` on the detail says
+whether that change is still to come. Promoting a student to a black belt
+rank is refused until their black belt ID is recorded. See
 `docs/current-system.md` for the rationale.
 
 `DELETE` (2026-09-22) is deliberately routine, not a rare erasure path -
@@ -240,8 +285,10 @@ supplies the effective range/notes; the lowest-order mapping supplies where
 it was first introduced - see
 `syllabus.services.effective_syllabus_requirements`. Paginated like every
 other list endpoint. Besides the item, `category`, `category_display`, range
-and notes it carries `notation` (chart notation such as
-`Chart notation: (1/2).` normalised to `Part 1 of 2`),
+and notes it carries `category_is_core` (one of the six core grading areas),
+`notation` (chart notation such as `Chart notation: (1/2).` normalised to
+`Part 1 of 2`; a form taught in parts across ranks names every part taught
+so far, so 8-and-under Cho Geup Hyung reads `Parts 1-3` from Red),
 `introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
 `effective_since_rank_name`, and `is_new_at_rank` (true when the effective
 row's rank is the selected rank itself). An empty page means no syllabus is
@@ -416,10 +463,10 @@ Session lifecycle:
   candidates have already been assessed by this point.
 
 `CANCELLED` and `COMPLETED` are terminal. Sessions do not auto-transition based
-on dates. Locking a session requires every non-withdrawn candidate to have an
-assessment that is already `IN_PROGRESS` or `COMPLETED`; generation alone is
-insufficient. Assessment start must happen while the session is `OPEN`. Locked
-sessions can finish work already in progress but cannot start new assessments.
+on dates. Locking a session requires every non-withdrawn candidate's
+assessment to be `COMPLETED` (2026-09-26): locking marks the end of grading, so
+no result is recorded or changed after it. Assessment start must happen while
+the session is `OPEN`.
 Completing a locked session requires every non-withdrawn candidate to have a
 completed assessment and finalised candidate outcome. Withdrawn candidates do
 not block locking or session completion. `LOCKED -> OPEN` is rejected now that
@@ -446,26 +493,39 @@ Candidate fields:
 - `session`: grading session id.
 - `student`: student id.
 - `testing_for_rank`: rank id.
-- `age_band`: read-only snapshot derived from student date of birth and session
-  grading date.
+- `age_band_display`: read-only label of the age-band snapshot, derived from
+  the student's date of birth and the session's grading date.
 - `status`: `REGISTERED`, `WITHDRAWN`, or `COMPLETED`; defaults to
   `REGISTERED`.
-- `notes`: optional notes.
-- Locked-session withdrawal metadata is read-only on ordinary candidate
-  responses: `withdrawal_reason`, `withdrawal_reason_display`,
-  `withdrawal_note`, `withdrawn_by`, `withdrawn_by_email`,
-  `withdrawn_by_name`, and `withdrawn_at`. These fields are populated only by
-  the dedicated withdrawal action; routine draft/open no-show withdrawal has
-  blank/null attribution metadata.
+- `withdrawal_reason`, `withdrawal_reason_display` and `withdrawal_note`:
+  read-only here. Every withdrawal - a draft/open no-show as well as a
+  locked-session withdrawal - records why, who and when; who and when are kept
+  on the record and in the audit log but not served (the database refuses a
+  withdrawal without them, `gradings/0012`).
+- `from_rank`, `from_rank_name`, `student_display_name`, `student_wksa_id`,
+  `testing_for_rank_name`, `can_be_moved`, `can_be_removed`: read-only, see
+  above.
 
 Candidate filters:
 
 - `session`
 
 Candidate creation rejects locked, completed, and cancelled sessions; duplicate
-student/session pairs; invalid testing-for ranks; and missing student date of
-birth. The testing-for rank must be the next active rank after the student's
-current rank. Registering a candidate does not itself change
+student/session pairs; invalid testing-for ranks; missing student date of
+birth; and a student still registered for another grading that has not
+reached its result. A student is registered for one grading at a time: a
+registration is settled once it is withdrawn, its session is cancelled, or
+its outcome is finalised as Fail or Conditional, or as a Pass that has been
+promoted. Reinstating a withdrawn registration is refused the same way. A
+registration made in error is corrected by an administrator rather than by
+registering again.
+
+The testing-for rank must be the next active rank after the student's
+current rank. That is checked when the rank is chosen - at registration, and
+again when a registration is moved to another session or reinstated after a
+withdrawal - not on every later change, so a registration whose student was
+promoted at another grading can still be withdrawn (it cannot be promoted).
+Registering a candidate does not itself change
 `Student.current_rank` - that happens only on promotion, once the outcome is
 finalised as `PASS` (see section 8).
 
@@ -495,11 +555,17 @@ syllabus is refused with a `candidate` error naming the rank and age band.
 | POST  | /api/gradings/assessments/                            | 405; use candidate generation action                 |
 | POST  | /api/gradings/assessments/bulk-start/                 | Start several assessments in a single request        |
 | GET   | /api/gradings/assessments/{id}/summary/               | Overall and per-category rollup for one assessment, at any status. Reachable before a `CandidateOutcome` exists - see the 2026-09-23 decision log entry and FDR-046. Gated to `gradings.view_candidateassessment`. |
-| DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. Records `ASSESSMENT_DELETED`. See `gradings.assessment_services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
+| DELETE| /api/gradings/assessments/{id}/                       | Hard-delete, gated to `gradings.delete_candidateassessment` (Administrator group only, for corruption/test-data cleanup). Cascades through the assessment's outcome and promotion if either exists, reverting the student's rank; refuses when a later promotion has already superseded it. The candidate is registered again, so a new assessment can be prepared while the session is draft or open. Records `ASSESSMENT_DELETED`. See `gradings.assessment_services.delete_candidate_assessment` and the 2026-09-21 decision log entry. |
 | GET   | /api/gradings/assessment-items/                       | List generated assessment snapshot items, in `position` order - each item's place in the assessment, from 1, in syllabus order |
 | PATCH | /api/gradings/assessment-items/{id}/                  | Update `result` and `assessor_notes` only            |
 | POST  | /api/gradings/assessment-items/                       | 405; arbitrary snapshot rows rejected                |
 | DELETE| /api/gradings/assessment-items/{id}/                  | 405; correction workflow deferred                    |
+
+Each item carries its snapshot's `display_range` and raw `requirement_notes`,
+`category_is_core`, and `notation`: the syllabus endpoint's display wording
+for the row (`Part 1 of 2`, `Parts 1-3`), copied when the assessment was
+generated so a later syllabus edit never changes it; empty when there is no
+chart notation.
 
 Assessment status values are `NOT_STARTED`, `IN_PROGRESS`, and `COMPLETED`.
 Allowed lifecycle transitions are `NOT_STARTED -> IN_PROGRESS` and
@@ -586,11 +652,12 @@ unsupported low-level maintenance path.
 Outcome list filters:
 
 - `session`
+- `candidate`
 
-An outcome row exposes candidate, student name, WKSA ID, testing rank, session,
-assessment status, proposed decision, final decision, timestamps, attribution,
-notes, and conditional requirements. Clients cannot write `status`, candidate,
-assessment, actor, or timestamp fields directly.
+An outcome row exposes its candidate id, status, the proposed and final
+decisions with their labels, who proposed and decided (by name) and when, the
+proposal and decision notes, and conditional requirements. Clients cannot
+write `status`, candidate, assessment, actor, or timestamp fields directly.
 
 The assessment summary action groups `CandidateAssessmentItem` rows by copied snapshot
 category, in the syllabus chart's category order. It returns `overall` and
@@ -655,17 +722,17 @@ door; logistics is an administrator concern, matching the boundary drawn
 everywhere else in this API. This is also what scopes a
 `can_view_grading_audit_log` holder to grading/syllabus events and away from
 user management - they hold that permission but not `accounts.view_user`, so
-the same filter excludes them automatically with no separate logic. A direct
-`GET` on an excluded event's id answers 404, the same as any other object
-outside the caller's queryset.
+the same filter excludes them automatically with no separate logic. There is
+no single-event route, so the list is the only way to read an event.
 
 | Method | Endpoint                    | Description                          |
 |--------|------------------------------|---------------------------------------|
-| GET    | /api/audit-events/           | List audit events, newest first       |
+| GET    | /api/audit-events/           | List audit events, newest first; each carries `action_display` and `entity_type_display`, the names to show |
+| GET    | /api/audit-events/labels/    | `{actions: [{value, label}], entities: [{value, label}]}`: the event and record types the caller may filter by, named - user-management actions only for those who may read them. The audit screen's filters keep no list of their own. |
 
-Every event has `actor` (nullable - null only for a system action),
-`actor_email` and `actor_name` (who acted, copied when the event was written;
-empty for a system action), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
+Every event has `actor_email` and `actor_name` (who acted, copied when the
+event was written; empty for a system action - the `actor` foreign key is
+kept on the row but not served), `action`, `entity_type` and `entity_id` (plain strings, not a foreign key, so
 a record outlives the schema it describes), `occurred_at`, a human-readable
 `summary`, and `metadata` (a `{"before": {...}, "after": {...}}` object for a
 revision, `{}` otherwise). The model is append-only: no admin, API, queryset

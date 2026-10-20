@@ -53,11 +53,12 @@ Recorded, not yet fixed.
 
 ## Needs a decision first
 
-- **Previous WKSA IDs** (decision log 2026-10-20): recording a student's
-  black belt ID, keeping the student ID it replaces, and finding a student by
-  either. The two forms are already enforced. Whether a leaver's student
-  number can be given to someone new decides whether previous IDs stay
-  unique; the school owner is to answer.
+- **Previous WKSA IDs** (decision log 2026-10-20): keeping the student ID a
+  black belt ID replaced as a previous ID, and finding a student by either.
+  The two forms, the black belt rank rule and the one change are built; the
+  replaced ID is in that change's audit event meanwhile. Whether a leaver's
+  student number can be given to someone new decides whether previous IDs
+  stay unique; the school owner is to answer.
 
 - Whether offline grading is required, and its conflict policy, before any
   PWA, IndexedDB, or outbox work.

@@ -73,14 +73,20 @@ def grading_session(**overrides: object) -> GradingSession:
 
 
 def student(**overrides: object) -> Student:
+    number = Student.objects.count() + 1
     data: dict[str, object] = {
-        "wksa_id": f"206-2-{Student.objects.count() + 1:03d}",
         "first_name": "Alex",
         "last_name": "Kim",
         "date_of_birth": date(2017, 3, 20),
         "current_rank": rank("WHITE"),
     }
     data.update(overrides)
+    # A black belt rank holds a black belt ID; every other a student ID.
+    black_belt = cast(Rank, data["current_rank"]).category == Rank.Category.BLACK_BELT
+    data.setdefault(
+        "wksa_id",
+        f"A-{number:05d}" if black_belt else f"206-2-{number:03d}",
+    )
     return Student.objects.create(**data)
 
 

@@ -74,9 +74,8 @@ checks on each push and pull request.
 - **Students API**: list, retrieve, create, partial update.
   `GET /api/students/` and detail exclude no fields except that list omits
   date of birth - the most sensitive field held, shown only on a record an
-  instructor deliberately opened. `wksa_id` is writable on create and
-  read-only afterwards, since it is the external identifier grading records
-  are matched against. **Since 2026-10-20 it has one of two forms**: a
+  instructor deliberately opened. **Since 2026-10-20 `wksa_id` has one of
+  two forms**: a
   student ID `NNN-N-NNN` (the school's prefix, `206-2` for Colchester from
   `KUKGRADE_SCHOOL_PREFIX`, and a three-digit number) or a black belt ID
   `A-NNNNN`. Defined once in `students/wksa_ids.py`: `Student.clean()` tidies
@@ -84,7 +83,11 @@ checks on each push and pull request.
   database's `student_wksa_id_format` constraint refuses anything else, and
   `/api/site/` serves the forms to the Add student screen. Students
   migration 0006 tidies existing IDs and stops, listing them, if any fit
-  neither form. Filters: `status`, `current_rank_code`, `search`
+  neither form. A black belt rank (JKN and above) requires a black belt ID,
+  on every path including promotion, which is refused until the ID is
+  recorded. The ID changes once at most: a student ID to the black belt ID
+  WKSA hands out at the national grading, through the student edit (API and
+  Django admin); the old ID stays in that edit's audit event. Filters: `status`, `current_rank_code`, `search`
   (name and WKSA ID). Each list row carries `current_grading` - the
   registration not yet at its result and its stage - which the Students
   screen shows as "Current grading" (2026-10-19). **Hard delete (2026-09-22, administrator-only)**:

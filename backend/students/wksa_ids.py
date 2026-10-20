@@ -9,6 +9,12 @@ A WKSA ID is the identifier a student is known by, never free text
   prefix in the same form;
 - a black belt ID, `A-NNNNN`, issued by WKSA.
 
+A student at a black belt rank (JKN and above, `Rank.Category.BLACK_BELT`)
+holds a black belt ID. WKSA hands it out at the national grading where they
+are promoted, so it takes effect at once: their student ID is changed to it,
+once, when their instructor next records it, and from then on it never
+changes - later ranks and certificates come under the same ID.
+
 `Student.clean()` normalises and checks an ID against these forms, so the
 API, Django admin and the roster import all apply them; the database refuses
 anything else outright (`student_wksa_id_format`); and `/api/site/` serves the
@@ -43,8 +49,6 @@ FORMS: tuple[IdForm, ...] = (STUDENT_ID, BLACK_BELT_ID)
 # the constraint holds its own copy of this literal, as migrations must.
 DATABASE_PATTERN = "^(" + "|".join(form.pattern for form in FORMS) + ")$"
 
-SCHOOL_PREFIX_PATTERN = "[0-9]{3}-[0-9]"
-
 
 def normalise(value: object) -> str:
     """As typed, less surrounding space, with the black belt `A` upper-cased."""
@@ -53,6 +57,30 @@ def normalise(value: object) -> str:
 
 def form_of(value: str) -> IdForm | None:
     return next((form for form in FORMS if form.matches(value)), None)
+
+
+BLACK_BELT_RANK_MESSAGE = "A black belt rank needs a black belt ID, such as A-20819."
+BLACK_BELT_ID_FIXED_MESSAGE = "A black belt ID never changes."
+STUDENT_ID_CHANGE_MESSAGE = (
+    "A student ID can only be changed to the black belt ID WKSA hands out at "
+    "the national grading, such as A-20819."
+)
+
+
+def can_change(wksa_id: str) -> bool:
+    """Only a student ID changes, and only to a black belt ID."""
+    return form_of(wksa_id) is STUDENT_ID
+
+
+def change_refusal(current: str, new: str) -> str | None:
+    """Why `current` may not become `new`, or None if it may."""
+    if current == new:
+        return None
+    if not can_change(current):
+        return BLACK_BELT_ID_FIXED_MESSAGE
+    if form_of(new) is not BLACK_BELT_ID:
+        return STUDENT_ID_CHANGE_MESSAGE
+    return None
 
 
 def examples() -> dict[str, str]:
@@ -71,10 +99,12 @@ def format_message() -> str:
 
 
 def described() -> dict[str, Any]:
-    """The forms as `/api/site/` serves them."""
+    """The forms as `/api/site/` serves them, with the sentence that states
+    the rule - the same one a refused ID is told - so a screen shows it
+    rather than writing its own."""
     example = examples()
     return {
-        "school_prefix": settings.SCHOOL_ID_PREFIX,
+        "hint": format_message(),
         "forms": [
             {
                 "code": form.code,

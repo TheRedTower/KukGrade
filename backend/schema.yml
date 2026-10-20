@@ -3924,11 +3924,13 @@ components:
     PatchedStudentRequest:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         wksa_id:
           type: string
@@ -4185,11 +4187,13 @@ components:
     Student:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         id:
           type: integer
@@ -4197,6 +4201,9 @@ components:
         wksa_id:
           type: string
           maxLength: 32
+        wksa_id_can_change:
+          type: boolean
+          readOnly: true
         first_name:
           type: string
           maxLength: 150
@@ -4234,6 +4241,7 @@ components:
       - last_name
       - status_display
       - wksa_id
+      - wksa_id_can_change
     StudentGradingHistory:
       type: object
       description: |-
@@ -4430,11 +4438,13 @@ components:
     StudentRequest:
       type: object
       description: |-
-        Detail, create and update. wksa_id is writable only on create.
+        Detail, create and update.
 
-        One serializer rather than three: create and update share every field
-        except wksa_id, and splitting them further would just be the same
-        fields copied into different classes.
+        One serializer rather than three: create and update share every field,
+        and splitting them would just copy the same fields into different
+        classes. wksa_id changes after creation only from a student ID to the
+        black belt ID WKSA hands out (Student.clean() refuses anything else);
+        wksa_id_can_change says whether that change is still to come.
       properties:
         wksa_id:
           type: string
@@ -4736,15 +4746,16 @@ components:
     WksaIdScheme:
       type: object
       properties:
-        school_prefix:
+        hint:
           type: string
+          description: The rule in a sentence, as a refused ID is told it.
         forms:
           type: array
           items:
             $ref: '#/components/schemas/WksaIdForm'
       required:
       - forms
-      - school_prefix
+      - hint
   securitySchemes:
     cookieAuth:
       type: apiKey

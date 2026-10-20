@@ -40,6 +40,7 @@ vi.mock("./api", async () => {
 const student = {
   id: 42,
   wksa_id: "WKSA0042",
+  wksa_id_can_change: false,
   first_name: "Alex",
   last_name: "Kim",
   date_of_birth: "2015-03-20",

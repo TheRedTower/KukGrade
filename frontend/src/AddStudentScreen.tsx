@@ -17,11 +17,8 @@ import { LockIcon } from "./Icons";
 export function AddStudentScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // The two forms a WKSA ID takes, as the server enforces them.
-  const idForms = useSiteSettingsQuery().data?.wksa_id.forms ?? [];
-  const idExamples = idForms.map(
-    (form) => `${form.label.charAt(0).toLowerCase()}${form.label.slice(1)} such as ${form.example}`,
-  );
+  // The two forms a WKSA ID takes, as the server enforces and words them.
+  const idScheme = useSiteSettingsQuery().data?.wksa_id;
 
   // Form State
   const [firstName, setFirstName] = useState("");
@@ -215,7 +212,7 @@ export function AddStudentScreen() {
               id="wksa-id-input"
               type="text"
               className={`form-text-input ${getFieldError("wksa_id") ? "input-error" : ""}`}
-              placeholder={idForms.length ? `e.g. ${idForms.map((form) => form.example).join(" or ")}` : undefined}
+              placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
               value={wksaId}
               onChange={(e) => setWksaId(e.target.value)}
               disabled={isSubmitting}
@@ -227,8 +224,8 @@ export function AddStudentScreen() {
               <p className="form-field-error" id="wksa-id-error" role="alert">{getFieldError("wksa_id")}</p>
             ) : (
               <p className="form-field-help">
-                {idExamples.length ? `A ${idExamples.join(", or a ")}. ` : ""}
-                It cannot be changed after the record is created.
+                {idScheme ? `${idScheme.hint} ` : ""}
+                A student ID changes only once, to the black belt ID handed out at the national grading.
               </p>
             )}
           </div>

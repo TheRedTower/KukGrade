@@ -811,7 +811,7 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
     session = grading_session(status=GradingSession.Status.OPEN)
     registerable_student = student(wksa_id="206-2-516")
     topped_out_student = student(
-        wksa_id="206-2-517",
+        wksa_id="A-00517",
         current_rank=rank("PKJN"),
         first_name="Robin",
     )

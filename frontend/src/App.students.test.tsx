@@ -297,7 +297,7 @@ describe("Add student screen (/students/new)", () => {
     expect(screen.getByLabelText(/First name/i)).toBeVisible();
     expect(screen.getByLabelText(/Last name/i)).toBeVisible();
     expect(screen.getByLabelText(/WKSA ID/i)).toBeVisible();
-    expect(screen.getByText(/It cannot be changed after the record is created\./)).toBeVisible();
+    expect(screen.getByText(/A student ID changes only once, to the black belt ID/)).toBeVisible();
 
     // Section 2: Grading details
     expect(screen.getByRole("heading", { name: "Grading details" })).toBeVisible();
@@ -376,7 +376,7 @@ describe("Add student screen (/students/new)", () => {
           club_name: "Test Club",
           password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
           wksa_id: {
-            school_prefix: "206-2",
+            hint: "Use a student ID such as 206-2-150 or a black belt ID such as A-20819.",
             forms: [
               { code: "student", label: "Student ID", pattern: "x", example: "206-2-150" },
               { code: "black_belt", label: "Black belt ID", pattern: "x", example: "A-20819" },
@@ -438,7 +438,7 @@ describe("Add student screen (/students/new)", () => {
     // The forms come from the server; the ID goes as typed, for it to tidy.
     expect(
       await screen.findByText(
-        /A student ID such as 206-2-150, or a black belt ID such as A-20819\./,
+        /Use a student ID such as 206-2-150 or a black belt ID such as A-20819\./,
       ),
     ).toBeVisible();
     await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");
@@ -549,6 +549,7 @@ describe("Student detail screen (/students/:id)", () => {
   const testStudent = {
     id: 10,
     wksa_id: "UK-5001",
+    wksa_id_can_change: true,
     first_name: "Alex",
     last_name: "Carter",
     date_of_birth: "2012-04-24",
@@ -839,9 +840,9 @@ describe("Student detail screen (/students/:id)", () => {
     expect(await screen.findByRole("heading", { name: "Edit student record" })).toBeVisible();
     expect(screen.getByLabelText(/First name/i)).toHaveFocus();
 
-    // Verify WKSA ID is disabled
-    const wksaInput = screen.getByLabelText("WKSA ID") as HTMLInputElement;
-    expect(wksaInput).toBeDisabled();
+    // Still a student ID, so it may yet become the black belt ID; left as
+    // it is, it is not sent.
+    expect(screen.getByLabelText("WKSA ID")).toBeEnabled();
 
     // Change first name
     const firstNameInput = screen.getByLabelText(/First name/i);
@@ -862,6 +863,46 @@ describe("Student detail screen (/students/:id)", () => {
 
     expect(screen.queryByRole("heading", { name: "Edit student record" })).not.toBeInTheDocument();
     expect(editBtn).toHaveFocus();
+  });
+
+  it("records the black belt ID once, and never changes it after", async () => {
+    let student: StudentDetail = { ...testStudent };
+    const sent: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/ranks/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+        }
+        if (url.includes("/rank-history/")) {
+          return jsonResponse(200, { ...student, student: 10, promotions: [] });
+        }
+        if (url.includes("/api/students/10/") && options?.method === "PATCH") {
+          sent.push(JSON.parse(options.body as string));
+          student = { ...student, wksa_id: "A-20819", wksa_id_can_change: false };
+          return jsonResponse(200, student);
+        }
+        if (url.includes("/api/students/10/")) return jsonResponse(200, student);
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Alex Carter" });
+    await user.click(screen.getByRole("button", { name: "Edit student" }));
+    const wksaInput = screen.getByLabelText("WKSA ID");
+    await user.clear(wksaInput);
+    await user.type(wksaInput, "A-20819");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ wksa_id: "A-20819" });
+
+    await user.click(await screen.findByRole("button", { name: "Edit student" }));
+    expect(await screen.findByLabelText("WKSA ID")).toBeDisabled();
+    expect(screen.getByText("A black belt ID never changes.")).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {

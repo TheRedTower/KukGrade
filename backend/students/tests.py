@@ -333,23 +333,6 @@ def test_duplicate_wksa_id_is_a_field_error_not_a_server_error() -> None:
     assert "wksa_id" in response.json()["error"]["fields"]
 
 
-def test_wksa_id_cannot_be_changed_after_creation() -> None:
-    client = auth_client("immutable-wksa@example.com")
-    created = create_via_api(client, wksa_id="206-2-512")
-
-    response = client.patch(
-        f"/api/students/{created['id']}/",
-        {"wksa_id": "HACKED", "first_name": "Changed"},
-        format="json",
-    )
-
-    assert response.status_code == 200
-    assert response.json()["wksa_id"] == "206-2-512"
-    assert response.json()["first_name"] == "Changed"
-    student = Student.objects.get(pk=created["id"])
-    assert student.wksa_id == "206-2-512"
-
-
 def test_a_no_op_patch_writes_nothing() -> None:
     client = auth_client("no-op-patch@example.com")
     created = create_via_api(client, wksa_id="206-2-513")
@@ -570,15 +553,15 @@ def test_admin_student_update_is_audited() -> None:
     assert after == before + 1
 
 
-def test_admin_cannot_change_wksa_id_after_creation() -> None:
-
+def test_admin_can_change_only_a_student_id() -> None:
+    # The one change an ID takes: a student ID to a black belt ID.
     learner = Student.objects.create(**student_kwargs(wksa_id="206-2-523"))
+    black_belt = Student.objects.create(**student_kwargs(wksa_id="A-20819"))
     model_admin = StudentAdmin(Student, admin.site)
+    request = admin_request("admin-wksa-guard@example.com")
 
-    assert "wksa_id" in model_admin.get_readonly_fields(
-        admin_request("admin-wksa-guard@example.com"),
-        learner,
-    )
+    assert "wksa_id" not in model_admin.get_readonly_fields(request, learner)
+    assert "wksa_id" in model_admin.get_readonly_fields(request, black_belt)
     assert (
         model_admin.get_readonly_fields(
             admin_request("admin-wksa-guard-add@example.com"),

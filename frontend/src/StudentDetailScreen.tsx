@@ -63,6 +63,7 @@ export function StudentDetailScreen() {
   const [statusError, setStatusError] = useState<string | null>(null);
 
   // Edit modal state
+  const [editWksaId, setEditWksaId] = useState("");
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editDob, setEditDob] = useState("");
@@ -199,6 +200,9 @@ export function StudentDetailScreen() {
     setIsSavingEdit(true);
     try {
       await updateStudent(student.id, {
+        // Sent only when changed: the server allows one change, a student ID
+        // to the black belt ID, and refuses any other.
+        ...(editWksaId !== student.wksa_id ? { wksa_id: editWksaId } : {}),
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
         date_of_birth: editDob,
@@ -316,6 +320,7 @@ export function StudentDetailScreen() {
             type="button"
             className="btn-edit-student"
             onClick={() => {
+              setEditWksaId(student.wksa_id);
               setEditFirstName(student.first_name);
               setEditLastName(student.last_name);
               setEditDob(student.date_of_birth);
@@ -815,13 +820,24 @@ export function StudentDetailScreen() {
                   <input
                     id="edit-wksa-id"
                     type="text"
-                    className="form-text-input"
-                    value={student.wksa_id}
-                    disabled
+                    className={`form-text-input ${getEditFieldError("wksa_id") ? "input-error" : ""}`}
+                    value={editWksaId}
+                    onChange={(e) => setEditWksaId(e.target.value)}
+                    disabled={!student.wksa_id_can_change || isSavingEdit}
+                    aria-invalid={!!getEditFieldError("wksa_id")}
+                    aria-describedby={getEditFieldError("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
-                  <p className="form-field-help">
-                    WKSA ID is immutable and cannot be changed.
-                  </p>
+                  {getEditFieldError("wksa_id") ? (
+                    <p className="form-field-error" id="edit-wksa-id-error" role="alert">
+                      {getEditFieldError("wksa_id")}
+                    </p>
+                  ) : (
+                    <p className="form-field-help" id="edit-wksa-id-help">
+                      {student.wksa_id_can_change
+                        ? "Change this only to record the black belt ID handed out at the national grading."
+                        : "A black belt ID never changes."}
+                    </p>
+                  )}
                 </div>
 
                 <div className="form-row-grid-2">

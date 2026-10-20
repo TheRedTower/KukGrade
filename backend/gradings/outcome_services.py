@@ -31,6 +31,7 @@ from gradings.models import (
 from gradings.service_support import each_independently, unique_violation_on
 from gradings.services import get_next_active_rank
 from ranks.models import Rank
+from students import wksa_ids
 from students.models import Student
 
 OUTCOME_CREATION_SESSION_STATUSES = {
@@ -377,6 +378,22 @@ def validate_promotion_eligibility(
                 "to_rank": [
                     "Candidate testing-for rank is no longer the next active "
                     "rank after the student's current rank.",
+                ],
+            },
+        )
+    # The promotion writes the rank directly, past Student.clean(), so the
+    # rule that a black belt holds a black belt ID is checked here too: the
+    # ID WKSA handed out at the national grading is recorded first.
+    if (
+        to_rank.category == Rank.Category.BLACK_BELT
+        and wksa_ids.form_of(student.wksa_id) is not wksa_ids.BLACK_BELT_ID
+    ):
+        raise ValidationError(
+            {
+                "student": [
+                    f"Record {student.first_name} {student.last_name}'s black "
+                    "belt ID, such as A-20819, before promoting them to "
+                    f"{to_rank.name}.",
                 ],
             },
         )

@@ -441,6 +441,7 @@ def _student_model_issues(
     first_name: str,
     last_name: str,
     date_of_birth: date | None,
+    rank: Rank | None,
 ) -> list[str]:
     """What `Student`'s own validation says of an unsaved row (KG-A09).
 
@@ -461,6 +462,10 @@ def _student_model_issues(
     }
     unset = {name for name, value in given.items() if not value}
     candidate = Student(**{name: given[name] for name in given.keys() - unset})
+    # Not validated as a field - it was just read from the catalogue - but
+    # clean() needs it: a black belt rank requires a black belt ID.
+    if rank is not None:
+        candidate.current_rank = rank
     try:
         candidate.full_clean(
             exclude={"current_rank", *unset},
@@ -536,6 +541,7 @@ def _classify_student_row(
             first_name=first_name,
             last_name=last_name,
             date_of_birth=parsed_dob,
+            rank=rank,
         ),
     )
 

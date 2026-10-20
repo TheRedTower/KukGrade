@@ -66,7 +66,9 @@ class WksaIdFormSerializer(serializers.Serializer):
 
 
 class WksaIdSchemeSerializer(serializers.Serializer):
-    school_prefix = serializers.CharField()
+    hint = serializers.CharField(
+        help_text="The rule in a sentence, as a refused ID is told it.",
+    )
     forms = WksaIdFormSerializer(many=True)
 
 

@@ -350,6 +350,14 @@ PARITY_CASES = {
         None,
     ),
     "a transfer's student ID from another school": ({"wksa_id": "206-1-044"}, None),
+    "a black belt rank with a student ID": (
+        {"current_rank": "JKN"},
+        "WKSA ID: A black belt rank needs a black belt ID, such as A-20819.",
+    ),
+    "a black belt rank with a black belt ID": (
+        {"current_rank": "JKN", "wksa_id": "A-20819"},
+        None,
+    ),
     "an ID in neither form": (
         {"wksa_id": "UK-5001"},
         "WKSA ID: Use a student ID such as 206-2-150 or a black belt ID such as "

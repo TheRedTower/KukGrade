@@ -17,6 +17,7 @@ from gradings.read_models import (
     StudentGradingHistory,
     StudentRankTimeline,
 )
+from students import wksa_ids
 from students.models import Student
 from students.services import create_student, update_student
 from syllabus.models import AgeBand
@@ -161,11 +162,13 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
 
 
 class StudentSerializer(serializers.ModelSerializer[Student]):
-    """Detail, create and update. wksa_id is writable only on create.
+    """Detail, create and update.
 
-    One serializer rather than three: create and update share every field
-    except wksa_id, and splitting them further would just be the same
-    fields copied into different classes.
+    One serializer rather than three: create and update share every field,
+    and splitting them would just copy the same fields into different
+    classes. wksa_id changes after creation only from a student ID to the
+    black belt ID WKSA hands out (Student.clean() refuses anything else);
+    wksa_id_can_change says whether that change is still to come.
     """
 
     current_rank_name = serializers.CharField(
@@ -173,12 +176,14 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     age_band_display = serializers.CharField(read_only=True)
+    wksa_id_can_change = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
         fields = (
             "id",
             "wksa_id",
+            "wksa_id_can_change",
             "first_name",
             "last_name",
             "date_of_birth",
@@ -197,12 +202,8 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "created_at",
         )
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        if self.instance is not None:
-            # wksa_id is the external identifier grading records are matched
-            # against; it must not change once a student exists.
-            self.fields["wksa_id"].read_only = True
+    def get_wksa_id_can_change(self, obj: Student) -> bool:
+        return wksa_ids.can_change(obj.wksa_id)
 
     def create(self, validated_data: dict[str, Any]) -> Student:
         request = self.context["request"]

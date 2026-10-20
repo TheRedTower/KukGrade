@@ -309,8 +309,9 @@ SPECTACULAR_SETTINGS = {
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
 
 # The school's own prefix in its student IDs, 206-2 for Colchester
-# (students/wksa_ids.py). Shown as the example; a transfer's ID may carry
-# another school's.
+# (students/wksa_ids.py). Used in the example IDs shown; a transfer's ID may
+# carry another school's. Its pattern is a literal here, since settings
+# cannot import application code.
 SCHOOL_ID_PREFIX = os.environ.get("KUKGRADE_SCHOOL_PREFIX", "").strip() or "206-2"
 if not re.fullmatch("[0-9]{3}-[0-9]", SCHOOL_ID_PREFIX):
     msg = "KUKGRADE_SCHOOL_PREFIX must look like 206-2."

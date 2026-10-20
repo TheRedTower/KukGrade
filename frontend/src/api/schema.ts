@@ -1895,11 +1895,13 @@ export interface components {
             last_name?: string;
         };
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         PatchedStudentRequest: {
             wksa_id?: string;
@@ -2020,15 +2022,18 @@ export interface components {
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         Student: {
             readonly id: number;
             wksa_id: string;
+            readonly wksa_id_can_change: boolean;
             first_name: string;
             last_name: string;
             /** Format: date */
@@ -2128,11 +2133,13 @@ export interface components {
             readonly promotions: components["schemas"]["PromotionRankHistory"][];
         };
         /**
-         * @description Detail, create and update. wksa_id is writable only on create.
+         * @description Detail, create and update.
          *
-         *     One serializer rather than three: create and update share every field
-         *     except wksa_id, and splitting them further would just be the same
-         *     fields copied into different classes.
+         *     One serializer rather than three: create and update share every field,
+         *     and splitting them would just copy the same fields into different
+         *     classes. wksa_id changes after creation only from a student ID to the
+         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
+         *     wksa_id_can_change says whether that change is still to come.
          */
         StudentRequest: {
             wksa_id: string;
@@ -2260,7 +2267,8 @@ export interface components {
             example: string;
         };
         WksaIdScheme: {
-            school_prefix: string;
+            /** @description The rule in a sentence, as a refused ID is told it. */
+            hint: string;
             forms: components["schemas"]["WksaIdForm"][];
         };
     };

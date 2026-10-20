@@ -23,6 +23,8 @@ from students.models import Student
 
 def _snapshot(student: Student) -> dict[str, Any]:
     return {
+        # Kept, so a student ID replaced by a black belt ID stays on record.
+        "wksa_id": student.wksa_id,
         "first_name": student.first_name,
         "last_name": student.last_name,
         "date_of_birth": str(student.date_of_birth),
@@ -63,6 +65,7 @@ def create_student(
 def update_student(
     student: Student,
     *,
+    wksa_id: str | None = None,
     first_name: str | None = None,
     last_name: str | None = None,
     date_of_birth: date | None = None,
@@ -78,6 +81,10 @@ def update_student(
     locked = lock_student(student.pk)
     before = _snapshot(locked)
 
+    # Only ever a student ID becoming a black belt ID; Student.clean() refuses
+    # any other change (students/wksa_ids.py).
+    if wksa_id is not None:
+        locked.wksa_id = wksa_id
     if first_name is not None:
         locked.first_name = first_name
     if last_name is not None:

@@ -21,7 +21,8 @@ Consequences:
 ### 2026-10-20 - The WKSA ID scheme
 
 Status: Accepted (format and the owner's answers). The two forms are
-enforced since 2026-10-20; previous IDs and recording a black belt ID are
+enforced since 2026-10-20, with a black belt rank requiring a black belt ID
+and the one change from a student ID to it; the list of previous IDs is
 still to build
 
 Decision:
@@ -44,14 +45,24 @@ the hyphens and the `A`:
 - KukGrade never invents an ID. It records the one the school owner or WKSA
   issued; nobody using KukGrade - administrators included - chooses the
   number.
-- Anything else is refused - by the model, the API, the Add student screen
-  and the roster and historical imports alike, from one definition on the
-  server that the screens are told about rather than copying.
+- Anything else is refused by the model and the database, and so by the
+  API, Django admin and the roster import alike, from one definition on the
+  server; the Add student screen shows the rule the server serves rather than
+  a copy.
 - On promotion to black belt the student's black belt ID replaces their
   student ID as the one they are known by. The student ID is kept on their
-  record as a previous ID, so anything that still quotes it - an old
-  spreadsheet, a historical grading being imported - finds the same
-  student.
+  record as a previous ID, so anything that still quotes it - an old roster
+  spreadsheet being imported, or a search - finds the same student.
+
+When the black belt ID is given (the owner, 2026-10-20): at the national
+grading, straight after the promotion, so it takes effect at once - there is
+no period as a black belt with a student ID. When the instructor or Master is
+back they change the student's ID to it; that one change is the only one an
+ID ever takes. A black belt ID then stays with the student for good: later
+ranks and certificates come under the same ID. So a black belt rank (JKN and
+above) requires a black belt ID, and promotion to one waits for it to be
+recorded. Until previous IDs are built, the old student ID is kept in the
+audit event of that change.
 
 How previous IDs are kept (recommended, 2026-10-20): every record inside
 KukGrade - gradings, assessments, promotions - already points at the student
@@ -62,20 +73,20 @@ was replaced; a lookup by ID checks the current one and then that list, and
 the change is audited like any other.
 
 Context:
-`Student.wksa_id` today is any text up to 32 characters, unique, stored as
-typed - only the Add student screen upper-cases it (audit F-30, left open on
-2026-10-18 for this overhaul). That lets the same person be entered twice
-under two spellings and lets anything at all stand in for the identifier
-historical gradings are matched on.
+Until this decision `Student.wksa_id` was any text up to 32 characters,
+unique, stored as typed - only the Add student screen upper-cased it (audit
+F-30, left open on 2026-10-18 for this overhaul). That let the same person be
+entered twice under two spellings, and anything at all stand in for the
+identifier the roster import matches students on.
 
 Consequences:
 - A migration checks every existing ID and lists any that fit neither form,
   for the owner to correct, before the rule is enforced.
 - `wksa_id` stops being read-only after creation in exactly one way:
-  recording a black belt ID, which moves the old one into the list of
-  previous IDs.
+  recording a black belt ID (built 2026-10-20), which will move the old one
+  into the list of previous IDs once that list exists.
 
-Question to answer before it is built:
+Question to answer before previous IDs are built:
 - When a student leaves, can their student number later be given to a new
   student? If it can, an old ID can belong to two people at different times,
   and a lookup by a previous ID has to be told which period it is about; if

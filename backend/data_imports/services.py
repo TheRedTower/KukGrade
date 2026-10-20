@@ -53,6 +53,7 @@ from data_imports.parsers import (
 from data_imports.storage import import_upload_storage
 from gradings.legacy_services import create_legacy_grading_record
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
+from ranks.matching import active_rank_lookup, suggest_rank
 from ranks.models import Rank
 from students import wksa_ids
 from students.models import PreviousWksaId, RetiredWksaId, Student
@@ -581,20 +582,6 @@ def _coerce_date(value: Any) -> date | None:
     return None
 
 
-def _active_rank_lookup() -> dict[str, Rank]:
-    """Every active rank by upper-cased code and name, read once.
-
-    The one rank-text matcher: a rank whose code or name matches, ignoring
-    case, the first by catalogue order when several do. One read serves a
-    roster of thousands of rows, or every distinct text in a workbook.
-    """
-    lookup: dict[str, Rank] = {}
-    for rank in Rank.objects.filter(active=True):
-        lookup.setdefault(rank.code.upper(), rank)
-        lookup.setdefault(rank.name.upper(), rank)
-    return lookup
-
-
 def _map_row(
     raw_row: dict[str, Any],
     column_mapping: dict[str, str],
@@ -801,7 +788,7 @@ def _classify_roster(locked: ImportBatch) -> StudentImportPreview:
         (stored, _map_row(stored.raw, column_mapping, defaults), stored.correction)
         for stored in stored_rows
     ]
-    ranks = _active_rank_lookup()
+    ranks = active_rank_lookup()
     wanted = {
         _row_wksa_id(values, correction)
         for stored, values, correction in mapped
@@ -956,7 +943,7 @@ def _save_column_mapping(
     if "status" in cleaned_defaults:
         cleaned_defaults["status"] = cleaned_defaults["status"].upper()
     rank_default = cleaned_defaults.get("current_rank")
-    if rank_default and rank_default.upper() not in _active_rank_lookup():
+    if rank_default and rank_default.upper() not in active_rank_lookup():
         errors["defaults"] = [f"{rank_default!r} is not a rank KukGrade recognises."]
     if errors:
         raise DjangoValidationError(errors)
@@ -1310,38 +1297,6 @@ class RankMappingSuggestion:
     rows: int = 0
 
 
-# How the club's workbook writes ranks that KukGrade names otherwise
-# (2026-10-20, from the real workbook), for suggestions only - a suggestion is
-# never applied until chosen (import Decision 4). Fixed spellings, never a
-# near miss: "DNB", a slip for DBN, is still left for the importer. Keys are
-# upper-cased, with any trailing "BELT" taken off.
-_RANK_TEXT_ALIASES = {
-    "DBN": "DAHN_BO",
-    "DAHN BO NIM": "DAHN_BO",
-}
-
-
-def suggest_rank(text: str, ranks: dict[str, Rank]) -> tuple[Rank | None, bool]:
-    """The active rank a source text most likely means, and whether the source
-    itself doubted it. "White Belt" suggests White; "DBN" Dahn Bo."""
-    cleaned = " ".join(text.split())
-    doubtful = cleaned.endswith("?")
-    key = cleaned.rstrip("?").strip().upper()
-    if key.endswith(" BELT"):
-        key = key.removesuffix(" BELT").strip()
-    rank = ranks.get(key)
-    if rank is None and key in _RANK_TEXT_ALIASES:
-        rank = next(
-            (
-                found
-                for found in ranks.values()
-                if found.code == _RANK_TEXT_ALIASES[key]
-            ),
-            None,
-        )
-    return rank, doubtful
-
-
 @dataclass(frozen=True)
 class LegacyImportPreview:
     total: int
@@ -1426,7 +1381,7 @@ def preview_legacy_grading_import(
         return bool(text.strip()) and resolve(text) is None
 
     suggestions = []
-    ranks = _active_rank_lookup()
+    ranks = active_rank_lookup()
     uses: dict[str, int] = {}
     for row in rows:
         for text in {

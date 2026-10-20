@@ -122,6 +122,9 @@ class GradingHistoryItem(TypedDict):
     outcome: str | None
     attendance_status: str
     comments: str
+    # Anything else a historical sheet said beside the record; blank for a
+    # KukGrade grading.
+    note: str
 
 
 class StudentGradingHistory(TypedDict):
@@ -169,6 +172,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "outcome": outcome.final_outcome,
             "attendance_status": "ATTENDED",
             "comments": outcome.decision_notes,
+            "note": "",
         }
         dated_items.append((session.grading_date, native_item))
 
@@ -196,6 +200,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
             "outcome": legacy.outcome,
             "attendance_status": legacy.attendance_status,
             "comments": legacy.comments,
+            "note": legacy.admin_note,
         }
         dated_items.append((sort_date, legacy_item))
 

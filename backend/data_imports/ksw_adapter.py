@@ -39,6 +39,7 @@ from data_imports.parsers import (
     open_workbook,
     worksheet_rows,
 )
+from gradings.legacy_matching import SHEET_NOTE_NAME
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 # Budgets for the whole workbook (KG-A10), every sheet counted, known or not.
@@ -88,8 +89,8 @@ _SIDE_COLUMNS = {
     "current rank": "current rank",
 }
 
-# A cell no table claims: kept, never dropped, as a note on its sheet.
-SHEET_NOTE_NAME = "Sheet note"
+# A cell no table claims is kept, never dropped, as a note on its sheet,
+# named SHEET_NOTE_NAME (shared with the record matching, which skips them).
 
 _DNA_VALUES = {"dna", "did not attend"}
 _DETERMINISTIC_OUTCOMES = {

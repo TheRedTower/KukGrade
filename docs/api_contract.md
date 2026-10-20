@@ -836,12 +836,14 @@ Administrator-only (`gradings.can_reconcile_imported_history`).
 
 | Method | Endpoint                                                    | Description                                      |
 |--------|---------------------------------------------------------------|---------------------------------------------------|
-| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided` |
-| POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>}`; links to a `Student`    |
+| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided`, `batch`, `needs_rank`, `source_name` (exact, any case), `search`; each record has `current_rank_name`, `testing_for_rank_name`, `report` (its comments), `note`, `source_section`, `source_batch` |
+| GET    | /api/gradings/legacy-records/people/                           | Records grouped by the name as written, each with `record_ids`, `records`, `first_period`/`last_period`, `linked_student`, `shared` and up to five suggested `candidates` (`student`, `full_name`, `wksa_id`, `current_rank_name`, `status_display`, `score`, `reasons`); filters `batch`, `linked`; paginated; reconcilers only. Suggestions only - nothing is linked |
+| POST   | /api/gradings/legacy-records/bulk-link/                        | Body `{"links": [{"record", "student"}], "replace"?}`, at most 500; all or nothing, each audited; a refusal is keyed by the record's id |
+| POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>, "replace"?}`; links to a `Student`; a record linked to someone else moves only with `replace` |
 | POST   | /api/gradings/legacy-records/{id}/unlink-student/               | No body; refused if not currently linked          |
 | POST   | /api/gradings/legacy-records/{id}/resolve-current-rank/         | Body `{"rank": <id or null>}`                     |
 | POST   | /api/gradings/legacy-records/{id}/resolve-testing-for-rank/     | Body `{"rank": <id or null>}`                     |
-| POST   | /api/gradings/legacy-records/{id}/void/                        | Body `{"reason": "<text>"}`; reason required, refused if already voided |
+| POST   | /api/gradings/legacy-records/{id}/void/                        | Body `{"reason": "<text>"}`; reason required, refused if already voided. A voided record cannot be linked, unlinked or given a rank |
 
 No ordinary `POST`/`PATCH`/`DELETE` on this resource - a record is created
 only by an `LEGACY_GRADINGS` batch commit, and every field except

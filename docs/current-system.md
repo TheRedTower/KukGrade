@@ -126,7 +126,11 @@ checks on each push and pull request.
   onto KukGrade's fields with whole-file values for rank and status, and
   columns KukGrade has no field for kept as the student's extra information
   (`students.models.StudentExtraInfo`, on the student page). The Colchester
-  workbook's side tables and loose notes are read, not dropped (A4). See
+  workbook's side tables and loose notes are read, not dropped (A4).
+  Historical records are grouped by the name as written with suggested
+  students and their reasons (`gradings/legacy_matching.py`), confirmed one
+  at a time or a person's whole history at once; a voided record can no
+  longer be changed, and moving a link needs confirming (A5-A6). See
   `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW

@@ -697,6 +697,7 @@ describe("Student detail screen (/students/:id)", () => {
               outcome: "PASS",
               attendance_status: "ATTENDED",
               comments: "Excellent forms and techniques.",
+              note: "",
               promotion_id: 101,
             },
           ],

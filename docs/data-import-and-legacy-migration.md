@@ -310,7 +310,13 @@ each locking the row, saving, and recording one audit event
   `unlink_legacy_record_from_student(record, actor=...)` - every link is an
   explicit administrator decision (import Decision 3); nothing in this codebase
   ever infers one from a name match, however strong the suggestion looked.
-  Unlinking or relinking never touches `source_name`.
+  Unlinking or relinking never touches `source_name`. Since 2026-10-20 a
+  record already linked to someone else moves only with `replace` (it used
+  to be overwritten silently), and the student is locked before the record,
+  the order deleting a student takes. `bulk_link_legacy_records` links many
+  at once, all or nothing, each with its own audit event.
+- **A voided record is left as it is**: linking, unlinking and resolving a
+  rank are refused on it (2026-10-20). Deleting its student still unlinks it.
 - `resolve_legacy_current_rank(record, rank_or_none, actor=...)` /
   `resolve_legacy_testing_for_rank(record, rank_or_none, actor=...)` -
   `rank=None` explicitly leaves the mapping unresolved; the source rank text
@@ -321,12 +327,27 @@ each locking the row, saving, and recording one audit event
 ### Reconciliation screen and API
 
 `GET /api/gradings/legacy-records/` (filters: `linked`,
-`voided`) plus the five actions above as
+`voided`, and since 2026-10-20 `batch`, `needs_rank`, `source_name`,
+`search`; each record carries its rank names, `report` - the comments - and
+`note`) plus `GET .../people/` and `POST .../bulk-link/` (below) and the five
+actions above as
 `POST .../link-student/`, `.../unlink-student/`, `.../resolve-current-rank/`,
 `.../resolve-testing-for-rank/`, `.../void/`. The frontend
 (`LegacyReconciliationScreen.tsx`, reachable from the Gradings list header)
 filters by link/void status and expands a row into an inline panel for
 each action, including a name/WKSA-ID student search for linking.
+
+**Suggested students** (`gradings/legacy_matching.py`, 2026-10-20):
+`GET .../people/` groups records by the name as written and suggests, for
+each, up to five students with the reasons in plain words - the first name
+the same or close ("Sabastian" for Sebastian), a surname or initial that fits
+(one that contradicts rules a student out), a name written surname first,
+and whether the student's rank now fits the rank the record gave then
+(nobody goes down a grade). Titles in front of a name ("JKN Alex") are not
+part of it. When several students fit equally well the group says so
+(`shared`) rather than one being picked. Sheet notes and voided records are
+never suggested. Nothing is linked until a person confirms it, singly or with
+`bulk-link` for a person's whole history.
 
 ### Unified grading history
 

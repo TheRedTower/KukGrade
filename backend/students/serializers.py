@@ -67,7 +67,15 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
         allow_null=True,
     )
     attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
-    comments = serializers.CharField()
+    comments = serializers.CharField(
+        help_text=(
+            "The grading report: decision notes, or a historical record's comments."
+        ),
+    )
+    note = serializers.CharField(
+        allow_blank=True,
+        help_text="Anything else a historical sheet said beside the record.",
+    )
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):

@@ -702,6 +702,28 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
         allow_null=True,
         default=None,
     )
+    current_rank_name = serializers.CharField(
+        source="current_rank.name",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+    testing_for_rank_name = serializers.CharField(
+        source="testing_for_rank.name",
+        read_only=True,
+        allow_null=True,
+        default=None,
+    )
+    report = serializers.CharField(
+        source="comments",
+        read_only=True,
+        help_text="The grading report: the record's comments, as written.",
+    )
+    note = serializers.CharField(
+        source="admin_note",
+        read_only=True,
+        help_text="Anything else the sheet said beside the record, as written.",
+    )
 
     class Meta:
         model = LegacyGradingRecord
@@ -712,15 +734,21 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
             "record_kind",
             "cycle_year",
             "cycle_month",
+            "source_batch",
+            "source_section",
             "source_name",
             "source_current_rank_text",
             "current_rank",
             "current_rank_code",
+            "current_rank_name",
             "source_testing_for_rank_text",
             "testing_for_rank",
             "testing_for_rank_code",
+            "testing_for_rank_name",
             "outcome_display",
             "attendance_status_display",
+            "report",
+            "note",
             "is_void",
             "void_reason",
             "voided_by_email",
@@ -730,6 +758,11 @@ class LegacyGradingRecordSerializer(serializers.ModelSerializer):
 
 class LinkLegacyRecordSerializer(serializers.Serializer):
     student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+    replace = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Move a record already linked to another student.",
+    )
 
     def update(
         self,
@@ -741,7 +774,93 @@ class LinkLegacyRecordSerializer(serializers.Serializer):
             instance,
             validated_data["student"],
             actor=cast(User, request.user),
+            replace=validated_data["replace"],
         )
+
+
+class LegacyRecordLinkSerializer(serializers.Serializer):
+    record = serializers.PrimaryKeyRelatedField(
+        queryset=LegacyGradingRecord.objects.all(),
+    )
+    student = serializers.PrimaryKeyRelatedField(queryset=Student.objects.all())
+
+
+# One request's worth: a person's whole history is tens of records.
+BULK_LINK_LIMIT = 500
+
+
+class BulkLinkLegacyRecordsSerializer(serializers.Serializer):
+    """POST legacy-records/bulk-link/: many records, each to its student."""
+
+    links = LegacyRecordLinkSerializer(many=True, allow_empty=False)
+    replace = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Move records already linked to another student.",
+    )
+
+    def validate_links(self, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if len(value) > BULK_LINK_LIMIT:
+            raise serializers.ValidationError(
+                f"Link at most {BULK_LINK_LIMIT} records at a time.",
+            )
+        return value
+
+
+class SuggestedStudentSerializer(serializers.Serializer):
+    student = serializers.IntegerField(source="student.pk")
+    full_name = serializers.SerializerMethodField()
+    wksa_id = serializers.CharField(source="student.wksa_id")
+    current_rank_name = serializers.CharField(source="student.current_rank.name")
+    status_display = serializers.CharField(source="student.get_status_display")
+    score = serializers.IntegerField(help_text="Higher fits better; for ordering.")
+    reasons = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="Why the student is suggested, in plain words.",
+    )
+
+    def get_full_name(self, candidate: Any) -> str:
+        student = candidate.student
+        return f"{student.first_name} {student.last_name}"
+
+
+class LegacyPersonSerializer(serializers.Serializer):
+    """The records that name one person the same way, and who they may be."""
+
+    source_name = serializers.CharField()
+    record_ids = serializers.SerializerMethodField()
+    records = serializers.SerializerMethodField(help_text="How many records.")
+    first_period = serializers.SerializerMethodField()
+    last_period = serializers.SerializerMethodField()
+    linked_student = serializers.SerializerMethodField(
+        help_text="The student every record here is linked to, if one is.",
+    )
+    shared = serializers.BooleanField(
+        help_text="Several students fit equally well: a person has to choose.",
+    )
+    candidates = SuggestedStudentSerializer(many=True)
+
+    def get_record_ids(self, group: Any) -> list[int]:
+        return [record.pk for record in group.records]
+
+    def get_records(self, group: Any) -> int:
+        return len(group.records)
+
+    def _periods(self, group: Any) -> list[str]:
+        return sorted(
+            f"{record.cycle_year}-{record.cycle_month:02d}" for record in group.records
+        )
+
+    def get_first_period(self, group: Any) -> str:
+        return self._periods(group)[0]
+
+    def get_last_period(self, group: Any) -> str:
+        return self._periods(group)[-1]
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_linked_student(self, group: Any) -> int | None:
+        student = group.linked_student
+        return student.pk if student else None
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):

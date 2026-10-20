@@ -712,6 +712,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/bulk-link/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Link many records at once, all or nothing - one person's history to
+         *     the student confirmed for it, say.
+         */
+        post: operations["gradings_legacy_records_bulk_link_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/people/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Records grouped by the name as written, with suggested students.
+         *
+         *     Suggestions only: nothing is linked until a person confirms it
+         *     (import Decision 3). Voided records and sheet notes are left out.
+         */
+        get: operations["gradings_legacy_records_people_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/outcomes/": {
         parameters: {
             query?: never;
@@ -1422,6 +1464,15 @@ export interface components {
             };
             updated: components["schemas"]["GradingCandidate"][];
         };
+        /** @description POST legacy-records/bulk-link/: many records, each to its student. */
+        BulkLinkLegacyRecordsRequest: {
+            links: components["schemas"]["LegacyRecordLinkRequest"][];
+            /**
+             * @description Move records already linked to another student.
+             * @default false
+             */
+            replace?: boolean;
+        };
         BulkPromotionRequest: {
             outcomes: number[];
         };
@@ -1608,7 +1659,10 @@ export interface components {
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            /** @description The grading report: decision notes, or a historical record's comments. */
             comments: string;
+            /** @description Anything else a historical sheet said beside the record. */
+            note: string;
         };
         GradingSession: {
             readonly id: number;
@@ -1823,15 +1877,23 @@ export interface components {
             readonly record_kind: components["schemas"]["RecordKindEnum"];
             readonly cycle_year: number;
             readonly cycle_month: number;
+            readonly source_batch: number;
+            readonly source_section: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
             readonly current_rank: number | null;
             readonly current_rank_code: string | null;
+            readonly current_rank_name: string | null;
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
             readonly testing_for_rank_code: string | null;
+            readonly testing_for_rank_name: string | null;
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
+            /** @description The grading report: the record's comments, as written. */
+            readonly report: string;
+            /** @description Anything else the sheet said beside the record, as written. */
+            readonly note: string;
             readonly is_void: boolean;
             readonly void_reason: string;
             /** Format: email */
@@ -1862,8 +1924,31 @@ export interface components {
                 [key: string]: string | null;
             };
         };
+        /** @description The records that name one person the same way, and who they may be. */
+        LegacyPerson: {
+            source_name: string;
+            readonly record_ids: number[];
+            /** @description How many records. */
+            readonly records: number;
+            readonly first_period: string;
+            readonly last_period: string;
+            /** @description The student every record here is linked to, if one is. */
+            readonly linked_student: number | null;
+            /** @description Several students fit equally well: a person has to choose. */
+            shared: boolean;
+            candidates: components["schemas"]["SuggestedStudent"][];
+        };
+        LegacyRecordLinkRequest: {
+            record: number;
+            student: number;
+        };
         LinkLegacyRecordRequest: {
             student: number;
+            /**
+             * @description Move a record already linked to another student.
+             * @default false
+             */
+            replace?: boolean;
         };
         LockedCandidateWithdrawalRequest: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
@@ -2042,6 +2127,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["LegacyGradingRecord"][];
+        };
+        PaginatedLegacyPersonList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LegacyPerson"][];
         };
         PaginatedPromotionList: {
             /** @example 123 */
@@ -2485,6 +2585,17 @@ export interface components {
          * @enum {string}
          */
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
+        SuggestedStudent: {
+            student: number;
+            readonly full_name: string;
+            wksa_id: string;
+            current_rank_name: string;
+            status_display: string;
+            /** @description Higher fits better; for ordering. */
+            score: number;
+            /** @description Why the student is suggested, in plain words. */
+            reasons: string[];
+        };
         /**
          * @description * `ETIQUETTE` - Etiquette
          *     * `FUNDAMENTALS` - Fundamentals
@@ -3482,11 +3593,19 @@ export interface operations {
     gradings_legacy_records_list: {
         parameters: {
             query?: {
+                /** @description Records from this import. */
+                batch?: number;
                 linked?: boolean;
+                /** @description Records with a rank written but not yet matched to one of KukGrade's. */
+                needs_rank?: boolean;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Part of the name as written. */
+                search?: string;
+                /** @description The name exactly as written. */
+                source_name?: string;
                 voided?: boolean;
             };
             header?: never;
@@ -3635,6 +3754,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyGradingRecord"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_bulk_link_create: {
+        parameters: {
+            query?: {
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+                "multipart/form-data": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_people_list: {
+        parameters: {
+            query?: {
+                /** @description Only records from this import. */
+                batch?: number;
+                /** @description Only people whose records are (or are not) linked. */
+                linked?: boolean;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLegacyPersonList"];
                 };
             };
         };

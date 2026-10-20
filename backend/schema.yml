@@ -1123,10 +1123,22 @@ paths:
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
+      - name: batch
+        required: false
+        in: query
+        description: Records from this import.
+        schema:
+          type: integer
       - name: linked
         required: false
         in: query
         description: ''
+        schema:
+          type: boolean
+      - name: needs_rank
+        required: false
+        in: query
+        description: Records with a rank written but not yet matched to one of KukGrade's.
         schema:
           type: boolean
       - name: page
@@ -1141,6 +1153,18 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: Part of the name as written.
+        schema:
+          type: string
+      - name: source_name
+        required: false
+        in: query
+        description: The name exactly as written.
+        schema:
+          type: string
       - name: voided
         required: false
         in: query
@@ -1340,6 +1364,90 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/bulk-link/:
+    post:
+      operationId: gradings_legacy_records_bulk_link_create
+      description: |-
+        Link many records at once, all or nothing - one person's history to
+        the student confirmed for it, say.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
+          description: ''
+  /api/gradings/legacy-records/people/:
+    get:
+      operationId: gradings_legacy_records_people_list
+      description: |-
+        Records grouped by the name as written, with suggested students.
+
+        Suggestions only: nothing is linked until a person confirms it
+        (import Decision 3). Voided records and sheet notes are left out.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+        description: Only records from this import.
+      - in: query
+        name: linked
+        schema:
+          type: boolean
+        description: Only people whose records are (or are not) linked.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyPersonList'
           description: ''
   /api/gradings/outcomes/:
     get:
@@ -2872,6 +2980,20 @@ components:
       required:
       - errors
       - updated
+    BulkLinkLegacyRecordsRequest:
+      type: object
+      description: 'POST legacy-records/bulk-link/: many records, each to its student.'
+      properties:
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyRecordLinkRequest'
+        replace:
+          type: boolean
+          default: false
+          description: Move records already linked to another student.
+      required:
+      - links
     BulkPromotionRequest:
       type: object
       properties:
@@ -3379,6 +3501,11 @@ components:
           $ref: '#/components/schemas/AttendanceStatusEnum'
         comments:
           type: string
+          description: 'The grading report: decision notes, or a historical record''s
+            comments.'
+        note:
+          type: string
+          description: Anything else a historical sheet said beside the record.
       required:
       - attendance_status
       - comments
@@ -3386,6 +3513,7 @@ components:
       - cycle_year
       - date
       - date_precision
+      - note
       - outcome
       - record_id
       - source
@@ -3904,6 +4032,12 @@ components:
         cycle_month:
           type: integer
           readOnly: true
+        source_batch:
+          type: integer
+          readOnly: true
+        source_section:
+          type: string
+          readOnly: true
         source_name:
           type: string
           readOnly: true
@@ -3918,6 +4052,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        current_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
         source_testing_for_rank_text:
           type: string
           readOnly: true
@@ -3929,6 +4067,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
         outcome_display:
           type: string
           readOnly: true
@@ -3936,6 +4078,14 @@ components:
         attendance_status_display:
           type: string
           readOnly: true
+        report:
+          type: string
+          readOnly: true
+          description: 'The grading report: the record''s comments, as written.'
+        note:
+          type: string
+          readOnly: true
+          description: Anything else the sheet said beside the record, as written.
         is_void:
           type: boolean
           readOnly: true
@@ -3951,19 +4101,25 @@ components:
       - attendance_status_display
       - current_rank
       - current_rank_code
+      - current_rank_name
       - cycle_month
       - cycle_year
       - id
       - is_void
+      - note
       - outcome_display
       - record_kind
+      - report
+      - source_batch
       - source_current_rank_text
       - source_name
+      - source_section
       - source_testing_for_rank_text
       - student
       - student_display_name
       - testing_for_rank
       - testing_for_rank_code
+      - testing_for_rank_name
       - void_reason
       - voided_by_email
     LegacyImportPreview:
@@ -4019,11 +4175,68 @@ components:
           additionalProperties:
             type: string
             nullable: true
+    LegacyPerson:
+      type: object
+      description: The records that name one person the same way, and who they may
+        be.
+      properties:
+        source_name:
+          type: string
+        record_ids:
+          type: array
+          items:
+            type: integer
+          readOnly: true
+        records:
+          type: integer
+          readOnly: true
+          description: How many records.
+        first_period:
+          type: string
+          readOnly: true
+        last_period:
+          type: string
+          readOnly: true
+        linked_student:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: The student every record here is linked to, if one is.
+        shared:
+          type: boolean
+          description: 'Several students fit equally well: a person has to choose.'
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedStudent'
+      required:
+      - candidates
+      - first_period
+      - last_period
+      - linked_student
+      - record_ids
+      - records
+      - shared
+      - source_name
+    LegacyRecordLinkRequest:
+      type: object
+      properties:
+        record:
+          type: integer
+        student:
+          type: integer
+      required:
+      - record
+      - student
     LinkLegacyRecordRequest:
       type: object
       properties:
         student:
           type: integer
+        replace:
+          type: boolean
+          default: false
+          description: Move a record already linked to another student.
       required:
       - student
     LockedCandidateWithdrawalRequest:
@@ -4312,6 +4525,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyGradingRecord'
+    PaginatedLegacyPersonList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyPerson'
     PaginatedPromotionList:
       type: object
       required:
@@ -5211,6 +5447,36 @@ components:
         * `ACTIVE` - Active
         * `INACTIVE` - Inactive
         * `LEFT` - Left
+    SuggestedStudent:
+      type: object
+      properties:
+        student:
+          type: integer
+        full_name:
+          type: string
+          readOnly: true
+        wksa_id:
+          type: string
+        current_rank_name:
+          type: string
+        status_display:
+          type: string
+        score:
+          type: integer
+          description: Higher fits better; for ordering.
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Why the student is suggested, in plain words.
+      required:
+      - current_rank_name
+      - full_name
+      - reasons
+      - score
+      - status_display
+      - student
+      - wksa_id
     SyllabusItemCategoryEnum:
       enum:
       - ETIQUETTE

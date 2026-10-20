@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from audit.models import AuditAction
 from audit.recording import record
+from gradings.locking import lock_student, lock_students
 from gradings.models import LegacyAttendance, LegacyDatePrecision, LegacyGradingRecord
 
 if TYPE_CHECKING:
@@ -84,23 +85,36 @@ def create_legacy_grading_record(
     )
 
 
-def _locked(pk: int) -> LegacyGradingRecord:
-    return LegacyGradingRecord.objects.select_for_update(of=("self",)).get(pk=pk)
+VOIDED_MESSAGE = (
+    "This record has been voided, so it is no longer part of anyone's "
+    "history and cannot be changed."
+)
+LINKED_ELSEWHERE_MESSAGE = (
+    "This record is already linked to another student. Unlink it first, or "
+    "confirm the change."
+)
 
 
-@transaction.atomic
-def link_legacy_record_to_student(
-    record_: LegacyGradingRecord,
+def _locked(pk: int, *, allow_void: bool = False) -> LegacyGradingRecord:
+    locked = LegacyGradingRecord.objects.select_for_update(of=("self",)).get(pk=pk)
+    if locked.is_void and not allow_void:
+        raise ValidationError({"record": [VOIDED_MESSAGE]})
+    return locked
+
+
+def _link(
+    locked: LegacyGradingRecord,
     student: Student,
     *,
     actor: User,
+    replace: bool,
 ) -> LegacyGradingRecord:
-    """Import Decision 3: every link is an explicit administrator decision,
-    never inferred from a name match, however strong the suggestion looked."""
-    locked = _locked(record_.pk)
     if locked.student_id == student.pk:
         # Already linked there: nothing changes, so nothing is recorded.
         return locked
+    if locked.student_id is not None and not replace:
+        raise ValidationError({"student": [LINKED_ELSEWHERE_MESSAGE]})
+    previous_student_id = locked.student_id
     locked.student = student
     locked.save()
     record(
@@ -111,6 +125,7 @@ def link_legacy_record_to_student(
         metadata={
             "legacy_record_id": locked.pk,
             "student_id": student.pk,
+            "previous_student_id": previous_student_id,
             "batch_id": locked.source_batch_id,
         },
     )
@@ -118,12 +133,89 @@ def link_legacy_record_to_student(
 
 
 @transaction.atomic
+def link_legacy_record_to_student(
+    record_: LegacyGradingRecord,
+    student: Student,
+    *,
+    actor: User,
+    replace: bool = False,
+) -> LegacyGradingRecord:
+    """Import Decision 3: every link is an explicit administrator decision,
+    never inferred from a name match, however strong the suggestion looked.
+
+    A record already linked to someone else moves only when `replace` says
+    so. The student is locked before the record, the order deleting a
+    student takes (students.services.delete_student), so the two cannot
+    wait on each other.
+    """
+    locked_student = lock_student(student.pk)
+    return _link(_locked(record_.pk), locked_student, actor=actor, replace=replace)
+
+
+@transaction.atomic
+def bulk_link_legacy_records(
+    links: list[tuple[LegacyGradingRecord, Student]],
+    *,
+    actor: User,
+    replace: bool = False,
+) -> list[LegacyGradingRecord]:
+    """Link many records at once, all or nothing - each as
+    link_legacy_record_to_student would, with its own audit event.
+
+    Every student is locked first, then every record, each in ascending
+    order, so two bulk links cannot each wait on the other. A refusal names
+    the record (its id as the error key) and nothing is linked.
+    """
+    students = lock_students({student.pk for _, student in links})
+    records: dict[int, LegacyGradingRecord] = {}
+    errors: dict[str, list[str]] = {}
+    for pk in sorted({record_.pk for record_, _ in links}):
+        try:
+            records[pk] = _locked(pk)
+        except LegacyGradingRecord.DoesNotExist:
+            errors[str(pk)] = ["This record no longer exists."]
+        except ValidationError as refused:
+            errors[str(pk)] = refused.messages
+    seen: dict[int, int] = {}
+    for record_, student in links:
+        if seen.setdefault(record_.pk, student.pk) != student.pk:
+            errors.setdefault(str(record_.pk), []).append(
+                "This record is given two different students.",
+            )
+        if student.pk not in students:
+            errors.setdefault(str(record_.pk), []).append(
+                "This student no longer exists.",
+            )
+    if errors:
+        raise ValidationError(errors)
+    linked: list[LegacyGradingRecord] = []
+    for record_, student in links:
+        try:
+            linked.append(
+                _link(
+                    records[record_.pk],
+                    students[student.pk],
+                    actor=actor,
+                    replace=replace,
+                ),
+            )
+        except ValidationError as refused:
+            errors.setdefault(str(record_.pk), []).extend(refused.messages)
+    if errors:
+        raise ValidationError(errors)
+    return linked
+
+
+@transaction.atomic
 def unlink_legacy_record_from_student(
     record_: LegacyGradingRecord,
     *,
     actor: User,
+    allow_void: bool = False,
 ) -> LegacyGradingRecord:
-    locked = _locked(record_.pk)
+    """`allow_void` is for deleting the student: a voided record still has to
+    let go of them (students.services.delete_student)."""
+    locked = _locked(record_.pk, allow_void=allow_void)
     if locked.student_id is None:
         raise ValidationError({"student": ["This record is not linked to a student."]})
     previous_student_id = locked.student_id
@@ -215,7 +307,7 @@ def void_legacy_record(
         raise ValidationError(
             {"void_reason": ["A reason is required to void a record."]}
         )
-    locked = _locked(record_.pk)
+    locked = _locked(record_.pk, allow_void=True)
     if locked.is_void:
         raise ValidationError({"is_void": ["This record has already been voided."]})
     locked.is_void = True
@@ -238,6 +330,7 @@ def void_legacy_record(
 
 
 __all__ = [
+    "bulk_link_legacy_records",
     "create_legacy_grading_record",
     "link_legacy_record_to_student",
     "resolve_legacy_current_rank",

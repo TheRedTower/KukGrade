@@ -26,7 +26,6 @@ from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
-    _active_rank_lookup,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
@@ -36,6 +35,7 @@ from data_imports.services import (
 )
 from data_imports.storage import import_upload_storage
 from data_imports.testing import workbook_bytes
+from ranks.matching import active_rank_lookup
 from ranks.models import Rank
 from students.models import Student
 from students.services import create_student, create_students
@@ -256,10 +256,10 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
 
 
 def test_the_rank_lookup_matches_code_or_name_of_active_ranks_ignoring_case() -> None:
-    lookup = _active_rank_lookup()
+    lookup = active_rank_lookup()
     inactive = rank("YELLOW_STRIPE")
     Rank.objects.filter(pk=inactive.pk).update(active=False)
-    lookup_without_it = _active_rank_lookup()
+    lookup_without_it = active_rank_lookup()
 
     for text in ("white", "WHITE", "White"):
         assert lookup[text.upper()] == rank("WHITE"), text

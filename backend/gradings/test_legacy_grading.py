@@ -129,6 +129,7 @@ def test_link_and_unlink_record_to_student() -> None:
     assert link_event.metadata == {
         "legacy_record_id": record.pk,
         "student_id": target.pk,
+        "previous_student_id": None,
         "batch_id": record.source_batch_id,
     }
 
@@ -148,16 +149,25 @@ def test_unlink_an_unlinked_record_is_refused() -> None:
         unlink_legacy_record_from_student(record, actor=actor)
 
 
-def test_relinking_to_a_different_student_overwrites_the_link() -> None:
+def test_moving_a_link_to_another_student_must_be_confirmed() -> None:
     record = legacy_record()
     actor = user("legacy-relink-admin@example.com")
     first = student(wksa_id="206-2-501")
     second = student(wksa_id="206-2-502")
 
     link_legacy_record_to_student(record, first, actor=actor)
-    relinked = link_legacy_record_to_student(record, second, actor=actor)
+    with pytest.raises(ValidationError, match="already linked to another student"):
+        link_legacy_record_to_student(record, second, actor=actor)
+    record.refresh_from_db()
+    assert record.student_id == first.pk
+
+    relinked = link_legacy_record_to_student(record, second, actor=actor, replace=True)
 
     assert relinked.student_id == second.pk
+    event = AuditEvent.objects.filter(action=AuditAction.LEGACY_GRADING_LINKED).latest(
+        "pk",
+    )
+    assert event.metadata["previous_student_id"] == first.pk
 
 
 def test_resolve_and_clear_current_rank_mapping() -> None:

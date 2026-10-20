@@ -359,7 +359,7 @@ def delete_student(student: Student, actor: User) -> None:
 
     legacy_records = list(LegacyGradingRecord.objects.filter(student=locked))
     for legacy_record in legacy_records:
-        unlink_legacy_record_from_student(legacy_record, actor=actor)
+        unlink_legacy_record_from_student(legacy_record, actor=actor, allow_void=True)
 
     # Their numbers go with them, never to anyone else (owner, 2026-10-20).
     retired = [

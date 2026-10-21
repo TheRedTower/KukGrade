@@ -215,3 +215,9 @@ def load_tabular_dataset(
             sheet=worksheet.title,
             sheet_names=names,
         )
+
+
+def inspect_workbook_sheets(content: bytes) -> tuple[str, tuple[str, ...]]:
+    """Read sheet names without requiring the opening sheet to be a table."""
+    with open_workbook(content) as workbook:
+        return workbook.active.title, tuple(workbook.sheetnames)

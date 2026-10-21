@@ -327,6 +327,11 @@ export function ImportStartScreen() {
             </button>
           </div>
           <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
+          {kind === "STUDENT_ROSTER" && (loaded.sheet_error || loaded.row_counts.total === 0) ? (
+            <p className="ix-banner ix-banner-warning" role="alert">
+              {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before continuing.
+            </p>
+          ) : null}
           {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
             <label className="ix-field ix-field-narrow">
               Sheet to read
@@ -454,7 +459,7 @@ export function ImportStartScreen() {
           <button
             aria-describedby={loaded ? undefined : "ix-continue-why"}
             className="btn-primary"
-            disabled={!loaded || sheet.isPending}
+            disabled={!loaded || sheet.isPending || (kind === "STUDENT_ROSTER" && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0))}
             type="button"
             onClick={() => navigate(`/imports/${batchId}`)}
           >

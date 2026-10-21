@@ -27,6 +27,7 @@ export function batch(overrides: Partial<DataImportBatch> = {}): DataImportBatch
     extra_columns: [],
     sheet: "Members",
     sheet_names: ["Members"],
+    sheet_error: "",
     suggested_mapping: {},
     target_fields: [
       { field: "wksa_id", name: "WKSA ID", needed: true, whole_file: false },

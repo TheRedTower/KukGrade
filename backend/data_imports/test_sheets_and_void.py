@@ -60,6 +60,21 @@ def two_sheet_workbook() -> bytes:
     return workbook_bytes(build)
 
 
+def alternate_sheet_workbook(cover: str) -> bytes:
+    def build(workbook: Workbook) -> None:
+        first = workbook.create_sheet("Cover")
+        if cover == "instructions":
+            first.append(["Instructions: choose Members"])
+        elif cover == "invalid":
+            first.append(["Repeated", "Repeated"])
+        members = workbook.create_sheet("Members")
+        members.append(HEADERS)
+        members.append(CLEAN_ROW)
+        workbook.active = 0
+
+    return workbook_bytes(build)
+
+
 def client_for(user: User) -> APIClient:
     client = APIClient()
     client.force_authenticate(user=user)
@@ -78,6 +93,50 @@ def test_the_sheet_read_and_every_sheets_name_are_shown() -> None:
     assert detail["sheet"] == "Notes"
     assert "Roster" in detail["sheet_names"]
     assert detail["row_counts"]["total"] == 0
+
+
+@pytest.mark.parametrize("cover", ["blank", "instructions", "invalid"])
+def test_a_roster_on_a_later_sheet_can_be_selected(cover: str) -> None:
+    administrator = admin_user()
+    response = client_for(administrator).post(
+        BASE,
+        {
+            "kind": "STUDENT_ROSTER",
+            "file": SimpleUploadedFile("roster.xlsx", alternate_sheet_workbook(cover)),
+        },
+        format="multipart",
+    )
+    assert response.status_code == 201, response.json()
+    detail = client_for(administrator).get(f"{BASE}{response.json()['id']}/").json()
+    assert detail["sheet"] == "Cover"
+    assert detail["sheet_names"] == ["Cover", "Members"]
+    expected_headers = (
+        ["Instructions: choose Members"] if cover == "instructions" else []
+    )
+    assert detail["detected_headers"] == expected_headers
+    if cover != "instructions":
+        assert detail["sheet_error"]
+    assert detail["row_counts"]["total"] == 0
+
+    changed = client_for(administrator).post(
+        f"{BASE}{response.json()['id']}/sheet/", {"sheet": "Members"}, format="json"
+    )
+    assert changed.status_code == 200, changed.json()
+    assert changed.json()["detected_headers"] == HEADERS
+    assert changed.json()["sheet_error"] == ""
+    assert changed.json()["row_counts"]["total"] == 1
+
+
+def test_invalid_only_sheet_is_still_refused() -> None:
+    def build(workbook: Workbook) -> None:
+        workbook.create_sheet("Cover")
+
+    with pytest.raises(ValidationError, match="no header row"):
+        create_import_batch(
+            kind=ImportBatch.Kind.STUDENT_ROSTER,
+            upload=SimpleUploadedFile("roster.xlsx", workbook_bytes(build)),
+            uploaded_by=admin_user(),
+        )
 
 
 def test_a_sheet_can_be_named_at_upload() -> None:

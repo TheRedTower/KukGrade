@@ -1877,6 +1877,8 @@ export interface components {
             readonly sheet: string;
             /** @description Every sheet a roster workbook has, to choose another. */
             readonly sheet_names: string[];
+            /** @description Why the selected roster sheet could not be read; choose another sheet. */
+            readonly sheet_error: string;
             /** @description A roster's likely column for each field, from its headings. */
             readonly suggested_mapping: {
                 [key: string]: string;

@@ -281,6 +281,24 @@ describe("Choosing the file", () => {
     expect(api.chooseDataImportSheet).toHaveBeenCalledWith(7, "Leavers");
   });
 
+  it("keeps a blank opening sheet recoverable and blocks continuation until another is read", async () => {
+    const user = userEvent.setup();
+    api.createDataImportBatch.mockResolvedValue({ ...created, already_imported_warning: false });
+    api.getDataImportBatch.mockResolvedValue(batch({
+      sheet: "Cover", sheet_names: ["Cover", "Members"], detected_headers: [],
+      sheet_error: "The file has no header row.",
+      row_counts: { total: 0, ready: 0, review_required: 0, skip_existing: 0, excluded: 0 },
+    }));
+    api.chooseDataImportSheet.mockResolvedValue(batch({ sheet: "Members", sheet_names: ["Cover", "Members"] }));
+
+    renderAt("/imports/new?kind=STUDENT_ROSTER");
+    await user.upload(screen.getByLabelText("Choose a file"), xlsx());
+    expect(await screen.findByRole("alert")).toHaveTextContent("The file has no header row.");
+    expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText(/Sheet to read/), "Members");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Continue to match columns" })).toBeEnabled());
+  });
+
   it("removes the upload when a different file is chosen", async () => {
     const user = userEvent.setup();
     api.createDataImportBatch.mockResolvedValue(created);

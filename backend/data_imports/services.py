@@ -49,6 +49,7 @@ from data_imports.parsers import (
     TabularData,
     UnsupportedImportFileError,
     file_suffix,
+    inspect_workbook_sheets,
     load_tabular_dataset,
 )
 from data_imports.storage import import_upload_storage
@@ -133,10 +134,11 @@ def create_import_batch(
     if len(content) > limit:
         raise too_large
 
-    # Parsed in full before the file is ever persisted, so a malformed or
-    # unusable upload is refused now rather than discovered at preview. A
-    # roster's headers also go back, so the mapping UI needs no second trip.
+    # Parse before persisting. For a multi-sheet roster with an unreadable
+    # opening sheet, retain only its bounded workbook and sheet names so a
+    # person can explicitly select another sheet before matching columns.
     detected_headers: list[str] = []
+    sheet_error = ""
     if sheet and (kind != ImportBatch.Kind.STUDENT_ROSTER or suffix != "xlsx"):
         raise DjangoValidationError(
             {"sheet": ["Only a roster workbook (.xlsx) has sheets to choose from."]},
@@ -149,7 +151,18 @@ def create_import_batch(
                 sheet=sheet or None,
             )
         except UnsupportedImportFileError as exc:
-            raise DjangoValidationError({"file": [str(exc)]}) from exc
+            if sheet or suffix != "xlsx":
+                raise DjangoValidationError({"file": [str(exc)]}) from exc
+            try:
+                active_sheet, sheet_names = inspect_workbook_sheets(content)
+            except UnsupportedImportFileError:
+                raise DjangoValidationError({"file": [str(exc)]}) from exc
+            if len(sheet_names) < 2:
+                raise DjangoValidationError({"file": [str(exc)]}) from exc
+            # Keep the selected opening sheet and the parse error visible. A
+            # different sheet can be chosen through the existing sheet action.
+            dataset = TabularData([], [], active_sheet, sheet_names)
+            sheet_error = str(exc)
         detected_headers = dataset.headers
     else:
         parsed = _parse_legacy_workbook(content, error_key="file")
@@ -183,6 +196,7 @@ def create_import_batch(
         uploaded_by=uploaded_by,
         configuration_json={
             "detected_headers": detected_headers,
+            **({"sheet_error": sheet_error} if sheet_error else {}),
             **(
                 {"sheet": dataset.sheet, "sheet_names": list(dataset.sheet_names)}
                 if kind == ImportBatch.Kind.STUDENT_ROSTER
@@ -615,6 +629,7 @@ def choose_import_sheet(batch: ImportBatch, *, sheet: str) -> ImportBatch:
         locked.configuration_json.pop(stale, None)
     locked.configuration_json["sheet"] = dataset.sheet
     locked.configuration_json["detected_headers"] = dataset.headers
+    locked.configuration_json.pop("sheet_error", None)
     _store_roster_rows(locked, dataset)
     return locked
 

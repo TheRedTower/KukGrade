@@ -70,10 +70,13 @@ of these to an Instructor. See `permissions.md`.
 
 A roster workbook is read from the sheet it opens on unless another is named
 at upload, and every sheet's name is shown, so a roster on another tab is
-never silently missed; `POST .../sheet/` reads another sheet instead
-(2026-10-20). A column with no heading that holds something is named by its
+never silently missed; `POST .../sheet/` reads another sheet instead.
+If the opening sheet has no usable header or cannot be read and the workbook
+has other sheets, upload keeps the bounded workbook and returns `sheet_error`;
+the importer must choose another sheet before continuing. A one-sheet invalid
+workbook is refused. A column with no heading that holds something is named by its
 letter ("Column F") so it can be matched or kept, and a heading used twice is
-refused at upload, as one column would hide the other.
+refused for the selected sheet, as one column would hide the other.
 
 `.xlsx` and `.csv`, up to 5 MiB (`KUKGRADE_UPLOAD_MAX_BYTES`), 1,000 rows (5,000 until 2026-10-20)
 after the header (blank rows included) and 50 columns; an `.xlsx` may also

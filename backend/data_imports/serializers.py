@@ -74,6 +74,11 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     sheet_names = serializers.SerializerMethodField(
         help_text="Every sheet a roster workbook has, to choose another.",
     )
+    sheet_error = serializers.SerializerMethodField(
+        help_text=(
+            "Why the selected roster sheet could not be read; choose another sheet."
+        ),
+    )
     suggested_mapping = serializers.SerializerMethodField(
         help_text="A roster's likely column for each field, from its headings.",
     )
@@ -121,6 +126,7 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "extra_columns",
             "sheet",
             "sheet_names",
+            "sheet_error",
             "suggested_mapping",
             "target_fields",
             "rank_mappings",
@@ -159,6 +165,9 @@ class ImportBatchSerializer(serializers.ModelSerializer):
 
     def get_sheet_names(self, batch: ImportBatch) -> list[str]:
         return list(batch.configuration_json.get("sheet_names", []))
+
+    def get_sheet_error(self, batch: ImportBatch) -> str:
+        return str(batch.configuration_json.get("sheet_error", ""))
 
     def get_suggested_mapping(self, batch: ImportBatch) -> dict[str, str]:
         if batch.kind != ImportBatch.Kind.STUDENT_ROSTER:

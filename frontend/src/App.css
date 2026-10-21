@@ -46,13 +46,18 @@ input {
   font: inherit;
 }
 
-/* A text box takes the theme, so none glares white in dark mode. A screen's
-   own class (one step more specific) still sets its own look. */
-input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="file"]),
-select,
-textarea {
+/* A text box takes the theme - its fill, text and a thin border instead of the
+   browser's white inset one - so none glares in dark mode. :where() gives it no
+   weight, so any screen's own rule for its inputs still wins. */
+:where(
+  input:not([type="checkbox"], [type="radio"], [type="hidden"], [type="range"], [type="file"]),
+  select,
+  textarea
+) {
   background-color: var(--color-field);
   color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
 }
 
 :root[data-theme="dark"] {

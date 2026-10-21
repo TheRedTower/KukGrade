@@ -1,6 +1,6 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
   ApiError,
@@ -415,15 +415,15 @@ export function StudentDetailScreen() {
                       <tr key={`${item.source}-${item.record_id}`} className="student-table-row">
                         <td>{formatGradingHistoryDate(item)}</td>
                         <td>
-                          <span
-                            className={`grading-history-source-badge ${
-                              item.source === "KUKGRADE"
-                                ? "source-kukgrade"
-                                : "source-historical"
-                            }`}
-                          >
-                            {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
-                          </span>
+                          {item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
+                            <Link className="grading-history-source-badge source-historical" to={`/imports/history/${item.record_id}`}>
+                              Historical · correct
+                            </Link>
+                          ) : (
+                            <span className={`grading-history-source-badge ${item.source === "KUKGRADE" ? "source-kukgrade" : "source-historical"}`}>
+                              {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
+                            </span>
+                          )}
                         </td>
                         <td className="cell-rank-highlight">
                           {item.testing_for_rank_name ||

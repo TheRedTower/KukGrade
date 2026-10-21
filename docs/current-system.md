@@ -158,7 +158,8 @@ checks on each push and pull request.
   name-to-student match applied automatically. Rank-text review works on
   distinct values across a batch, not per row, with an exact-match
   suggestion the administrator must still confirm. `GET
-  /api/gradings/legacy-records/` (both roles) plus five
+  /api/gradings/legacy-records/` and `GET
+  /api/gradings/legacy-records/{id}/` (both roles) plus five
   administrator-only reconciliation actions
   (`link-student`/`unlink-student`/`resolve-current-rank`/
   `resolve-testing-for-rank`/`void`, gated by
@@ -493,7 +494,10 @@ checks on each push and pull request.
   a workbook's rank spellings; review every row, the ones needing attention
   first, with a last look; confirm on the same page; the results page), and
   linking historical records at `/imports/records`, one name at a time
-  beside the students it could be (`can_reconcile_imported_history`); the
+  beside the students it could be, and a persistent historical record browser
+  at `/imports/history` with direct record details at `/imports/history/:id`
+  for link replacement, unlinking, rank correction or clearing, and voiding
+  (`can_reconcile_imported_history`); the
   old routes redirect there), the syllabus cumulative
   current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
   progress counts, like the overview's, are served with each session

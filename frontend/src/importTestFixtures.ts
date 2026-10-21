@@ -1,4 +1,4 @@
-import type { DataImportBatch, DataImportRow, LegacyPerson, Rank } from "./api";
+import type { DataImportBatch, DataImportRow, LegacyGradingRecord, LegacyPerson, Rank } from "./api";
 
 // Invented data for the import screens' tests.
 
@@ -85,6 +85,36 @@ export function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
         reasons: ["Same first name and initial"],
       },
     ],
+    ...overrides,
+  };
+}
+
+export function legacyRecord(overrides: Partial<LegacyGradingRecord> = {}): LegacyGradingRecord {
+  return {
+    id: 101,
+    student: null,
+    student_display_name: null,
+    record_kind: "GRADING_RESULT",
+    cycle_year: 2025,
+    cycle_month: 3,
+    source_batch: 7,
+    source_section: "",
+    source_name: "Mia R",
+    source_current_rank_text: "White Belt",
+    current_rank: 1,
+    current_rank_code: "WHITE",
+    current_rank_name: "White",
+    source_testing_for_rank_text: "Yellow stripe",
+    testing_for_rank: 2,
+    testing_for_rank_code: "YELLOW_STRIPE",
+    testing_for_rank_name: "Yellow stripe",
+    outcome_display: "Pass",
+    attendance_status_display: "Attended",
+    report: "Ki Cho Hyung 1 clean.",
+    note: "",
+    is_void: false,
+    void_reason: "",
+    voided_by_email: null,
     ...overrides,
   };
 }

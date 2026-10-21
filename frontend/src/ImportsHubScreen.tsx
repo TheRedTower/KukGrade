@@ -155,6 +155,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               <Link className="btn-primary" to="/imports/new?kind=LEGACY_GRADINGS">
                 Import past gradings
               </Link>
+              {canLink ? <Link className="btn-secondary" to="/imports/history">Browse and correct records</Link> : null}
             </div>
           </div>
           {awaitingLink ? (

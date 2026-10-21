@@ -899,6 +899,17 @@ export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legac
   );
 }
 
+export async function getLegacyGradingRecord(id: number): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/`);
+}
+
+export async function linkLegacyGradingRecord(id: number, student: number, replace = false): Promise<LegacyGradingRecord> {
+  return apiRequest<LegacyGradingRecord>(`/api/gradings/legacy-records/${id}/link-student/`, {
+    method: "POST",
+    body: JSON.stringify({ student, replace }),
+  });
+}
+
 /** Every page of one historical name group, before choosing records to link. */
 export async function getAllLegacyGradingRecords(
   params: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,

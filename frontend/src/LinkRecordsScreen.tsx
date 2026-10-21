@@ -38,28 +38,28 @@ function ranksText(record: LegacyGradingRecord): string {
 }
 
 /** A record's ranks still as written, each with a rank to choose. */
-function RankFix({ record, onDone }: { record: LegacyGradingRecord; onDone: () => Promise<void> }) {
+export function RankFix({ record, onDone, showAll = false }: { record: LegacyGradingRecord; onDone: () => Promise<void>; showAll?: boolean }) {
   const ranks = useRanksQuery().data?.results ?? [];
   const fix = useMutation({
-    mutationFn: ({ which, rank }: { which: "held" | "tested"; rank: number }) =>
+    mutationFn: ({ which, rank }: { which: "held" | "tested"; rank: number | null }) =>
       which === "held" ? resolveLegacyCurrentRank(record.id, rank) : resolveLegacyTestingForRank(record.id, rank),
     onSuccess: onDone,
   });
   const open: { which: "held" | "tested"; text: string }[] = [];
-  if (record.source_current_rank_text && record.current_rank === null) open.push({ which: "held", text: record.source_current_rank_text });
-  if (record.source_testing_for_rank_text && record.testing_for_rank === null) open.push({ which: "tested", text: record.source_testing_for_rank_text });
+  if (showAll || (record.source_current_rank_text && record.current_rank === null)) open.push({ which: "held", text: record.source_current_rank_text });
+  if (showAll || (record.source_testing_for_rank_text && record.testing_for_rank === null)) open.push({ which: "tested", text: record.source_testing_for_rank_text });
   if (open.length === 0) return null;
   return (
     <span className="ix-actions ix-rank-fix">
       {open.map((item) => (
         <label className="ix-field ix-warning-text" key={item.which}>
-          “{item.text}” is not matched to a rank yet
+          {showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}
           <select
             disabled={fix.isPending}
-            value=""
-            onChange={(event) => fix.mutate({ which: item.which, rank: Number(event.target.value) })}
+            value={showAll ? (item.which === "held" ? record.current_rank : record.testing_for_rank) ?? "" : ""}
+            onChange={(event) => fix.mutate({ which: item.which, rank: event.target.value ? Number(event.target.value) : null })}
           >
-            <option value="">Match it…</option>
+            <option value="">{showAll ? "No mapped rank" : "Match it…"}</option>
             {ranks.map((rank) => (
               <option key={rank.id} value={rank.id}>
                 {rank.name}
@@ -77,7 +77,7 @@ function RankFix({ record, onDone }: { record: LegacyGradingRecord; onDone: () =
   );
 }
 
-function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingRecord; onClose: () => void; onDone: () => Promise<void> }) {
+export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingRecord; onClose: () => void; onDone: () => Promise<void> }) {
   const [reason, setReason] = useState("");
   const voiding = useMutation({
     mutationFn: () => voidLegacyGradingRecord(record.id, reason.trim()),
@@ -107,7 +107,7 @@ function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingRecord; 
   );
 }
 
-function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onChoose: (choice: Chosen) => void }) {
+export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onChoose: (choice: Chosen) => void }) {
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());
   const found = useQuery({

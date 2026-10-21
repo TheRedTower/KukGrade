@@ -58,6 +58,9 @@ const ImportScreen = lazy(() =>
 const LinkRecordsScreen = lazy(() =>
   import("./LinkRecordsScreen").then((module) => ({ default: module.LinkRecordsScreen })),
 );
+const HistoricalRecordsScreen = lazy(() =>
+  import("./HistoricalRecordsScreen").then((module) => ({ default: module.HistoricalRecordsScreen })),
+);
 
 function UserManagementFallback(): React.ReactElement {
   return <div className="loading-state" role="status">Loading user management…</div>;
@@ -433,6 +436,16 @@ function App() {
                     </RequireAccess>
                   }
                   path="imports/records"
+                />
+                <Route
+                  element={
+                    <RequireAccess flag="can_reconcile_imported_history">
+                      <Suspense fallback={<ImportFallback />}>
+                        <HistoricalRecordsScreen />
+                      </Suspense>
+                    </RequireAccess>
+                  }
+                  path="imports/history/:id?"
                 />
                 <Route
                   element={

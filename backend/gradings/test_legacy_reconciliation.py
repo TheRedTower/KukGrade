@@ -34,6 +34,26 @@ def test_instructor_can_list_legacy_records() -> None:
     ]
 
 
+def test_record_detail_remains_available_after_link_and_void() -> None:
+    record = legacy_record()
+    target = student(wksa_id="206-2-509")
+    administrator = admin()
+    writer = APIClient()
+    writer.force_authenticate(user=administrator)
+    reader = APIClient()
+    reader.force_authenticate(user=instructor())
+    url = f"/api/gradings/legacy-records/{record.pk}/"
+
+    assert reader.get(url).json()["student"] is None
+    assert writer.post(f"{url}link-student/", {"student": target.pk}).status_code == 200
+    assert reader.get(url).json()["student"] == target.pk
+    assert writer.post(f"{url}void/", {"reason": "Duplicate"}).status_code == 200
+    detail = reader.get(url)
+    assert detail.status_code == 200
+    assert detail.json()["is_void"] is True
+    assert detail.json()["void_reason"] == "Duplicate"
+
+
 def test_instructor_cannot_link_unlink_resolve_or_void() -> None:
     record = legacy_record()
     target = student(wksa_id="206-2-500")

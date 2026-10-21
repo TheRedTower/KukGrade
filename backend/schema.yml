@@ -1334,6 +1334,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
           description: ''
+  /api/gradings/legacy-records/{id}/:
+    get:
+      operationId: gradings_legacy_records_retrieve
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
   /api/gradings/legacy-records/{id}/link-student/:
     post:
       operationId: gradings_legacy_records_link_student_create

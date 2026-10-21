@@ -676,6 +676,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        get: operations["gradings_legacy_records_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-records/{id}/link-student/": {
         parameters: {
             query?: never;
@@ -3903,6 +3926,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
                 };
             };
         };

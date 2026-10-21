@@ -700,6 +700,7 @@ _NEEDS_RANK = QueryFilter(
 
 class LegacyGradingRecordViewSet(
     mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
@@ -712,6 +713,7 @@ class LegacyGradingRecordViewSet(
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_legacygradingrecord",),
+        "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
         "resolve_current_rank": ("gradings.can_reconcile_imported_history",),

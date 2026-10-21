@@ -4,10 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AuthUser, type DataImportBatch, type LegacyGradingRecord } from "./api";
+import { ApiError, type AuthUser, type DataImportBatch } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
-import { batch, page, person, RANKS, row } from "./importTestFixtures";
+import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
 import { LinkRecordsScreen } from "./LinkRecordsScreen";
 
 const api = vi.hoisted(() => ({
@@ -455,36 +455,6 @@ describe("Reviewing and confirming a roster", () => {
 });
 
 describe("Linking historical records", () => {
-  function record(overrides: Partial<LegacyGradingRecord> = {}): LegacyGradingRecord {
-    return {
-      id: 101,
-      student: null,
-      student_display_name: null,
-      record_kind: "GRADING_RESULT",
-      cycle_year: 2025,
-      cycle_month: 3,
-      source_batch: 7,
-      source_section: "",
-      source_name: "Mia R",
-      source_current_rank_text: "White Belt",
-      current_rank: 1,
-      current_rank_code: "WHITE",
-      current_rank_name: "White",
-      source_testing_for_rank_text: "Yellow stripe",
-      testing_for_rank: 2,
-      testing_for_rank_code: "YELLOW_STRIPE",
-      testing_for_rank_name: "Yellow stripe",
-      outcome_display: "Pass",
-      attendance_status_display: "Attended",
-      report: "Ki Cho Hyung 1 clean.",
-      note: "",
-      is_void: false,
-      void_reason: "",
-      voided_by_email: null,
-      ...overrides,
-    };
-  }
-
   const mia = person({ record_ids: [101, 102] , records: 2 });
   const theo = person({
     source_name: "Theo",

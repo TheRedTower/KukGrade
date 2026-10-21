@@ -18,6 +18,24 @@ const SKIP = "skip";
 
 /** What each column of the file holds: a field, extra information, or nothing. */
 type Choices = Record<string, string>;
+type MappingPayload = Parameters<typeof saveDataImportMapping>[1];
+
+function mappingPayload(choices: Choices, rank: string): MappingPayload {
+  const mapping = readChoices(choices).columnFor;
+  return {
+    column_mapping: mapping,
+    defaults: rank && !mapping.current_rank ? { current_rank: rank } : {},
+    extra_columns: Object.entries(choices).filter(([, choice]) => choice === EXTRA).map(([header]) => header),
+  };
+}
+
+function mappingKey(payload: MappingPayload): string {
+  return JSON.stringify({
+    column_mapping: Object.entries(payload.column_mapping).sort(),
+    defaults: Object.entries(payload.defaults ?? {}).sort(),
+    extra_columns: [...(payload.extra_columns ?? [])].sort(),
+  });
+}
 
 function initialChoices(batch: DataImportBatch): Choices {
   const saved = Object.keys(batch.column_mapping).length > 0;
@@ -68,8 +86,16 @@ export function ImportMatchColumns({
   const [choices, setChoices] = useState<Choices>(() => initialChoices(batch));
   const [rankDefault, setRankDefault] = useState(batch.defaults.current_rank ?? "");
   const [typed, setTyped] = useState<string[]>([]);
+  const [dirtyCells, setDirtyCells] = useState<string[]>([]);
+  const [acknowledged, setAcknowledged] = useState(() => mappingKey({
+    column_mapping: batch.column_mapping,
+    defaults: batch.defaults,
+    extra_columns: batch.extra_columns,
+  }));
   const { columnFor, clashes } = useMemo(() => readChoices(choices), [choices]);
   const saved = Object.keys(batch.column_mapping).length > 0;
+  const draftPayload = mappingPayload(choices, rankDefault);
+  const dirty = mappingKey(draftPayload) !== acknowledged;
 
   const rows = useQuery({
     queryKey: ["imports", "rows", batch.id, "preview"],
@@ -84,17 +110,11 @@ export function ImportMatchColumns({
   }
 
   const save = useMutation({
-    mutationFn: ({ next, rank }: { next: Choices; rank: string }) => {
-      const mapping = readChoices(next).columnFor;
-      return saveDataImportMapping(batch.id, {
-        column_mapping: mapping,
-        defaults: rank && !mapping.current_rank ? { current_rank: rank } : {},
-        extra_columns: Object.entries(next)
-          .filter(([, choice]) => choice === EXTRA)
-          .map(([header]) => header),
-      });
+    mutationFn: (payload: MappingPayload) => saveDataImportMapping(batch.id, payload),
+    onSuccess: async (updated, payload) => {
+      setAcknowledged(mappingKey(payload));
+      await refresh(updated);
     },
-    onSuccess: (updated) => refresh(updated),
   });
   const correct = useMutation({
     mutationFn: ({ row, field, value }: { row: number; field: string; value: string | null }) =>
@@ -110,7 +130,7 @@ export function ImportMatchColumns({
     suggestionSaved.current = true;
     const read = readChoices(choices);
     if (read.clashes.size === 0 && Object.keys(read.columnFor).length > 0) {
-      save.mutate({ next: choices, rank: rankDefault });
+      save.mutate(mappingPayload(choices, rankDefault));
     }
   }, [choices, rankDefault, save]);
 
@@ -119,7 +139,8 @@ export function ImportMatchColumns({
     const read = readChoices(next);
     // A field given two columns cannot be saved; it waits until one is changed.
     if (read.clashes.size === 0 && Object.keys(read.columnFor).length > 0) {
-      save.mutate({ next, rank });
+      const payload = mappingPayload(next, rank);
+      if (mappingKey(payload) !== acknowledged || save.isError) save.mutate(payload);
     }
   }
 
@@ -154,11 +175,15 @@ export function ImportMatchColumns({
       <>
         <ImportCellInput
           changed={corrected}
-          disabled={!saved || save.isPending}
+          disabled={!saved || save.isPending || correct.isPending}
           invalid={row.outcome === "REVIEW_REQUIRED" && row.issue_fields.includes(field)}
           label={`${fieldName(field)}, row ${row.row_number}`}
           placeholder={field === "date_of_birth" ? "dd/mm/yyyy" : undefined}
           value={shown}
+          onDirtyChange={(isDirty) => {
+            const key = `${row.row_number}:${field}`;
+            setDirtyCells((current) => isDirty ? [...new Set([...current, key])] : current.filter((item) => item !== key));
+          }}
           onSave={(next) => correct.mutateAsync({ row: row.row_number, field, value: next })}
         />
         {corrected ? (
@@ -210,6 +235,7 @@ export function ImportMatchColumns({
               <label className="ix-field">
                 Same for everyone
                 <select
+                  disabled={save.isPending || correct.isPending}
                   value=""
                   onChange={(event) => {
                     setRankDefault(event.target.value);
@@ -236,6 +262,7 @@ export function ImportMatchColumns({
             Rank for everyone: <strong>{rankDefault}</strong>. A row can still be given its own.{" "}
             <button
               className="ix-link-button"
+              disabled={save.isPending || correct.isPending}
               type="button"
               onClick={() => {
                 setRankDefault("");
@@ -248,9 +275,10 @@ export function ImportMatchColumns({
         ) : null}
 
         {save.isError ? (
-          <p className="ix-danger-text" role="alert">
-            {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}
-          </p>
+          <div role="alert" className="ix-danger-text">
+            {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}{" "}
+            <button className="ix-link-button" type="button" onClick={() => save.mutate(draftPayload)}>Retry saving columns</button>
+          </div>
         ) : null}
         {correct.isError ? (
           <p className="ix-danger-text" role="alert">
@@ -275,6 +303,7 @@ export function ImportMatchColumns({
                       <select
                         className={`ix-col-select${clashes.has(choice) ? " ix-col-select-clash" : suggested ? " ix-col-select-suggested" : ""}`}
                         id={`ix-col-${index}`}
+                        disabled={save.isPending || correct.isPending}
                         value={choice}
                         onChange={(event) => choose({ ...choices, [header]: event.target.value })}
                       >
@@ -374,6 +403,9 @@ export function ImportMatchColumns({
               Checking every row…
             </span>
           ) : null}
+          {dirty || dirtyCells.length > 0 || correct.isPending || correct.isError ? (
+            <span className="ix-why" role="status">Save the visible changes before continuing.</span>
+          ) : null}
           {blockedWhy ? (
             <span className="ix-why" id="ix-match-why">
               {blockedWhy}
@@ -382,7 +414,7 @@ export function ImportMatchColumns({
           <button
             aria-describedby={blockedWhy ? "ix-match-why" : undefined}
             className="btn-primary"
-            disabled={Boolean(blockedWhy) || !saved || save.isPending}
+            disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError || dirtyCells.length > 0 || correct.isPending || correct.isError}
             type="button"
             onClick={onContinue}
           >

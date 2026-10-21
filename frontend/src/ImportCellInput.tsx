@@ -12,6 +12,7 @@ export function ImportCellInput({
   changed,
   placeholder,
   disabled = false,
+  onDirtyChange,
   onSave,
 }: {
   value: string;
@@ -20,6 +21,7 @@ export function ImportCellInput({
   changed: boolean;
   placeholder?: string;
   disabled?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
   onSave: (next: string) => Promise<unknown>;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -29,12 +31,14 @@ export function ImportCellInput({
     if (draft === null) return;
     if (draft === value) {
       setDraft(null);
+      onDirtyChange?.(false);
       return;
     }
     setSaving(true);
     try {
       await onSave(draft);
       setDraft(null);
+      onDirtyChange?.(false);
     } catch {
       // Kept as typed; the caller shows the error.
     } finally {
@@ -44,7 +48,7 @@ export function ImportCellInput({
 
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") event.currentTarget.blur();
-    if (event.key === "Escape") setDraft(null);
+    if (event.key === "Escape") { setDraft(null); onDirtyChange?.(false); }
   }
 
   return (
@@ -56,7 +60,7 @@ export function ImportCellInput({
       placeholder={placeholder}
       value={draft ?? value}
       onBlur={() => void commit()}
-      onChange={(event) => setDraft(event.target.value)}
+      onChange={(event) => { setDraft(event.target.value); onDirtyChange?.(event.target.value !== value); }}
       onKeyDown={onKeyDown}
     />
   );

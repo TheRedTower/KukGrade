@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AuthUser, type DataImportBatch } from "./api";
+import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
@@ -198,6 +198,71 @@ describe("Matching a roster's columns", () => {
     expect(await screen.findByText(/Your fix · file had “31\/02\/2010”/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Undo the fix to Date of birth, row 4" }));
     await waitFor(() => expect(api.correctDataImportRow).toHaveBeenLastCalledWith(7, 4, { date_of_birth: null }));
+  });
+
+  it("blocks review after a rejected mapping save and retries the visible choices", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(saved);
+    api.getDataImportRows.mockResolvedValue(page(rows));
+    api.saveDataImportMapping.mockRejectedValueOnce(new Error("Save failed")).mockResolvedValue(saved);
+
+    renderAt("/imports/7?step=match");
+    await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "extra");
+    expect(await screen.findByRole("alert")).toHaveTextContent("The columns could not be saved");
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Retry saving columns" }));
+    await waitFor(() => expect(api.saveDataImportMapping).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled());
+    expect(api.saveDataImportMapping).toHaveBeenLastCalledWith(7, {
+      column_mapping: MAPPING, defaults: {}, extra_columns: ["Joined"],
+    });
+  });
+
+  it("serializes a slow mapping save and keeps review closed until acknowledgement", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(saved);
+    api.getDataImportRows.mockResolvedValue(page(rows));
+    let acknowledge!: (value: DataImportBatch) => void;
+    api.saveDataImportMapping.mockImplementation(() => new Promise<DataImportBatch>((resolve) => { acknowledge = resolve; }));
+
+    renderAt("/imports/7?step=match");
+    await user.selectOptions(await screen.findByLabelText("What “Joined” holds"), "extra");
+    expect(screen.getByLabelText("What “First” holds")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    expect(api.saveDataImportMapping).toHaveBeenCalledTimes(1);
+    acknowledge(saved);
+    await waitFor(() => expect(screen.getByLabelText("What “First” holds")).toBeEnabled());
+    expect(api.saveDataImportMapping).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled();
+  });
+
+  it("reopens with the persisted extra-column choice and no duplicate save", async () => {
+    api.getDataImportBatch.mockResolvedValue(batch({ ...saved, extra_columns: ["Joined"] }));
+    api.getDataImportRows.mockResolvedValue(page(rows));
+
+    renderAt("/imports/7?step=match");
+    expect(await screen.findByLabelText("What “Joined” holds")).toHaveValue("extra");
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled();
+    expect(api.saveDataImportMapping).not.toHaveBeenCalled();
+  });
+
+  it("blocks review while a corrected cell is unsaved or saving", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(saved);
+    api.getDataImportRows.mockResolvedValue(page(rows));
+    let acknowledge!: (value: DataImportRow) => void;
+    api.correctDataImportRow.mockImplementation(() => new Promise<DataImportRow>((resolve) => { acknowledge = resolve; }));
+
+    renderAt("/imports/7?step=match");
+    const cell = await screen.findByLabelText("Date of birth, row 4");
+    await user.clear(cell);
+    await user.type(cell, "13/02/2010");
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    await user.tab();
+    expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 4, { date_of_birth: "13/02/2010" });
+    expect(screen.getByRole("button", { name: /Continue to review/ })).toBeDisabled();
+    acknowledge(rows[1]);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Continue to review/ })).toBeEnabled());
   });
 });
 

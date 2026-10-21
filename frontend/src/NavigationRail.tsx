@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 
 import type { AuthUser } from "./api";
@@ -17,13 +17,11 @@ import {
   UsersIcon,
 } from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
+import { GITHUB_URL } from "./project";
 import { useAboutQuery, useSiteSettingsQuery } from "./queries";
-import { useClubClock } from "./useClubClock";
 import { useNarrowScreen } from "./useNarrowScreen";
 import { useSidebar } from "./useSidebar";
 import "./NavigationRail.css";
-
-export const GITHUB_URL = "https://github.com/TheRedTower/KukGrade";
 
 function initialsOf(user: AuthUser): string {
   if (user.first_name && user.last_name) {
@@ -34,37 +32,39 @@ function initialsOf(user: AuthUser): string {
   return (user.full_name[0] || user.email[0] || "U").toUpperCase();
 }
 
-function RailLink({ to, end, icon, label }: { to: string; end?: boolean; icon: React.ReactNode; label: string }) {
+function RailLink({
+  to,
+  end,
+  icon,
+  label,
+  strip,
+}: {
+  to: string;
+  end?: boolean;
+  icon: ReactNode;
+  label: string;
+  strip: boolean;
+}) {
   return (
-    <NavLink className={({ isActive }) => `nav-link${isActive ? " active" : ""}`} end={end} title={label} to={to}>
+    <NavLink
+      className={({ isActive }) => `nav-link${isActive ? " active" : ""}`}
+      end={end}
+      title={strip ? label : undefined}
+      to={to}
+    >
       {icon}
       <span className="nav-label">{label}</span>
     </NavLink>
   );
 }
 
-/** The club and its time, under the brand (FDR-056). */
-function ClubCard({ strip }: { strip: boolean }) {
+/** The club, under the brand (FDR-056). The strip has no room for it. */
+function ClubCard() {
   const site = useSiteSettingsQuery().data;
-  const time = useClubClock();
-  if (strip) {
-    return (
-      <p className="nav-club-tile" title={`${site?.club_name ?? "Your club"} · club time ${time}`}>
-        <span className="visually-hidden">
-          {site?.club_name}, club time {time}
-        </span>
-        <span aria-hidden="true">{time}</span>
-      </p>
-    );
-  }
   return (
     <div className="nav-club-card">
       <p className="nav-eyebrow">Your club</p>
       <p className="nav-club-name">{site?.club_name}</p>
-      <p className="nav-club-time">
-        Club time {time}
-        {site?.time_zone ? ` · ${site.time_zone}` : ""}
-      </p>
     </div>
   );
 }
@@ -119,17 +119,24 @@ export function NavigationRail({
         </button>
       </div>
 
-      <div className="nav-panel" id="nav-panel">
-        <ClubCard strip={strip} />
+      {/* On a phone the menu closes once a page is chosen from it. */}
+      <div
+        className="nav-panel"
+        id="nav-panel"
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest("a")) setMenuOpen(false);
+        }}
+      >
+        {strip ? null : <ClubCard />}
 
         <nav aria-label="Main navigation" className="nav-links">
-          <RailLink end icon={<OverviewIcon />} label="Overview" to="/" />
-          <RailLink icon={<StudentsIcon />} label="Students" to="/students" />
-          <RailLink icon={<GradingsIcon />} label="Gradings" to="/gradings" />
-          <RailLink icon={<SyllabusIcon />} label="Syllabus" to="/syllabus" />
-          {user.can_import_data ? <RailLink icon={<ImportsIcon />} label="Imports" to="/imports" /> : null}
-          {user.can_read_audit_log ? <RailLink icon={<AuditIcon />} label="Audit" to="/audit" /> : null}
-          {user.can_manage_users ? <RailLink icon={<UsersIcon />} label="Users" to="/users" /> : null}
+          <RailLink end icon={<OverviewIcon />} label="Overview" strip={strip} to="/" />
+          <RailLink icon={<StudentsIcon />} label="Students" strip={strip} to="/students" />
+          <RailLink icon={<GradingsIcon />} label="Gradings" strip={strip} to="/gradings" />
+          <RailLink icon={<SyllabusIcon />} label="Syllabus" strip={strip} to="/syllabus" />
+          {user.can_import_data ? <RailLink icon={<ImportsIcon />} label="Imports" strip={strip} to="/imports" /> : null}
+          {user.can_read_audit_log ? <RailLink icon={<AuditIcon />} label="Audit" strip={strip} to="/audit" /> : null}
+          {user.can_manage_users ? <RailLink icon={<UsersIcon />} label="Users" strip={strip} to="/users" /> : null}
         </nav>
 
         <div className="nav-foot">

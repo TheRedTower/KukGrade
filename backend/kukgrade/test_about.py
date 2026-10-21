@@ -56,6 +56,14 @@ def test_about_serves_the_version_the_build_and_the_clubs_zone(settings: Any) ->
     }
 
 
+def test_a_build_time_without_a_zone_is_taken_as_utc(settings: Any) -> None:
+    settings.BUILD_TIME = "2026-10-21T09:30:00"
+
+    built_at = signed_in().get("/api/about/").json()["built_at"]
+
+    assert datetime.fromisoformat(built_at) == datetime(2026, 10, 21, 9, 30, tzinfo=UTC)
+
+
 def test_about_says_so_when_run_from_a_checkout(settings: Any) -> None:
     settings.BUILD_COMMIT = ""
     settings.BUILD_TIME = ""

@@ -11,7 +11,7 @@
  *   display nit, so these are split into local year/month/day.
  * - **Timestamps** (`2026-10-15T10:05:00Z`) — `created_at`, `promoted_at`,
  *   `generated_at`, `completed_at`, `occurred_at`. These carry an offset and
- *   must keep normal parsing so they render in the reader's own timezone.
+ *   keep normal parsing and are shown in the club's time zone (below).
  *
  * The shape is detected from the value, not chosen by the caller, because
  * several formatters receive both kinds - `StudentDetailScreen` formats

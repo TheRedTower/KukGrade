@@ -3,10 +3,8 @@ import { useState } from "react";
 import { errorMessage } from "./api";
 import { formatDateTime } from "./dates";
 import { CopyIcon, GitHubIcon } from "./Icons";
-import { GITHUB_URL } from "./NavigationRail";
+import { GITHUB_URL, ISSUES_URL } from "./project";
 import { useAboutQuery } from "./queries";
-
-const ISSUES_URL = `${GITHUB_URL}/issues`;
 
 /** What is running, and what to quote when asking for help (FDR-058). */
 export function SettingsAbout() {
@@ -68,12 +66,16 @@ export function SettingsAbout() {
           <a href={GITHUB_URL} rel="noopener noreferrer" target="_blank">
             <GitHubIcon />
             <span>Source on GitHub</span>
-            <span aria-hidden="true">↗</span>
+            <span aria-hidden="true" className="st-link-arrow">
+              ↗
+            </span>
             <span className="visually-hidden"> (opens in a new tab)</span>
           </a>
           <a href={ISSUES_URL} rel="noopener noreferrer" target="_blank">
             <span>Report a problem</span>
-            <span aria-hidden="true">↗</span>
+            <span aria-hidden="true" className="st-link-arrow">
+              ↗
+            </span>
             <span className="visually-hidden"> (opens in a new tab)</span>
           </a>
         </section>

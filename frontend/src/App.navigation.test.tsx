@@ -216,13 +216,12 @@ describe("The sidebar", () => {
     expect(window.location.pathname).toBe("/");
   });
 
-  it("names the club, its time zone and the signed-in person", async () => {
+  it("names the club and the signed-in person", async () => {
     stubSite();
 
     render(<App />);
 
     expect(await screen.findByText("Kuk Sool Won Testville")).toBeVisible();
-    expect(screen.getByText(/Club time \d{2}:\d{2} · Europe\/London/)).toBeVisible();
     expect(screen.getByText("CI")).toBeVisible();
     expect(screen.getByText("Casey Instructor")).toBeVisible();
     expect(screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" })).toHaveAttribute(
@@ -290,6 +289,14 @@ describe("The sidebar", () => {
       expect(menu).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByText("Casey Instructor")).toBeVisible();
       expect(screen.queryByRole("button", { name: /sidebar/ })).not.toBeInTheDocument();
+      // Choosing a page closes the menu again.
+      await user.click(screen.getByRole("link", { name: "Students" }));
+      expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+      expect(menu).toHaveAttribute("aria-expanded", "false");
+      // Choosing a page closes the menu again.
+      await user.click(screen.getByRole("link", { name: "Students" }));
+      expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+      expect(menu).toHaveAttribute("aria-expanded", "false");
     } finally {
       window.matchMedia = real;
     }

@@ -3,7 +3,7 @@ settings every screen shares, and what is running (About)."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 
 from django.conf import settings
@@ -128,6 +128,15 @@ class AboutSerializer(serializers.Serializer):
     )
 
 
+def _build_time() -> datetime | None:
+    """When the image was built; a time given without a zone is taken as UTC,
+    as `date -u` writes it (docs/deployment.md)."""
+    if not settings.BUILD_TIME:
+        return None
+    built = datetime.fromisoformat(settings.BUILD_TIME)
+    return built if built.tzinfo else built.replace(tzinfo=UTC)
+
+
 @extend_schema(responses=AboutSerializer)
 @api_view(["GET"])
 def about(_request: Request) -> Response:
@@ -141,11 +150,7 @@ def about(_request: Request) -> Response:
             {
                 "version": VERSION,
                 "commit": settings.BUILD_COMMIT,
-                "built_at": (
-                    datetime.fromisoformat(settings.BUILD_TIME)
-                    if settings.BUILD_TIME
-                    else None
-                ),
+                "built_at": _build_time(),
                 "time_zone": settings.TIME_ZONE,
                 "database": "ok" if database_reachable() else "unavailable",
             },

@@ -18,6 +18,27 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-21 - Historical linking uses the server's group key and remaining records
+
+Status: Accepted; audit repair
+
+Decision:
+The historical people endpoint serves `group_key`, the same normalised name
+key it uses to group records. The record list accepts that key as a declared
+filter, so callers can page through every spelling in the group. The
+`linked` filter on people selects records before grouping: `false` means
+records still awaiting a student, and `true` means linked records. A group
+with different linked students has no single `linked_student`.
+
+Context:
+An exact source-name lookup missed punctuation and rank-title variants.
+Filtering groups by their one-student summary also reported fully linked,
+mixed-student groups as awaiting work.
+
+Consequences:
+The linking screen uses the served key and pages through group records. It
+does not reproduce the name normaliser. Existing source text stays unchanged.
+
 ### 2026-10-20 - The import screens: seven screens chosen, and what they ask of the backend
 
 Status: Accepted (design); the screens are not built yet

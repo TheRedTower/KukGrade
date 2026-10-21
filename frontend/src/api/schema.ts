@@ -2089,6 +2089,7 @@ export interface components {
         /** @description The records that name one person the same way, and who they may be. */
         LegacyPerson: {
             source_name: string;
+            group_key: string;
             readonly record_ids: number[];
             /** @description How many records. */
             readonly records: number;
@@ -3875,6 +3876,8 @@ export interface operations {
                 awaiting_link?: boolean;
                 /** @description Records from this import. */
                 batch?: number;
+                /** @description The stable name-group key served by the people list. */
+                group_key?: string;
                 linked?: boolean;
                 /** @description Records with a rank written but not yet matched to one of KukGrade's. */
                 needs_rank?: boolean;

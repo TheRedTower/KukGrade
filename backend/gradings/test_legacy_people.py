@@ -228,6 +228,73 @@ def test_people_filters_by_linked_and_refuses_anything_else() -> None:
     assert client.get(PEOPLE, {"colour": "red"}).status_code == 400
 
 
+def test_unlinked_people_include_only_records_still_waiting() -> None:
+    first, second = student("Zac", "Wood"), student("Zac", "Ward")
+    legacy_record(source_name="Zac W", student=first)
+    legacy_record(source_name="zac w.", student=second)
+    waiting = legacy_record(source_name="JKN Zac W")
+    client = client_for(admin())
+
+    [person] = results(client.get(PEOPLE, {"linked": "false"}))
+    assert person["record_ids"] == [waiting.pk]
+    assert person["group_key"] == "zac w"
+
+    link_legacy_record_to_student(waiting, first, actor=admin())
+    assert results(client.get(PEOPLE, {"linked": "false"})) == []
+    linked = results(client.get(PEOPLE, {"linked": "true"}))
+    assert linked[0]["records"] == 3
+    assert linked[0]["linked_student"] is None
+
+
+def test_group_key_lists_all_name_variants_in_one_batch() -> None:
+    first_batch, other_batch = legacy_batch(), legacy_batch()
+    first = legacy_record(source_batch=first_batch, source_name="Zac W")
+    second = legacy_record(source_batch=first_batch, source_name="JKN zac w.")
+    legacy_record(source_batch=other_batch, source_name="zac w")
+    client = client_for(admin())
+
+    [person] = results(
+        client.get(PEOPLE, {"batch": str(first_batch.pk), "linked": "false"})
+    )
+    params = {
+        "batch": str(first_batch.pk),
+        "linked": "false",
+        "voided": "false",
+        "group_key": str(person["group_key"]),
+    }
+    response = client.get(
+        "/api/gradings/legacy-records/",
+        params,
+    )
+
+    assert response.status_code == 200
+    assert {row["id"] for row in results(response)} == {first.pk, second.pk}
+    assert (
+        results(client.get("/api/gradings/legacy-records/", {"group_key": "other"}))
+        == []
+    )
+
+
+def test_group_records_remain_paginated_when_more_than_one_page() -> None:
+    records = [legacy_record(source_name="Zac W") for _ in range(101)]
+    client = client_for(admin())
+    [person] = results(client.get(PEOPLE, {"linked": "false"}))
+
+    first = client.get(
+        "/api/gradings/legacy-records/",
+        {"group_key": person["group_key"], "page_size": 100},
+    ).json()
+    second = client.get(
+        "/api/gradings/legacy-records/",
+        {"group_key": person["group_key"], "page_size": 100, "page": 2},
+    ).json()
+
+    assert first["count"] == second["count"] == 101
+    assert {row["id"] for row in first["results"] + second["results"]} == {
+        record.pk for record in records
+    }
+
+
 def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
     instructor = User.objects.create_user(
         email="people-instructor@example.com",

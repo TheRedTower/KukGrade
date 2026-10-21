@@ -139,7 +139,8 @@ checks on each push and pull request.
   first. Each imported student records its import (`Student.source_import`),
   so the Students list can show one import's students. The Colchester
   workbook's side tables and loose notes are read, not dropped (A4).
-  Historical records are grouped by the name as written with suggested
+  Historical records are grouped by the server's normalised name key (source
+  spellings remain unchanged) with suggested
   students and their reasons (`gradings/legacy_matching.py`), confirmed one
   at a time or a person's whole history at once; a voided record can no
   longer be changed, and moving a link needs confirming (A5-A6). See

@@ -828,6 +828,7 @@ class LegacyPersonSerializer(serializers.Serializer):
     """The records that name one person the same way, and who they may be."""
 
     source_name = serializers.CharField()
+    group_key = serializers.CharField(source="key")
     record_ids = serializers.SerializerMethodField()
     records = serializers.SerializerMethodField(help_text="How many records.")
     first_period = serializers.SerializerMethodField()

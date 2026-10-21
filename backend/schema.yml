@@ -1275,6 +1275,12 @@ paths:
         description: Records from this import.
         schema:
           type: integer
+      - name: group_key
+        required: false
+        in: query
+        description: The stable name-group key served by the people list.
+        schema:
+          type: string
       - name: linked
         required: false
         in: query
@@ -4490,6 +4496,8 @@ components:
       properties:
         source_name:
           type: string
+        group_key:
+          type: string
         record_ids:
           type: array
           items:
@@ -4520,6 +4528,7 @@ components:
       required:
       - candidates
       - first_period
+      - group_key
       - last_period
       - linked_student
       - record_ids

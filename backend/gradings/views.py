@@ -25,7 +25,7 @@ from gradings.assessment_services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from gradings.legacy_matching import SHEET_NOTE_NAME, person_groups
+from gradings.legacy_matching import SHEET_NOTE_NAME, group_key, person_groups
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     resolve_legacy_current_rank,
@@ -93,6 +93,17 @@ from kukgrade.filtering import (
 )
 
 _PEOPLE_PARAMETERS = frozenset({"batch", "linked", "page", "page_size", "format"})
+
+
+def _records_for_group(
+    queryset: QuerySet[LegacyGradingRecord], key: str
+) -> QuerySet[LegacyGradingRecord]:
+    """Apply the same name grouping used by the people endpoint."""
+    if key != group_key(key):
+        return queryset.none()
+    names = queryset.order_by().values_list("source_name", flat=True).distinct()
+    matching = [name for name in names if group_key(name) == key]
+    return queryset.filter(source_name__in=matching)
 
 
 class WithdrawalReasonViewSet(GenericViewSet):
@@ -717,6 +728,11 @@ class LegacyGradingRecordViewSet(
         _NEEDS_RANK,
         _AWAITING_LINK,
         exact("source_name", "source_name__iexact", "The name exactly as written."),
+        QueryFilter(
+            "group_key",
+            _records_for_group,
+            description="The stable name-group key served by the people list.",
+        ),
         search("search", ("source_name",), "Part of the name as written."),
     )
 
@@ -844,17 +860,14 @@ class LegacyGradingRecordViewSet(
                 if batch.isdecimal()
                 else records.none()
             )
-        groups = person_groups(records.order_by("pk"))
         linked = request.query_params.get("linked", "")
-        if linked in {"true", "false"}:
-            wanted = linked == "true"
-            groups = [
-                group
-                for group in groups
-                if (group.linked_student is not None) == wanted
-            ]
+        if linked == "true":
+            records = records.filter(student__isnull=False)
+        elif linked == "false":
+            records = records.filter(student__isnull=True)
         elif linked:
-            groups = []
+            records = records.none()
+        groups = person_groups(records.order_by("pk"))
         page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
         assert page is not None
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)

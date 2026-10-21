@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings · Section List</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:#8f5f07}
+a:hover{color:#6b4705}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-surface-sunken:#f5f1e8;--color-rail:#15130f;--color-rail-border:#2b2720;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#8f5f07;--color-success:#1a6e42;--color-success-surface:#e1f3e7;--color-neutral-surface:#efeadf}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-surface-sunken:#1c1914;--color-rail:#241f18;--color-rail-border:#3a3226;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#ffbb3d;--color-success:#4cbf84;--color-success-surface:#1d3227;--color-neutral-surface:#2c2720}
+.tk a{color:var(--color-accent-text)}
+.nl{display:flex;align-items:center;gap:14px;min-height:46px;padding:0 13px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none}
+.tk .nl{color:var(--color-on-ink-muted)}
+.nl:hover{background:rgba(255,255,255,0.06)}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;text-decoration:none;border:0;background:transparent}
+.tk .ib{color:var(--color-on-ink-muted)}
+.fl{display:inline-flex;align-items:center;min-height:32px;padding:0 4px;font-size:12px;font-weight:600;text-decoration:none}
+.tk .fl{color:var(--color-on-ink-muted)}
+.sl{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:8px;font-weight:600;font-size:14px;text-decoration:none}
+.tk .sl{color:var(--color-text-muted)}
+.sl:hover{background:var(--color-neutral-surface)}
+.tk .sl:hover{color:var(--color-text)}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px}
+.fld{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--color-text-muted)}
+.inp{min-height:44px;padding:0 12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);font-size:15px;font-weight:400}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:8px;border:1px solid #d6900e;background:var(--color-gold);color:#17140f;font-weight:700;font-size:14px}
+.btn2{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);font-weight:600;font-size:14px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="display: flex; min-height: 1100px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside aria-label="Sidebar" style="flex: 0 0 264px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 16px 12px 12px; background: var(--color-rail); color: var(--color-on-ink)">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<a href="#dashboard" aria-label="KukGrade, go to the dashboard" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 6px; text-decoration: none; color: var(--color-on-ink)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--color-gold); color: #17140f; font-size: 18px; font-weight: 800">K</span><span style="font-size: 21px; font-weight: 800">Kuk<span style="color: var(--color-gold)">Grade</span></span></a>
+<div style="padding: 12px 14px; border: 1px solid var(--color-rail-border); border-radius: 10px; background: rgba(255,255,255,0.04)"><p style="margin: 0; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase">Your club</p><p style="margin: 2px 0 0; font-weight: 700">Kuk Sool Won Colchester</p><p style="margin: 0; color: var(--color-on-ink-muted); font-size: 12px">Club time 10:42 · Europe/London</p></div>
+<nav aria-label="Main navigation" style="display: flex; flex-direction: column; gap: 4px">
+<a class="nl" href="#overview">Overview</a><a class="nl" href="#students">Students</a><a class="nl" href="#gradings">Gradings</a><a class="nl" href="#syllabus">Syllabus</a><a class="nl" href="#imports">Imports</a><a class="nl" href="#audit">Audit</a><a class="nl" href="#users">Users</a>
+</nav>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 4px; padding: 8px 4px 8px 10px; border: 1px solid var(--color-gold); border-radius: 10px; background: rgba(242,167,27,0.12)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--color-gold); color: #17140f; font-size: 13px; font-weight: 800">ST</span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3; padding-left: 6px"><span style="font-weight: 700; font-size: 14px">Sam Taylor</span><span style="color: var(--color-on-ink-muted); font-size: 12px">Administrator</span></span><a class="ib" href="#settings" aria-label="Settings" aria-current="page" style="color: var(--color-gold)"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10"></path><path d="M18 6h2"></path><path d="M4 12h4"></path><path d="M12 12h8"></path><path d="M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></a><button class="ib" type="button" aria-label="Sign out"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"></path><path d="m16 8 4 4-4 4"></path><path d="M20 12H9"></path></svg></button></div>
+<p style="margin: 0; padding: 0 6px; color: var(--color-on-ink-muted); font-size: 12px"><a class="fl" href="#about">KukGrade 0.1.0</a> · <a class="fl" href="#about">About</a> · <a class="fl" href="https://github.com/TheRedTower/KukGrade" target="_blank" rel="noopener noreferrer">GitHub<span class="sr"> (opens in a new tab)</span></a></p>
+</div>
+</aside>
+
+<div style="flex: 1 1 auto; min-width: 0">
+<main style="width: 100%; max-width: 1120px; padding: 36px 32px; display: flex; flex-direction: column; gap: 24px">
+<div>
+<h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.01em">Settings</h1>
+<p style="margin: 4px 0 0; color: var(--color-text-muted)">Your account, how KukGrade looks for you, and the club’s own settings.</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<nav aria-label="Settings sections" style="flex: 1 1 200px; max-width: 220px; display: flex; flex-direction: column; gap: 2px">
+<p style="margin: 0 0 4px; padding: 0 12px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase">You</p>
+<a class="sl" href="#account" aria-current="page" style="background: var(--color-surface); border: 1px solid var(--color-border); color: var(--color-text); box-shadow: inset 3px 0 0 var(--color-gold)">Account</a>
+<a class="sl" href="#password">Password</a>
+<a class="sl" href="#appearance">Appearance</a>
+<p style="margin: 14px 0 4px; padding: 0 12px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase">Club · administrators</p>
+<a class="sl" href="#club">Club details</a>
+<a class="sl" href="#rules">Sign-in and ID rules</a>
+<p style="margin: 14px 0 4px; padding: 0 12px; color: var(--color-text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase">KukGrade</p>
+<a class="sl" href="#about">About</a>
+</nav>
+
+<div style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+<section class="card" aria-labelledby="acc-h" style="padding: 24px; display: flex; flex-direction: column; gap: 20px">
+<div><h2 id="acc-h" style="margin: 0; font-size: 20px">Account</h2><p style="margin: 2px 0 0; color: var(--color-text-muted); font-size: 14px">The name your club sees on gradings and the audit log.</p></div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px">
+<label class="fld">First name<input class="inp" value="Sam"></label>
+<label class="fld">Last name<input class="inp" value="Taylor"></label>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px">
+<div class="fld">Email<p style="margin: 0; min-height: 44px; display: flex; align-items: center; color: var(--color-text); font-weight: 400">sam.taylor@example.org</p><span style="font-weight: 400">An administrator changes it on the Users page.</span></div>
+<div class="fld">Role<p style="margin: 0; min-height: 44px; display: flex; align-items: center; color: var(--color-text); font-weight: 400">Administrator</p></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--color-border); padding-top: 16px"><button class="btn2" type="button">Cancel</button><button class="btn" type="button">Save name</button></div>
+</section>
+
+<section class="card" aria-labelledby="cap-h" style="padding: 24px; display: flex; flex-direction: column; gap: 12px">
+<div><h2 id="cap-h" style="margin: 0; font-size: 20px">What you can do</h2><p style="margin: 2px 0 0; color: var(--color-text-muted); font-size: 14px">Set by an administrator. Ask one if something is missing.</p></div>
+<ul style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 8px">
+<li style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px"><span aria-hidden="true" style="color: var(--color-success); font-weight: 800">✓</span>Make final grading decisions</li>
+<li style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px"><span aria-hidden="true" style="color: var(--color-success); font-weight: 800">✓</span>Promote students</li>
+<li style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-muted)"><span aria-hidden="true" style="font-weight: 800">–</span>Override a locked session<span class="sr"> (not given)</span></li>
+<li style="display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 8px"><span aria-hidden="true" style="color: var(--color-success); font-weight: 800">✓</span>Read the grading audit log</li>
+</ul>
+</section>
+</div>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

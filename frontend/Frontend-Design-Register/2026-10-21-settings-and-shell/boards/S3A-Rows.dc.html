@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>About · Rows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:#8f5f07}
+a:hover{color:#6b4705}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-rail:#15130f;--color-rail-border:#2b2720;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#8f5f07;--color-success:#1a6e42;--color-success-surface:#e1f3e7;--color-neutral-surface:#efeadf}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-rail:#241f18;--color-rail-border:#3a3226;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#ffbb3d;--color-success:#4cbf84;--color-success-surface:#1d3227;--color-neutral-surface:#2c2720}
+.tk a{color:var(--color-accent-text)}
+.nl{display:flex;align-items:center;min-height:46px;padding:0 13px;border-radius:8px;font-weight:600;font-size:15px;text-decoration:none}
+.tk .nl{color:var(--color-on-ink-muted)}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:8px;text-decoration:none;border:0;background:transparent}
+.tk .ib{color:var(--color-on-ink-muted)}
+.fl{display:inline-flex;align-items:center;min-height:32px;padding:0 4px;font-size:12px;font-weight:600;text-decoration:none}
+.tk .fl{color:var(--color-on-ink-muted)}
+.tab{display:inline-flex;align-items:center;min-height:48px;padding:0 18px;border-bottom:3px solid transparent;color:var(--color-text-muted);font-size:15px;font-weight:700;text-decoration:none}
+.tk .tab{color:var(--color-text-muted)}
+.row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 32px;padding:18px 24px;border-top:1px solid var(--color-border)}
+.row:first-child{border-top:0}
+.rl{flex:1 1 260px;min-width:0}
+.rl p{margin:0}
+.rc{flex:0 1 380px;min-width:0;display:flex;justify-content:flex-end;align-items:center;gap:8px;flex-wrap:wrap;text-align:right}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px}
+.btn2{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);font-weight:600;font-size:14px;text-decoration:none}
+.tk a.btn2{color:var(--color-text)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:1px 10px;border-radius:999px;background:var(--color-neutral-surface);color:var(--color-text-muted);font-size:12px;font-weight:700}
+.ok{display:inline-flex;align-items:center;gap:6px;padding:1px 10px;border-radius:999px;background:var(--color-success-surface);color:var(--color-success);font-size:12px;font-weight:700}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="display: flex; min-height: 1000px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside aria-label="Sidebar" style="flex: 0 0 264px; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 16px 12px 12px; background: var(--color-rail); color: var(--color-on-ink)">
+<div style="display: flex; flex-direction: column; gap: 14px">
+<a href="#dashboard" aria-label="KukGrade, go to the dashboard" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 6px; text-decoration: none; color: var(--color-on-ink)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; background: var(--color-gold); color: #17140f; font-size: 18px; font-weight: 800">K</span><span style="font-size: 21px; font-weight: 800">Kuk<span style="color: var(--color-gold)">Grade</span></span></a>
+<div style="padding: 12px 14px; border: 1px solid var(--color-rail-border); border-radius: 10px; background: rgba(255,255,255,0.04)"><p style="margin: 0; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase">Your club</p><p style="margin: 2px 0 0; font-weight: 700">Kuk Sool Won Colchester</p><p style="margin: 0; color: var(--color-on-ink-muted); font-size: 12px">Club time 10:42 · Europe/London</p></div>
+<nav aria-label="Main navigation" style="display: flex; flex-direction: column; gap: 4px"><a class="nl" href="#overview">Overview</a><a class="nl" href="#students">Students</a><a class="nl" href="#gradings">Gradings</a><a class="nl" href="#syllabus">Syllabus</a><a class="nl" href="#imports">Imports</a><a class="nl" href="#audit">Audit</a><a class="nl" href="#users">Users</a></nav>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 4px; padding: 8px 4px 8px 10px; border: 1px solid var(--color-rail-border); border-radius: 10px; background: rgba(255,255,255,0.04)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--color-gold); color: #17140f; font-size: 13px; font-weight: 800">ST</span><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3; padding-left: 6px"><span style="font-weight: 700; font-size: 14px">Sam Taylor</span><span style="color: var(--color-on-ink-muted); font-size: 12px">Administrator</span></span><a class="ib" href="#settings" aria-label="Settings"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10"></path><path d="M18 6h2"></path><path d="M4 12h4"></path><path d="M12 12h8"></path><path d="M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></a><button class="ib" type="button" aria-label="Sign out"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"></path><path d="m16 8 4 4-4 4"></path><path d="M20 12H9"></path></svg></button></div>
+<p style="margin: 0; padding: 0 6px; color: var(--color-on-ink-muted); font-size: 12px"><a class="fl" href="#about" aria-current="page" style="color: var(--color-gold)">KukGrade 0.1.0</a> · <a class="fl" href="#about" style="color: var(--color-gold)">About</a> · <a class="fl" href="https://github.com/TheRedTower/KukGrade" target="_blank" rel="noopener noreferrer">GitHub<span class="sr"> (opens in a new tab)</span></a></p>
+</div>
+</aside>
+
+<div style="flex: 1 1 auto; min-width: 0">
+<main style="width: 100%; max-width: 960px; padding: 36px 32px; display: flex; flex-direction: column; gap: 20px">
+<h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.01em">Settings</h1>
+<nav aria-label="Settings" style="display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--color-border)"><a class="tab" href="#account">Account</a><a class="tab" href="#appearance">Appearance</a><a class="tab" href="#club">Club</a><a class="tab" href="#about" aria-current="page" style="border-bottom-color: var(--color-gold); color: var(--color-text)">About</a></nav>
+
+<section class="card" aria-label="About KukGrade">
+<div class="row"><div class="rl"><p style="font-weight: 700">Version</p><p style="color: var(--color-text-muted); font-size: 14px">The version of KukGrade running now.</p></div><div class="rc"><span style="font-weight: 700">0.1.0</span></div></div>
+<div class="row"><div class="rl"><p style="font-weight: 700">Build</p><p style="color: var(--color-text-muted); font-size: 14px">When this version was built, and from which commit.</p></div><div class="rc"><span>21 October 2026</span><span class="mono" style="color: var(--color-text-muted)">5198f1b</span></div></div>
+<div class="row"><div class="rl"><p style="font-weight: 700">Updates</p><p style="color: var(--color-text-muted); font-size: 14px">KukGrade does not look for updates by itself. Your administrator installs new versions.</p></div><div class="rc"><span class="tag">Not checked</span></div></div>
+<div class="row"><div class="rl"><p style="font-weight: 700">Licence</p><p style="color: var(--color-text-muted); font-size: 14px">The terms KukGrade is shared under.</p></div><div class="rc"><span class="tag">To be decided</span></div></div>
+<div class="row"><div class="rl"><p style="font-weight: 700">Source code</p><p style="color: var(--color-text-muted); font-size: 14px">Where KukGrade is developed.</p></div><div class="rc"><a class="btn2" href="https://github.com/TheRedTower/KukGrade" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.4 9.4 0 0 1 12 6.84c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.81c0 .27.18.59.69.49A10.25 10.25 0 0 0 22 12.25C22 6.58 17.52 2 12 2z"></path></svg>View on GitHub<span aria-hidden="true">↗</span><span class="sr"> (opens in a new tab)</span></a></div></div>
+<div class="row"><div class="rl"><p style="font-weight: 700">System</p><p style="color: var(--color-text-muted); font-size: 14px">Whether the database is reachable right now.</p></div><div class="rc"><span class="ok"><span aria-hidden="true">✓</span>Ready</span></div></div>
+</section>
+
+<p style="margin: 0; text-align: center; color: var(--color-text-muted); font-size: 13px">KukGrade · People · Progress · Purpose</p>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

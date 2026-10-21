@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shell · Club Card, No Top Bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:#8f5f07}
+a:hover{color:#6b4705}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-rail:#15130f;--color-rail-border:#2b2720;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#8f5f07}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-rail:#241f18;--color-rail-border:#3a3226;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#ffbb3d}
+.tk a{color:var(--color-accent-text)}
+.nl{display:flex;align-items:center;gap:12px;min-height:44px;padding:10px 14px;border-radius:6px;font-weight:600;font-size:15px;text-decoration:none}
+.tk .nl{color:var(--color-on-ink-muted)}
+.nl:hover{background:rgba(255,255,255,0.06)}
+.tk .nl:hover{color:var(--color-on-ink)}
+.nl:focus-visible,.brand:focus-visible,.ib:focus-visible,.fl:focus-visible{outline:2px solid var(--color-gold);outline-offset:2px}
+.brand{display:block;padding:6px 10px 4px;border-radius:6px;text-decoration:none}
+.tk .brand{color:var(--color-on-ink)}
+.brand:hover{background:rgba(255,255,255,0.06)}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:8px;background:transparent;text-decoration:none}
+.tk .ib{color:var(--color-on-ink-muted)}
+.ib:hover{background:rgba(255,255,255,0.08)}
+.tk .ib:hover{color:var(--color-on-ink)}
+.fl{display:inline-flex;align-items:center;min-height:32px;padding:0 4px;font-size:12px;font-weight:600;text-decoration:none}
+.tk .fl{color:var(--color-on-ink-muted)}
+.tk .fl:hover{color:var(--color-on-ink);text-decoration:underline}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="display: flex; flex-wrap: wrap; min-height: 900px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside aria-label="Sidebar" style="flex: 1 1 240px; max-width: 264px; display: flex; flex-direction: column; justify-content: space-between; gap: 20px; padding: 20px 14px 14px; background: var(--color-rail); border-right: 1px solid var(--color-rail-border); color: var(--color-on-ink)">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<a class="brand" href="#dashboard" aria-label="KukGrade, go to the dashboard"><span style="font-size: 26px; font-weight: 800; letter-spacing: -0.01em">Kuk<span style="color: var(--color-gold)">Grade</span></span></a>
+<div style="padding: 12px 14px; border: 1px solid var(--color-rail-border); border-radius: 10px; background: rgba(255,255,255,0.04)">
+<p style="margin: 0; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase">Your club</p>
+<p style="margin: 2px 0 0; font-weight: 700">Kuk Sool Won Colchester</p>
+<p style="margin: 0; color: var(--color-on-ink-muted); font-size: 12px">Club time 10:42 · Europe/London</p>
+</div>
+<nav aria-label="Main navigation" style="display: flex; flex-direction: column; gap: 4px">
+<a class="nl" href="#overview" aria-current="page" style="padding-left: 11px; border-left: 3px solid var(--color-gold); background: rgba(242, 167, 27, 0.12); color: var(--color-on-ink)"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Overview</a>
+<a class="nl" href="#students"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7"></path><path d="M18 14.5c2.2.7 3.5 2.7 3.5 5.5"></path></svg>Students</a>
+<a class="nl" href="#gradings"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4V3h6v1"></path><path d="m9 13 2 2 4-4"></path></svg>Gradings</a>
+<a class="nl" href="#syllabus"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"></path></svg>Syllabus</a>
+<a class="nl" href="#imports"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="m7.5 9.5 4.5 4.5 4.5-4.5"></path><path d="M3 14v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4"></path></svg>Imports</a>
+<a class="nl" href="#audit"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"></path><path d="M9 12h6"></path><path d="M9 15.5h4"></path></svg>Audit</a>
+<a class="nl" href="#users"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Users</a>
+</nav>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; gap: 6px; padding: 8px 6px 8px 10px; border: 1px solid var(--color-rail-border); border-radius: 10px; background: rgba(255,255,255,0.04)">
+<span aria-hidden="true" style="display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--color-gold); color: #17140f; font-size: 13px; font-weight: 800">ST</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 700; font-size: 14px">Sam Taylor</span><span style="color: var(--color-on-ink-muted); font-size: 12px">Administrator</span></span>
+<a class="ib" href="#settings" aria-label="Settings" title="Settings"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10"></path><path d="M18 6h2"></path><path d="M4 12h4"></path><path d="M12 12h8"></path><path d="M4 18h12"></path><circle cx="16" cy="6" r="2"></circle><circle cx="10" cy="12" r="2"></circle><circle cx="18" cy="18" r="2"></circle></svg></a>
+<button class="ib" type="button" aria-label="Sign out" title="Sign out"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"></path><path d="m16 8 4 4-4 4"></path><path d="M20 12H9"></path></svg></button>
+</div>
+<p style="margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; padding: 0 6px; color: var(--color-on-ink-muted); font-size: 12px"><a class="fl" href="#about">KukGrade 0.1.0</a><span aria-hidden="true">·</span><a class="fl" href="#about">About</a><span aria-hidden="true">·</span><a class="fl" href="https://github.com/TheRedTower/KukGrade" target="_blank" rel="noopener noreferrer">GitHub<span class="fl-sr" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)"> (opens in a new tab)</span></a></p>
+</div>
+</aside>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<main style="width: 100%; max-width: 1120px; padding: 36px 32px 32px; display: flex; flex-direction: column; gap: 24px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div>
+<p style="margin: 0 0 4px; color: var(--color-text-muted); font-size: 14px">Wednesday, 21 October 2026</p>
+<h1 style="margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.01em">Overview</h1>
+</div>
+<a href="#new-grading" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 8px; background: var(--color-gold); color: #17140f; font-weight: 700; text-decoration: none">Create grading</a>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px">
+<div class="card" style="padding: 20px"><p style="margin: 0; color: var(--color-text-muted); font-size: 13px; font-weight: 600">Active students</p><p style="margin: 4px 0 0; font-size: 32px; font-weight: 800">148</p></div>
+<div class="card" style="padding: 20px"><p style="margin: 0; color: var(--color-text-muted); font-size: 13px; font-weight: 600">Next grading</p><p style="margin: 4px 0 0; font-size: 32px; font-weight: 800">9 Nov</p></div>
+<div class="card" style="padding: 20px"><p style="margin: 0; color: var(--color-text-muted); font-size: 13px; font-weight: 600">Awaiting decision</p><p style="margin: 4px 0 0; font-size: 32px; font-weight: 800">12</p></div>
+</div>
+<section class="card" aria-label="Upcoming gradings"><div style="padding: 18px 20px; border-bottom: 1px solid var(--color-border); font-weight: 700">Upcoming gradings</div><div style="padding: 18px 20px; color: var(--color-text-muted)">November grading · Monday 9 November 2026 · 31 candidates</div></section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return { theme: this.props.theme ?? 'light' };
+}
+}
+</script>
+</body>
+</html>

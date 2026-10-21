@@ -13,6 +13,7 @@ import { LinkRecordsScreen } from "./LinkRecordsScreen";
 const api = vi.hoisted(() => ({
   getDataImportBatch: vi.fn(),
   getDataImportBatches: vi.fn(),
+  getAllDataImportBatches: vi.fn(),
   getDataImportRows: vi.fn(),
   saveDataImportMapping: vi.fn(),
   correctDataImportRow: vi.fn(),
@@ -23,6 +24,7 @@ const api = vi.hoisted(() => ({
   getRanks: vi.fn(),
   getStudents: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
+  getAllLegacyGradingRecords: vi.fn(),
   getLegacyPeople: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
@@ -486,6 +488,7 @@ describe("Linking historical records", () => {
   const mia = person({ record_ids: [101, 102] , records: 2 });
   const theo = person({
     source_name: "Theo",
+    group_key: "theo",
     record_ids: [201],
     records: 1,
     shared: true,
@@ -497,10 +500,11 @@ describe("Linking historical records", () => {
 
   beforeEach(() => {
     api.getDataImportBatches.mockResolvedValue(page([]));
+    api.getAllDataImportBatches.mockResolvedValue(page([]));
     api.getLegacyPeople.mockResolvedValue(page([mia, theo]));
-    api.getLegacyGradingRecords.mockImplementation((params: { source_name: string }) =>
+    api.getAllLegacyGradingRecords.mockImplementation((params: { group_key: string }) =>
       Promise.resolve(
-        params.source_name === "Mia R"
+        params.group_key === "mia r"
           ? page([record(), record({ id: 102, cycle_month: 6, source_testing_for_rank_text: "Brn stripe", testing_for_rank: null })])
           : page([record({ id: 201, source_name: "Theo" })]),
       ),
@@ -515,6 +519,7 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     expect(await screen.findByRole("heading", { name: "“Mia R” in the workbook" })).toBeInTheDocument();
+    expect(api.getAllLegacyGradingRecords).toHaveBeenCalledWith({ group_key: "mia r", batch: undefined, linked: false, voided: false });
     expect((await screen.findAllByText("Ki Cho Hyung 1 clean.", { exact: false })).length).toBeGreaterThan(0);
     expect(screen.getByRole("radio", { name: /Mia Reynolds/ })).toBeChecked();
     await user.click(screen.getAllByRole("checkbox")[0]);
@@ -526,6 +531,68 @@ describe("Linking historical records", () => {
     await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
     await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(102));
     expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an unlinked record visible after linking only part of a group", async () => {
+    const user = userEvent.setup();
+    let secondLinked = false;
+    api.getLegacyPeople.mockImplementation(() => Promise.resolve(page([
+      person({ record_ids: secondLinked ? [101] : [101, 102], records: secondLinked ? 1 : 2 }),
+    ])));
+    api.getAllLegacyGradingRecords.mockImplementation(() => Promise.resolve(page(
+      secondLinked ? [record()] : [record(), record({ id: 102, cycle_month: 6 })],
+    )));
+    api.bulkLinkLegacyRecords.mockImplementation(() => {
+      secondLinked = true;
+      return Promise.resolve([record({ id: 102, student: 31 })]);
+    });
+
+    renderAt("/imports/records");
+    await screen.findByRole("button", { name: "Link all 2 to Mia Reynolds" });
+    await user.click(screen.getAllByRole("checkbox")[0]);
+    await user.click(screen.getByRole("button", { name: "Link 1 of 2 to Mia Reynolds" }));
+
+    expect(await screen.findByRole("button", { name: "Link it to Mia Reynolds" })).toBeEnabled();
+    expect(screen.getByRole("heading", { name: "“Mia R” in the workbook" })).toBeInTheDocument();
+    expect(screen.queryByText("✓ Every imported record is linked to a student.")).not.toBeInTheDocument();
+  });
+
+  it("advances past fifty names left for later", async () => {
+    const user = userEvent.setup();
+    const first = Array.from({ length: 50 }, (_, index) => person({
+      source_name: `Person ${String(index).padStart(2, "0")}`,
+      group_key: `person ${String(index).padStart(2, "0")}`,
+      record_ids: [index + 1],
+      records: 1,
+    }));
+    const last = person({ source_name: "Person 50", group_key: "person 50", record_ids: [51], records: 1 });
+    api.getLegacyPeople.mockImplementation(({ page: requested }: { page: number }) => Promise.resolve(
+      requested === 1
+        ? { ...page(first, 51), next: "?page=2" }
+        : page([last], 51),
+    ));
+    api.getAllLegacyGradingRecords.mockResolvedValue(page([record()]));
+
+    renderAt("/imports/records");
+    for (let index = 0; index < 50; index += 1) {
+      await user.click(await screen.findByRole("button", { name: "Leave for now" }));
+    }
+
+    expect(await screen.findByRole("heading", { name: "“Person 50” in the workbook" })).toBeInTheDocument();
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 2, page_size: 50 });
+  }, 15_000);
+
+  it("offers import filters beyond the first page", async () => {
+    const user = userEvent.setup();
+    api.getAllDataImportBatches.mockResolvedValue(page(Array.from({ length: 51 }, (_, index) =>
+      batch({ id: index + 1, kind: "LEGACY_GRADINGS", original_filename: `History ${index + 1}.xlsx` }),
+    )));
+
+    renderAt("/imports/records");
+    await screen.findByRole("option", { name: "History 51.xlsx" });
+    await user.selectOptions(screen.getByLabelText("Import"), "51");
+
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: 51, linked: false, page: 1, page_size: 50 });
   });
 
   it("asks for a choice where students share a name, or another student by search", async () => {

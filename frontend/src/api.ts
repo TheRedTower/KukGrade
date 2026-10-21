@@ -772,6 +772,13 @@ export async function getDataImportBatches(
   );
 }
 
+/** Complete import choices for filters, regardless of how many were committed. */
+export async function getAllDataImportBatches(
+  params: Omit<ListQuery<"data_imports_batches_list">, "page" | "page_size">,
+): Promise<PaginatedResponse<DataImportBatch>> {
+  return collectAllPages((page) => getDataImportBatches({ ...params, page, page_size: 200 }));
+}
+
 export async function getDataImportBatch(batchId: number): Promise<DataImportBatch> {
   return apiRequest<DataImportBatch>(`/api/data-imports/batches/${batchId}/`);
 }
@@ -890,6 +897,13 @@ export async function getLegacyGradingRecords(params?: ListQuery<"gradings_legac
   return apiRequest<PaginatedResponse<LegacyGradingRecord>>(
     withQuery("/api/gradings/legacy-records/", params),
   );
+}
+
+/** Every page of one historical name group, before choosing records to link. */
+export async function getAllLegacyGradingRecords(
+  params: Omit<ListQuery<"gradings_legacy_records_list">, "page" | "page_size">,
+): Promise<PaginatedResponse<LegacyGradingRecord>> {
+  return collectAllPages((page) => getLegacyGradingRecords({ ...params, page, page_size: 200 }));
 }
 
 export type LegacyPerson = Schemas["LegacyPerson"];

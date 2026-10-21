@@ -67,6 +67,7 @@ export function row(overrides: Partial<DataImportRow> = {}): DataImportRow {
 export function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
   return {
     source_name: "Mia R",
+    group_key: "mia r",
     record_ids: [101, 102, 103],
     records: 3,
     first_period: "2025-03",

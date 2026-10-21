@@ -6,8 +6,8 @@ import {
   type LegacyGradingRecord,
   type LegacyPerson,
   errorMessage,
-  getDataImportBatches,
-  getLegacyGradingRecords,
+  getAllDataImportBatches,
+  getAllLegacyGradingRecords,
   getLegacyPeople,
   getStudents,
   resolveLegacyCurrentRank,
@@ -16,6 +16,7 @@ import {
 } from "./api";
 import { formatMonthYear } from "./dates";
 import { ImportDialog } from "./ImportDialog";
+import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -141,10 +142,12 @@ function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onChoose: (c
 /** One name in focus: its records beside the students it could be (FDR-055). */
 function NameInFocus({
   person,
+  batch,
   onLinked,
   onSkip,
 }: {
   person: LegacyPerson;
+  batch: number | undefined;
   onLinked: (name: string, recordIds: number[]) => void;
   onSkip: () => void;
 }) {
@@ -158,16 +161,19 @@ function NameInFocus({
   const [voiding, setVoiding] = useState<LegacyGradingRecord | null>(null);
 
   const records = useQuery({
-    queryKey: ["legacyRecords", "byName", person.source_name],
-    queryFn: () => getLegacyGradingRecords({ source_name: person.source_name, linked: false, voided: false, page_size: 100 }),
+    queryKey: ["legacyRecords", "group", person.group_key, batch],
+    queryFn: () => getAllLegacyGradingRecords({ group_key: person.group_key, batch, linked: false, voided: false }),
   });
-  const own = (records.data?.results ?? []).filter((record) => person.record_ids.includes(record.id));
+  const own = records.data?.results ?? [];
   const ticked = own.filter((record) => !left.includes(record.id));
 
   function linkTicked(choice: Chosen) {
     link.mutate(
       { records: ticked.map((record) => record.id), student: choice.student },
-      { onSuccess: (linked) => onLinked(choice.name, linked.map((record) => record.id)) },
+      { onSuccess: (linked) => {
+        setLeft([]);
+        onLinked(choice.name, linked.map((record) => record.id));
+      } },
     );
   }
 
@@ -296,18 +302,19 @@ function NameInFocus({
 export function LinkRecordsScreen() {
   const { undo } = useLegacyLinking();
   const [batch, setBatch] = useState("");
+  const [page, setPage] = useState(1);
   const [focus, setFocus] = useState<string | null>(null);
   const [skipped, setSkipped] = useState<string[]>([]);
   const [linked, setLinked] = useState<{ person: LegacyPerson; name: string; recordIds: number[] }[]>([]);
 
   const imports = useQuery({
     queryKey: ["imports", "historical"],
-    queryFn: () => getDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED", page_size: 50 }),
+    queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", "queue", batch],
+    queryKey: ["legacyPeople", "queue", batch, page],
     placeholderData: keepPreviousData,
-    queryFn: () => getLegacyPeople({ batch: batch ? Number(batch) : undefined, linked: false, page_size: QUEUE_SIZE }),
+    queryFn: () => getLegacyPeople({ batch: batch ? Number(batch) : undefined, linked: false, page, page_size: QUEUE_SIZE }),
   });
 
   function undoLink(entry: (typeof linked)[number]) {
@@ -316,18 +323,15 @@ export function LinkRecordsScreen() {
     });
   }
 
-  const waiting = (people.data?.results ?? []).filter(
-    (person) => !linked.some((entry) => entry.person.source_name === person.source_name),
-  );
+  const waiting = people.isPlaceholderData ? [] : people.data?.results ?? [];
   const nextUp = (after: string | null) => {
-    const order = waiting.filter((person) => !skipped.includes(person.source_name) || person.source_name === after);
-    const index = order.findIndex((person) => person.source_name === after);
-    return order[index + 1]?.source_name ?? order.find((person) => person.source_name !== after)?.source_name ?? null;
+    const order = waiting.filter((person) => !skipped.includes(person.group_key) || person.group_key === after);
+    const index = order.findIndex((person) => person.group_key === after);
+    return order[index + 1]?.group_key ?? order.find((person) => person.group_key !== after)?.group_key ?? null;
   };
   const current =
-    waiting.find((person) => person.source_name === focus) ??
-    waiting.find((person) => !skipped.includes(person.source_name)) ??
-    waiting[0];
+    waiting.find((person) => person.group_key === focus) ??
+    waiting.find((person) => !skipped.includes(person.group_key));
 
   return (
     <section aria-labelledby="ix-link-title" className="ix-page ix-page-wide">
@@ -350,7 +354,7 @@ export function LinkRecordsScreen() {
 
       <div className="ix-two-col ix-two-col-queue">
         <div className="ix-section">
-          {people.isPending ? (
+          {people.isPending || people.isPlaceholderData ? (
             <p className="ix-muted" role="status">
               Loading the names…
             </p>
@@ -360,19 +364,37 @@ export function LinkRecordsScreen() {
             </p>
           ) : current ? (
             <NameInFocus
-              key={current.source_name}
+              key={current.group_key}
               person={current}
+              batch={batch ? Number(batch) : undefined}
               onLinked={(name, recordIds) => {
-                setLinked([...linked, { person: current, name, recordIds }]);
-                setFocus(nextUp(current.source_name));
+                setLinked((previous) => [...previous, { person: current, name, recordIds }]);
+                setPage(1);
+                setFocus(nextUp(current.group_key));
               }}
               onSkip={() => {
-                setSkipped([...skipped, current.source_name]);
-                setFocus(nextUp(current.source_name));
+                setSkipped((previous) => [...previous, current.group_key]);
+                if (waiting.every((person) => person.group_key === current.group_key || skipped.includes(person.group_key)) && people.data?.next) {
+                  setPage(page + 1);
+                  setFocus(null);
+                } else {
+                  setFocus(nextUp(current.group_key));
+                }
               }}
             />
           ) : (
-            <p className="ix-card ix-card-pad ix-success-text ix-bold">✓ Every imported record is linked to a student.</p>
+            <div className="ix-card ix-card-pad">
+              {people.data?.count === 0 ? (
+                <p className="ix-success-text ix-bold">✓ Every imported record is linked to a student.</p>
+              ) : (
+                <>
+                  <p className="ix-muted">No more names to work on from this page.</p>
+                  <button className="btn-ghost" type="button" onClick={() => { setPage(1); setFocus(null); setSkipped([]); }}>
+                    Return to the first page
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -384,7 +406,9 @@ export function LinkRecordsScreen() {
                 value={batch}
                 onChange={(event) => {
                   setBatch(event.target.value);
+                  setPage(1);
                   setFocus(null);
+                  setSkipped([]);
                 }}
               >
                 <option value="">Every import</option>
@@ -403,7 +427,7 @@ export function LinkRecordsScreen() {
           ) : null}
           <ol className="ix-queue">
             {linked.map((entry) => (
-              <li key={`linked-${entry.person.source_name}`}>
+              <li key={`linked-${entry.recordIds.join("-")}`}>
                 <div className="ix-queue-done">
                   <span aria-hidden="true" className="ix-mark ix-mark-ok">
                     ✓
@@ -428,8 +452,8 @@ export function LinkRecordsScreen() {
               const mark = person.candidates.length === 0 ? "?" : person.shared ? "2" : "1";
               const tone = person.candidates.length === 1 && !person.shared ? "ix-pill-info" : "ix-pill-warning";
               return (
-                <li key={person.source_name}>
-                  <button aria-current={current?.source_name === person.source_name} type="button" onClick={() => setFocus(person.source_name)}>
+                <li key={person.group_key}>
+                  <button aria-current={current?.group_key === person.group_key} type="button" onClick={() => setFocus(person.group_key)}>
                     <span aria-hidden="true" className={`ix-mark ${tone}`}>
                       {mark}
                     </span>
@@ -438,7 +462,7 @@ export function LinkRecordsScreen() {
                         “{person.source_name}” · {person.records}
                       </span>
                       <span className="ix-muted ix-small">
-                        {skipped.includes(person.source_name)
+                        {skipped.includes(person.group_key)
                           ? "Left for now"
                           : person.candidates.length === 0
                             ? "No suggestion"
@@ -452,11 +476,15 @@ export function LinkRecordsScreen() {
               );
             })}
           </ol>
-          {people.data && people.data.count > people.data.results.length ? (
-            <p className="ix-muted ix-small ix-queue-note">
-              The first {QUEUE_SIZE} names are shown; more appear as these are linked.
-            </p>
-          ) : null}
+          <ImportPager
+            page={page}
+            pages={Math.ceil((people.data?.count ?? 0) / QUEUE_SIZE)}
+            total={people.data?.count ?? 0}
+            onPage={(next) => {
+              setPage(next);
+              setFocus(null);
+            }}
+          />
         </nav>
       </div>
     </section>

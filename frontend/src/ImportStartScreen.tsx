@@ -16,11 +16,8 @@ import {
 import { ImportStepBar } from "./ImportStepBar";
 import { counted, importKindTitle } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
+import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
-
-// The server's own upload limit (IMPORT_UPLOAD_MAX_BYTES), checked here only
-// to save uploading a file the server would refuse; the server still decides.
-const MAX_BYTES = 5 * 1024 * 1024;
 
 type Guide = { lead: string; fields: { name: string; hint: string; needed: boolean }[]; foot: string };
 
@@ -69,14 +66,21 @@ function fileSize(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function sizeLimit(bytes: number): string {
+  const mib = bytes / (1024 * 1024);
+  return `${Number.isInteger(mib) ? mib : mib.toFixed(1)} MB`;
+}
+
 /** Why the browser can refuse a file before sending it, or null. */
-function clientRefusal(file: File, kind: DataImportKind): string | null {
+function clientRefusal(file: File, kind: DataImportKind, maxBytes: number | undefined): string | null {
   if (!allowedSuffixes(kind).includes(suffixOf(file.name))) {
     return kind === "STUDENT_ROSTER"
       ? "Choose an Excel (.xlsx) or CSV (.csv) file."
       : "Choose the workbook as an Excel (.xlsx) file.";
   }
-  if (file.size > MAX_BYTES) return "The file is larger than 5 MB.";
+  if (maxBytes !== undefined && file.size > maxBytes) {
+    return `The file is larger than ${sizeLimit(maxBytes)}.`;
+  }
   return null;
 }
 
@@ -135,10 +139,12 @@ function FoundChecklist({
   batch,
   created,
   kind,
+  limit,
 }: {
   batch: DataImportBatch;
   created: CreateDataImportBatchResponse;
   kind: DataImportKind;
+  limit: string | undefined;
 }) {
   const items: { ok: boolean; title: string; detail: string }[] = [
     {
@@ -147,7 +153,7 @@ function FoundChecklist({
         suffixOf(batch.original_filename) === "csv"
           ? "A CSV file KukGrade can read"
           : "An Excel workbook KukGrade can read",
-      detail: `${fileSize(batch.file_size)}, under the 5 MB limit.`,
+      detail: `${fileSize(batch.file_size)}${limit ? `, under the ${limit} limit` : ""}.`,
     },
   ];
   if (kind === "STUDENT_ROSTER") {
@@ -221,6 +227,8 @@ export function ImportStartScreen() {
   const kind = parseKind(searchParams.get("kind"));
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const maxBytes = useSiteSettingsQuery().data?.import_upload_max_bytes;
+  const limit = maxBytes === undefined ? undefined : sizeLimit(maxBytes);
   const inputRef = useRef<HTMLInputElement>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -251,7 +259,7 @@ export function ImportStartScreen() {
 
   function take(file: File | undefined) {
     if (!file || upload.isPending) return;
-    const reason = clientRefusal(file, kind);
+    const reason = clientRefusal(file, kind, maxBytes);
     setRefusal(reason);
     upload.reset();
     if (!reason) upload.mutate(file);
@@ -318,7 +326,7 @@ export function ImportStartScreen() {
               Choose a different file
             </button>
           </div>
-          <FoundChecklist batch={loaded} created={created} kind={kind} />
+          <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
           {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
             <label className="ix-field ix-field-narrow">
               Sheet to read
@@ -409,8 +417,8 @@ export function ImportStartScreen() {
               </button>
               <p className="ix-muted ix-small">
                 {kind === "STUDENT_ROSTER"
-                  ? "Excel (.xlsx) or CSV, up to 5 MB and 1,000 rows"
-                  : "Excel (.xlsx), up to 5 MB"}
+                  ? `Excel (.xlsx) or CSV, ${limit ? `up to ${limit}` : "size checked when uploaded"} and 1,000 rows`
+                  : `Excel (.xlsx), ${limit ? `up to ${limit}` : "size checked when uploaded"}`}
               </p>
             </div>
             {fileError ? (

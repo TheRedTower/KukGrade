@@ -83,6 +83,9 @@ class SiteSettingsSerializer(serializers.Serializer):
             "'today' is today there."
         ),
     )
+    import_upload_max_bytes = serializers.IntegerField(
+        help_text="The maximum import file size enforced by this deployment, in bytes.",
+    )
     password_policy = PasswordPolicySerializer()
     wksa_id = WksaIdSchemeSerializer()
 
@@ -105,6 +108,7 @@ def site_settings(_request: Request) -> Response:
             {
                 "club_name": settings.CLUB_NAME,
                 "time_zone": settings.TIME_ZONE,
+                "import_upload_max_bytes": settings.IMPORT_UPLOAD_MAX_BYTES,
                 "password_policy": password_policy(),
                 "wksa_id": wksa_ids.described(),
             },

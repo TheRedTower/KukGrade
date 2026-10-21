@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AuthUser, type CreateDataImportBatchResponse } from "./api";
+import { ApiError, type AuthUser, type CreateDataImportBatchResponse, type SiteSettings } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
 import { batch, page, person, row } from "./importTestFixtures";
@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   voidDataImportRecords: vi.fn(),
   getLegacyGradingRecords: vi.fn(),
   getLegacyPeople: vi.fn(),
+  getSiteSettings: vi.fn(),
   bulkLinkLegacyRecords: vi.fn(),
   unlinkLegacyGradingRecord: vi.fn(),
 }));
@@ -40,6 +41,14 @@ const auth = vi.hoisted(() => ({ user: null as AuthUser | null }));
 vi.mock("./auth", () => ({
   useAuth: () => ({ user: auth.user, status: "authenticated" }),
 }));
+
+const servedSite = {
+  club_name: "Test club",
+  time_zone: "Europe/London",
+  import_upload_max_bytes: 5 * 1024 * 1024,
+  password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
+  wksa_id: { hint: "", forms: [] },
+} satisfies SiteSettings;
 
 function Where() {
   const location = useLocation();
@@ -69,6 +78,7 @@ beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset());
   auth.user = { ...authUser, ...ADMINISTRATOR_CAPABILITIES };
   api.getLegacyGradingRecords.mockResolvedValue(page([], 0));
+  api.getSiteSettings.mockResolvedValue(servedSite);
 });
 
 describe("Imports hub", () => {
@@ -214,6 +224,32 @@ describe("Choosing the file", () => {
     );
     await user.upload(screen.getByLabelText("Choose a file"), xlsx("record.xlsx", 6 * 1024 * 1024));
     expect(screen.getByRole("alert")).toHaveTextContent("The file is larger than 5 MB.");
+    expect(api.createDataImportBatch).not.toHaveBeenCalled();
+  });
+
+  it("uses the server's configured upload limit rather than a browser copy", async () => {
+    const user = userEvent.setup();
+    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 10 * 1024 * 1024 });
+    api.createDataImportBatch.mockResolvedValue(created);
+    api.getDataImportBatch.mockResolvedValue(batch());
+
+    renderAt("/imports/new?kind=STUDENT_ROSTER");
+    expect(await screen.findByText(/up to 10 MB and 1,000 rows/)).toBeInTheDocument();
+    await user.upload(screen.getByLabelText("Choose a file"), xlsx("roster.xlsx", 6 * 1024 * 1024));
+
+    expect(api.createDataImportBatch).toHaveBeenCalledWith(expect.any(File), "STUDENT_ROSTER");
+    expect(await screen.findByText("Your file")).toBeInTheDocument();
+  });
+
+  it("refuses files above a smaller server limit", async () => {
+    const user = userEvent.setup();
+    api.getSiteSettings.mockResolvedValue({ ...servedSite, import_upload_max_bytes: 2 * 1024 * 1024 });
+
+    renderAt("/imports/new?kind=STUDENT_ROSTER");
+    expect(await screen.findByText(/up to 2 MB and 1,000 rows/)).toBeInTheDocument();
+    await user.upload(screen.getByLabelText("Choose a file"), xlsx("roster.xlsx", 3 * 1024 * 1024));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("The file is larger than 2 MB.");
     expect(api.createDataImportBatch).not.toHaveBeenCalled();
   });
 

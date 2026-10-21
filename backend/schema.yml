@@ -5417,12 +5417,17 @@ components:
           type: string
           description: The club's time zone (an IANA name). Times are shown in it,
             and 'today' is today there.
+        import_upload_max_bytes:
+          type: integer
+          description: The maximum import file size enforced by this deployment, in
+            bytes.
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
           $ref: '#/components/schemas/WksaIdScheme'
       required:
       - club_name
+      - import_upload_max_bytes
       - password_policy
       - time_zone
       - wksa_id

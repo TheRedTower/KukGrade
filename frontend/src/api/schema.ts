@@ -2596,6 +2596,8 @@ export interface components {
             club_name: string;
             /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
             time_zone: string;
+            /** @description The maximum import file size enforced by this deployment, in bytes. */
+            import_upload_max_bytes: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
         };

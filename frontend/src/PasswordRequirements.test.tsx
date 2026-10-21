@@ -11,6 +11,7 @@ import { PasswordRequirements } from "./PasswordRequirements";
 const served: SiteSettings = {
   club_name: "Test Club",
   time_zone: "Europe/London",
+  import_upload_max_bytes: 5 * 1024 * 1024,
   password_policy: {
     min_length: 5,
     max_length: 6,

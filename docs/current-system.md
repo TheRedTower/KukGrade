@@ -122,7 +122,9 @@ checks on each push and pull request.
   upload is bounded while it is read - size, rows, columns, sheets and the
   expanded size of an `.xlsx` - and a source file is deleted only after its
   batch's commit, cancel or expiry has committed; expiry takes the same
-  batch lock and also sweeps files no batch names (KG-A07, A08, A10). Since
+  batch lock and also sweeps files no batch names (KG-A07, A08, A10). The
+  effective upload size limit is served by `/api/site/`; the browser uses it for the early check
+  and guidance, while the backend remains the enforcing authority. Since
   2026-10-20 (import overhaul A1-A2) a file is read once, at upload, into
   stored rows (`data_imports.models.ImportRow`); matching columns, checking,
   fixing a row and leaving one out work on those rows under the batch lock,

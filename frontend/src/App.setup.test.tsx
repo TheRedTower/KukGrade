@@ -102,7 +102,7 @@ describe("First-time setup", () => {
     await fillIn(user);
     await user.click(screen.getByRole("button", { name: "Create administrator" }));
 
-    expect(await screen.findByRole("button", { name: "Ada Owner, Administrator" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: "Ada Owner, Administrator: your account" })).toBeVisible();
     expect(sent).toEqual([
       {
         code: "kcq7-abcd-efgh",

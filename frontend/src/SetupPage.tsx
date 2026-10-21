@@ -95,7 +95,7 @@ export function SetupPage() {
             <span className="setup-theme-label">Display theme</span>
             <ThemeToggle />
             <p className="setup-theme-help">
-              Light, dark, or match this device. You can change it later from your account menu.
+              Light, dark, or match this device. You can change it later in Settings.
             </p>
           </div>
 

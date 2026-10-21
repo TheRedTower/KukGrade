@@ -178,297 +178,120 @@ describe("Navigation rail and role-gated routes", () => {
   });
 });
 
-describe("Instructor profile menu and Master capabilities", () => {
-  const masterUser = {
-    ...authUser,
-    can_make_final_grading_decision: true,
-    can_read_audit_log: true,
-    can_promote_student: false,
-    can_override_locked_session: false,
-    can_view_grading_audit_log: false,
-  } satisfies AuthUser;
-
-  const adminUser = {
-    ...authUser,
-    id: "9e1c44b3-d8f6-4c1a-a4d1-4cb8e788df22",
-    email: "admin@example.com",
-    first_name: "Alex",
-    last_name: "Admin",
-    full_name: "Alex Admin",
-    ...ADMINISTRATOR_CAPABILITIES,
-    role_display: "Administrator",
-    can_make_final_grading_decision: false,
-    can_promote_student: true,
-    can_override_locked_session: true,
-    can_view_grading_audit_log: false,
-  } satisfies AuthUser;
-
+describe("The sidebar", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
-    document.cookie = "csrftoken=test-csrf-token";
+    window.localStorage.clear();
     window.localStorage.setItem("kukgrade-has-signed-in", "true");
+    document.cookie = "csrftoken=test-csrf-token";
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    window.localStorage.clear();
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
 
-  it("opens the profile menu showing initials, user details, and not-granted capabilities for a standard instructor", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Casey Instructor");
-    expect(screen.getByText("CI")).toBeVisible();
-    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
-
-    const menu = screen.getByLabelText("User account menu");
-    expect(menu).toBeVisible();
-    expect(screen.getByText("casey@example.com")).toBeVisible();
-    expect(
-      screen.getByText("Capabilities are independent of your role."),
-    ).toBeVisible();
-
-    const notGrantedBadges = screen.getAllByText("Not granted");
-    expect(notGrantedBadges).toHaveLength(4);
-    expect(screen.queryByText("Granted")).not.toBeInTheDocument();
-  });
-
-  it("displays granted status for Master capabilities held by an Authorised Master", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(masterUser));
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
-
-    expect(screen.getByText("Granted")).toBeVisible();
-    const notGrantedBadges = screen.getAllByText("Not granted");
-    expect(notGrantedBadges).toHaveLength(3);
-  });
-
-  it("displays granted status for student promotion and session override for an Administrator", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(adminUser));
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Alex Admin");
-    expect(screen.getByText("AA")).toBeVisible();
-
-    await user.click(
-      screen.getByRole("button", { name: "Alex Admin, Administrator" }),
-    );
-
-    const grantedBadges = screen.getAllByText("Granted");
-    expect(grantedBadges).toHaveLength(2);
-    expect(screen.getAllByText("Not granted")).toHaveLength(2);
-  });
-
-  it("closes the profile menu when pressing the Escape key", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
-    expect(screen.getByLabelText("User account menu")).toBeVisible();
-
-    await user.keyboard("{Escape}");
-    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
-  });
-
-  it("closes the profile menu when clicking outside", async () => {
-    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
-    expect(screen.getByLabelText("User account menu")).toBeVisible();
-
-    await user.click(screen.getByRole("heading", { name: "Overview" }));
-    expect(screen.queryByLabelText("User account menu")).not.toBeInTheDocument();
-  });
-
-  it("shows the club name the server is configured with", async () => {
+  function stubSite(user: AuthUser = authUser) {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) =>
         url.includes("/api/site/")
           ? jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" })
-          : signedInResponse(url, authUser),
+          : signedInResponse(url, user),
       ),
     );
+  }
+
+  it("takes the brand to the dashboard from any page", async () => {
+    window.history.replaceState({}, "", "/students");
+    vi.stubGlobal("fetch", fetchSignedInAs(authUser));
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(await screen.findByRole("link", { name: "KukGrade, go to the dashboard" }));
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeVisible();
+    expect(window.location.pathname).toBe("/");
+  });
+
+  it("names the club, its time zone and the signed-in person", async () => {
+    stubSite();
 
     render(<App />);
 
     expect(await screen.findByText("Kuk Sool Won Testville")).toBeVisible();
+    expect(screen.getByText(/Club time \d{2}:\d{2} · Europe\/London/)).toBeVisible();
+    expect(screen.getByText("CI")).toBeVisible();
+    expect(screen.getByText("Casey Instructor")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" })).toHaveAttribute(
+      "href",
+      "/settings/account",
+    );
+    expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
 
-  it("saves the user's own name and shows it straight away", async () => {
-    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.includes("/api/auth/me/") && init?.method === "PATCH") {
-        return jsonResponse(200, {
-          ...authUser,
-          first_name: "Casey",
-          last_name: "Park",
-          full_name: "Casey Park",
-        });
-      }
-      return signedInResponse(url, authUser);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
+  it("links the version to About and the project to GitHub in a new tab", async () => {
+    stubSite();
 
     render(<App />);
 
-    await screen.findByText("Casey Instructor");
-    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
-    await user.click(screen.getByRole("button", { name: "Edit your name" }));
-    const lastName = screen.getByLabelText("Last name");
-    await user.clear(lastName);
-    await user.type(lastName, "  Park ");
-    await user.click(screen.getByRole("button", { name: "Save name" }));
-
-    expect(await screen.findByRole("button", { name: "Casey Park, Instructor" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Save name" })).not.toBeInTheDocument();
-    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === "PATCH");
-    expect(patch?.[0]).toContain("/api/auth/me/");
-    expect(JSON.parse(patch?.[1]?.body as string)).toEqual({
-      first_name: "Casey",
-      last_name: "Park",
-    });
+    expect(await screen.findByRole("link", { name: "KukGrade 0.1.0" })).toHaveAttribute(
+      "href",
+      "/settings/about",
+    );
+    const github = screen.getByRole("link", { name: /^GitHub/ });
+    expect(github).toHaveAttribute("href", "https://github.com/TheRedTower/KukGrade");
+    expect(github).toHaveAttribute("target", "_blank");
+    expect(github).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
-  it("changes your own password from the account menu, behind the current one", async () => {
-    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (url.includes("/api/auth/change-password/")) {
-        const body = JSON.parse(init?.body as string);
-        if (body.current_password !== "Current-Pass-2026!") {
-          return jsonResponse(400, {
-            error: {
-              code: "validation_error",
-              message: "Invalid input",
-              fields: { current_password: ["Current password is incorrect."] },
-            },
-          });
-        }
-        return new Response(null, { status: 204 });
-      }
-      return signedInResponse(url, authUser);
-    });
-    vi.stubGlobal("fetch", fetchMock);
+  it("collapses to a strip of icons that keeps every name, and remembers it", async () => {
+    stubSite();
     const user = userEvent.setup();
 
-    render(<App />);
-
+    const { unmount } = render(<App />);
     await screen.findByText("Casey Instructor");
-    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
-    await user.click(screen.getByRole("button", { name: "Change password" }));
-    const menu = screen.getByLabelText("User account menu");
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
 
-    // A wrong current password is the server's to refuse; the form stays.
-    await user.type(within(menu).getByLabelText("Current password"), "Wrong-Pass-2026!");
-    await user.type(within(menu).getByLabelText("New password"), "Brand-New-Pass-2026!");
-    await user.type(within(menu).getByLabelText("Confirm new password"), "Brand-New-Pass-2026!");
-    await user.click(within(menu).getByRole("button", { name: "Change password" }));
-    expect(await within(menu).findByText("Current password is incorrect.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("link", { name: "Students" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "About KukGrade, version 0.1.0" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /KukGrade on GitHub/ })).toHaveAttribute("target", "_blank");
+    expect(screen.queryByText("Casey Instructor")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("kukgrade-sidebar")).toBe("icons");
 
-    const current = within(menu).getByLabelText("Current password");
-    await user.clear(current);
-    await user.type(current, "Current-Pass-2026!");
-    await user.click(within(menu).getByRole("button", { name: "Change password" }));
-
-    expect(await within(menu).findByRole("status")).toHaveTextContent(
-      "Your password has been changed.",
-    );
-    expect(within(menu).queryByLabelText(/^Current password/)).not.toBeInTheDocument();
-    const sent = fetchMock.mock.calls
-      .filter(([url]) => String(url).includes("/api/auth/change-password/"))
-      .map(([, init]) => JSON.parse(init?.body as string));
-    expect(sent.at(-1)).toEqual({
-      current_password: "Current-Pass-2026!",
-      new_password: "Brand-New-Pass-2026!",
-    });
+    // A reload comes back as a strip; expanding brings the person's card back.
+    unmount();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Expand sidebar" }));
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    expect(window.localStorage.getItem("kukgrade-sidebar")).toBeNull();
   });
 
-  it("says an error the server raises against no password field", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => {
-        if (url.includes("/api/auth/change-password/")) {
-          return jsonResponse(400, {
-            error: {
-              code: "validation_error",
-              message: "This user no longer exists.",
-              fields: { user: ["This user no longer exists."] },
-            },
-          });
-        }
-        return signedInResponse(url, authUser);
-      }),
-    );
+  it("folds behind a Menu button on a phone, and never collapses there", async () => {
+    stubSite();
+    const real = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...real(query),
+      matches: query.includes("max-width: 56rem"),
+    })) as typeof window.matchMedia;
+    window.localStorage.setItem("kukgrade-sidebar", "icons");
     const user = userEvent.setup();
 
-    render(<App />);
+    try {
+      render(<App />);
 
-    await screen.findByText("Casey Instructor");
-    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
-    await user.click(screen.getByRole("button", { name: "Change password" }));
-    const menu = screen.getByLabelText("User account menu");
-    await user.type(within(menu).getByLabelText("Current password"), "Current-Pass-2026!");
-    await user.type(within(menu).getByLabelText("New password"), "Brand-New-Pass-2026!");
-    await user.type(within(menu).getByLabelText("Confirm new password"), "Brand-New-Pass-2026!");
-    await user.click(within(menu).getByRole("button", { name: "Change password" }));
-
-    expect(await within(menu).findByRole("alert")).toHaveTextContent(
-      "This user no longer exists.",
-    );
-  });
-
-  it("keeps the name form open with the server's message when saving fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-        if (init?.method === "PATCH") {
-          return jsonResponse(400, {
-            error: {
-              code: "validation_error",
-              message: "Last name is too long.",
-              fields: { last_name: ["Last name is too long."] },
-            },
-          });
-        }
-        return signedInResponse(url, authUser);
-      }),
-    );
-    const user = userEvent.setup();
-
-    render(<App />);
-
-    await screen.findByText("Casey Instructor");
-    await user.click(screen.getByRole("button", { name: "Casey Instructor, Instructor" }));
-    await user.click(screen.getByRole("button", { name: "Edit your name" }));
-    await user.click(screen.getByRole("button", { name: "Save name" }));
-
-    const menu = screen.getByLabelText("User account menu");
-    expect(await within(menu).findByRole("alert")).toHaveTextContent("Last name is too long.");
-    expect(screen.getByRole("button", { name: "Save name" })).toBeEnabled();
+      const menu = await screen.findByRole("button", { name: "Menu" });
+      expect(menu).toHaveAttribute("aria-expanded", "false");
+      await user.click(menu);
+      expect(menu).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Casey Instructor")).toBeVisible();
+      expect(screen.queryByRole("button", { name: /sidebar/ })).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = real;
+    }
   });
 });

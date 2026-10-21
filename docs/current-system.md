@@ -24,7 +24,7 @@ checks on each push and pull request.
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
   health; the public `/api/health/` remains a process liveness endpoint.
-  The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
+  The club name in the sidebar's club card is the `KUKGRADE_CLUB_NAME` setting, served by
   the public `/api/site/`; a session with no location shows none rather than
   an assumed venue.
   The version (`backend/kukgrade/version.py`, one number kept equal to
@@ -373,7 +373,7 @@ checks on each push and pull request.
   change-password screen. The admin site (`accounts.admin_site.
   KukGradeAdminSite`) has no password form for your own account - its
   "Change password" page and its reset of your own user point to the
-  account menu - so changing your own password has one path.
+  Settings - so changing your own password has one path.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -397,7 +397,7 @@ checks on each push and pull request.
   can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
-  stay administrator-only; the account menu's "Edit your name" form calls it
+  stay administrator-only; Settings' Account tab calls it
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one - from the account
   menu's "Change password", or the forced change after a temporary password,
@@ -474,7 +474,14 @@ checks on each push and pull request.
   answer the instant it arrives, not a transient failure to paper over, and
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
-- **Implemented frontend workflows**: operational overview, student list,
+- **Implemented frontend workflows**: the shell (FDR-056: a club-card sidebar
+  that collapses to an icon rail, with no top bar; its brand goes to the
+  dashboard; its foot holds the signed-in person, Settings, About with the
+  version, and GitHub) and **Settings** at `/settings` (FDR-057, FDR-058:
+  tabs of rows - Account for your name, password and capabilities;
+  Appearance for the theme and whether the sidebar starts as icons; About
+  with the version details served by `/api/about/`, a Copy details button
+  and the links), operational overview, student list,
   student creation and detail/edit, the **Imports** area (FDR-049 to
   FDR-055; a navigation entry for holders of `can_import_data`, replacing
   the import buttons on Students and Gradings): the hub at `/imports`, a
@@ -627,7 +634,7 @@ checks on each push and pull request.
   their original summaries. Messages only a programming error can reach are
   left as they are.
 - **Accessibility pass over the rest of the app (2026-10-20)**: every other
-  screen - sign-in, setup, overview, the account menu, students and their
+  screen - sign-in, setup, overview, Settings, students and their
   forms and imports, grading sessions, registration, promotions, historical
   records, syllabus, audit, users and their dialogs - measured in a browser
   with axe (WCAG 2.2 A and AA), for 44px targets, horizontal overflow and a

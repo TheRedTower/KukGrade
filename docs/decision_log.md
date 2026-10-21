@@ -3103,7 +3103,8 @@ decisions" above.
 
 Raised by the owner, to come back to and elaborate:
 
-4. **A Settings page (2026-10-19).** Move most of what the account menu
+4. **A Settings page (2026-10-19; designed and begun 2026-10-21 - see FDR-056 to
+   FDR-058; the Club tab is still to come).** Move most of what the account menu
    holds today - editing your name, changing your password, the Master
    capability summary, appearance - onto a dedicated Settings page, so
    people make these edits on a full page rather than in the small menu

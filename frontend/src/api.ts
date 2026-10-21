@@ -208,6 +208,12 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return apiRequest<SiteSettings>("/api/site/");
 }
 
+export type About = Schemas["About"];
+
+export async function getAbout(): Promise<About> {
+  return apiRequest<About>("/api/about/");
+}
+
 export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
 }

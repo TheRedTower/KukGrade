@@ -422,7 +422,7 @@ export function UserDetailScreen(): React.ReactElement {
         {/* A reset sets someone else's password and asks for no current one;
             the server refuses it on your own account. */}
         {isSelf ? (
-          <p className="users-self-password-hint">Change your own password from your account menu.</p>
+          <p className="users-self-password-hint">Change your own password in Settings.</p>
         ) : viewOnly ? (
           <p className="users-self-password-hint">Only a superuser can change this account.</p>
         ) : (

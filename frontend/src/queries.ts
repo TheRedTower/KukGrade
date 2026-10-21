@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { setClubTimeZone } from "./dates";
 import {
+  getAbout,
   getAgeBands,
   getAllCandidateAssessmentItems,
   getAssessmentSummary,
@@ -24,6 +25,10 @@ export function useSiteSettingsQuery() {
       return site;
     },
   });
+}
+
+export function useAboutQuery() {
+  return useQuery({ queryKey: ["about"], queryFn: getAbout });
 }
 
 export function useAgeBandsQuery() {

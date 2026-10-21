@@ -6,25 +6,15 @@ import {
   useState,
 } from "react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./App.css";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
-import { useSiteSettingsQuery } from "./queries";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
-import {
-  AuditIcon,
-  GradingsIcon,
-  ImportsIcon,
-  OverviewIcon,
-  StudentsIcon,
-  SyllabusIcon,
-  UsersIcon,
-} from "./Icons";
-import { KukGradeLogo } from "./KukGradeLogo";
-import { ProfileMenu } from "./ProfileMenu";
+import { NavigationRail } from "./NavigationRail";
+import { SidebarProvider } from "./useSidebar";
 import { MustChangePassword } from "./MustChangePassword";
 import { SetupPage } from "./SetupPage";
 import { OverviewScreen } from "./OverviewScreen";
@@ -51,6 +41,9 @@ const GradingSessionDetailScreen = lazy(() =>
   import("./GradingSessionDetailScreen").then((module) => ({
     default: module.GradingSessionDetailScreen,
   })),
+);
+const SettingsScreen = lazy(() =>
+  import("./SettingsScreen").then((module) => ({ default: module.SettingsScreen })),
 );
 const ImportsHubScreen = lazy(() =>
   import("./ImportsHubScreen").then((module) => ({ default: module.ImportsHubScreen })),
@@ -198,84 +191,6 @@ function ConnectionErrorPage() {
   );
 }
 
-function NavigationRail({ user }: { user: AuthUser }) {
-  const canViewAudit = user.can_read_audit_log;
-  const canViewUsers = user.can_manage_users;
-
-  return (
-    <aside aria-label="Sidebar" className="nav-rail">
-      <div className="nav-brand">
-        <KukGradeLogo className="nav-logo" />
-        <p className="nav-brand-tagline">People &middot; Progress &middot; Purpose</p>
-      </div>
-
-      <nav aria-label="Main navigation" className="nav-links">
-        <NavLink
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-          end
-          to="/"
-        >
-          <OverviewIcon />
-          <span>Overview</span>
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-          to="/students"
-        >
-          <StudentsIcon />
-          <span>Students</span>
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-          to="/gradings"
-        >
-          <GradingsIcon />
-          <span>Gradings</span>
-        </NavLink>
-        <NavLink
-          className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-          to="/syllabus"
-        >
-          <SyllabusIcon />
-          <span>Syllabus</span>
-        </NavLink>
-        {user.can_import_data ? (
-          <NavLink
-            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-            to="/imports"
-          >
-            <ImportsIcon />
-            <span>Imports</span>
-          </NavLink>
-        ) : null}
-        {canViewAudit ? (
-          <NavLink
-            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-            to="/audit"
-          >
-            <AuditIcon />
-            <span>Audit</span>
-          </NavLink>
-        ) : null}
-        {canViewUsers ? (
-          <NavLink
-            className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
-            to="/users"
-          >
-            <UsersIcon />
-            <span>Users</span>
-          </NavLink>
-        ) : null}
-      </nav>
-
-      <div className="nav-rail-footer">
-        <p className="nav-rail-motto">A stronger generation through discipline</p>
-        <p className="nav-rail-tag">Staff only</p>
-      </div>
-    </aside>
-  );
-}
-
 /** The boolean capability flags `/api/auth/me/` reports for the signed-in user. */
 type Capability = {
   [K in keyof AuthUser]: AuthUser[K] extends boolean ? K : never;
@@ -291,9 +206,8 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 }
 
 function ApplicationShell() {
-  const { user, logout, updateName } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const siteQuery = useSiteSettingsQuery();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -317,48 +231,22 @@ function ApplicationShell() {
   }
 
   return (
-    <div className="app-layout">
-      <NavigationRail user={user} />
-      <div className="app-main">
-        <header className="top-bar">
-          <div className="location-summary">
-            <span className="location-name">{siteQuery.data?.club_name}</span>
-          </div>
-          <div className="top-bar-controls">
-            <ProfileMenu
-              isLoggingOut={isLoggingOut}
-              onLogout={handleLogout}
-              onUpdateName={updateName}
-              themeToggle={<ThemeToggle />}
-              user={user}
-            />
-          </div>
-        </header>
+    <SidebarProvider>
+      <div className="app-layout">
+        <NavigationRail isLoggingOut={isLoggingOut} onLogout={handleLogout} user={user} />
+        <div className="app-main">
+          {logoutError ? (
+            <div className="workspace-alert" role="alert">
+              <p className="form-error">{logoutError}</p>
+            </div>
+          ) : null}
 
-        {logoutError ? (
-          <div className="workspace-alert" role="alert">
-            <p className="form-error">{logoutError}</p>
-          </div>
-        ) : null}
-
-        <main className="workspace">
-          <Outlet />
-        </main>
-
-        <footer className="app-footer">
-          <span className="footer-brand">
-            Kuk<span className="footer-brand-accent">Grade</span>
-          </span>
-          <span aria-hidden="true" className="footer-separator">
-            &middot;
-          </span>
-          <span className="footer-tagline">
-            Trusted by instructors. Built for what matters.
-          </span>
-          <span className="footer-version">Version {__APP_VERSION__}</span>
-        </footer>
+          <main className="workspace">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }
 
@@ -500,6 +388,14 @@ function App() {
                 />
                 <Route element={<GradingSessionsScreen />} path="gradings" />
                 <Route element={<SyllabusScreen />} path="syllabus" />
+                <Route
+                  element={
+                    <Suspense fallback={<div className="loading-state" role="status">Loading settings…</div>}>
+                      <SettingsScreen />
+                    </Suspense>
+                  }
+                  path="settings/*"
+                />
                 <Route
                   element={
                     <RequireAccess flag="can_import_data">

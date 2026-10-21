@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import date
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -293,6 +294,27 @@ def test_group_records_remain_paginated_when_more_than_one_page() -> None:
     assert {row["id"] for row in first["results"] + second["results"]} == {
         record.pk for record in records
     }
+
+
+def test_people_scores_only_groups_on_the_requested_page() -> None:
+    batch = legacy_batch()
+    student("Zac", "Wood")
+    student("Mia", "Reynolds")
+    for index in range(51):
+        legacy_record(source_batch=batch, source_name=f"Person {index:02}")
+    client = client_for(admin())
+
+    with patch("gradings.legacy_matching.score_student", return_value=None) as score:
+        first = client.get(PEOPLE, {"batch": batch.pk, "page_size": 50})
+    assert first.status_code == 200
+    assert first.json()["count"] == 51
+    assert score.call_count == 50 * 2
+
+    with patch("gradings.legacy_matching.score_student", return_value=None) as score:
+        second = client.get(PEOPLE, {"batch": batch.pk, "page_size": 50, "page": 2})
+    assert second.status_code == 200
+    assert second.json()["results"][0]["source_name"] == "Person 50"
+    assert score.call_count == 2
 
 
 def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:

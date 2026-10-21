@@ -25,7 +25,12 @@ from gradings.assessment_services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
-from gradings.legacy_matching import SHEET_NOTE_NAME, group_key, person_groups
+from gradings.legacy_matching import (
+    SHEET_NOTE_NAME,
+    group_key,
+    group_records,
+    suggest_for_groups,
+)
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     resolve_legacy_current_rank,
@@ -895,9 +900,11 @@ class LegacyGradingRecordViewSet(
             records = records.filter(student__isnull=True)
         elif linked:
             records = records.none()
-        groups = person_groups(records.order_by("pk"))
+        groups = group_records(records.order_by("pk"))
         page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
         assert page is not None
+        if page:
+            suggest_for_groups(page)
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
 
     @extend_schema(

@@ -154,15 +154,8 @@ def score_student(
     return Candidate(student=student, score=score, reasons=tuple(reasons))
 
 
-def person_groups(
-    records: Iterable[LegacyGradingRecord],
-    students: Iterable[Student] | None = None,
-) -> list[PersonGroup]:
-    """Group records by the name as written and suggest students for each.
-
-    Sheet notes and voided records are never suggested: neither is anyone's.
-    Groups come in name order.
-    """
+def group_records(records: Iterable[LegacyGradingRecord]) -> list[PersonGroup]:
+    """Group in stable name order, without doing suggestion work."""
     groups: dict[str, PersonGroup] = {}
     for record in records:
         if record.is_void or record.source_name == SHEET_NOTE_NAME:
@@ -175,13 +168,22 @@ def person_groups(
         )
         group.records.append(record)
 
+    return sorted(groups.values(), key=lambda group: group.key)
+
+
+def suggest_for_groups(
+    groups: Iterable[PersonGroup],
+    students: Iterable[Student] | None = None,
+) -> None:
+    """Score only the groups the caller will actually show."""
+
     pool = list(
         students
         if students is not None
         else Student.objects.select_related("current_rank").order_by("pk"),
     )
     ranks = active_rank_lookup()
-    for group in groups.values():
+    for group in groups:
         tokens = name_tokens(group.source_name)
         rank_then = _rank_then(group, ranks)
         scored = [
@@ -191,4 +193,13 @@ def person_groups(
         ]
         scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
         group.candidates = scored[:_SHOWN]
-    return sorted(groups.values(), key=lambda group: group.key)
+
+
+def person_groups(
+    records: Iterable[LegacyGradingRecord],
+    students: Iterable[Student] | None = None,
+) -> list[PersonGroup]:
+    """Group and score all records when a caller needs the whole list."""
+    groups = group_records(records)
+    suggest_for_groups(groups, students)
+    return groups

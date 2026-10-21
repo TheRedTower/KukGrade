@@ -80,8 +80,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
   });
 
   const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery, eligibilityQuery];
-  // Eligibility is read from all three together, so a missing or failed one
-  // must not read as "nothing promoted yet" (KG-A16).
+  // The ledger needs all four answers; a missing or failed one must not read
+  // as "nothing promoted yet" (KG-A16).
   const ledgerFailed = ledgerQueries.some((query) => query.isError);
   const ledgerLoaded = ledgerQueries.every((query) => query.isSuccess);
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;

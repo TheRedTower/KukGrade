@@ -108,9 +108,9 @@ def test_production_settings_are_hardened(
     assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
     assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
     # Pinned so that deleting either half of the throttle - the class or the
-    # rate - is caught here rather than only by the fact that login becomes
-    # silently unthrottled. accounts/tests.py proves the throttle actually
-    # engages; this proves the number it engages at.
+    # rate - is caught here rather than only by a scoped view becoming
+    # silently unthrottled. accounts/tests.py proves throttling engages;
+    # this proves the configured numbers it uses.
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] == [
         "rest_framework.throttling.ScopedRateThrottle",
     ]
@@ -123,8 +123,8 @@ def test_production_settings_are_hardened(
 
 def test_login_view_opts_into_the_scoped_throttle() -> None:
     # The setting above only throttles a view that names this scope. Without
-    # this, renaming or removing LoginView.throttle_scope would leave login
-    # unthrottled while every assertion about the *rate* kept passing.
+    # this, removing any view's scope would leave it unthrottled while every
+    # assertion about the *rate* kept passing.
     from accounts.views import ChangePasswordView, LoginView, SetupView
 
     assert LoginView.throttle_scope == "login"

@@ -6,10 +6,12 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
-(KG-A24, 2026-09-29 audit) waits until the owner asks for it.
+The 2026-10-21 dev audit fixes are on an isolated branch; see
+`audits/2026-10-21-dev-audit-fixes.md` for the fix and validation trail.
 
-1. **Go live.** Done before it (2026-10-20): what the Administrator role -
+1. **Review and merge the audit-fix branch.** Verify its CI results and review
+   the commit trail before changing `dev`.
+2. **Go live after release assurance.** Already built (2026-10-20): what the Administrator role -
    not superuser - can and cannot do (`permissions.md`, "What an
    Administrator can do to other accounts"), and the server side of setting
    up the first administrator (`/api/setup/` with a one-time code from the
@@ -17,16 +19,7 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    (`SetupPage.tsx`). Then connect the production image to the real Traefik and PostgreSQL host, cap the request
    body at Traefik, and verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).
-2. **The syllabus row-divider defect** (fixed 2026-10-20: the first cell
-   stays a table cell, `Syllabus.css`).
-3. **Extend the accessibility pass to the other screens** (done 2026-10-20:
-   `current-system.md`, "Accessibility pass over the rest of the app").
-4. **Plain-language sweep of every screen's wording** (done 2026-10-20:
-   `current-system.md`, "Plain wording").
-5. **Housekeeping** (done 2026-10-20: decision log, Open decisions 3).
-
-**The import overhaul** (decision log 2026-10-20, in slices, each committed
-after the owner's approval):
+**The import overhaul** (decision log 2026-10-20):
 
 - Backend: A0 read the real workbook (done 2026-10-20: findings in the
   decision log); A1 stored rows and A2 the batch API (list, mapping, paged rows,
@@ -36,14 +29,12 @@ after the owner's approval):
   Colchester workbook, side tables included; a mapping for other grading
   spreadsheets waits for a second real file); A5 and A6 per-row historical preview
   and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet (done 2026-10-20).
-  The backend is done and tested end to end (53/53 against the
-  production image); the frontend starts with B1.
-- Frontend: B1 a design register entry and mocks (done 2026-10-20: seven
-  screens chosen, FDR-049 to FDR-055); B2 one Imports area; B3 a guided flow
-  (file, match columns, review rows, confirm, results); B4 a redone
-  Historical records screen; B5 hooks, tests and accessibility (built
-  2026-10-20 on `feat/imports-frontend` and reviewed 2026-10-21; a check
-  in the browser, then merging, is next).
+  The backend was tested end to end against the production image at that
+  point; later audit fixes and validation are recorded separately.
+- Frontend: B1–B5 delivered the Imports area, guided flow, historical
+  linking screen, hooks, tests and accessibility. The 2026-10-21 audit-fix
+  branch adds persistent historical correction and closes the import-flow
+  defects found in review.
 
 Later, when the owner asks: release assurance (KG-A24); rehearsing the
 historical import against a sanitised copy of the real KSW Colchester
@@ -52,7 +43,9 @@ the owner's sample, but the full rehearsal is separate.
 
 ## Known defects
 
-None recorded.
+See `audits/2026-10-21-dev-audit-fixes.md` for the audit disposition and
+any remaining limitations. Dated audit findings are snapshots, not a claim
+that an unresolved defect still exists.
 
 ## Waiting on a release
 

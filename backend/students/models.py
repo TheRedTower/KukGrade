@@ -153,8 +153,8 @@ class PreviousWksaId(models.Model):
     Written only when the ID changes (`students.services.update_student`),
     never edited. A number is never reused, so each is unique for good and
     anything outside KukGrade that still quotes one is found by it
-    (decision log, 2026-10-20). Always a student ID: a black belt ID never
-    changes, so it is never replaced.
+    (decision log, 2026-10-20). Always a student ID: a mistyped black belt
+    ID can be corrected, but the mistaken value is not kept here.
     """
 
     student = models.ForeignKey(

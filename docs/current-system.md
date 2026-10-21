@@ -1,14 +1,12 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-30.
+Describes the implementation in this checkout, refreshed on 2026-10-21.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 850 backend tests and 253 frontend tests passing
-(the frontend suite in both UTC and `TZ=America/Los_Angeles`).
-Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
-OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
-build, and `npm audit --audit-level=high` are clean. CI enforces the same
-checks on each push and pull request.
+The 2026-10-21 dev audit and its fixes are recorded in
+`docs/audits/2026-10-21-dev-audit-fixes.md`. That record distinguishes local
+verification from CI and deployment. CI checks this implementation on each
+push and pull request.
 
 ## Implemented
 
@@ -114,9 +112,9 @@ checks on each push and pull request.
 - **Bulk student-roster import** (`data_imports` app, 2026-09-21,
   administrator-only): upload a `.xlsx`/`.csv` roster, preview row-by-row
   classification (ready/needs review/skip existing), then commit - every
-  created student goes through the ordinary `students.services.create_student`
-  service, so validation and the normal `STUDENT_CREATED` audit event are
-  identical to a hand-created student. An existing WKSA ID is always
+  created students go through `students.services.create_students`, which
+  applies the same validation as single creation, inserts them in one batch,
+  and records one `STUDENT_CREATED` audit event per student. An existing WKSA ID is always
   skipped, never updated. Preview checks each row with the student model's
   own field and `clean()` rules, so a ready row can be committed (KG-A09). Every
   upload is bounded while it is read - size, rows, columns, sheets and the

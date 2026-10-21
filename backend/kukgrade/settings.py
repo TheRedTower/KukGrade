@@ -256,9 +256,8 @@ REST_FRAMEWORK = {
     # applies them and documents them in the schema (kukgrade/filtering.py).
     "DEFAULT_FILTER_BACKENDS": ["kukgrade.filtering.DeclaredQueryFilters"],
     # Scoped so it only throttles views that opt in with throttle_scope - a
-    # view without one is never rate limited by this. LoginView is the only
-    # one that sets it today, since unlimited password attempts is the risk
-    # this exists to close.
+    # view without one is never rate limited by this. Login, password change
+    # and first-administrator setup opt in to their own scopes.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",

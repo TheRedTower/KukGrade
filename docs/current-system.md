@@ -27,6 +27,10 @@ checks on each push and pull request.
   The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
   the public `/api/site/`; a session with no location shows none rather than
   an assumed venue.
+  The version (`backend/kukgrade/version.py`, one number kept equal to
+  `pyproject.toml` and `frontend/package.json` by a test) and the build
+  (commit and time, passed as image build arguments) are served to signed-in
+  users by `/api/about/`.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,

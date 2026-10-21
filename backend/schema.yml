@@ -1,9 +1,28 @@
 openapi: 3.0.3
 info:
   title: KukGrade API
-  version: 1.0.0
+  version: 0.1.0
   description: Grading management API for Kuk Sool Won instructors and administrators.
 paths:
+  /api/about/:
+    get:
+      operationId: about_retrieve
+      description: |-
+        What is running: the About page, and what to quote when asking for help.
+
+        For anyone signed in. Nothing here is personal data, but a build's exact
+        version and commit are more than the sign-in page needs to show.
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/About'
+          description: ''
   /api/audit-events/:
     get:
       operationId: audit_events_list
@@ -2648,6 +2667,37 @@ paths:
           description: ''
 components:
   schemas:
+    About:
+      type: object
+      properties:
+        version:
+          type: string
+          description: The version of KukGrade running.
+        commit:
+          type: string
+          description: The commit it was built from; blank when run from a checkout.
+        built_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it was built; null when run from a checkout.
+        time_zone:
+          type: string
+          description: The club's time zone.
+        database:
+          allOf:
+          - $ref: '#/components/schemas/DatabaseEnum'
+          description: |-
+            Whether the database answers right now.
+
+            * `ok` - ok
+            * `unavailable` - unavailable
+      required:
+      - built_at
+      - commit
+      - database
+      - time_zone
+      - version
     ActionEnum:
       enum:
       - SESSION_CREATED
@@ -3429,6 +3479,14 @@ components:
       - session_title
       - stage
       - stage_display
+    DatabaseEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
     DatePrecisionEnum:
       enum:
       - MONTH

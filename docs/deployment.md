@@ -59,6 +59,14 @@ docker compose --env-file .env.production -f compose.prod.yml config --quiet
 docker compose --env-file .env.production -f compose.prod.yml up -d --build --wait --wait-timeout 300
 ```
 
+To have the About page show which build is running, set the commit and time
+in the shell first (both are optional and only shown to people signed in):
+
+```sh
+export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
+export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+```
+
 The second command builds the app image, starts its single service, applies
 pending Django migrations, and waits for `/api/ready/` to report that the app
 and database are available. A failed migration leaves the app unable to serve

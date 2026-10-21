@@ -24,6 +24,17 @@ def health_check(_request: Request) -> Response:
     return Response({"service": "kukgrade-backend", "status": "ok"})
 
 
+def database_reachable() -> bool:
+    """Whether the database answers a trivial query."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+    except DatabaseError:
+        return False
+    return True
+
+
 @extend_schema(
     responses=inline_serializer(
         "ReadinessResponse",
@@ -33,10 +44,6 @@ def health_check(_request: Request) -> Response:
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def readiness_check(_request: Request) -> Response:
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-            cursor.fetchone()
-    except DatabaseError:
+    if not database_reachable():
         return Response({"status": "unavailable"}, status=503)
     return Response({"status": "ok"})

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ImproperlyConfigured
+
+from kukgrade.version import VERSION as APP_VERSION
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend_dist"
@@ -277,7 +279,7 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": (
         "Grading management API for Kuk Sool Won instructors and administrators."
     ),
-    "VERSION": "1.0.0",
+    "VERSION": APP_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     # Separate request and response components (StudentRequest,
     # PatchedStudentRequest, ...) so the frontend's request payloads are
@@ -308,6 +310,17 @@ SPECTACULAR_SETTINGS = {
         ),
     },
 }
+
+# Which build this is, shown on the About page (docs/deployment.md passes them
+# as build arguments). Unset when running from a checkout.
+BUILD_COMMIT = os.environ.get("KUKGRADE_BUILD_COMMIT", "").strip()[:40]
+if not re.fullmatch("[0-9a-f]{7,40}", BUILD_COMMIT):
+    BUILD_COMMIT = ""
+BUILD_TIME = os.environ.get("KUKGRADE_BUILD_TIME", "").strip()
+try:
+    datetime.fromisoformat(BUILD_TIME)
+except ValueError:
+    BUILD_TIME = ""
 
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"

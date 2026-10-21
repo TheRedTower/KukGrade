@@ -4,6 +4,28 @@
  */
 
 export interface paths {
+    "/api/about/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description What is running: the About page, and what to quote when asking for help.
+         *
+         *     For anyone signed in. Nothing here is personal data, but a build's exact
+         *     version and commit are more than the sign-in page needs to show.
+         */
+        get: operations["about_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit-events/": {
         parameters: {
             query?: never;
@@ -1325,6 +1347,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        About: {
+            /** @description The version of KukGrade running. */
+            version: string;
+            /** @description The commit it was built from; blank when run from a checkout. */
+            commit: string;
+            /**
+             * Format: date-time
+             * @description When it was built; null when run from a checkout.
+             */
+            built_at: string | null;
+            /** @description The club's time zone. */
+            time_zone: string;
+            /**
+             * @description Whether the database answers right now.
+             *
+             *     * `ok` - ok
+             *     * `unavailable` - unavailable
+             */
+            database: components["schemas"]["DatabaseEnum"];
+        };
         /**
          * @description * `SESSION_CREATED` - Grading session created
          *     * `SESSION_UPDATED` - Grading session updated
@@ -1647,6 +1689,12 @@ export interface components {
             stage: components["schemas"]["GradingStageEnum"];
             stage_display: string;
         };
+        /**
+         * @description * `ok` - ok
+         *     * `unavailable` - unavailable
+         * @enum {string}
+         */
+        DatabaseEnum: "ok" | "unavailable";
         /**
          * @description * `MONTH` - Month
          *     * `DAY` - Day
@@ -2841,6 +2889,25 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    about_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["About"];
+                };
+            };
+        };
+    };
     audit_events_list: {
         parameters: {
             query?: {

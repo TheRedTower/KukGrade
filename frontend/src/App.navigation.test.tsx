@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { setClubTimeZone, todayIsoDate } from "./dates";
 import type {
   AuthUser,
 } from "./api";
@@ -189,6 +190,7 @@ describe("The sidebar", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    setClubTimeZone(undefined);
     window.localStorage.clear();
     document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
   });
@@ -268,6 +270,24 @@ describe("The sidebar", () => {
     await user.click(await screen.findByRole("button", { name: "Expand sidebar" }));
     expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
     expect(window.localStorage.getItem("kukgrade-sidebar")).toBeNull();
+  });
+
+  it("loads the club time zone before rendering a collapsed sidebar", async () => {
+    window.localStorage.setItem("kukgrade-sidebar", "icons");
+    setClubTimeZone(undefined);
+    const fetchMock = vi.fn().mockImplementation(async (url: string) =>
+      url.includes("/api/site/")
+        ? jsonResponse(200, { club_name: "Test club", time_zone: "Pacific/Auckland" })
+        : signedInResponse(url, authUser),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Overview" });
+    expect(screen.getByRole("button", { name: "Expand sidebar" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/site/"))).toBe(true);
+    expect(todayIsoDate(new Date("2026-10-21T12:30:00Z"))).toBe("2026-10-22");
   });
 
   it("folds behind a Menu button on a phone, and never collapses there", async () => {

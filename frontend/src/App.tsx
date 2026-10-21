@@ -14,6 +14,7 @@ import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import { NavigationRail } from "./NavigationRail";
+import { useSiteSettingsQuery } from "./queries";
 import { SidebarProvider } from "./useSidebar";
 import { MustChangePassword } from "./MustChangePassword";
 import { SetupPage } from "./SetupPage";
@@ -208,11 +209,18 @@ function RequireAccess({ flag, children }: { flag: Capability; children: ReactNo
 function ApplicationShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  // Every signed-in route uses the club's clock, including when the sidebar
+  // is collapsed. Load it before mounting screens that format dates.
+  const site = useSiteSettingsQuery();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
   if (user === null) {
     return null;
+  }
+
+  if (site.isPending) {
+    return <LoadingPage />;
   }
 
   async function handleLogout() {
@@ -233,7 +241,7 @@ function ApplicationShell() {
   return (
     <SidebarProvider>
       <div className="app-layout">
-        <NavigationRail isLoggingOut={isLoggingOut} onLogout={handleLogout} user={user} />
+        <NavigationRail clubName={site.data?.club_name} isLoggingOut={isLoggingOut} onLogout={handleLogout} user={user} />
         <div className="app-main">
           {logoutError ? (
             <div className="workspace-alert" role="alert">

@@ -18,7 +18,7 @@ import {
 } from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
 import { GITHUB_URL } from "./project";
-import { useAboutQuery, useSiteSettingsQuery } from "./queries";
+import { useAboutQuery } from "./queries";
 import { useNarrowScreen } from "./useNarrowScreen";
 import { useSidebar } from "./useSidebar";
 import "./NavigationRail.css";
@@ -59,12 +59,11 @@ function RailLink({
 }
 
 /** The club, under the brand (FDR-056). The strip has no room for it. */
-function ClubCard() {
-  const site = useSiteSettingsQuery().data;
+function ClubCard({ name }: { name: string | undefined }) {
   return (
     <div className="nav-club-card">
       <p className="nav-eyebrow">Your club</p>
-      <p className="nav-club-name">{site?.club_name}</p>
+      <p className="nav-club-name">{name}</p>
     </div>
   );
 }
@@ -76,10 +75,12 @@ function ClubCard() {
  * phone it folds behind a Menu button.
  */
 export function NavigationRail({
+  clubName,
   user,
   onLogout,
   isLoggingOut,
 }: {
+  clubName: string | undefined;
   user: AuthUser;
   onLogout: () => void;
   isLoggingOut: boolean;
@@ -127,7 +128,7 @@ export function NavigationRail({
           if ((event.target as HTMLElement).closest("a")) setMenuOpen(false);
         }}
       >
-        {strip ? null : <ClubCard />}
+        {strip ? null : <ClubCard name={clubName} />}
 
         <nav aria-label="Main navigation" className="nav-links">
           <RailLink end icon={<OverviewIcon />} label="Overview" strip={strip} to="/" />

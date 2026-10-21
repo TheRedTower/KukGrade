@@ -19,6 +19,9 @@ export function useRanksQuery() {
 export function useSiteSettingsQuery() {
   return useQuery({
     queryKey: ["siteSettings"],
+    // A failed first load falls back to the browser's clock. Mounting another
+    // consumer must not repeatedly restart that failed request.
+    retryOnMount: false,
     queryFn: async () => {
       const site = await getSiteSettings();
       setClubTimeZone(site.time_zone);

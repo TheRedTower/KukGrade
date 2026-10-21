@@ -652,8 +652,10 @@ checks on each push and pull request.
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
   local year/month/day, while timestamps (`created_at`, `promoted_at`,
   `generated_at`, `completed_at`) keep normal parsing so they render in the
-  club's time zone (`time_zone` from `/api/site/`, 2026-10-21; the browser's
-  until it is known). `new Date("2026-10-15")` is UTC midnight, so west of
+  club's time zone (`time_zone` from `/api/site/`, 2026-10-21). The signed-in
+  shell loads that setting before rendering any date-bearing screen, even
+  with a collapsed sidebar; if the setting cannot be fetched, the browser's
+  zone is used. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
   is the API's own `age_band_display`, never recomputed in the browser - on

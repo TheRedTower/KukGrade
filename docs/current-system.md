@@ -24,9 +24,13 @@ checks on each push and pull request.
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
   health; the public `/api/health/` remains a process liveness endpoint.
-  The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
+  The club name in the sidebar's club card is the `KUKGRADE_CLUB_NAME` setting, served by
   the public `/api/site/`; a session with no location shows none rather than
   an assumed venue.
+  The version (`backend/kukgrade/version.py`, one number kept equal to
+  `pyproject.toml` and `frontend/package.json` by a test) and the build
+  (commit and time, passed as image build arguments) are served to signed-in
+  users by `/api/about/`.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
@@ -127,7 +131,11 @@ checks on each push and pull request.
   30 days after it finishes (`expire_stale_import_batches`). A roster maps
   onto KukGrade's fields with whole-file values for rank and status, and
   columns KukGrade has no field for kept as the student's extra information
-  (`students.models.StudentExtraInfo`, on the student page). The Colchester
+  (`students.models.StudentExtraInfo`, on the student page). A needed field
+  the file has no column for is typed into each row instead, and a roster
+  is only imported once no row needs attention: each is fixed or left out
+  first. Each imported student records its import (`Student.source_import`),
+  so the Students list can show one import's students. The Colchester
   workbook's side tables and loose notes are read, not dropped (A4).
   Historical records are grouped by the name as written with suggested
   students and their reasons (`gradings/legacy_matching.py`), confirmed one
@@ -365,7 +373,7 @@ checks on each push and pull request.
   change-password screen. The admin site (`accounts.admin_site.
   KukGradeAdminSite`) has no password form for your own account - its
   "Change password" page and its reset of your own user point to the
-  account menu - so changing your own password has one path.
+  Settings - so changing your own password has one path.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -389,7 +397,7 @@ checks on each push and pull request.
   can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
-  stay administrator-only; the account menu's "Edit your name" form calls it
+  stay administrator-only; Settings' Account tab calls it
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one - from the account
   menu's "Change password", or the forced change after a temporary password,
@@ -466,21 +474,30 @@ checks on each push and pull request.
   answer the instant it arrives, not a transient failure to paper over, and
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
-- **Implemented frontend workflows**: operational overview, student list,
-  student creation and detail/edit, administrator-only bulk student-roster
-  import (upload, column mapping pre-filled from the file's own headers,
-  row-by-row review with inline correction, commit), the syllabus cumulative
+- **Implemented frontend workflows**: the shell (FDR-056: a club-card sidebar
+  that collapses to an icon rail, with no top bar; its brand goes to the
+  dashboard; its foot holds the signed-in person, Settings, About with the
+  version, and GitHub) and **Settings** at `/settings` (FDR-057, FDR-058:
+  tabs of rows - Account for your name, password and capabilities;
+  Appearance for the theme and whether the sidebar starts as icons; About
+  with the version details served by `/api/about/`, a Copy details button
+  and the links), operational overview, student list,
+  student creation and detail/edit, the **Imports** area (FDR-049 to
+  FDR-055; a navigation entry for holders of `can_import_data`, replacing
+  the import buttons on Students and Gradings): the hub at `/imports`, a
+  guided import at `/imports/new` then `/imports/:id` (choose the file;
+  match a roster's columns on its first rows, typing in what is missing, or
+  a workbook's rank spellings; review every row, the ones needing attention
+  first, with a last look; confirm on the same page; the results page), and
+  linking historical records at `/imports/records`, one name at a time
+  beside the students it could be (`can_reconcile_imported_history`); the
+  old routes redirect there), the syllabus cumulative
   current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
   progress counts, like the overview's, are served with each session
   rather than derived from a first page of assessments - KG-A15),
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
-  the promotion ledger. The administrator-only historical-import wizard
-  (upload the workbook, review rank-mapping suggestions per distinct source
-  value - never auto-applied, commit) and the historical-records
-  reconciliation screen (filter by link/void status; link to a student
-  found by name/WKSA-ID search, unlink, resolve either rank, or void with a
-  required reason) sit off the Gradings list header, administrator-only.
+  the promotion ledger.
   A student's "Grading history" card shows the unified native-plus-historical
   timeline with `KukGrade`/`Historical` source badges and Did-Not-Attend
   rendered distinctly from Fail, rather than being derived from Promotions
@@ -617,7 +634,7 @@ checks on each push and pull request.
   their original summaries. Messages only a programming error can reach are
   left as they are.
 - **Accessibility pass over the rest of the app (2026-10-20)**: every other
-  screen - sign-in, setup, overview, the account menu, students and their
+  screen - sign-in, setup, overview, Settings, students and their
   forms and imports, grading sessions, registration, promotions, historical
   records, syllabus, audit, users and their dialogs - measured in a browser
   with axe (WCAG 2.2 A and AA), for 44px targets, horizontal overflow and a
@@ -635,7 +652,8 @@ checks on each push and pull request.
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
   local year/month/day, while timestamps (`created_at`, `promoted_at`,
   `generated_at`, `completed_at`) keep normal parsing so they render in the
-  reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
+  club's time zone (`time_zone` from `/api/site/`, 2026-10-21; the browser's
+  until it is known). `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
   is the API's own `age_band_display`, never recomputed in the browser - on
@@ -650,7 +668,7 @@ checks on each push and pull request.
   `formatDateTime`, `formatShortDateTime`, `formatTime`, `formatDayMonth`,
   `formatSessionDate` or `formatApiDate`, with "today"/"yesterday" decided by
   `calendarDaysAgo` - with no per-screen formatter of its own, and "today" for a date input or a
-  comparison with a date-only value is `todayIsoDate()` (local), never
+  comparison with a date-only value is `todayIsoDate()` (the club's day), never
   `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and

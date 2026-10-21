@@ -18,13 +18,17 @@ STUDENT_TARGET_FIELDS: tuple[str, ...] = (
     "status",
 )
 
-STUDENT_REQUIRED_TARGET_FIELDS: tuple[str, ...] = (
-    "wksa_id",
-    "first_name",
-    "last_name",
-    "date_of_birth",
-    "current_rank",
-)
+# Each field's name on screen, and whether a student needs it - status
+# defaults to Active, so it is the only one a row may lack.
+STUDENT_FIELD_LABELS: dict[str, str] = {
+    "wksa_id": "WKSA ID",
+    "first_name": "First name",
+    "last_name": "Last name",
+    "date_of_birth": "Date of birth",
+    "current_rank": "Rank",
+    "status": "Status",
+}
+STUDENT_OPTIONAL_FIELDS: frozenset[str] = frozenset({"status"})
 
 # Fields one value can be given for the whole file, used where a row has
 # none (no column, or a blank cell). Never a field that is each person's own -

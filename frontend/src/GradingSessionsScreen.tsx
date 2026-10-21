@@ -10,7 +10,6 @@ import {
   getGradingSessionYears,
   getGradingSessions,
 } from "./api";
-import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
@@ -184,7 +183,6 @@ function SessionRow({
 
 export function GradingSessionsScreen() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [searchText, setSearchText] = useState("");
@@ -280,24 +278,6 @@ export function GradingSessionsScreen() {
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
         <div className="gs-page-header-actions">
-          {user?.can_reconcile_imported_history && (
-            <button
-              className="btn-secondary"
-              onClick={() => navigate("/gradings/legacy-records")}
-              type="button"
-            >
-              Historical records
-            </button>
-          )}
-          {user?.can_import_data && (
-            <button
-              className="btn-secondary"
-              onClick={() => navigate("/gradings/import-legacy")}
-              type="button"
-            >
-              Import historical gradings
-            </button>
-          )}
           <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
             <PlusIcon /> Create grading
           </button>

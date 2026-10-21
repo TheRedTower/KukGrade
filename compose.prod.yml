@@ -7,6 +7,10 @@ services:
     build:
       context: .
       target: production
+      # Shown on the About page; empty when the shell does not set them.
+      args:
+        KUKGRADE_BUILD_COMMIT: ${KUKGRADE_BUILD_COMMIT:-}
+        KUKGRADE_BUILD_TIME: ${KUKGRADE_BUILD_TIME:-}
     env_file:
       - .env.production
     restart: unless-stopped

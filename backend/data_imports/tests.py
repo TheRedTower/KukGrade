@@ -407,17 +407,20 @@ def test_preview_and_commit_agree_on_every_row(
     batch = upload_batch(content=student_workbook([row]), uploaded_by=admin)
 
     previewed = preview_student_import(batch, column_mapping=STANDARD_MAPPING).rows[0]
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
 
     if issue is None:
         assert previewed.outcome == "READY", previewed.issues
+        committed = commit_student_import(
+            batch, actor=admin, column_mapping=STANDARD_MAPPING
+        )
         assert committed.summary_json["created"] == 1
     else:
         assert previewed.outcome == "REVIEW_REQUIRED"
         assert previewed.issues == [issue]
-        assert committed.summary_json["created"] == 0
+        # A row needing attention is never passed over: the commit refuses.
+        with pytest.raises(DjangoValidationError):
+            commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        assert not Student.objects.exists()
 
 
 def test_a_correction_is_held_to_the_same_rules() -> None:
@@ -463,7 +466,7 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
     assert "now held by a student" in message
-    assert message.endswith("Nothing was imported - check the file again.")
+    assert message.endswith("Nothing was imported.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
 
@@ -531,7 +534,7 @@ def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     assert Student.objects.filter(wksa_id="206-2-500").count() == 1
 
 
-def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
+def test_commit_refuses_while_a_row_needs_attention_and_creates_nothing() -> None:
     admin = admin_user()
     good_row = CLEAN_ROW
     bad_row = ["206-2-501", "Blair", "Park", "2012-05-01", "Not A Rank", "ACTIVE"]
@@ -539,14 +542,13 @@ def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
         content=student_workbook([good_row, bad_row]), uploaded_by=admin
     )
 
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
+    with pytest.raises(DjangoValidationError) as refused:
+        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    assert committed.summary_json["created"] == 1
-    assert committed.summary_json["review_required"] == 1
-    assert Student.objects.filter(wksa_id="206-2-500").exists()
-    assert not Student.objects.filter(wksa_id="206-2-501").exists()
+    assert "1 row needs attention" in str(refused.value)
+    assert not Student.objects.exists()
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
 
 
 def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() -> None:
@@ -966,7 +968,8 @@ def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> No
     assert Student.objects.filter(wksa_id="206-2-500").exists()
 
 
-def test_preview_rejects_incomplete_column_mapping() -> None:
+def test_preview_of_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> None:
+    # A needed field may have no column: its value is typed in row by row.
     client = APIClient()
     admin = admin_user()
     client.force_authenticate(user=admin)
@@ -977,4 +980,5 @@ def test_preview_rejects_incomplete_column_mapping() -> None:
         {"column_mapping": {"wksa_id": "WKSA ID"}},
         format="json",
     )
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert response.json()["review_required"] == 1

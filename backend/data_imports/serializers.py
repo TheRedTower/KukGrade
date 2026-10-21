@@ -6,9 +6,11 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from data_imports.mappings import (
-    STUDENT_REQUIRED_TARGET_FIELDS,
+    STUDENT_FIELD_LABELS,
+    STUDENT_OPTIONAL_FIELDS,
     STUDENT_TARGET_FIELDS,
     STUDENT_WHOLE_FILE_FIELDS,
+    suggest_column_mapping,
 )
 from data_imports.models import ImportBatch, ImportRow
 from data_imports.services import (
@@ -18,6 +20,8 @@ from data_imports.services import (
     StudentImportRowOutcome,
     extra_values,
     next_step,
+    roster_cells,
+    roster_file_values,
     row_counts,
 )
 from students.models import Student
@@ -29,6 +33,17 @@ class ImportRowCountsSerializer(serializers.Serializer):
     review_required = serializers.IntegerField()
     skip_existing = serializers.IntegerField()
     excluded = serializers.IntegerField()
+
+
+class ImportFieldSerializer(serializers.Serializer):
+    """One field of KukGrade's a roster's columns are matched to."""
+
+    field = serializers.CharField()
+    name = serializers.CharField(help_text="The field's name on screen.")
+    needed = serializers.BooleanField(help_text="Every student must have it.")
+    whole_file = serializers.BooleanField(
+        help_text="It can be given once for the whole file.",
+    )
 
 
 class ImportBatchSerializer(serializers.ModelSerializer):
@@ -59,6 +74,24 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     sheet_names = serializers.SerializerMethodField(
         help_text="Every sheet a roster workbook has, to choose another.",
     )
+    suggested_mapping = serializers.SerializerMethodField(
+        help_text="A roster's likely column for each field, from its headings.",
+    )
+    target_fields = serializers.SerializerMethodField(
+        help_text="The fields a roster's columns are matched to; empty otherwise.",
+    )
+    rank_mappings = serializers.SerializerMethodField(
+        help_text=(
+            "A historical import's chosen rank for each spelling, by the "
+            "spelling lowercased; a spelling not here is left as written."
+        ),
+    )
+    grading_sheets = serializers.SerializerMethodField(
+        help_text="A historical workbook's grading sheets that were read.",
+    )
+    warnings = serializers.SerializerMethodField(
+        help_text="What the reading of the file left out, such as an unknown sheet.",
+    )
     row_counts = serializers.SerializerMethodField()
     # Declared rather than inferred from JSONField, which would type it as
     # "anything": summary_json only ever holds safe counts.
@@ -88,6 +121,11 @@ class ImportBatchSerializer(serializers.ModelSerializer):
             "extra_columns",
             "sheet",
             "sheet_names",
+            "suggested_mapping",
+            "target_fields",
+            "rank_mappings",
+            "grading_sheets",
+            "warnings",
             "row_counts",
             "summary_json",
         ]
@@ -122,6 +160,34 @@ class ImportBatchSerializer(serializers.ModelSerializer):
     def get_sheet_names(self, batch: ImportBatch) -> list[str]:
         return list(batch.configuration_json.get("sheet_names", []))
 
+    def get_suggested_mapping(self, batch: ImportBatch) -> dict[str, str]:
+        if batch.kind != ImportBatch.Kind.STUDENT_ROSTER:
+            return {}
+        return suggest_column_mapping(self.get_detected_headers(batch))
+
+    @extend_schema_field(ImportFieldSerializer(many=True))
+    def get_target_fields(self, batch: ImportBatch) -> list[dict[str, Any]]:
+        if batch.kind != ImportBatch.Kind.STUDENT_ROSTER:
+            return []
+        return [
+            {
+                "field": field,
+                "name": STUDENT_FIELD_LABELS[field],
+                "needed": field not in STUDENT_OPTIONAL_FIELDS,
+                "whole_file": field in STUDENT_WHOLE_FILE_FIELDS,
+            }
+            for field in STUDENT_TARGET_FIELDS
+        ]
+
+    def get_rank_mappings(self, batch: ImportBatch) -> dict[str, str]:
+        return dict(batch.configuration_json.get("rank_mappings", {}))
+
+    def get_grading_sheets(self, batch: ImportBatch) -> list[str]:
+        return list(batch.configuration_json.get("grading_sheets", []))
+
+    def get_warnings(self, batch: ImportBatch) -> list[str]:
+        return list(batch.configuration_json.get("warnings", []))
+
     @extend_schema_field(ImportRowCountsSerializer)
     def get_row_counts(self, batch: ImportBatch) -> dict[str, int]:
         # Annotated by the batch list and detail (ImportBatchViewSet), so a
@@ -147,12 +213,34 @@ class ImportRowSerializer(serializers.ModelSerializer):
             "testing_for_rank, outcome, report, section and note."
         ),
     )
-    issues = serializers.ListField(child=serializers.CharField())
+    issues = serializers.ListField(
+        child=serializers.CharField(),
+        help_text=(
+            "A roster row's problems, or a historical record's reasons to look "
+            "at it (none of which stop the import)."
+        ),
+    )
+    issue_fields = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="The fields the issues are about (a roster's), to mark them.",
+    )
     corrected_fields = serializers.SerializerMethodField(
         help_text="The fields whose value is the importer's fix, not the file's.",
     )
     extra = serializers.SerializerMethodField(
         help_text="The row's values in the columns kept as extra information.",
+    )
+    cells = serializers.SerializerMethodField(
+        help_text=(
+            "A roster row's every cell by column heading, as the file has it, "
+            "the columns not imported included; empty for historical gradings."
+        ),
+    )
+    file_values = serializers.SerializerMethodField(
+        help_text=(
+            "A roster row's matched fields as the file has them, before any "
+            "fix; empty for historical gradings."
+        ),
     )
 
     class Meta:
@@ -165,14 +253,28 @@ class ImportRowSerializer(serializers.ModelSerializer):
             "excluded",
             "values",
             "issues",
+            "issue_fields",
             "corrected_fields",
             "extra",
+            "cells",
+            "file_values",
             "created_id",
         ]
         read_only_fields = fields
 
     def get_corrected_fields(self, row: ImportRow) -> list[str]:
         return sorted(row.correction)
+
+    def _is_roster(self) -> bool:
+        return self.context.get("kind") == ImportBatch.Kind.STUDENT_ROSTER
+
+    def get_cells(self, row: ImportRow) -> dict[str, str]:
+        return roster_cells(row.raw) if self._is_roster() else {}
+
+    def get_file_values(self, row: ImportRow) -> dict[str, str]:
+        if not self._is_roster():
+            return {}
+        return roster_file_values(row.raw, self.context.get("column_mapping", {}))
 
     def get_extra(self, row: ImportRow) -> dict[str, str]:
         # The batch's kept columns come in the context (ImportBatchViewSet).
@@ -184,7 +286,7 @@ class ImportMappingSerializer(serializers.Serializer):
 
     A column for each field, a whole-file value for a field the file lacks
     (current_rank or status only), and the columns to keep as extra
-    information. Each required field needs a column or a whole-file value.
+    information. A needed field with neither is typed into each row as a fix.
     """
 
     column_mapping = serializers.DictField(
@@ -220,16 +322,9 @@ class ImportMappingSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"column_mapping": [f"Unknown field(s): {', '.join(unknown)}."]},
             )
-        given = {field for field, value in attrs["defaults"].items() if value.strip()}
-        missing = [
-            field
-            for field in STUDENT_REQUIRED_TARGET_FIELDS
-            if not mapping.get(field) and field not in given
-        ]
-        if missing:
-            raise serializers.ValidationError(
-                {"column_mapping": [f"Choose a column for: {', '.join(missing)}."]},
-            )
+        # A needed field may have no column: each row's value is then typed in
+        # as a fix, and the row needs attention until it is (owner,
+        # 2026-10-20). Commit refuses while any row does.
         return attrs
 
 
@@ -303,13 +398,6 @@ def _validate_column_mapping(value: dict[str, str]) -> None:
     if unknown:
         raise serializers.ValidationError(
             f"Unknown field(s): {', '.join(sorted(unknown))}."
-        )
-    missing = [
-        field for field in STUDENT_REQUIRED_TARGET_FIELDS if not value.get(field)
-    ]
-    if missing:
-        raise serializers.ValidationError(
-            f"Choose a column for: {', '.join(missing)}.",
         )
 
 
@@ -426,5 +514,8 @@ class LegacyImportPreviewSerializer(serializers.Serializer):
     unresolved_testing_for_rank = serializers.IntegerField()
     unresolved_outcome = serializers.IntegerField()
     excluded = serializers.IntegerField()
+    worth_a_look = serializers.IntegerField(
+        help_text="Records not left out that have issues: a reason to look.",
+    )
     warnings = serializers.ListField(child=serializers.CharField())
     rank_suggestions = RankMappingSuggestionSerializer(many=True)

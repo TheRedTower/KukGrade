@@ -20,6 +20,9 @@
   --color-page-bg: #f5f1e8;
   --color-surface: #ffffff;
   --color-surface-sunken: #f5f1e8;
+  /* The fill of a text box: white in light mode, a step above the card in dark
+     mode so it does not glare, and still reads as a box. */
+  --color-field: #ffffff;
   /* The structural ink panel (nav rail, login brand panel). In dark mode it
      must differ from the page background, or the panel would read as a
      seamless void instead of its own object - see FDR-004 and FDR-012. */
@@ -95,6 +98,7 @@
     --color-page-bg: #16130f;
     --color-surface: #221e18;
     --color-surface-sunken: #1c1914;
+    --color-field: #2c2720;
     --color-rail: #241f18;
     --color-rail-border: #3a3226;
     --color-border: #332d24;
@@ -147,6 +151,7 @@
   --color-page-bg: #16130f;
   --color-surface: #221e18;
   --color-surface-sunken: #1c1914;
+  --color-field: #2c2720;
   --color-rail: #241f18;
   --color-rail-border: #3a3226;
   --color-border: #332d24;

@@ -150,6 +150,7 @@ def create_students(
             date_of_birth=new.date_of_birth,
             current_rank=new.current_rank,
             status=new.status,
+            source_import=source_import,
         )
         for new in new_students
     ]

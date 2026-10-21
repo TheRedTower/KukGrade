@@ -34,6 +34,7 @@ function newDeployment(onSetup: (body: Record<string, string>) => Response) {
     if (url.includes("/api/site/")) {
       return jsonResponse(200, {
         club_name: "Test Club",
+        time_zone: "Europe/London",
         password_policy: policy,
         wksa_id: { hint: "", forms: [] },
       });
@@ -101,7 +102,7 @@ describe("First-time setup", () => {
     await fillIn(user);
     await user.click(screen.getByRole("button", { name: "Create administrator" }));
 
-    expect(await screen.findByRole("button", { name: "Ada Owner, Administrator" })).toBeVisible();
+    expect(await screen.findByRole("link", { name: "Ada Owner, Administrator: your account" })).toBeVisible();
     expect(sent).toEqual([
       {
         code: "kcq7-abcd-efgh",

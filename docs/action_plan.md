@@ -38,9 +38,12 @@ after the owner's approval):
   and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet (done 2026-10-20).
   The backend is done and tested end to end (53/53 against the
   production image); the frontend starts with B1.
-- Frontend: B1 a design register entry and mocks; B2 one Imports area; B3 a
-  guided flow (file, match columns, review rows, confirm, results); B4 a
-  redone Historical records screen; B5 hooks, tests and accessibility.
+- Frontend: B1 a design register entry and mocks (done 2026-10-20: seven
+  screens chosen, FDR-049 to FDR-055); B2 one Imports area; B3 a guided flow
+  (file, match columns, review rows, confirm, results); B4 a redone
+  Historical records screen; B5 hooks, tests and accessibility (built
+  2026-10-20 on `feat/imports-frontend` and reviewed 2026-10-21; a check
+  in the browser, then merging, is next).
 
 Later, when the owner asks: release assurance (KG-A24); rehearsing the
 historical import against a sanitised copy of the real KSW Colchester

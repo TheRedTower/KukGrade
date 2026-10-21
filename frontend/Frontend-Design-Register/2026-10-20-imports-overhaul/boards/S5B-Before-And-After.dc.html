@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Confirm · Before and After</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+a{color:#8f5f07}
+a:hover{color:#6b4705}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-surface-sunken:#f5f1e8;--color-rail:#15130f;--color-rail-border:transparent;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#8f5f07;--btn-bg:#f2a71b;--btn-text:#17140f;--btn-border:#d6900e;--color-success:#1a6e42;--color-success-surface:#e1f3e7;--color-warning:#8f5a00;--color-warning-surface:#fbead0;--color-danger:#b42318;--color-danger-surface:#fff1ef;--color-neutral-surface:#efeadf;--color-info:#1d4ed8;--color-info-surface:#eff6ff;--color-scrim:rgba(15,23,42,0.62)}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-surface-sunken:#1c1914;--color-rail:#241f18;--color-rail-border:#3a3226;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-on-ink-muted:#a39c8c;--color-gold:#f2a71b;--color-accent-text:#ffbb3d;--btn-bg:#e8a838;--btn-text:#14110c;--btn-border:#ffbb3d;--color-success:#4cbf84;--color-success-surface:#1d3227;--color-warning:#e8a93b;--color-warning-surface:#3a2e17;--color-danger:#f27a6e;--color-danger-surface:#3a1f1b;--color-neutral-surface:#2c2720;--color-info:#93c5fd;--color-info-surface:#1b2a44;--color-scrim:rgba(15,23,42,0.62)}
+.tk a{color:var(--color-accent-text)}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="position: relative; display: flex; flex-wrap: wrap; min-height: 1180px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+
+<aside aria-label="Sidebar" style="flex: 1 1 240px; max-width: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 24px; padding: 24px 16px; background: var(--color-rail); border-right: 1px solid var(--color-rail-border); color: var(--color-on-ink)">
+<div style="display: flex; flex-direction: column; gap: 24px">
+<div style="padding: 8px 12px 0">
+<p style="margin: 0 0 8px; font-size: 26px; font-weight: 800; letter-spacing: -0.01em">Kuk<span style="color: var(--color-gold)">Grade</span></p>
+<p style="margin: 0; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase">People · Progress · Purpose</p>
+</div>
+<nav aria-label="Main navigation" style="display: flex; flex-direction: column; gap: 6px">
+<a href="#overview" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Overview</a>
+<a href="#students" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7"></path><path d="M18 14.5c2.2.7 3.5 2.7 3.5 5.5"></path></svg>Students</a>
+<a href="#gradings" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 4V3h6v1"></path><path d="m9 13 2 2 4-4"></path></svg>Gradings</a>
+<a href="#syllabus" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"></path><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"></path></svg>Syllabus</a>
+<a href="#imports" aria-current="page" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px 10px 11px; border-radius: 6px; border-left: 3px solid var(--color-gold); background: rgba(242, 167, 27, 0.12); color: var(--color-on-ink); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v11"></path><path d="m7.5 9.5 4.5 4.5 4.5-4.5"></path><path d="M3 14v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4"></path></svg>Imports</a>
+<a href="#audit" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"></path><path d="M9 12h6"></path><path d="M9 15.5h4"></path></svg>Audit</a>
+<a href="#users" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 14px; border-radius: 6px; color: var(--color-on-ink-muted); font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"></path></svg>Users</a>
+</nav>
+</div>
+<div style="border-top: 1px solid var(--color-rail-border); padding: 20px 12px 8px">
+<p style="margin: 0 0 8px; color: var(--color-on-ink-muted); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase">A stronger generation through discipline</p>
+<p style="margin: 0; color: var(--color-gold); font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase">Staff only</p>
+</div>
+</aside>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 32px; background: var(--color-surface); border-bottom: 1px solid var(--color-border)">
+<p style="margin: 0; font-weight: 700">Imports</p>
+<p style="margin: 0; display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--color-text-muted)"><span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; background: var(--color-rail); color: var(--color-on-ink); font-size: 12px; font-weight: 700">ST</span>Sam Taylor · Administrator</p>
+</header>
+
+<main style="width: 100%; max-width: 1120px; padding: 32px; display: flex; flex-direction: column; gap: 24px">
+
+<div>
+<a href="#imports" style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Imports</a>
+<h1 style="margin: 4px 0 0; font-size: 32px; line-height: 1.1">{{title}}</h1>
+<p style="margin: 4px 0 0; color: var(--color-text-muted); font-size: 14px">{{file}}</p>
+</div>
+
+<nav aria-label="Import steps">
+<ol style="list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<li aria-current="{{s.current}}" style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<span aria-hidden="true" style="height: 4px; border-radius: 2px; background: {{s.bar}}"></span>
+<span style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: {{s.weight}}; color: {{s.color}}"><span style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; border: 1px solid {{s.bar}}; background: {{s.dotBg}}; color: {{s.dotFg}}; font-size: 12px; font-weight: 700">{{s.mark}}</span><span style="min-width: 0; overflow-wrap: anywhere">{{s.name}}</span></span>
+</li>
+</sc-for>
+</ol>
+</nav>
+
+<sc-if value="{{failed}}" hint-placeholder-val="{{ false }}">
+<div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 16px 20px; border-radius: 10px; border: 1px solid var(--color-danger); background: var(--color-danger-surface)">
+<p style="flex: 1 1 320px; margin: 0"><strong>Nothing was saved.</strong> {{failMessage}}</p>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font-weight: 600; font-size: 14px">{{failAction}}</button>
+</div>
+</sc-if>
+
+<section aria-labelledby="flow-h" style="display: flex; flex-direction: column; gap: 20px; padding: 28px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 12px">
+<h2 id="flow-h" tabindex="-1" style="margin: 0; font-size: 22px">What this import does</h2>
+<div style="display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px">
+<div style="flex: 1 1 200px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 20px; border-radius: 10px; background: var(--color-surface-sunken)">
+<p style="margin: 0; color: var(--color-text-muted); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">In your file</p>
+<p style="margin: 0; font-size: 34px; font-weight: 800; line-height: 1.1">{{total}}</p>
+<p style="margin: 0; color: var(--color-text-muted); font-size: 14px">{{totalLabel}}</p>
+</div>
+<div aria-hidden="true" style="flex: 0 0 auto; display: flex; align-items: center; color: var(--color-text-muted)"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg></div>
+<div style="flex: 3 1 460px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; color: var(--color-text-muted); font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase">In KukGrade afterwards</p>
+<div aria-hidden="true" style="display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--color-neutral-surface)">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3"><span style="width: {{g.share}}; background: {{g.fill}}"></span></sc-for>
+</div>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<div style="border: 1px solid var(--color-border); border-radius: 10px">
+<button type="button" aria-expanded="{{g.expanded}}" onClick="{{g.toggle}}" style="display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 16px; border: none; background: transparent; text-align: left">
+<span aria-hidden="true" style="width: 12px; height: 12px; border-radius: 3px; background: {{g.fill}}; flex: 0 0 auto"></span>
+<span style="flex: 1 1 auto; min-width: 0"><span style="display: block; font-weight: 700">{{g.count}} {{g.label}}</span><span style="display: block; color: var(--color-text-muted); font-size: 14px">{{g.detail}}</span></span>
+<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: {{g.chevron}}"><path d="m9 18 6-6-6-6"></path></svg>
+</button>
+<sc-if value="{{g.open}}" hint-placeholder-val="{{ false }}">
+<ul style="margin: 0; padding: 4px 16px 14px 40px; display: flex; flex-direction: column; gap: 4px; font-size: 14px">
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3"><li>{{it}}</li></sc-for>
+</ul>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="also-h" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px">
+<h2 id="also-h" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Also</h2>
+<sc-for list="{{also}}" as="a" hint-placeholder-count="3">
+<div style="padding: 18px 20px; border-radius: 10px; border: 1px solid var(--color-border); background: var(--color-surface)">
+<p style="margin: 0 0 4px; font-weight: 700">{{a.title}}</p>
+<p style="margin: 0; color: var(--color-text-muted); font-size: 14px">{{a.body}}</p>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+<button type="button" style="display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); font-weight: 600; font-size: 14px"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Back to review</button>
+<button type="button" onClick="{{openDialog}}" disabled="{{saving}}" style="display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 28px; border-radius: 8px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text); font-weight: 700; font-size: 16px">{{actionLabel}}</button>
+</div>
+
+</main>
+</div>
+
+<sc-if value="{{dialogOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; padding: 200px 16px 16px; background: var(--color-scrim)">
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-h" aria-describedby="dlg-p" style="width: 100%; max-width: 480px; padding: 28px; border-radius: 12px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 20px 50px rgba(0,0,0,0.3)">
+<h2 id="dlg-h" style="margin: 0 0 8px; font-size: 20px">{{dialogTitle}}</h2>
+<p id="dlg-p" style="margin: 0 0 24px; color: var(--color-text-muted)">{{dialogBody}}</p>
+<div style="display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px">
+<button type="button" onClick="{{closeDialog}}" style="min-height: 44px; padding: 0 18px; border-radius: 8px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text); font-weight: 600">Not yet</button>
+<button type="button" onClick="{{confirm}}" style="min-height: 44px; padding: 0 20px; border-radius: 8px; border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--btn-text); font-weight: 700">{{actionLabelShort}}</button>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"kind":{"editor":"enum","options":["Students","Past gradings"],"default":"Students"},"moment":{"editor":"enum","options":["Ready","Saving","Something changed"],"default":"Ready"},"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? false;
+    const students = (this.props.kind ?? 'Students') === 'Students';
+    const st = this.state || {};
+    const moment = st.moment || this.props.moment || 'Ready';
+    const openSet = st.open || {};
+    const names = students
+      ? ['Choose file', 'Match columns', 'Review rows', 'Confirm', 'Results']
+      : ['Choose file', 'Match ranks', 'Review records', 'Confirm', 'Results'];
+    const steps = names.map((name, i) => ({
+      name,
+      mark: i < 3 ? '✓' : String(i + 1),
+      current: i === 3 ? 'step' : 'false',
+      bar: i <= 3 ? 'var(--color-gold)' : 'var(--color-border)',
+      dotBg: i === 3 ? 'var(--color-gold)' : (i < 3 ? 'var(--color-success-surface)' : 'transparent'),
+      dotFg: i === 3 ? '#17140f' : (i < 3 ? 'var(--color-success)' : 'var(--color-text-muted)'),
+      color: i <= 3 ? 'var(--color-text)' : 'var(--color-text-muted)',
+      weight: i === 3 ? 700 : 500
+    }));
+    const total = students ? 212 : 231;
+    const raw = students
+      ? [
+          ['added', 203, 'new students added', '198 exactly as in the file, 5 with your fixes', 'var(--color-success)', ['Mia Reynolds, Theo Barker, Priya Shah (your fix), Sam Ortiz, Ella Moss (your fix) …', 'The full list is on the review step under “Look over all”.']],
+          ['skip', 5, 'already in KukGrade, skipped', 'Those students stay exactly as they are', 'var(--color-text-muted)', ['Grace Holt · A-20311', 'Isla Ward · 104-2-144', 'Jake Ross · 104-2-187', 'Ben Cole · 104-2-190', 'Mae Hill · 104-2-211']],
+          ['out', 4, 'left out by you', 'Not imported', 'var(--color-border)', ['Row 33 · Leo Grant', 'Row 58 · Leon Grant', 'Row 71 · (no first name) Shah', 'Row 160 · Max Bell']]
+        ]
+      : [
+          ['added', 229, 'historical records', '190 grading results, 6 did not attend, 33 sheet notes', 'var(--color-success)', ['March 2025: 52 records', 'June 2025: 47 records', 'September 2025: 44 records', 'December 2025: 43 records', 'March 2026: 43 records']],
+          ['out', 2, 'left out by you', 'Not imported', 'var(--color-border)', ['March 2025 · row 40 · “TEST”', 'June 2025 · row 12 · a repeated line']]
+        ];
+    const groups = raw.map(([key, count, label, detail, fill, items]) => {
+      const open = Boolean(openSet[key]);
+      return {
+        count, label, detail, fill, items,
+        share: (count / total * 100).toFixed(1) + '%',
+        open,
+        expanded: open ? 'true' : 'false',
+        chevron: open ? 'rotate(90deg)' : 'none',
+        toggle: () => this.setState({ open: { ...openSet, [key]: !open } })
+      };
+    });
+    const also = students
+      ? [
+          { title: 'Extra information', body: '“Parent phone” is kept on the 171 students who have one, shown on their page.' },
+          { title: 'Status', body: 'Active for the 12 students the file gives no status.' },
+          { title: 'All or nothing', body: 'Either all 203 are added or none are. Each one’s history says it came from this import, by you.' }
+        ]
+      : [
+          { title: 'Ranks', body: '7 of 9 spellings matched. “Brn stripe” and “Purple” are kept as written, to match later.' },
+          { title: 'Not linked yet', body: 'Straight after the import, KukGrade suggests which student each record is. You confirm.' },
+          { title: 'If it is the wrong file', body: 'The whole import can be voided later, with a reason. Grading reports are seen only by staff who can read grading history.' }
+        ];
+    const count = students ? 203 : 229;
+    const saving = moment === 'Saving';
+    return {
+      theme: dark ? 'dark' : 'light',
+      title: students ? 'Import students' : 'Import past gradings',
+      file: students ? 'spring-roster.xlsx · sheet “Members” · 212 rows' : 'grading-record-2025.xlsx · 5 grading sheets · 231 records',
+      steps,
+      total,
+      totalLabel: students ? 'rows' : 'records',
+      groups,
+      also,
+      failed: moment === 'Something changed',
+      failMessage: students
+        ? 'Since you checked, someone else added a student with the WKSA ID 104-2-205, which is row 5 here. Fix that row and try again.'
+        : 'Since you checked, the rank “Dahn Bo Nim” was switched off in KukGrade. Match its spellings again and try again.',
+      failAction: students ? 'Go to row 5' : 'Match ranks',
+      saving,
+      actionLabel: saving ? (students ? 'Adding 203 students…' : 'Importing 229 records…') : (students ? 'Add 203 students' : 'Import 229 records'),
+      actionLabelShort: students ? 'Add ' + count + ' students' : 'Import ' + count + ' records',
+      dialogOpen: Boolean(st.dialog),
+      dialogTitle: students ? 'Add 203 students to KukGrade?' : 'Import 229 historical records?',
+      dialogBody: students
+        ? 'They are saved together, so either all are added or none are. You can edit or remove any of them afterwards.'
+        : 'They are saved together, exactly as the workbook has them. Next you link them to students.',
+      openDialog: () => this.setState({ dialog: true }),
+      closeDialog: () => this.setState({ dialog: false }),
+      confirm: () => this.setState({ dialog: false, moment: 'Saving' })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -100,6 +100,16 @@ export function GradingsIcon() {
   );
 }
 
+export function ImportsIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <path d="M12 3v11" />
+      <path d="m7.5 9.5 4.5 4.5 4.5-4.5" />
+      <path d="M3 14v4a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-4" />
+    </svg>
+  );
+}
+
 export function SyllabusIcon() {
   return (
     <svg {...iconProps(NAV_ICON)}>
@@ -163,6 +173,62 @@ export function MonitorIcon() {
     <svg {...iconProps({})}>
       <rect height="14" rx="1.5" width="20" x="2" y="3" />
       <path d="M8 21h8M12 17v4" />
+    </svg>
+  );
+}
+
+// The sidebar's foot (FDR-056).
+export function SettingsIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
+  );
+}
+
+export function AboutIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </svg>
+  );
+}
+
+export function GitHubIcon() {
+  return (
+    <svg aria-hidden="true" className="nav-icon" fill="currentColor" height="20" viewBox="0 0 24 24" width="20">
+      <path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49v-1.7c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.89 1.56 2.34 1.11 2.91.85.09-.66.35-1.11.63-1.37-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.4 9.4 0 0 1 12 6.84c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.8-4.57 5.06.36.32.68.94.68 1.9v2.81c0 .27.18.59.69.49A10.25 10.25 0 0 0 22 12.25C22 6.58 17.52 2 12 2z" />
+    </svg>
+  );
+}
+
+export function SignOutIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5M21 12H9" />
+    </svg>
+  );
+}
+
+export function SidebarIcon() {
+  return (
+    <svg {...iconProps(NAV_ICON)}>
+      <rect height="16" rx="2" width="18" x="3" y="4" />
+      <path d="M9 4v16" />
+    </svg>
+  );
+}
+
+export function CopyIcon() {
+  return (
+    <svg {...iconProps({ size: 18 })}>
+      <rect height="12" rx="2" width="12" x="9" y="9" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h10" />
     </svg>
   );
 }

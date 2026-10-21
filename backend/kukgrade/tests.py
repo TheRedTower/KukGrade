@@ -39,7 +39,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
         "KUKGRADE_CLUB_NAME",
-        "DJANGO_TIME_ZONE",
+        "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
         "KUKGRADE_SCHOOL_PREFIX",
     ]:
@@ -239,9 +239,7 @@ def test_time_zone_defaults_to_london(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_time_zone_is_declared_in_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(
-        monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="America/New_York"
-    )
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, TZ="America/New_York")
 
     assert settings.TIME_ZONE == "America/New_York"
 
@@ -249,7 +247,7 @@ def test_time_zone_is_declared_in_the_environment(
 def test_a_blank_time_zone_falls_back_to_the_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="  ")
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, TZ="  ")
 
     assert settings.TIME_ZONE == "Europe/London"
 
@@ -258,8 +256,8 @@ def test_a_blank_time_zone_falls_back_to_the_default(
 def test_an_unknown_time_zone_stops_startup(
     monkeypatch: pytest.MonkeyPatch, bad: str
 ) -> None:
-    with pytest.raises(ImproperlyConfigured, match="DJANGO_TIME_ZONE"):
-        load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE=bad)
+    with pytest.raises(ImproperlyConfigured, match="TZ must be an IANA"):
+        load_settings(monkeypatch, **PRODUCTION_ENV, TZ=bad)
 
 
 def test_temporary_passwords_last_a_day_unless_configured(

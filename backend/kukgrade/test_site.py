@@ -16,6 +16,12 @@ def test_site_settings_serve_the_configured_club_name(settings: Any) -> None:
     assert response.json()["club_name"] == "Kuk Sool Won Colchester"
 
 
+def test_site_settings_serve_the_club_time_zone(settings: Any) -> None:
+    settings.TIME_ZONE = "Pacific/Auckland"
+
+    assert APIClient().get("/api/site/").json()["time_zone"] == "Pacific/Auckland"
+
+
 def test_site_settings_serve_the_password_policy_the_server_enforces() -> None:
     # The screens' checklist renders this; it must be the policy the
     # validators run, not a copy (2026-10-19, credential slice 2).

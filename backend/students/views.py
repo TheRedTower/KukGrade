@@ -128,6 +128,11 @@ class StudentViewSet(
         by_id("current_rank", "current_rank_id"),
         _AGE_BAND,
         _ELIGIBLE_FOR_SESSION,
+        by_id(
+            "source_import",
+            "source_import",
+            "Only the students one import added.",
+        ),
         search(
             "search",
             ("first_name", "last_name", "wksa_id", "previous_wksa_ids__wksa_id"),

@@ -93,7 +93,7 @@ def test_the_admin_site_opens_once_the_password_is_changed() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Your own password: KukGrade's account menu, not the admin site
+# Your own password: KukGrade's Settings, not the admin site
 # ---------------------------------------------------------------------------
 
 
@@ -112,9 +112,7 @@ def test_the_admin_sites_own_password_form_points_to_the_account_menu() -> None:
 
     for response in (shown, sent):
         assert response.status_code == 200
-        assert "Change your own password from your account menu" in (
-            response.content.decode()
-        )
+        assert "Change your own password in Settings" in (response.content.decode())
         assert password_inputs(response) == 0
     me.refresh_from_db()
     assert me.check_password(OWNER_PASSWORD)
@@ -126,7 +124,7 @@ def test_the_admin_sites_password_changed_page_claims_nothing() -> None:
     response = client.get("/admin/password_change/done/")
 
     page = response.content.decode()
-    assert "Change your own password from your account menu" in page
+    assert "Change your own password in Settings" in page
     assert "was changed" not in page
 
 
@@ -136,9 +134,7 @@ def test_your_own_account_cannot_be_reset_on_the_admin_site() -> None:
 
     response = client.post(f"/admin/accounts/user/{me.pk}/password/")
 
-    assert "Change your own password from your account menu" in (
-        response.content.decode()
-    )
+    assert "Change your own password in Settings" in (response.content.decode())
     me.refresh_from_db()
     assert me.check_password(OWNER_PASSWORD)
     assert me.must_change_password is False

@@ -18,6 +18,61 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-20 - The import screens: seven screens chosen, and what they ask of the backend
+
+Status: Accepted (design); the screens are not built yet
+
+Decision:
+The owner chose the import screens one at a time from proposed directions
+(`frontend/Frontend-Design-Register/2026-10-20-imports-overhaul/`):
+
+- **Imports hub (FDR-049):** one Imports area replaces the import buttons on
+  Students and Gradings: unfinished imports first, two plain start panels,
+  then every past import, filterable and paged.
+- **Choose file (FDR-050):** the guide to what KukGrade reads beside the drop
+  area, then a checklist of what was found once the file is read.
+- **Match columns and ranks (FDR-051):** the file's first rows with a field
+  chooser above each column, read live. The owner asked that what is missing
+  can be typed in by whoever knows it: any cell under a matched column can be
+  fixed, and a needed field the file has no column for can be typed in row by
+  row ("Type each one in").
+- **Review rows (FDR-052):** the rows that need attention first, fixable in
+  place or left out, and a "Look over all" list of exactly what will be
+  imported, fixes marked, for a person's last check before confirming.
+- **Confirm (FDR-053):** on the review page itself: once every row is
+  sorted, a banner with the summary and the button appears above the last
+  look, and the button opens a two-sentence confirmation.
+- **Results (FDR-054):** the import's own page, with the next job on top
+  (linking records to students, or a second look at what KukGrade filled
+  in) and every row and what happened to it below.
+- **Linking historical records (FDR-055):** one name at a time, its
+  records beside the students it could be, each saying whether the ranks
+  fit; tick the records, choose the student, link and move on.
+- **An unfinished import is still cleared 24 hours after upload.** Asked
+  whether that limit is needed, the owner kept it: the uploaded file and its
+  rows are personal data held outside the records, and a day is a sane time.
+- **Past gradings are never retyped.** Their records keep the workbook's
+  words exactly; what a person adds is what the words mean (a spelling's
+  rank, later the student), and a record can be left out.
+
+Context:
+The 2026-10-20 import overhaul built the backend first. These choices
+cover every import screen, from the hub to linking historical records.
+
+Consequences:
+- The backend must accept a roster mapping that has no column for a needed
+  field. Such rows stay Needs attention until each is filled, so nothing
+  missing is ever imported; today the mapping is refused.
+- The row list must also serve each cell as the file has it (for the columns
+  not imported), and the historical rows behind one rank spelling.
+- The Students list must be filterable to the students one import added.
+- **A row is only imported once KukGrade's own fields are right** (owner,
+  2026-10-20). A row still needing attention is never imported quietly:
+  each one is fixed or deliberately left out before the import can be
+  confirmed, and a single "Leave out the rest" does the latter for all that
+  remain. Today commit imports the ready rows and passes over the rest
+  without a word; it is to refuse while any row needs attention.
+
 ### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
 
 Status: Accepted; the backend built 2026-10-20 (A0-A7, below), the screens
@@ -512,7 +567,8 @@ None change the API schema.
 Status: Accepted
 
 Decision:
-`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`) sets Django's
+`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`; renamed `TZ` on
+2026-10-21, below) sets Django's
 `TIME_ZONE`. It is validated when settings load, so a typo stops startup with
 a message naming the variable instead of failing inside a request.
 
@@ -530,6 +586,40 @@ Consequences:
 Changing the variable changes which day a late-evening or early-morning
 request falls on, so ages and session "today" can shift by a day at the
 boundary. It is set once per deployment, in `.env.production`.
+
+### 2026-10-21 - The screens show times in the club's time zone
+
+Status: Accepted. Supersedes the "frontend is unchanged" line of
+2026-09-30 and the reader's-own-zone rule of 2026-09-24 for timestamps.
+
+Decision:
+The club's zone, `TZ`, is served as `time_zone` by
+`GET /api/site/`, and `frontend/src/dates.ts` uses it: timestamps are shown
+as the club's clock reads, "today" (`todayIsoDate`, `currentYear`) and
+"days ago" (`calendarDaysAgo`) are the club's calendar day, counted as
+calendar days so a clock change does not move them. Date-only values
+(`grading_date`, `date_of_birth`, `effective_date`) still take no zone at
+all, so a day never moves whatever the browser or club zone. The zone is
+applied as the site settings load; until then, or for a name the browser does
+not know, the browser's zone is used (what the screens did before). No second
+`TZ` variable was added.
+
+- This also agrees the screens with the server: the audit date filter
+  already ran in the club zone while times were shown in the browser's.
+- CI still runs the suite in UTC and America/Los_Angeles; the club zone is
+  tested across both by setting it to zones far from each.
+
+Consequences:
+A reader abroad sees the club's time, not their own. Times carry no zone
+label.
+
+Amended the same day (owner): the zone is set once, when the container is
+set up, and is not edited in the application - so Settings has no Club tab
+and there is no settings model, permission or audit event for it. The
+zone is the one variable `TZ`, the name people already know from containers;
+`DJANGO_TIME_ZONE` is gone, so there is only one way to set it. A typo stops
+startup naming `TZ`. (An editable club name was dropped with it: it is
+`KUKGRADE_CLUB_NAME`, set the same way.)
 
 ### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
 
@@ -3021,7 +3111,9 @@ decisions" above.
 
 Raised by the owner, to come back to and elaborate:
 
-4. **A Settings page (2026-10-19).** Move most of what the account menu
+4. **A Settings page (2026-10-19; designed and begun 2026-10-21 - see FDR-056 to
+   FDR-058; no Club tab: the time zone and club name are set when the container is
+   set up).** Move most of what the account menu
    holds today - editing your name, changing your password, the Master
    capability summary, appearance - onto a dedicated Settings page, so
    people make these edits on a full page rather than in the small menu

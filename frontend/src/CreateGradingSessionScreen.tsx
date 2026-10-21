@@ -8,7 +8,7 @@ import {
   createGradingSession,
 } from "./api";
 import "./GradingSessions.css";
-import { formatSessionDate } from "./dates";
+import { currentYear, formatSessionDate } from "./dates";
 
 const MONTHS = [
   { value: "01", label: "January" },
@@ -26,9 +26,9 @@ const MONTHS = [
 ];
 
 function generateYears(): string[] {
-  const currentYear = new Date().getFullYear();
+  const thisYear = currentYear();
   const years: string[] = [];
-  for (let y = currentYear - 1; y <= currentYear + 5; y++) {
+  for (let y = thisYear - 1; y <= thisYear + 5; y++) {
     years.push(String(y));
   }
   return years;
@@ -54,7 +54,7 @@ export function CreateGradingSessionScreen() {
   const [title, setTitle] = useState("");
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
-  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const [year, setYear] = useState(String(currentYear()));
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -68,7 +68,7 @@ export function CreateGradingSessionScreen() {
   // Compute days in chosen month/year
   const daysCount = useMemo(() => {
     if (!month) return 31;
-    const y = year ? parseInt(year, 10) : new Date().getFullYear();
+    const y = year ? parseInt(year, 10) : currentYear();
     const m = parseInt(month, 10);
     return new Date(y, m, 0).getDate();
   }, [year, month]);

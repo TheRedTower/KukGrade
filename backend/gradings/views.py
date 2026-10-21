@@ -41,7 +41,11 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
-from gradings.outcome_services import bulk_promote_candidates, create_candidate_outcome
+from gradings.outcome_services import (
+    bulk_promote_candidates,
+    create_candidate_outcome,
+    promotion_eligibility_for_session,
+)
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
 from gradings.serializers import (
     BulkAssessmentGenerationResultSerializer,
@@ -69,6 +73,7 @@ from gradings.serializers import (
     LegacyPersonSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
+    PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     VoidLegacyRecordSerializer,
@@ -512,6 +517,7 @@ class CandidateOutcomeViewSet(
         "finalise": ("gradings.view_candidateoutcome",),
         "promote": ("gradings.view_candidateoutcome",),
         "bulk_promote": ("gradings.view_candidateoutcome",),
+        "promotion_eligibility": ("gradings.view_candidateoutcome",),
     }
 
     query_filters = (
@@ -528,6 +534,26 @@ class CandidateOutcomeViewSet(
             "candidate__student__last_name",
             "candidate__student__first_name",
         )
+
+    @extend_schema(
+        parameters=[OpenApiParameter("session", int, required=True)],
+        responses=PromotionEligibilitySerializer(many=True),
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="promotion-eligibility",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def promotion_eligibility(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> Response:
+        raw_session = request.query_params.get("session", "")
+        if not raw_session.isdecimal() or int(raw_session) < 1:
+            raise ValidationError({"session": ["Choose a grading session."]})
+        rows = promotion_eligibility_for_session(int(raw_session))
+        return Response(PromotionEligibilitySerializer(rows, many=True).data)
 
     @extend_schema(
         request=CandidateOutcomeProposalSerializer,

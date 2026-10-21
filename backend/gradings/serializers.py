@@ -596,6 +596,13 @@ class CandidatePromotionSerializer(serializers.Serializer):
         )
 
 
+class PromotionEligibilitySerializer(serializers.Serializer):
+    candidate = serializers.IntegerField()
+    outcome = serializers.IntegerField(allow_null=True)
+    eligible = serializers.BooleanField()
+    reason = serializers.CharField(allow_blank=True)
+
+
 class BulkPromotionSerializer(serializers.Serializer):
     outcomes = serializers.PrimaryKeyRelatedField(
         queryset=CandidateOutcome.objects.all(),

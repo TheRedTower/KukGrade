@@ -1778,6 +1778,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkPromotionResult'
           description: ''
+  /api/gradings/outcomes/promotion-eligibility/:
+    get:
+      operationId: gradings_outcomes_promotion_eligibility_list
+      parameters:
+      - in: query
+        name: session
+        schema:
+          type: integer
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromotionEligibility'
+          description: ''
   /api/gradings/promotions/:
     get:
       operationId: gradings_promotions_list
@@ -5264,6 +5286,23 @@ components:
       - id
       - student_display_name
       - to_rank_name
+    PromotionEligibility:
+      type: object
+      properties:
+        candidate:
+          type: integer
+        outcome:
+          type: integer
+          nullable: true
+        eligible:
+          type: boolean
+        reason:
+          type: string
+      required:
+      - candidate
+      - eligible
+      - outcome
+      - reason
     PromotionRankHistory:
       type: object
       properties:

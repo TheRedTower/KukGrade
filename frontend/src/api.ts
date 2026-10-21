@@ -576,6 +576,14 @@ export async function getAllCandidateOutcomes(
   );
 }
 
+export type PromotionEligibility = Schemas["PromotionEligibility"];
+
+export async function getPromotionEligibility(session: number): Promise<PromotionEligibility[]> {
+  return apiRequest<PromotionEligibility[]>(
+    withQuery("/api/gradings/outcomes/promotion-eligibility/", { session }),
+  );
+}
+
 export async function createCandidateOutcome(candidateId: number): Promise<CandidateOutcome> {
   return apiRequest<CandidateOutcome>(`/api/gradings/candidates/${candidateId}/create-outcome/`, {
     method: "POST",

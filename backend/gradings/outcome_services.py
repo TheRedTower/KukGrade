@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 
 from django.core.exceptions import ValidationError
@@ -43,6 +44,15 @@ PROMOTION_SESSION_STATUSES = {
     GradingSession.Status.LOCKED,
     GradingSession.Status.COMPLETED,
 }
+
+
+@dataclass(frozen=True)
+class PromotionEligibilityFacts:
+    """One request's promotion and rank facts; never cached across requests."""
+
+    promoted_outcomes: frozenset[int]
+    promoted_candidates: frozenset[int]
+    active_ranks: tuple[Rank, ...]
 
 
 def validate_outcome_assessment_state(outcome: CandidateOutcome) -> None:
@@ -309,10 +319,19 @@ def validate_promotion_eligibility(
     assessment: CandidateAssessment,
     student: Student,
     effective_date: date,
+    facts: PromotionEligibilityFacts | None = None,
 ) -> tuple[Rank, Rank]:
-    if Promotion.objects.filter(outcome=outcome).exists():
+    if (
+        outcome.pk in facts.promoted_outcomes
+        if facts is not None
+        else Promotion.objects.filter(outcome=outcome).exists()
+    ):
         raise ValidationError({"outcome": ["Outcome already has a promotion."]})
-    if Promotion.objects.filter(grading_candidate=candidate).exists():
+    if (
+        candidate.pk in facts.promoted_candidates
+        if facts is not None
+        else Promotion.objects.filter(grading_candidate=candidate).exists()
+    ):
         raise ValidationError(
             {"grading_candidate": ["Grading candidate already has a promotion."]},
         )
@@ -369,7 +388,14 @@ def validate_promotion_eligibility(
         raise ValidationError(
             {"to_rank": ["Promotion target rank must differ from source rank."]},
         )
-    next_rank = get_next_active_rank(from_rank)
+    next_rank = (
+        next(
+            (rank for rank in facts.active_ranks if rank.order > from_rank.order),
+            None,
+        )
+        if facts is not None
+        else get_next_active_rank(from_rank)
+    )
     if next_rank is None:
         raise ValidationError({"to_rank": ["Student has no next active rank."]})
     if to_rank != next_rank:
@@ -398,6 +424,53 @@ def validate_promotion_eligibility(
             },
         )
     return from_rank, to_rank
+
+
+def promotion_eligibility_for_session(session_id: int) -> list[dict[str, object]]:
+    """Use command-time policy for the ledger, with bounded query count."""
+    candidates = GradingCandidate.objects.filter(session_id=session_id).select_related(
+        "session", "student__current_rank", "testing_for_rank", "assessment", "outcome"
+    )
+    promoted = list(
+        Promotion.objects.filter(grading_candidate__session_id=session_id).values_list(
+            "outcome_id", "grading_candidate_id"
+        )
+    )
+    facts = PromotionEligibilityFacts(
+        promoted_outcomes=frozenset(outcome_id for outcome_id, _ in promoted),
+        promoted_candidates=frozenset(candidate_id for _, candidate_id in promoted),
+        active_ranks=tuple(Rank.objects.filter(active=True).order_by("order")),
+    )
+    answer: list[dict[str, object]] = []
+    for candidate in candidates:
+        outcome = getattr(candidate, "outcome", None)
+        assessment = getattr(candidate, "assessment", None)
+        reason = ""
+        if outcome is None:
+            reason = "Outcome pending finalisation."
+        elif assessment is None:
+            reason = "Candidate has no assessment."
+        else:
+            try:
+                validate_promotion_eligibility(
+                    outcome=outcome,
+                    candidate=candidate,
+                    assessment=assessment,
+                    student=candidate.student,
+                    effective_date=candidate.session.grading_date,
+                    facts=facts,
+                )
+            except ValidationError as exc:
+                reason = next(iter(exc.message_dict.values()))[0]
+        answer.append(
+            {
+                "candidate": candidate.pk,
+                "outcome": outcome.pk if outcome is not None else None,
+                "eligible": not reason,
+                "reason": reason,
+            }
+        )
+    return answer
 
 
 @transaction.atomic

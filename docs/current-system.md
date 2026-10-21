@@ -609,8 +609,10 @@ checks on each push and pull request.
 - **No decision on evidence that did not load (2026-09-30, KG-A16/A17)**:
   the drawer's Submit and the board's single "Record decision" wait until
   that assessment's evidence has loaded (`useSealedEvidenceLoaded`), and a
-  failed load shows a retry instead. The promotion ledger computes
-  eligibility only once candidates, outcomes and promotions have all loaded;
+  failed load shows a retry instead. The promotion ledger uses the backend's
+  per-session promotion eligibility and reason, produced by the same policy
+  as the promotion command, only once candidates, outcomes, promotions and
+  eligibility have all loaded;
   if any fails it shows a retry and offers no promotion, so an
   already-promoted student can never read as eligible. A proposal whose
   outcome creation succeeded but whose response was lost resumes against

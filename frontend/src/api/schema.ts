@@ -936,6 +936,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/outcomes/promotion-eligibility/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gradings_outcomes_promotion_eligibility_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/promotions/": {
         parameters: {
             query?: never;
@@ -2540,6 +2556,12 @@ export interface components {
             readonly to_rank_name: string;
             /** Format: date */
             readonly effective_date: string;
+        };
+        PromotionEligibility: {
+            candidate: number;
+            outcome: number | null;
+            eligible: boolean;
+            reason: string;
         };
         PromotionRankHistory: {
             readonly id: number;
@@ -4272,6 +4294,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkPromotionResult"];
+                };
+            };
+        };
+    };
+    gradings_outcomes_promotion_eligibility_list: {
+        parameters: {
+            query: {
+                session: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionEligibility"][];
                 };
             };
         };

@@ -9,7 +9,7 @@ success response, including the bulk, summary, and import actions, and
 generates the frontend's TypeScript types. Error responses are not modelled
 per endpoint: they all share the envelope in section 0b. CI fails if the
 schema drifts from the serializers or the types drift from the schema. Nothing
-is planned here: endpoints that do not exist yet (organisations, eligibility,
+is planned here: endpoints that do not exist yet (organisations, general eligibility,
 certificates, reports) are listed as deferred in `current-system.md`.
 
 ## 0. Response conventions
@@ -635,6 +635,7 @@ pass/fail/conditional outcome is produced.
 | Method | Endpoint                                      | Description                                  |
 |--------|-----------------------------------------------|----------------------------------------------|
 | GET    | /api/gradings/outcomes/                       | List candidate outcomes                      |
+| GET    | /api/gradings/outcomes/promotion-eligibility/?session={id} | One row per candidate in the session: candidate and outcome IDs, `eligible`, and the first blocking `reason` from the same policy used by promotion; requires outcome read permission; computed with bounded queries |
 | POST   | /api/gradings/outcomes/                       | 405; use candidate create-outcome action     |
 | PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |

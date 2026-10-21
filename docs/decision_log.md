@@ -610,8 +610,14 @@ not know, the browser's zone is used (what the screens did before). No second
 
 Consequences:
 A reader abroad sees the club's time, not their own. Times carry no zone
-label. Changing the zone in the application (rather than the environment)
-is a later, separate decision.
+label.
+
+Amended the same day (owner): the zone is set once, when the container is
+set up, and is not edited in the application - so Settings has no Club tab
+and there is no settings model, permission or audit event for it. The usual
+`TZ` variable is read too, as a fallback to `DJANGO_TIME_ZONE`, so a
+container is set up with the variable people already know. (An editable club
+name was dropped with it: it is `KUKGRADE_CLUB_NAME`, set the same way.)
 
 ### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
 
@@ -3104,7 +3110,8 @@ decisions" above.
 Raised by the owner, to come back to and elaborate:
 
 4. **A Settings page (2026-10-19; designed and begun 2026-10-21 - see FDR-056 to
-   FDR-058; the Club tab is still to come).** Move most of what the account menu
+   FDR-058; no Club tab: the time zone and club name are set when the container is
+   set up).** Move most of what the account menu
    holds today - editing your name, changing your password, the Master
    capability summary, appearance - onto a dedicated Settings page, so
    people make these edits on a full page rather than in the small menu

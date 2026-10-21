@@ -51,3 +51,6 @@ mix of 1E and 1F.
 
 The boards show a build date and commit as examples; both come from the
 build. The licence is shown as "To be decided" until the owner chooses one.
+
+The Club tab on 2C was dropped in the end (owner, 2026-10-21): the time zone and
+club name are container variables, not edited in the app.

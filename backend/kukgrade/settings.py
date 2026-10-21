@@ -39,13 +39,17 @@ def env_int(name: str, default: int) -> int:
         raise ImproperlyConfigured(msg) from exc
 
 
-def env_time_zone(name: str, default: str) -> str:
-    """An IANA zone name such as Europe/London, checked when settings load.
+def env_time_zone(names: tuple[str, ...], default: str) -> str:
+    """An IANA zone name such as Europe/London, from the first of `names` that
+    is set, checked when settings load.
 
     Django does not validate TIME_ZONE until something first needs the zone,
     so a typo would otherwise surface as an error deep inside a request.
     """
-    value = os.environ.get(name, "").strip() or default
+    name, value = next(
+        ((n, v) for n in names if (v := os.environ.get(n, "").strip())),
+        (names[0], default),
+    )
     try:
         ZoneInfo(value)
     except (ZoneInfoNotFoundError, ValueError) as exc:
@@ -185,8 +189,10 @@ TEMPORARY_PASSWORD_LIFETIME = timedelta(hours=_TEMPORARY_PASSWORD_HOURS)
 LANGUAGE_CODE = "en-gb"
 # The club's own zone: "today" for grading dates, student ages and age bands is
 # the date there. Stored timestamps are UTC whatever this is. Django also sets
-# the process's TZ from it, so the container needs no separate TZ variable.
-TIME_ZONE = env_time_zone("DJANGO_TIME_ZONE", "Europe/London")
+# the process's TZ from it. A container is set up with one variable, the usual
+# TZ (or DJANGO_TIME_ZONE, which wins if both are given); the screens are told
+# the zone by /api/site/ and /api/about/.
+TIME_ZONE = env_time_zone(("DJANGO_TIME_ZONE", "TZ"), "Europe/London")
 USE_I18N = True
 USE_TZ = True
 

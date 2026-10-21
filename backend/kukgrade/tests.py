@@ -40,6 +40,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_NUM_PROXIES",
         "KUKGRADE_CLUB_NAME",
         "DJANGO_TIME_ZONE",
+        "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
         "KUKGRADE_SCHOOL_PREFIX",
     ]:
@@ -244,6 +245,32 @@ def test_time_zone_is_declared_in_the_environment(
     )
 
     assert settings.TIME_ZONE == "America/New_York"
+
+
+def test_the_usual_tz_variable_sets_the_zone_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, TZ="Pacific/Auckland")
+
+    assert settings.TIME_ZONE == "Pacific/Auckland"
+
+
+def test_django_time_zone_wins_over_tz(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        DJANGO_TIME_ZONE="America/New_York",
+        TZ="Pacific/Auckland",
+    )
+
+    assert settings.TIME_ZONE == "America/New_York"
+
+
+def test_a_misspelt_tz_stops_startup_naming_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(ImproperlyConfigured, match="TZ must be an IANA"):
+        load_settings(monkeypatch, **PRODUCTION_ENV, TZ="Mars/Olympus")
 
 
 def test_a_blank_time_zone_falls_back_to_the_default(

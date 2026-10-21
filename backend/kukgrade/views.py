@@ -92,7 +92,7 @@ class SiteSettingsSerializer(serializers.Serializer):
 @permission_classes([AllowAny])
 def site_settings(_request: Request) -> Response:
     """Deployment settings the frontend shows, such as the club's name and
-    time zone (DJANGO_TIME_ZONE).
+    time zone (TZ).
 
     Public, like the health check: the sign-in screen may show them too, and
     nothing here is personal data. The password policy and the WKSA ID forms

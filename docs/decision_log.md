@@ -567,7 +567,8 @@ None change the API schema.
 Status: Accepted
 
 Decision:
-`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`) sets Django's
+`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`; renamed `TZ` on
+2026-10-21, below) sets Django's
 `TIME_ZONE`. It is validated when settings load, so a typo stops startup with
 a message naming the variable instead of failing inside a request.
 
@@ -592,7 +593,7 @@ Status: Accepted. Supersedes the "frontend is unchanged" line of
 2026-09-30 and the reader's-own-zone rule of 2026-09-24 for timestamps.
 
 Decision:
-The club's zone, `DJANGO_TIME_ZONE`, is served as `time_zone` by
+The club's zone, `TZ`, is served as `time_zone` by
 `GET /api/site/`, and `frontend/src/dates.ts` uses it: timestamps are shown
 as the club's clock reads, "today" (`todayIsoDate`, `currentYear`) and
 "days ago" (`calendarDaysAgo`) are the club's calendar day, counted as
@@ -614,10 +615,11 @@ label.
 
 Amended the same day (owner): the zone is set once, when the container is
 set up, and is not edited in the application - so Settings has no Club tab
-and there is no settings model, permission or audit event for it. The usual
-`TZ` variable is read too, as a fallback to `DJANGO_TIME_ZONE`, so a
-container is set up with the variable people already know. (An editable club
-name was dropped with it: it is `KUKGRADE_CLUB_NAME`, set the same way.)
+and there is no settings model, permission or audit event for it. The
+zone is the one variable `TZ`, the name people already know from containers;
+`DJANGO_TIME_ZONE` is gone, so there is only one way to set it. A typo stops
+startup naming `TZ`. (An editable club name was dropped with it: it is
+`KUKGRADE_CLUB_NAME`, set the same way.)
 
 ### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
 

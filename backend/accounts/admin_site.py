@@ -1,6 +1,6 @@
 """KukGrade's Django admin site: Django's own, with one door closed.
 
-Changing your own password belongs to KukGrade's account menu - the one path
+Changing your own password belongs to KukGrade's Settings - the one path
 that lifts a required change and is audited
 (`accounts.services.change_own_password`). The admin site's own password form
 asked for the current password and applied the policy, but did neither of

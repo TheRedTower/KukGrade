@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -204,8 +204,8 @@ function ListHead({ title, lead, search }: { title: string; lead: string; search
   );
 }
 
-/** A roster row needing attention: its problem in words and its fields to fix. */
-function AttentionRow({
+/** The same source-preserving correction controls in every roster review view. */
+function RosterRowEditor({
   batch,
   row,
   exclusion,
@@ -224,24 +224,29 @@ function AttentionRow({
   });
 
   return (
-    <div className="ix-row ix-attention">
+    <div className={`ix-row${row.issues.length ? " ix-attention" : ""}`}>
       <div className="ix-actions ix-actions-split ix-align-start">
         <div className="ix-row-main">
           <p className="ix-strong">
             Row {row.row_number} · {importRowName(row, batch.kind)}
           </p>
-          <p className="ix-why">{row.issues.join(" ")}</p>
+          {row.issues.length ? <p className="ix-why">{row.issues.join(" ")}</p> : null}
         </div>
-        <button
-          aria-label={`Leave this row out, row ${row.row_number}`}
-          className="btn-ghost"
-          disabled={exclusion.isPending}
-          type="button"
-          onClick={() => exclusion.mutate({ row, excluded: true })}
-        >
-          Leave this row out
-        </button>
+        {row.outcome === "REVIEW_REQUIRED" ? (
+          <button
+            aria-label={`Leave this row out, row ${row.row_number}`}
+            className="btn-ghost"
+            disabled={exclusion.isPending}
+            type="button"
+            onClick={() => exclusion.mutate({ row, excluded: true })}
+          >
+            Leave this row out
+          </button>
+        ) : <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />}
       </div>
+      {batch.extra_columns.length ? (
+        <p className="ix-muted ix-small">{batch.extra_columns.map((column) => `${column}: ${row.extra[column] ?? "(blank)"}`).join(" · ")}</p>
+      ) : null}
       <div className="ix-field-grid">
         {batch.target_fields.map((field) => {
           const value = row.values[field.field] ?? "";
@@ -324,6 +329,7 @@ function RosterReview({
 }) {
   const counts = batch.row_counts;
   const [view, setView] = useState<RosterView>(counts.review_required ? "attention" : "check");
+  const [editing, setEditing] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());
   const searchable = view !== "attention";
@@ -391,7 +397,7 @@ function RosterReview({
           <RowsList exclusion={exclusion} rows={rows}>
             {(list) =>
               view === "attention" ? (
-                list.map((row) => <AttentionRow batch={batch} exclusion={exclusion} key={row.row_number} row={row} onFixed={fixed} />)
+                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onFixed={fixed} />)
               ) : view === "check" ? (
                 <div className="ix-table-wrap ix-ruled">
                   <table className="ix-table">
@@ -415,7 +421,8 @@ function RosterReview({
                     </thead>
                     <tbody>
                       {list.map((row) => (
-                        <tr key={row.row_number}>
+                        <Fragment key={row.row_number}>
+                        <tr>
                           <td className="ix-muted">{row.row_number}</td>
                           {batch.target_fields.map((field) => (
                             <td key={field.field}>
@@ -429,15 +436,22 @@ function RosterReview({
                             </td>
                           ))}
                           <td className="ix-cell-action">
+                            <button className="ix-link-button" type="button" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
+                              {editing === row.row_number ? "Close editor" : `Edit row ${row.row_number}`}
+                            </button>
                             <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
                           </td>
                         </tr>
+                        {editing === row.row_number ? <tr><td colSpan={batch.target_fields.length + batch.extra_columns.length + 2}>
+                          <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onFixed={fixed} />
+                        </td></tr> : null}
+                        </Fragment>
                       ))}
                     </tbody>
                   </table>
                 </div>
               ) : (
-                <RowLines exclusion={view === "SKIP_EXISTING" ? undefined : exclusion} kind={batch.kind} list={list} />
+                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onFixed={fixed} />)
               )
             }
           </RowsList>

@@ -435,6 +435,44 @@ describe("Reviewing and confirming a roster", () => {
     expect(screen.getByText("Your fix")).toBeInTheDocument();
   });
 
+  it("corrects a valid seventh row in the last look and reopens the saved fix", async () => {
+    const user = userEvent.setup();
+    let savedFix = false;
+    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", date_of_birth: "14/03/2015", current_rank: "Yellow", status: "ACTIVE" }, file_values: { first_name: "Miaa" } });
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockImplementation(() => Promise.resolve(page([savedFix ? { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] } : seventh])));
+    api.correctDataImportRow.mockImplementation(() => {
+      savedFix = true;
+      return Promise.resolve({ ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] });
+    });
+
+    const first = renderAt("/imports/7?step=review");
+    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
+    const name = screen.getByLabelText("First name, row 7");
+    await user.clear(name);
+    await user.type(name, "Mia{Enter}");
+    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 7, { first_name: "Mia" }));
+    first.unmount();
+
+    renderAt("/imports/7?step=review");
+    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
+    expect(screen.getByLabelText("First name, row 7")).toHaveValue("Mia");
+    expect(screen.getByText("File had “Miaa”")).toBeInTheDocument();
+  });
+
+  it("offers the same correction editor on a later review page", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockImplementation((_id: number, params: { page: number }) => Promise.resolve(
+      params.page === 1 ? { ...page([row({ row_number: 2 })], 21), next: "?page=2" } : page([row({ row_number: 27 })], 21),
+    ));
+
+    renderAt("/imports/7?step=review");
+    await user.click(await screen.findByRole("button", { name: "Next" }));
+    await user.click(await screen.findByRole("button", { name: "Edit row 27" }));
+    expect(screen.getByLabelText("First name, row 27")).toBeInTheDocument();
+  });
+
   it("confirms the import on the same page once every row is sorted", async () => {
     const user = userEvent.setup();
     const committed: DataImportBatch = { ...sorted, status: "COMMITTED", status_display: "Imported", next_step: "CLOSED", committed_by_name: "Sam Taylor", committed_at: "2026-10-20T10:18:00Z", summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 } };

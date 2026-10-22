@@ -210,11 +210,13 @@ function RosterRowEditor({
   row,
   exclusion,
   onFixed,
+  onEditStateChange,
 }: {
   batch: DataImportBatch;
   row: DataImportRow;
   exclusion: Exclusion;
   onFixed: (row: DataImportRow) => Promise<void>;
+  onEditStateChange: (key: string, dirty: boolean) => void;
 }) {
   const ranks = useRanksQuery().data?.results ?? [];
   const fix = useMutation({
@@ -222,6 +224,13 @@ function RosterRowEditor({
       correctDataImportRow(batch.id, row.row_number, { [field]: value }),
     onSuccess: onFixed,
   });
+
+  async function save(field: string, value: string | null) {
+    const key = `${row.row_number}:${field}`;
+    onEditStateChange(key, true);
+    await fix.mutateAsync({ field, value });
+    onEditStateChange(key, false);
+  }
 
   return (
     <div className={`ix-row${row.issues.length ? " ix-attention" : ""}`}>
@@ -265,7 +274,7 @@ function RosterRowEditor({
                 className={bad ? "ix-cell-invalid" : corrected ? "ix-cell-changed" : undefined}
                 disabled={fix.isPending}
                 value={known ? known.value : value}
-                onChange={(event) => fix.mutate({ field: field.field, value: event.target.value })}
+                onChange={(event) => void save(field.field, event.target.value).catch(() => {})}
               >
                 {known ? null : <option value={value}>{value ? `${value} (not recognised)` : "Choose…"}</option>}
                 {options.map((option) => (
@@ -283,7 +292,8 @@ function RosterRowEditor({
                 label={label}
                 placeholder={field.field === "date_of_birth" ? "dd/mm/yyyy" : undefined}
                 value={value}
-                onSave={(next) => fix.mutateAsync({ field: field.field, value: next })}
+                onDirtyChange={(dirty) => onEditStateChange(`${row.row_number}:${field.field}`, dirty)}
+                onSave={(next) => save(field.field, next)}
               />
             );
           }
@@ -296,7 +306,7 @@ function RosterRowEditor({
               {corrected ? (
                 <span className="ix-fix-note">
                   File had “{row.file_values[field.field] || "nothing"}”
-                  <button aria-label={`Undo the fix to ${label}`} type="button" onClick={() => fix.mutate({ field: field.field, value: null })}>
+                  <button aria-label={`Undo the fix to ${label}`} type="button" onClick={() => void save(field.field, null).catch(() => {})}>
                     Undo
                   </button>
                 </span>
@@ -321,11 +331,13 @@ function RosterReview({
   announce,
   onRefresh,
   onMatch,
+  onEditStateChange,
 }: {
   batch: DataImportBatch;
   announce: (text: string) => void;
   onRefresh: () => Promise<void>;
   onMatch: () => void;
+  onEditStateChange: (key: string, dirty: boolean) => void;
 }) {
   const counts = batch.row_counts;
   const [view, setView] = useState<RosterView>(counts.review_required ? "attention" : "check");
@@ -397,7 +409,7 @@ function RosterReview({
           <RowsList exclusion={exclusion} rows={rows}>
             {(list) =>
               view === "attention" ? (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onFixed={fixed} />)
+                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
               ) : view === "check" ? (
                 <div className="ix-table-wrap ix-ruled">
                   <table className="ix-table">
@@ -443,7 +455,7 @@ function RosterReview({
                           </td>
                         </tr>
                         {editing === row.row_number ? <tr><td colSpan={batch.target_fields.length + batch.extra_columns.length + 2}>
-                          <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onFixed={fixed} />
+                          <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />
                         </td></tr> : null}
                         </Fragment>
                       ))}
@@ -451,7 +463,7 @@ function RosterReview({
                   </table>
                 </div>
               ) : (
-                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onFixed={fixed} />)
+                list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
               )
             }
           </RowsList>
@@ -619,11 +631,13 @@ function Seal({
   batch,
   unresolvedRanks,
   pending,
+  blocked,
   onImport,
 }: {
   batch: DataImportBatch;
   unresolvedRanks: number;
   pending: boolean;
+  blocked: boolean;
   onImport: () => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -658,17 +672,20 @@ function Seal({
         </h2>
         <p className="ix-muted ix-small">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
       </div>
-      <button className="btn-primary ix-seal-button" disabled={count === 0 || pending} type="button" onClick={() => setOpen(true)}>
+      <button className="btn-primary ix-seal-button" disabled={count === 0 || pending || blocked} type="button" onClick={() => setOpen(true)}>
         {pending ? (roster ? "Adding…" : "Importing…") : count === 0 ? "Nothing to import" : action}
       </button>
+      {blocked ? <p className="ix-warning-text ix-small">Finish saving or retry row changes before adding students.</p> : null}
       {open ? (
         <ImportDialog
           confirmLabel={action}
+          confirmDisabled={blocked}
           pending={pending}
           pendingLabel={roster ? "Adding…" : "Importing…"}
           title={roster ? `${action} to KukGrade?` : `Import ${counted(count, "historical record", "historical records")}?`}
           onClose={() => setOpen(false)}
           onConfirm={() => {
+            if (blocked) return;
             setOpen(false);
             onImport();
           }}
@@ -700,6 +717,7 @@ export function ImportReview({
   const queryClient = useQueryClient();
   const roster = batch.kind === "STUDENT_ROSTER";
   const [announcement, setAnnouncement] = useState("");
+  const [dirtyRosterCells, setDirtyRosterCells] = useState<string[]>([]);
   // A refused import shows the review again from the top, as it now stands.
   const [refusals, setRefusals] = useState(0);
   const preview = useQuery({
@@ -719,7 +737,13 @@ export function ImportReview({
   const commit = useMutation({
     mutationFn: () => commitDataImport(batch.id),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["imports"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["imports", "batch", batch.id] }),
+        queryClient.invalidateQueries({ queryKey: ["imports", "rows", batch.id] }),
+        queryClient.invalidateQueries({ queryKey: ["imports", "unfinished"] }),
+        queryClient.invalidateQueries({ queryKey: ["imports", "past"] }),
+        queryClient.invalidateQueries({ queryKey: ["imports", "historical"] }),
+      ]);
       onCommitted();
     },
     onError: async () => {
@@ -729,6 +753,9 @@ export function ImportReview({
   });
 
   const sorted = !roster || batch.row_counts.review_required === 0;
+  function editStateChanged(key: string, dirty: boolean) {
+    setDirtyRosterCells((current) => dirty ? [...new Set([...current, key])] : current.filter((item) => item !== key));
+  }
   const unresolvedRanks = (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
   return (
     <>
@@ -744,10 +771,12 @@ export function ImportReview({
         </div>
       ) : null}
       {sorted ? (
-        <Seal batch={batch} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => commit.mutate()} />
+        <Seal batch={batch} blocked={roster && dirtyRosterCells.length > 0} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {
+          if (dirtyRosterCells.length === 0) commit.mutate();
+        }} />
       ) : null}
       {roster ? (
-        <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onMatch={onMatch} onRefresh={refresh} />
+        <RosterReview announce={setAnnouncement} batch={batch} key={refusals} onEditStateChange={editStateChanged} onMatch={onMatch} onRefresh={refresh} />
       ) : (
         <LegacyReview
           announce={setAnnouncement}

@@ -524,6 +524,25 @@ describe("Reviewing and confirming a roster", () => {
     expect(screen.getByLabelText("First name, row 27")).toBeInTheDocument();
   });
 
+  it("returns to the first page when an import filter is revisited", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockImplementation((_id: number, params: { outcome: string; page: number }) =>
+      Promise.resolve(params.outcome === "READY" ? page([row({ row_number: params.page })], 60) : page([])),
+    );
+
+    renderAt("/imports/7?step=review");
+    await screen.findByRole("button", { name: "Next" });
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })));
+
+    await user.click(screen.getByRole("button", { name: /Already in KukGrade/ }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "SKIP_EXISTING", page: 1 })));
+    await user.click(screen.getByRole("button", { name: /Ready to add/ }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 1 })));
+  });
+
   it("confirms the import on the same page once every row is sorted", async () => {
     const user = userEvent.setup();
     const committed: DataImportBatch = { ...sorted, status: "COMMITTED", status_display: "Imported", next_step: "CLOSED", committed_by_name: "Sam Taylor", committed_at: "2026-10-20T10:18:00Z", summary_json: { total: 212, created: 203, skipped_existing: 5, excluded: 4 } };

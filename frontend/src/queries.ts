@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
+import { setClubTimeZone } from "./dates";
 import {
+  getAbout,
   getAgeBands,
   getAllCandidateAssessmentItems,
   getAssessmentSummary,
@@ -12,8 +14,24 @@ export function useRanksQuery() {
   return useQuery({ queryKey: ["ranks"], queryFn: () => getRanks({ page_size: 100 }) });
 }
 
+// The club's time zone is applied as the settings arrive, before anything
+// that shows a time renders from them (dates.ts).
 export function useSiteSettingsQuery() {
-  return useQuery({ queryKey: ["siteSettings"], queryFn: getSiteSettings });
+  return useQuery({
+    queryKey: ["siteSettings"],
+    // A failed first load falls back to the browser's clock. Mounting another
+    // consumer must not repeatedly restart that failed request.
+    retryOnMount: false,
+    queryFn: async () => {
+      const site = await getSiteSettings();
+      setClubTimeZone(site.time_zone);
+      return site;
+    },
+  });
+}
+
+export function useAboutQuery() {
+  return useQuery({ queryKey: ["about"], queryFn: getAbout });
 }
 
 export function useAgeBandsQuery() {

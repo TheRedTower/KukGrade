@@ -1,4 +1,5 @@
-"""Expire abandoned import batches and remove source files nothing names.
+"""Expire abandoned import batches, remove source files nothing names, and
+delete the stored rows of imports finished long enough ago.
 
 No background worker exists in this codebase (see the deviations recorded
 in docs/decision_log.md) - run manually or from an external cron, e.g.
@@ -15,7 +16,11 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from data_imports.models import ImportBatch
-from data_imports.services import expire_import_batch, remove_orphaned_uploads
+from data_imports.services import (
+    expire_import_batch,
+    prune_finished_import_rows,
+    remove_orphaned_uploads,
+)
 
 
 def _positive_hours(value: str) -> int:
@@ -28,8 +33,9 @@ def _positive_hours(value: str) -> int:
 
 class Command(BaseCommand):
     help = (
-        "Expire uncommitted import batches older than --hours, and delete "
-        "stored source files no batch names."
+        "Expire uncommitted import batches older than --hours, delete stored "
+        "source files no batch names, and delete the rows of imports finished "
+        "more than 30 days ago."
     )
 
     def add_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -54,9 +60,11 @@ class Command(BaseCommand):
                 failed.append(batch_id)
                 self.stderr.write(f"Import batch #{batch_id} not expired: {exc!r}")
         removed = remove_orphaned_uploads(max_age=max_age)
+        pruned = prune_finished_import_rows()
         self.stdout.write(
             f"Expired {expired} stale import batch(es); "
-            f"removed {removed} orphaned file(s).",
+            f"removed {removed} orphaned file(s); "
+            f"deleted {pruned} row(s) of finished imports.",
         )
         if failed:
             msg = f"{len(failed)} batch(es) could not be expired; run again."

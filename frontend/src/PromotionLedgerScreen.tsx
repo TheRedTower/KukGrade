@@ -6,11 +6,13 @@ import {
   type CandidateOutcome,
   type GradingCandidate,
   type Promotion,
+  type PromotionEligibility,
   bulkPromoteCandidateOutcomes,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
   getAllPromotions,
   getGradingSession,
+  getPromotionEligibility,
   promoteCandidateOutcome,
 } from "./api";
 import { useAuth } from "./auth";
@@ -23,6 +25,7 @@ type PromotionRowItem = {
   candidate: GradingCandidate;
   outcome?: CandidateOutcome;
   promotion?: Promotion;
+  eligibility?: PromotionEligibility;
   isEligible: boolean;
   isPromoted: boolean;
 };
@@ -70,15 +73,21 @@ export function PromotionLedgerScreen(): React.ReactElement {
     queryFn: () => getAllPromotions({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
+  const eligibilityQuery = useQuery({
+    queryKey: ["promotionEligibility", sessionId],
+    queryFn: () => getPromotionEligibility(sessionId),
+    enabled: !Number.isNaN(sessionId) && sessionId > 0,
+  });
 
-  const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery];
-  // Eligibility is read from all three together, so a missing or failed one
-  // must not read as "nothing promoted yet" (KG-A16).
+  const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery, eligibilityQuery];
+  // The ledger needs all four answers; a missing or failed one must not read
+  // as "nothing promoted yet" (KG-A16).
   const ledgerFailed = ledgerQueries.some((query) => query.isError);
   const ledgerLoaded = ledgerQueries.every((query) => query.isSuccess);
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
   const outcomesData = ledgerLoaded ? outcomesQuery.data : undefined;
   const promotionsData = ledgerLoaded ? promotionsQuery.data : undefined;
+  const eligibilityData = ledgerLoaded ? eligibilityQuery.data : undefined;
 
   // Promotions map
   const promotionsMap = useMemo(() => {
@@ -96,6 +105,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
     return map;
   }, [outcomesData]);
 
+  const eligibilityMap = useMemo(() => new Map(eligibilityData?.map((item) => [item.candidate, item])), [eligibilityData]);
+
   // Enriched rows
   const rows = useMemo<PromotionRowItem[]>(() => {
     if (!candidatesData?.results) return [];
@@ -103,23 +114,21 @@ export function PromotionLedgerScreen(): React.ReactElement {
     return candidatesData.results.map((candidate) => {
       const outcome = outcomesMap.get(candidate.id);
       const promotion = promotionsMap.get(candidate.id);
+      const eligibility = eligibilityMap.get(candidate.id);
 
       const isPromoted = Boolean(promotion);
-      const isFinalisedPass =
-        outcome?.status === "FINALISED" && outcome?.final_outcome === "PASS";
-      const isNotWithdrawn = candidate.status !== "WITHDRAWN";
-
-      const isEligible = isFinalisedPass && isNotWithdrawn && !isPromoted;
+      const isEligible = eligibility?.eligible === true;
 
       return {
         candidate,
         outcome,
         promotion,
+        eligibility,
         isEligible,
         isPromoted,
       };
     });
-  }, [candidatesData, outcomesMap, promotionsMap]);
+  }, [candidatesData, outcomesMap, promotionsMap, eligibilityMap]);
 
   // Eligible cohort
   const eligibleCohort = useMemo(() => rows.filter((r) => r.isEligible), [rows]);
@@ -133,6 +142,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["promotionEligibility", sessionId] });
       setSinglePromoteCandidate(null);
       setSinglePromoteNotes("");
       setActionFeedback({
@@ -162,6 +172,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["promotionEligibility", sessionId] });
       setIsBatchTrayOpen(false);
 
       const failures = Object.entries(res.errors);
@@ -301,7 +312,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       <section className="pl-summary-card" aria-label="Cohort Promotion Summary">
         <div className="pl-summary-info">
           <span className="pl-summary-count">
-            {eligibleCohort.length} Candidates Finalised with Pass · Eligible for Promotion
+            {eligibleCohort.length} {eligibleCohort.length === 1 ? "Candidate" : "Candidates"} Finalised with Pass · Eligible for Promotion
           </span>
           {eligibleCohort.length === 0 && rows.some((r) => r.isPromoted) && (
             <span className="pl-summary-note">
@@ -455,17 +466,9 @@ export function PromotionLedgerScreen(): React.ReactElement {
                         <span className="badge badge-accent pl-eligible-badge">
                           Eligible for {row.candidate.testing_for_rank_name}
                         </span>
-                      ) : outcome?.final_outcome === "CONDITIONAL" ? (
-                        <span className="pl-ineligible-note">
-                          Re-test required before promotion
-                        </span>
-                      ) : outcome?.final_outcome === "FAIL" ? (
-                        <span className="pl-ineligible-note">
-                          Outcome not passed
-                        </span>
                       ) : (
                         <span className="pl-ineligible-note">
-                          Outcome pending finalisation
+                          {row.eligibility?.reason || "Eligibility unavailable"}
                         </span>
                       )}
                     </td>

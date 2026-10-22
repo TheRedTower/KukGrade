@@ -215,7 +215,9 @@
 .audit-table tbody tr:last-child td { border-bottom: 0; }
 .audit-table tbody tr:hover { background: var(--color-surface-sunken); }
 
-.audit-time,
+/* The lines inside a cell, never the cell itself: a block <td> leaves its row,
+   and its border no longer meets the rest of the row's. */
+.audit-time span,
 .audit-entity-type,
 .audit-entity-id {
   display: block;

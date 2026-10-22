@@ -17,6 +17,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/app/backend/.venv/bin:$PATH \
     KUKGRADE_IMPORT_UPLOAD_ROOT=/var/lib/kukgrade/import_uploads
+# Which build this is, for the About page; empty when not passed.
+ARG KUKGRADE_BUILD_COMMIT=""
+ARG KUKGRADE_BUILD_TIME=""
+ENV KUKGRADE_BUILD_COMMIT=$KUKGRADE_BUILD_COMMIT \
+    KUKGRADE_BUILD_TIME=$KUKGRADE_BUILD_TIME
 WORKDIR /app/backend
 COPY --from=python-deps /app/backend/.venv ./.venv
 COPY backend/ ./

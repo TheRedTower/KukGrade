@@ -1,6 +1,6 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
   ApiError,
@@ -312,6 +312,17 @@ export function StudentDetailScreen() {
           </div>
           <p className="detail-wksa-id">
             WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
+            {student.previous_wksa_ids.length > 0 ? (
+              <span className="detail-previous-ids">
+                {" "}
+                Previously{" "}
+                {student.previous_wksa_ids.map((previous) => (
+                  <span className="wksa-id-pill" key={previous.wksa_id}>
+                    {previous.wksa_id}
+                  </span>
+                ))}
+              </span>
+            ) : null}
           </p>
         </div>
 
@@ -369,6 +380,21 @@ export function StudentDetailScreen() {
             </dl>
           </div>
 
+          {/* What an imported file said that KukGrade has no field for. */}
+          {student.extra_information.length > 0 ? (
+            <div className="detail-section-card">
+              <h2 className="detail-section-title">Extra information</h2>
+              <dl className="detail-kv-grid">
+                {student.extra_information.map((info) => (
+                  <div className="detail-kv-row" key={info.label}>
+                    <dt className="detail-kv-label">{info.label}</dt>
+                    <dd className="detail-kv-value">{info.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
+
           {/* Card 2: Grading history - native + linked historical records */}
           <div className="detail-section-card">
             <h2 className="detail-section-title">Grading history</h2>
@@ -389,15 +415,15 @@ export function StudentDetailScreen() {
                       <tr key={`${item.source}-${item.record_id}`} className="student-table-row">
                         <td>{formatGradingHistoryDate(item)}</td>
                         <td>
-                          <span
-                            className={`grading-history-source-badge ${
-                              item.source === "KUKGRADE"
-                                ? "source-kukgrade"
-                                : "source-historical"
-                            }`}
-                          >
-                            {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
-                          </span>
+                          {item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
+                            <Link className="grading-history-source-badge source-historical" to={`/imports/history/${item.record_id}`}>
+                              Historical · correct
+                            </Link>
+                          ) : (
+                            <span className={`grading-history-source-badge ${item.source === "KUKGRADE" ? "source-kukgrade" : "source-historical"}`}>
+                              {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
+                            </span>
+                          )}
                         </td>
                         <td className="cell-rank-highlight">
                           {item.testing_for_rank_name ||
@@ -820,7 +846,7 @@ export function StudentDetailScreen() {
                     className={`form-text-input ${getEditFieldError("wksa_id") ? "input-error" : ""}`}
                     value={editWksaId}
                     onChange={(e) => setEditWksaId(e.target.value)}
-                    disabled={!student.wksa_id_can_change || isSavingEdit}
+                    disabled={isSavingEdit}
                     aria-invalid={!!getEditFieldError("wksa_id")}
                     aria-describedby={getEditFieldError("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
@@ -831,8 +857,8 @@ export function StudentDetailScreen() {
                   ) : (
                     <p className="form-field-help" id="edit-wksa-id-help">
                       {student.wksa_id_can_change
-                        ? "Change this only to record the black belt ID handed out at the national grading."
-                        : "A black belt ID never changes."}
+                        ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
+                        : "Correct a mistyped black belt ID. It never goes back to a student ID."}
                     </p>
                   )}
                 </div>

@@ -1484,8 +1484,7 @@ def test_admin_cannot_reset_their_own_password() -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["fields"]["user"] == [
-        "Change your own password from your account menu, which asks for your "
-        "current one."
+        "Change your own password in Settings, which asks for your current one."
     ]
     admin.refresh_from_db()
     assert admin.check_password("kg-OriginalOwn123!")

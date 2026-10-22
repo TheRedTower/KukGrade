@@ -26,7 +26,6 @@ from data_imports.mappings import suggest_column_mapping
 from data_imports.models import ImportBatch
 from data_imports.parsers import UnsupportedImportFileError, load_tabular_dataset
 from data_imports.services import (
-    _active_rank_lookup,
     cancel_import_batch,
     commit_student_import,
     create_import_batch,
@@ -36,9 +35,10 @@ from data_imports.services import (
 )
 from data_imports.storage import import_upload_storage
 from data_imports.testing import workbook_bytes
+from ranks.matching import active_rank_lookup
 from ranks.models import Rank
 from students.models import Student
-from students.services import create_student
+from students.services import create_student, create_students
 
 pytestmark = pytest.mark.django_db
 
@@ -256,10 +256,10 @@ def test_preview_queries_do_not_grow_with_the_number_of_rows() -> None:
 
 
 def test_the_rank_lookup_matches_code_or_name_of_active_ranks_ignoring_case() -> None:
-    lookup = _active_rank_lookup()
+    lookup = active_rank_lookup()
     inactive = rank("YELLOW_STRIPE")
     Rank.objects.filter(pk=inactive.pk).update(active=False)
-    lookup_without_it = _active_rank_lookup()
+    lookup_without_it = active_rank_lookup()
 
     for text in ("white", "WHITE", "White"):
         assert lookup[text.upper()] == rank("WHITE"), text
@@ -407,17 +407,20 @@ def test_preview_and_commit_agree_on_every_row(
     batch = upload_batch(content=student_workbook([row]), uploaded_by=admin)
 
     previewed = preview_student_import(batch, column_mapping=STANDARD_MAPPING).rows[0]
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
 
     if issue is None:
         assert previewed.outcome == "READY", previewed.issues
+        committed = commit_student_import(
+            batch, actor=admin, column_mapping=STANDARD_MAPPING
+        )
         assert committed.summary_json["created"] == 1
     else:
         assert previewed.outcome == "REVIEW_REQUIRED"
         assert previewed.issues == [issue]
-        assert committed.summary_json["created"] == 0
+        # A row needing attention is never passed over: the commit refuses.
+        with pytest.raises(DjangoValidationError):
+            commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
+        assert not Student.objects.exists()
 
 
 def test_a_correction_is_held_to_the_same_rules() -> None:
@@ -438,19 +441,22 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
     admin = admin_user()
     batch = upload_batch(content=student_workbook([CLEAN_ROW]), uploaded_by=admin)
 
-    def created_elsewhere_first(**values: Any) -> Student:
+    real_create_students = create_students
+
+    def created_elsewhere_first(new: Any, **kwargs: Any) -> list[Student]:
+        first = new[0]
         Student.objects.create(
-            wksa_id=values["wksa_id"],
+            wksa_id=first.wksa_id,
             first_name="Someone",
             last_name="Else",
-            date_of_birth=values["date_of_birth"],
-            current_rank=values["current_rank"],
+            date_of_birth=first.date_of_birth,
+            current_rank=first.current_rank,
         )
-        return create_student(**values)
+        return real_create_students(new, **kwargs)
 
     with (
         patch(
-            "data_imports.services.create_student",
+            "data_imports.services.create_students",
             side_effect=created_elsewhere_first,
         ),
         pytest.raises(DjangoValidationError) as raised,
@@ -459,8 +465,8 @@ def test_a_row_taken_since_the_preview_fails_the_commit_clearly() -> None:
 
     [message] = raised.value.message_dict["rows"]
     assert message.startswith("Row 2 (206-2-500) is no longer valid: ")
-    assert "already exists" in message
-    assert message.endswith("Nothing was imported - check the file again.")
+    assert "now held by a student" in message
+    assert message.endswith("Nothing was imported.")
     batch.refresh_from_db()
     assert batch.status == ImportBatch.Status.UPLOADED
 
@@ -471,7 +477,7 @@ def test_a_database_conflict_during_commit_fails_it_clearly() -> None:
 
     with (
         patch(
-            "data_imports.services.create_student",
+            "data_imports.services.create_students",
             side_effect=IntegrityError("duplicate key"),
         ),
         pytest.raises(DjangoValidationError, match="conflicts with a change saved"),
@@ -528,7 +534,7 @@ def test_commit_never_creates_a_student_for_a_skip_existing_row() -> None:
     assert Student.objects.filter(wksa_id="206-2-500").count() == 1
 
 
-def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
+def test_commit_refuses_while_a_row_needs_attention_and_creates_nothing() -> None:
     admin = admin_user()
     good_row = CLEAN_ROW
     bad_row = ["206-2-501", "Blair", "Park", "2012-05-01", "Not A Rank", "ACTIVE"]
@@ -536,14 +542,13 @@ def test_commit_only_creates_ready_rows_never_review_required_ones() -> None:
         content=student_workbook([good_row, bad_row]), uploaded_by=admin
     )
 
-    committed = commit_student_import(
-        batch, actor=admin, column_mapping=STANDARD_MAPPING
-    )
+    with pytest.raises(DjangoValidationError) as refused:
+        commit_student_import(batch, actor=admin, column_mapping=STANDARD_MAPPING)
 
-    assert committed.summary_json["created"] == 1
-    assert committed.summary_json["review_required"] == 1
-    assert Student.objects.filter(wksa_id="206-2-500").exists()
-    assert not Student.objects.filter(wksa_id="206-2-501").exists()
+    assert "1 row needs attention" in str(refused.value)
+    assert not Student.objects.exists()
+    batch.refresh_from_db()
+    assert batch.status == ImportBatch.Status.UPLOADED
 
 
 def test_committing_two_batches_with_the_same_wksa_id_skips_the_second_safely() -> None:
@@ -820,12 +825,36 @@ def test_orphan_sweep_removes_only_old_files_no_batch_names() -> None:
     storage.delete(new_orphan)
 
 
-def test_preview_of_a_batch_whose_file_went_missing_is_a_clear_error() -> None:
+def test_a_check_reads_the_stored_rows_not_the_file() -> None:
     batch = upload_batch(content=student_workbook([CLEAN_ROW]))
     import_upload_storage().delete(batch.source_file.name)
 
+    preview = preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+
+    assert preview.ready == 1
+
+
+def test_an_open_import_from_before_rows_were_stored_reads_its_file_once() -> None:
+    batch = upload_batch(content=student_workbook([CLEAN_ROW]))
+    # As an import uploaded before this release left it: no rows.
+    batch.rows.all().delete()
+    batch.configuration_json = {}
+    batch.save()
+
+    assert preview_student_import(batch, column_mapping=STANDARD_MAPPING).ready == 1
+    assert batch.rows.count() == 1
+
+    import_upload_storage().delete(batch.source_file.name)
+    gone = upload_batch(
+        content=student_workbook([CLEAN_ROW]),
+        uploaded_by=batch.uploaded_by,
+    )
+    gone.rows.all().delete()
+    gone.configuration_json = {}
+    gone.save()
+    import_upload_storage().delete(gone.source_file.name)
     with pytest.raises(Exception, match="no longer available"):
-        preview_student_import(batch, column_mapping=STANDARD_MAPPING)
+        preview_student_import(gone, column_mapping=STANDARD_MAPPING)
 
 
 def test_cancel_a_committed_batch_is_refused() -> None:
@@ -939,7 +968,8 @@ def test_admin_completes_the_full_upload_preview_commit_flow_via_the_api() -> No
     assert Student.objects.filter(wksa_id="206-2-500").exists()
 
 
-def test_preview_rejects_incomplete_column_mapping() -> None:
+def test_preview_of_a_mapping_missing_a_needed_field_shows_the_row_waiting() -> None:
+    # A needed field may have no column: its value is typed in row by row.
     client = APIClient()
     admin = admin_user()
     client.force_authenticate(user=admin)
@@ -950,4 +980,5 @@ def test_preview_rejects_incomplete_column_mapping() -> None:
         {"column_mapping": {"wksa_id": "WKSA ID"}},
         format="json",
     )
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert response.json()["review_required"] == 1

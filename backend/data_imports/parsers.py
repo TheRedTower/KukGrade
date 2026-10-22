@@ -17,8 +17,11 @@ from io import BytesIO, StringIO
 from typing import Any
 
 import openpyxl
+from openpyxl.utils import get_column_letter
 
-MAX_ROWS = 5000
+# One school's roster is a few hundred students; a file needing more is not
+# one school's (owner, 2026-10-20 import overhaul).
+MAX_ROWS = 1000
 MAX_COLUMNS = 50
 # Expanded size of every part of an .xlsx archive together. Sizes are the
 # ones the archive declares; Python's zip reader stops at the declared size,
@@ -43,6 +46,10 @@ class TabularData:
     # (source row number, header -> value); blank rows are left out, so the
     # numbers are the spreadsheet's own row numbers, header being row 1.
     rows: list[tuple[int, dict[str, Any]]]
+    # A workbook's sheet that was read, and every sheet it has; blank for a
+    # CSV, which has no sheets.
+    sheet: str = ""
+    sheet_names: tuple[str, ...] = ()
 
 
 def file_suffix(filename: str) -> str:
@@ -109,32 +116,82 @@ def worksheet_rows(worksheet: Any, *, max_col: int) -> Iterator[tuple[Any, ...]]
         raise UnsupportedImportFileError(_UNREADABLE_XLSX) from exc
 
 
+def _last_filled(cells: Sequence[Any]) -> int:
+    """How many cells reach the last non-blank one."""
+    for index in range(len(cells) - 1, -1, -1):
+        if cells[index] is not None and str(cells[index]).strip():
+            return index + 1
+    return 0
+
+
 def _read(rows: Iterator[Sequence[Any]]) -> TabularData:
+    """A table: the first row's headings, and every non-blank row after it.
+
+    A column with no heading that holds something is named after its letter
+    ("Column F"), so it can still be matched or kept rather than silently
+    lost; a heading used twice is refused, as either column's cells would
+    hide the other's.
+    """
     header_cells = next(rows, None)
     if header_cells is None or is_blank(header_cells):
         raise UnsupportedImportFileError("The file has no header row.")
-    headers = ["" if cell is None else str(cell).strip() for cell in header_cells]
-    while headers and not headers[-1]:
-        headers.pop()
-    if len(headers) > MAX_COLUMNS:
-        msg = f"Too many columns (limit {MAX_COLUMNS})."
-        raise UnsupportedImportFileError(msg)
-
-    data: list[tuple[int, dict[str, Any]]] = []
+    raw_rows: list[tuple[int, list[Any]]] = []
+    width = _last_filled(header_cells)
     for row_number, cells in enumerate(rows, start=2):
         if row_number - 1 > MAX_ROWS:
             msg = f"Too many rows (limit {MAX_ROWS}, blank rows included)."
             raise UnsupportedImportFileError(msg)
-        # Cells past the last header have nowhere to map to.
-        cells = list(cells[: len(headers)])
         if is_blank(cells):
             continue
-        cells += [None] * (len(headers) - len(cells))
-        data.append((row_number, dict(zip(headers, cells, strict=True))))
+        raw_rows.append((row_number, list(cells)))
+        width = max(width, _last_filled(cells))
+    if width > MAX_COLUMNS:
+        msg = f"Too many columns (limit {MAX_COLUMNS})."
+        raise UnsupportedImportFileError(msg)
+
+    headers = [
+        ""
+        if index >= len(header_cells) or header_cells[index] is None
+        else str(header_cells[index]).strip()
+        for index in range(width)
+    ]
+    headers = [
+        heading or f"Column {get_column_letter(index + 1)}"
+        for index, heading in enumerate(headers)
+    ]
+    repeated = sorted({heading for heading in headers if headers.count(heading) > 1})
+    if repeated:
+        msg = (
+            f"The column heading {', '.join(map(repr, repeated))} appears more "
+            "than once. Give each column its own heading."
+        )
+        raise UnsupportedImportFileError(msg)
+
+    data = [
+        (
+            row_number,
+            dict(
+                zip(
+                    headers,
+                    [*cells[:width], *[None] * (width - len(cells))],
+                    strict=True,
+                )
+            ),
+        )
+        for row_number, cells in raw_rows
+    ]
     return TabularData(headers=headers, rows=data)
 
 
-def load_tabular_dataset(*, content: bytes, filename: str) -> TabularData:
+def load_tabular_dataset(
+    *,
+    content: bytes,
+    filename: str,
+    sheet: str | None = None,
+) -> TabularData:
+    """A file's rows. A workbook's `sheet` is read - the one it opens on when
+    none is named - so a roster on another tab is never silently missed: the
+    sheet read and every sheet's name come back with the rows."""
     suffix = file_suffix(filename)
     if suffix not in _SUPPORTED_SUFFIXES:
         msg = f"Unsupported file type: .{suffix or '?'}"
@@ -142,5 +199,25 @@ def load_tabular_dataset(*, content: bytes, filename: str) -> TabularData:
     if suffix == "csv":
         return _read(_csv_rows(content))
     with open_workbook(content) as workbook:
+        names = tuple(workbook.sheetnames)
+        if sheet is None:
+            worksheet = workbook.active
+        elif sheet in names:
+            worksheet = workbook[sheet]
+        else:
+            msg = f"The workbook has no sheet named {sheet!r}."
+            raise UnsupportedImportFileError(msg)
         # One column past the limit is read, so an over-wide header is seen.
-        return _read(worksheet_rows(workbook.active, max_col=MAX_COLUMNS + 1))
+        data = _read(worksheet_rows(worksheet, max_col=MAX_COLUMNS + 1))
+        return TabularData(
+            headers=data.headers,
+            rows=data.rows,
+            sheet=worksheet.title,
+            sheet_names=names,
+        )
+
+
+def inspect_workbook_sheets(content: bytes) -> tuple[str, tuple[str, ...]]:
+    """Read sheet names without requiring the opening sheet to be a table."""
+    with open_workbook(content) as workbook:
+        return workbook.active.title, tuple(workbook.sheetnames)

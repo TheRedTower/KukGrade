@@ -41,7 +41,7 @@ describe("App authentication", () => {
 
     expect(screen.getByText("Instructor")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
+      screen.getByRole("link", { name: "Casey Instructor, Instructor: your account" }),
     ).toBeVisible();
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:8000/api/auth/me/",
@@ -212,9 +212,6 @@ describe("App authentication", () => {
     render(<App />);
 
     await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {
@@ -300,9 +297,6 @@ describe("App authentication", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Students" });
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
     await screen.findByRole("heading", { name: "Welcome back" });
 
@@ -496,9 +490,6 @@ describe("Connection failures are not sign-outs", () => {
     render(<App />);
 
     await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     // The session may still be live, so a signed-out UI would be a lie.
@@ -560,9 +551,6 @@ describe("First-time login copy", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await screen.findByText("Casey Instructor");
-    await user.click(
-      screen.getByRole("button", { name: "Casey Instructor, Instructor" }),
-    );
     await user.click(screen.getByRole("button", { name: "Sign out" }));
 
     await waitFor(() => {

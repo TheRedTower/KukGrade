@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
-from django.db.models import QuerySet
-from drf_spectacular.utils import extend_schema
+from django.db.models import Q, QuerySet
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
@@ -24,7 +25,14 @@ from gradings.assessment_services import (
     generate_candidate_assessment,
     reopen_candidate_assessment,
 )
+from gradings.legacy_matching import (
+    SHEET_NOTE_NAME,
+    group_key,
+    group_records,
+    suggest_for_groups,
+)
 from gradings.legacy_services import (
+    bulk_link_legacy_records,
     resolve_legacy_current_rank,
     resolve_legacy_testing_for_rank,
     unlink_legacy_record_from_student,
@@ -38,7 +46,11 @@ from gradings.models import (
     LegacyGradingRecord,
     Promotion,
 )
-from gradings.outcome_services import bulk_promote_candidates, create_candidate_outcome
+from gradings.outcome_services import (
+    bulk_promote_candidates,
+    create_candidate_outcome,
+    promotion_eligibility_for_session,
+)
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
 from gradings.serializers import (
     BulkAssessmentGenerationResultSerializer,
@@ -49,6 +61,7 @@ from gradings.serializers import (
     BulkCandidateRegistrationSerializer,
     BulkCandidateStatusUpdateResultSerializer,
     BulkCandidateStatusUpdateSerializer,
+    BulkLinkLegacyRecordsSerializer,
     BulkPromotionResultSerializer,
     BulkPromotionSerializer,
     CandidateAssessmentItemSerializer,
@@ -62,8 +75,10 @@ from gradings.serializers import (
     GradingSessionSerializer,
     GradingYearsSerializer,
     LegacyGradingRecordSerializer,
+    LegacyPersonSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
+    PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
     VoidLegacyRecordSerializer,
@@ -77,13 +92,28 @@ from gradings.services import (
     with_session_progress,
 )
 from kukgrade.filtering import (
+    QueryFilter,
     boolean,
     by_id,
     choices_in,
+    exact,
     on_date,
     ordered_by,
     search,
 )
+
+_PEOPLE_PARAMETERS = frozenset({"batch", "linked", "page", "page_size", "format"})
+
+
+def _records_for_group(
+    queryset: QuerySet[LegacyGradingRecord], key: str
+) -> QuerySet[LegacyGradingRecord]:
+    """Apply the same name grouping used by the people endpoint."""
+    if key != group_key(key):
+        return queryset.none()
+    names = queryset.order_by().values_list("source_name", flat=True).distinct()
+    matching = [name for name in names if group_key(name) == key]
+    return queryset.filter(source_name__in=matching)
 
 
 class WithdrawalReasonViewSet(GenericViewSet):
@@ -492,6 +522,7 @@ class CandidateOutcomeViewSet(
         "finalise": ("gradings.view_candidateoutcome",),
         "promote": ("gradings.view_candidateoutcome",),
         "bulk_promote": ("gradings.view_candidateoutcome",),
+        "promotion_eligibility": ("gradings.view_candidateoutcome",),
     }
 
     query_filters = (
@@ -508,6 +539,26 @@ class CandidateOutcomeViewSet(
             "candidate__student__last_name",
             "candidate__student__first_name",
         )
+
+    @extend_schema(
+        parameters=[OpenApiParameter("session", int, required=True)],
+        responses=PromotionEligibilitySerializer(many=True),
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="promotion-eligibility",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def promotion_eligibility(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> Response:
+        raw_session = request.query_params.get("session", "")
+        if not raw_session.isdecimal() or int(raw_session) < 1:
+            raise ValidationError({"session": ["Choose a grading session."]})
+        rows = promotion_eligibility_for_session(int(raw_session))
+        return Response(PromotionEligibilitySerializer(rows, many=True).data)
 
     @extend_schema(
         request=CandidateOutcomeProposalSerializer,
@@ -640,8 +691,47 @@ class PromotionViewSet(mixins.ListModelMixin, GenericViewSet):
         ).order_by("-effective_date", "-promoted_at", "-pk")
 
 
+def _needs_rank(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    unresolved = Q(~Q(source_current_rank_text=""), current_rank__isnull=True) | Q(
+        ~Q(source_testing_for_rank_text=""),
+        testing_for_rank__isnull=True,
+    )
+    if value == "true":
+        return queryset.filter(unresolved)
+    if value == "false":
+        return queryset.exclude(unresolved)
+    return queryset.none()
+
+
+def _awaiting_link(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
+    # Someone's record, not yet linked: a voided record and a sheet note are
+    # no one's, so neither waits (legacy_matching leaves both out too).
+    awaiting = Q(student__isnull=True, is_void=False) & ~Q(source_name=SHEET_NOTE_NAME)
+    if value == "true":
+        return queryset.filter(awaiting)
+    if value == "false":
+        return queryset.exclude(awaiting)
+    return queryset.none()
+
+
+_AWAITING_LINK = QueryFilter(
+    "awaiting_link",
+    _awaiting_link,
+    {"type": "boolean"},
+    "Someone's record not yet linked to a student: not voided, not a sheet note.",
+)
+
+_NEEDS_RANK = QueryFilter(
+    "needs_rank",
+    _needs_rank,
+    {"type": "boolean"},
+    "Records with a rank written but not yet matched to one of KukGrade's.",
+)
+
+
 class LegacyGradingRecordViewSet(
     mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
@@ -654,16 +744,29 @@ class LegacyGradingRecordViewSet(
     permission_classes = [HasRequiredPermissions]
     permission_map = {
         "list": ("gradings.view_legacygradingrecord",),
+        "retrieve": ("gradings.view_legacygradingrecord",),
         "link_student": ("gradings.can_reconcile_imported_history",),
         "unlink_student": ("gradings.can_reconcile_imported_history",),
         "resolve_current_rank": ("gradings.can_reconcile_imported_history",),
         "resolve_testing_for_rank": ("gradings.can_reconcile_imported_history",),
         "void": ("gradings.can_reconcile_imported_history",),
+        "people": ("gradings.can_reconcile_imported_history",),
+        "bulk_link": ("gradings.can_reconcile_imported_history",),
     }
 
     query_filters = (
         boolean("linked", "student__isnull", invert=True),
         boolean("voided", "is_void"),
+        by_id("batch", "source_batch_id", "Records from this import."),
+        _NEEDS_RANK,
+        _AWAITING_LINK,
+        exact("source_name", "source_name__iexact", "The name exactly as written."),
+        QueryFilter(
+            "group_key",
+            _records_for_group,
+            description="The stable name-group key served by the people list.",
+        ),
+        search("search", ("source_name",), "Part of the name as written."),
     )
 
     def get_queryset(self) -> QuerySet[LegacyGradingRecord]:
@@ -750,6 +853,87 @@ class LegacyGradingRecordViewSet(
             actor=cast(User, request.user),
         )
         return Response(LegacyGradingRecordSerializer(updated).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "batch",
+                int,
+                description="Only records from this import.",
+            ),
+            OpenApiParameter(
+                "linked",
+                bool,
+                description="Only people whose records are (or are not) linked.",
+            ),
+        ],
+        responses=LegacyPersonSerializer(many=True),
+    )
+    @action(detail=False, methods=["get"], filter_backends=[])
+    def people(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Records grouped by the name as written, with suggested students.
+
+        Suggestions only: nothing is linked until a person confirms it
+        (import Decision 3). Voided records and sheet notes are left out.
+        """
+        unknown = sorted(set(request.query_params) - _PEOPLE_PARAMETERS)
+        if unknown:
+            raise ValidationError(
+                {name: ["This list cannot be filtered that way."] for name in unknown},
+            )
+        records = LegacyGradingRecord.objects.select_related(
+            "student",
+            "current_rank",
+            "testing_for_rank",
+        ).filter(is_void=False)
+        batch = request.query_params.get("batch", "")
+        if batch:
+            records = (
+                records.filter(source_batch_id=int(batch))
+                if batch.isdecimal()
+                else records.none()
+            )
+        linked = request.query_params.get("linked", "")
+        if linked == "true":
+            records = records.filter(student__isnull=False)
+        elif linked == "false":
+            records = records.filter(student__isnull=True)
+        elif linked:
+            records = records.none()
+        groups = group_records(records.order_by("pk"))
+        page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
+        assert page is not None
+        if page:
+            suggest_for_groups(page)
+        return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
+
+    @extend_schema(
+        request=BulkLinkLegacyRecordsSerializer,
+        responses=LegacyGradingRecordSerializer(many=True),
+    )
+    # Not paginated: the response is the records just linked, as a list.
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="bulk-link",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def bulk_link(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Link many records at once, all or nothing - one person's history to
+        the student confirmed for it, say."""
+        payload = BulkLinkLegacyRecordsSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        linked = bulk_link_legacy_records(
+            [
+                (link["record"], link["student"])
+                for link in payload.validated_data["links"]
+            ],
+            actor=cast(User, request.user),
+            replace=payload.validated_data["replace"],
+        )
+        fresh = self.get_queryset().filter(pk__in=[record.pk for record in linked])
+        return Response(LegacyGradingRecordSerializer(fresh, many=True).data)
 
     @extend_schema(
         request=VoidLegacyRecordSerializer,

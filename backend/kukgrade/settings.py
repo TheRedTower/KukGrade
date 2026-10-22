@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ImproperlyConfigured
+
+from kukgrade.version import VERSION as APP_VERSION
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend_dist"
@@ -183,8 +185,9 @@ TEMPORARY_PASSWORD_LIFETIME = timedelta(hours=_TEMPORARY_PASSWORD_HOURS)
 LANGUAGE_CODE = "en-gb"
 # The club's own zone: "today" for grading dates, student ages and age bands is
 # the date there. Stored timestamps are UTC whatever this is. Django also sets
-# the process's TZ from it, so the container needs no separate TZ variable.
-TIME_ZONE = env_time_zone("DJANGO_TIME_ZONE", "Europe/London")
+# the process's TZ from it. A container is set up with this one variable, the
+# usual TZ; the screens are told the zone by /api/site/ and /api/about/.
+TIME_ZONE = env_time_zone("TZ", "Europe/London")
 USE_I18N = True
 USE_TZ = True
 
@@ -253,9 +256,8 @@ REST_FRAMEWORK = {
     # applies them and documents them in the schema (kukgrade/filtering.py).
     "DEFAULT_FILTER_BACKENDS": ["kukgrade.filtering.DeclaredQueryFilters"],
     # Scoped so it only throttles views that opt in with throttle_scope - a
-    # view without one is never rate limited by this. LoginView is the only
-    # one that sets it today, since unlimited password attempts is the risk
-    # this exists to close.
+    # view without one is never rate limited by this. Login, password change
+    # and first-administrator setup opt in to their own scopes.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
         "login": "10/min",
@@ -277,7 +279,7 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": (
         "Grading management API for Kuk Sool Won instructors and administrators."
     ),
-    "VERSION": "1.0.0",
+    "VERSION": APP_VERSION,
     "SERVE_INCLUDE_SCHEMA": False,
     # Separate request and response components (StudentRequest,
     # PatchedStudentRequest, ...) so the frontend's request payloads are
@@ -308,6 +310,17 @@ SPECTACULAR_SETTINGS = {
         ),
     },
 }
+
+# Which build this is, shown on the About page (docs/deployment.md passes them
+# as build arguments). Unset when running from a checkout.
+BUILD_COMMIT = os.environ.get("KUKGRADE_BUILD_COMMIT", "").strip()[:40]
+if not re.fullmatch("[0-9a-f]{7,40}", BUILD_COMMIT):
+    BUILD_COMMIT = ""
+BUILD_TIME = os.environ.get("KUKGRADE_BUILD_TIME", "").strip()
+try:
+    datetime.fromisoformat(BUILD_TIME)
+except ValueError:
+    BUILD_TIME = ""
 
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"

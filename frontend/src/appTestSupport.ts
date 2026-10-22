@@ -116,6 +116,15 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
 /** What every endpoint but /api/auth/me/ answers for a signed-in user: an empty page. */
 export function signedInResponse(url: string, user: AuthUser): Response {
   if (url.includes("/api/auth/me/")) return jsonResponse(200, user);
+  if (url.includes("/api/about/")) {
+    return jsonResponse(200, {
+      version: "0.1.0",
+      commit: "5198f1b",
+      built_at: "2026-10-21T09:30:00Z",
+      time_zone: "Europe/London",
+      database: "ok",
+    });
+  }
   if (url.includes("/api/audit-events/labels/")) {
     return jsonResponse(200, { actions: [], entities: [] });
   }

@@ -7,18 +7,22 @@ thin function per action rather than recording scattered across serializers.
 
 from __future__ import annotations
 
+from collections import Counter
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
 from django.core.exceptions import ValidationError
-from django.db import models, transaction
+from django.db import connection, models, transaction
 
 from accounts.models import User
 from audit.models import AuditAction
-from audit.recording import record
+from audit.recording import record, record_many
 from gradings.locking import lock_sessions, lock_student
 from ranks.models import Rank
-from students.models import Student
+from students import wksa_ids
+from students.models import PreviousWksaId, RetiredWksaId, Student, StudentExtraInfo
 
 
 def _snapshot(student: Student) -> dict[str, Any]:
@@ -33,6 +37,30 @@ def _snapshot(student: Student) -> dict[str, Any]:
     }
 
 
+def lock_wksa_ids(*ids: str) -> None:
+    """Hold each ID's transaction lock, in a fixed order, until commit.
+
+    An ID is never held by two people, current or previous. The student table's
+    unique index covers the current ones, but an ID moves from one table to
+    the other when a student becomes a black belt, so a student created with
+    that ID at the same moment could pass both checks. Whoever creates a
+    student with an ID, or replaces one, takes its lock first; the other then
+    waits and sees the committed result.
+    """
+    keys = [f"wksa_id:{wksa_id}" for wksa_id in sorted(set(ids))]
+    if not keys:
+        return
+    with connection.cursor() as cursor:
+        # One statement however many: taken in the sorted order given, so two
+        # callers holding overlapping IDs cannot each wait on the other.
+        cursor.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(key)) "
+            "FROM unnest(%s::text[]) AS keys(key)",
+            [keys],
+        )
+        cursor.fetchall()
+
+
 @transaction.atomic
 def create_student(
     *,
@@ -44,6 +72,7 @@ def create_student(
     status: str | None = None,
     actor: User | None = None,
 ) -> Student:
+    lock_wksa_ids(wksa_ids.normalise(wksa_id))
     student = Student.objects.create(
         wksa_id=wksa_id,
         first_name=first_name,
@@ -59,6 +88,117 @@ def create_student(
         actor=actor,
     )
     return student
+
+
+@dataclass(frozen=True)
+class NewStudent:
+    wksa_id: str
+    first_name: str
+    last_name: str
+    date_of_birth: date
+    current_rank: Rank
+    status: str = Student.Status.ACTIVE
+    # (label, value) pairs a file had no field for; blank values are dropped.
+    extra_information: tuple[tuple[str, str], ...] = ()
+
+
+TAKEN_MESSAGE = "This WKSA ID is now held by a student."
+
+
+def wksa_ids_held(ids: Sequence[str]) -> set[str]:
+    """Which of `ids` a student holds, or held before (replaced or deleted)."""
+    wanted = set(ids)
+    return (
+        set(
+            Student.objects.filter(wksa_id__in=wanted).values_list("wksa_id", flat=True)
+        )
+        | set(
+            PreviousWksaId.objects.filter(wksa_id__in=wanted).values_list(
+                "wksa_id",
+                flat=True,
+            ),
+        )
+        | set(
+            RetiredWksaId.objects.filter(wksa_id__in=wanted).values_list(
+                "wksa_id",
+                flat=True,
+            ),
+        )
+    )
+
+
+@transaction.atomic
+def create_students(
+    new_students: Sequence[NewStudent],
+    *,
+    actor: User | None = None,
+    source_import: int | None = None,
+) -> list[Student]:
+    """Many students at once - each as create_student makes one, together.
+
+    The same rules and the same STUDENT_CREATED event per student, but each
+    rule that needs the database is asked once for all of them: every ID's
+    lock is taken in one statement, then whether any is held is one query
+    per table. All or nothing: any refusal raises with the student's ID as
+    the error key, and nothing is created.
+    """
+    candidates = [
+        Student(
+            wksa_id=wksa_ids.normalise(new.wksa_id),
+            first_name=new.first_name,
+            last_name=new.last_name,
+            date_of_birth=new.date_of_birth,
+            current_rank=new.current_rank,
+            status=new.status,
+            source_import=source_import,
+        )
+        for new in new_students
+    ]
+    errors: dict[str, list[str]] = {}
+    for candidate in candidates:
+        # Checked below for all of them at once.
+        candidate.previous_ids_checked = True
+        try:
+            candidate.full_clean(
+                exclude=["current_rank"],
+                validate_unique=False,
+                validate_constraints=False,
+            )
+        except ValidationError as refused:
+            errors.setdefault(candidate.wksa_id, []).extend(refused.messages)
+    ids = [candidate.wksa_id for candidate in candidates]
+    for repeated in [wksa_id for wksa_id, times in Counter(ids).items() if times > 1]:
+        errors.setdefault(repeated, []).append("This WKSA ID is given twice.")
+    lock_wksa_ids(*ids)
+    for held in wksa_ids_held(ids):
+        errors.setdefault(held, []).append(TAKEN_MESSAGE)
+    if errors:
+        raise ValidationError(errors)
+
+    created = Student.objects.bulk_create(candidates, batch_size=500)
+    for student in created:
+        # Checked above for these IDs only; a later save checks again.
+        student.previous_ids_checked = False
+    StudentExtraInfo.objects.bulk_create(
+        [
+            StudentExtraInfo(
+                student=student,
+                label=label.strip()[:150],
+                value=value.strip(),
+                source_import=source_import,
+            )
+            for student, new in zip(created, new_students, strict=True)
+            for label, value in new.extra_information
+            if label.strip() and value.strip()
+        ],
+        batch_size=500,
+    )
+    record_many(
+        AuditAction.STUDENT_CREATED,
+        [(student, f"Student {student} created.") for student in created],
+        actor=actor,
+    )
+    return created
 
 
 @transaction.atomic
@@ -81,10 +221,11 @@ def update_student(
     locked = lock_student(student.pk)
     before = _snapshot(locked)
 
-    # Only ever a student ID becoming a black belt ID; Student.clean() refuses
-    # any other change (students/wksa_ids.py).
+    # A student ID becoming the black belt ID, or a mistyped ID corrected;
+    # Student.clean() refuses anything else (students/wksa_ids.py).
     if wksa_id is not None:
         locked.wksa_id = wksa_id
+        lock_wksa_ids(before["wksa_id"], wksa_ids.normalise(wksa_id))
     if first_name is not None:
         locked.first_name = first_name
     if last_name is not None:
@@ -105,6 +246,11 @@ def update_student(
         # no row update and no audit event.
         return locked
     locked.save()
+    if wksa_ids.is_black_belt_change(before["wksa_id"], after["wksa_id"]):
+        # The student ID a black belt ID replaced stays with them for good. A
+        # corrected typo does not: it was never theirs, and may be someone
+        # else's real number (the edit's audit event keeps both).
+        PreviousWksaId.objects.create(student=locked, wksa_id=before["wksa_id"])
 
     # One event per call, not one per changed field and not both a generic
     # and a specific event for the same edit. A status change is the more
@@ -219,7 +365,17 @@ def delete_student(student: Student, actor: User) -> None:
 
     legacy_records = list(LegacyGradingRecord.objects.filter(student=locked))
     for legacy_record in legacy_records:
-        unlink_legacy_record_from_student(legacy_record, actor=actor)
+        unlink_legacy_record_from_student(legacy_record, actor=actor, allow_void=True)
+
+    # Their numbers go with them, never to anyone else (owner, 2026-10-20).
+    retired = [
+        locked.wksa_id,
+        *locked.previous_wksa_ids.values_list("wksa_id", flat=True),
+    ]
+    lock_wksa_ids(*retired)
+    RetiredWksaId.objects.bulk_create(
+        [RetiredWksaId(wksa_id=wksa_id) for wksa_id in retired],
+    )
 
     record(
         AuditAction.STUDENT_DELETED,
@@ -228,6 +384,7 @@ def delete_student(student: Student, actor: User) -> None:
         actor=actor,
         metadata={
             "wksa_id": locked.wksa_id,
+            "previous_wksa_ids": retired[1:],
             "cascaded_grading_candidates": [
                 {"id": candidate_id, "session_id": session_id, "session_title": title}
                 for candidate_id, session_id, title in cascaded_candidates

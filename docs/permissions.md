@@ -124,7 +124,7 @@ to another (`is_staff`, which the API never sets).
 | An instructor | Yes | Yes | Yes | Yes | Yes | Yes |
 | Another administrator | Yes | Yes | Yes | Yes (never final decisions) | Yes | Yes |
 | A superuser, or any account with admin site access | No | No | No | No | No | No |
-| Their own | Yes (name also from the account menu) | No | No | No | No - change it instead | No |
+| Their own | Yes (name also in Settings) | No | No | No | No - change it instead | No |
 
 Every "No" is refused by the service that makes the change
 (`accounts.services.can_manage` for the third row; `update_platform_user`

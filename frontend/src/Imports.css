@@ -1,0 +1,1273 @@
+/* The Imports area (FDR-049 to FDR-055). Tokens only, from theme.css. */
+
+.ix-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 72rem;
+}
+
+.ix-page-narrow {
+  max-width: 54rem;
+  margin: 0 auto;
+}
+
+.ix-page-wide {
+  max-width: 78rem;
+}
+
+.ix-page-title {
+  margin: 0.25rem 0 0;
+}
+
+.ix-results-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.ix-results-title .ix-pill {
+  font-size: 0.9rem;
+}
+
+.ix-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-accent-text);
+  text-decoration: none;
+}
+
+.ix-back:hover {
+  text-decoration: underline;
+}
+
+.ix-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.ix-header h1 {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.ix-header-text {
+  max-width: 44rem;
+}
+
+/* Headings inside a page, largest first. */
+.ix-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.375rem;
+}
+
+.ix-heading {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.ix-minor {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.ix-h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.ix-headline {
+  font-size: 1.1rem;
+}
+
+.ix-big-count {
+  font-size: 1.375rem;
+}
+
+.ix-eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--color-accent-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ix-lead,
+.ix-muted {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.ix-small {
+  font-size: 0.875rem;
+}
+
+.ix-semibold {
+  font-weight: 600;
+}
+
+.ix-bold {
+  font-weight: 700;
+}
+
+.ix-block {
+  display: block;
+}
+
+.ix-wrap {
+  overflow-wrap: anywhere;
+}
+
+.ix-grow {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.ix-full {
+  flex-basis: 100%;
+}
+
+.ix-start {
+  align-self: flex-start;
+}
+
+.ix-align-end {
+  align-items: flex-end;
+}
+
+.ix-align-start {
+  align-items: flex-start;
+}
+
+.ix-align-baseline {
+  align-items: baseline;
+}
+
+.ix-ruled {
+  border-top: 1px solid var(--color-border);
+}
+
+/* Why something is unavailable or wrong, next to it. */
+.ix-why {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ix-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ix-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+}
+
+.ix-section-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.ix-head-text {
+  flex: 1 1 26rem;
+  min-width: 0;
+}
+
+.ix-roomy {
+  gap: 1.25rem;
+}
+
+.ix-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.ix-card-pad {
+  padding: 1.5rem;
+}
+
+.ix-sunken {
+  background: var(--color-surface-sunken);
+}
+
+.ix-gold-edge {
+  border: 2px solid var(--color-gold);
+}
+
+.ix-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding: 1.1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ix-row:first-child {
+  border-top: none;
+}
+
+.ix-row-main {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.ix-row-main p {
+  margin: 0;
+}
+
+.ix-row-out {
+  background: var(--color-surface-sunken);
+}
+
+.ix-row-done {
+  background: var(--color-success-surface);
+}
+
+.ix-row-name {
+  flex-basis: 14rem;
+}
+
+.ix-row-choice {
+  flex: 2 1 20rem;
+}
+
+.ix-suggested {
+  display: flex;
+  flex: 1 1 12rem;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* A roster row needing attention: its problem above its fields. */
+.ix-attention {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.ix-strong {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ix-kind {
+  margin: 0 0 0.15rem;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ix-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ix-actions-split {
+  justify-content: space-between;
+}
+
+.ix-progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0.35rem 0;
+}
+
+.ix-progress span {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+}
+
+.ix-progress .ix-filled {
+  background: var(--color-gold);
+}
+
+.ix-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 1rem;
+}
+
+.ix-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.ix-panel-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 1.5rem;
+}
+
+.ix-panel-body h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ix-panel-foot p {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.ix-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 10px 10px;
+  background: var(--color-surface-sunken);
+}
+
+.ix-push-down {
+  margin-top: auto;
+}
+
+/* Status pills carry text as well as colour (FDR-011). */
+.ix-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ix-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ix-pill-success {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.ix-pill-warning {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.ix-pill-info {
+  background: var(--color-info-surface);
+  color: var(--color-info);
+}
+
+.ix-pill-neutral {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.ix-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.ix-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ix-field-narrow {
+  max-width: 22rem;
+}
+
+.ix-field-wide {
+  flex: 1 1 16rem;
+  color: var(--color-text);
+}
+
+.ix-hint {
+  font-weight: 400;
+}
+
+.ix-field select,
+.ix-field input {
+  min-height: 44px;
+  min-width: 10rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 400;
+}
+
+.ix-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ix-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.ix-chip[aria-pressed="true"] {
+  border-color: var(--color-gold);
+  background: var(--color-surface-sunken);
+  font-weight: 700;
+}
+
+.ix-chips-inset {
+  padding: 0 1.5rem 1rem;
+}
+
+.ix-chip-count {
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface-sunken);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ix-table-wrap {
+  overflow-x: auto;
+}
+
+.ix-table {
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.ix-table th {
+  padding: 0.75rem 1rem;
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ix-table td {
+  padding: 0.8rem 1rem;
+  border-top: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.ix-table td.ix-nowrap,
+.ix-nowrap {
+  white-space: nowrap;
+}
+
+.ix-table td.ix-cell-action {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.ix-table td.ix-cell-words {
+  min-width: 16rem;
+}
+
+.ix-table-compact {
+  min-width: 30rem;
+}
+
+.ix-caption {
+  padding-bottom: 0.5rem;
+  caption-side: top;
+  font-weight: 700;
+  text-align: left;
+}
+
+.ix-table-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.ix-link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--color-accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ix-link-button:hover {
+  text-decoration: underline;
+}
+
+.ix-danger-text {
+  color: var(--color-danger);
+}
+
+.ix-warning-text {
+  color: var(--color-warning);
+}
+
+.ix-success-text {
+  color: var(--color-success);
+}
+
+.ix-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+}
+
+.ix-banner p {
+  margin: 0;
+}
+
+.ix-banner > p {
+  flex: 1 1 18rem;
+}
+
+.ix-picked {
+  border: 2px solid var(--color-gold);
+}
+
+.ix-banner-success {
+  background: var(--color-success-surface);
+}
+
+.ix-banner-warning {
+  background: var(--color-warning-surface);
+}
+
+.ix-banner-danger {
+  border: 1px solid var(--color-danger);
+  background: var(--color-danger-surface);
+}
+
+.ix-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.ix-mark-ok {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.ix-mark-large {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.2rem;
+}
+
+.ix-mark-on-surface {
+  background: var(--color-surface);
+}
+
+.ix-mark-warn {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.ix-checklist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ix-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.ix-checklist li p {
+  margin: 0;
+}
+
+/* The step bar (FDR-050). */
+.ix-steps ol {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ix-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.ix-step-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.ix-step-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.ix-step-dot {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ix-step-done,
+.ix-step-current {
+  color: var(--color-text);
+}
+
+.ix-step-done .ix-step-bar,
+.ix-step-current .ix-step-bar {
+  background: var(--color-gold);
+}
+
+.ix-step-done .ix-step-dot {
+  border-color: var(--color-success-surface);
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.ix-step-current {
+  font-weight: 700;
+}
+
+.ix-step-current .ix-step-dot {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+}
+
+/* Choose file (FDR-050). */
+.ix-drop {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  border: 2px dashed var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-sunken);
+  text-align: center;
+}
+
+.ix-drop-active {
+  border-color: var(--color-gold);
+}
+
+.ix-drop p {
+  margin: 0;
+}
+
+.ix-drop-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ix-split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+.ix-split > :first-child {
+  flex: 3 1 26rem;
+  min-width: 0;
+}
+
+.ix-split > :last-child {
+  flex: 2 1 18rem;
+  min-width: 0;
+}
+
+.ix-guide-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ix-guide-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.ix-guide-list p {
+  margin: 0;
+}
+
+.ix-tag {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ix-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.ix-file p {
+  margin: 0;
+}
+
+.ix-file .ix-row-main {
+  flex-basis: 14rem;
+}
+
+.ix-fold {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ix-fold-body {
+  padding-top: 0.5rem;
+}
+
+.ix-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ix-disclosure svg {
+  transition: transform 160ms ease;
+}
+
+.ix-disclosure[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+.ix-two-col {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.ix-two-col > :first-child {
+  flex: 3 1 36rem;
+  min-width: 0;
+}
+
+.ix-two-col > :last-child {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+/* The focus first in reading order, its queue shown to its left. */
+.ix-two-col-queue > :first-child {
+  order: 2;
+}
+
+.ix-two-col-queue > :last-child {
+  order: 1;
+}
+
+.ix-focus-body {
+  gap: 0.9rem;
+  padding: 1.25rem;
+}
+
+.ix-also {
+  gap: 0.4rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.ix-also p {
+  margin: 0;
+}
+
+.ix-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.ix-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 1rem 1rem;
+  background: var(--color-scrim);
+}
+
+.ix-dialog {
+  width: 100%;
+  max-width: 30rem;
+  padding: 1.75rem;
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 20px 50px rgb(0 0 0 / 30%);
+}
+
+.ix-dialog p {
+  margin: 0;
+}
+
+.ix-dialog-actions {
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.ix-dialog h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.ix-dialog textarea {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ix-disclosure svg {
+    transition: none;
+  }
+}
+
+/* Typing into a row (FDR-051, FDR-052). */
+.ix-cell-input {
+  width: 100%;
+  min-width: 7rem;
+  min-height: 40px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.ix-cell-input:focus {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 1px;
+}
+
+.ix-cell-invalid {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+}
+
+.ix-cell-changed {
+  border-color: var(--color-info);
+}
+
+.ix-fix-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.35rem;
+  margin-top: 0.25rem;
+  color: var(--color-info);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ix-fix-note button {
+  min-height: 28px;
+  padding: 0 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--color-accent-text);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ix-table-cells td {
+  padding: 0.4rem 0.4rem;
+}
+
+.ix-table-cells th {
+  padding: 0.6rem 0.4rem;
+  vertical-align: bottom;
+}
+
+.ix-col-name {
+  display: block;
+  color: var(--color-text);
+  font-size: 0.85rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ix-cell-text {
+  display: block;
+  padding: 0.4rem 0.1rem;
+  white-space: nowrap;
+}
+
+.ix-table td.ix-cell-reading {
+  min-width: 13rem;
+}
+
+.ix-cell-reading .ix-small {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.ix-col-select {
+  width: 100%;
+  min-width: 8.5rem;
+  min-height: 40px;
+  margin-top: 0.35rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ix-col-select-clash {
+  border-color: var(--color-danger);
+}
+
+.ix-col-select-suggested {
+  border-color: var(--color-info);
+}
+
+.ix-struck {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+.ix-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.6rem;
+}
+
+.ix-field-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.ix-field-grid select {
+  min-height: 40px;
+  padding: 0 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.ix-label-invalid {
+  color: var(--color-danger);
+}
+
+.ix-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ix-queue-head {
+  padding: 0.9rem;
+  gap: 0.6rem;
+}
+
+.ix-queue-note {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+}
+
+.ix-queue > li > button,
+.ix-queue-done {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 52px;
+  padding: 0.4rem 0.9rem 0.4rem calc(0.9rem - 3px);
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ix-queue > li:first-child > button,
+.ix-queue > li:first-child > .ix-queue-done {
+  border-top: none;
+}
+
+.ix-queue-done {
+  background: var(--color-success-surface);
+  cursor: default;
+}
+
+.ix-queue > li > button[aria-current="true"],
+.ix-queue > li > button[aria-pressed="true"] {
+  border-left-color: var(--color-gold);
+  background: var(--color-surface-sunken);
+}
+
+.ix-queue-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ix-queue-name {
+  display: block;
+  font-weight: 600;
+}
+
+.ix-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+}
+
+.ix-candidate {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-height: 7rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ix-candidate.ix-picked {
+  background: var(--color-surface-sunken);
+}
+
+.ix-candidate-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ix-candidate-name input,
+.ix-tick {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-gold);
+}
+
+.ix-tick {
+  margin-top: 0.15rem;
+}
+
+.ix-candidate-other {
+  border-style: dashed;
+  background: transparent;
+  cursor: default;
+}
+
+.ix-found {
+  padding: 0;
+  text-align: left;
+}
+
+.ix-choice {
+  margin: 0;
+  min-width: 0;
+}
+
+.ix-rank-fix {
+  margin-top: 0.35rem;
+}
+
+/* The counts on the review page, each a filter (FDR-052). */
+.ix-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 1rem;
+}
+
+.ix-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-height: 5.5rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ix-tile[aria-pressed="true"] {
+  border: 2px solid var(--color-gold);
+}
+
+.ix-tile-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.ix-tile-count [aria-hidden="true"] {
+  font-size: 1rem;
+}
+
+.ix-tile-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* The seal on the review page (FDR-053). */
+.ix-seal-text {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+.ix-seal-button {
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+/* Last, so it wins over a component's own margin. */
+.ix-flush {
+  margin: 0;
+}

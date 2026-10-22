@@ -4,6 +4,28 @@
  */
 
 export interface paths {
+    "/api/about/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description What is running: the About page, and what to quote when asking for help.
+         *
+         *     For anyone signed in. Nothing here is personal data, but a build's exact
+         *     version and commit are more than the sign-in page needs to show.
+         */
+        get: operations["about_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit-events/": {
         parameters: {
             query?: never;
@@ -112,7 +134,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * @description Administrator-only bulk data import (import Decision 1).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_list"];
         put?: never;
         /**
          * @description Administrator-only bulk data import (import Decision 1).
@@ -121,6 +149,28 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Administrator-only bulk data import (import Decision 1).
+         *
+         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         */
+        get: operations["data_imports_batches_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -159,12 +209,27 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
-         *
-         *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-         *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+         * @description Finish the import. With no body, the stored mapping, fixes and rank
+         *     choices are used; any given here replace them first.
          */
         post: operations["data_imports_batches_commit_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/mapping/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Match a roster's columns to KukGrade's fields, and check every row. */
+        post: operations["data_imports_batches_mapping_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -187,6 +252,114 @@ export interface paths {
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
          */
         post: operations["data_imports_batches_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The import's rows, a page at a time, in file order. */
+        get: operations["data_imports_batches_rows_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/{row_number}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Fix a roster row's values; every row is checked again. */
+        patch: operations["data_imports_batches_rows_partial_update"];
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/{row_number}/exclusion/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave a row out of the import, or bring it back. */
+        post: operations["data_imports_batches_rows_exclusion_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/rows/leave-out-attention/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Leave out every roster row still needing attention, in one go. */
+        post: operations["data_imports_batches_rows_leave_out_attention_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/sheet/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Read a roster from another sheet of its workbook; the column matches
+         *     and fixes made for the old sheet go.
+         */
+        post: operations["data_imports_batches_sheet_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-imports/batches/{id}/void-records/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Void every record a finished historical import created - for a
+         *     wrong file imported. Records are never deleted.
+         */
+        post: operations["data_imports_batches_void_records_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -503,6 +676,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Historical import records - read for both roles, reconciliation
+         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+         *     and 15). No ordinary create/update/delete: rows are only ever
+         *     created by data_imports.services.commit_legacy_grading_import, and only
+         *     ever changed through the five gradings.legacy_services functions.
+         */
+        get: operations["gradings_legacy_records_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/legacy-records/{id}/link-student/": {
         parameters: {
             query?: never;
@@ -618,6 +814,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/bulk-link/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Link many records at once, all or nothing - one person's history to
+         *     the student confirmed for it, say.
+         */
+        post: operations["gradings_legacy_records_bulk_link_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/people/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Records grouped by the name as written, with suggested students.
+         *
+         *     Suggestions only: nothing is linked until a person confirms it
+         *     (import Decision 3). Voided records and sheet notes are left out.
+         */
+        get: operations["gradings_legacy_records_people_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/outcomes/": {
         parameters: {
             query?: never;
@@ -692,6 +930,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["gradings_outcomes_bulk_promote_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/outcomes/promotion-eligibility/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["gradings_outcomes_promotion_eligibility_list"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -869,7 +1123,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Deployment settings the frontend shows, such as the club's name.
+         * @description Deployment settings the frontend shows, such as the club's name and
+         *     time zone (TZ).
          *
          *     Public, like the health check: the sign-in screen may show them too, and
          *     nothing here is personal data. The password policy and the WKSA ID forms
@@ -1131,6 +1386,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        About: {
+            /** @description The version of KukGrade running. */
+            version: string;
+            /** @description The commit it was built from; blank when run from a checkout. */
+            commit: string;
+            /**
+             * Format: date-time
+             * @description When it was built; null when run from a checkout.
+             */
+            built_at: string | null;
+            /** @description The club's time zone. */
+            time_zone: string;
+            /**
+             * @description Whether the database answers right now.
+             *
+             *     * `ok` - ok
+             *     * `unavailable` - unavailable
+             */
+            database: components["schemas"]["DatabaseEnum"];
+        };
         /**
          * @description * `SESSION_CREATED` - Grading session created
          *     * `SESSION_UPDATED` - Grading session updated
@@ -1328,6 +1603,15 @@ export interface components {
             };
             updated: components["schemas"]["GradingCandidate"][];
         };
+        /** @description POST legacy-records/bulk-link/: many records, each to its student. */
+        BulkLinkLegacyRecordsRequest: {
+            links: components["schemas"]["LegacyRecordLinkRequest"][];
+            /**
+             * @description Move records already linked to another student.
+             * @default false
+             */
+            replace?: boolean;
+        };
         BulkPromotionRequest: {
             outcomes: number[];
         };
@@ -1445,6 +1729,12 @@ export interface components {
             stage_display: string;
         };
         /**
+         * @description * `ok` - ok
+         *     * `unavailable` - unavailable
+         * @enum {string}
+         */
+        DatabaseEnum: "ok" | "unavailable";
+        /**
          * @description * `MONTH` - Month
          *     * `DAY` - Day
          * @enum {string}
@@ -1514,7 +1804,10 @@ export interface components {
             source_testing_for_rank_text: string;
             outcome: (components["schemas"]["CandidateOutcomeOutcomeEnum"] | components["schemas"]["NullEnum"]) | null;
             attendance_status: components["schemas"]["AttendanceStatusEnum"];
+            /** @description The grading report: decision notes, or a historical record's comments. */
             comments: string;
+            /** @description Anything else a historical sheet said beside the record. */
+            note: string;
         };
         GradingSession: {
             readonly id: number;
@@ -1565,8 +1858,58 @@ export interface components {
             service: string;
             status: string;
         };
+        /** @description An import: what was uploaded, where it is up to, and its rows' counts. */
         ImportBatch: {
             readonly id: number;
+            readonly kind: components["schemas"]["KindEnum"];
+            readonly kind_display: string;
+            readonly status: components["schemas"]["ImportBatchStatusEnum"];
+            readonly status_display: string;
+            readonly original_filename: string;
+            readonly file_size: number;
+            /** Format: date-time */
+            readonly uploaded_at: string;
+            readonly uploaded_by_name: string;
+            /** Format: date-time */
+            readonly committed_at: string | null;
+            readonly committed_by_name: string;
+            /** Format: date-time */
+            readonly cancelled_at: string | null;
+            /** @description Where the import is up to, so a screen can resume it. */
+            readonly next_step: components["schemas"]["NextStepEnum"];
+            /** @description A roster's column headers, as in the file; empty otherwise. */
+            readonly detected_headers: string[];
+            /** @description A roster's chosen column for each KukGrade field. */
+            readonly column_mapping: {
+                [key: string]: string;
+            };
+            /** @description A roster's whole-file value for a field, where a row has none. */
+            readonly defaults: {
+                [key: string]: string;
+            };
+            /** @description A roster's columns kept as each student's extra information. */
+            readonly extra_columns: string[];
+            /** @description A roster workbook's sheet being read; blank for a CSV. */
+            readonly sheet: string;
+            /** @description Every sheet a roster workbook has, to choose another. */
+            readonly sheet_names: string[];
+            /** @description Why the selected roster sheet could not be read; choose another sheet. */
+            readonly sheet_error: string;
+            /** @description A roster's likely column for each field, from its headings. */
+            readonly suggested_mapping: {
+                [key: string]: string;
+            };
+            /** @description The fields a roster's columns are matched to; empty otherwise. */
+            readonly target_fields: components["schemas"]["ImportField"][];
+            /** @description A historical import's chosen rank for each spelling, by the spelling lowercased; a spelling not here is left as written. */
+            readonly rank_mappings: {
+                [key: string]: string;
+            };
+            /** @description A historical workbook's grading sheets that were read. */
+            readonly grading_sheets: string[];
+            /** @description What the reading of the file left out, such as an unknown sheet. */
+            readonly warnings: string[];
+            readonly row_counts: components["schemas"]["ImportRowCounts"];
             readonly summary_json: {
                 [key: string]: number;
             };
@@ -1575,6 +1918,8 @@ export interface components {
             kind: components["schemas"]["KindEnum"];
             /** Format: binary */
             file: string;
+            /** @description A roster workbook's sheet to read; else the one it opens on. */
+            sheet?: string;
         };
         /**
          * @description The new batch's id, plus one-shot creation-response extras: a
@@ -1589,8 +1934,99 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /**
+         * @description * `UPLOADED` - Uploaded
+         *     * `COMMITTED` - Imported
+         *     * `CANCELLED` - Cancelled
+         *     * `EXPIRED` - Expired
+         * @enum {string}
+         */
+        ImportBatchStatusEnum: "UPLOADED" | "COMMITTED" | "CANCELLED" | "EXPIRED";
+        /** @description One field of KukGrade's a roster's columns are matched to. */
+        ImportField: {
+            field: string;
+            /** @description The field's name on screen. */
+            name: string;
+            /** @description Every student must have it. */
+            needed: boolean;
+            /** @description It can be given once for the whole file. */
+            whole_file: boolean;
+        };
+        /**
+         * @description POST /{id}/mapping/: how a roster maps onto KukGrade.
+         *
+         *     A column for each field, a whole-file value for a field the file lacks
+         *     (current_rank or status only), and the columns to keep as extra
+         *     information. A needed field with neither is typed into each row as a fix.
+         */
+        ImportMappingRequest: {
+            column_mapping: {
+                [key: string]: string;
+            };
+            /** @description current_rank and/or status, used where a row has none. */
+            defaults?: {
+                [key: string]: string;
+            };
+            /** @description The file's columns to keep as each student's extra information. */
+            extra_columns?: string[];
+        };
         ImportPreview: components["schemas"]["StudentImportPreview"] | components["schemas"]["LegacyImportPreview"];
+        /** @description POST /{id}/void-records/: void every record a historical import made. */
+        ImportRecordsVoidRequest: {
+            /** @description Why, kept on every record. */
+            reason: string;
+        };
+        ImportRecordsVoided: {
+            /** @description How many records were voided. */
+            voided: number;
+        };
         ImportRequestRequest: components["schemas"]["StudentImportRequest"] | components["schemas"]["LegacyImportRequest"];
+        /** @description One stored row and what the last check made of it. */
+        ImportRow: {
+            readonly row_number: number;
+            readonly source_locator: string;
+            readonly outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
+            readonly outcome_display: string;
+            readonly excluded: boolean;
+            /** @description The row's values by KukGrade field, as checked - for a roster wksa_id, first_name, last_name, date_of_birth, current_rank and status; for historical gradings name, period, current_rank, testing_for_rank, outcome, report, section and note. */
+            values: {
+                [key: string]: string;
+            };
+            /** @description A roster row's problems, or a historical record's reasons to look at it (none of which stop the import). */
+            issues: string[];
+            /** @description The fields the issues are about (a roster's), to mark them. */
+            issue_fields: string[];
+            /** @description The fields whose value is the importer's fix, not the file's. */
+            readonly corrected_fields: string[];
+            /** @description The row's values in the columns kept as extra information. */
+            readonly extra: {
+                [key: string]: string;
+            };
+            /** @description A roster row's every cell by column heading, as the file has it, the columns not imported included; empty for historical gradings. */
+            readonly cells: {
+                [key: string]: string;
+            };
+            /** @description A roster row's matched fields as the file has them, before any fix; empty for historical gradings. */
+            readonly file_values: {
+                [key: string]: string;
+            };
+            readonly created_id: string;
+        };
+        ImportRowCounts: {
+            total: number;
+            ready: number;
+            review_required: number;
+            skip_existing: number;
+            excluded: number;
+        };
+        ImportRowExclusionRequest: {
+            /** @description True leaves the row out of the import; false brings it back. */
+            excluded: boolean;
+        };
+        /** @description POST /{id}/sheet/: read a roster from another sheet of its workbook. */
+        ImportSheetRequest: {
+            sheet: string;
+        };
         /**
          * @description The account, with the temporary password just issued for it.
          *
@@ -1642,15 +2078,23 @@ export interface components {
             readonly record_kind: components["schemas"]["RecordKindEnum"];
             readonly cycle_year: number;
             readonly cycle_month: number;
+            readonly source_batch: number;
+            readonly source_section: string;
             readonly source_name: string;
             readonly source_current_rank_text: string;
             readonly current_rank: number | null;
             readonly current_rank_code: string | null;
+            readonly current_rank_name: string | null;
             readonly source_testing_for_rank_text: string;
             readonly testing_for_rank: number | null;
             readonly testing_for_rank_code: string | null;
+            readonly testing_for_rank_name: string | null;
             readonly outcome_display: string | null;
             readonly attendance_status_display: string;
+            /** @description The grading report: the record's comments, as written. */
+            readonly report: string;
+            /** @description Anything else the sheet said beside the record, as written. */
+            readonly note: string;
             readonly is_void: boolean;
             readonly void_reason: string;
             /** Format: email */
@@ -1664,6 +2108,9 @@ export interface components {
             unresolved_current_rank: number;
             unresolved_testing_for_rank: number;
             unresolved_outcome: number;
+            excluded: number;
+            /** @description Records not left out that have issues: a reason to look. */
+            worth_a_look: number;
             warnings: string[];
             rank_suggestions: components["schemas"]["RankMappingSuggestion"][];
         };
@@ -1680,8 +2127,32 @@ export interface components {
                 [key: string]: string | null;
             };
         };
+        /** @description The records that name one person the same way, and who they may be. */
+        LegacyPerson: {
+            source_name: string;
+            group_key: string;
+            readonly record_ids: number[];
+            /** @description How many records. */
+            readonly records: number;
+            readonly first_period: string;
+            readonly last_period: string;
+            /** @description The student every record here is linked to, if one is. */
+            readonly linked_student: number | null;
+            /** @description Several students fit equally well: a person has to choose. */
+            shared: boolean;
+            candidates: components["schemas"]["SuggestedStudent"][];
+        };
+        LegacyRecordLinkRequest: {
+            record: number;
+            student: number;
+        };
         LinkLegacyRecordRequest: {
             student: number;
+            /**
+             * @description Move a record already linked to another student.
+             * @default false
+             */
+            replace?: boolean;
         };
         LockedCandidateWithdrawalRequest: {
             withdrawal_reason: components["schemas"]["WithdrawalReasonEnum"];
@@ -1692,6 +2163,8 @@ export interface components {
             email: string;
             password: string;
         };
+        /** @enum {string} */
+        NextStepEnum: "MATCH_COLUMNS" | "REVIEW" | "CLOSED";
         /** @enum {unknown} */
         NullEnum: null;
         PaginatedAgeBandList: {
@@ -1814,6 +2287,36 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["GradingSession"][];
         };
+        PaginatedImportBatchList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ImportBatch"][];
+        };
+        PaginatedImportRowList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["ImportRow"][];
+        };
         PaginatedLegacyGradingRecordList: {
             /** @example 123 */
             count: number;
@@ -1828,6 +2331,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["LegacyGradingRecord"][];
+        };
+        PaginatedLegacyPersonList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["LegacyPerson"][];
         };
         PaginatedPromotionList: {
             /** @example 123 */
@@ -1947,6 +2465,19 @@ export interface components {
             cancellation_reason?: string;
         };
         /**
+         * @description PATCH /{id}/rows/{row_number}/: a roster row's fixes, by field.
+         *
+         *     A null value takes the fix away, so the file's own value is used again.
+         */
+        PatchedImportRowCorrectionRequest: {
+            wksa_id?: string | null;
+            first_name?: string | null;
+            last_name?: string | null;
+            date_of_birth?: string | null;
+            current_rank?: string | null;
+            status?: string | null;
+        };
+        /**
          * @description PATCH /api/auth/me/.
          *
          *     Everything UserSerializer exposes, but first_name and last_name become
@@ -1964,9 +2495,10 @@ export interface components {
          *
          *     One serializer rather than three: create and update share every field,
          *     and splitting them would just copy the same fields into different
-         *     classes. wksa_id changes after creation only from a student ID to the
-         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
-         *     wksa_id_can_change says whether that change is still to come.
+         *     classes. wksa_id can be corrected if mistyped, and a student ID becomes
+         *     the black belt ID WKSA hands out; a black belt ID never goes back to a
+         *     student ID (Student.clean()). wksa_id_can_change says whether the change
+         *     to a black belt ID is still to come.
          */
         PatchedStudentRequest: {
             wksa_id?: string;
@@ -2006,6 +2538,11 @@ export interface components {
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
         };
+        PreviousWksaId: {
+            readonly wksa_id: string;
+            /** Format: date-time */
+            readonly replaced_at: string;
+        };
         /**
          * @description * `JUNIOR` - Junior & Little Dragon
          *     * `ADULT` - Adult & Youth
@@ -2019,6 +2556,12 @@ export interface components {
             readonly to_rank_name: string;
             /** Format: date */
             readonly effective_date: string;
+        };
+        PromotionEligibility: {
+            candidate: number;
+            outcome: number | null;
+            eligible: boolean;
+            reason: string;
         };
         PromotionRankHistory: {
             readonly id: number;
@@ -2043,6 +2586,10 @@ export interface components {
         RankMappingSuggestion: {
             source_text: string;
             suggested_rank_code: string | null;
+            /** @description The source marks its own doubt, as in 'Red stripe?'. */
+            doubtful: boolean;
+            /** @description How many rows use this text. */
+            rows: number;
         };
         ReadinessResponse: {
             status: string;
@@ -2095,6 +2642,10 @@ export interface components {
         };
         SiteSettings: {
             club_name: string;
+            /** @description The club's time zone (an IANA name). Times are shown in it, and 'today' is today there. */
+            time_zone: string;
+            /** @description The maximum import file size enforced by this deployment, in bytes. */
+            import_upload_max_bytes: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
         };
@@ -2109,14 +2660,19 @@ export interface components {
          *
          *     One serializer rather than three: create and update share every field,
          *     and splitting them would just copy the same fields into different
-         *     classes. wksa_id changes after creation only from a student ID to the
-         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
-         *     wksa_id_can_change says whether that change is still to come.
+         *     classes. wksa_id can be corrected if mistyped, and a student ID becomes
+         *     the black belt ID WKSA hands out; a black belt ID never goes back to a
+         *     student ID (Student.clean()). wksa_id_can_change says whether the change
+         *     to a black belt ID is still to come.
          */
         Student: {
             readonly id: number;
             wksa_id: string;
+            /** @description Whether the ID is still a student ID, so the change to a black belt ID is still to come. Either form can be corrected. */
             readonly wksa_id_can_change: boolean;
+            readonly previous_wksa_ids: components["schemas"]["PreviousWksaId"][];
+            /** @description What an import's file said that KukGrade has no field for. */
+            readonly extra_information: components["schemas"]["StudentExtraInfo"][];
             first_name: string;
             last_name: string;
             /** Format: date */
@@ -2128,6 +2684,10 @@ export interface components {
             readonly age_band_display: string;
             /** Format: date-time */
             readonly created_at: string;
+        };
+        StudentExtraInfo: {
+            readonly label: string;
+            readonly value: string;
         };
         /**
          * @description Combines finalised native outcomes with linked, non-voided legacy
@@ -2152,6 +2712,7 @@ export interface components {
             ready: number;
             review_required: number;
             skip_existing: number;
+            excluded: number;
             rows: components["schemas"]["StudentImportRowResult"][];
         };
         /** @description Shared request shape for the preview and commit actions. */
@@ -2165,11 +2726,12 @@ export interface components {
         };
         /**
          * @description * `READY` - Ready
-         *     * `REVIEW_REQUIRED` - Needs review
-         *     * `SKIP_EXISTING` - Skip - WKSA ID exists
+         *     * `REVIEW_REQUIRED` - Needs attention
+         *     * `SKIP_EXISTING` - Already in KukGrade
+         *     * `EXCLUDED` - Left out
          * @enum {string}
          */
-        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+        StudentImportRowOutcomeEnum: "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING" | "EXCLUDED";
         StudentImportRowResult: {
             row_number: number;
             outcome: components["schemas"]["StudentImportRowOutcomeEnum"];
@@ -2220,9 +2782,10 @@ export interface components {
          *
          *     One serializer rather than three: create and update share every field,
          *     and splitting them would just copy the same fields into different
-         *     classes. wksa_id changes after creation only from a student ID to the
-         *     black belt ID WKSA hands out (Student.clean() refuses anything else);
-         *     wksa_id_can_change says whether that change is still to come.
+         *     classes. wksa_id can be corrected if mistyped, and a student ID becomes
+         *     the black belt ID WKSA hands out; a black belt ID never goes back to a
+         *     student ID (Student.clean()). wksa_id_can_change says whether the change
+         *     to a black belt ID is still to come.
          */
         StudentRequest: {
             wksa_id: string;
@@ -2240,6 +2803,17 @@ export interface components {
          * @enum {string}
          */
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
+        SuggestedStudent: {
+            student: number;
+            readonly full_name: string;
+            wksa_id: string;
+            current_rank_name: string;
+            status_display: string;
+            /** @description Higher fits better; for ordering. */
+            score: number;
+            /** @description Why the student is suggested, in plain words. */
+            reasons: string[];
+        };
         /**
          * @description * `ETIQUETTE` - Etiquette
          *     * `FUNDAMENTALS` - Fundamentals
@@ -2365,6 +2939,25 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    about_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["About"];
+                };
+            };
+        };
+    };
     audit_events_list: {
         parameters: {
             query?: {
@@ -2525,6 +3118,33 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_list: {
+        parameters: {
+            query?: {
+                kind?: "LEGACY_GRADINGS" | "STUDENT_ROSTER";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description Comma-separated; one of CANCELLED, COMMITTED, EXPIRED, UPLOADED. */
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportBatchList"];
+                };
+            };
+        };
+    };
     data_imports_batches_create: {
         parameters: {
             query?: never;
@@ -2546,6 +3166,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportBatchCreated"];
+                };
+            };
+        };
+    };
+    data_imports_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
                 };
             };
         };
@@ -2599,6 +3241,34 @@ export interface operations {
             };
         };
     };
+    data_imports_batches_mapping_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportMappingRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportMappingRequest"];
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
     data_imports_batches_preview_create: {
         parameters: {
             query?: never;
@@ -2623,6 +3293,183 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ImportPreview"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_list: {
+        parameters: {
+            query?: {
+                /** @description Only rows with (or without) a fix of the importer's. */
+                corrected?: boolean;
+                /** @description A roster's rows whose value for this field the file did not give and nobody typed in, so the whole-file value or KukGrade's default was used. */
+                filled?: "current_rank" | "status";
+                /** @description Only rows with this outcome. */
+                outcome?: "EXCLUDED" | "READY" | "REVIEW_REQUIRED" | "SKIP_EXISTING";
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+                /** @description A historical import's rows that write a rank this way, held or tested for (any case). */
+                rank_text?: string;
+                /** @description A historical import's rows of these kinds, comma-separated: GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND. */
+                record_kind?: string;
+                /** @description Matches any of the row's values. */
+                search?: string;
+                /** @description Only rows with (or without) issues. */
+                worth_a_look?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedImportRowList"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedImportRowCorrectionRequest"];
+                "application/json": components["schemas"]["PatchedImportRowCorrectionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_exclusion_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+                row_number: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportRowExclusionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRowExclusionRequest"];
+                "application/json": components["schemas"]["ImportRowExclusionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRow"];
+                };
+            };
+        };
+    };
+    data_imports_batches_rows_leave_out_attention_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_sheet_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportSheetRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportSheetRequest"];
+                "application/json": components["schemas"]["ImportSheetRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportBatch"];
+                };
+            };
+        };
+    };
+    data_imports_batches_void_records_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this import batch. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportRecordsVoidRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ImportRecordsVoidRequest"];
+                "application/json": components["schemas"]["ImportRecordsVoidRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordsVoided"];
                 };
             };
         };
@@ -3072,11 +3919,23 @@ export interface operations {
     gradings_legacy_records_list: {
         parameters: {
             query?: {
+                /** @description Someone's record not yet linked to a student: not voided, not a sheet note. */
+                awaiting_link?: boolean;
+                /** @description Records from this import. */
+                batch?: number;
+                /** @description The stable name-group key served by the people list. */
+                group_key?: string;
                 linked?: boolean;
+                /** @description Records with a rank written but not yet matched to one of KukGrade's. */
+                needs_rank?: boolean;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Part of the name as written. */
+                search?: string;
+                /** @description The name exactly as written. */
+                source_name?: string;
                 voided?: boolean;
             };
             header?: never;
@@ -3091,6 +3950,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedLegacyGradingRecordList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this legacy grading record. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"];
                 };
             };
         };
@@ -3229,6 +4110,59 @@ export interface operations {
             };
         };
     };
+    gradings_legacy_records_bulk_link_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+                "multipart/form-data": components["schemas"]["BulkLinkLegacyRecordsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyGradingRecord"][];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_people_list: {
+        parameters: {
+            query?: {
+                /** @description Only records from this import. */
+                batch?: number;
+                /** @description Only people whose records are (or are not) linked. */
+                linked?: boolean;
+                /** @description A page number within the paginated result set. */
+                page?: number;
+                /** @description Number of results to return per page. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedLegacyPersonList"];
+                };
+            };
+        };
+    };
     gradings_outcomes_list: {
         parameters: {
             query?: {
@@ -3360,6 +4294,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BulkPromotionResult"];
+                };
+            };
+        };
+    };
+    gradings_outcomes_promotion_eligibility_list: {
+        parameters: {
+            query: {
+                session: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromotionEligibility"][];
                 };
             };
         };
@@ -3697,7 +4652,10 @@ export interface operations {
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Matches a name, the current WKSA ID or a previous one. */
                 search?: string;
+                /** @description Only the students one import added. */
+                source_import?: number;
                 /** @description Comma-separated; one of ACTIVE, INACTIVE, LEFT. */
                 status?: string;
             };

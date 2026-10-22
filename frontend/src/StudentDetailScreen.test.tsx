@@ -41,6 +41,8 @@ const student = {
   id: 42,
   wksa_id: "WKSA0042",
   wksa_id_can_change: false,
+  previous_wksa_ids: [],
+  extra_information: [],
   first_name: "Alex",
   last_name: "Kim",
   date_of_birth: "2015-03-20",
@@ -164,5 +166,43 @@ describe("StudentDetailScreen delete action", () => {
     await waitFor(() =>
       expect(screen.getByText("Students list")).toBeInTheDocument(),
     );
+  });
+});
+
+describe("StudentDetailScreen extra information", () => {
+  beforeEach(() => {
+    mockGetStudentRankHistory.mockReset().mockResolvedValue(rankHistory);
+    mockGetStudentGradingHistory.mockReset().mockResolvedValue(gradingHistory);
+    mockGetRanks
+      .mockReset()
+      .mockResolvedValue({ count: 0, next: null, previous: null, results: [] });
+  });
+
+  it("shows what an import kept that KukGrade has no field for", async () => {
+    mockGetStudent.mockReset().mockResolvedValue({
+      ...student,
+      extra_information: [
+        { label: "Notes", value: "Left-handed" },
+        { label: "Parent phone", value: "07700 900001" },
+      ],
+    });
+
+    renderScreen();
+
+    const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(
+      ".detail-section-card",
+    ) as HTMLElement;
+    expect(within(card).getByText("Parent phone")).toBeVisible();
+    expect(within(card).getByText("07700 900001")).toBeVisible();
+    expect(within(card).getByText("Left-handed")).toBeVisible();
+  });
+
+  it("shows no such section when there is none", async () => {
+    mockGetStudent.mockReset().mockResolvedValue(student);
+
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "Alex Kim" });
+    expect(screen.queryByRole("heading", { name: "Extra information" })).not.toBeInTheDocument();
   });
 });

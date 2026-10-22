@@ -45,5 +45,5 @@ tmp/
 # Local agent workspace
 .claude/
 
-# Local audit notes, never committed
-audit/
+# Local audit notes at the repo root, never committed (not backend/audit/)
+/audit/

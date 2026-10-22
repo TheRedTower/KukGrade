@@ -39,7 +39,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
         "KUKGRADE_CLUB_NAME",
-        "DJANGO_TIME_ZONE",
+        "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
         "KUKGRADE_SCHOOL_PREFIX",
     ]:
@@ -108,9 +108,9 @@ def test_production_settings_are_hardened(
     assert settings.MIDDLEWARE[1] == "whitenoise.middleware.WhiteNoiseMiddleware"
     assert settings.REST_FRAMEWORK["NUM_PROXIES"] == 0
     # Pinned so that deleting either half of the throttle - the class or the
-    # rate - is caught here rather than only by the fact that login becomes
-    # silently unthrottled. accounts/tests.py proves the throttle actually
-    # engages; this proves the number it engages at.
+    # rate - is caught here rather than only by a scoped view becoming
+    # silently unthrottled. accounts/tests.py proves throttling engages;
+    # this proves the configured numbers it uses.
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] == [
         "rest_framework.throttling.ScopedRateThrottle",
     ]
@@ -123,8 +123,8 @@ def test_production_settings_are_hardened(
 
 def test_login_view_opts_into_the_scoped_throttle() -> None:
     # The setting above only throttles a view that names this scope. Without
-    # this, renaming or removing LoginView.throttle_scope would leave login
-    # unthrottled while every assertion about the *rate* kept passing.
+    # this, removing any view's scope would leave it unthrottled while every
+    # assertion about the *rate* kept passing.
     from accounts.views import ChangePasswordView, LoginView, SetupView
 
     assert LoginView.throttle_scope == "login"
@@ -239,9 +239,7 @@ def test_time_zone_defaults_to_london(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_time_zone_is_declared_in_the_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(
-        monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="America/New_York"
-    )
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, TZ="America/New_York")
 
     assert settings.TIME_ZONE == "America/New_York"
 
@@ -249,7 +247,7 @@ def test_time_zone_is_declared_in_the_environment(
 def test_a_blank_time_zone_falls_back_to_the_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    settings = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE="  ")
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, TZ="  ")
 
     assert settings.TIME_ZONE == "Europe/London"
 
@@ -258,8 +256,8 @@ def test_a_blank_time_zone_falls_back_to_the_default(
 def test_an_unknown_time_zone_stops_startup(
     monkeypatch: pytest.MonkeyPatch, bad: str
 ) -> None:
-    with pytest.raises(ImproperlyConfigured, match="DJANGO_TIME_ZONE"):
-        load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_TIME_ZONE=bad)
+    with pytest.raises(ImproperlyConfigured, match="TZ must be an IANA"):
+        load_settings(monkeypatch, **PRODUCTION_ENV, TZ=bad)
 
 
 def test_temporary_passwords_last_a_day_unless_configured(

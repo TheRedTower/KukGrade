@@ -16,6 +16,20 @@ def test_site_settings_serve_the_configured_club_name(settings: Any) -> None:
     assert response.json()["club_name"] == "Kuk Sool Won Colchester"
 
 
+def test_site_settings_serve_the_club_time_zone(settings: Any) -> None:
+    settings.TIME_ZONE = "Pacific/Auckland"
+
+    assert APIClient().get("/api/site/").json()["time_zone"] == "Pacific/Auckland"
+
+
+def test_site_settings_serve_the_effective_import_upload_limit(settings: Any) -> None:
+    settings.IMPORT_UPLOAD_MAX_BYTES = 10 * 1024 * 1024
+
+    response = APIClient().get("/api/site/")
+
+    assert response.json()["import_upload_max_bytes"] == 10 * 1024 * 1024
+
+
 def test_site_settings_serve_the_password_policy_the_server_enforces() -> None:
     # The screens' checklist renders this; it must be the policy the
     # validators run, not a copy (2026-10-19, credential slice 2).

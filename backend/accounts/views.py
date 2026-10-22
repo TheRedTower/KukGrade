@@ -45,8 +45,8 @@ from kukgrade.filtering import boolean, choice, search
 class LoginView(APIView):
     authentication_classes: Sequence[type[BaseAuthentication]] = ()
     permission_classes = [AllowAny]
-    # The one view in the API that opts into ScopedRateThrottle - unlimited
-    # password attempts is the risk this closes.
+    # Login opts into its own throttle scope so repeated password attempts
+    # are limited independently of setup and password changes.
     throttle_scope = "login"
 
     @extend_schema(request=LoginSerializer, responses=UserSerializer)

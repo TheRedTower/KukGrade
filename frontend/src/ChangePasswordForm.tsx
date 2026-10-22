@@ -11,7 +11,7 @@ type FieldErrors = {
 };
 
 type ChangePasswordFormProps = {
-  /** "Temporary password" on the forced screen, "Current password" in the menu. */
+  /** "Temporary password" on the forced screen, "Current password" in Settings. */
   currentPasswordLabel: string;
   submitLabel: string;
   submittingLabel: string;
@@ -29,7 +29,7 @@ type ChangePasswordFormProps = {
  * Changing your own password: current password, new password, confirmation.
  *
  * The one form for it, used by the forced change after a temporary password
- * and by the account menu, so both send the same request and report the
+ * and by Settings, so both send the same request and report the
  * server's answer the same way. The password rules are the server's: the
  * checklist shows the policy it serves, and its messages come back as
  * `new_password` errors. Only the confirmation is checked in the browser,

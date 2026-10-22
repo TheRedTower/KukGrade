@@ -7,6 +7,7 @@ happened when it did not is worse than no trail.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from django.db import models
@@ -38,3 +39,33 @@ def record(
         summary=summary,
         metadata=metadata or {},
     )
+
+
+def record_many(
+    action: str,
+    entries: Sequence[tuple[models.Model, str]],
+    actor: User | None = None,
+) -> list[AuditEvent]:
+    """One event per (entity, summary), written together - as record() would
+    one at a time, for an action done to many rows at once (a roster import).
+
+    Each is validated as AuditEvent.save() would, less what would cost a
+    query per event: the actor is the caller's own, and the check
+    constraints (no blank type, id or summary) are the database's on insert.
+    """
+    events = [
+        AuditEvent(
+            actor=actor,
+            actor_email=actor.email if actor else "",
+            actor_name=actor.get_full_name() if actor else "",
+            action=action,
+            entity_type=entity.__class__.__name__,
+            entity_id=str(entity.pk),
+            summary=summary,
+            metadata={},
+        )
+        for entity, summary in entries
+    ]
+    for event in events:
+        event.full_clean(exclude=["actor"], validate_constraints=False)
+    return AuditEvent.objects.bulk_create(events, batch_size=500)

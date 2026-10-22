@@ -9,7 +9,7 @@ success response, including the bulk, summary, and import actions, and
 generates the frontend's TypeScript types. Error responses are not modelled
 per endpoint: they all share the envelope in section 0b. CI fails if the
 schema drifts from the serializers or the types drift from the schema. Nothing
-is planned here: endpoints that do not exist yet (organisations, eligibility,
+is planned here: endpoints that do not exist yet (organisations, general eligibility,
 certificates, reports) are listed as deferred in `current-system.md`.
 
 ## 0. Response conventions
@@ -81,7 +81,8 @@ not the response.
 | GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
 | GET | /api/setup/ | Anonymous: `{"setup_needed": bool}`, true until the deployment's first administrator exists. Sets the CSRF cookie the setup page needs. |
 | POST | /api/setup/ | Anonymous, CSRF-checked, rate-limited like login: `{code, email, first_name?, last_name?, password}` creates the first administrator - a superuser - and signs them in (`201`, the current user). `code` is the one-time setup code from the server's log; a wrong, expired or already-used code, a password outside the policy, or any request once an administrator exists is a `400` field error. See `accounts/setup.py`. |
-| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the top bar, and `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist, and `wksa_id` - `{hint, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take and the rule in a sentence (the same one a refused ID is told), the student example using `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
+| GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the sidebar's club card; `time_zone`, the club's IANA zone from `TZ` (default `Europe/London`), in which screens show times and decide what day it is; `import_upload_max_bytes`, the effective server import-file limit from `KUKGRADE_UPLOAD_MAX_BYTES` (default 5 MiB); `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist; and `wksa_id` - `{hint, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take and the rule in a sentence (the same one a refused ID is told), the student example using `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
+| GET | /api/about/ | Signed in. What is running, for the About page: `version` (one number, written in `kukgrade/version.py` and kept equal to `pyproject.toml` and `frontend/package.json` by a test), `commit` and `built_at` (from the `KUKGRADE_BUILD_COMMIT` and `KUKGRADE_BUILD_TIME` build arguments in `docs/deployment.md`; blank and null when run from a checkout), `time_zone` (the club's) and `database` (`ok` or `unavailable`). |
 
 ## 1. Authentication
 
@@ -197,7 +198,7 @@ List, retrieve, create, update, and an administrator-only delete.
 
 | Method | Endpoint                                   | Description                                      |
 |-------|---------------------------------------------|--------------------------------------------------|
-| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `search`. Each row's `age_band`, and the `age_band` filter, are on that session's grading date when `eligible_for_session` is given - as registration works it out - and today otherwise. Each row carries `current_grading`: `{session, session_title, stage, stage_display}` for the registration that has not reached its result (`stage` one of `REGISTERED`, `BEING_ASSESSED`, `ASSESSED`, `AWAITING_DECISION`, `AWAITING_PROMOTION`), or null. |
+| GET   | /api/students/                              | List students; filters `status` (comma-separated), `current_rank_code`, `current_rank`, `age_band`, `eligible_for_session` (not Left, not yet a candidate of that session, and not registered for another grading that has not reached its result), `source_import` (only the students that import added), `search`. Each row's `age_band`, and the `age_band` filter, are on that session's grading date when `eligible_for_session` is given - as registration works it out - and today otherwise. Each row carries `current_grading`: `{session, session_title, stage, stage_display}` for the registration that has not reached its result (`stage` one of `REGISTERED`, `BEING_ASSESSED`, `ASSESSED`, `AWAITING_DECISION`, `AWAITING_PROMOTION`), or null. |
 | POST  | /api/students/                              | Create a student profile                         |
 | GET   | /api/students/{id}/                         | Retrieve a student profile                       |
 | PATCH | /api/students/{id}/                         | Update student details                          |
@@ -212,9 +213,20 @@ the cohort builder filters on rather than re-deriving the rule. `wksa_id` must b
 (`A-NNNNN`, such as `A-20819`); surrounding space is dropped and the `A`
 upper-cased, and anything else is a `wksa_id` field error. A student at a
 black belt rank (JKN and above) must hold a black belt ID. After creation the
-ID changes once at most: a student ID to a black belt ID, through `PATCH`;
-every other change is refused, and `wksa_id_can_change` on the detail says
-whether that change is still to come. Promoting a student to a black belt
+ID changes through `PATCH` in two ways: a student ID to the black belt ID
+WKSA hands out, or a mistyped ID of either form corrected (2026-10-20); a
+black belt ID never goes back to a student ID. `wksa_id_can_change` on the
+detail says whether the change to a black belt ID is still to come. A
+corrected ID is not kept - it was never the student's, and may be someone
+else's real number - only the edit's audit event records it. The student ID a
+black belt ID replaces is kept: the
+detail carries `previous_wksa_ids` (`[{wksa_id, replaced_at}]`, oldest first)
+and `extra_information` (`[{label, value}]`, what an import's file said that
+KukGrade has no field for),
+the list's `search` matches a current or a previous ID, and a new student may
+never take an ID any student has held, including a deleted student's
+(`wksa_id` field error), because the school owner confirmed a number is never
+reused. Promoting a student to a black belt
 rank is refused until their black belt ID is recorded. See
 `docs/current-system.md` for the rationale.
 
@@ -623,6 +635,7 @@ pass/fail/conditional outcome is produced.
 | Method | Endpoint                                      | Description                                  |
 |--------|-----------------------------------------------|----------------------------------------------|
 | GET    | /api/gradings/outcomes/                       | List candidate outcomes                      |
+| GET    | /api/gradings/outcomes/promotion-eligibility/?session={id} | One row per candidate in the session: candidate and outcome IDs, `eligible`, and the first blocking `reason` from the same policy used by promotion; requires outcome read permission; computed with bounded queries |
 | POST   | /api/gradings/outcomes/                       | 405; use candidate create-outcome action     |
 | PATCH  | /api/gradings/outcomes/{id}/propose/          | Propose or revise PASS/FAIL/CONDITIONAL      |
 | PATCH  | /api/gradings/outcomes/{id}/finalise/         | Final authorised Master decision             |
@@ -769,9 +782,18 @@ Status: implemented for both batch kinds - student-roster import
 
 | Method | Endpoint                                        | Description                                      |
 |--------|--------------------------------------------------|---------------------------------------------------|
-| POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`); requires `data_imports.add_importbatch` |
-| POST   | /api/data-imports/batches/{id}/preview/           | Re-parse the stored file and classify it; nothing is committed; requires `data_imports.view_importbatch` |
-| POST   | /api/data-imports/batches/{id}/commit/            | Re-validate and commit, all-or-nothing; requires `data_imports.can_commit_import` |
+| GET    | /api/data-imports/batches/                        | List imports, newest first; filters `status` (comma-separated), `kind`; requires `data_imports.view_importbatch` |
+| GET    | /api/data-imports/batches/{id}/                   | One import: kind, status, file, who and when, `next_step` (`MATCH_COLUMNS`, `REVIEW`, `CLOSED`), `detected_headers`, `column_mapping`, `defaults`, `extra_columns`, `sheet`, `sheet_names`, `sheet_error` (why the selected roster sheet could not be read), `suggested_mapping` (a roster's likely column for each field), `target_fields` (a roster's fields: `field`, `name`, `needed`, `whole_file`), `rank_mappings` (a historical import's chosen rank code by spelling, lowercased), `grading_sheets` (a historical workbook's grading sheets read), `warnings` (what reading the file left out), `row_counts`; requires `data_imports.view_importbatch` |
+| POST   | /api/data-imports/batches/                        | Upload a source file (`multipart/form-data`: `kind`, `file`, and for a roster workbook optionally `sheet`, else the sheet it opens on); the selected sheet's rows are read and stored. If an opening sheet is invalid but other sheets exist, the bounded workbook and sheet names are retained for an explicit sheet choice; requires `data_imports.add_importbatch` |
+| POST   | /api/data-imports/batches/{id}/sheet/             | `{sheet}`: read a roster from another sheet of its workbook (one of `sheet_names`); the rows are read again and the column matches, whole-file values, kept columns and fixes go; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/void-records/      | `{reason}`: void every record a finished historical import created, each with its own audit event; records already voided are left; returns `{voided}`; requires `gradings.can_reconcile_imported_history` |
+| POST   | /api/data-imports/batches/{id}/mapping/           | A roster's `column_mapping` (each column the file's own, used once), optional `defaults` (`current_rank` and/or `status`, used where a row has none; a needed field with neither is typed into each row as a fix, the row needing attention until it is) and `extra_columns` (columns kept as each new student's `extra_information`); stores them and checks every row; returns the import; requires `data_imports.change_importbatch` |
+| GET    | /api/data-imports/batches/{id}/rows/              | The stored rows, paginated, in file order; filters `outcome`, `search`, `corrected` (rows with or without a fix of the importer's), `filled` (`current_rank` or `status`: a roster's rows the file gave no value for that field and nobody typed one in, so the whole-file value or KukGrade's default was used), `worth_a_look` (rows with or without `issues`), `rank_text` (a historical import's rows writing a rank that way, held or tested for, any case), `record_kind` (a historical import's rows of these kinds, comma-separated); each has `values` by KukGrade field, `extra` (its kept columns), `cells` (a roster row's every cell by heading, as the file has it), `file_values` (a roster row's matched fields as the file has them, before any fix), `issues` (a roster row's problems; a historical record's reasons to look at it - a rank not matched yet or marked uncertain, an outcome KukGrade does not know, a sheet note - none of which stops the import), `issue_fields` (the fields a roster row's issues are about), `outcome`, `excluded`, `corrected_fields`, `created_id`; requires `data_imports.view_importbatch` |
+| PATCH  | /api/data-imports/batches/{id}/rows/{row_number}/ | Fix a roster row's values by field (null takes a fix away); every row is checked again; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/rows/{row_number}/exclusion/ | `{excluded}`: leave a row out of the import, or bring it back; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/rows/leave-out-attention/ | Leave out every roster row still needing attention, in one go; every row is checked again; returns the import; requires `data_imports.change_importbatch` |
+| POST   | /api/data-imports/batches/{id}/preview/           | Store the mapping (and, if sent, every row's corrections) and check every row; nothing is committed; requires `data_imports.change_importbatch`, as it stores what it is given |
+| POST   | /api/data-imports/batches/{id}/commit/            | Re-check every stored row and commit, all-or-nothing; a roster with any row still needing attention is refused (`rows`), nothing imported; with no body the stored mapping, fixes and rank choices are used; requires `data_imports.can_commit_import` |
 | POST   | /api/data-imports/batches/{id}/cancel/            | Delete the temp file, mark the batch cancelled; requires `data_imports.change_importbatch` |
 
 `kind` is `STUDENT_ROSTER` (`.xlsx`/`.csv`) or `LEGACY_GRADINGS` (`.xlsx`
@@ -781,7 +803,9 @@ historical workbook with no records in it, with the parser's warnings as
 further messages. `preview`/`commit` request/response shape depends on
 `kind`:
 
-Commit returns the batch's `id` and `summary_json` (safe counts only).
+Commit returns the import as `GET /{id}/` does, with `summary_json` (safe
+counts only). A field left out of a `preview` or `commit` body keeps what is
+stored rather than being emptied.
 Creating a batch returns its `id` plus three one-shot fields that are not
 stored: `already_imported_warning` (the same file was already committed),
 `detected_headers` (a roster's own header row), and `suggested_mapping` (a
@@ -804,9 +828,13 @@ best-effort column mapping to pre-fill, never applied automatically).
   unresolved" and never blocks a row from committing). Preview response
   carries `total`/`grading_result`/`auxiliary_note`/`did_not_attend`
   counts, `unresolved_current_rank`/`unresolved_testing_for_rank`/
-  `unresolved_outcome` counts, `warnings` (e.g. an unrecognised sheet),
-  and `rank_suggestions` (`source_text`, `suggested_rank_code` - an
-  exact-match suggestion only, never applied automatically). Commit creates
+  `unresolved_outcome` counts, `excluded`, `worth_a_look` (records not left
+  out that have issues), `warnings` (e.g. an unrecognised sheet), and
+  `rank_suggestions` (`source_text`, `suggested_rank_code` - the club's
+  fixed spellings included, such as "White Belt" or "DBN", never applied
+  automatically - `doubtful` where the workbook marks it with "?", and
+  `rows`, how many records use it). Saving `rank_mappings` finds each
+  record's issues again. Commit creates
   one `LegacyGradingRecord` per row (see section 11) - never a `Student`, a
   `Promotion`, or a `CandidateOutcome`.
 
@@ -821,12 +849,15 @@ Administrator-only (`gradings.can_reconcile_imported_history`).
 
 | Method | Endpoint                                                    | Description                                      |
 |--------|---------------------------------------------------------------|---------------------------------------------------|
-| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided` |
-| POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>}`; links to a `Student`    |
+| GET    | /api/gradings/legacy-records/                                  | List, newest cycle first; filters `linked`, `voided`, `batch`, `needs_rank`, `awaiting_link` (someone's record not yet linked: not voided, not a sheet note), `source_name` (exact, any case), `group_key` (the stable key served by the people list; all source-name variants in that group), `search`; each record has `current_rank_name`, `testing_for_rank_name`, `report` (its comments), `note`, `source_section`, `source_batch` |
+| GET    | /api/gradings/legacy-records/{id}/                             | Retrieve one historical record by durable ID, including linked or voided records; both roles may read it |
+| GET    | /api/gradings/legacy-records/people/                           | Records grouped by the server's normalised name key, each with `group_key`, representative `source_name`, `record_ids`, `records`, `first_period`/`last_period`, `linked_student` (only if every selected record has the same student), `shared` and up to five suggested `candidates` (`student`, `full_name`, `wksa_id`, `current_rank_name`, `status_display`, `score`, `reasons`); filters `batch`, `linked` applied to records before grouping (`false` selects only unlinked records, `true` only linked); paginated; reconcilers only. Suggestions only - nothing is linked |
+| POST   | /api/gradings/legacy-records/bulk-link/                        | Body `{"links": [{"record", "student"}], "replace"?}`, at most 500; all or nothing, each audited; a refusal is keyed by the record's id |
+| POST   | /api/gradings/legacy-records/{id}/link-student/                | Body `{"student": <id>, "replace"?}`; links to a `Student`; a record linked to someone else moves only with `replace` |
 | POST   | /api/gradings/legacy-records/{id}/unlink-student/               | No body; refused if not currently linked          |
 | POST   | /api/gradings/legacy-records/{id}/resolve-current-rank/         | Body `{"rank": <id or null>}`                     |
 | POST   | /api/gradings/legacy-records/{id}/resolve-testing-for-rank/     | Body `{"rank": <id or null>}`                     |
-| POST   | /api/gradings/legacy-records/{id}/void/                        | Body `{"reason": "<text>"}`; reason required, refused if already voided |
+| POST   | /api/gradings/legacy-records/{id}/void/                        | Body `{"reason": "<text>"}`; reason required, refused if already voided. A voided record cannot be linked, unlinked or given a rank |
 
 No ordinary `POST`/`PATCH`/`DELETE` on this resource - a record is created
 only by an `LEGACY_GRADINGS` batch commit, and every field except

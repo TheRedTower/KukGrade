@@ -18,7 +18,7 @@ from gradings.read_models import (
     StudentRankTimeline,
 )
 from students import wksa_ids
-from students.models import Student
+from students.models import PreviousWksaId, Student, StudentExtraInfo
 from students.services import create_student, update_student
 from syllabus.models import AgeBand
 
@@ -67,7 +67,15 @@ class GradingHistoryItemSerializer(serializers.Serializer[GradingHistoryItem]):
         allow_null=True,
     )
     attendance_status = serializers.ChoiceField(choices=LegacyAttendance.choices)
-    comments = serializers.CharField()
+    comments = serializers.CharField(
+        help_text=(
+            "The grading report: decision notes, or a historical record's comments."
+        ),
+    )
+    note = serializers.CharField(
+        allow_blank=True,
+        help_text="Anything else a historical sheet said beside the record.",
+    )
 
 
 class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHistory]):
@@ -161,14 +169,29 @@ class StudentListSerializer(serializers.ModelSerializer[Student]):
         return AgeBand(obj.age_band_on_date).label  # type: ignore[attr-defined]
 
 
+class PreviousWksaIdSerializer(serializers.ModelSerializer[PreviousWksaId]):
+    class Meta:
+        model = PreviousWksaId
+        fields = ("wksa_id", "replaced_at")
+        read_only_fields = fields
+
+
+class StudentExtraInfoSerializer(serializers.ModelSerializer[StudentExtraInfo]):
+    class Meta:
+        model = StudentExtraInfo
+        fields = ("label", "value")
+        read_only_fields = fields
+
+
 class StudentSerializer(serializers.ModelSerializer[Student]):
     """Detail, create and update.
 
     One serializer rather than three: create and update share every field,
     and splitting them would just copy the same fields into different
-    classes. wksa_id changes after creation only from a student ID to the
-    black belt ID WKSA hands out (Student.clean() refuses anything else);
-    wksa_id_can_change says whether that change is still to come.
+    classes. wksa_id can be corrected if mistyped, and a student ID becomes
+    the black belt ID WKSA hands out; a black belt ID never goes back to a
+    student ID (Student.clean()). wksa_id_can_change says whether the change
+    to a black belt ID is still to come.
     """
 
     current_rank_name = serializers.CharField(
@@ -176,7 +199,18 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
     )
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     age_band_display = serializers.CharField(read_only=True)
-    wksa_id_can_change = serializers.SerializerMethodField()
+    wksa_id_can_change = serializers.SerializerMethodField(
+        help_text=(
+            "Whether the ID is still a student ID, so the change to a black "
+            "belt ID is still to come. Either form can be corrected."
+        ),
+    )
+    previous_wksa_ids = PreviousWksaIdSerializer(many=True, read_only=True)
+    extra_information = StudentExtraInfoSerializer(
+        many=True,
+        read_only=True,
+        help_text="What an import's file said that KukGrade has no field for.",
+    )
 
     class Meta:
         model = Student
@@ -184,6 +218,8 @@ class StudentSerializer(serializers.ModelSerializer[Student]):
             "id",
             "wksa_id",
             "wksa_id_can_change",
+            "previous_wksa_ids",
+            "extra_information",
             "first_name",
             "last_name",
             "date_of_birth",

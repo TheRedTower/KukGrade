@@ -480,7 +480,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     const fetchMock = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
-      if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville" });
+      if (url.includes("/api/site/")) return jsonResponse(200, { club_name: "Kuk Sool Won Testville", time_zone: "Europe/London" });
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, mockSession);
       if (/\/api\/gradings\/candidates\/\d+\/$/.test(url)) {
         return jsonResponse(200, mockCandidate);

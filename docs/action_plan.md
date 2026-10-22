@@ -6,10 +6,12 @@ structural choice records it in `decision_log.md` first.
 
 ## Next
 
-In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
-(KG-A24, 2026-09-29 audit) waits until the owner asks for it.
+The 2026-10-21 dev audit fixes are on an isolated branch; see
+`audits/2026-10-21-dev-audit-fixes.md` for the fix and validation trail.
 
-1. **Go live.** Done before it (2026-10-20): what the Administrator role -
+1. **Review and merge the audit-fix branch.** Verify its CI results and review
+   the commit trail before changing `dev`.
+2. **Go live after release assurance.** Already built (2026-10-20): what the Administrator role -
    not superuser - can and cannot do (`permissions.md`, "What an
    Administrator can do to other accounts"), and the server side of setting
    up the first administrator (`/api/setup/` with a one-time code from the
@@ -17,21 +19,33 @@ In the owner's order (2026-10-20): 1, 2, 3, 4, then 5. Release assurance
    (`SetupPage.tsx`). Then connect the production image to the real Traefik and PostgreSQL host, cap the request
    body at Traefik, and verify backup, restore, and monitoring before
    describing it as live (`deployment.md`).
-2. **The syllabus row-divider defect** (fixed 2026-10-20: the first cell
-   stays a table cell, `Syllabus.css`).
-3. **Extend the accessibility pass to the other screens** (done 2026-10-20:
-   `current-system.md`, "Accessibility pass over the rest of the app").
-4. **Plain-language sweep of every screen's wording** (done 2026-10-20:
-   `current-system.md`, "Plain wording").
-5. **Housekeeping** (done 2026-10-20: decision log, Open decisions 3).
+**The import overhaul** (decision log 2026-10-20):
+
+- Backend: A0 read the real workbook (done 2026-10-20: findings in the
+  decision log); A1 stored rows and A2 the batch API (list, mapping, paged rows,
+  per-row fixes; done 2026-10-20); A3 a fast bulk roster commit with a lower row limit and no
+  worker (done 2026-10-20: 1,000 rows, 0.6 s); A4 mapping onto KukGrade's fields, whole-file values, extra
+  information and the grading report (done 2026-10-20 for rosters and the
+  Colchester workbook, side tables included; a mapping for other grading
+  spreadsheets waits for a second real file); A5 and A6 per-row historical preview
+  and suggested student links (done 2026-10-20); A7 voiding a wrong batch, choosing the sheet (done 2026-10-20).
+  The backend was tested end to end against the production image at that
+  point; later audit fixes and validation are recorded separately.
+- Frontend: B1–B5 delivered the Imports area, guided flow, historical
+  linking screen, hooks, tests and accessibility. The 2026-10-21 audit-fix
+  branch adds persistent historical correction and closes the import-flow
+  defects found in review.
 
 Later, when the owner asks: release assurance (KG-A24); rehearsing the
 historical import against a sanitised copy of the real KSW Colchester
-workbook (`data-import-and-legacy-migration.md`).
+workbook (`data-import-and-legacy-migration.md`) - the overhaul's A0 reads
+the owner's sample, but the full rehearsal is separate.
 
 ## Known defects
 
-None recorded.
+See `audits/2026-10-21-dev-audit-fixes.md` for the audit disposition and
+any remaining limitations. Dated audit findings are snapshots, not a claim
+that an unresolved defect still exists.
 
 ## Waiting on a release
 
@@ -42,12 +56,9 @@ None recorded.
 
 ## Needs a decision first
 
-- **Previous WKSA IDs** (decision log 2026-10-20): keeping the student ID a
-  black belt ID replaced as a previous ID, and finding a student by either.
-  The two forms, the black belt rank rule and the one change are built; the
-  replaced ID is in that change's audit event meanwhile. Whether a leaver's
-  student number can be given to someone new decides whether previous IDs
-  stay unique; the school owner is to answer.
+- **Previous WKSA IDs**: built 2026-10-20, with a deleted student's IDs
+  retired too (decision log, "The WKSA ID scheme"); a mistyped ID is
+  corrected through the student edit, never kept or retired.
 
 - **Black belt testing** (owner, 2026-10-20): the owner is to explain how
   black belt gradings work - the national grading, where the black belt ID

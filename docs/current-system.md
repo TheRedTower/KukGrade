@@ -1,14 +1,12 @@
 # Current System
 
-Describes the implementation on `dev` as verified on 2026-09-30.
+Describes the implementation in this checkout, refreshed on 2026-10-21.
 This document takes precedence over every other document for what exists now.
 
-Verified on 2026-09-30 with 850 backend tests and 253 frontend tests passing
-(the frontend suite in both UTC and `TZ=America/Los_Angeles`).
-Ruff, formatting, strict mypy, Django and deployment checks, migration drift,
-OpenAPI schema drift, generated API types, ESLint, TypeScript, the production
-build, and `npm audit --audit-level=high` are clean. CI enforces the same
-checks on each push and pull request.
+The 2026-10-21 dev audit and its fixes are recorded in
+`docs/audits/2026-10-21-dev-audit-fixes.md`. That record distinguishes local
+verification from CI and deployment. CI checks this implementation on each
+push and pull request.
 
 ## Implemented
 
@@ -24,9 +22,13 @@ checks on each push and pull request.
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
   health; the public `/api/health/` remains a process liveness endpoint.
-  The club name in the top bar is the `KUKGRADE_CLUB_NAME` setting, served by
+  The club name in the sidebar's club card is the `KUKGRADE_CLUB_NAME` setting, served by
   the public `/api/site/`; a session with no location shows none rather than
   an assumed venue.
+  The version (`backend/kukgrade/version.py`, one number kept equal to
+  `pyproject.toml` and `frontend/package.json` by a test) and the build
+  (commit and time, passed as image build arguments) are served to signed-in
+  users by `/api/about/`.
   See `docs/deployment.md`. Host integration and restore verification remain.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
@@ -85,10 +87,17 @@ checks on each push and pull request.
   migration 0006 tidies existing IDs and stops, listing them, if any fit
   neither form. A black belt rank (JKN and above) requires a black belt ID,
   on every path including promotion, which is refused until the ID is
-  recorded. The ID changes once at most: a student ID to the black belt ID
-  WKSA hands out at the national grading, through the student edit (API and
-  Django admin); the old ID stays in that edit's audit event. Filters: `status`, `current_rank_code`, `search`
-  (name and WKSA ID). Each list row carries `current_grading` - the
+  recorded. Through the student edit (API and Django admin) a student ID
+  becomes the black belt ID WKSA hands out at the national grading, and a
+  mistyped ID of either form can be corrected (2026-10-20; a black belt ID
+  never goes back to a student ID, and a corrected typo is not kept, only
+  audited); the student ID a black belt ID replaced is kept as one of the student's
+  previous IDs (`students.models.PreviousWksaId`, students migration 0007),
+  shown on the student page and in Django admin, matched by search and by the
+  roster import, and never available to another student - a number is never
+  reused (school owner, 2026-10-20). Deleting a student retires their IDs
+  (`students.models.RetiredWksaId`) so no one else can take them either. Filters: `status`, `current_rank_code`, `search`
+  (name, current WKSA ID or a previous one). Each list row carries `current_grading` - the
   registration not yet at its result and its stage - which the Students
   screen shows as "Current grading" (2026-10-19). **Hard delete (2026-09-22, administrator-only)**:
   `DELETE /api/students/{id}/` (`students.services.delete_student`) cascades
@@ -103,15 +112,36 @@ checks on each push and pull request.
 - **Bulk student-roster import** (`data_imports` app, 2026-09-21,
   administrator-only): upload a `.xlsx`/`.csv` roster, preview row-by-row
   classification (ready/needs review/skip existing), then commit - every
-  created student goes through the ordinary `students.services.create_student`
-  service, so validation and the normal `STUDENT_CREATED` audit event are
-  identical to a hand-created student. An existing WKSA ID is always
+  created students go through `students.services.create_students`, which
+  applies the same validation as single creation, inserts them in one batch,
+  and records one `STUDENT_CREATED` audit event per student. An existing WKSA ID is always
   skipped, never updated. Preview checks each row with the student model's
   own field and `clean()` rules, so a ready row can be committed (KG-A09). Every
   upload is bounded while it is read - size, rows, columns, sheets and the
   expanded size of an `.xlsx` - and a source file is deleted only after its
   batch's commit, cancel or expiry has committed; expiry takes the same
-  batch lock and also sweeps files no batch names (KG-A07, A08, A10). See
+  batch lock and also sweeps files no batch names (KG-A07, A08, A10). The
+  effective upload size limit is served by `/api/site/`; the browser uses it for the early check
+  and guidance, while the backend remains the enforcing authority. Since
+  2026-10-20 (import overhaul A1-A2) a file is read once, at upload, into
+  stored rows (`data_imports.models.ImportRow`); matching columns, checking,
+  fixing a row and leaving one out work on those rows under the batch lock,
+  so an import can be left and resumed, and finishing re-checks every row
+  against the database. Rows go when an import is cancelled or expires, and
+  30 days after it finishes (`expire_stale_import_batches`). A roster maps
+  onto KukGrade's fields with whole-file values for rank and status, and
+  columns KukGrade has no field for kept as the student's extra information
+  (`students.models.StudentExtraInfo`, on the student page). A needed field
+  the file has no column for is typed into each row instead, and a roster
+  is only imported once no row needs attention: each is fixed or left out
+  first. Each imported student records its import (`Student.source_import`),
+  so the Students list can show one import's students. The Colchester
+  workbook's side tables and loose notes are read, not dropped (A4).
+  Historical records are grouped by the server's normalised name key (source
+  spellings remain unchanged) with suggested
+  students and their reasons (`gradings/legacy_matching.py`), confirmed one
+  at a time or a person's whole history at once; a voided record can no
+  longer be changed, and moving a link needs confirming (A5-A6). See
   `docs/data-import-and-legacy-migration.md`.
 - **Historical grading-workbook migration** (2026-09-22, administrator-only):
   a second `data_imports` batch kind (`LEGACY_GRADINGS`) parses the KSW
@@ -126,7 +156,8 @@ checks on each push and pull request.
   name-to-student match applied automatically. Rank-text review works on
   distinct values across a batch, not per row, with an exact-match
   suggestion the administrator must still confirm. `GET
-  /api/gradings/legacy-records/` (both roles) plus five
+  /api/gradings/legacy-records/` and `GET
+  /api/gradings/legacy-records/{id}/` (both roles) plus five
   administrator-only reconciliation actions
   (`link-student`/`unlink-student`/`resolve-current-rank`/
   `resolve-testing-for-rank`/`void`, gated by
@@ -344,7 +375,7 @@ checks on each push and pull request.
   change-password screen. The admin site (`accounts.admin_site.
   KukGradeAdminSite`) has no password form for your own account - its
   "Change password" page and its reset of your own user point to the
-  account menu - so changing your own password has one path.
+  Settings - so changing your own password has one path.
 - **Hard-delete for admin cleanup (2026-09-21)**: `DELETE /api/users/{id}/`
   and `DELETE /api/gradings/assessments/{id}/` are genuine hard deletes, for
   corruption or test-data cleanup rather than routine correction, gated to
@@ -368,7 +399,7 @@ checks on each push and pull request.
   can never be signed into.
 - **Self-service account updates**: `PATCH /api/auth/me/` lets a signed-in
   user change their own first/last name only - email, role and authority
-  stay administrator-only; the account menu's "Edit your name" form calls it
+  stay administrator-only; Settings' Account tab calls it
   and updates the signed-in user in place. `POST /api/auth/change-password/` lets a user
   change their own password, given their current one - from the account
   menu's "Change password", or the forced change after a temporary password,
@@ -445,21 +476,33 @@ checks on each push and pull request.
   answer the instant it arrives, not a transient failure to paper over, and
   each `<App />` mount gets its own `QueryClient` rather than a module-level
   singleton, so one screen's cached session can never leak into another's.
-- **Implemented frontend workflows**: operational overview, student list,
-  student creation and detail/edit, administrator-only bulk student-roster
-  import (upload, column mapping pre-filled from the file's own headers,
-  row-by-row review with inline correction, commit), the syllabus cumulative
+- **Implemented frontend workflows**: the shell (FDR-056: a club-card sidebar
+  that collapses to an icon rail, with no top bar; its brand goes to the
+  dashboard; its foot holds the signed-in person, Settings, About with the
+  version, and GitHub) and **Settings** at `/settings` (FDR-057, FDR-058:
+  tabs of rows - Account for your name, password and capabilities;
+  Appearance for the theme and whether the sidebar starts as icons; About
+  with the version details served by `/api/about/`, a Copy details button
+  and the links), operational overview, student list,
+  student creation and detail/edit, the **Imports** area (FDR-049 to
+  FDR-055; a navigation entry for holders of `can_import_data`, replacing
+  the import buttons on Students and Gradings): the hub at `/imports`, a
+  guided import at `/imports/new` then `/imports/:id` (choose the file;
+  match a roster's columns on its first rows, typing in what is missing, or
+  a workbook's rank spellings; review every row, the ones needing attention
+  first, with a last look; confirm on the same page; the results page), and
+  linking historical records at `/imports/records`, one name at a time
+  beside the students it could be, and a persistent historical record browser
+  at `/imports/history` with direct record details at `/imports/history/:id`
+  for link replacement, unlinking, rank correction or clearing, and voiding
+  (`can_reconcile_imported_history`); the
+  old routes redirect there), the syllabus cumulative
   current-knowledge ledger (FDR-041/SCR-025), grading-session list (its
   progress counts, like the overview's, are served with each session
   rather than derived from a first page of assessments - KG-A15),
   create/detail/lifecycle controls, cohort registration, assessment snapshot
   preparation, item-level marking, outcome proposal and final decision, and
-  the promotion ledger. The administrator-only historical-import wizard
-  (upload the workbook, review rank-mapping suggestions per distinct source
-  value - never auto-applied, commit) and the historical-records
-  reconciliation screen (filter by link/void status; link to a student
-  found by name/WKSA-ID search, unlink, resolve either rank, or void with a
-  required reason) sit off the Gradings list header, administrator-only.
+  the promotion ledger.
   A student's "Grading history" card shows the unified native-plus-historical
   timeline with `KukGrade`/`Historical` source badges and Did-Not-Attend
   rendered distinctly from Fail, rather than being derived from Promotions
@@ -564,8 +607,10 @@ checks on each push and pull request.
 - **No decision on evidence that did not load (2026-09-30, KG-A16/A17)**:
   the drawer's Submit and the board's single "Record decision" wait until
   that assessment's evidence has loaded (`useSealedEvidenceLoaded`), and a
-  failed load shows a retry instead. The promotion ledger computes
-  eligibility only once candidates, outcomes and promotions have all loaded;
+  failed load shows a retry instead. The promotion ledger uses the backend's
+  per-session promotion eligibility and reason, produced by the same policy
+  as the promotion command, only once candidates, outcomes, promotions and
+  eligibility have all loaded;
   if any fails it shows a retry and offers no promotion, so an
   already-promoted student can never read as eligible. A proposal whose
   outcome creation succeeded but whose response was lost resumes against
@@ -596,7 +641,7 @@ checks on each push and pull request.
   their original summaries. Messages only a programming error can reach are
   left as they are.
 - **Accessibility pass over the rest of the app (2026-10-20)**: every other
-  screen - sign-in, setup, overview, the account menu, students and their
+  screen - sign-in, setup, overview, Settings, students and their
   forms and imports, grading sessions, registration, promotions, historical
   records, syllabus, audit, users and their dialogs - measured in a browser
   with axe (WCAG 2.2 A and AA), for 44px targets, horizontal overflow and a
@@ -614,7 +659,10 @@ checks on each push and pull request.
   `Student.date_of_birth`, `GradingHistoryItem.date`) and splits them into
   local year/month/day, while timestamps (`created_at`, `promoted_at`,
   `generated_at`, `completed_at`) keep normal parsing so they render in the
-  reader's own timezone. `new Date("2026-10-15")` is UTC midnight, so west of
+  club's time zone (`time_zone` from `/api/site/`, 2026-10-21). The signed-in
+  shell loads that setting before rendering any date-bearing screen, even
+  with a collapsed sidebar; if the setting cannot be fetched, the browser's
+  zone is used. `new Date("2026-10-15")` is UTC midnight, so west of
   UTC date-only values previously rendered as the previous day - in
   `PromotionLedgerScreen` and `StudentDetailScreen`. The student's age band
   is the API's own `age_band_display`, never recomputed in the browser - on
@@ -629,7 +677,7 @@ checks on each push and pull request.
   `formatDateTime`, `formatShortDateTime`, `formatTime`, `formatDayMonth`,
   `formatSessionDate` or `formatApiDate`, with "today"/"yesterday" decided by
   `calendarDaysAgo` - with no per-screen formatter of its own, and "today" for a date input or a
-  comparison with a date-only value is `todayIsoDate()` (local), never
+  comparison with a date-only value is `todayIsoDate()` (the club's day), never
   `toISOString()` (UTC).
 - **Frontend list correctness**: workflow views collect every API page when
   they need a complete cohort or reference set. User-facing Students and

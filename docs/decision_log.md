@@ -18,6 +18,167 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-21 - Historical linking uses the server's group key and remaining records
+
+Status: Accepted; audit repair
+
+Decision:
+The historical people endpoint serves `group_key`, the same normalised name
+key it uses to group records. The record list accepts that key as a declared
+filter, so callers can page through every spelling in the group. The
+`linked` filter on people selects records before grouping: `false` means
+records still awaiting a student, and `true` means linked records. A group
+with different linked students has no single `linked_student`.
+
+Context:
+An exact source-name lookup missed punctuation and rank-title variants.
+Filtering groups by their one-student summary also reported fully linked,
+mixed-student groups as awaiting work.
+
+Consequences:
+The linking screen uses the served key and pages through group records. It
+does not reproduce the name normaliser. Existing source text stays unchanged.
+
+### 2026-10-20 - The import screens: seven screens chosen, and what they ask of the backend
+
+Status: Accepted (design); the screens are not built yet
+
+Decision:
+The owner chose the import screens one at a time from proposed directions
+(`frontend/Frontend-Design-Register/2026-10-20-imports-overhaul/`):
+
+- **Imports hub (FDR-049):** one Imports area replaces the import buttons on
+  Students and Gradings: unfinished imports first, two plain start panels,
+  then every past import, filterable and paged.
+- **Choose file (FDR-050):** the guide to what KukGrade reads beside the drop
+  area, then a checklist of what was found once the file is read.
+- **Match columns and ranks (FDR-051):** the file's first rows with a field
+  chooser above each column, read live. The owner asked that what is missing
+  can be typed in by whoever knows it: any cell under a matched column can be
+  fixed, and a needed field the file has no column for can be typed in row by
+  row ("Type each one in").
+- **Review rows (FDR-052):** the rows that need attention first, fixable in
+  place or left out, and a "Look over all" list of exactly what will be
+  imported, fixes marked, for a person's last check before confirming.
+- **Confirm (FDR-053):** on the review page itself: once every row is
+  sorted, a banner with the summary and the button appears above the last
+  look, and the button opens a two-sentence confirmation.
+- **Results (FDR-054):** the import's own page, with the next job on top
+  (linking records to students, or a second look at what KukGrade filled
+  in) and every row and what happened to it below.
+- **Linking historical records (FDR-055):** one name at a time, its
+  records beside the students it could be, each saying whether the ranks
+  fit; tick the records, choose the student, link and move on.
+- **An unfinished import is still cleared 24 hours after upload.** Asked
+  whether that limit is needed, the owner kept it: the uploaded file and its
+  rows are personal data held outside the records, and a day is a sane time.
+- **Past gradings are never retyped.** Their records keep the workbook's
+  words exactly; what a person adds is what the words mean (a spelling's
+  rank, later the student), and a record can be left out.
+
+Context:
+The 2026-10-20 import overhaul built the backend first. These choices
+cover every import screen, from the hub to linking historical records.
+
+Consequences:
+- The backend must accept a roster mapping that has no column for a needed
+  field. Such rows stay Needs attention until each is filled, so nothing
+  missing is ever imported; today the mapping is refused.
+- The row list must also serve each cell as the file has it (for the columns
+  not imported), and the historical rows behind one rank spelling.
+- The Students list must be filterable to the students one import added.
+- **A row is only imported once KukGrade's own fields are right** (owner,
+  2026-10-20). A row still needing attention is never imported quietly:
+  each one is fixed or deliberately left out before the import can be
+  confirmed, and a single "Leave out the rest" does the latter for all that
+  remain. Today commit imports the ready rows and passes over the rest
+  without a word; it is to refuse while any row needs attention.
+
+### 2026-10-20 - The import overhaul: stored rows, mapping onto KukGrade's fields, suggested links
+
+Status: Accepted; the backend built 2026-10-20 (A0-A7, below), the screens
+to follow
+
+Decision:
+Imports are rebuilt backend first, then the screens. The owner's choices:
+
+- **Rows are kept.** Every parsed row is stored with its result and any fix,
+  so an import can be left and resumed, rows are reviewed page by page, and
+  what happened to each row can be seen afterwards. This replaces the
+  stateless preview (a fresh parse on every check, fixes resent by the
+  browser, skipped rows dropped) and the claim that review rows are "held".
+- **No background worker.** A large roster is made fast by validating once
+  and saving in bulk, still all-or-nothing, and the row limit comes down to
+  what the club needs. F-19 (about a minute for 5,000 rows) is closed by
+  this, not deferred: built 2026-10-20 (A3). The limit is 1,000 rows, and
+  1,000 rows now commit in 0.6 s with 44 queries, against 8.2 s and 8,953
+  queries one at a time, measured locally on the same scratch database.
+- **Imports map onto KukGrade's own fields.** Whatever a file has that
+  matches a field is imported there; what it lacks can be supplied by the
+  person importing for the whole file; columns KukGrade has no field for are
+  kept as labelled extra information, not dropped and not new database
+  fields. For historical gradings the comment text is kept in full as the
+  grading report. No keyword tagging, AI or OCR for now.
+- **Links are suggested, never made.** Historical records are matched to
+  students by suggestion that a person confirms singly or in bulk. Import
+  decision 3 (no auto-linking) stands, as do 4, 5, 6 and 16: rank text is
+  never silently normalised, uncertainty never blocks an import, a
+  historical Pass never creates a native promotion, and records are voided,
+  never deleted.
+
+Context:
+Findings from the owner's real workbook (read 2026-10-20: an Information sheet
+and six quarterly sheets, `062025` to `092026`, 196 rows; kept outside the
+repository):
+
+- Sheet titles are bare `MMYYYY` with no separator, which confirms the
+  adapter's pattern. Months only: no row carries a day, a WKSA ID or a date.
+- The existing adapter reads all 196 main-table rows (126 Pass, 39
+  Conditional, 24 Fail, 7 with no recognised outcome) with no warnings, but
+  **silently drops every side table**: "Unaccounted" with its own Outcome and
+  Comments (062025), "Missing" and its notes (122025), "Did not attend" and
+  "Current belt" (032026, 092026), a "General Comments - juniors" column
+  (062026) and loose notes beside the table. They sit to the right of the
+  main table in the same rows, not below it, which the adapter does not see.
+  A rehearsal would have passed while losing them; the overhaul reads each as
+  its own table or a sheet-level note, and shows anything it cannot place.
+- 092026 has two "Name" columns (the second a duplicate of the first, with a
+  merged cell), shifting the rest right by one. Header detection by content
+  copes; the adapter reads the first and warns of the repeat.
+- Names are first names only in the older sheets and full names in the
+  newer ones, and the same person recurs across sheets ("Name" and "Name
+  Surname"), so records should be grouped by person before suggesting a
+  student, with a "several students share this name" state.
+- Ranks are written "White Belt", "Yellow Belt" and so on (KukGrade: White,
+  Yellow), "DBN" (KukGrade: Dahn Bo) and its typos "DNB" and "DBn", case
+  variants ("red belt"), and "?" marking doubt.
+- Outcomes include "Pass." and "Fail." with full stops, "DNA", "did not
+  attend" and "N/A"; one outcome cell holds a free note.
+- Sheets are padded to about 1,000 empty rows.
+
+Built (2026-10-20), as decided above, with two choices made on the way:
+
+- A roster takes the club's fixed rank spellings ("White Belt" is White,
+  "DBN" Dahn Bo) as the rank, since a student is created at it; a rank the
+  file marks as doubtful ("Red stripe?") or misspells is left for the
+  importer. A historical record's rank text stays a suggestion only.
+- Nothing non-blank on a grading sheet is dropped: a cell no table claims, a
+  title above the table and a nameless row (a comment run on) are kept as
+  sheet notes, and the preview says how many.
+
+Both commits are one write: 1,000 roster rows in 0.6 s, and the real
+workbook's 214 records in 0.1 s. An end-to-end run against the production
+image on a throwaway database passed all 53 of its checks (owner-approved
+plan, 2026-10-20).
+
+Consequences:
+The plan is in `docs/action_plan.md` under the import overhaul. Statements in
+`docs/data-import-and-legacy-migration.md` about the stateless preview and
+held review rows are superseded as each slice lands. Previous WKSA IDs are
+decided (never reused) and are best built before the roster import's matching
+slice, since a roster row may quote an old student ID; email, the Settings
+page and release assurance are untouched.
+
 ### 2026-10-20 - The first administrator is set up from the site, with a code from the log
 
 Status: Accepted, built 2026-10-20
@@ -76,7 +237,7 @@ refused.
 Status: Accepted (format and the owner's answers). The two forms are
 enforced since 2026-10-20, with a black belt rank requiring a black belt ID
 and the one change from a student ID to it; the list of previous IDs is
-still to build
+the list of previous IDs is built (2026-10-20), after the owner's answer on reuse (below)
 
 Decision:
 A WKSA ID is never free text. It is the identifier a student is known and
@@ -111,7 +272,12 @@ When the black belt ID is given (the owner, 2026-10-20): at the national
 grading, straight after the promotion, so it takes effect at once - there is
 no period as a black belt with a student ID. When the instructor or Master is
 back they change the student's ID to it; that one change is the only one an
-ID ever takes. A black belt ID then stays with the student for good: later
+ID ever takes, apart from correcting a mistyped ID (owner, 2026-10-20: "the
+ID should be editable if it's mistyped" - either form may be corrected, a
+black belt ID never goes back to a student ID, and a corrected typo is not
+kept as a previous ID or retired, since it was never the student's and may
+be someone else's real number; the edit's audit event records it). A black
+belt ID then stays with the student for good: later
 ranks and certificates come under the same ID. So a black belt rank (JKN and
 above) requires a black belt ID, and promotion to one waits for it to be
 recorded. Until previous IDs are built, the old student ID is kept in the
@@ -139,11 +305,29 @@ Consequences:
   recording a black belt ID (built 2026-10-20), which will move the old one
   into the list of previous IDs once that list exists.
 
-Question to answer before previous IDs are built:
-- When a student leaves, can their student number later be given to a new
-  student? If it can, an old ID can belong to two people at different times,
-  and a lookup by a previous ID has to be told which period it is about; if
-  it cannot, every ID - current or previous - is unique for good.
+Answered 2026-10-20 (school owner, by message): "The number that is allocated
+stays with the student even if the student leaves." A number is never given
+to a second person, so a student ID - and the one it was replaced by when a
+student became a black belt - is unique for good, current or previous. A
+lookup by a previous ID is never ambiguous, and KukGrade can hold that as a
+rule: no new student may take an ID any student holds or has held. The
+remaining work is the list of previous IDs itself (see "How previous IDs are
+kept" above), built 2026-10-20: `students.models.PreviousWksaId`, written when
+`update_student` replaces an ID, with the replaced IDs already in the audit
+trail carried over by the migration; unique, student-form only (a database
+check), refused to any new student (`Student.clean()`), and protected against
+a creation racing the change by a per-ID transaction lock
+(`students.services.lock_wksa_ids`). The student page shows them, the list
+and Django admin search them, and a roster row quoting one is an existing
+student, not a new one.
+
+Deleted students too (owner, 2026-10-20: "same for deletions"): deleting a
+student retires their current ID and every previous one
+(`students.models.RetiredWksaId`), and no new student may take a retired ID.
+The migration retires the IDs that earlier deletions' audit events name. A
+consequence to know: re-adding a student deleted by mistake under their own
+number is refused. A mistyped ID needs no release: it is corrected, not
+deleted (above), so the real holder of that number is never blocked.
 
 ### 2026-10-19 - Email and credential lifecycle: the packet as amended
 
@@ -404,7 +588,8 @@ None change the API schema.
 Status: Accepted
 
 Decision:
-`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`) sets Django's
+`DJANGO_TIME_ZONE` (an IANA name, default `Europe/London`; renamed `TZ` on
+2026-10-21, below) sets Django's
 `TIME_ZONE`. It is validated when settings load, so a typo stops startup with
 a message naming the variable instead of failing inside a request.
 
@@ -422,6 +607,40 @@ Consequences:
 Changing the variable changes which day a late-evening or early-morning
 request falls on, so ages and session "today" can shift by a day at the
 boundary. It is set once per deployment, in `.env.production`.
+
+### 2026-10-21 - The screens show times in the club's time zone
+
+Status: Accepted. Supersedes the "frontend is unchanged" line of
+2026-09-30 and the reader's-own-zone rule of 2026-09-24 for timestamps.
+
+Decision:
+The club's zone, `TZ`, is served as `time_zone` by
+`GET /api/site/`, and `frontend/src/dates.ts` uses it: timestamps are shown
+as the club's clock reads, "today" (`todayIsoDate`, `currentYear`) and
+"days ago" (`calendarDaysAgo`) are the club's calendar day, counted as
+calendar days so a clock change does not move them. Date-only values
+(`grading_date`, `date_of_birth`, `effective_date`) still take no zone at
+all, so a day never moves whatever the browser or club zone. The zone is
+applied as the site settings load; until then, or for a name the browser does
+not know, the browser's zone is used (what the screens did before). No second
+`TZ` variable was added.
+
+- This also agrees the screens with the server: the audit date filter
+  already ran in the club zone while times were shown in the browser's.
+- CI still runs the suite in UTC and America/Los_Angeles; the club zone is
+  tested across both by setting it to zones far from each.
+
+Consequences:
+A reader abroad sees the club's time, not their own. Times carry no zone
+label.
+
+Amended the same day (owner): the zone is set once, when the container is
+set up, and is not edited in the application - so Settings has no Club tab
+and there is no settings model, permission or audit event for it. The
+zone is the one variable `TZ`, the name people already know from containers;
+`DJANGO_TIME_ZONE` is gone, so there is only one way to set it. A typo stops
+startup naming `TZ`. (An editable club name was dropped with it: it is
+`KUKGRADE_CLUB_NAME`, set the same way.)
 
 ### 2026-09-30 - Read paths ask the server for what they show (KG-A20, A21)
 
@@ -1740,7 +1959,8 @@ hand-maintained list - and physical deletion is blocked at every layer
 (`Model.delete()`, `QuerySet.delete()`, `QuerySet.update()`); void is the
 only removal path and is itself one-shot (a second void is refused). The
 only mutation path is five service functions
-(`gradings/legacy_services.py`): `create_legacy_grading_record` (called
+(`gradings/legacy_services.py`): `create_legacy_grading_record` (since
+2026-10-20 `create_legacy_grading_records`, every record in one write; called
 once per parsed row from the commit service, no audit event of its own -
 one `IMPORT_BATCH_COMMITTED` event covers the whole batch, matching the
 roster importer) and four explicit corrections -
@@ -1749,7 +1969,8 @@ roster importer) and four explicit corrections -
 `void_legacy_record` - each auditing itself individually. A rank mapping
 is reviewed once per distinct source-text value across a batch, not per
 row, with an exact-match-only suggestion (never fuzzy, never
-auto-applied); leaving it unresolved never blocks a row from being
+auto-applied; since 2026-10-20 also the workbook's fixed spellings, "White
+Belt" and "DBN", still never a near miss); leaving it unresolved never blocks a row from being
 committed, unlike the roster importer's required `Student.current_rank` -
 it is correctable at any time afterwards via the reconciliation API.
 Reading an imported record (`GET /api/gradings/legacy-records/`) matches
@@ -2898,10 +3119,11 @@ answers to the rest are under "2026-10-18 - Owner answers on the audit's open
 decisions" above.
 
 1. **WKSA ID case and uniqueness (F-30)** - settled by "2026-10-20 - The
-   WKSA ID scheme" above: the two forms are enforced on every path. Still
-   open there: whether a leaver's student number is ever reused.
-2. **Roster import (F-19)** - deferred to the planned import overhaul. A
-   5,000-row commit takes about a minute in one request.
+   WKSA ID scheme" above: the two forms are enforced on every path, and the
+   school owner confirmed a number is never reused, so every ID is unique
+   for good.
+2. **Roster import (F-19)** - done 2026-10-20 by the import overhaul (A3):
+   a bulk commit, and a 1,000-row limit; see the overhaul entry above.
 3. **Housekeeping** - done 2026-10-20: the logo's source artwork moved to
    `frontend/Frontend-Design-Register/brand/`, beside FDR-048, out of the
    app's code; the 5,949 orphaned dev upload files were removed with
@@ -2910,7 +3132,9 @@ decisions" above.
 
 Raised by the owner, to come back to and elaborate:
 
-4. **A Settings page (2026-10-19).** Move most of what the account menu
+4. **A Settings page (2026-10-19; designed and begun 2026-10-21 - see FDR-056 to
+   FDR-058; no Club tab: the time zone and club name are set when the container is
+   set up).** Move most of what the account menu
    holds today - editing your name, changing your password, the Master
    capability summary, appearance - onto a dedicated Settings page, so
    people make these edits on a full page rather than in the small menu

@@ -52,6 +52,28 @@ describe("Students registry screen (/students)", () => {
     expect(screen.getByRole("button", { name: /Add student/i })).toBeVisible();
   });
 
+  it("shows only one import's students when an import's results link here", async () => {
+    window.history.replaceState({}, "", "/students?source_import=7");
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/ranks/") || url.includes("/api/students/")) {
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByText("Only the students one import added")).toBeVisible();
+    const listed = () =>
+      fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/api/students/?"));
+    await waitFor(() => expect(listed().some((url) => url.includes("source_import=7"))).toBe(true));
+    await user.click(screen.getByRole("button", { name: "Show every student" }));
+    expect(screen.queryByText("Only the students one import added")).not.toBeInTheDocument();
+  });
+
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
       { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
@@ -131,7 +153,12 @@ describe("Students registry screen (/students)", () => {
         });
       }
       if (url.match(/\/api\/students\/\d+\//)) {
-        return jsonResponse(200, testStudents[0]);
+        return jsonResponse(200, {
+          ...testStudents[0],
+          wksa_id_can_change: true,
+          previous_wksa_ids: [],
+    extra_information: [],
+        });
       }
       if (url.includes("/api/students/")) {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testStudents });
@@ -374,6 +401,7 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/site/")) {
         return jsonResponse(200, {
           club_name: "Test Club",
+          time_zone: "Europe/London",
           password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
           wksa_id: {
             hint: "Use a student ID such as 206-2-150 or a black belt ID such as A-20819.",
@@ -550,6 +578,8 @@ describe("Student detail screen (/students/:id)", () => {
     id: 10,
     wksa_id: "UK-5001",
     wksa_id_can_change: true,
+    previous_wksa_ids: [],
+    extra_information: [],
     first_name: "Alex",
     last_name: "Carter",
     date_of_birth: "2012-04-24",
@@ -690,6 +720,7 @@ describe("Student detail screen (/students/:id)", () => {
               outcome: "PASS",
               attendance_status: "ATTENDED",
               comments: "Excellent forms and techniques.",
+              note: "",
               promotion_id: 101,
             },
           ],
@@ -865,7 +896,7 @@ describe("Student detail screen (/students/:id)", () => {
     expect(editBtn).toHaveFocus();
   });
 
-  it("records the black belt ID once, and never changes it after", async () => {
+  it("records the black belt ID, which can still be corrected after", async () => {
     let student: StudentDetail = { ...testStudent };
     const sent: unknown[] = [];
     vi.stubGlobal(
@@ -880,7 +911,12 @@ describe("Student detail screen (/students/:id)", () => {
         }
         if (url.includes("/api/students/10/") && options?.method === "PATCH") {
           sent.push(JSON.parse(options.body as string));
-          student = { ...student, wksa_id: "A-20819", wksa_id_can_change: false };
+          student = {
+            ...student,
+            wksa_id: "A-20819",
+            wksa_id_can_change: false,
+            previous_wksa_ids: [{ wksa_id: testStudent.wksa_id, replaced_at: "2026-10-20T09:00:00Z" }],
+          };
           return jsonResponse(200, student);
         }
         if (url.includes("/api/students/10/")) return jsonResponse(200, student);
@@ -899,10 +935,15 @@ describe("Student detail screen (/students/:id)", () => {
 
     await waitFor(() => expect(sent).toHaveLength(1));
     expect(sent[0]).toMatchObject({ wksa_id: "A-20819" });
+    // The student ID it replaced stays on the page, with the new one.
+    expect(await screen.findByText(/Previously/)).toHaveTextContent(`Previously ${testStudent.wksa_id}`);
 
     await user.click(await screen.findByRole("button", { name: "Edit student" }));
-    expect(await screen.findByLabelText("WKSA ID")).toBeDisabled();
-    expect(screen.getByText("A black belt ID never changes.")).toBeVisible();
+    // A mistyped ID of either form can be corrected.
+    expect(await screen.findByLabelText("WKSA ID")).toBeEnabled();
+    expect(
+      screen.getByText("Correct a mistyped black belt ID. It never goes back to a student ID."),
+    ).toBeVisible();
   });
 
   it("announces edit-student field errors and associates them with their input", async () => {

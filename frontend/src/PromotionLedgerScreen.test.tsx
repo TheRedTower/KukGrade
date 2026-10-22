@@ -45,6 +45,7 @@ const mockGetGradingSession = vi.fn();
 const mockGetGradingCandidates = vi.fn();
 const mockGetCandidateOutcomes = vi.fn();
 const mockGetPromotions = vi.fn();
+const mockGetPromotionEligibility = vi.fn();
 const mockPromoteCandidateOutcome = vi.fn();
 const mockBulkPromoteCandidateOutcomes = vi.fn();
 
@@ -56,6 +57,7 @@ vi.mock("./api", async () => {
     getAllGradingCandidates: (...args: unknown[]) => mockGetGradingCandidates(...args),
     getAllCandidateOutcomes: (...args: unknown[]) => mockGetCandidateOutcomes(...args),
     getAllPromotions: (...args: unknown[]) => mockGetPromotions(...args),
+    getPromotionEligibility: (...args: unknown[]) => mockGetPromotionEligibility(...args),
     promoteCandidateOutcome: (...args: unknown[]) => mockPromoteCandidateOutcome(...args),
     bulkPromoteCandidateOutcomes: (...args: unknown[]) => mockBulkPromoteCandidateOutcomes(...args),
   };
@@ -373,6 +375,14 @@ describe("PromotionLedgerScreen", () => {
       previous: null,
       results: mockExistingPromotions,
     });
+    mockGetPromotionEligibility.mockResolvedValue([
+      { candidate: 101, outcome: 101, eligible: true, reason: "" },
+      { candidate: 102, outcome: 102, eligible: true, reason: "" },
+      { candidate: 103, outcome: 103, eligible: false, reason: "Outcome already has a promotion." },
+      { candidate: 104, outcome: 104, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 105, outcome: 105, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 106, outcome: 106, eligible: false, reason: "Only finalised candidate outcomes can be promoted." },
+    ]);
   });
 
   it("renders screen header, breadcrumbs, candidate rows, and summary banner", async () => {
@@ -412,6 +422,23 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Diana Prince")).toBeInTheDocument();
     expect(screen.getByText("Ethan Hunt")).toBeInTheDocument();
     expect(screen.getByText("Fiona Gallagher")).toBeInTheDocument();
+  });
+
+  it("uses the server's black-belt ID blocker instead of marking a pass eligible", async () => {
+    mockGetPromotionEligibility.mockResolvedValue([
+      { candidate: 101, outcome: 101, eligible: false, reason: "Record Alex Mercer's black belt ID before promoting them to JKN." },
+      { candidate: 102, outcome: 102, eligible: true, reason: "" },
+      { candidate: 103, outcome: 103, eligible: false, reason: "Outcome already has a promotion." },
+      { candidate: 104, outcome: 104, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 105, outcome: 105, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 106, outcome: 106, eligible: false, reason: "Only finalised candidate outcomes can be promoted." },
+    ]);
+
+    renderScreen(1);
+    const row = await screen.findByTestId("promotion-row-101");
+    expect(row).toHaveTextContent("black belt ID");
+    expect(screen.queryByTestId("promote-candidate-btn-101")).not.toBeInTheDocument();
+    expect(screen.getByText("1 Candidate Finalised with Pass · Eligible for Promotion")).toBeInTheDocument();
   });
 
   it("blocks promotion when the promotions could not be loaded, until a retry succeeds", async () => {
@@ -465,13 +492,13 @@ describe("PromotionLedgerScreen", () => {
     // Row 104 (Diana Prince): Conditional (Finalised)
     const row104 = screen.getByTestId("promotion-row-104");
     expect(row104).toHaveTextContent("Conditional (Finalised)");
-    expect(row104).toHaveTextContent("Re-test required before promotion");
+    expect(row104).toHaveTextContent("Only a pass can be promoted.");
     expect(screen.queryByTestId("promote-candidate-btn-104")).not.toBeInTheDocument();
 
     // Row 105 (Ethan Hunt): Fail (Finalised)
     const row105 = screen.getByTestId("promotion-row-105");
     expect(row105).toHaveTextContent("Fail (Finalised)");
-    expect(row105).toHaveTextContent("Outcome not passed");
+    expect(row105).toHaveTextContent("Only a pass can be promoted.");
     expect(screen.queryByTestId("promote-candidate-btn-105")).not.toBeInTheDocument();
 
     // Row 106 (Fiona Gallagher): Proposed Pass (Pending finalisation)
@@ -479,7 +506,7 @@ describe("PromotionLedgerScreen", () => {
     // The served display, never the raw enum.
     expect(row106).toHaveTextContent("Proposed: Pass");
     expect(row106).not.toHaveTextContent("PASS");
-    expect(row106).toHaveTextContent("Outcome pending finalisation");
+    expect(row106).toHaveTextContent("Only finalised candidate outcomes can be promoted.");
     expect(screen.queryByTestId("promote-candidate-btn-106")).not.toBeInTheDocument();
   });
 
@@ -532,6 +559,10 @@ describe("PromotionLedgerScreen", () => {
         }),
       ],
     });
+    mockGetPromotionEligibility.mockResolvedValue([
+      { candidate: 7, outcome: 9, eligible: true, reason: "" },
+      { candidate: 9, outcome: 7, eligible: false, reason: "Outcome already has a promotion." },
+    ]);
 
     renderScreen(1);
 
@@ -852,6 +883,14 @@ describe("PromotionLedgerScreen", () => {
         }),
       ],
     });
+    mockGetPromotionEligibility.mockResolvedValue([
+      { candidate: 101, outcome: 101, eligible: false, reason: "Outcome already has a promotion." },
+      { candidate: 102, outcome: 102, eligible: false, reason: "Outcome already has a promotion." },
+      { candidate: 103, outcome: 103, eligible: false, reason: "Outcome already has a promotion." },
+      { candidate: 104, outcome: 104, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 105, outcome: 105, eligible: false, reason: "Only a pass can be promoted." },
+      { candidate: 106, outcome: 106, eligible: false, reason: "Only finalised candidate outcomes can be promoted." },
+    ]);
 
     renderScreen(1);
 

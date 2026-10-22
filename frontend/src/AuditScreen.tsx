@@ -12,14 +12,14 @@ import {
 } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./AuditScreen.css";
-import { calendarDaysAgo, formatApiDate, formatDateTime, formatTime, parseApiDate } from "./dates";
+import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
 
 const PAGE_SIZE = 10;
 
 function eventTime(value: string): { date: string; time: string } {
   const daysAgo = calendarDaysAgo(value);
   if (daysAgo === null) return { date: value, time: "" };
-  const sameYear = parseApiDate(value)?.getFullYear() === new Date().getFullYear();
+  const sameYear = formatApiDate(value, { year: "numeric" }) === String(currentYear());
 
   return {
     date:

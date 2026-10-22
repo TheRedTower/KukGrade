@@ -11,8 +11,9 @@ import pytest
 from django.apps import apps
 from django.contrib import admin
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.forms import ModelForm
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -31,6 +32,7 @@ from gradings.outcome_services import (
     create_candidate_outcome,
     finalise_candidate_outcome,
     promote_candidate,
+    promotion_eligibility_for_session,
     propose_candidate_outcome,
 )
 from gradings.read_models import student_rank_timeline
@@ -90,6 +92,63 @@ def test_valid_promotion_updates_student_rank_and_records_history() -> None:
     assert str(promotion) == (
         f"{built.student} promoted from {promotion.from_rank} to {promotion.to_rank}"
     )
+
+
+def test_ledger_eligibility_uses_promotion_policy_and_updates_with_student_id() -> None:
+    built, _assessment = locked_completed_candidate()
+    Student.objects.filter(pk=built.student_id).update(current_rank=rank("DAHN_BO"))
+    GradingCandidate.objects.filter(pk=built.pk).update(testing_for_rank=rank("JKN"))
+    finalised_outcome(built)
+    client = auth_client("eligibility-reader@example.com")
+    url = f"/api/gradings/outcomes/promotion-eligibility/?session={built.session_id}"
+
+    blocked = client.get(url)
+    assert blocked.status_code == 200
+    assert blocked.json()[0]["eligible"] is False
+    assert "black belt ID" in blocked.json()[0]["reason"]
+
+    Student.objects.filter(pk=built.student_id).update(wksa_id="A-20819")
+    ready = client.get(url)
+    assert ready.json()[0]["eligible"] is True
+    assert ready.json()[0]["reason"] == ""
+
+    GradingCandidate.objects.filter(pk=built.pk).update(testing_for_rank=rank("BROWN"))
+    wrong_rank = client.get(url)
+    assert wrong_rank.json()[0]["eligible"] is False
+    assert "no longer the next active rank" in wrong_rank.json()[0]["reason"]
+
+
+def test_ledger_eligibility_reflects_a_recorded_promotion() -> None:
+    built, _assessment = locked_completed_candidate()
+    outcome = finalised_outcome(built)
+    client = auth_client("eligibility-promoted-reader@example.com")
+    url = f"/api/gradings/outcomes/promotion-eligibility/?session={built.session_id}"
+
+    assert client.get(url).json()[0]["eligible"] is True
+    promote_candidate(outcome, promoter("eligibility-promoter@example.com"))
+    after = client.get(url).json()[0]
+    assert after["eligible"] is False
+    assert after["reason"] == "Outcome already has a promotion."
+
+
+def test_ledger_eligibility_scales_without_queries_per_candidate() -> None:
+    session = grading_session(status=GradingSession.Status.OPEN)
+    built = [candidate(session=session) for _ in range(6)]
+    for item in built:
+        generated = assessment(candidate=item)
+        start_assessment(generated)
+        complete_assessment(generated)
+    transition_grading_session(session, GradingSession.Status.LOCKED)
+    for item in built:
+        item.refresh_from_db()
+        finalised_outcome(item)
+
+    with CaptureQueriesContext(connection) as queries:
+        answer = promotion_eligibility_for_session(session.pk)
+
+    assert len(answer) == 6
+    assert all(row["eligible"] is True for row in answer)
+    assert len(queries) == 3
 
 
 def test_candidate_records_the_rank_held_at_registration() -> None:

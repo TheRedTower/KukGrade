@@ -236,7 +236,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ) -> HttpResponse:
         """A reset, as in the app: confirm, then a generated temporary
         password shown once. Nobody types another person's password here, and
-        your own is changed in KukGrade's account menu instead. The same
+        your own is changed in KukGrade's Settings instead. The same
         rules as the API's reset, checked before the confirmation too."""
         target = self.get_object(request, unquote(id))
         if not self.has_change_permission(request, target):

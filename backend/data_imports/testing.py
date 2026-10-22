@@ -20,7 +20,6 @@ from accounts.models import User
 from data_imports.models import ImportBatch
 from data_imports.services import create_import_batch
 from gradings.legacy_services import (
-    create_legacy_grading_record,
     link_legacy_record_to_student,
 )
 from gradings.models import LegacyGradingRecord, LegacyRecordKind
@@ -94,7 +93,8 @@ def legacy_record(
     data.update(overrides)
     if "source_batch" not in data:
         data["source_batch"] = legacy_batch()
-    record = create_legacy_grading_record(**data)  # type: ignore[arg-type]
+    # Saved one at a time, through the model's own full validation.
+    record = LegacyGradingRecord.objects.create(**data)
     if student is None:
         return record
     return link_legacy_record_to_student(record, student, actor=_administrator())

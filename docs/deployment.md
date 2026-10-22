@@ -24,9 +24,9 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
 4. Copy `.env.production.example` to `.env.production` on the deployment
    host. Fill in the PostgreSQL network, alias, database, role, password and
    a fresh `DJANGO_SECRET_KEY`, and set `KUKGRADE_CLUB_NAME` to the club's
-   name as it should appear in the top bar, and `DJANGO_TIME_ZONE` to the
-   club's IANA time zone (default `Europe/London`; it decides what "today"
-   means for ages and grading dates), and `KUKGRADE_SCHOOL_PREFIX` if the
+   name as it should appear in the sidebar, and `TZ` to the club's IANA time zone (default `Europe/London`; it decides
+   what "today" means for ages and grading dates, and the screens show times
+   in it - nothing else needs setting), and `KUKGRADE_SCHOOL_PREFIX` if the
    school's student IDs do not start `206-2`. Set mode
    `0600` on this file. It is ignored by Git and excluded from Docker builds.
 5. Requests pass through Cloudflare and then Traefik, so
@@ -57,6 +57,14 @@ Run all commands from the repository root on the deployment host:
 ```sh
 docker compose --env-file .env.production -f compose.prod.yml config --quiet
 docker compose --env-file .env.production -f compose.prod.yml up -d --build --wait --wait-timeout 300
+```
+
+To have the About page show which build is running, set the commit and time
+in the shell first (both are optional and only shown to people signed in):
+
+```sh
+export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
+export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
 The second command builds the app image, starts its single service, applies
@@ -122,7 +130,9 @@ already applied, restore the matching pre-update database backup first.
 The `expire_stale_import_batches` command is currently manual. Run it from
 the host's scheduler with `docker compose ... exec -T app python manage.py
 expire_stale_import_batches --hours 24` so abandoned personal-data uploads
-are deleted, along with any stored file no batch names. It exits non-zero if
+are deleted, along with any stored file no batch names and the stored rows of
+imports finished more than 30 days ago (their personal data; the import's
+record and counts stay). It exits non-zero if
 a batch could not be expired; running it again finishes the job. No worker
 container is required.
 

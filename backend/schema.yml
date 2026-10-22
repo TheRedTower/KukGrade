@@ -1,9 +1,28 @@
 openapi: 3.0.3
 info:
   title: KukGrade API
-  version: 1.0.0
+  version: 0.1.0
   description: Grading management API for Kuk Sool Won instructors and administrators.
 paths:
+  /api/about/:
+    get:
+      operationId: about_retrieve
+      description: |-
+        What is running: the About page, and what to quote when asking for help.
+
+        For anyone signed in. Nothing here is personal data, but a build's exact
+        version and commit are more than the sign-in page needs to show.
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/About'
+          description: ''
   /api/audit-events/:
     get:
       operationId: audit_events_list
@@ -231,6 +250,52 @@ paths:
                 $ref: '#/components/schemas/User'
           description: ''
   /api/data-imports/batches/:
+    get:
+      operationId: data_imports_batches_list
+      description: |-
+        Administrator-only bulk data import (import Decision 1).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - name: kind
+        required: false
+        in: query
+        description: ''
+        schema:
+          type: string
+          enum:
+          - LEGACY_GRADINGS
+          - STUDENT_ROSTER
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: status
+        required: false
+        in: query
+        description: Comma-separated; one of CANCELLED, COMMITTED, EXPIRED, UPLOADED.
+        schema:
+          type: string
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportBatchList'
+          description: ''
     post:
       operationId: data_imports_batches_create
       description: |-
@@ -261,6 +326,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ImportBatchCreated'
           description: ''
+  /api/data-imports/batches/{id}/:
+    get:
+      operationId: data_imports_batches_retrieve
+      description: |-
+        Administrator-only bulk data import (import Decision 1).
+
+        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
+        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
   /api/data-imports/batches/{id}/cancel/:
     post:
       operationId: data_imports_batches_cancel_create
@@ -287,10 +378,8 @@ paths:
     post:
       operationId: data_imports_batches_commit_create
       description: |-
-        Administrator-only bulk data import (import Decision 1).
-
-        No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
-        `accounts.groups._DATA_IMPORT_PERMISSIONS`.
+        Finish the import. With no body, the stored mapping, fixes and rank
+        choices are used; any given here replace them first.
       parameters:
       - in: path
         name: id
@@ -311,6 +400,41 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ImportRequestRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/mapping/:
+    post:
+      operationId: data_imports_batches_mapping_create
+      description: Match a roster's columns to KukGrade's fields, and check every
+        row.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportMappingRequest'
+        required: true
       security:
       - cookieAuth: []
       responses:
@@ -356,6 +480,259 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ImportPreview'
+          description: ''
+  /api/data-imports/batches/{id}/rows/:
+    get:
+      operationId: data_imports_batches_rows_list
+      description: The import's rows, a page at a time, in file order.
+      parameters:
+      - in: query
+        name: corrected
+        schema:
+          type: boolean
+        description: Only rows with (or without) a fix of the importer's.
+      - in: query
+        name: filled
+        schema:
+          type: string
+          enum:
+          - current_rank
+          - status
+        description: A roster's rows whose value for this field the file did not give
+          and nobody typed in, so the whole-file value or KukGrade's default was used.
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: query
+        name: outcome
+        schema:
+          type: string
+          enum:
+          - EXCLUDED
+          - READY
+          - REVIEW_REQUIRED
+          - SKIP_EXISTING
+        description: Only rows with this outcome.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: rank_text
+        schema:
+          type: string
+        description: A historical import's rows that write a rank this way, held or
+          tested for (any case).
+      - in: query
+        name: record_kind
+        schema:
+          type: string
+        description: 'A historical import''s rows of these kinds, comma-separated:
+          GRADING_RESULT, AUXILIARY_NOTE, DID_NOT_ATTEND.'
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Matches any of the row's values.
+      - in: query
+        name: worth_a_look
+        schema:
+          type: boolean
+        description: Only rows with (or without) issues.
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedImportRowList'
+          description: ''
+  /api/data-imports/batches/{id}/rows/{row_number}/:
+    patch:
+      operationId: data_imports_batches_rows_partial_update
+      description: Fix a roster row's values; every row is checked again.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedImportRowCorrectionRequest'
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{id}/rows/{row_number}/exclusion/:
+    post:
+      operationId: data_imports_batches_rows_exclusion_create
+      description: Leave a row out of the import, or bring it back.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      - in: path
+        name: row_number
+        schema:
+          type: string
+          pattern: ^[0-9]+$
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRowExclusionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRow'
+          description: ''
+  /api/data-imports/batches/{id}/rows/leave-out-attention/:
+    post:
+      operationId: data_imports_batches_rows_leave_out_attention_create
+      description: Leave out every roster row still needing attention, in one go.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/sheet/:
+    post:
+      operationId: data_imports_batches_sheet_create
+      description: |-
+        Read a roster from another sheet of its workbook; the column matches
+        and fixes made for the old sheet go.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportSheetRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportBatch'
+          description: ''
+  /api/data-imports/batches/{id}/void-records/:
+    post:
+      operationId: data_imports_batches_void_records_create
+      description: |-
+        Void every record a finished historical import created - for a
+        wrong file imported. Records are never deleted.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this import batch.
+        required: true
+      tags:
+      - data-imports
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRecordsVoidRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportRecordsVoided'
           description: ''
   /api/gradings/assessment-items/:
     get:
@@ -885,10 +1262,35 @@ paths:
         created by data_imports.services.commit_legacy_grading_import, and only
         ever changed through the five gradings.legacy_services functions.
       parameters:
+      - name: awaiting_link
+        required: false
+        in: query
+        description: 'Someone''s record not yet linked to a student: not voided, not
+          a sheet note.'
+        schema:
+          type: boolean
+      - name: batch
+        required: false
+        in: query
+        description: Records from this import.
+        schema:
+          type: integer
+      - name: group_key
+        required: false
+        in: query
+        description: The stable name-group key served by the people list.
+        schema:
+          type: string
       - name: linked
         required: false
         in: query
         description: ''
+        schema:
+          type: boolean
+      - name: needs_rank
+        required: false
+        in: query
+        description: Records with a rank written but not yet matched to one of KukGrade's.
         schema:
           type: boolean
       - name: page
@@ -903,6 +1305,18 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - name: search
+        required: false
+        in: query
+        description: Part of the name as written.
+        schema:
+          type: string
+      - name: source_name
+        required: false
+        in: query
+        description: The name exactly as written.
+        schema:
+          type: string
       - name: voided
         required: false
         in: query
@@ -919,6 +1333,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedLegacyGradingRecordList'
+          description: ''
+  /api/gradings/legacy-records/{id}/:
+    get:
+      operationId: gradings_legacy_records_retrieve
+      description: |-
+        Historical import records - read for both roles, reconciliation
+        (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
+        and 15). No ordinary create/update/delete: rows are only ever
+        created by data_imports.services.commit_legacy_grading_import, and only
+        ever changed through the five gradings.legacy_services functions.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this legacy grading record.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
   /api/gradings/legacy-records/{id}/link-student/:
     post:
@@ -1103,6 +1544,79 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyGradingRecord'
           description: ''
+  /api/gradings/legacy-records/bulk-link/:
+    post:
+      operationId: gradings_legacy_records_bulk_link_create
+      description: |-
+        Link many records at once, all or nothing - one person's history to
+        the student confirmed for it, say.
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BulkLinkLegacyRecordsRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LegacyGradingRecord'
+          description: ''
+  /api/gradings/legacy-records/people/:
+    get:
+      operationId: gradings_legacy_records_people_list
+      description: |-
+        Records grouped by the name as written, with suggested students.
+
+        Suggestions only: nothing is linked until a person confirms it
+        (import Decision 3). Voided records and sheet notes are left out.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+        description: Only records from this import.
+      - in: query
+        name: linked
+        schema:
+          type: boolean
+        description: Only people whose records are (or are not) linked.
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLegacyPersonList'
+          description: ''
   /api/gradings/outcomes/:
     get:
       operationId: gradings_outcomes_list
@@ -1263,6 +1777,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkPromotionResult'
+          description: ''
+  /api/gradings/outcomes/promotion-eligibility/:
+    get:
+      operationId: gradings_outcomes_promotion_eligibility_list
+      parameters:
+      - in: query
+        name: session
+        schema:
+          type: integer
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PromotionEligibility'
           description: ''
   /api/gradings/promotions/:
     get:
@@ -1610,7 +2146,8 @@ paths:
     get:
       operationId: site_retrieve
       description: |-
-        Deployment settings the frontend shows, such as the club's name.
+        Deployment settings the frontend shows, such as the club's name and
+        time zone (TZ).
 
         Public, like the health check: the sign-in screen may show them too, and
         nothing here is personal data. The password policy and the WKSA ID forms
@@ -1680,9 +2217,15 @@ paths:
       - name: search
         required: false
         in: query
-        description: ''
+        description: Matches a name, the current WKSA ID or a previous one.
         schema:
           type: string
+      - name: source_import
+        required: false
+        in: query
+        description: Only the students one import added.
+        schema:
+          type: integer
       - name: status
         required: false
         in: query
@@ -2179,6 +2722,37 @@ paths:
           description: ''
 components:
   schemas:
+    About:
+      type: object
+      properties:
+        version:
+          type: string
+          description: The version of KukGrade running.
+        commit:
+          type: string
+          description: The commit it was built from; blank when run from a checkout.
+        built_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it was built; null when run from a checkout.
+        time_zone:
+          type: string
+          description: The club's time zone.
+        database:
+          allOf:
+          - $ref: '#/components/schemas/DatabaseEnum'
+          description: |-
+            Whether the database answers right now.
+
+            * `ok` - ok
+            * `unavailable` - unavailable
+      required:
+      - built_at
+      - commit
+      - database
+      - time_zone
+      - version
     ActionEnum:
       enum:
       - SESSION_CREATED
@@ -2634,6 +3208,20 @@ components:
       required:
       - errors
       - updated
+    BulkLinkLegacyRecordsRequest:
+      type: object
+      description: 'POST legacy-records/bulk-link/: many records, each to its student.'
+      properties:
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyRecordLinkRequest'
+        replace:
+          type: boolean
+          default: false
+          description: Move records already linked to another student.
+      required:
+      - links
     BulkPromotionRequest:
       type: object
       properties:
@@ -2946,6 +3534,14 @@ components:
       - session_title
       - stage
       - stage_display
+    DatabaseEnum:
+      enum:
+      - ok
+      - unavailable
+      type: string
+      description: |-
+        * `ok` - ok
+        * `unavailable` - unavailable
     DatePrecisionEnum:
       enum:
       - MONTH
@@ -3141,6 +3737,11 @@ components:
           $ref: '#/components/schemas/AttendanceStatusEnum'
         comments:
           type: string
+          description: 'The grading report: decision notes, or a historical record''s
+            comments.'
+        note:
+          type: string
+          description: Anything else a historical sheet said beside the record.
       required:
       - attendance_status
       - comments
@@ -3148,6 +3749,7 @@ components:
       - cycle_year
       - date
       - date_precision
+      - note
       - outcome
       - record_id
       - source
@@ -3271,9 +3873,130 @@ components:
       - status
     ImportBatch:
       type: object
+      description: 'An import: what was uploaded, where it is up to, and its rows''
+        counts.'
       properties:
         id:
           type: integer
+          readOnly: true
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          readOnly: true
+        kind_display:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/ImportBatchStatusEnum'
+          readOnly: true
+        status_display:
+          type: string
+          readOnly: true
+        original_filename:
+          type: string
+          readOnly: true
+        file_size:
+          type: integer
+          readOnly: true
+        uploaded_at:
+          type: string
+          format: date-time
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        committed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        committed_by_name:
+          type: string
+          readOnly: true
+        cancelled_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        next_step:
+          allOf:
+          - $ref: '#/components/schemas/NextStepEnum'
+          description: Where the import is up to, so a screen can resume it.
+          readOnly: true
+        detected_headers:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A roster's column headers, as in the file; empty otherwise.
+        column_mapping:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's chosen column for each KukGrade field.
+        defaults:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's whole-file value for a field, where a row has none.
+        extra_columns:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A roster's columns kept as each student's extra information.
+        sheet:
+          type: string
+          readOnly: true
+          description: A roster workbook's sheet being read; blank for a CSV.
+        sheet_names:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: Every sheet a roster workbook has, to choose another.
+        sheet_error:
+          type: string
+          readOnly: true
+          description: Why the selected roster sheet could not be read; choose another
+            sheet.
+        suggested_mapping:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster's likely column for each field, from its headings.
+        target_fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportField'
+          readOnly: true
+          description: The fields a roster's columns are matched to; empty otherwise.
+        rank_mappings:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A historical import's chosen rank for each spelling, by the
+            spelling lowercased; a spelling not here is left as written.
+        grading_sheets:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: A historical workbook's grading sheets that were read.
+        warnings:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: What the reading of the file left out, such as an unknown sheet.
+        row_counts:
+          allOf:
+          - $ref: '#/components/schemas/ImportRowCounts'
           readOnly: true
         summary_json:
           type: object
@@ -3281,8 +4004,33 @@ components:
             type: integer
           readOnly: true
       required:
+      - cancelled_at
+      - column_mapping
+      - committed_at
+      - committed_by_name
+      - defaults
+      - detected_headers
+      - extra_columns
+      - file_size
+      - grading_sheets
       - id
+      - kind
+      - kind_display
+      - next_step
+      - original_filename
+      - rank_mappings
+      - row_counts
+      - sheet
+      - sheet_error
+      - sheet_names
+      - status
+      - status_display
+      - suggested_mapping
       - summary_json
+      - target_fields
+      - uploaded_at
+      - uploaded_by_name
+      - warnings
     ImportBatchCreateRequest:
       type: object
       properties:
@@ -3291,6 +4039,9 @@ components:
         file:
           type: string
           format: binary
+        sheet:
+          type: string
+          description: A roster workbook's sheet to read; else the one it opens on.
       required:
       - file
       - kind
@@ -3322,14 +4073,209 @@ components:
       - detected_headers
       - id
       - suggested_mapping
+    ImportBatchStatusEnum:
+      enum:
+      - UPLOADED
+      - COMMITTED
+      - CANCELLED
+      - EXPIRED
+      type: string
+      description: |-
+        * `UPLOADED` - Uploaded
+        * `COMMITTED` - Imported
+        * `CANCELLED` - Cancelled
+        * `EXPIRED` - Expired
+    ImportField:
+      type: object
+      description: One field of KukGrade's a roster's columns are matched to.
+      properties:
+        field:
+          type: string
+        name:
+          type: string
+          description: The field's name on screen.
+        needed:
+          type: boolean
+          description: Every student must have it.
+        whole_file:
+          type: boolean
+          description: It can be given once for the whole file.
+      required:
+      - field
+      - name
+      - needed
+      - whole_file
+    ImportMappingRequest:
+      type: object
+      description: |-
+        POST /{id}/mapping/: how a roster maps onto KukGrade.
+
+        A column for each field, a whole-file value for a field the file lacks
+        (current_rank or status only), and the columns to keep as extra
+        information. A needed field with neither is typed into each row as a fix.
+      properties:
+        column_mapping:
+          type: object
+          additionalProperties:
+            type: string
+        defaults:
+          type: object
+          additionalProperties:
+            type: string
+          description: current_rank and/or status, used where a row has none.
+        extra_columns:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          description: The file's columns to keep as each student's extra information.
+      required:
+      - column_mapping
     ImportPreview:
       oneOf:
       - $ref: '#/components/schemas/StudentImportPreview'
       - $ref: '#/components/schemas/LegacyImportPreview'
+    ImportRecordsVoidRequest:
+      type: object
+      description: 'POST /{id}/void-records/: void every record a historical import
+        made.'
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          description: Why, kept on every record.
+      required:
+      - reason
+    ImportRecordsVoided:
+      type: object
+      properties:
+        voided:
+          type: integer
+          description: How many records were voided.
+      required:
+      - voided
     ImportRequestRequest:
       oneOf:
       - $ref: '#/components/schemas/StudentImportRequest'
       - $ref: '#/components/schemas/LegacyImportRequest'
+    ImportRow:
+      type: object
+      description: One stored row and what the last check made of it.
+      properties:
+        row_number:
+          type: integer
+          readOnly: true
+        source_locator:
+          type: string
+          readOnly: true
+        outcome:
+          allOf:
+          - $ref: '#/components/schemas/StudentImportRowOutcomeEnum'
+          readOnly: true
+        outcome_display:
+          type: string
+          readOnly: true
+        excluded:
+          type: boolean
+          readOnly: true
+        values:
+          type: object
+          additionalProperties:
+            type: string
+          description: The row's values by KukGrade field, as checked - for a roster
+            wksa_id, first_name, last_name, date_of_birth, current_rank and status;
+            for historical gradings name, period, current_rank, testing_for_rank,
+            outcome, report, section and note.
+        issues:
+          type: array
+          items:
+            type: string
+          description: A roster row's problems, or a historical record's reasons to
+            look at it (none of which stop the import).
+        issue_fields:
+          type: array
+          items:
+            type: string
+          description: The fields the issues are about (a roster's), to mark them.
+        corrected_fields:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: The fields whose value is the importer's fix, not the file's.
+        extra:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: The row's values in the columns kept as extra information.
+        cells:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster row's every cell by column heading, as the file has
+            it, the columns not imported included; empty for historical gradings.
+        file_values:
+          type: object
+          additionalProperties:
+            type: string
+          readOnly: true
+          description: A roster row's matched fields as the file has them, before
+            any fix; empty for historical gradings.
+        created_id:
+          type: string
+          readOnly: true
+      required:
+      - cells
+      - corrected_fields
+      - created_id
+      - excluded
+      - extra
+      - file_values
+      - issue_fields
+      - issues
+      - outcome
+      - outcome_display
+      - row_number
+      - source_locator
+      - values
+    ImportRowCounts:
+      type: object
+      properties:
+        total:
+          type: integer
+        ready:
+          type: integer
+        review_required:
+          type: integer
+        skip_existing:
+          type: integer
+        excluded:
+          type: integer
+      required:
+      - excluded
+      - ready
+      - review_required
+      - skip_existing
+      - total
+    ImportRowExclusionRequest:
+      type: object
+      properties:
+        excluded:
+          type: boolean
+          description: True leaves the row out of the import; false brings it back.
+      required:
+      - excluded
+    ImportSheetRequest:
+      type: object
+      description: 'POST /{id}/sheet/: read a roster from another sheet of its workbook.'
+      properties:
+        sheet:
+          type: string
+          minLength: 1
+      required:
+      - sheet
     IssuedTemporaryPassword:
       type: object
       description: |-
@@ -3451,6 +4397,12 @@ components:
         cycle_month:
           type: integer
           readOnly: true
+        source_batch:
+          type: integer
+          readOnly: true
+        source_section:
+          type: string
+          readOnly: true
         source_name:
           type: string
           readOnly: true
@@ -3465,6 +4417,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        current_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
         source_testing_for_rank_text:
           type: string
           readOnly: true
@@ -3476,6 +4432,10 @@ components:
           type: string
           readOnly: true
           nullable: true
+        testing_for_rank_name:
+          type: string
+          readOnly: true
+          nullable: true
         outcome_display:
           type: string
           readOnly: true
@@ -3483,6 +4443,14 @@ components:
         attendance_status_display:
           type: string
           readOnly: true
+        report:
+          type: string
+          readOnly: true
+          description: 'The grading report: the record''s comments, as written.'
+        note:
+          type: string
+          readOnly: true
+          description: Anything else the sheet said beside the record, as written.
         is_void:
           type: boolean
           readOnly: true
@@ -3498,19 +4466,25 @@ components:
       - attendance_status_display
       - current_rank
       - current_rank_code
+      - current_rank_name
       - cycle_month
       - cycle_year
       - id
       - is_void
+      - note
       - outcome_display
       - record_kind
+      - report
+      - source_batch
       - source_current_rank_text
       - source_name
+      - source_section
       - source_testing_for_rank_text
       - student
       - student_display_name
       - testing_for_rank
       - testing_for_rank_code
+      - testing_for_rank_name
       - void_reason
       - voided_by_email
     LegacyImportPreview:
@@ -3530,6 +4504,11 @@ components:
           type: integer
         unresolved_outcome:
           type: integer
+        excluded:
+          type: integer
+        worth_a_look:
+          type: integer
+          description: 'Records not left out that have issues: a reason to look.'
         warnings:
           type: array
           items:
@@ -3541,6 +4520,7 @@ components:
       required:
       - auxiliary_note
       - did_not_attend
+      - excluded
       - grading_result
       - rank_suggestions
       - total
@@ -3548,6 +4528,7 @@ components:
       - unresolved_outcome
       - unresolved_testing_for_rank
       - warnings
+      - worth_a_look
     LegacyImportRequest:
       type: object
       description: |-
@@ -3563,11 +4544,71 @@ components:
           additionalProperties:
             type: string
             nullable: true
+    LegacyPerson:
+      type: object
+      description: The records that name one person the same way, and who they may
+        be.
+      properties:
+        source_name:
+          type: string
+        group_key:
+          type: string
+        record_ids:
+          type: array
+          items:
+            type: integer
+          readOnly: true
+        records:
+          type: integer
+          readOnly: true
+          description: How many records.
+        first_period:
+          type: string
+          readOnly: true
+        last_period:
+          type: string
+          readOnly: true
+        linked_student:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: The student every record here is linked to, if one is.
+        shared:
+          type: boolean
+          description: 'Several students fit equally well: a person has to choose.'
+        candidates:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedStudent'
+      required:
+      - candidates
+      - first_period
+      - group_key
+      - last_period
+      - linked_student
+      - record_ids
+      - records
+      - shared
+      - source_name
+    LegacyRecordLinkRequest:
+      type: object
+      properties:
+        record:
+          type: integer
+        student:
+          type: integer
+      required:
+      - record
+      - student
     LinkLegacyRecordRequest:
       type: object
       properties:
         student:
           type: integer
+        replace:
+          type: boolean
+          default: false
+          description: Move a record already linked to another student.
       required:
       - student
     LockedCandidateWithdrawalRequest:
@@ -3594,6 +4635,12 @@ components:
       required:
       - email
       - password
+    NextStepEnum:
+      enum:
+      - MATCH_COLUMNS
+      - REVIEW
+      - CLOSED
+      type: string
     NullEnum:
       enum:
       - null
@@ -3781,6 +4828,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/GradingSession'
+    PaginatedImportBatchList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportBatch'
+    PaginatedImportRowList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportRow'
     PaginatedLegacyGradingRecordList:
       type: object
       required:
@@ -3804,6 +4897,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LegacyGradingRecord'
+    PaginatedLegacyPersonList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LegacyPerson'
     PaginatedPromotionList:
       type: object
       required:
@@ -4009,6 +5125,31 @@ components:
         cancellation_reason:
           type: string
           writeOnly: true
+    PatchedImportRowCorrectionRequest:
+      type: object
+      description: |-
+        PATCH /{id}/rows/{row_number}/: a roster row's fixes, by field.
+
+        A null value takes the fix away, so the file's own value is used again.
+      properties:
+        wksa_id:
+          type: string
+          nullable: true
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        date_of_birth:
+          type: string
+          nullable: true
+        current_rank:
+          type: string
+          nullable: true
+        status:
+          type: string
+          nullable: true
     PatchedSelfProfileRequest:
       type: object
       description: |-
@@ -4033,9 +5174,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         wksa_id:
           type: string
@@ -4098,6 +5240,19 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
+    PreviousWksaId:
+      type: object
+      properties:
+        wksa_id:
+          type: string
+          readOnly: true
+        replaced_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - replaced_at
+      - wksa_id
     ProgrammeEnum:
       enum:
       - JUNIOR
@@ -4131,6 +5286,23 @@ components:
       - id
       - student_display_name
       - to_rank_name
+    PromotionEligibility:
+      type: object
+      properties:
+        candidate:
+          type: integer
+        outcome:
+          type: integer
+          nullable: true
+        eligible:
+          type: boolean
+        reason:
+          type: string
+      required:
+      - candidate
+      - eligible
+      - outcome
+      - reason
     PromotionRankHistory:
       type: object
       properties:
@@ -4209,7 +5381,15 @@ components:
         suggested_rank_code:
           type: string
           nullable: true
+        doubtful:
+          type: boolean
+          description: The source marks its own doubt, as in 'Red stripe?'.
+        rows:
+          type: integer
+          description: How many rows use this text.
       required:
+      - doubtful
+      - rows
       - source_text
       - suggested_rank_code
     ReadinessResponse:
@@ -4314,13 +5494,23 @@ components:
       properties:
         club_name:
           type: string
+        time_zone:
+          type: string
+          description: The club's time zone (an IANA name). Times are shown in it,
+            and 'today' is today there.
+        import_upload_max_bytes:
+          type: integer
+          description: The maximum import file size enforced by this deployment, in
+            bytes.
         password_policy:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
           $ref: '#/components/schemas/WksaIdScheme'
       required:
       - club_name
+      - import_upload_max_bytes
       - password_policy
+      - time_zone
       - wksa_id
     SourceEnum:
       enum:
@@ -4337,9 +5527,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         id:
           type: integer
@@ -4350,6 +5541,19 @@ components:
         wksa_id_can_change:
           type: boolean
           readOnly: true
+          description: Whether the ID is still a student ID, so the change to a black
+            belt ID is still to come. Either form can be corrected.
+        previous_wksa_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/PreviousWksaId'
+          readOnly: true
+        extra_information:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudentExtraInfo'
+          readOnly: true
+          description: What an import's file said that KukGrade has no field for.
         first_name:
           type: string
           maxLength: 150
@@ -4382,12 +5586,26 @@ components:
       - current_rank
       - current_rank_name
       - date_of_birth
+      - extra_information
       - first_name
       - id
       - last_name
+      - previous_wksa_ids
       - status_display
       - wksa_id
       - wksa_id_can_change
+    StudentExtraInfo:
+      type: object
+      properties:
+        label:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          readOnly: true
+      required:
+      - label
+      - value
     StudentGradingHistory:
       type: object
       description: |-
@@ -4429,11 +5647,14 @@ components:
           type: integer
         skip_existing:
           type: integer
+        excluded:
+          type: integer
         rows:
           type: array
           items:
             $ref: '#/components/schemas/StudentImportRowResult'
       required:
+      - excluded
       - ready
       - review_required
       - rows
@@ -4458,11 +5679,13 @@ components:
       - READY
       - REVIEW_REQUIRED
       - SKIP_EXISTING
+      - EXCLUDED
       type: string
       description: |-
         * `READY` - Ready
-        * `REVIEW_REQUIRED` - Needs review
-        * `SKIP_EXISTING` - Skip - WKSA ID exists
+        * `REVIEW_REQUIRED` - Needs attention
+        * `SKIP_EXISTING` - Already in KukGrade
+        * `EXCLUDED` - Left out
     StudentImportRowResult:
       type: object
       properties:
@@ -4588,9 +5811,10 @@ components:
 
         One serializer rather than three: create and update share every field,
         and splitting them would just copy the same fields into different
-        classes. wksa_id changes after creation only from a student ID to the
-        black belt ID WKSA hands out (Student.clean() refuses anything else);
-        wksa_id_can_change says whether that change is still to come.
+        classes. wksa_id can be corrected if mistyped, and a student ID becomes
+        the black belt ID WKSA hands out; a black belt ID never goes back to a
+        student ID (Student.clean()). wksa_id_can_change says whether the change
+        to a black belt ID is still to come.
       properties:
         wksa_id:
           type: string
@@ -4627,6 +5851,36 @@ components:
         * `ACTIVE` - Active
         * `INACTIVE` - Inactive
         * `LEFT` - Left
+    SuggestedStudent:
+      type: object
+      properties:
+        student:
+          type: integer
+        full_name:
+          type: string
+          readOnly: true
+        wksa_id:
+          type: string
+        current_rank_name:
+          type: string
+        status_display:
+          type: string
+        score:
+          type: integer
+          description: Higher fits better; for ordering.
+        reasons:
+          type: array
+          items:
+            type: string
+          description: Why the student is suggested, in plain words.
+      required:
+      - current_rank_name
+      - full_name
+      - reasons
+      - score
+      - status_display
+      - student
+      - wksa_id
     SyllabusItemCategoryEnum:
       enum:
       - ETIQUETTE

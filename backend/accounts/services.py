@@ -439,7 +439,7 @@ def set_user_authority(target: User, actor: User, **flags: bool | None) -> User:
 
 
 OWN_PASSWORD_RESET_MESSAGE = (
-    "Change your own password from your account menu, which asks for your current one."
+    "Change your own password in Settings, which asks for your current one."
 )
 
 

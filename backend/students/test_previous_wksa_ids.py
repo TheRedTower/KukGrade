@@ -307,7 +307,14 @@ def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
         entity_type="Student",
         entity_id="999999",
         summary="a student since deleted",
-        metadata={"before": {"wksa_id": "206-2-999"}, "after": {"wksa_id": "A-1"}},
+        metadata={"before": {"wksa_id": "206-2-999"}, "after": {"wksa_id": "A-20999"}},
+    )
+    deletion = AuditEvent.objects.create(
+        action=AuditAction.STUDENT_DELETED,
+        entity_type="Student",
+        entity_id="999999",
+        summary="deleted after receiving a black belt ID",
+        metadata={"wksa_id": "A-20999"},
     )
 
     AuditEvent.objects.create(
@@ -330,11 +337,17 @@ def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
     assert list(PreviousWksaId.objects.values_list("wksa_id", flat=True)) == [OLD]
     assert sorted(RetiredWksaId.objects.values_list("wksa_id", flat=True)) == [
         "206-2-300",
+        "206-2-999",
+        "A-20999",
         "A-30000",
     ]
+    assert (
+        RetiredWksaId.objects.get(wksa_id="206-2-999").retired_at
+        == deletion.occurred_at
+    )
     migration.carry_over_from_audit(django_apps, None)
     assert PreviousWksaId.objects.count() == 1
-    assert RetiredWksaId.objects.count() == 2
+    assert RetiredWksaId.objects.count() == 4
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)

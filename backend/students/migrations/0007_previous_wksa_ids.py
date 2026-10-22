@@ -19,6 +19,7 @@ import django.utils.timezone
 from django.db import migrations, models
 
 STUDENT_ID = re.compile(r"^[0-9]{3}-[0-9]-[0-9]{3}$")
+BLACK_BELT_ID = re.compile(r"^A-[0-9]{5}$")
 
 
 ANY_ID = re.compile(r"^([0-9]{3}-[0-9]-[0-9]{3}|A-[0-9]{5})$")
@@ -33,6 +34,9 @@ def carry_over_from_audit(apps: Any, schema_editor: Any) -> None:
     held = set(Student.objects.values_list("wksa_id", flat=True))
     held.update(Previous.objects.values_list("wksa_id", flat=True))
     held.update(Retired.objects.values_list("wksa_id", flat=True))
+    # Older deletion events named only the final ID. Keep replacements from
+    # their update events until the deletion supplies the retirement time.
+    deleted_replacements: dict[str, set[str]] = {}
     events = Event.objects.filter(entity_type="Student").order_by("occurred_at", "pk")
     for event in events.iterator():
         metadata = event.metadata if isinstance(event.metadata, dict) else {}
@@ -40,6 +44,7 @@ def carry_over_from_audit(apps: Any, schema_editor: Any) -> None:
             for wksa_id in [
                 metadata.get("wksa_id"),
                 *(metadata.get("previous_wksa_ids") or []),
+                *deleted_replacements.pop(event.entity_id, set()),
             ]:
                 if isinstance(wksa_id, str) and ANY_ID.match(wksa_id):
                     if wksa_id not in held:
@@ -53,12 +58,17 @@ def carry_over_from_audit(apps: Any, schema_editor: Any) -> None:
         after = (metadata.get("after") or {}).get("wksa_id")
         if not before or not after or before == after:
             continue
-        if not STUDENT_ID.match(before) or before in held:
+        if (
+            not STUDENT_ID.match(before)
+            or not BLACK_BELT_ID.match(after)
+            or before in held
+        ):
             continue
         if not event.entity_id.isdecimal():
             continue
         student = Student.objects.filter(pk=int(event.entity_id)).first()
         if student is None:
+            deleted_replacements.setdefault(event.entity_id, set()).add(before)
             continue
         Previous.objects.create(
             student=student,

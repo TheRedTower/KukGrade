@@ -700,6 +700,31 @@ describe("Linking historical records", () => {
     expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(1);
   });
 
+  it("retries only the remaining linked records after a partial undo failure", async () => {
+    const user = userEvent.setup();
+    let failOnce = true;
+    api.getLegacyPeople.mockResolvedValue(page([person({ record_ids: [101, 102], records: 2 })]));
+    api.bulkLinkLegacyRecords.mockResolvedValue([record(), record({ id: 102 })]);
+    api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
+      if (id === 102 && failOnce) {
+        failOnce = false;
+        return Promise.reject(new Error("temporary failure"));
+      }
+      return Promise.resolve(record({ id }));
+    });
+
+    renderAt("/imports/records");
+    await user.click(await screen.findByRole("button", { name: "Link all 2 to Mia Reynolds" }));
+    await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
+    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
+
+    await user.click(screen.getByRole("button", { name: "Undo linking “Mia R”" }));
+    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+    expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 102]);
+    expect(api.getLegacyPeople).toHaveBeenCalledTimes(4);
+  });
+
   it("keeps an unlinked record visible after linking only part of a group", async () => {
     const user = userEvent.setup();
     let secondLinked = false;

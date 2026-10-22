@@ -20,7 +20,7 @@ import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
-import { useLegacyLinking } from "./useLegacyLinking";
+import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 
 const QUEUE_SIZE = 50;
@@ -319,7 +319,15 @@ export function LinkRecordsScreen() {
 
   function undoLink(entry: (typeof linked)[number]) {
     undo.mutate(entry.recordIds, {
-      onSuccess: () => setLinked((current) => current.filter((other) => other !== entry)),
+      onSettled: (unlinkedIds, error) => {
+        const removed = unlinkedIds ?? (error instanceof PartialUnlinkError ? error.unlinkedIds : []);
+        if (removed.length === 0) return;
+        setLinked((current) => current.flatMap((other) => {
+          if (other !== entry) return [other];
+          const remaining = other.recordIds.filter((id) => !removed.includes(id));
+          return remaining.length ? [{ ...other, recordIds: remaining }] : [];
+        }));
+      },
     });
   }
 
@@ -422,7 +430,7 @@ export function LinkRecordsScreen() {
           </div>
           {undo.isError ? (
             <p className="ix-danger-text ix-small ix-queue-note" role="alert">
-              {errorMessage(undo.error, "That link could not be undone.")}
+              {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
             </p>
           ) : null}
           <ol className="ix-queue">

@@ -1,7 +1,7 @@
 import type { DataImportBatch, DataImportKind, DataImportRow } from "./api";
 
 // The wording the import screens share, so a step, a kind of import or a
-// row is named the same way everywhere (FDR-049 to FDR-055).
+// row is named the same way everywhere (FDR-049 to FDR-059).
 
 /** The five steps every import runs through, named for its kind (FDR-050). */
 export function importStepNames(kind: DataImportKind): string[] {

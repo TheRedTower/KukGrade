@@ -1,6 +1,6 @@
 # Link historical records - proposed directions (2026-10-24)
 
-Status: **selected 2026-10-24**: 8A. Design complete; not yet built.
+Status: **selected 2026-10-24**: 8A. Built on `dev`.
 
 This redoes screen 7 of `../2026-10-20-imports-overhaul/` (7B, FDR-055),
 which the owner found clunky in use: finding the right student, too many

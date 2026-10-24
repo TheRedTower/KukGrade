@@ -936,6 +936,17 @@ export async function getLegacyPeople(
   );
 }
 
+export type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
+
+/** How many names still wait to be linked, by how clear their suggested students are. */
+export async function getLegacyPeopleSummary(
+  params?: ListQuery<"gradings_legacy_records_people_summary_retrieve">,
+): Promise<LegacyPeopleSummary> {
+  return apiRequest<LegacyPeopleSummary>(
+    withQuery("/api/gradings/legacy-records/people-summary/", params),
+  );
+}
+
 /** Link many records at once, all or nothing. */
 export async function bulkLinkLegacyRecords(
   links: Schemas["LegacyRecordLinkRequest"][],

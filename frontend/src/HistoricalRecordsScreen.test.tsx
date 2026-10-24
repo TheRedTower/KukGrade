@@ -56,8 +56,8 @@ describe("Historical record recovery", () => {
 
     expect(await screen.findByText(/Linked student:/)).toHaveTextContent("Wrong Student");
     expect(api.getLegacyGradingRecords).toHaveBeenCalledWith(expect.objectContaining({ linked: true, voided: false }));
-    await user.type(screen.getByPlaceholderText("Search every student"), "Mia");
-    await user.click(await screen.findByRole("button", { name: /Mia Reynolds · Blue/ }));
+    await user.type(screen.getByLabelText("Search every student"), "Mia");
+    await user.click(await screen.findByRole("button", { name: /Mia Reynolds Blue now/ }));
     await user.click(screen.getByRole("button", { name: "Change linked student" }));
     expect(api.linkLegacyGradingRecord).not.toHaveBeenCalled();
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Replace link" }));

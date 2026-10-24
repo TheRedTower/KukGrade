@@ -54,6 +54,8 @@ export function LinkRecordsScreen() {
   const [unticked, setUnticked] = useState<number[]>([]);
   const [linkedHere, setLinkedHere] = useState<Record<number, string[]>>({});
   const [notice, setNotice] = useState("");
+  // The open row a link was started from, so its failure shows in that row.
+  const [linkedFrom, setLinkedFrom] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const batchId = batch ? Number(batch) : undefined;
@@ -106,18 +108,25 @@ export function LinkRecordsScreen() {
   const noneLeft = view === "left" && left.length === 0;
   const loading = !noneLeft && (people.isPending || people.isPlaceholderData);
   const rows = loading || noneLeft ? [] : people.data?.results ?? [];
+  const listed = noneLeft ? 0 : people.data?.count ?? 0;
   const pageSelected = rows.filter((person) => selected.includes(person.group_key) && chosenFor(person, picks));
   const clearOnPage = rows.filter((person) => view !== "done" && person.suggestion === "clear");
+
+  // Selection and an open row belong to the rows on screen.
+  function resetRows() {
+    setOpen(null);
+    setSelected([]);
+  }
 
   function show(next: NameView) {
     setView(next);
     setPage(1);
-    setOpen(null);
-    setSelected([]);
     setNotice("");
+    resetRows();
   }
 
-  function linkNames(names: LegacyPerson[]) {
+  function linkNames(names: LegacyPerson[], from: string | null = null) {
+    setLinkedFrom(from);
     const links = names.flatMap((person) => {
       const student = chosenFor(person, picks)?.student;
       return student === undefined ? [] : recordsToLink(person, unticked).map((record) => ({ record, student }));
@@ -148,7 +157,7 @@ export function LinkRecordsScreen() {
     setSelected((current) => current.filter((other) => other !== key));
   }
 
-  const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && (counts.left ?? 0) === 0;
+  const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
 
   return (
     <section aria-labelledby="ix-link-title" className="ix-page ix-page-wide">
@@ -175,7 +184,16 @@ export function LinkRecordsScreen() {
       <div className="ix-filters">
         <label className="ix-field ix-field-wide">
           Find a name
-          <input placeholder="Name as written" type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); setOpen(null); }} />
+          <input
+            placeholder="Name as written"
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+              resetRows();
+            }}
+          />
         </label>
         <label className="ix-field">
           Import
@@ -221,7 +239,7 @@ export function LinkRecordsScreen() {
             >
               Select the {clearOnPage.length} clear {clearOnPage.length === 1 ? "suggestion" : "suggestions"}
             </button>
-            <button className="btn-ghost" disabled={selected.length === 0} type="button" onClick={() => setSelected([])}>
+            <button className="btn-ghost" disabled={pageSelected.length === 0} type="button" onClick={() => setSelected([])}>
               Clear selection
             </button>
             <button className="btn-primary" disabled={pageSelected.length === 0 || link.isPending} type="button" onClick={() => linkNames(pageSelected)}>
@@ -236,7 +254,7 @@ export function LinkRecordsScreen() {
           {notice}
         </p>
       ) : null}
-      {link.isError && !open ? (
+      {link.isError && !(linkedFrom && linkedFrom === open) ? (
         <p className="ix-danger-text" role="alert">
           {errorMessage(link.error, "Those records could not be linked.")}
         </p>
@@ -271,7 +289,9 @@ export function LinkRecordsScreen() {
               <p className="ix-muted ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
                   ? `Nothing else to link. ${counted(counts.left ?? 0, "name is", "names are")} left for now.`
-                  : "No names match."}
+                  : noneLeft
+                    ? "No names are left for now."
+                    : "No names match."}
               </p>
             )}
           </div>
@@ -284,7 +304,7 @@ export function LinkRecordsScreen() {
                 <NameRow
                   batch={batchId}
                   chosen={chosen}
-                  error={link.error}
+                  error={linkedFrom === person.group_key ? link.error : null}
                   key={person.group_key}
                   left={isLeft}
                   open={open === person.group_key}
@@ -296,7 +316,7 @@ export function LinkRecordsScreen() {
                   view={view}
                   onChoose={(choice) => setPicks((current) => ({ ...current, [person.group_key]: choice }))}
                   onLeave={() => leaveName(person.group_key)}
-                  onLink={() => linkNames([person])}
+                  onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
                   onPutBack={() => putBack(person.group_key)}
                   onSelect={() =>
                     setSelected((current) =>
@@ -321,11 +341,11 @@ export function LinkRecordsScreen() {
         )}
         <ImportPager
           page={page}
-          pages={Math.ceil((people.data?.count ?? 0) / PAGE_SIZE)}
-          total={people.data?.count ?? 0}
+          pages={Math.ceil(listed / PAGE_SIZE)}
+          total={listed}
           onPage={(next) => {
             setPage(next);
-            setOpen(null);
+            resetRows();
           }}
         />
       </div>

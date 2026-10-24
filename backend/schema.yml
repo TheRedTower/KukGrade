@@ -1659,11 +1659,6 @@ paths:
         schema:
           type: string
         description: Leave these names out (comma-separated group keys).
-      - in: query
-        name: search
-        schema:
-          type: string
-        description: Part of the name as written.
       tags:
       - gradings
       security:

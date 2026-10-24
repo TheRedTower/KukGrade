@@ -157,7 +157,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                       Undo
                     </button>
                   </>
-                ) : person.shared && person.candidates.length > 1 ? (
+                ) : person.suggestion === "choose" ? (
                   <>
                     <span className="ix-warning-text ix-small ix-semibold ix-full">Students share this name. Choose one.</span>
                     {person.candidates.slice(0, 3).map((candidate) => (

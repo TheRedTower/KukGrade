@@ -99,7 +99,8 @@ The owner chose the import screens one at a time from proposed directions
   in) and every row and what happened to it below.
 - **Linking historical records (FDR-055):** one name at a time, its
   records beside the students it could be, each saying whether the ranks
-  fit; tick the records, choose the student, link and move on.
+  fit; tick the records, choose the student, link and move on. Superseded
+  2026-10-24 by a review table (FDR-059).
 - **An unfinished import is still cleared 24 hours after upload.** Asked
   whether that limit is needed, the owner kept it: the uploaded file and its
   rows are personal data held outside the records, and a day is a sane time.

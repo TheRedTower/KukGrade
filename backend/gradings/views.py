@@ -118,16 +118,11 @@ _PEOPLE_PARAMETERS = frozenset(
         "format",
     },
 )
-_PEOPLE_SUMMARY_PARAMETERS = frozenset(
-    {"batch", "search", "exclude_group_keys", "format"},
-)
+_PEOPLE_SUMMARY_PARAMETERS = frozenset({"batch", "exclude_group_keys", "format"})
 _PEOPLE_SUGGESTIONS = ("clear", "choose", "none")
 _PEOPLE_KEY_LIMIT = 100
 _PEOPLE_BATCH = OpenApiParameter(
     "batch", int, description="Only records from this import."
-)
-_PEOPLE_SEARCH = OpenApiParameter(
-    "search", str, description="Part of the name as written."
 )
 _PEOPLE_EXCLUDE = OpenApiParameter(
     "exclude_group_keys",
@@ -955,7 +950,11 @@ class LegacyGradingRecordViewSet(
                 bool,
                 description="Only people whose records are (or are not) linked.",
             ),
-            _PEOPLE_SEARCH,
+            OpenApiParameter(
+                "search",
+                str,
+                description="Part of the name as written.",
+            ),
             OpenApiParameter(
                 "suggestion",
                 str,
@@ -988,7 +987,7 @@ class LegacyGradingRecordViewSet(
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
 
     @extend_schema(
-        parameters=[_PEOPLE_BATCH, _PEOPLE_SEARCH, _PEOPLE_EXCLUDE],
+        parameters=[_PEOPLE_BATCH, _PEOPLE_EXCLUDE],
         responses=LegacyPeopleSummarySerializer,
     )
     @action(

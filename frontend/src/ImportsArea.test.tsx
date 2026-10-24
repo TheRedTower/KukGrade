@@ -446,6 +446,7 @@ describe("An import's results", () => {
         record_ids: [201],
         records: 1,
         shared: true,
+        suggestion: "choose",
         candidates: [
           { ...person().candidates[0], student: 40, full_name: "Theo Barker", current_rank_name: "Blue stripe" },
           { ...person().candidates[0], student: 41, full_name: "Theo Lane", current_rank_name: "White" },

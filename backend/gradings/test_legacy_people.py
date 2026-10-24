@@ -416,10 +416,23 @@ def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None
         current_rank=rank("YELLOW"),
         testing_for_rank=None,
     )
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=12,
+        source_current_rank_text="",
+        source_testing_for_rank_text="Red",
+        current_rank=None,
+        testing_for_rank=rank("RED"),
+    )
 
     [person] = results(client_for(admin()).get(PEOPLE))
 
-    assert person["ranks"] == ["Yellow → Purple", "Blue stripe → Blue"]
+    assert person["ranks"] == [
+        "Yellow → Purple",
+        "Blue stripe → Blue",
+        "(blank) → Red",
+    ]
     assert person["needs_rank"] is True
 
 
@@ -439,12 +452,11 @@ def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
 
     summary = client.get(SUMMARY).json()
     left_out = client.get(SUMMARY, {"exclude_group_keys": "theo"}).json()
-    searched = client.get(SUMMARY, {"search": "zac"}).json()
 
     assert summary == {"names": 3, "clear": 1, "choose": 1, "none": 1}
     assert left_out == {"names": 2, "clear": 1, "choose": 0, "none": 1}
-    assert searched == {"names": 1, "clear": 1, "choose": 0, "none": 0}
     assert client.get(SUMMARY, {"linked": "true"}).status_code == 400
+    assert client.get(SUMMARY, {"search": "zac"}).status_code == 400
 
 
 def test_the_summary_follows_the_chosen_import() -> None:

@@ -749,6 +749,8 @@ describe("Linking historical records", () => {
     await user.click(screen.getByRole("button", { name: /^Left for now/ }));
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
     expect(api.getLegacyPeople).toHaveBeenCalledWith(expect.objectContaining({ group_keys: "mia r", linked: false }));
+    await user.click(screen.getByRole("button", { name: "Review “Mia R”" }));
+    expect(screen.queryByRole("button", { name: "Leave for now" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Put “Mia R” back" }));
     expect(window.localStorage.getItem("kukgrade-left-names")).toBe("[]");
   });
@@ -810,6 +812,30 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     expect(await screen.findByText("✓ Every imported record is linked to a student.")).toBeInTheDocument();
+  });
+
+  it("shows a failed link inside the open row it came from", async () => {
+    const user = userEvent.setup();
+    api.bulkLinkLegacyRecords.mockRejectedValue(new ApiError("That record is already linked.", 400));
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
+    await user.click(await screen.findByRole("button", { name: "Link all 2 to Mia Reynolds" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("That record is already linked.");
+    expect(alert.closest(".ix-name-detail")).not.toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("says plainly when nothing is left for now", async () => {
+    const user = userEvent.setup();
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: /^Left for now/ }));
+
+    expect(await screen.findByText("No names are left for now.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
   });
 
   it("shows what could not be linked and keeps the names", async () => {

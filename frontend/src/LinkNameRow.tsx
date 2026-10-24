@@ -46,7 +46,7 @@ function NameDetails({
   onChoose: (choice: Chosen) => void;
   onTick: (record: number) => void;
   onLink: () => void;
-  onLeave: () => void;
+  onLeave?: () => void;
 }) {
   const { refresh } = useLegacyLinking();
   const [voiding, setVoiding] = useState<LegacyGradingRecord | null>(null);
@@ -143,9 +143,13 @@ function NameDetails({
           </p>
         ) : null}
         <div className="ix-actions ix-actions-split">
-          <button className="btn-ghost" type="button" onClick={onLeave}>
-            Leave for now
-          </button>
+          {onLeave ? (
+            <button className="btn-ghost" type="button" onClick={onLeave}>
+              Leave for now
+            </button>
+          ) : (
+            <span />
+          )}
           <button className="btn-primary" disabled={!chosen || ticked === 0 || pending} type="button" onClick={onLink}>
             {pending ? "Linking…" : linkLabel}
           </button>
@@ -237,7 +241,7 @@ export function NameRow({
           />
         )}
         <div className="ix-name-main">
-          <p className="ix-bold ix-name-title">“{person.source_name}”</p>
+          <p className="ix-bold">“{person.source_name}”</p>
           <p className="ix-muted ix-small ix-flush">
             {counted(person.records, "record", "records")} · {periodRange(person)}
           </p>
@@ -289,12 +293,12 @@ export function NameRow({
               ) : null}
               <button
                 aria-expanded={open}
-                aria-label={`${open ? "Close" : kind === "clear" ? "Review" : "Choose a student for"} “${person.source_name}”`}
+                aria-label={`${open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose a student for"} “${person.source_name}”`}
                 className="btn-ghost"
                 type="button"
                 onClick={onToggle}
               >
-                {open ? "Close" : kind === "clear" ? "Review" : "Choose"}
+                {open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose"}
               </button>
             </>
           )}
@@ -309,7 +313,7 @@ export function NameRow({
           person={person}
           unticked={unticked}
           onChoose={onChoose}
-          onLeave={onLeave}
+          onLeave={left ? undefined : onLeave}
           onLink={onLink}
           onTick={onTick}
         />

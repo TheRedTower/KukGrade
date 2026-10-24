@@ -897,12 +897,13 @@ class LegacyPersonSerializer(serializers.Serializer):
         ):
             held = record.source_current_rank_text
             testing = record.source_testing_for_rank_text
-            text = f"{held} → {testing}" if held and testing else held or testing
+            text = f"{held or '(blank)'} → {testing}" if testing else held
             if text and text not in written:
                 written.append(text)
         return written
 
     def get_needs_rank(self, group: Any) -> bool:
+        # The same rule as the record list's needs_rank filter (views).
         return any(
             (r.source_current_rank_text and r.current_rank_id is None)
             or (r.source_testing_for_rank_text and r.testing_for_rank_id is None)

@@ -4229,8 +4229,6 @@ export interface operations {
                 batch?: number;
                 /** @description Leave these names out (comma-separated group keys). */
                 exclude_group_keys?: string;
-                /** @description Part of the name as written. */
-                search?: string;
             };
             header?: never;
             path?: never;

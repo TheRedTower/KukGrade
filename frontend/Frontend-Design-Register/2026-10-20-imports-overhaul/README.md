@@ -126,3 +126,6 @@ links.
 | 7A | People Queue | One row per name with its suggestion, Link, Someone else, or a choice where two students share it; opens to its records (match rank, void). Tick names, or every name with one clear suggestion, and review every link before it is made. | Little room to compare two candidates. |
 | **7B** | **Side by Side** (selected 2026-10-20, FDR-055, SCR-035) | A queue of names beside one name's records and the students it could be, each saying whether the ranks fit; tick which records, choose the student, link and move on. | One name at a time. |
 | 7C | Student First | Choose a student; see the imported records that could be theirs, most likely first, and tick the ones that are. | Needs the backend to suggest records for a student, the reverse of today's suggestions. |
+
+7B was replaced on 2026-10-24 by a review table, 8A (FDR-059), after the
+owner found it clunky in use: see `../2026-10-24-link-records/`.

@@ -30,7 +30,8 @@ All declared in the schema and generated into the frontend's types.
 
 1. `GET gradings/legacy-records/people/` gained `search`, `suggestion`
    (`clear`, `choose`, `none`), `group_keys` and `exclude_group_keys`, and each
-   name now carries `suggestion` and `linked_student_name`.
+   name now carries `suggestion`, `ranks`, `needs_rank` and
+   `linked_student_name`.
 2. `GET gradings/legacy-records/people-summary/` returns the counts for the
    chips and the progress bar.
 3. "Left for now" is held in the browser (owner, 2026-10-24), sent to the

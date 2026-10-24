@@ -396,6 +396,41 @@ def test_a_linked_person_names_the_student_they_are_linked_to() -> None:
     assert person["suggestion"] in {"clear", "choose", "none"}
 
 
+def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None:
+    student("Zac", "Wood")
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=9,
+        source_current_rank_text="Blue stripe",
+        source_testing_for_rank_text="Blue",
+        current_rank=rank("BLUE_STRIPE"),
+        testing_for_rank=rank("BLUE"),
+    )
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=3,
+        source_current_rank_text="Yellow",
+        source_testing_for_rank_text="Purple",
+        current_rank=rank("YELLOW"),
+        testing_for_rank=None,
+    )
+
+    [person] = results(client_for(admin()).get(PEOPLE))
+
+    assert person["ranks"] == ["Yellow → Purple", "Blue stripe → Blue"]
+    assert person["needs_rank"] is True
+
+
+def test_a_person_with_every_rank_matched_needs_none() -> None:
+    legacy_record(source_name="Zac W")
+
+    [person] = results(client_for(admin()).get(PEOPLE))
+
+    assert person["needs_rank"] is False
+
+
 def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
     seeded_names()
     zac = Student.objects.get(first_name="Zac")

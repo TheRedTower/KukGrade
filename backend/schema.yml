@@ -4660,6 +4660,17 @@ components:
           nullable: true
           readOnly: true
           description: That student's name, when every record here is linked to one.
+        ranks:
+          type: array
+          items:
+            type: string
+          readOnly: true
+          description: The ranks the records give, as written, in date order.
+        needs_rank:
+          type: boolean
+          readOnly: true
+          description: Whether a rank is written on a record but not matched to one
+            yet.
         suggestion:
           allOf:
           - $ref: '#/components/schemas/SuggestionEnum'
@@ -4680,6 +4691,8 @@ components:
       - last_period
       - linked_student
       - linked_student_name
+      - needs_rank
+      - ranks
       - record_ids
       - records
       - shared

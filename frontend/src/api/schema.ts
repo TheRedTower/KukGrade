@@ -2172,6 +2172,10 @@ export interface components {
             shared: boolean;
             /** @description That student's name, when every record here is linked to one. */
             readonly linked_student_name: string | null;
+            /** @description The ranks the records give, as written, in date order. */
+            readonly ranks: string[];
+            /** @description Whether a rank is written on a record but not matched to one yet. */
+            readonly needs_rank: boolean;
             /**
              * @description How clear the suggested students are, from the candidates.
              *

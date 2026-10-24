@@ -846,6 +846,17 @@ class LegacyPersonSerializer(serializers.Serializer):
     shared = serializers.BooleanField(
         help_text="Several students fit equally well: a person has to choose.",
     )
+    linked_student_name = serializers.SerializerMethodField(
+        help_text="That student's name, when every record here is linked to one.",
+    )
+    suggestion = serializers.ChoiceField(
+        choices=[
+            ("clear", "One student fits clearly"),
+            ("choose", "Several students fit equally well"),
+            ("none", "No student fits"),
+        ],
+        help_text="How clear the suggested students are, from the candidates.",
+    )
     candidates = SuggestedStudentSerializer(many=True)
 
     def get_record_ids(self, group: Any) -> list[int]:
@@ -869,6 +880,20 @@ class LegacyPersonSerializer(serializers.Serializer):
     def get_linked_student(self, group: Any) -> int | None:
         student = group.linked_student
         return student.pk if student else None
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_linked_student_name(self, group: Any) -> str | None:
+        student = group.linked_student
+        return f"{student.first_name} {student.last_name}" if student else None
+
+
+class LegacyPeopleSummarySerializer(serializers.Serializer):
+    """Names still to link, by how clear their suggested students are."""
+
+    names = serializers.IntegerField(help_text="Names with a record still to link.")
+    clear = serializers.IntegerField(help_text="One student fits clearly.")
+    choose = serializers.IntegerField(help_text="Several students fit equally well.")
+    none = serializers.IntegerField(help_text="No student fits.")
 
 
 class ResolveLegacyRankSerializer(serializers.Serializer):

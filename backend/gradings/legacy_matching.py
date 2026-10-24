@@ -76,6 +76,13 @@ class PersonGroup:
         return self.candidates[0].score == self.candidates[1].score
 
     @property
+    def suggestion(self) -> str:
+        """How clear the suggestion is: one student, a choice, or none."""
+        if not self.candidates:
+            return "none"
+        return "choose" if self.shared else "clear"
+
+    @property
     def linked_student(self) -> Student | None:
         """The one student every record here is linked to, if there is one."""
         students = {record.student_id for record in self.records}

@@ -1583,12 +1583,24 @@ paths:
 
         Suggestions only: nothing is linked until a person confirms it
         (import Decision 3). Voided records and sheet notes are left out.
+        Only the names on the page are scored for suggested students, unless
+        the list is filtered by how clear those are, which needs them all.
       parameters:
       - in: query
         name: batch
         schema:
           type: integer
         description: Only records from this import.
+      - in: query
+        name: exclude_group_keys
+        schema:
+          type: string
+        description: Leave these names out (comma-separated group keys).
+      - in: query
+        name: group_keys
+        schema:
+          type: string
+        description: Only these names (comma-separated group keys).
       - in: query
         name: linked
         schema:
@@ -1606,6 +1618,20 @@ paths:
         description: Number of results to return per page.
         schema:
           type: integer
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Part of the name as written.
+      - in: query
+        name: suggestion
+        schema:
+          type: string
+          enum:
+          - choose
+          - clear
+          - none
+        description: Only people whose suggested students are this clear.
       tags:
       - gradings
       security:
@@ -1616,6 +1642,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedLegacyPersonList'
+          description: ''
+  /api/gradings/legacy-records/people-summary/:
+    get:
+      operationId: gradings_legacy_records_people_summary_retrieve
+      description: How many names still wait, by how clear their suggested students
+        are.
+      parameters:
+      - in: query
+        name: batch
+        schema:
+          type: integer
+        description: Only records from this import.
+      - in: query
+        name: exclude_group_keys
+        schema:
+          type: string
+        description: Leave these names out (comma-separated group keys).
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Part of the name as written.
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyPeopleSummary'
           description: ''
   /api/gradings/outcomes/:
     get:
@@ -4544,6 +4602,27 @@ components:
           additionalProperties:
             type: string
             nullable: true
+    LegacyPeopleSummary:
+      type: object
+      description: Names still to link, by how clear their suggested students are.
+      properties:
+        names:
+          type: integer
+          description: Names with a record still to link.
+        clear:
+          type: integer
+          description: One student fits clearly.
+        choose:
+          type: integer
+          description: Several students fit equally well.
+        none:
+          type: integer
+          description: No student fits.
+      required:
+      - choose
+      - clear
+      - names
+      - none
     LegacyPerson:
       type: object
       description: The records that name one person the same way, and who they may
@@ -4576,6 +4655,20 @@ components:
         shared:
           type: boolean
           description: 'Several students fit equally well: a person has to choose.'
+        linked_student_name:
+          type: string
+          nullable: true
+          readOnly: true
+          description: That student's name, when every record here is linked to one.
+        suggestion:
+          allOf:
+          - $ref: '#/components/schemas/SuggestionEnum'
+          description: |-
+            How clear the suggested students are, from the candidates.
+
+            * `clear` - One student fits clearly
+            * `choose` - Several students fit equally well
+            * `none` - No student fits
         candidates:
           type: array
           items:
@@ -4586,10 +4679,12 @@ components:
       - group_key
       - last_period
       - linked_student
+      - linked_student_name
       - record_ids
       - records
       - shared
       - source_name
+      - suggestion
     LegacyRecordLinkRequest:
       type: object
       properties:
@@ -5881,6 +5976,16 @@ components:
       - status_display
       - student
       - wksa_id
+    SuggestionEnum:
+      enum:
+      - clear
+      - choose
+      - none
+      type: string
+      description: |-
+        * `clear` - One student fits clearly
+        * `choose` - Several students fit equally well
+        * `none` - No student fits
     SyllabusItemCategoryEnum:
       enum:
       - ETIQUETTE

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, cast
 
 from django.db.models import Q, QuerySet
@@ -27,6 +28,7 @@ from gradings.assessment_services import (
 )
 from gradings.legacy_matching import (
     SHEET_NOTE_NAME,
+    PersonGroup,
     group_key,
     group_records,
     suggest_for_groups,
@@ -75,6 +77,7 @@ from gradings.serializers import (
     GradingSessionSerializer,
     GradingYearsSerializer,
     LegacyGradingRecordSerializer,
+    LegacyPeopleSummarySerializer,
     LegacyPersonSerializer,
     LinkLegacyRecordSerializer,
     LockedCandidateWithdrawalSerializer,
@@ -102,7 +105,35 @@ from kukgrade.filtering import (
     search,
 )
 
-_PEOPLE_PARAMETERS = frozenset({"batch", "linked", "page", "page_size", "format"})
+_PEOPLE_PARAMETERS = frozenset(
+    {
+        "batch",
+        "linked",
+        "search",
+        "suggestion",
+        "group_keys",
+        "exclude_group_keys",
+        "page",
+        "page_size",
+        "format",
+    },
+)
+_PEOPLE_SUMMARY_PARAMETERS = frozenset(
+    {"batch", "search", "exclude_group_keys", "format"},
+)
+_PEOPLE_SUGGESTIONS = ("clear", "choose", "none")
+_PEOPLE_KEY_LIMIT = 100
+_PEOPLE_BATCH = OpenApiParameter(
+    "batch", int, description="Only records from this import."
+)
+_PEOPLE_SEARCH = OpenApiParameter(
+    "search", str, description="Part of the name as written."
+)
+_PEOPLE_EXCLUDE = OpenApiParameter(
+    "exclude_group_keys",
+    str,
+    description="Leave these names out (comma-separated group keys).",
+)
 
 
 def _records_for_group(
@@ -751,6 +782,7 @@ class LegacyGradingRecordViewSet(
         "resolve_testing_for_rank": ("gradings.can_reconcile_imported_history",),
         "void": ("gradings.can_reconcile_imported_history",),
         "people": ("gradings.can_reconcile_imported_history",),
+        "people_summary": ("gradings.can_reconcile_imported_history",),
         "bulk_link": ("gradings.can_reconcile_imported_history",),
     }
 
@@ -854,18 +886,88 @@ class LegacyGradingRecordViewSet(
         )
         return Response(LegacyGradingRecordSerializer(updated).data)
 
+    def _people_groups(
+        self,
+        params: Mapping[str, str],
+        allowed: frozenset[str],
+        *,
+        linked: str | None = None,
+    ) -> list[PersonGroup]:
+        """The name groups the people list and its summary are both about."""
+        unknown = sorted(set(params) - allowed)
+        if unknown:
+            raise ValidationError(
+                {name: ["This list cannot be filtered that way."] for name in unknown},
+            )
+        suggestion = params.get("suggestion", "")
+        if suggestion and suggestion not in _PEOPLE_SUGGESTIONS:
+            raise ValidationError({"suggestion": ["Choose clear, choose or none."]})
+        keys: dict[str, set[str]] = {}
+        for name in ("group_keys", "exclude_group_keys"):
+            keys[name] = {key for key in params.get(name, "").split(",") if key}
+            if len(keys[name]) > _PEOPLE_KEY_LIMIT:
+                raise ValidationError(
+                    {name: [f"Give at most {_PEOPLE_KEY_LIMIT} names."]},
+                )
+        records = LegacyGradingRecord.objects.select_related(
+            "student",
+            "current_rank",
+            "testing_for_rank",
+        ).filter(is_void=False)
+        batch = params.get("batch", "")
+        if batch:
+            records = (
+                records.filter(source_batch_id=int(batch))
+                if batch.isdecimal()
+                else records.none()
+            )
+        linked = params.get("linked", "") if linked is None else linked
+        if linked == "true":
+            records = records.filter(student__isnull=False)
+        elif linked == "false":
+            records = records.filter(student__isnull=True)
+        elif linked:
+            records = records.none()
+        groups = group_records(records.order_by("pk"))
+        if keys["group_keys"]:
+            groups = [group for group in groups if group.key in keys["group_keys"]]
+        if keys["exclude_group_keys"]:
+            groups = [
+                group for group in groups if group.key not in keys["exclude_group_keys"]
+            ]
+        needle = params.get("search", "").strip().lower()
+        if needle:
+            groups = [
+                group
+                for group in groups
+                if needle in group.key or needle in group.source_name.lower()
+            ]
+        if suggestion:
+            suggest_for_groups(groups)
+            groups = [group for group in groups if group.suggestion == suggestion]
+        return groups
+
     @extend_schema(
         parameters=[
-            OpenApiParameter(
-                "batch",
-                int,
-                description="Only records from this import.",
-            ),
+            _PEOPLE_BATCH,
             OpenApiParameter(
                 "linked",
                 bool,
                 description="Only people whose records are (or are not) linked.",
             ),
+            _PEOPLE_SEARCH,
+            OpenApiParameter(
+                "suggestion",
+                str,
+                enum=list(_PEOPLE_SUGGESTIONS),
+                description="Only people whose suggested students are this clear.",
+            ),
+            OpenApiParameter(
+                "group_keys",
+                str,
+                description="Only these names (comma-separated group keys).",
+            ),
+            _PEOPLE_EXCLUDE,
         ],
         responses=LegacyPersonSerializer(many=True),
     )
@@ -875,37 +977,48 @@ class LegacyGradingRecordViewSet(
 
         Suggestions only: nothing is linked until a person confirms it
         (import Decision 3). Voided records and sheet notes are left out.
+        Only the names on the page are scored for suggested students, unless
+        the list is filtered by how clear those are, which needs them all.
         """
-        unknown = sorted(set(request.query_params) - _PEOPLE_PARAMETERS)
-        if unknown:
-            raise ValidationError(
-                {name: ["This list cannot be filtered that way."] for name in unknown},
-            )
-        records = LegacyGradingRecord.objects.select_related(
-            "student",
-            "current_rank",
-            "testing_for_rank",
-        ).filter(is_void=False)
-        batch = request.query_params.get("batch", "")
-        if batch:
-            records = (
-                records.filter(source_batch_id=int(batch))
-                if batch.isdecimal()
-                else records.none()
-            )
-        linked = request.query_params.get("linked", "")
-        if linked == "true":
-            records = records.filter(student__isnull=False)
-        elif linked == "false":
-            records = records.filter(student__isnull=True)
-        elif linked:
-            records = records.none()
-        groups = group_records(records.order_by("pk"))
+        groups = self._people_groups(request.query_params, _PEOPLE_PARAMETERS)
         page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
         assert page is not None
-        if page:
+        if page and not request.query_params.get("suggestion"):
             suggest_for_groups(page)
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
+
+    @extend_schema(
+        parameters=[_PEOPLE_BATCH, _PEOPLE_SEARCH, _PEOPLE_EXCLUDE],
+        responses=LegacyPeopleSummarySerializer,
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="people-summary",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def people_summary(
+        self,
+        request: Request,
+        *args: object,
+        **kwargs: object,
+    ) -> Response:
+        """How many names still wait, by how clear their suggested students are."""
+        groups = self._people_groups(
+            request.query_params.dict(),
+            _PEOPLE_SUMMARY_PARAMETERS,
+            linked="false",
+        )
+        suggest_for_groups(groups)
+        counts = {kind: 0 for kind in _PEOPLE_SUGGESTIONS}
+        for group in groups:
+            counts[group.suggestion] += 1
+        return Response(
+            LegacyPeopleSummarySerializer(
+                {"names": len(groups), **counts},
+            ).data,
+        )
 
     @extend_schema(
         request=BulkLinkLegacyRecordsSerializer,

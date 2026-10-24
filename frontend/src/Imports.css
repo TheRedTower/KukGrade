@@ -1113,7 +1113,10 @@
   cursor: pointer;
 }
 
-.ix-queue > li:first-child > button,
+.ix-queue > li:first-child > button {
+  border-top: none;
+}
+
 .ix-queue > li > button[aria-current="true"],
 .ix-queue > li > button[aria-pressed="true"] {
   border-left-color: var(--color-gold);

@@ -12,7 +12,7 @@ import {
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
 import { NameRow, type NameView } from "./LinkNameRow";
-import { type Chosen, recordsToLink } from "./linkRecords";
+import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
 import { useLegacyLinking } from "./useLegacyLinking";
@@ -109,7 +109,11 @@ export function LinkRecordsScreen() {
   const loading = !noneLeft && (people.isPending || people.isPlaceholderData);
   const rows = loading || noneLeft ? [] : people.data?.results ?? [];
   const listed = noneLeft ? 0 : people.data?.count ?? 0;
-  const pageSelected = rows.filter((person) => selected.includes(person.group_key) && chosenFor(person, picks));
+  const pageSelected = rows.filter(
+    (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
+  );
+  const selectedRecords = pageSelected.reduce((total, person) => total + recordsToLink(person, unticked).length, 0);
+  const tooMany = selectedRecords > BULK_LINK_LIMIT;
   const clearOnPage = rows.filter((person) => view !== "done" && person.suggestion === "clear");
 
   // Selection and an open row belong to the rows on screen.
@@ -141,6 +145,7 @@ export function LinkRecordsScreen() {
         setLinkedHere(grouped);
         setSelected((current) => current.filter((key) => !names.some((person) => person.group_key === key)));
         setUnticked((current) => current.filter((id) => !names.some((person) => person.record_ids.includes(id))));
+        setPage(1);
         setOpen(null);
         setNotice(
           names.length === 1
@@ -153,6 +158,7 @@ export function LinkRecordsScreen() {
 
   function leaveName(key: string) {
     leave(key);
+    setPage(1);
     setOpen(null);
     setSelected((current) => current.filter((other) => other !== key));
   }
@@ -242,13 +248,18 @@ export function LinkRecordsScreen() {
             <button className="btn-ghost" disabled={pageSelected.length === 0} type="button" onClick={() => setSelected([])}>
               Clear selection
             </button>
-            <button className="btn-primary" disabled={pageSelected.length === 0 || link.isPending} type="button" onClick={() => linkNames(pageSelected)}>
+            <button className="btn-primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} type="button" onClick={() => linkNames(pageSelected)}>
               {link.isPending ? "Linking…" : pageSelected.length > 0 ? `Link ${counted(pageSelected.length, "name", "names")} to their students` : "Link selected"}
             </button>
           </div>
         </div>
       ) : null}
 
+      {tooMany ? (
+        <p className="ix-warning-text ix-semibold ix-flush" role="status">
+          {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
+        </p>
+      ) : null}
       {notice ? (
         <p className="ix-success-text ix-bold ix-flush" role="status">
           {notice}
@@ -278,9 +289,16 @@ export function LinkRecordsScreen() {
             Loading the names…
           </p>
         ) : people.isError ? (
-          <p className="ix-card-pad ix-danger-text" role="alert">
-            {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
-          </p>
+          <div className="ix-card-pad ix-section">
+            <p className="ix-danger-text ix-flush" role="alert">
+              {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
+            </p>
+            {page > 1 ? (
+              <button className="btn-ghost" type="button" onClick={() => setPage(1)}>
+                Back to the first page
+              </button>
+            ) : null}
+          </div>
         ) : rows.length === 0 ? (
           <div className="ix-card-pad">
             {everyNameLinked ? (
@@ -317,7 +335,10 @@ export function LinkRecordsScreen() {
                   onChoose={(choice) => setPicks((current) => ({ ...current, [person.group_key]: choice }))}
                   onLeave={() => leaveName(person.group_key)}
                   onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
-                  onPutBack={() => putBack(person.group_key)}
+                  onPutBack={() => {
+                    putBack(person.group_key);
+                    setPage(1);
+                  }}
                   onSelect={() =>
                     setSelected((current) =>
                       current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
@@ -327,12 +348,12 @@ export function LinkRecordsScreen() {
                     setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record]))
                   }
                   onToggle={() => {
-                    link.reset();
+                    if (!link.isPending) link.reset();
                     setOpen(open === person.group_key ? null : person.group_key);
                   }}
                   onUndo={() => {
                     setNotice("");
-                    undo.mutate(person.record_ids);
+                    undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
                   }}
                 />
               );

@@ -279,7 +279,7 @@ export function NameRow({
                 <button
                   aria-label={`Link “${person.source_name}” to ${chosen.name}`}
                   className="btn-primary"
-                  disabled={pending}
+                  disabled={pending || recordsToLink(person, unticked).length === 0}
                   type="button"
                   onClick={onLink}
                 >

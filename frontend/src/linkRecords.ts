@@ -1,6 +1,9 @@
 import type { LegacyGradingRecord, LegacyPerson } from "./api";
 import { formatMonthYear } from "./dates";
 
+/** The most records one bulk-link request takes (BULK_LINK_LIMIT in the backend). */
+export const BULK_LINK_LIMIT = 500;
+
 /** A student picked to link records to. */
 export type Chosen = { student: number; name: string };
 

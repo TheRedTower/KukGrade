@@ -838,6 +838,45 @@ describe("Linking historical records", () => {
     expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
   });
 
+  it("does not link a name whose records are all unticked", async () => {
+    const user = userEvent.setup();
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
+    for (const box of await screen.findAllByRole("checkbox", { name: /^Link the / })) await user.click(box);
+    await user.click(screen.getByRole("button", { name: "Close “Mia R”" }));
+
+    expect(screen.getByRole("button", { name: "Link “Mia R” to Mia Reynolds" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Select the 2 clear suggestions" }));
+    await user.click(screen.getByRole("button", { name: "Link 1 name to their students" }));
+    await waitFor(() => expect(api.bulkLinkLegacyRecords).toHaveBeenCalledWith([{ record: 301, student: 50 }]));
+  });
+
+  it("stops a bulk link that would hold more records than one request takes", async () => {
+    const user = userEvent.setup();
+    waiting = [{ ...mia, record_ids: Array.from({ length: 501 }, (_, index) => 1000 + index), records: 501 }];
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: "Select the 1 clear suggestion" }));
+
+    expect(screen.getByText("501 records are selected; link at most 500 at a time. Untick some names.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Link 1 name to their students" })).toBeDisabled();
+  });
+
+  it("offers the first page when the page being shown no longer exists", async () => {
+    const user = userEvent.setup();
+    api.getLegacyPeople.mockImplementation((params: { linked?: boolean; page?: number }) =>
+      params.linked ? Promise.resolve(page([], 0)) : params.page === 2 ? Promise.reject(new ApiError("Invalid page.", 404)) : Promise.resolve({ ...page(waiting, 51), next: "?page=2" }),
+    );
+    renderAt("/imports/records");
+
+    await screen.findByText("“Mia R”");
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(await screen.findByRole("button", { name: "Back to the first page" }));
+
+    expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
+  });
+
   it("shows what could not be linked and keeps the names", async () => {
     const user = userEvent.setup();
     api.bulkLinkLegacyRecords.mockRejectedValue(new ApiError("That record is already linked.", 400));

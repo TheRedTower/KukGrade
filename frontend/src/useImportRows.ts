@@ -14,6 +14,7 @@ export function usePagedRows(batchId: number, params: RowParams, pageSize: numbe
   const filters = JSON.stringify(params);
   const [paging, setPaging] = useState({ filters, page: 1 });
   const page = paging.filters === filters ? paging.page : 1;
+  if (paging.filters !== filters) setPaging({ filters, page: 1 });
   const query = useQuery({
     queryKey: ["imports", "rows", batchId, filters, page],
     // The last page stays on screen while the next loads - never another

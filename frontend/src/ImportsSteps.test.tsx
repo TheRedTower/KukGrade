@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, type AuthUser, type DataImportBatch, type DataImportRow } from "./api";
 import { ADMINISTRATOR_CAPABILITIES, authUser } from "./appTestSupport";
 import { ImportScreen } from "./ImportScreen";
+import { ImportReview } from "./ImportReview";
 import { batch, legacyRecord as record, page, person, RANKS, row } from "./importTestFixtures";
 import { LinkRecordsScreen } from "./LinkRecordsScreen";
 
@@ -461,6 +462,56 @@ describe("Reviewing and confirming a roster", () => {
     expect(screen.getByText("File had “Miaa”")).toBeInTheDocument();
   });
 
+  it("keeps roster confirmation closed until a row correction is saved", async () => {
+    const user = userEvent.setup();
+    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" } });
+    const corrected = { ...seventh, values: { ...seventh.values, first_name: "Mia" }, corrected_fields: ["first_name"] };
+    let acknowledge!: (value: DataImportRow) => void;
+    let saved = false;
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockImplementation(() => Promise.resolve(page([saved ? corrected : seventh])));
+    api.correctDataImportRow.mockImplementation(() => new Promise<DataImportRow>((resolve) => { acknowledge = resolve; }));
+
+    renderAt("/imports/7?step=review");
+    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
+    const input = screen.getByLabelText("First name, row 7");
+    await user.clear(input);
+    await user.type(input, "Mia");
+    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
+    await user.tab();
+    expect(api.correctDataImportRow).toHaveBeenCalledWith(7, 7, { first_name: "Mia" });
+    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    saved = true;
+    await act(async () => acknowledge(corrected));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add 203 students" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Add 203 students" }));
+    expect(screen.getByRole("dialog", { name: "Add 203 students to KukGrade?" })).toBeInTheDocument();
+  });
+
+  it("keeps roster confirmation closed after a failed row correction until retry succeeds", async () => {
+    const user = userEvent.setup();
+    const seventh = row({ row_number: 7, values: { wksa_id: "104-2-307", first_name: "Miaa", last_name: "Reynolds", current_rank: "Yellow" } });
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockResolvedValue(page([seventh]));
+    api.correctDataImportRow.mockRejectedValueOnce(new Error("Save failed")).mockResolvedValue(seventh);
+
+    renderAt("/imports/7?step=review");
+    await user.click(await screen.findByRole("button", { name: "Edit row 7" }));
+    const input = screen.getByLabelText("First name, row 7");
+    await user.clear(input);
+    await user.type(input, "Mia");
+    await user.tab();
+    expect(await screen.findByRole("alert")).toHaveTextContent("That fix could not be saved.");
+    expect(screen.getByRole("button", { name: "Add 203 students" })).toBeDisabled();
+
+    await user.click(input);
+    await user.tab();
+    await waitFor(() => expect(api.correctDataImportRow).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Add 203 students" })).toBeEnabled());
+  });
+
   it("offers the same correction editor on a later review page", async () => {
     const user = userEvent.setup();
     api.getDataImportBatch.mockResolvedValue(sorted);
@@ -472,6 +523,25 @@ describe("Reviewing and confirming a roster", () => {
     await user.click(await screen.findByRole("button", { name: "Next" }));
     await user.click(await screen.findByRole("button", { name: "Edit row 27" }));
     expect(screen.getByLabelText("First name, row 27")).toBeInTheDocument();
+  });
+
+  it("returns to the first page when an import filter is revisited", async () => {
+    const user = userEvent.setup();
+    api.getDataImportBatch.mockResolvedValue(sorted);
+    api.getDataImportRows.mockImplementation((_id: number, params: { outcome: string; page: number }) =>
+      Promise.resolve(params.outcome === "READY" ? page([row({ row_number: params.page })], 60) : page([])),
+    );
+
+    renderAt("/imports/7?step=review");
+    await screen.findByRole("button", { name: "Next" });
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })));
+
+    await user.click(screen.getByRole("button", { name: /Already in KukGrade/ }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "SKIP_EXISTING", page: 1 })));
+    await user.click(screen.getByRole("button", { name: /Ready to add/ }));
+    await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 1 })));
   });
 
   it("confirms the import on the same page once every row is sorted", async () => {
@@ -526,6 +596,30 @@ describe("Reviewing and confirming a roster", () => {
     expect(await screen.findByText(/2 you left out, 3 ranks not matched stay as written/)).toBeInTheDocument();
     expect(await screen.findByText("Needs work on falls.")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "229 records will be imported" })).toBeInTheDocument();
+  });
+
+  it("does not refetch a historical preview after the batch is committed", async () => {
+    const user = userEvent.setup();
+    const gradings = batch({ kind: "LEGACY_GRADINGS", row_counts: { total: 1, ready: 1, review_required: 0, skip_existing: 0, excluded: 0 } });
+    const committed = { ...gradings, status: "COMMITTED" as const, next_step: "CLOSED" as const };
+    const onCommitted = vi.fn();
+    api.getDataImportRows.mockResolvedValue(page([row({ values: { name: "Theo" } })]));
+    api.previewLegacyGradingImport.mockResolvedValue({ total: 1, grading_result: 1, auxiliary_note: 0, did_not_attend: 0, unresolved_current_rank: 0, unresolved_testing_for_rank: 0, unresolved_outcome: 0, excluded: 0, warnings: [], rank_suggestions: [] });
+    api.commitDataImport.mockResolvedValue(committed);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ImportReview batch={gradings} onCommitted={onCommitted} onMatch={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("heading", { name: "Ready to import 1 historical record" });
+    await waitFor(() => expect(api.previewLegacyGradingImport).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole("button", { name: "Import 1 record" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Import 1 record" }));
+
+    await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
+    expect(api.previewLegacyGradingImport).toHaveBeenCalledTimes(1);
   });
 
   it("opens a workbook's review on the records worth a look, saying why", async () => {
@@ -770,6 +864,37 @@ describe("Linking historical records", () => {
 
     await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
     expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledWith(101);
+  });
+
+  it("retries only the records still linked after a partial undo failure", async () => {
+    const user = userEvent.setup();
+    let failOnce = true;
+    let linkedIds = [101, 102];
+    api.getLegacyPeople.mockImplementation((params: { linked?: boolean }) =>
+      Promise.resolve(
+        params.linked
+          ? page(linkedIds.length ? [person({ record_ids: linkedIds, records: linkedIds.length, linked_student: 31, linked_student_name: "Mia Reynolds" })] : [], linkedIds.length ? 1 : 0)
+          : page([]),
+      ),
+    );
+    api.unlinkLegacyGradingRecord.mockImplementation((id: number) => {
+      if (id === 102 && failOnce) {
+        failOnce = false;
+        return Promise.reject(new Error("temporary failure"));
+      }
+      linkedIds = linkedIds.filter((other) => other !== id);
+      return Promise.resolve(record({ id }));
+    });
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: /^Linked/ }));
+    await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Some records were unlinked. Try Undo again for the rest.");
+    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(2));
+
+    await user.click(await screen.findByRole("button", { name: "Undo linking “Mia R”" }));
+    await waitFor(() => expect(api.unlinkLegacyGradingRecord).toHaveBeenCalledTimes(3));
+    expect(api.unlinkLegacyGradingRecord.mock.calls.map(([id]) => id)).toEqual([101, 102, 102]);
   });
 
   it("matches a rank still as written, and voids a record only with a reason", async () => {

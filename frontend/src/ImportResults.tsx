@@ -20,7 +20,7 @@ import { usePagedRows } from "./useImportRows";
 import { counted, importKindLabel, importRowName } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { periodRange } from "./linkRecords";
-import { useLegacyLinking } from "./useLegacyLinking";
+import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 
 const ROWS_PAGE_SIZE = 50;
 const LINK_GROUPS_SHOWN = 4;
@@ -78,12 +78,21 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
   function undoLink(person: LegacyPerson) {
     link.reset();
     undo.mutate(person.record_ids, {
-      onSuccess: () =>
+      onSettled: (unlinkedIds, error) => {
+        const removed = unlinkedIds ?? (error instanceof PartialUnlinkError ? error.unlinkedIds : []);
         setLinked((current) => {
+          const entry = current[person.source_name];
+          if (!entry || removed.length === 0) return current;
           const next = { ...current };
-          delete next[person.source_name];
+          const remaining = entry.person.record_ids.filter((id) => !removed.includes(id));
+          if (remaining.length === 0) delete next[person.source_name];
+          else next[person.source_name] = {
+            ...entry,
+            person: { ...entry.person, record_ids: remaining, records: remaining.length },
+          };
           return next;
-        }),
+        });
+      },
     });
   }
 
@@ -97,7 +106,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
   const failed = link.isError
     ? errorMessage(link.error, "Those records could not be linked.")
     : undo.isError
-      ? errorMessage(undo.error, "Those records could not be unlinked.")
+      ? undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "Those records could not be unlinked.")
       : null;
 
   return (

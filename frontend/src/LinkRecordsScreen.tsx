@@ -15,7 +15,7 @@ import { NameRow, type NameView } from "./LinkNameRow";
 import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
-import { useLegacyLinking } from "./useLegacyLinking";
+import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 
 const PAGE_SIZE = 50;
@@ -272,7 +272,7 @@ export function LinkRecordsScreen() {
       ) : null}
       {undo.isError ? (
         <p className="ix-danger-text" role="alert">
-          {errorMessage(undo.error, "That link could not be undone.")}
+          {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
         </p>
       ) : null}
 

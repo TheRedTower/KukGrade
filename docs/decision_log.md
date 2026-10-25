@@ -18,6 +18,38 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-24 - Linking historical records becomes a review table
+
+Status: Accepted; built on `dev`
+
+Decision:
+The owner found the one-name-at-a-time linking screen (FDR-055) clunky in
+use and chose a review table (8A, FDR-059, `2026-10-24-link-records/`).
+Every name as written is a row; the clear suggestions can be ticked together
+and linked in one request, each name to its own student, and a row opens to
+its records and a student search. "Left for now" is kept in the browser, not
+the database: a personal note on what to come back to, not club data (owner,
+2026-10-24). The server owns everything that is a judgement: how clear a
+name's suggestion is (`suggestion`), the filters and counts, and which ranks
+a name's records are written with.
+
+Context:
+The names list is grouped and scored in Python, so filtering by how clear a
+suggestion is, and the chips' counts, score every name; the plain list still
+scores only the page it returns. That is instant at the club's current size.
+If a roster ever makes it slow, cache the scored groups per import rather
+than scoring on each request. "Records already linked" on a student result
+was drawn but dropped: the students list does not serve it and linking does
+not need it.
+
+Consequences:
+`GET gradings/legacy-records/people/` gains `search`, `suggestion`,
+`group_keys` and `exclude_group_keys` and each name gains `suggestion`,
+`ranks`, `needs_rank` and `linked_student_name`; `people-summary/` counts the
+names still to link by suggestion, and the names with every record linked
+(for the progress bar, so a name partly linked counts once). Left names are sent as group keys, so the
+browser keeps the newest 100.
+
 ### 2026-10-21 - Historical linking uses the server's group key and remaining records
 
 Status: Accepted; audit repair
@@ -68,7 +100,8 @@ The owner chose the import screens one at a time from proposed directions
   in) and every row and what happened to it below.
 - **Linking historical records (FDR-055):** one name at a time, its
   records beside the students it could be, each saying whether the ranks
-  fit; tick the records, choose the student, link and move on.
+  fit; tick the records, choose the student, link and move on. Superseded
+  2026-10-24 by a review table (FDR-059).
 - **An unfinished import is still cleared 24 hours after upload.** Asked
   whether that limit is needed, the owner kept it: the uploaded file and its
   rows are personal data held outside the records, and a day is a sane time.

@@ -846,8 +846,30 @@ export interface paths {
          *
          *     Suggestions only: nothing is linked until a person confirms it
          *     (import Decision 3). Voided records and sheet notes are left out.
+         *     Only the names on the page are scored for suggested students, unless
+         *     the list is filtered by how clear those are, which needs them all.
          */
         get: operations["gradings_legacy_records_people_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/legacy-records/people-summary/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description How many names still wait, by how clear their suggestions are, and
+         *     how many have every record linked.
+         */
+        get: operations["gradings_legacy_records_people_summary_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2127,6 +2149,19 @@ export interface components {
                 [key: string]: string | null;
             };
         };
+        /** @description Names still to link, by how clear their suggested students are. */
+        LegacyPeopleSummary: {
+            /** @description Names with a record still to link. */
+            names: number;
+            /** @description Names with every record linked; exclude_group_keys does not apply. */
+            linked: number;
+            /** @description One student fits clearly. */
+            clear: number;
+            /** @description Several students fit equally well. */
+            choose: number;
+            /** @description No student fits. */
+            none: number;
+        };
         /** @description The records that name one person the same way, and who they may be. */
         LegacyPerson: {
             source_name: string;
@@ -2140,6 +2175,20 @@ export interface components {
             readonly linked_student: number | null;
             /** @description Several students fit equally well: a person has to choose. */
             shared: boolean;
+            /** @description That student's name, when every record here is linked to one. */
+            readonly linked_student_name: string | null;
+            /** @description The ranks the records give, as written, in date order. */
+            readonly ranks: string[];
+            /** @description Whether a rank is written on a record but not matched to one yet. */
+            readonly needs_rank: boolean;
+            /**
+             * @description How clear the suggested students are, from the candidates.
+             *
+             *     * `clear` - One student fits clearly
+             *     * `choose` - Several students fit equally well
+             *     * `none` - No student fits
+             */
+            suggestion: components["schemas"]["SuggestionEnum"];
             candidates: components["schemas"]["SuggestedStudent"][];
         };
         LegacyRecordLinkRequest: {
@@ -2805,7 +2854,7 @@ export interface components {
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
         SuggestedStudent: {
             student: number;
-            readonly full_name: string;
+            full_name: string;
             wksa_id: string;
             current_rank_name: string;
             status_display: string;
@@ -2814,6 +2863,13 @@ export interface components {
             /** @description Why the student is suggested, in plain words. */
             reasons: string[];
         };
+        /**
+         * @description * `clear` - One student fits clearly
+         *     * `choose` - Several students fit equally well
+         *     * `none` - No student fits
+         * @enum {string}
+         */
+        SuggestionEnum: "clear" | "choose" | "none";
         /**
          * @description * `ETIQUETTE` - Etiquette
          *     * `FUNDAMENTALS` - Fundamentals
@@ -4140,12 +4196,20 @@ export interface operations {
             query?: {
                 /** @description Only records from this import. */
                 batch?: number;
+                /** @description Leave these names out (comma-separated group keys). */
+                exclude_group_keys?: string;
+                /** @description Only these names (comma-separated group keys). */
+                group_keys?: string;
                 /** @description Only people whose records are (or are not) linked. */
                 linked?: boolean;
                 /** @description A page number within the paginated result set. */
                 page?: number;
                 /** @description Number of results to return per page. */
                 page_size?: number;
+                /** @description Part of the name as written. */
+                search?: string;
+                /** @description Only people whose suggested students are this clear. */
+                suggestion?: "choose" | "clear" | "none";
             };
             header?: never;
             path?: never;
@@ -4159,6 +4223,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedLegacyPersonList"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_people_summary_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Only records from this import. */
+                batch?: number;
+                /** @description Leave these names out (comma-separated group keys). */
+                exclude_group_keys?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegacyPeopleSummary"];
                 };
             };
         };

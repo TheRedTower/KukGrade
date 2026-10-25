@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Link records · Focus and Finder</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed}
+.tk{--color-page-bg:#f5f1e8;--color-surface:#ffffff;--color-surface-sunken:#f5f1e8;--color-rail:#15130f;--color-border:#e1dbcb;--color-text:#17140f;--color-text-muted:#6e6759;--color-on-ink:#f5f1e8;--color-gold:#f2a71b;--color-accent-text:#8f5f07;--btn-bg:#f2a71b;--btn-text:#17140f;--btn-border:#d6900e;--color-success:#1a6e42;--color-success-surface:#e1f3e7;--color-warning:#8f5a00;--color-warning-surface:#fbead0;--color-danger:#b42318;--color-danger-surface:#fff1ef;--color-info:#1d4ed8;--color-info-surface:#eff6ff}
+.tk[data-theme="dark"]{--color-page-bg:#16130f;--color-surface:#221e18;--color-surface-sunken:#1c1914;--color-rail:#241f18;--color-border:#332d24;--color-text:#f3efe6;--color-text-muted:#a39c8c;--color-on-ink:#f3efe6;--color-gold:#f2a71b;--color-accent-text:#ffbb3d;--btn-bg:#e8a838;--btn-text:#14110c;--btn-border:#ffbb3d;--color-success:#4cbf84;--color-success-surface:#1d3227;--color-warning:#e8a93b;--color-warning-surface:#3a2e17;--color-danger:#f27a6e;--color-danger-surface:#3a1f1b;--color-info:#93c5fd;--color-info-surface:#1b2a44}
+.tk a{color:var(--color-accent-text)}
+.b{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--color-border);background:transparent;color:var(--color-text);font-weight:600;font-size:14px}
+.bp{min-height:48px;padding:0 22px;border-radius:8px;border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--btn-text);font-weight:700;font-size:15px}
+.bp:disabled{opacity:.5}
+.in{min-height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text)}
+.card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px}
+.seg{min-height:40px;padding:0 12px;border:none;background:transparent;font-weight:600;font-size:13px;border-radius:6px}
+.seg[aria-pressed="true"]{background:var(--color-rail);color:var(--color-on-ink)}
+</style>
+</helmet>
+<div class="tk" data-theme="{{theme}}" style="min-height: 1400px; padding: 32px; background: var(--color-page-bg); color: var(--color-text); font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 15px; line-height: 1.5">
+<div style="max-width: 1376px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px">
+
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px 32px">
+<div style="max-width: 700px">
+<a href="#imports" style="display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 600; text-decoration: none"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Imports</a>
+<h1 style="margin: 4px 0 6px; font-size: 32px; line-height: 1.1">Link historical records</h1>
+<p style="margin: 0; color: var(--color-text-muted)">One name at a time, with the students it could be and a search that starts from the name. Nothing is linked until you say so.</p>
+</div>
+<div style="min-width: 260px; flex: 0 1 320px">
+<p style="margin: 0 0 6px; font-size: 14px"><strong style="font-size: 22px">{{doneCount}}</strong> of {{total}} names linked</p>
+<div role="progressbar" aria-label="Names linked" aria-valuemin="0" aria-valuemax="{{total}}" aria-valuenow="{{doneCount}}" style="height: 8px; border-radius: 999px; background: var(--color-border); overflow: hidden"><div style="height: 100%; width: {{pct}}%; background: var(--color-success)"></div></div>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<nav aria-label="Names to link" class="card" style="flex: 1 1 300px; max-width: 340px; min-width: 0">
+<div style="padding: 12px; display: flex; flex-direction: column; gap: 10px">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--color-text-muted)">Find a name
+<input class="in" type="search" placeholder="Name as written" value="{{search}}" onChange="{{setSearch}}"></input>
+</label>
+<div role="group" aria-label="Show" style="display: flex; gap: 4px; padding: 3px; border-radius: 8px; background: var(--color-surface-sunken); border: 1px solid var(--color-border)">
+<button class="seg" type="button" aria-pressed="{{showTodo}}" onClick="{{goTodo}}">To link · {{nTodo}}</button>
+<button class="seg" type="button" aria-pressed="{{showLeft}}" onClick="{{goLeft}}">Left · {{nLeft}}</button>
+<button class="seg" type="button" aria-pressed="{{showDone}}" onClick="{{goDone}}">Linked · {{nDone}}</button>
+</div>
+</div>
+<ol style="list-style: none; margin: 0; padding: 0">
+<sc-for list="{{queue}}" as="q" hint-placeholder-count="8">
+<li>
+<sc-if value="{{q.isHeader}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 10px 14px 6px; border-top: 1px solid var(--color-border); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted)">{{q.title}}</p></sc-if>
+<sc-if value="{{q.isItem}}" hint-placeholder-val="{{ true }}"><button type="button" aria-current="{{q.current}}" onClick="{{q.go}}" style="display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 14px 6px 11px; border: none; border-left: 3px solid {{q.edge}}; background: {{q.bg}}; text-align: left">
+<span aria-hidden="true" style="display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: {{q.dotBg}}; color: {{q.dotFg}}; font-size: 12px; font-weight: 800">{{q.mark}}</span>
+<span style="min-width: 0"><span style="display: block; font-weight: 600; font-size: 14px">“{{q.name}}” · {{q.n}}</span><span style="display: block; color: var(--color-text-muted); font-size: 12px">{{q.sub}}</span></span>
+</button></sc-if>
+</li>
+</sc-for>
+</ol>
+<sc-if value="{{queueEmpty}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 16px 14px; color: var(--color-text-muted); font-size: 14px">Nothing here.</p></sc-if>
+</nav>
+
+<sc-if value="{{hasCur}}" hint-placeholder-val="{{ true }}">
+<section aria-labelledby="cur-h" style="flex: 3 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+
+<div class="card">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; padding: 18px 22px 12px">
+<div>
+<h2 id="cur-h" tabindex="-1" style="margin: 0; font-size: 24px">“{{cur.name}}”</h2>
+<p style="margin: 0; font-size: 14px; color: var(--color-text-muted)">{{cur.count}} in the workbook · {{cur.span}}</p>
+</div>
+<span class="pill" style="padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; background: {{cur.pillBg}}; color: {{cur.pillFg}}">{{cur.pill}}</span>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0">
+<sc-for list="{{cur.records}}" as="x" hint-placeholder-count="2">
+<li style="border-top: 1px solid var(--color-border); padding: 12px 22px">
+<div style="display: flex; align-items: flex-start; gap: 14px">
+<input type="checkbox" aria-label="Link the {{x.where}} record" checked="{{x.ticked}}" onChange="{{x.tick}}" style="width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--color-gold)"></input>
+<div style="flex: 1 1 auto; min-width: 0">
+<p style="margin: 0; font-weight: 700">{{x.where}} · {{x.ranks}} · {{x.outcome}}</p>
+<sc-if value="{{x.hasReport}}" hint-placeholder-val="{{ true }}"><p style="margin: 0; font-size: 14px; color: var(--color-text-muted)">“{{x.report}}”</p></sc-if>
+<sc-if value="{{x.needsRank}}" hint-placeholder-val="{{ false }}"><p style="margin: 4px 0 0; font-size: 13px; font-weight: 600; color: var(--color-warning)">“{{x.rankText}}” is not matched to a rank yet</p></sc-if>
+</div>
+<button type="button" class="b" aria-expanded="{{x.open}}" onClick="{{x.toggle}}" style="min-height: 40px; font-size: 13px">{{x.moreLabel}}</button>
+</div>
+<sc-if value="{{x.isOpen}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 12px 0 0 36px; padding: 12px 14px; border-radius: 8px; background: var(--color-surface-sunken); border: 1px solid var(--color-border)">
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--color-text-muted)">Rank, as written: “{{x.rankAsWritten}}”
+<select class="in" onChange="{{x.fixRank}}"><option>{{x.rankChoice}}</option><option>Yellow stripe</option><option>Yellow</option><option>Blue stripe</option></select></label>
+<button type="button" class="b" style="color: var(--color-danger)" aria-label="Void the {{x.where}} record">Void this record…</button>
+</div>
+</sc-if>
+</li>
+</sc-for>
+</ul>
+</div>
+
+<div class="card" style="padding: 18px 22px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px">
+<h3 style="margin: 0; font-size: 18px">Which student is it?</h3>
+<span style="font-size: 14px; font-weight: 600; color: {{cur.hintColor}}">{{cur.hint}}</span>
+</div>
+<label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--color-text-muted)">Search every student, starting from “{{cur.firstWord}}”
+<input class="in" type="search" value="{{cur.q}}" onChange="{{cur.setQ}}"></input>
+</label>
+<div role="radiogroup" aria-label="Student" style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{cur.found}}" as="s" hint-placeholder-count="2">
+<button type="button" role="radio" aria-checked="{{s.on}}" onClick="{{s.pick}}" style="display: grid; grid-template-columns: 24px minmax(0,1fr) auto; gap: 4px 14px; align-items: start; padding: 14px 16px; border-radius: 10px; border: {{s.border}}; background: {{s.bg}}; text-align: left">
+<span aria-hidden="true" style="grid-row: span 2; margin-top: 3px; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--color-text-muted); background: {{s.dot}}"></span>
+<span style="font-weight: 700; font-size: 16px">{{s.name}}</span>
+<span style="font-size: 13px; color: var(--color-text-muted); text-align: right">{{s.wksa}}</span>
+<span style="grid-column: 2 / span 2; font-size: 14px; color: var(--color-text-muted)">{{s.facts}}</span>
+<span style="grid-column: 2 / span 2; font-size: 13px; font-weight: 600; color: {{s.fitColor}}">{{s.fit}}</span>
+</button>
+</sc-for>
+<sc-if value="{{cur.noneFound}}" hint-placeholder-val="{{ false }}"><p style="margin: 0; padding: 14px 16px; border-radius: 10px; border: 1px dashed var(--color-border); font-size: 14px; color: var(--color-text-muted)">{{cur.noneText}}</p></sc-if>
+</div>
+
+<sc-if value="{{cur.hasAlso}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 14px; border-radius: 10px; background: var(--color-info-surface); display: flex; flex-direction: column; gap: 6px">
+<p style="margin: 0; font-size: 14px; font-weight: 700; color: var(--color-info)">Possibly the same person, written another way</p>
+<sc-for list="{{cur.also}}" as="a" hint-placeholder-count="1">
+<label style="display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px"><input type="checkbox" checked="{{a.on}}" onChange="{{a.tick}}" style="width: 20px; height: 20px; accent-color: var(--color-gold)"></input>Also link “{{a.name}}” ({{a.count}}) to {{cur.studentName}}</label>
+</sc-for>
+</div>
+</sc-if>
+</div>
+
+<div style="position: sticky; bottom: 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 10px; border: 1px solid var(--color-gold); background: var(--color-surface)">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px">
+<button class="b" type="button" onClick="{{cur.leave}}">Leave for now</button>
+<span style="font-size: 13px; color: var(--color-text-muted)">Enter links · J / K moves between names</span>
+</div>
+<button class="bp" type="button" onClick="{{cur.link}}" disabled="{{cur.cannot}}">{{cur.linkLabel}}</button>
+</div>
+
+</section>
+</sc-if>
+<sc-if value="{{noCur}}" hint-placeholder-val="{{ false }}">
+<section class="card" style="flex: 3 1 640px; padding: 28px 24px"><p style="margin: 0; font-weight: 700; font-size: 18px; color: var(--color-success)">✓ Nothing waiting in this list.</p><p style="margin: 6px 0 0; color: var(--color-text-muted)">Pick another list above, or go back to Imports.</p></section>
+</sc-if>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"dark":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = this.props.dark ?? false;
+    const st = this.state || {};
+    const done = st.done || {}, left = st.left || {}, pick = st.pick || {}, untick = st.untick || {}, qs = st.q || {}, rankFix = st.rankFix || {}, openRec = st.openRec || {}, alsoOff = st.alsoOff || {};
+    const view = st.view || 'todo', search = (st.search || '').trim().toLowerCase();
+    const S = [
+      { id: 1, n: 'Theo Barker', rank: 'Blue stripe', age: '9–12', status: 'Active', w: '104-2-312', has: 0 },
+      { id: 2, n: 'Theo Lane', rank: 'White', age: '8 and under', status: 'Active', w: '104-2-511', has: 0 },
+      { id: 3, n: 'Mia Reynolds', rank: 'Yellow', age: '9–12', status: 'Active', w: '104-2-311', has: 1 },
+      { id: 4, n: 'Leo Grant', rank: 'Blue', age: '13–17', status: 'Active', w: '104-2-340', has: 0 },
+      { id: 5, n: 'Leo Pratt', rank: 'Brown stripe', age: '18+', status: 'Active', w: '104-2-129', has: 0 },
+      { id: 6, n: 'Priya Shah', rank: 'Red', age: '13–17', status: 'Active', w: '104-2-318', has: 0 },
+      { id: 7, n: 'Mamdoh Mohamed', rank: 'Blue', age: '18+', status: 'Active', w: '104-2-201', has: 0 },
+      { id: 8, n: 'Zac Whitfield', rank: 'Yellow stripe', age: '9–12', status: 'Active', w: '104-2-415', has: 0 },
+      { id: 9, n: 'Alex Parker', rank: 'Blue stripe', age: '13–17', status: 'Active', w: '104-2-266', has: 0 },
+      { id: 10, n: 'Alex Patel', rank: 'Red stripe', age: '18+', status: 'Inactive', w: '104-2-097', has: 2 },
+      { id: 11, n: 'Noah Eze', rank: 'Yellow', age: '8 and under', status: 'Active', w: '104-2-522', has: 0 }
+    ];
+    const D = [
+      { k: 'theo', name: 'Theo', shared: true, cands: [1, 2], fit: { 1: [1, 'Fits: tested Yellow to Blue stripe, is a Blue stripe now'], 2: [0, 'Does not fit: still White, could not have tested for Blue stripe'] },
+        recs: [['Mar 2025', 'Yellow → Blue stripe', 'Pass', 'Needs work on falls.'], ['Sep 2025', 'Blue stripe → Blue', 'Pass', '']] },
+      { k: 'mia', name: 'Mia R', cands: [3], fit: { 3: [1, 'Fits: same first name, R matches Reynolds, rank fits'] },
+        recs: [['Mar 2025', 'White → Yellow stripe', 'Pass', 'Ki Cho Hyung 1 clean.'], ['Jun 2025', 'Yellow stripe → Yellow', 'Pass', ''], ['Sep 2025', 'Yellow → Blue stripe', 'Fail', 'Forms incomplete.']] },
+      { k: 'leo', name: 'Leo', cands: [5, 4], fit: { 5: [1, 'Fits: tested Red to Brown stripe, is Brown stripe now'], 4: [0, 'Does not fit: Blue now, tested from Red in 2025'] },
+        recs: [['Jun 2025', 'Red → Brown stripe', 'Pass', 'Strong kicks, stances need depth.']] },
+      { k: 'priya', name: 'Priya S', cands: [6], fit: { 6: [1, 'Fits: same first name, S matches Shah, rank fits'] },
+        recs: [['Mar 2025', 'Blue → Red stripe', 'Conditional', 'Re-test Ki Cho Hyung 4.'], ['Dec 2025', 'Red stripe → Red', 'Pass', '']] },
+      { k: 'zac', name: 'Zac W', cands: [8], fit: { 8: [1, 'Fits: same first name, W matches Whitfield, rank fits'] },
+        recs: [['Jun 2025', 'Yellow → Yellow stripe', 'Pass', '']] },
+      { k: 'alex', name: 'Alex P', shared: true, cands: [9, 10], fit: { 9: [1, 'Fits: P matches Parker, rank fits'], 10: [1, 'Fits: P matches Patel, rank fits'] },
+        recs: [['Mar 2025', 'Blue → Blue stripe', 'Pass', ''], ['Sep 2025', 'Blue stripe → Red', 'Pass', '']] },
+      { k: 'mam1', name: 'Mamdoh', cands: [7], fit: { 7: [1, 'Fits: same first name, rank fits'] },
+        recs: [['Jun 2025', 'Red → Blue', 'Pass', '']] },
+      { k: 'mam2', name: 'Mamdoh Mohamed', cands: [7], fit: { 7: [1, 'Same name in full, rank fits'] },
+        recs: [['Mar 2025', 'Yellow → Red', 'Pass', ''], ['Dec 2025', 'Red → Blue', 'Pass', '']] },
+      { k: 'noah', name: 'Noah', cands: [], fit: {},
+        recs: [['Sep 2025', 'Purple → (blank)', 'No outcome', '', 'Purple']] },
+      { k: 'sam', name: 'Sam K', cands: [], fit: {},
+        recs: [['Mar 2025', 'Blue → Blue stripe', 'Pass', ''], ['Sep 2025', 'Blue stripe → Red', 'Fail', 'Kicks off balance.']] }
+    ];
+    const byId = (id) => S.find((s) => s.id === id);
+    const kindOf = (d) => done[d.k] ? 'done' : left[d.k] ? 'left' : d.cands.length === 0 ? 'none' : d.shared ? 'choose' : 'clear';
+    const chosenOf = (d) => (pick[d.k] !== undefined ? pick[d.k] : (!d.shared && d.cands.length ? d.cands[0] : null));
+    const inView = (d) => { const k = kindOf(d); return view === 'done' ? k === 'done' : view === 'left' ? k === 'left' : (k !== 'done' && k !== 'left'); };
+    const matches = (d) => !search || d.name.toLowerCase().includes(search);
+    const list = D.filter((d) => inView(d) && matches(d));
+    const nTodo = D.filter((d) => { const k = kindOf(d); return k !== 'done' && k !== 'left'; }).length;
+    const nLeft = D.filter((d) => kindOf(d) === 'left').length, nDone = D.filter((d) => kindOf(d) === 'done').length;
+    const curD = list.find((d) => d.k === st.cur) || list[0] || null;
+    const mk = { clear: ['1', 'var(--color-info-surface)', 'var(--color-info)'], choose: ['2', 'var(--color-warning-surface)', 'var(--color-warning)'], none: ['?', 'var(--color-warning-surface)', 'var(--color-warning)'], left: ['–', 'var(--color-surface-sunken)', 'var(--color-text-muted)'], done: ['✓', 'var(--color-success-surface)', 'var(--color-success)'] };
+    const groupTitle = { clear: 'Clear suggestion', choose: 'Choose between students', none: 'No suggestion', left: 'Left for now', done: 'Linked' };
+    const queue = [];
+    ['clear', 'choose', 'none', 'left', 'done'].forEach((g) => {
+      const items = list.filter((d) => kindOf(d) === g);
+      if (!items.length) return;
+      queue.push({ isHeader: true, isItem: false, title: groupTitle[g] + ' · ' + items.length });
+      items.forEach((d) => {
+        const k = kindOf(d), c = curD && curD.k === d.k;
+        queue.push({ isHeader: false, isItem: true, name: d.name, n: d.recs.length, mark: mk[k][0], dotBg: mk[k][1], dotFg: mk[k][2],
+          sub: k === 'done' ? 'Linked to ' + done[d.k] : k === 'clear' ? 'Suggested: ' + byId(d.cands[0]).n : k === 'choose' ? d.cands.length + ' students could be this person' : k === 'none' ? 'No student looks like this' : 'Skipped for now',
+          current: c ? 'true' : 'false', edge: c ? 'var(--color-gold)' : 'transparent', bg: c ? 'var(--color-surface-sunken)' : 'transparent', go: () => this.setState({ cur: d.k }) });
+      });
+    });
+    let cur = null;
+    if (curD) {
+      const d = curD, k = kindOf(d), sid = chosenOf(d), chosen = sid ? byId(sid) : null;
+      const ticked = d.recs.filter((r, i) => !untick[d.k + i]);
+      const q = qs[d.k] !== undefined ? qs[d.k] : '';
+      const ql = q.trim().toLowerCase();
+      const ids = d.cands.slice();
+      if (ql.length >= 2) S.forEach((s) => { if (!ids.includes(s.id) && s.n.toLowerCase().includes(ql)) ids.push(s.id); });
+      const shownIds = ids.filter((id) => d.cands.includes(id) || ql.length >= 2);
+      const others = chosen ? D.filter((o) => o.k !== d.k && !done[o.k] && o.cands.includes(sid)) : [];
+      const alsoOn = others.filter((o) => !alsoOff[o.k]);
+      const total = ticked.length + alsoOn.reduce((n, o) => n + o.recs.length, 0);
+      const next = () => { const rest = list.filter((x) => x.k !== d.k && !alsoOn.some((o) => o.k === x.k)); return rest[0] ? rest[0].k : null; };
+      cur = {
+        name: d.name, count: d.recs.length + (d.recs.length === 1 ? ' record' : ' records'),
+        span: d.recs[0][0] + (d.recs.length > 1 ? ' to ' + d.recs[d.recs.length - 1][0] : ''),
+        pill: k === 'done' ? 'Linked' : k === 'clear' ? 'One clear suggestion' : k === 'choose' ? 'Students share this name' : k === 'left' ? 'Left for now' : 'No student looks like this',
+        pillBg: mk[k][1], pillFg: mk[k][2],
+        hint: k === 'clear' ? 'One clear suggestion' : k === 'choose' ? 'Students share this name: choose one' : 'Search to find them',
+        hintColor: k === 'clear' ? 'var(--color-text-muted)' : 'var(--color-warning)',
+        records: d.recs.map((r, i) => ({
+          where: r[0], ranks: r[1], outcome: r[2], report: r[3], hasReport: Boolean(r[3]), needsRank: Boolean(r[4]) && !rankFix[d.k + i], rankText: r[4] || '', rankAsWritten: r[4] || r[1].split(' → ')[0], rankChoice: 'Match it…',
+          ticked: !untick[d.k + i], tick: () => this.setState({ untick: { ...untick, [d.k + i]: !untick[d.k + i] } }),
+          isOpen: Boolean(openRec[d.k + i]), open: openRec[d.k + i] ? 'true' : 'false', moreLabel: openRec[d.k + i] ? 'Close' : (r[4] && !rankFix[d.k + i] ? 'Match rank' : 'Fix or void'),
+          toggle: () => this.setState({ openRec: { ...openRec, [d.k + i]: !openRec[d.k + i] } }),
+          fixRank: () => this.setState({ rankFix: { ...rankFix, [d.k + i]: true } })
+        })),
+        firstWord: d.name.split(' ')[0], q, setQ: (e) => this.setState({ q: { ...qs, [d.k]: e.target.value } }),
+        found: shownIds.map((id) => { const s = byId(id), f = d.fit[id], on = sid === id; return {
+          name: s.n, wksa: s.w, on: on ? 'true' : 'false',
+          facts: s.rank + ' now · ' + s.age + ' · ' + s.status + (s.has ? ' · ' + s.has + (s.has === 1 ? ' record already linked' : ' records already linked') : ''),
+          fit: f ? (f[0] ? '✓ ' : '✕ ') + f[1] : 'Not suggested: no rank information to compare',
+          fitColor: f ? (f[0] ? 'var(--color-success)' : 'var(--color-danger)') : 'var(--color-text-muted)',
+          border: on ? '2px solid var(--color-gold)' : '1px solid var(--color-border)', bg: on ? 'var(--color-surface-sunken)' : 'var(--color-surface)',
+          dot: on ? 'var(--color-gold)' : 'transparent', pick: () => this.setState({ pick: { ...pick, [d.k]: id } })
+        }; }),
+        noneFound: shownIds.length === 0, noneText: ql.length >= 2 ? 'No student matches “' + q + '”.' : 'No student looks like this. Type at least two letters above to search every student.',
+        hasAlso: others.length > 0, studentName: chosen ? chosen.n : '',
+        also: others.map((o) => ({ name: o.name, count: o.recs.length + (o.recs.length === 1 ? ' record' : ' records'), on: !alsoOff[o.k], tick: () => this.setState({ alsoOff: { ...alsoOff, [o.k]: !alsoOff[o.k] } }) })),
+        leave: () => this.setState({ left: { ...left, [d.k]: true }, cur: next() }),
+        cannot: !chosen || ticked.length === 0,
+        linkLabel: chosen ? 'Link ' + (total === d.recs.length ? (total === 1 ? 'it' : 'all ' + total) : total + ' records') + ' to ' + chosen.n : 'Choose a student first',
+        link: () => { const nd = { ...done, [d.k]: chosen.n }; alsoOn.forEach((o) => { nd[o.k] = chosen.n; }); this.setState({ done: nd, cur: next() }); }
+      };
+    }
+    return {
+      theme: dark ? 'dark' : 'light', queue, queueEmpty: queue.length === 0, hasCur: Boolean(cur), noCur: !cur, cur,
+      total: D.length, doneCount: nDone, pct: Math.round((nDone / D.length) * 100), nTodo, nLeft, nDone,
+      showTodo: view === 'todo' ? 'true' : 'false', showLeft: view === 'left' ? 'true' : 'false', showDone: view === 'done' ? 'true' : 'false',
+      goTodo: () => this.setState({ view: 'todo', cur: null }), goLeft: () => this.setState({ view: 'left', cur: null }), goDone: () => this.setState({ view: 'done', cur: null }),
+      search: st.search || '', setSearch: (e) => this.setState({ search: e.target.value, cur: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

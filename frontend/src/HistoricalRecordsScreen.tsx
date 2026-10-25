@@ -13,12 +13,12 @@ import {
 import { formatMonthYear } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
-import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordsScreen";
+import { type Chosen } from "./linkRecords";
+import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
-type Chosen = { student: number; name: string };
 
 /** A persistent view of imported history, including records no longer in the linking queue. */
 export function HistoricalRecordsScreen() {

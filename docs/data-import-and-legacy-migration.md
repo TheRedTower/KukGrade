@@ -375,11 +375,13 @@ each locking the row, saving, and recording one audit event
 actions above as
 `POST .../link-student/`, `.../unlink-student/`, `.../resolve-current-rank/`,
 `.../resolve-testing-for-rank/`, `.../void/`. The frontend
-(`LinkRecordsScreen.tsx` at `/imports/records`, FDR-055) takes one name at
-a time from `people/`: its records in full beside the suggested students,
-with a search for anyone else; the ticked records are linked through
-`bulk-link/`, a rank still as written is matched and a record voided in
-place. An import's results page links on the spot the same way (FDR-054).
+(`LinkRecordsScreen.tsx` at `/imports/records`, FDR-059) lists every name
+from `people/` as a row, filtered by `suggestion`, `search` and the names
+left for now (kept in the browser, sent as `group_keys` /
+`exclude_group_keys`), with `people-summary/` counting them; ticked rows
+are linked together through `bulk-link/`, each name to its own student. A
+row opens to its records beside the suggested students and a search for
+anyone else, where a rank still as written is matched and a record voided. An import's results page links on the spot the same way (FDR-054).
 
 **Suggested students** (`gradings/legacy_matching.py`, 2026-10-20):
 `GET .../people/` groups records by the name as written and suggests, for

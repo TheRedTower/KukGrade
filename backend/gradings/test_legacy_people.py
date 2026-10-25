@@ -37,6 +37,7 @@ pytestmark = pytest.mark.django_db
 
 PEOPLE = "/api/gradings/legacy-records/people/"
 BULK = "/api/gradings/legacy-records/bulk-link/"
+SUMMARY = "/api/gradings/legacy-records/people-summary/"
 
 
 def rank(code: str) -> Rank:
@@ -317,6 +318,160 @@ def test_people_scores_only_groups_on_the_requested_page() -> None:
     assert score.call_count == 2
 
 
+def seeded_names() -> None:
+    """One name each: clearly Zac Wood, between two Theos, and nobody."""
+    student("Zac", "Wood")
+    student("Theo", "Barker")
+    student("Theo", "Lane")
+    legacy_record(source_name="Zac W")
+    legacy_record(source_name="Theo")
+    legacy_record(source_name="Nobody Known")
+
+
+def test_people_each_say_how_clear_their_suggestion_is() -> None:
+    seeded_names()
+
+    names = {
+        person["source_name"]: person
+        for person in results(client_for(admin()).get(PEOPLE))
+    }
+
+    assert names["Zac W"]["suggestion"] == "clear"
+    assert names["Theo"]["suggestion"] == "choose"
+    assert names["Nobody Known"]["suggestion"] == "none"
+
+
+def test_people_filter_by_suggestion_and_count_what_matches() -> None:
+    seeded_names()
+    client = client_for(admin())
+
+    for kind, expected in (
+        ("clear", "Zac W"),
+        ("choose", "Theo"),
+        ("none", "Nobody Known"),
+    ):
+        response = client.get(PEOPLE, {"suggestion": kind})
+        assert response.json()["count"] == 1
+        assert results(response)[0]["source_name"] == expected
+    assert client.get(PEOPLE, {"suggestion": "maybe"}).status_code == 400
+
+
+def test_people_search_by_part_of_the_name_as_written() -> None:
+    seeded_names()
+    legacy_record(source_name="JKN Zac Wood")
+    client = client_for(admin())
+
+    found = results(client.get(PEOPLE, {"search": "  ZAC "}))
+    surname = results(client.get(PEOPLE, {"search": "wood"}))
+
+    assert sorted(person["source_name"] for person in found) == [
+        "JKN Zac Wood",
+        "Zac W",
+    ]
+    assert [person["source_name"] for person in surname] == ["JKN Zac Wood"]
+    assert results(client.get(PEOPLE, {"search": "nobody"}))[0]["records"] == 1
+    assert results(client.get(PEOPLE, {"search": "zzz"})) == []
+
+
+def test_people_can_leave_names_out_or_ask_for_only_some() -> None:
+    seeded_names()
+    client = client_for(admin())
+
+    kept = results(client.get(PEOPLE, {"exclude_group_keys": "theo,zac w"}))
+    only = results(client.get(PEOPLE, {"group_keys": "theo,zac w"}))
+
+    assert [person["source_name"] for person in kept] == ["Nobody Known"]
+    assert sorted(person["source_name"] for person in only) == ["Theo", "Zac W"]
+    too_many = ",".join(f"name {n}" for n in range(101))
+    assert client.get(PEOPLE, {"group_keys": too_many}).status_code == 400
+
+
+def test_a_linked_person_names_the_student_they_are_linked_to() -> None:
+    zac = student("Zac", "Wood")
+    legacy_record(source_name="Zac W", student=zac)
+
+    [person] = results(client_for(admin()).get(PEOPLE, {"linked": "true"}))
+
+    assert person["linked_student_name"] == "Zac Wood"
+    assert person["suggestion"] in {"clear", "choose", "none"}
+
+
+def test_a_person_lists_the_ranks_written_and_whether_one_is_unmatched() -> None:
+    student("Zac", "Wood")
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=9,
+        source_current_rank_text="Blue stripe",
+        source_testing_for_rank_text="Blue",
+        current_rank=rank("BLUE_STRIPE"),
+        testing_for_rank=rank("BLUE"),
+    )
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=3,
+        source_current_rank_text="Yellow",
+        source_testing_for_rank_text="Purple",
+        current_rank=rank("YELLOW"),
+        testing_for_rank=None,
+    )
+    legacy_record(
+        source_name="Zac W",
+        cycle_year=2025,
+        cycle_month=12,
+        source_current_rank_text="",
+        source_testing_for_rank_text="Red",
+        current_rank=None,
+        testing_for_rank=rank("RED"),
+    )
+
+    [person] = results(client_for(admin()).get(PEOPLE))
+
+    assert person["ranks"] == [
+        "Yellow → Purple",
+        "Blue stripe → Blue",
+        "(blank) → Red",
+    ]
+    assert person["needs_rank"] is True
+
+
+def test_a_person_with_every_rank_matched_needs_none() -> None:
+    legacy_record(source_name="Zac W")
+
+    [person] = results(client_for(admin()).get(PEOPLE))
+
+    assert person["needs_rank"] is False
+
+
+def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
+    seeded_names()
+    zac = Student.objects.get(first_name="Zac")
+    legacy_record(source_name="Done Already", student=zac)
+    # Partly linked: still to link, and not counted as linked.
+    legacy_record(source_name="Zac W", student=zac)
+    client = client_for(admin())
+
+    summary = client.get(SUMMARY).json()
+    left_out = client.get(SUMMARY, {"exclude_group_keys": "theo,done already"}).json()
+
+    assert summary == {"names": 3, "linked": 1, "clear": 1, "choose": 1, "none": 1}
+    assert left_out == {"names": 2, "linked": 1, "clear": 1, "choose": 0, "none": 1}
+    assert client.get(SUMMARY, {"linked": "true"}).status_code == 400
+    assert client.get(SUMMARY, {"search": "zac"}).status_code == 400
+
+
+def test_the_summary_follows_the_chosen_import() -> None:
+    student("Zac", "Wood")
+    first, other = legacy_batch(), legacy_batch()
+    legacy_record(source_batch=first, source_name="Zac W")
+    legacy_record(source_batch=other, source_name="Nobody Known")
+
+    summary = client_for(admin()).get(SUMMARY, {"batch": first.pk}).json()
+
+    assert summary == {"names": 1, "linked": 0, "clear": 1, "choose": 0, "none": 0}
+
+
 def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
     instructor = User.objects.create_user(
         email="people-instructor@example.com",
@@ -325,6 +480,7 @@ def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:
     client = client_for(instructor)
 
     assert client.get(PEOPLE).status_code == 403
+    assert client.get(SUMMARY).status_code == 403
     assert client.post(BULK, {"links": []}, format="json").status_code == 403
 
 

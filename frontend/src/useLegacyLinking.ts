@@ -12,7 +12,7 @@ export class PartialUnlinkError extends Error {
 
 /**
  * Linking historical records to a student, and undoing it, as the results
- * page and the linking page both do (FDR-054, FDR-055). Either way the lists
+ * page and the linking page both do (FDR-054, FDR-059). Either way the lists
  * of records and names are read again.
  */
 export function useLegacyLinking() {
@@ -26,8 +26,7 @@ export function useLegacyLinking() {
   }
 
   const link = useMutation({
-    mutationFn: ({ records, student }: { records: number[]; student: number }) =>
-      bulkLinkLegacyRecords(records.map((record) => ({ record, student }))),
+    mutationFn: (links: Parameters<typeof bulkLinkLegacyRecords>[0]) => bulkLinkLegacyRecords(links),
     onSuccess: refresh,
   });
   const undo = useMutation({

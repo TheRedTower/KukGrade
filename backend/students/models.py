@@ -69,7 +69,7 @@ class Student(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.first_name} {self.last_name} ({self.wksa_id})"
+        return f"{self.full_name} ({self.wksa_id})"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         self.full_clean()
@@ -127,6 +127,10 @@ class Student(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+    @property
+    def full_name(self) -> str:
+        return f"{self.first_name} {self.last_name}".strip()
 
     @property
     def can_be_graded(self) -> bool:

@@ -74,7 +74,11 @@ export function person(overrides: Partial<LegacyPerson> = {}): LegacyPerson {
     first_period: "2025-03",
     last_period: "2025-09",
     linked_student: null,
+    linked_student_name: null,
+    ranks: ["Yellow → Blue stripe"],
+    needs_rank: false,
     shared: false,
+    suggestion: "clear",
     candidates: [
       {
         student: 31,

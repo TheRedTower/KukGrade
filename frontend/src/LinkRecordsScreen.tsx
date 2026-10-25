@@ -1,345 +1,170 @@
 import { useState } from "react";
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
 import {
-  type LegacyGradingRecord,
   type LegacyPerson,
   errorMessage,
   getAllDataImportBatches,
-  getAllLegacyGradingRecords,
   getLegacyPeople,
-  getStudents,
-  resolveLegacyCurrentRank,
-  resolveLegacyTestingForRank,
-  voidLegacyGradingRecord,
+  getLegacyPeopleSummary,
 } from "./api";
-import { formatMonthYear } from "./dates";
-import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
-import { useRanksQuery } from "./queries";
+import { NameRow, type NameView } from "./LinkNameRow";
+import { BULK_LINK_LIMIT, type Chosen, recordsToLink } from "./linkRecords";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { useLeftNames } from "./useLeftNames";
 import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 
-const QUEUE_SIZE = 50;
+const PAGE_SIZE = 50;
 
-type Chosen = { student: number; name: string };
+const VIEWS: { view: NameView; label: string }[] = [
+  { view: "todo", label: "To link" },
+  { view: "clear", label: "Clear suggestion" },
+  { view: "choose", label: "Choose between" },
+  { view: "none", label: "No suggestion" },
+  { view: "left", label: "Left for now" },
+  { view: "done", label: "Linked" },
+];
 
-function recordMonth(record: LegacyGradingRecord): string {
-  return formatMonthYear(record.cycle_year, record.cycle_month);
-}
-
-function ranksText(record: LegacyGradingRecord): string {
-  const held = record.source_current_rank_text || "(blank)";
-  const tested = record.source_testing_for_rank_text;
-  return tested ? `${held} → ${tested}` : held;
-}
-
-/** A record's ranks still as written, each with a rank to choose. */
-export function RankFix({ record, onDone, showAll = false }: { record: LegacyGradingRecord; onDone: () => Promise<void>; showAll?: boolean }) {
-  const ranks = useRanksQuery().data?.results ?? [];
-  const fix = useMutation({
-    mutationFn: ({ which, rank }: { which: "held" | "tested"; rank: number | null }) =>
-      which === "held" ? resolveLegacyCurrentRank(record.id, rank) : resolveLegacyTestingForRank(record.id, rank),
-    onSuccess: onDone,
-  });
-  const open: { which: "held" | "tested"; text: string }[] = [];
-  if (showAll || (record.source_current_rank_text && record.current_rank === null)) open.push({ which: "held", text: record.source_current_rank_text });
-  if (showAll || (record.source_testing_for_rank_text && record.testing_for_rank === null)) open.push({ which: "tested", text: record.source_testing_for_rank_text });
-  if (open.length === 0) return null;
-  return (
-    <span className="ix-actions ix-rank-fix">
-      {open.map((item) => (
-        <label className="ix-field ix-warning-text" key={item.which}>
-          {showAll ? `${item.which === "held" ? "Held rank" : "Testing for"} (as written: “${item.text || "blank"}”)` : `“${item.text}” is not matched to a rank yet`}
-          <select
-            disabled={fix.isPending}
-            value={showAll ? (item.which === "held" ? record.current_rank : record.testing_for_rank) ?? "" : ""}
-            onChange={(event) => fix.mutate({ which: item.which, rank: event.target.value ? Number(event.target.value) : null })}
-          >
-            <option value="">{showAll ? "No mapped rank" : "Match it…"}</option>
-            {ranks.map((rank) => (
-              <option key={rank.id} value={rank.id}>
-                {rank.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      ))}
-      {fix.isError ? (
-        <span className="ix-danger-text ix-small" role="alert">
-          {errorMessage(fix.error, "That rank could not be saved.")}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingRecord; onClose: () => void; onDone: () => Promise<void> }) {
-  const [reason, setReason] = useState("");
-  const voiding = useMutation({
-    mutationFn: () => voidLegacyGradingRecord(record.id, reason.trim()),
-    onSuccess: async () => {
-      await onDone();
-      onClose();
-    },
-  });
-  return (
-    <ImportDialog
-      confirmDisabled={!reason.trim()}
-      confirmLabel="Void the record"
-      danger
-      error={voiding.isError ? errorMessage(voiding.error, "The record could not be voided.") : null}
-      pending={voiding.isPending}
-      pendingLabel="Voiding…"
-      title={`Void the ${recordMonth(record)} record for “${record.source_name}”?`}
-      onClose={onClose}
-      onConfirm={() => voiding.mutate()}
-    >
-      <p className="ix-muted">It is kept, marked void with your reason, and is never linked to anyone.</p>
-      <label className="ix-field" htmlFor="ix-void-record-reason">
-        Why
-      </label>
-      <textarea id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
-    </ImportDialog>
-  );
-}
-
-export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onChoose: (choice: Chosen) => void }) {
-  const [search, setSearch] = useState("");
-  const debounced = useDebouncedValue(search.trim());
-  const found = useQuery({
-    queryKey: ["students", "linkSearch", debounced],
-    queryFn: () => getStudents({ search: debounced, page_size: 6 }),
-    enabled: debounced.length >= 2,
-  });
-  return (
-    <div className="ix-candidate ix-candidate-other">
-      <label className="ix-field ix-field-wide">
-        Someone else
-        <input placeholder="Search every student" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
-      </label>
-      {(found.data?.results ?? []).map((student) => {
-        const name = `${student.first_name} ${student.last_name}`;
-        return (
-          <button
-            aria-pressed={chosen?.student === student.id}
-            className="ix-link-button ix-found"
-            key={student.id}
-            type="button"
-            onClick={() => onChoose({ student: student.id, name })}
-          >
-            {[name, student.current_rank_name, student.wksa_id].filter(Boolean).join(" · ")}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** One name in focus: its records beside the students it could be (FDR-055). */
-function NameInFocus({
-  person,
-  batch,
-  onLinked,
-  onSkip,
-}: {
-  person: LegacyPerson;
-  batch: number | undefined;
-  onLinked: (name: string, recordIds: number[]) => void;
-  onSkip: () => void;
-}) {
-  const { link, refresh } = useLegacyLinking();
-  const [chosen, setChosen] = useState<Chosen | null>(
-    !person.shared && person.candidates.length > 0
-      ? { student: person.candidates[0].student, name: person.candidates[0].full_name }
-      : null,
-  );
-  const [left, setLeft] = useState<number[]>([]);
-  const [voiding, setVoiding] = useState<LegacyGradingRecord | null>(null);
-
-  const records = useQuery({
-    queryKey: ["legacyRecords", "group", person.group_key, batch],
-    queryFn: () => getAllLegacyGradingRecords({ group_key: person.group_key, batch, linked: false, voided: false }),
-  });
-  const own = records.data?.results ?? [];
-  const ticked = own.filter((record) => !left.includes(record.id));
-
-  function linkTicked(choice: Chosen) {
-    link.mutate(
-      { records: ticked.map((record) => record.id), student: choice.student },
-      { onSuccess: (linked) => {
-        setLeft([]);
-        onLinked(choice.name, linked.map((record) => record.id));
-      } },
-    );
-  }
-
-  const linkLabel = chosen
-    ? `Link ${ticked.length === own.length ? (own.length === 1 ? "it" : `all ${own.length}`) : `${ticked.length} of ${own.length}`} to ${chosen.name}`
-    : "Choose a student first";
-  const hint = person.shared
-    ? "Students share this name: choose one"
-    : person.candidates.length === 0
-      ? "No student looks like this"
-      : "One clear suggestion";
-
-  return (
-    <section aria-labelledby="ix-focus-h" className="ix-section ix-roomy">
-      <div className="ix-card">
-        <div className="ix-row ix-align-baseline">
-          <h2 className="ix-title ix-flush ix-grow" id="ix-focus-h" tabIndex={-1}>
-            “{person.source_name}” in the workbook
-          </h2>
-          <span className="ix-muted ix-small">{counted(own.length || person.records, "record", "records")} · tick the ones to link</span>
-        </div>
-        {records.isPending ? (
-          <p className="ix-row ix-muted" role="status">
-            Loading the records…
-          </p>
-        ) : records.isError ? (
-          <p className="ix-row ix-danger-text" role="alert">
-            {errorMessage(records.error, "The records could not be loaded.")}
-          </p>
-        ) : (
-          own.map((record) => (
-            <div className="ix-row ix-align-start" key={record.id}>
-              <input
-                aria-label={`Link the ${recordMonth(record)} record`}
-                checked={!left.includes(record.id)}
-                className="ix-tick"
-                type="checkbox"
-                onChange={() =>
-                  setLeft(left.includes(record.id) ? left.filter((id) => id !== record.id) : [...left, record.id])
-                }
-              />
-              <div className="ix-row-main">
-                <p className="ix-bold">
-                  {recordMonth(record)} · {ranksText(record)}
-                  {record.outcome_display ? ` · ${record.outcome_display}` : ""}
-                  {record.record_kind === "DID_NOT_ATTEND" ? " · Did not attend" : ""}
-                </p>
-                {record.report || record.note ? <p className="ix-muted ix-small">“{record.report || record.note}”</p> : null}
-                <RankFix record={record} onDone={refresh} />
-              </div>
-              <button
-                aria-label={`Void the ${recordMonth(record)} record`}
-                className="btn-ghost ix-danger-text"
-                type="button"
-                onClick={() => setVoiding(record)}
-              >
-                Void…
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
-      <fieldset className="ix-card ix-card-pad ix-section ix-choice">
-        <legend className="ix-visually-hidden">Who could it be?</legend>
-        <div className="ix-section-head">
-          <h3 aria-hidden="true" className="ix-minor">
-            Who could it be?
-          </h3>
-          <span className={`ix-small ix-semibold ${person.candidates.length === 1 && !person.shared ? "ix-muted" : "ix-warning-text"}`}>
-            {hint}
-          </span>
-        </div>
-        <div className="ix-candidates">
-          {person.candidates.map((candidate) => (
-            <label className={`ix-candidate${chosen?.student === candidate.student ? " ix-picked" : ""}`} key={candidate.student}>
-              <span className="ix-candidate-name">
-                <input
-                  checked={chosen?.student === candidate.student}
-                  name="ix-candidate"
-                  type="radio"
-                  onChange={() => setChosen({ student: candidate.student, name: candidate.full_name })}
-                />
-                {candidate.full_name}
-              </span>
-              <span className="ix-muted ix-small">
-                {candidate.current_rank_name} now · {candidate.wksa_id} · {candidate.status_display}
-              </span>
-              {candidate.reasons.map((reason) => (
-                <span className="ix-small ix-semibold" key={reason}>
-                  {reason}
-                </span>
-              ))}
-            </label>
-          ))}
-          <SomeoneElse chosen={chosen} onChoose={setChosen} />
-        </div>
-        {link.isError ? (
-          <p className="ix-danger-text" role="alert">
-            {errorMessage(link.error, "Those records could not be linked.")}
-          </p>
-        ) : null}
-        <div className="ix-actions ix-actions-split ix-ruled">
-          <button className="btn-ghost" type="button" onClick={onSkip}>
-            Leave for now
-          </button>
-          <button
-            className="btn-primary"
-            disabled={!chosen || ticked.length === 0 || link.isPending}
-            type="button"
-            onClick={() => chosen && linkTicked(chosen)}
-          >
-            {link.isPending ? "Linking…" : linkLabel}
-          </button>
-        </div>
-      </fieldset>
-      {voiding ? <VoidRecord record={voiding} onClose={() => setVoiding(null)} onDone={refresh} /> : null}
-    </section>
-  );
+function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen | null {
+  const picked = picks[person.group_key];
+  if (picked) return picked;
+  const [best] = person.candidates;
+  return person.suggestion === "clear" && best ? { student: best.student, name: best.full_name } : null;
 }
 
 /**
- * Linking historical records to students, one name at a time, side by side
- * with the students it could be (FDR-055). KukGrade only suggests.
+ * Linking historical records to students: every name as written in the
+ * workbook, many at a time (FDR-059). KukGrade only suggests; nothing is
+ * linked until a person says so, and a link can be undone.
  */
 export function LinkRecordsScreen() {
-  const { undo } = useLegacyLinking();
+  const { link, undo } = useLegacyLinking();
+  const { left, leave, putBack } = useLeftNames();
+  const [view, setView] = useState<NameView>("todo");
   const [batch, setBatch] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [focus, setFocus] = useState<string | null>(null);
-  const [skipped, setSkipped] = useState<string[]>([]);
-  const [linked, setLinked] = useState<{ person: LegacyPerson; name: string; recordIds: number[] }[]>([]);
+  const [open, setOpen] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [picks, setPicks] = useState<Record<string, Chosen>>({});
+  const [unticked, setUnticked] = useState<number[]>([]);
+  const [linkedHere, setLinkedHere] = useState<Record<number, string[]>>({});
+  const [notice, setNotice] = useState("");
+  // The open row a link was started from, so its failure shows in that row.
+  const [linkedFrom, setLinkedFrom] = useState<string | null>(null);
+  const debouncedSearch = useDebouncedValue(search.trim());
+
+  const batchId = batch ? Number(batch) : undefined;
+  const leftKeys = left.join(",") || undefined;
 
   const imports = useQuery({
     queryKey: ["imports", "historical"],
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
+  const summary = useQuery({
+    queryKey: ["legacyPeople", "summary", batchId, leftKeys],
+    queryFn: () => getLegacyPeopleSummary({ batch: batchId, exclude_group_keys: leftKeys }),
+  });
+  const leftCount = useQuery({
+    queryKey: ["legacyPeople", "count", "left", batchId, leftKeys],
+    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, group_keys: leftKeys, page_size: 1 }),
+    enabled: left.length > 0,
+  });
+  const linkedCount = useQuery({
+    queryKey: ["legacyPeople", "count", "linked", batchId],
+    queryFn: () => getLegacyPeople({ batch: batchId, linked: true, page_size: 1 }),
+  });
   const people = useQuery({
-    queryKey: ["legacyPeople", "queue", batch, page],
+    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, leftKeys, page],
     placeholderData: keepPreviousData,
-    queryFn: () => getLegacyPeople({ batch: batch ? Number(batch) : undefined, linked: false, page, page_size: QUEUE_SIZE }),
+    enabled: view !== "left" || left.length > 0,
+    queryFn: () =>
+      getLegacyPeople({
+        batch: batchId,
+        linked: view === "done",
+        search: debouncedSearch || undefined,
+        page,
+        page_size: PAGE_SIZE,
+        ...(view === "left" ? { group_keys: leftKeys } : view === "done" ? {} : { exclude_group_keys: leftKeys }),
+        ...(view === "clear" || view === "choose" || view === "none" ? { suggestion: view } : {}),
+      }),
   });
 
-  function undoLink(entry: (typeof linked)[number]) {
-    undo.mutate(entry.recordIds, {
-      onSettled: (unlinkedIds, error) => {
-        const removed = unlinkedIds ?? (error instanceof PartialUnlinkError ? error.unlinkedIds : []);
-        if (removed.length === 0) return;
-        setLinked((current) => current.flatMap((other) => {
-          if (other !== entry) return [other];
-          const remaining = other.recordIds.filter((id) => !removed.includes(id));
-          return remaining.length ? [{ ...other, recordIds: remaining }] : [];
-        }));
+  const counts: Record<NameView, number | undefined> = {
+    todo: summary.data?.names,
+    clear: summary.data?.clear,
+    choose: summary.data?.choose,
+    none: summary.data?.none,
+    left: left.length > 0 ? leftCount.data?.count : 0,
+    done: linkedCount.data?.count,
+  };
+  // Disjoint, so a name partly linked counts once, as still to link.
+  const linkedNames = summary.data?.linked ?? 0;
+  const totalNames = linkedNames + (counts.todo ?? 0) + (counts.left ?? 0);
+
+  const noneLeft = view === "left" && left.length === 0;
+  const loading = !noneLeft && (people.isPending || people.isPlaceholderData);
+  const rows = loading || noneLeft ? [] : people.data?.results ?? [];
+  const listed = noneLeft ? 0 : people.data?.count ?? 0;
+  const pageSelected = rows.filter(
+    (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
+  );
+  const selectedRecords = pageSelected.reduce((total, person) => total + recordsToLink(person, unticked).length, 0);
+  const tooMany = selectedRecords > BULK_LINK_LIMIT;
+  const clearOnPage = rows.filter((person) => view !== "done" && person.suggestion === "clear");
+
+  // Selection and an open row belong to the rows on screen.
+  function resetRows() {
+    setOpen(null);
+    setSelected([]);
+  }
+
+  function show(next: NameView) {
+    setView(next);
+    setPage(1);
+    setNotice("");
+    resetRows();
+  }
+
+  function linkNames(names: LegacyPerson[], from: string | null = null) {
+    setLinkedFrom(from);
+    const links = names.flatMap((person) => {
+      const student = chosenFor(person, picks)?.student;
+      return student === undefined ? [] : recordsToLink(person, unticked).map((record) => ({ record, student }));
+    });
+    link.mutate(links, {
+      onSuccess: () => {
+        const grouped = { ...linkedHere };
+        for (const person of names) {
+          const student = chosenFor(person, picks)?.student;
+          if (student !== undefined) grouped[student] = [...(grouped[student] ?? []), person.source_name];
+        }
+        setLinkedHere(grouped);
+        setSelected((current) => current.filter((key) => !names.some((person) => person.group_key === key)));
+        setUnticked((current) => current.filter((id) => !names.some((person) => person.record_ids.includes(id))));
+        setPage(1);
+        setOpen(null);
+        setNotice(
+          names.length === 1
+            ? `Linked “${names[0].source_name}” to ${chosenFor(names[0], picks)?.name}.`
+            : `Linked ${counted(names.length, "name", "names")} to their students.`,
+        );
       },
     });
   }
 
-  const waiting = people.isPlaceholderData ? [] : people.data?.results ?? [];
-  const nextUp = (after: string | null) => {
-    const order = waiting.filter((person) => !skipped.includes(person.group_key) || person.group_key === after);
-    const index = order.findIndex((person) => person.group_key === after);
-    return order[index + 1]?.group_key ?? order.find((person) => person.group_key !== after)?.group_key ?? null;
-  };
-  const current =
-    waiting.find((person) => person.group_key === focus) ??
-    waiting.find((person) => !skipped.includes(person.group_key));
+  function leaveName(key: string) {
+    leave(key);
+    setPage(1);
+    setOpen(null);
+    setSelected((current) => current.filter((other) => other !== key));
+  }
+
+  const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
 
   return (
     <section aria-labelledby="ix-link-title" className="ix-page ix-page-wide">
@@ -350,150 +175,201 @@ export function LinkRecordsScreen() {
           </Link>
           <h1 id="ix-link-title">Link historical records</h1>
           <p className="ix-lead">
-            One name at a time: its records beside the students it could be. Nothing is linked
-            until you say so, and a link can be undone.
+            Each row is a name as written in the workbook. Tick the ones whose suggestion is right and link them
+            together, or open a row to choose a student, match a rank or void a record. Nothing is linked until you say
+            so, and a link can be undone.
           </p>
         </div>
-        <p className="ix-small ix-flush">
-          <strong className="ix-big-count">{linked.length}</strong> linked here ·{" "}
-          {counted(people.data?.count ?? 0, "name", "names")} still to link
-        </p>
+        <div className="ix-link-progress">
+          <p className="ix-small ix-flush">
+            <strong className="ix-big-count">{linkedNames}</strong> of {totalNames} names linked
+          </p>
+          <progress aria-label="Names linked" max={Math.max(totalNames, 1)} value={linkedNames} />
+        </div>
       </div>
 
-      <div className="ix-two-col ix-two-col-queue">
-        <div className="ix-section">
-          {people.isPending || people.isPlaceholderData ? (
-            <p className="ix-muted" role="status">
-              Loading the names…
-            </p>
-          ) : people.isError ? (
-            <p className="ix-danger-text" role="alert">
-              {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
-            </p>
-          ) : current ? (
-            <NameInFocus
-              key={current.group_key}
-              person={current}
-              batch={batch ? Number(batch) : undefined}
-              onLinked={(name, recordIds) => {
-                setLinked((previous) => [...previous, { person: current, name, recordIds }]);
-                setPage(1);
-                setFocus(nextUp(current.group_key));
-              }}
-              onSkip={() => {
-                setSkipped((previous) => [...previous, current.group_key]);
-                if (waiting.every((person) => person.group_key === current.group_key || skipped.includes(person.group_key)) && people.data?.next) {
-                  setPage(page + 1);
-                  setFocus(null);
-                } else {
-                  setFocus(nextUp(current.group_key));
-                }
-              }}
-            />
-          ) : (
-            <div className="ix-card ix-card-pad">
-              {people.data?.count === 0 ? (
-                <p className="ix-success-text ix-bold">✓ Every imported record is linked to a student.</p>
-              ) : (
-                <>
-                  <p className="ix-muted">No more names to work on from this page.</p>
-                  <button className="btn-ghost" type="button" onClick={() => { setPage(1); setFocus(null); setSkipped([]); }}>
-                    Return to the first page
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        <nav aria-label="Names to link" className="ix-card">
-          <div className="ix-section ix-queue-head">
-            <label className="ix-field">
-              Import
-              <select
-                value={batch}
-                onChange={(event) => {
-                  setBatch(event.target.value);
-                  setPage(1);
-                  setFocus(null);
-                  setSkipped([]);
-                }}
-              >
-                <option value="">Every import</option>
-                {(imports.data?.results ?? []).map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.original_filename}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {undo.isError ? (
-            <p className="ix-danger-text ix-small ix-queue-note" role="alert">
-              {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
-            </p>
-          ) : null}
-          <ol className="ix-queue">
-            {linked.map((entry) => (
-              <li key={`linked-${entry.recordIds.join("-")}`}>
-                <div className="ix-queue-done">
-                  <span aria-hidden="true" className="ix-mark ix-mark-ok">
-                    ✓
-                  </span>
-                  <span className="ix-queue-text">
-                    <span className="ix-queue-name">“{entry.person.source_name}”</span>
-                    <span className="ix-small">Linked to {entry.name}</span>
-                  </span>
-                  <button
-                    aria-label={`Undo linking “${entry.person.source_name}”`}
-                    className="ix-link-button"
-                    disabled={undo.isPending}
-                    type="button"
-                    onClick={() => undoLink(entry)}
-                  >
-                    Undo
-                  </button>
-                </div>
-              </li>
-            ))}
-            {waiting.map((person) => {
-              const mark = person.candidates.length === 0 ? "?" : person.shared ? "2" : "1";
-              const tone = person.candidates.length === 1 && !person.shared ? "ix-pill-info" : "ix-pill-warning";
-              return (
-                <li key={person.group_key}>
-                  <button aria-current={current?.group_key === person.group_key} type="button" onClick={() => setFocus(person.group_key)}>
-                    <span aria-hidden="true" className={`ix-mark ${tone}`}>
-                      {mark}
-                    </span>
-                    <span className="ix-queue-text">
-                      <span className="ix-queue-name">
-                        “{person.source_name}” · {person.records}
-                      </span>
-                      <span className="ix-muted ix-small">
-                        {skipped.includes(person.group_key)
-                          ? "Left for now"
-                          : person.candidates.length === 0
-                            ? "No suggestion"
-                            : person.shared
-                              ? "Students share this name"
-                              : `Suggested: ${person.candidates[0].full_name}`}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          <ImportPager
-            page={page}
-            pages={Math.ceil((people.data?.count ?? 0) / QUEUE_SIZE)}
-            total={people.data?.count ?? 0}
-            onPage={(next) => {
-              setPage(next);
-              setFocus(null);
+      <div className="ix-filters">
+        <label className="ix-field ix-field-wide">
+          Find a name
+          <input
+            placeholder="Name as written"
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+              resetRows();
             }}
           />
-        </nav>
+        </label>
+        <label className="ix-field">
+          Import
+          <select
+            value={batch}
+            onChange={(event) => {
+              setBatch(event.target.value);
+              show(view);
+            }}
+          >
+            <option value="">Every import</option>
+            {(imports.data?.results ?? []).map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.original_filename}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div aria-label="Show" className="ix-chips" role="group">
+        {VIEWS.map((item) => (
+          <button aria-pressed={view === item.view} className="ix-chip" key={item.view} type="button" onClick={() => show(item.view)}>
+            {item.label} <span className="ix-chip-count">{counts[item.view] ?? "–"}</span>
+          </button>
+        ))}
+      </div>
+
+      {view !== "done" ? (
+        <div className="ix-card ix-card-pad ix-gold-edge ix-bulk">
+          <p className="ix-flush">
+            <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
+            <span className="ix-muted">
+              {pageSelected.length > 0 ? "Each is linked to the student shown on its row." : "Tick rows, or select every clear suggestion on this page."}
+            </span>
+          </p>
+          <div className="ix-actions">
+            <button
+              className="btn-ghost"
+              disabled={clearOnPage.length === 0}
+              type="button"
+              onClick={() => setSelected([...new Set([...selected, ...clearOnPage.map((person) => person.group_key)])])}
+            >
+              Select the {clearOnPage.length} clear {clearOnPage.length === 1 ? "suggestion" : "suggestions"}
+            </button>
+            <button className="btn-ghost" disabled={pageSelected.length === 0} type="button" onClick={() => setSelected([])}>
+              Clear selection
+            </button>
+            <button className="btn-primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} type="button" onClick={() => linkNames(pageSelected)}>
+              {link.isPending ? "Linking…" : pageSelected.length > 0 ? `Link ${counted(pageSelected.length, "name", "names")} to their students` : "Link selected"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {tooMany ? (
+        <p className="ix-warning-text ix-semibold ix-flush" role="status">
+          {`${selectedRecords} records are selected; link at most ${BULK_LINK_LIMIT} at a time. Untick some names.`}
+        </p>
+      ) : null}
+      {notice ? (
+        <p className="ix-success-text ix-bold ix-flush" role="status">
+          {notice}
+        </p>
+      ) : null}
+      {link.isError && !(linkedFrom && linkedFrom === open) ? (
+        <p className="ix-danger-text" role="alert">
+          {errorMessage(link.error, "Those records could not be linked.")}
+        </p>
+      ) : null}
+      {undo.isError ? (
+        <p className="ix-danger-text" role="alert">
+          {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
+        </p>
+      ) : null}
+
+      <div className="ix-card">
+        <div aria-hidden="true" className="ix-name-row ix-name-head">
+          <span />
+          <span>Name as written</span>
+          <span>Ranks in the records</span>
+          <span>Student</span>
+          <span />
+        </div>
+        {loading ? (
+          <p className="ix-card-pad ix-muted" role="status">
+            Loading the names…
+          </p>
+        ) : people.isError ? (
+          <div className="ix-card-pad ix-section">
+            <p className="ix-danger-text ix-flush" role="alert">
+              {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
+            </p>
+            {page > 1 ? (
+              <button className="btn-ghost" type="button" onClick={() => setPage(1)}>
+                Back to the first page
+              </button>
+            ) : null}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="ix-card-pad">
+            {everyNameLinked ? (
+              <p className="ix-success-text ix-bold ix-flush">✓ Every imported record is linked to a student.</p>
+            ) : (
+              <p className="ix-muted ix-flush">
+                {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
+                  ? `Nothing else to link. ${counted(counts.left ?? 0, "name is", "names are")} left for now.`
+                  : noneLeft
+                    ? "No names are left for now."
+                    : "No names match."}
+              </p>
+            )}
+          </div>
+        ) : (
+          <ul className="ix-names">
+            {rows.map((person) => {
+              const chosen = chosenFor(person, picks);
+              const isLeft = left.includes(person.group_key);
+              return (
+                <NameRow
+                  batch={batchId}
+                  chosen={chosen}
+                  error={linkedFrom === person.group_key ? link.error : null}
+                  key={person.group_key}
+                  left={isLeft}
+                  open={open === person.group_key}
+                  pending={link.isPending || undo.isPending}
+                  person={person}
+                  sameAs={chosen ? (linkedHere[chosen.student] ?? []).find((name) => name !== person.source_name) ?? null : null}
+                  selected={selected.includes(person.group_key)}
+                  unticked={unticked}
+                  view={view}
+                  onChoose={(choice) => setPicks((current) => ({ ...current, [person.group_key]: choice }))}
+                  onLeave={() => leaveName(person.group_key)}
+                  onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
+                  onPutBack={() => {
+                    putBack(person.group_key);
+                    setPage(1);
+                  }}
+                  onSelect={() =>
+                    setSelected((current) =>
+                      current.includes(person.group_key) ? current.filter((key) => key !== person.group_key) : [...current, person.group_key],
+                    )
+                  }
+                  onTick={(record) =>
+                    setUnticked((current) => (current.includes(record) ? current.filter((id) => id !== record) : [...current, record]))
+                  }
+                  onToggle={() => {
+                    if (!link.isPending) link.reset();
+                    setOpen(open === person.group_key ? null : person.group_key);
+                  }}
+                  onUndo={() => {
+                    setNotice("");
+                    undo.mutate(person.record_ids, { onSuccess: () => setPage(1) });
+                  }}
+                />
+              );
+            })}
+          </ul>
+        )}
+        <ImportPager
+          page={page}
+          pages={Math.ceil(listed / PAGE_SIZE)}
+          total={listed}
+          onPage={(next) => {
+            setPage(next);
+            resetRows();
+          }}
+        />
       </div>
     </section>
   );

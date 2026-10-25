@@ -13,30 +13,19 @@ import {
   voidDataImportRecords,
 } from "./api";
 import { useAuth } from "./auth";
-import { formatMonthYear, formatShortDateTime } from "./dates";
+import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
 import { usePagedRows } from "./useImportRows";
 import { counted, importKindLabel, importRowName } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { periodRange } from "./linkRecords";
 import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 
 const ROWS_PAGE_SIZE = 50;
 const LINK_GROUPS_SHOWN = 4;
 
 type RowFilter = "all" | "READY" | "SKIP_EXISTING" | "EXCLUDED" | "corrected" | "status" | "current_rank";
-
-/** "2025-06" as "Jun 2025". */
-function periodLabel(period: string): string {
-  const [year, month] = period.split("-").map(Number);
-  return year && month ? formatMonthYear(year, month) : period;
-}
-
-function periodRange(person: LegacyPerson): string {
-  const first = periodLabel(person.first_period);
-  const last = periodLabel(person.last_period);
-  return first === last ? first : `${first} to ${last}`;
-}
 
 function rowDetail(row: DataImportRow, batch: DataImportBatch): string {
   const values = row.values;
@@ -81,7 +70,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
   function linkAll(person: LegacyPerson, student: number, name: string) {
     undo.reset();
     link.mutate(
-      { records: person.record_ids, student },
+      person.record_ids.map((record) => ({ record, student })),
       { onSuccess: () => setLinked((current) => ({ ...current, [person.source_name]: { person, name } })) },
     );
   }
@@ -177,7 +166,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                       Undo
                     </button>
                   </>
-                ) : person.shared && person.candidates.length > 1 ? (
+                ) : person.suggestion === "choose" ? (
                   <>
                     <span className="ix-warning-text ix-small ix-semibold ix-full">Students share this name. Choose one.</span>
                     {person.candidates.slice(0, 3).map((candidate) => (

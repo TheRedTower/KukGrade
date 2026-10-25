@@ -491,8 +491,10 @@ push and pull request.
   match a roster's columns on its first rows, typing in what is missing, or
   a workbook's rank spellings; review every row, the ones needing attention
   first, with a last look; confirm on the same page; the results page), and
-  linking historical records at `/imports/records`, one name at a time
-  beside the students it could be, and a persistent historical record browser
+  linking historical records at `/imports/records` (a review table of every
+  name as written: filters with counts, ticked clear suggestions linked
+  together, a row opening to its records and a student search; "left for
+  now" kept in the browser), and a persistent historical record browser
   at `/imports/history` with direct record details at `/imports/history/:id`
   for link replacement, unlinking, rank correction or clearing, and voiding
   (`can_reconcile_imported_history`); the

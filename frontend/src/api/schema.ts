@@ -865,7 +865,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description How many names still wait, by how clear their suggested students are. */
+        /**
+         * @description How many names still wait, by how clear their suggestions are, and
+         *     how many have every record linked.
+         */
         get: operations["gradings_legacy_records_people_summary_retrieve"];
         put?: never;
         post?: never;
@@ -2150,6 +2153,8 @@ export interface components {
         LegacyPeopleSummary: {
             /** @description Names with a record still to link. */
             names: number;
+            /** @description Names with every record linked; exclude_group_keys does not apply. */
+            linked: number;
             /** @description One student fits clearly. */
             clear: number;
             /** @description Several students fit equally well. */
@@ -2849,7 +2854,7 @@ export interface components {
         StudentStatusEnum: "ACTIVE" | "INACTIVE" | "LEFT";
         SuggestedStudent: {
             student: number;
-            readonly full_name: string;
+            full_name: string;
             wksa_id: string;
             current_rank_name: string;
             status_display: string;

@@ -1646,8 +1646,9 @@ paths:
   /api/gradings/legacy-records/people-summary/:
     get:
       operationId: gradings_legacy_records_people_summary_retrieve
-      description: How many names still wait, by how clear their suggested students
-        are.
+      description: |-
+        How many names still wait, by how clear their suggestions are, and
+        how many have every record linked.
       parameters:
       - in: query
         name: batch
@@ -4604,6 +4605,10 @@ components:
         names:
           type: integer
           description: Names with a record still to link.
+        linked:
+          type: integer
+          description: Names with every record linked; exclude_group_keys does not
+            apply.
         clear:
           type: integer
           description: One student fits clearly.
@@ -4616,6 +4621,7 @@ components:
       required:
       - choose
       - clear
+      - linked
       - names
       - none
     LegacyPerson:
@@ -5961,7 +5967,6 @@ components:
           type: integer
         full_name:
           type: string
-          readOnly: true
         wksa_id:
           type: string
         current_rank_name:

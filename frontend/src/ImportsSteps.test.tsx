@@ -703,7 +703,7 @@ describe("Linking historical records", () => {
     waiting = [mia, zac, theo, noah];
     api.getDataImportBatches.mockResolvedValue(page([]));
     api.getAllDataImportBatches.mockResolvedValue(page([]));
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 4, clear: 2, choose: 1, none: 1 });
+    api.getLegacyPeopleSummary.mockResolvedValue({ names: 4, linked: 5, clear: 2, choose: 1, none: 1 });
     api.getLegacyPeople.mockImplementation((params: Parameters<typeof names>[0]) =>
       Promise.resolve(params.linked ? page([], 5) : page(names(params))),
     );
@@ -931,7 +931,7 @@ describe("Linking historical records", () => {
   });
 
   it("says when every record is linked", async () => {
-    api.getLegacyPeopleSummary.mockResolvedValue({ names: 0, clear: 0, choose: 0, none: 0 });
+    api.getLegacyPeopleSummary.mockResolvedValue({ names: 0, linked: 0, clear: 0, choose: 0, none: 0 });
     api.getLegacyPeople.mockResolvedValue(page([]));
 
     renderAt("/imports/records");

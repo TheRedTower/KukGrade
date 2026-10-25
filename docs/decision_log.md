@@ -46,7 +46,8 @@ Consequences:
 `GET gradings/legacy-records/people/` gains `search`, `suggestion`,
 `group_keys` and `exclude_group_keys` and each name gains `suggestion`,
 `ranks`, `needs_rank` and `linked_student_name`; `people-summary/` counts the
-names still to link by suggestion. Left names are sent as group keys, so the
+names still to link by suggestion, and the names with every record linked
+(for the progress bar, so a name partly linked counts once). Left names are sent as group keys, so the
 browser keeps the newest 100.
 
 ### 2026-10-21 - Historical linking uses the server's group key and remaining records

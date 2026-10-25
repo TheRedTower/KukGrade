@@ -168,7 +168,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
     can_be_removed = serializers.SerializerMethodField()
 
     def get_student_display_name(self, instance: GradingCandidate) -> str:
-        return f"{instance.student.first_name} {instance.student.last_name}".strip()
+        return instance.student.full_name
 
     def get_can_be_moved(self, instance: GradingCandidate) -> bool:
         return candidate_can_change_session(instance)
@@ -816,7 +816,7 @@ class BulkLinkLegacyRecordsSerializer(serializers.Serializer):
 
 class SuggestedStudentSerializer(serializers.Serializer):
     student = serializers.IntegerField(source="student.pk")
-    full_name = serializers.SerializerMethodField()
+    full_name = serializers.CharField(source="student.full_name")
     wksa_id = serializers.CharField(source="student.wksa_id")
     current_rank_name = serializers.CharField(source="student.current_rank.name")
     status_display = serializers.CharField(source="student.get_status_display")
@@ -825,10 +825,6 @@ class SuggestedStudentSerializer(serializers.Serializer):
         child=serializers.CharField(),
         help_text="Why the student is suggested, in plain words.",
     )
-
-    def get_full_name(self, candidate: Any) -> str:
-        student = candidate.student
-        return f"{student.first_name} {student.last_name}"
 
 
 class LegacyPersonSerializer(serializers.Serializer):
@@ -913,13 +909,16 @@ class LegacyPersonSerializer(serializers.Serializer):
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_linked_student_name(self, group: Any) -> str | None:
         student = group.linked_student
-        return f"{student.first_name} {student.last_name}" if student else None
+        return student.full_name if student else None
 
 
 class LegacyPeopleSummarySerializer(serializers.Serializer):
     """Names still to link, by how clear their suggested students are."""
 
     names = serializers.IntegerField(help_text="Names with a record still to link.")
+    linked = serializers.IntegerField(
+        help_text="Names with every record linked; exclude_group_keys does not apply.",
+    )
     clear = serializers.IntegerField(help_text="One student fits clearly.")
     choose = serializers.IntegerField(help_text="Several students fit equally well.")
     none = serializers.IntegerField(help_text="No student fits.")

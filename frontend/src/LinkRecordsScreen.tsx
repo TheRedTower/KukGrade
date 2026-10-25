@@ -102,7 +102,8 @@ export function LinkRecordsScreen() {
     left: left.length > 0 ? leftCount.data?.count : 0,
     done: linkedCount.data?.count,
   };
-  const linkedNames = counts.done ?? 0;
+  // Disjoint, so a name partly linked counts once, as still to link.
+  const linkedNames = summary.data?.linked ?? 0;
   const totalNames = linkedNames + (counts.todo ?? 0) + (counts.left ?? 0);
 
   const noneLeft = view === "left" && left.length === 0;

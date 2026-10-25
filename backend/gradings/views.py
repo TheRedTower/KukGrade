@@ -1003,7 +1003,8 @@ class LegacyGradingRecordViewSet(
         *args: object,
         **kwargs: object,
     ) -> Response:
-        """How many names still wait, by how clear their suggested students are."""
+        """How many names still wait, by how clear their suggestions are, and
+        how many have every record linked."""
         groups = self._people_groups(
             request.query_params.dict(),
             _PEOPLE_SUMMARY_PARAMETERS,
@@ -1013,9 +1014,21 @@ class LegacyGradingRecordViewSet(
         counts = {kind: 0 for kind in _PEOPLE_SUGGESTIONS}
         for group in groups:
             counts[group.suggestion] += 1
+        # Every name, linked or not, to find the ones with nothing left to
+        # link: a name partly linked counts once, as still to link.
+        everyone = self._people_groups(
+            {"batch": request.query_params.get("batch", "")},
+            _PEOPLE_SUMMARY_PARAMETERS,
+            linked="",
+        )
+        linked = sum(
+            1
+            for group in everyone
+            if all(record.student_id is not None for record in group.records)
+        )
         return Response(
             LegacyPeopleSummarySerializer(
-                {"names": len(groups), **counts},
+                {"names": len(groups), "linked": linked, **counts},
             ).data,
         )
 

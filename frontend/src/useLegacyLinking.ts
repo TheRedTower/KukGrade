@@ -26,7 +26,7 @@ export function useLegacyLinking() {
   }
 
   const link = useMutation({
-    mutationFn: (links: { record: number; student: number }[]) => bulkLinkLegacyRecords(links),
+    mutationFn: (links: Parameters<typeof bulkLinkLegacyRecords>[0]) => bulkLinkLegacyRecords(links),
     onSuccess: refresh,
   });
   const undo = useMutation({

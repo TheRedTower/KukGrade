@@ -448,13 +448,15 @@ def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
     seeded_names()
     zac = Student.objects.get(first_name="Zac")
     legacy_record(source_name="Done Already", student=zac)
+    # Partly linked: still to link, and not counted as linked.
+    legacy_record(source_name="Zac W", student=zac)
     client = client_for(admin())
 
     summary = client.get(SUMMARY).json()
-    left_out = client.get(SUMMARY, {"exclude_group_keys": "theo"}).json()
+    left_out = client.get(SUMMARY, {"exclude_group_keys": "theo,done already"}).json()
 
-    assert summary == {"names": 3, "clear": 1, "choose": 1, "none": 1}
-    assert left_out == {"names": 2, "clear": 1, "choose": 0, "none": 1}
+    assert summary == {"names": 3, "linked": 1, "clear": 1, "choose": 1, "none": 1}
+    assert left_out == {"names": 2, "linked": 1, "clear": 1, "choose": 0, "none": 1}
     assert client.get(SUMMARY, {"linked": "true"}).status_code == 400
     assert client.get(SUMMARY, {"search": "zac"}).status_code == 400
 
@@ -467,7 +469,7 @@ def test_the_summary_follows_the_chosen_import() -> None:
 
     summary = client_for(admin()).get(SUMMARY, {"batch": first.pk}).json()
 
-    assert summary == {"names": 1, "clear": 1, "choose": 0, "none": 0}
+    assert summary == {"names": 1, "linked": 0, "clear": 1, "choose": 0, "none": 0}
 
 
 def test_instructors_cannot_see_suggestions_or_link_in_bulk() -> None:

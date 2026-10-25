@@ -607,7 +607,8 @@ describe("Login theme toggle", () => {
     render(<App />);
 
     await screen.findByRole("heading", { name: "Sign in" });
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    // The theme is written by an effect, which can land after the heading.
+    await waitFor(() => expect(document.documentElement.getAttribute("data-theme")).toBe("dark"));
 
     act(() => listener?.({ matches: false } as MediaQueryListEvent));
     expect(document.documentElement.getAttribute("data-theme")).toBe("light");

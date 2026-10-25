@@ -84,7 +84,7 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
   );
 }
 
-/** Any student, found by name: the students KukGrade did not suggest. */
+/** Any student, found by name, for when no suggestion is the right one. */
 export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onChoose: (choice: Chosen) => void }) {
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());

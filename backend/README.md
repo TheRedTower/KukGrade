@@ -41,7 +41,7 @@ uv sync
 uv run python manage.py migrate          # needs `docker compose up -d db`
 uv run python manage.py issue_setup_code # fresh database only, see below
 uv run python manage.py runserver 0.0.0.0:8000
-uv run pytest
+uv run pytest -n auto   # in parallel; plain `uv run pytest` runs serially
 ```
 
 A fresh database has no accounts, and `createsuperuser` is switched off.

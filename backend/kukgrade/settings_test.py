@@ -48,3 +48,7 @@ REST_FRAMEWORK = {
         "setup": "1000/min",
     },
 }
+
+# Cheap password hashing: the suite creates thousands of users, and the
+# default hasher is slow on purpose. Production keeps Django's default.
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

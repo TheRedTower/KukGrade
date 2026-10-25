@@ -49,7 +49,7 @@ DJANGO_DEBUG=true uv run python manage.py check
 DJANGO_DEBUG=true uv run python manage.py makemigrations --check --dry-run
 DJANGO_SETTINGS_MODULE=kukgrade.settings_test uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn
 git diff --exit-code -- schema.yml
-uv run pytest
+uv run pytest -n auto   # in parallel, one test database per core; plain `uv run pytest` runs serially
 ```
 
 Frontend:

@@ -22,7 +22,7 @@
 | `syllabus` | Syllabus items, per-rank/age-band requirements, and the cumulative resolver behind both the syllabus screen and assessment generation |
 | `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, and imported `LegacyGradingRecord`s |
 | `data_imports` | Import batches and their stored rows (`ImportRow`): student-roster import and the historical-workbook adapter |
-| `health` | Liveness (`/api/health/`) and database readiness (`/api/ready/`) |
+| `health` | Liveness (`/api/health/`); the database check the container health check uses (`database_reachable`) |
 
 Every state change goes through a service function (`<app>/services.py`;
 `gradings` splits its services by domain into `services.py`,

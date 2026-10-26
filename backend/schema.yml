@@ -2130,21 +2130,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaginatedRankList'
           description: ''
-  /api/ready/:
-    get:
-      operationId: ready_retrieve
-      tags:
-      - ready
-      security:
-      - cookieAuth: []
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReadinessResponse'
-          description: ''
   /api/setup/:
     get:
       operationId: setup_retrieve
@@ -5501,13 +5486,6 @@ components:
       - rows
       - source_text
       - suggested_rank_code
-    ReadinessResponse:
-      type: object
-      properties:
-        status:
-          type: string
-      required:
-      - status
     RecordKindEnum:
       enum:
       - GRADING_RESULT

@@ -45,9 +45,7 @@ generated from it.
 ## 0b. Error responses
 
 Every error response uses one envelope - including an unknown `/api/` URL,
-which answers `404` with code `not_found`. The one deliberate exception is
-`GET /api/ready/`, whose `503` is `{"status": "unavailable"}` for the
-monitor that polls it:
+which answers `404` with code `not_found`:
 
 ```json
 {"error": {"code": "validation_error",
@@ -78,7 +76,6 @@ not the response.
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | GET | /api/health/ | Anonymous process liveness; returns `{"service":"kukgrade-backend","status":"ok"}`. |
-| GET | /api/ready/ | Anonymous database readiness; returns `{"status":"ok"}` or `503` with `{"status":"unavailable"}`. Contains no database details. |
 | GET | /api/setup/ | Anonymous: `{"setup_needed": bool}`, true until the deployment's first administrator exists. Sets the CSRF cookie the setup page needs. |
 | POST | /api/setup/ | Anonymous, CSRF-checked, rate-limited like login: `{code, email, first_name?, last_name?, password}` creates the first administrator - a superuser - and signs them in (`201`, the current user). `code` is the one-time setup code from the server's log; a wrong, expired or already-used code, a password outside the policy, or any request once an administrator exists is a `400` field error. See `accounts/setup.py`. |
 | GET | /api/site/ | Anonymous site settings: `club_name` from `KUKGRADE_CLUB_NAME` (default "Kuk Sool Won"), shown in the sidebar's club card; `time_zone`, the club's IANA zone from `TZ` (default `Europe/London`), in which screens show times and decide what day it is; `import_upload_max_bytes`, the effective server import-file limit from `KUKGRADE_UPLOAD_MAX_BYTES` (default 5 MiB); `password_policy` - `{min_length, max_length, character_rules: [{code, label, pattern}], checked_on_save: [label]}`, the policy every password path enforces, which the password forms render as a checklist; and `wksa_id` - `{hint, forms: [{code, label, pattern, example}]}`, the two forms a WKSA ID may take and the rule in a sentence (the same one a refused ID is told), the student example using `KUKGRADE_SCHOOL_PREFIX` (default `206-2`). |
@@ -114,7 +111,7 @@ them to the sign-in screen. Every *other* session for that account is ended.
 account's password: creation, and `POST /api/users/{id}/set-password/`. While
 it is set, the account may reach only `/api/auth/login/`, `/api/auth/me/`,
 `/api/auth/change-password/`, `/api/auth/logout/`, `/api/health/`,
-`/api/ready/`, `/api/site/` and the frontend shell. Every other endpoint answers `403` with
+`/api/site/` and the frontend shell. Every other endpoint answers `403` with
 `error.code = "password_change_required"`, whatever the method. A successful
 `POST /api/auth/change-password/` clears the flag and restores normal access.
 Enforced by `accounts.middleware.ForcePasswordChangeMiddleware`, so it holds

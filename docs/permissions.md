@@ -138,9 +138,9 @@ superuser's record view-only to anyone else.
 
 - Every endpoint requires authentication except `/api/health/`,
   `/api/site/`, login, and `/api/setup/` - which only creates the first
-  administrator, given the one-time code in the server's log. `/api/ready/`
-  answers only the deployment's own health check (loopback, no forwarded
-  address). The app's sign-in is the only public password entry: the Django
+  administrator, given the one-time code in the server's log. There is no
+  public readiness endpoint: the container's health check asks the database
+  itself. The app's sign-in is the only public password entry: the Django
   admin site is not mounted on the network app (see "The Django admin site"
   in `deployment.md`).
 - Every viewset declares a `permission_map` from action to required Django

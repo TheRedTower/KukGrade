@@ -1091,22 +1091,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/ready/": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: operations["ready_retrieve"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/setup/": {
         parameters: {
             query?: never;
@@ -2639,9 +2623,6 @@ export interface components {
             doubtful: boolean;
             /** @description How many rows use this text. */
             rows: number;
-        };
-        ReadinessResponse: {
-            status: string;
         };
         /**
          * @description * `GRADING_RESULT` - Grading result
@@ -4641,25 +4622,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PaginatedRankList"];
-                };
-            };
-        };
-    };
-    ready_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReadinessResponse"];
                 };
             };
         };

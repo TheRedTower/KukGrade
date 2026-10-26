@@ -44,7 +44,6 @@ EXEMPT_URL_NAMES = frozenset(
         "auth-change-password",
         "frontend",
         "health-check",
-        "readiness-check",
         "site-settings",
     },
 )

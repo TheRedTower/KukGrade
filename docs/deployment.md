@@ -68,8 +68,8 @@ export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
 The second command builds the app image, starts its single service, applies
-pending Django migrations, and waits for `/api/ready/` to report that the app
-and database are available. A failed migration leaves the app unable to serve
+pending Django migrations, and waits for the container health check: the app
+answers `/api/health/` and the database answers a query. A failed migration leaves the app unable to serve
 traffic and visible in `docker compose logs app`.
 
 Set up the first administrator once, after a successful start. While none
@@ -96,8 +96,7 @@ docker compose --env-file .env.production -f compose.prod.yml logs --tail=100 ap
 ```
 
 Check `https://www.kukgrade.co.uk/`, a deep link such as
-`/students/42` and `/api/health/` (`/api/ready/` answers only the container's own
-health check, so a request from outside gets `404`). Check an authenticated
+`/students/42` and `/api/health/`. Check an authenticated
 write to confirm session cookies and CSRF across the HTTPS proxy. The
 frontend calls `/api/` on the same origin; no production CORS origin or API
 subdomain is needed.
@@ -150,15 +149,15 @@ The app's sign-in is the only public password entry. The Django admin
 (`/admin/`) is **not mounted on the network app** (`kukgrade/urls.py`), and no
 setting turns it on there: `/admin/`, `/admin/login/` and every page under it,
 and `/static/admin/...` (left out of the image's collected files), answer
-`404` and serve nothing of the admin. `/api/ready/` answers only the
-container's own health check, with the same `404` body as an unknown API path
-to anyone else. To confirm on a deployment:
+`404` and serve nothing of the admin. There is no public readiness
+endpoint either: the container's health check asks the database itself. To
+confirm on a deployment:
 
 ```sh
 curl -i https://www.kukgrade.co.uk/admin/            # 404
 curl -i https://www.kukgrade.co.uk/admin/login/      # 404, no sign-in form
 curl -i https://www.kukgrade.co.uk/static/admin/css/base.css   # 404
-curl -i https://www.kukgrade.co.uk/api/ready/        # 404
+curl -i https://www.kukgrade.co.uk/api/ready/        # 404, no readiness endpoint
 ```
 
 Emergency repair is done from a shell, never over the network:
@@ -184,8 +183,14 @@ Emergency repair is done from a shell, never over the network:
   then open `http://localhost:9001/admin/` on that host (over an SSH tunnel
   if you are working remotely). This serves the admin and nothing else, only
   answers to `localhost` and `127.0.0.1`, and has no HTTPS settings because
-  it is never reachable from another machine. For a source or bare-metal
-  install, run the same `runserver` command on the host's loopback.
+  it is meant to be used from the host only. While the container runs it is
+  also listening on the PostgreSQL network, so other containers on that
+  network could reach it (a staff sign-in is still required, and it is not
+  rate-limited): do it only for the length of a repair, with nothing
+  untrusted on that network, and stop the container afterwards. For a source
+  or bare-metal install, run `python manage.py runserver 127.0.0.1:9001
+  --insecure --noreload --settings=kukgrade.settings_admin` on the host
+  instead, which listens on loopback only.
 
 Admin accounts are still superusers or staff; a temporary password closes the
 admin site as it does the app (`kukgrade.settings_admin` shares the same

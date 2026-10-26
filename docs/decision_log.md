@@ -29,8 +29,11 @@ the admin's (and the REST framework's browsable-API) static files out of the
 collected set. The admin is run only from a shell, with
 `kukgrade.settings_admin` and `kukgrade.urls_admin`, bound to loopback (a
 throwaway container published to the host's loopback, or `runserver` on the
-host). `/api/ready/` answers only a request from loopback with no
-`X-Forwarded-For`, so the public cannot ask whether the database is up.
+host). The public `/api/ready/` endpoint is removed: the container's health
+check asks `/api/health/` and then the database itself, so nothing public
+reports whether the database is up. (A loopback-only endpoint was tried first
+and rejected on review: a reverse proxy on the same host connects from
+loopback.)
 
 Context:
 The admin's own sign-in form is a separate Django view the API's login

@@ -4,8 +4,8 @@ Used only by an operator with a shell on the host, who starts it by hand in a
 throwaway container published to the host's loopback, or with runserver on the
 host's loopback for a source install (docs/deployment.md, "The Django admin
 site"). It serves the Django admin and nothing of the app, accepts only the
-loopback host names, and carries no HTTPS settings because it is never
-reachable from another machine. The network app does not use this module.
+loopback host names, and carries no HTTPS settings because it is meant to be
+used from the host only. The network app does not use this module.
 """
 
 from __future__ import annotations

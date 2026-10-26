@@ -33,17 +33,3 @@ def database_reachable() -> bool:
     except DatabaseError:
         return False
     return True
-
-
-@extend_schema(
-    responses=inline_serializer(
-        "ReadinessResponse",
-        fields={"status": serializers.CharField()},
-    ),
-)
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def readiness_check(_request: Request) -> Response:
-    if not database_reachable():
-        return Response({"status": "unavailable"}, status=503)
-    return Response({"status": "ok"})

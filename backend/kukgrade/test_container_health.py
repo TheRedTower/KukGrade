@@ -22,17 +22,20 @@ def test_health_check_uses_first_allowed_host(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr("kukgrade.container_health.settings.SERVES_TLS", False)
     monkeypatch.setattr("kukgrade.container_health.settings.PORT", 6942)
 
-    with patch("kukgrade.container_health.urllib.request.build_opener") as build:
+    with (
+        patch("kukgrade.container_health.urllib.request.build_opener") as build,
+        patch("kukgrade.container_health._database_reachable", return_value=True),
+    ):
         opener = build.return_value
         opener.open.return_value.__enter__.return_value.status = 200
         main()
 
     request = opener.open.call_args.args[0]
+    assert request.full_url == "http://127.0.0.1:6942/api/health/"
     assert request.get_header("Host") == "www.kukgrade.co.uk"
     assert request.get_header("X-forwarded-proto") == "https"
     assert opener.open.call_args.kwargs == {"timeout": 3}
     assert build.call_args.args == (_NoRedirects,)
-    assert request.full_url == "http://127.0.0.1:6942/api/ready/"
 
 
 @pytest.mark.parametrize(
@@ -60,17 +63,32 @@ def test_a_direct_https_app_is_checked_over_https_without_verifying_itself(
     monkeypatch.setattr("kukgrade.container_health.settings.SERVES_TLS", True)
     monkeypatch.setattr("kukgrade.container_health.settings.PORT", 7777)
 
-    with patch("kukgrade.container_health.urllib.request.build_opener") as build:
+    with (
+        patch("kukgrade.container_health.urllib.request.build_opener") as build,
+        patch("kukgrade.container_health._database_reachable", return_value=True),
+    ):
         opener = build.return_value
         opener.open.return_value.__enter__.return_value.status = 200
         main()
 
     request = opener.open.call_args.args[0]
-    assert request.full_url == "https://127.0.0.1:7777/api/ready/"
+    assert request.full_url == "https://127.0.0.1:7777/api/health/"
     redirects, https = build.call_args.args
     assert redirects is _NoRedirects
     assert https._context.verify_mode == ssl.CERT_NONE
     assert https._context.check_hostname is False
+
+
+def test_a_database_that_does_not_answer_fails_the_check() -> None:
+    with (
+        patch("kukgrade.container_health.urllib.request.build_opener") as build,
+        patch("kukgrade.container_health._database_reachable", return_value=False),
+    ):
+        build.return_value.open.return_value.__enter__.return_value.status = 200
+        with pytest.raises(SystemExit) as failed:
+            main()
+
+    assert failed.value.code == 1
 
 
 def test_a_redirect_fails_the_check_instead_of_being_followed() -> None:
@@ -95,7 +113,7 @@ def test_a_redirect_fails_the_check_instead_of_being_followed() -> None:
     try:
         opener = urllib.request.build_opener(_NoRedirects)
         with pytest.raises(urllib.error.HTTPError) as refused:
-            opener.open(f"http://127.0.0.1:{server.server_port}/api/ready/", timeout=3)
+            opener.open(f"http://127.0.0.1:{server.server_port}/api/health/", timeout=3)
         assert refused.value.code == 301
         assert followed == []
     finally:

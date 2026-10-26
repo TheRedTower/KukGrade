@@ -68,8 +68,8 @@ export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
 The second command builds the app image, starts its single service, applies
-pending Django migrations, and waits for `/api/ready/` to report that the app
-and database are available. A failed migration leaves the app unable to serve
+pending Django migrations, and waits for the container health check: the app
+answers `/api/health/` and the database answers a query. A failed migration leaves the app unable to serve
 traffic and visible in `docker compose logs app`.
 
 Set up the first administrator once, after a successful start. While none
@@ -96,7 +96,7 @@ docker compose --env-file .env.production -f compose.prod.yml logs --tail=100 ap
 ```
 
 Check `https://www.kukgrade.co.uk/`, a deep link such as
-`/students/42`, `/api/health/`, and `/api/ready/`. Check an authenticated
+`/students/42` and `/api/health/`. Check an authenticated
 write to confirm session cookies and CSRF across the HTTPS proxy. The
 frontend calls `/api/` on the same origin; no production CORS origin or API
 subdomain is needed.
@@ -177,6 +177,59 @@ little above `KUKGRADE_UPLOAD_MAX_BYTES`. Nothing caps it yet: that is a
 Traefik buffering middleware (`maxRequestBodyBytes`) attached to the
 `kukgrade` router in `compose.prod.yml`'s labels, to add and verify against
 the real Traefik when going live.
+
+## The Django admin site
+
+The app's sign-in is the only public password entry. The Django admin
+(`/admin/`) is **not mounted on the network app** (`kukgrade/urls.py`), and no
+setting turns it on there: `/admin/`, `/admin/login/` and every page under it,
+and `/static/admin/...` (left out of the image's collected files), answer
+`404` and serve nothing of the admin. There is no public readiness
+endpoint either: the container's health check asks the database itself. To
+confirm on a deployment:
+
+```sh
+curl -i https://www.kukgrade.co.uk/admin/            # 404
+curl -i https://www.kukgrade.co.uk/admin/login/      # 404, no sign-in form
+curl -i https://www.kukgrade.co.uk/static/admin/css/base.css   # 404
+curl -i https://www.kukgrade.co.uk/api/ready/        # 404, no readiness endpoint
+```
+
+Emergency repair is done from a shell, never over the network:
+
+- `docker exec -it kukgrade python manage.py shell` (or `migrate`,
+  `issue_setup_code`, any management command) works in the running
+  container. SQL can be run there through `django.db.connection.cursor()`;
+  the image has no `psql`, so `manage.py dbshell` does not work in it. The
+  PostgreSQL container's own `psql` is the other route
+  (`docker exec -it <postgres-container> psql -U <database-user> <database-name>`).
+- The admin screens, only when truly needed, are started by hand in a
+  throwaway container of the same image, published to the host's loopback
+  only, and removed afterwards (substitute the PostgreSQL network and
+  `.env.production`):
+
+  ```sh
+  docker run --rm -it --env-file .env.production --network <postgres-network> \
+      -p 127.0.0.1:9001:9001 --entrypoint python kukgrade:local \
+      manage.py runserver 0.0.0.0:9001 --insecure --noreload \
+      --settings=kukgrade.settings_admin
+  ```
+
+  then open `http://localhost:9001/admin/` on that host (over an SSH tunnel
+  if you are working remotely). This serves the admin and nothing else, only
+  answers to `localhost` and `127.0.0.1`, and has no HTTPS settings because
+  it is meant to be used from the host only. While the container runs it is
+  also listening on the PostgreSQL network, so other containers on that
+  network could reach it (a staff sign-in is still required, and it is not
+  rate-limited): do it only for the length of a repair, with nothing
+  untrusted on that network, and stop the container afterwards. For a source
+  or bare-metal install, run `python manage.py runserver 127.0.0.1:9001
+  --insecure --noreload --settings=kukgrade.settings_admin` on the host
+  instead, which listens on loopback only.
+
+Admin accounts are still superusers or staff; a temporary password closes the
+admin site as it does the app (`kukgrade.settings_admin` shares the same
+sign-in backend).
 
 ## Boundaries
 

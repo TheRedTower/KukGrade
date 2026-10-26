@@ -6,11 +6,13 @@ import ssl
 import urllib.error
 import urllib.request
 
+import django
+
 from kukgrade import settings
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
-    # A redirect means the app did not answer readiness itself - for example
+    # A redirect means the app did not answer itself - for example
     # SECURE_SSL_REDIRECT when no proxy is declared (DJANGO_NUM_PROXIES) - and
     # following it would probe the public site instead of this container.
     def redirect_request(self, *args: object, **kwargs: object) -> None:
@@ -23,12 +25,19 @@ def _host() -> str:
     return "localhost" if host in ("", "*") else host
 
 
+def _database_reachable() -> bool:
+    """Ask the database directly: nothing public reports whether it is up."""
+    django.setup()
+    from health.views import database_reachable
+
+    return database_reachable()
+
+
 def main() -> None:
-    host = _host()
     scheme = "https" if settings.SERVES_TLS else "http"
     request = urllib.request.Request(
-        f"{scheme}://127.0.0.1:{settings.PORT}/api/ready/",
-        headers={"Host": host, "X-Forwarded-Proto": "https"},
+        f"{scheme}://127.0.0.1:{settings.PORT}/api/health/",
+        headers={"Host": _host(), "X-Forwarded-Proto": "https"},
     )
     handlers: list[urllib.request.BaseHandler | type[urllib.request.BaseHandler]]
     handlers = [_NoRedirects]
@@ -46,6 +55,8 @@ def main() -> None:
                 raise SystemExit(1)
     except (OSError, urllib.error.URLError) as exc:
         raise SystemExit(1) from exc
+    if not _database_reachable():
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -27,8 +27,11 @@ COPY --from=python-deps /app/backend/.venv ./.venv
 COPY backend/ ./
 COPY --from=frontend-build /app/frontend/dist ./frontend_dist
 COPY backend/docker/entrypoint.sh /app/entrypoint.sh
+# Left out of the public static set: the Django admin's files (the network app
+# does not serve the admin; kukgrade.urls_admin does, from a shell) and the
+# REST framework's browsable-API files (production answers in JSON only).
 RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
-    python manage.py collectstatic --noinput \
+    python manage.py collectstatic --noinput --ignore admin --ignore rest_framework \
     && groupadd --system --gid 10001 appuser \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
     && mkdir -p /var/lib/kukgrade/import_uploads /var/lib/kukgrade/tls \

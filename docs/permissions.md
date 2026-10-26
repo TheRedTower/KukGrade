@@ -137,8 +137,12 @@ superuser's record view-only to anyone else.
 ## Backend Enforcement
 
 - Every endpoint requires authentication except `/api/health/`,
-  `/api/ready/`, `/api/site/`, login, and `/api/setup/` - which only creates
-  the first administrator, given the one-time code in the server's log.
+  `/api/site/`, login, and `/api/setup/` - which only creates the first
+  administrator, given the one-time code in the server's log. `/api/ready/`
+  answers only the deployment's own health check (loopback, no forwarded
+  address). The app's sign-in is the only public password entry: the Django
+  admin site is not mounted on the network app (see "The Django admin site"
+  in `deployment.md`).
 - Every viewset declares a `permission_map` from action to required Django
   permissions (`accounts.permissions.HasRequiredPermissions`); an undeclared
   action is denied, so a new endpoint fails closed.

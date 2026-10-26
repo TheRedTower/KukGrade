@@ -18,6 +18,35 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-26 - The Django admin is not served over the network
+
+Status: Accepted; built
+
+Decision:
+The app's sign-in is the only public password entry. `kukgrade.urls` no
+longer mounts `admin/`, so `/admin/...` is a 404, and the image leaves
+the admin's (and the REST framework's browsable-API) static files out of the
+collected set. The admin is run only from a shell, with
+`kukgrade.settings_admin` and `kukgrade.urls_admin`, bound to loopback (a
+throwaway container published to the host's loopback, or `runserver` on the
+host). `/api/ready/` answers only a request from loopback with no
+`X-Forwarded-For`, so the public cannot ask whether the database is up.
+
+Context:
+The admin's own sign-in form is a separate Django view the API's login
+throttle does not cover, so passwords could be guessed against it without the
+10-per-minute limit (django-allauth's documentation states the same of its
+own setups). Redirecting it to the app's sign-in was considered and rejected
+because it would leave `/admin/` routable. The owner chose to close it as far
+as possible; emergency repair keeps `manage.py`, a shell and SQL.
+
+Consequences:
+Tests that exercise the admin's rules use the emergency URL configuration
+(`kukgrade.testing.render_admin_pages`). The network app has no setting that
+mounts the admin. 2FA for admin accounts is not needed while it is not
+reachable. `deployment.md` documents the emergency commands and a check that
+each closed path answers 404.
+
 ### 2026-10-24 - Linking historical records becomes a review table
 
 Status: Accepted; built on `dev`

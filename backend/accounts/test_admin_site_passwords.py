@@ -79,15 +79,18 @@ def test_signing_out_of_the_admin_site_stays_open() -> None:
     assert "_auth_user_id" not in client.session
 
 
-def test_the_admin_site_opens_once_the_password_is_changed() -> None:
+def test_the_admin_site_opens_once_the_password_is_changed(settings: Any) -> None:
     # One session: changing the password ends every other.
     client, _me = superuser_client(must_change_password=True)
 
+    # The change is made in the app, which does not serve the admin.
+    settings.ROOT_URLCONF = "kukgrade.urls"
     client.post(
         "/api/auth/change-password/",
         {"current_password": OWNER_PASSWORD, "new_password": "Brand-New-Choice-9!"},
         content_type="application/json",
     )
+    settings.ROOT_URLCONF = "kukgrade.urls_admin"
 
     assert client.get("/admin/").status_code == 200
 

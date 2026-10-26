@@ -21,7 +21,11 @@ push and pull request.
   to external Traefik and PostgreSQL networks; it does not create either
   existing service. The container runs migrations before one threaded
   Gunicorn worker starts. `/api/ready/` checks PostgreSQL for container
-  health; the public `/api/health/` remains a process liveness endpoint.
+  health and answers only that check (loopback, no forwarded address); the
+  public `/api/health/` remains a process liveness endpoint. The Django admin
+  site is not served by the network app: it is run from a shell only, by
+  `kukgrade.urls_admin` with `kukgrade.settings_admin` (`deployment.md`, "The
+  Django admin site").
   The club name in the sidebar's club card is the `KUKGRADE_CLUB_NAME` setting, served by
   the public `/api/site/`; a session with no location shows none rather than
   an assumed venue.

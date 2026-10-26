@@ -10,15 +10,5 @@ python manage.py migrate --noinput
 # page asks for to this log (accounts/setup.py).
 python manage.py issue_setup_code
 
-exec gunicorn kukgrade.wsgi:application \
-    --bind 0.0.0.0:8000 \
-    --workers 1 \
-    --worker-class gthread \
-    --threads "${GUNICORN_THREADS:-4}" \
-    --worker-tmp-dir /tmp \
-    --no-control-socket \
-    --timeout "${GUNICORN_TIMEOUT:-30}" \
-    --graceful-timeout 30 \
-    --access-logfile - \
-    --error-logfile - \
-    --access-logformat '%(h)s %(m)s %(U)s %(s)s %(D)s'
+# The port, HTTPS and the rest are in kukgrade/gunicorn_conf.py.
+exec gunicorn kukgrade.wsgi:application -c python:kukgrade.gunicorn_conf

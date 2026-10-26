@@ -36,8 +36,13 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_ALLOWED_HOSTS",
         "DJANGO_SECURE_SSL_REDIRECT",
         "DJANGO_SECURE_HSTS_SECONDS",
-        "DJANGO_BEHIND_TLS_PROXY",
         "DJANGO_NUM_PROXIES",
+        "DJANGO_BEHIND_TLS_PROXY",
+        "KUKGRADE_PORT",
+        "KUKGRADE_TRANSPORT",
+        "KUKGRADE_TLS_CERT",
+        "KUKGRADE_TLS_KEY",
+        "KUKGRADE_TLS_DIR",
         "KUKGRADE_CLUB_NAME",
         "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
@@ -132,16 +137,93 @@ def test_login_view_opts_into_the_scoped_throttle() -> None:
     assert SetupView.throttle_scope == "setup"
 
 
-def test_proxy_ssl_header_requires_explicit_opt_in_even_in_production(
+def test_proxy_ssl_header_is_trusted_only_once_a_proxy_is_declared(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    declared = load_settings(monkeypatch, **PRODUCTION_ENV, DJANGO_NUM_PROXIES="1")
+    direct = load_settings(monkeypatch, **PRODUCTION_ENV)
+
+    assert declared.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
+    assert not hasattr(direct, "SECURE_PROXY_SSL_HEADER")
+
+
+def test_a_direct_production_app_listens_on_6942_and_serves_https_itself(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV)
+
+    assert settings.PORT == 6942
+    assert settings.PROXY_HOPS == 0
+    assert settings.TRANSPORT == "https"
+    assert settings.SERVES_TLS is True
+    assert settings.PLAIN_HTTP is False
+    assert settings.SECURE_SSL_REDIRECT is True
+    assert settings.SESSION_COOKIE_SECURE is True
+    assert settings.SECURE_HSTS_SECONDS == 31536000
+
+
+def test_plain_http_is_an_explicit_choice_for_a_direct_app(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, **PRODUCTION_ENV, KUKGRADE_TRANSPORT="http")
+
+    assert settings.SERVES_TLS is False
+    assert settings.PLAIN_HTTP is True
+    assert settings.SECURE_SSL_REDIRECT is False
+    assert settings.SECURE_HSTS_SECONDS == 0
+    assert settings.SECURE_HSTS_INCLUDE_SUBDOMAINS is False
+    assert settings.SESSION_COOKIE_SECURE is False
+    assert settings.CSRF_COOKIE_SECURE is False
+
+
+def test_the_transport_choice_means_nothing_behind_a_proxy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = load_settings(
         monkeypatch,
         **PRODUCTION_ENV,
-        DJANGO_BEHIND_TLS_PROXY="true",
+        DJANGO_NUM_PROXIES="2",
+        KUKGRADE_TRANSPORT="http",
     )
 
+    # TLS ends at the proxies; the app speaks HTTP and trusts what they say.
+    assert settings.SERVES_TLS is False
+    assert settings.SECURE_SSL_REDIRECT is True
+    assert settings.SESSION_COOKIE_SECURE is True
     assert settings.SECURE_PROXY_SSL_HEADER == ("HTTP_X_FORWARDED_PROTO", "https")
+
+
+def test_the_development_server_never_serves_tls_itself(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = load_settings(monkeypatch, DJANGO_DEBUG="true")
+
+    assert settings.SERVES_TLS is False
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "message"),
+    [
+        ("KUKGRADE_PORT", "0", "port number"),
+        ("KUKGRADE_PORT", "70000", "port number"),
+        ("KUKGRADE_PORT", "http", "must be an integer"),
+        ("DJANGO_NUM_PROXIES", "-1", "0 or more"),
+        ("KUKGRADE_TRANSPORT", "ftp", "must be one of https, http"),
+        ("KUKGRADE_TLS_CERT", "/certs/site.crt", "must be set together"),
+        ("KUKGRADE_TLS_KEY", "/certs/site.key", "must be set together"),
+        ("DJANGO_BEHIND_TLS_PROXY", "true", "no longer exists"),
+    ],
+)
+def test_a_mistaken_deployment_setting_is_refused_at_start(
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    value: str,
+    message: str,
+) -> None:
+    with pytest.raises(ImproperlyConfigured) as exc_info:
+        load_settings(monkeypatch, **PRODUCTION_ENV, **{name: value})
+
+    assert message in str(exc_info.value)
 
 
 def test_the_trusted_proxy_count_is_configurable(
@@ -187,7 +269,6 @@ def test_transport_security_can_be_overridden_explicitly(
         **PRODUCTION_ENV,
         DJANGO_SECURE_SSL_REDIRECT="false",
         DJANGO_SECURE_HSTS_SECONDS="600",
-        DJANGO_BEHIND_TLS_PROXY="false",
     )
 
     assert settings.SECURE_SSL_REDIRECT is False

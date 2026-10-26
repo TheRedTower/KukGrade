@@ -31,11 +31,11 @@ RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
     python manage.py collectstatic --noinput \
     && groupadd --system --gid 10001 appuser \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
-    && mkdir -p /var/lib/kukgrade/import_uploads \
+    && mkdir -p /var/lib/kukgrade/import_uploads /var/lib/kukgrade/tls \
     && chown -R appuser:appuser /var/lib/kukgrade \
     && chmod 755 /app/entrypoint.sh
 USER appuser
-EXPOSE 8000
+EXPOSE 6942
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD ["python", "-m", "kukgrade.container_health"]
 ENTRYPOINT ["/app/entrypoint.sh"]

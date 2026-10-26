@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import ssl
 import urllib.error
 import urllib.request
@@ -27,6 +28,7 @@ def _host() -> str:
 
 def _database_reachable() -> bool:
     """Ask the database directly: nothing public reports whether it is up."""
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "kukgrade.settings")
     django.setup()
     from health.views import database_reachable
 

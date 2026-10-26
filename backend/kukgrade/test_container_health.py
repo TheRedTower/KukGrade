@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import http.server
+import os
 import ssl
+import subprocess
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -77,6 +80,31 @@ def test_a_direct_https_app_is_checked_over_https_without_verifying_itself(
     assert redirects is _NoRedirects
     assert https._context.verify_mode == ssl.CERT_NONE
     assert https._context.check_hostname is False
+
+
+def test_the_database_check_runs_on_its_own_with_nothing_but_the_environment() -> None:
+    """As the image runs it: a fresh process, no settings module chosen."""
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key != "DJANGO_SETTINGS_MODULE"
+    }
+    env.setdefault("DJANGO_DEBUG", "true")
+
+    ran = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from kukgrade.container_health import _database_reachable;"
+            "print(_database_reachable())",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert ran.stdout.strip() == "True", ran.stderr
 
 
 def test_a_database_that_does_not_answer_fails_the_check() -> None:

@@ -524,7 +524,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(window.location.pathname).toBe("/gradings/10");
   });
 
-  it("handles partial registration failure by switching to Exception Resolver (SCR-018)", async () => {
+  it("handles partial registration failure by switching to Exception Resolver", async () => {
     const fetchMock = setupCohortMock({
       bulkRegisterHandler: () => {
         return jsonResponse(200, {
@@ -548,7 +548,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     // Submit cohort
     await user.click(screen.getByTestId("bgc-register-candidates-btn"));
 
-    // Screen transitions to Exception Resolver (SCR-018)
+    // Screen transitions to Exception Resolver
     expect(await screen.findByRole("heading", { name: "Resolve flagged candidates" })).toBeVisible();
     expect(screen.getByText("1 registered")).toBeVisible();
     expect(screen.getByText("1 flagged")).toBeVisible();

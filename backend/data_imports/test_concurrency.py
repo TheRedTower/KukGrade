@@ -1,4 +1,4 @@
-"""Expiry against commit and cancel, on real threads and connections (KG-A08).
+"""Expiry against commit and cancel, on real threads and connections.
 
 Each race holds the first transition just before it commits and runs the
 second against it (`kukgrade.testing.interleave`).

@@ -187,8 +187,8 @@ def test_admin_hides_delete_for_a_session_that_cannot_be_deleted() -> None:
     # A non-administrator: the ordinary DRAFT/CANCELLED-only gate applies,
     # same as the API. An administrator's extra power is covered by
     # test_admin_shows_delete_for_any_status_to_an_administrator below -
-    # request.user is threaded into the validator (KG-036-class fix,
-    # 2026-09-23), so this must use a non-admin to still exercise the gate.
+    # request.user is threaded into the validator, so this must use a
+    # non-admin to still exercise the gate.
     request = RequestFactory().get("/admin/")
     request.user = user("delete-instructor@example.com")
     model_admin = GradingSessionAdmin(GradingSession, admin.site)
@@ -541,7 +541,7 @@ def test_cancelled_session_without_marking_is_still_deletable() -> None:
 def test_admin_deletes_a_locked_session_with_a_promotion_through_the_service() -> None:
     # Django's own collector would refuse: the promotion is PROTECT. The
     # service reverts the rank and removes the history itself, as the API
-    # lets an administrator do (KG-A14).
+    # lets an administrator do.
     built, _generated = locked_completed_candidate()
     promote_candidate(
         finalised_outcome(built),

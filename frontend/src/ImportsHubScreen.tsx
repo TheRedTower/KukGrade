@@ -301,7 +301,7 @@ function PastImports() {
   );
 }
 
-/** The Imports area's front page (FDR-049, the Combined hub). */
+/** The Imports area's front page. */
 export function ImportsHubScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

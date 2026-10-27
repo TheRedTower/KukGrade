@@ -360,7 +360,7 @@ PARITY_CASES = {
     ),
     "an ID in neither form": (
         {"wksa_id": "UK-5001"},
-        "WKSA ID: Use a student ID such as 206-2-150 or a black belt ID such as "
+        "WKSA ID: Use a student ID such as 123-4-150 or a black belt ID such as "
         "A-20819.",
     ),
     "first name at its limit": ({"first_name": "F" * 150}, None),

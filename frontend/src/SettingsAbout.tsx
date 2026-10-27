@@ -6,7 +6,7 @@ import { CopyIcon, GitHubIcon } from "./Icons";
 import { GITHUB_URL, ISSUES_URL } from "./project";
 import { useAboutQuery } from "./queries";
 
-/** What is running, and what to quote when asking for help (FDR-058). */
+/** What is running, and what to quote when asking for help. */
 export function SettingsAbout() {
   const about = useAboutQuery();
   const [copied, setCopied] = useState<"done" | "failed" | null>(null);

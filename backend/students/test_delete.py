@@ -224,7 +224,7 @@ def test_api_admin_can_delete_student() -> None:
 def test_admin_delete_goes_through_the_service_even_with_history() -> None:
     # Django's own delete refuses a student with registrations (PROTECT) or,
     # with none, deletes the row without the domain event; the service does
-    # neither (KG-A14).
+    # neither.
     built = candidate()
     student = built.student
     request = RequestFactory().post("/admin/")

@@ -2,9 +2,9 @@
 
 A file is read once, at upload, into `ImportRow`s; every later step - matching
 columns, checking, fixing a row, leaving one out, finishing - works on those
-stored rows under the batch's lock, never on a fresh parse (decision log,
-2026-10-20 import overhaul). Finishing still re-checks every row against the
-database as it is at that moment, so nothing a stale screen showed is trusted.
+stored rows under the batch's lock, never on a fresh parse. Finishing still
+re-checks every row against the database as it is at that moment, so nothing a
+stale screen showed is trusted.
 
 Every created `Student` goes through `students.services.create_students` -
 the hand-created student's rules and `STUDENT_CREATED` event, for many at
@@ -377,7 +377,7 @@ def prune_finished_import_rows(*, now: datetime | None = None) -> int:
 def _release_source_file(locked: ImportBatch) -> None:
     """Detach the batch's file now, and delete it once this transaction commits.
 
-    Storage is not transactional (KG-A07): a file deleted before the commit
+    Storage is not transactional: a file deleted before the commit
     stays deleted if the commit then fails, leaving an open batch with
     nothing to read. Until the commit the file is still on disk and the
     rolled-back row still names it, so a failure leaves the batch retryable.
@@ -513,7 +513,7 @@ def cancel_import_batch(batch: ImportBatch, *, actor: User) -> ImportBatch:
 def expire_import_batch(batch_id: int, *, max_age: timedelta) -> bool:
     """Expire one abandoned batch, under the lock commit and cancel take.
 
-    The caller's selection may be stale by now (KG-A08): the batch can have
+    The caller's selection may be stale by now: the batch can have
     been committed, cancelled or deleted since. Rechecked under the lock, so
     exactly one of those transitions wins. Returns whether this one did.
     """
@@ -763,7 +763,7 @@ def _student_model_issues(
     date_of_birth: date | None,
     rank: Rank | None,
 ) -> list[tuple[str, str]]:
-    """What `Student`'s own validation says of an unsaved row (KG-A09), as
+    """What `Student`'s own validation says of an unsaved row, as
     (field, message) - the field blank for a rule about the whole student.
 
     The field and `clean()` rules `create_student` runs on save - lengths,
@@ -773,7 +773,7 @@ def _student_model_issues(
     cost a query and repeat one preview has made: the rank was just read
     from the catalogue, the status checked against its choices, and the two
     check constraints restate `clean()` and those choices. An existing WKSA
-    ID is a skip, not an error (import Decision 9).
+    ID is a skip, not an error.
     """
     given = {
         "wksa_id": wksa_id,
@@ -1419,7 +1419,7 @@ def _check_legacy_field_lengths(
 ) -> None:
     """Refuse a cell longer than its record field, naming where it is.
 
-    Source text is kept verbatim (import Decision 7), so it is never
+    Source text is kept verbatim, so it is never
     truncated; committing it would fail the whole batch with an error that
     names no row, after a preview that looked clean.
     """
@@ -1574,7 +1574,7 @@ def _normalise_rank_mappings(
     rank_mappings: dict[str, str | None] | None,
 ) -> dict[str, str]:
     """Lowercased source text -> chosen Rank code. A missing or null value
-    both mean "leave unresolved" - import Decision 4 is that this never
+    both mean "leave unresolved" - this never
     blocks a row, unlike the student roster importer's required rank."""
     if not rank_mappings:
         return {}

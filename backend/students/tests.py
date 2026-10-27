@@ -347,7 +347,7 @@ def test_a_no_op_patch_writes_nothing() -> None:
 
     assert response.status_code == 200
     assert AuditEvent.objects.count() == before
-    # Not just no event: no row update either (KG-A12).
+    # Not just no event: no row update either.
     assert Student.objects.get(pk=created["id"]).updated_at == written_at
 
 
@@ -499,7 +499,7 @@ def test_only_students_view_student_can_read() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Admin routes through the same services the API uses (KG-036)
+# Admin routes through the same services the API uses
 # ---------------------------------------------------------------------------
 
 
@@ -565,7 +565,7 @@ def test_admin_can_correct_any_id() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Roster filters the cohort builder relies on (KG-A20).
+# Roster filters the cohort builder relies on.
 # ---------------------------------------------------------------------------
 
 

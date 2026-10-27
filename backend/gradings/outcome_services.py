@@ -579,7 +579,7 @@ def bulk_promote_candidates(
     Every session and student is locked before the first row: taken row by
     row, the students would be locked in row order, which is how two
     batches - or a batch and a session cleanup - came to hold each other's
-    students (KG-A04).
+    students.
     """
     pinned = lock_sessions_of(
         CandidateOutcome,

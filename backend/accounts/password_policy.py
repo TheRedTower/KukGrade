@@ -5,7 +5,6 @@ changing your own, the first-administrator setup - runs Django's
 `validate_password`, which runs `AUTH_PASSWORD_VALIDATORS`. The two validators
 here read the rules below, and `/api/site/` serves the same rules, so the
 checklist the screens show cannot drift from what the server enforces
-(2026-10-19, `docs/email-and-credential-lifecycle.md` amendments 2 and 3).
 
 Length is counted in characters (code points), as Python's `len` counts
 them; a character rule is a pattern any regular-expression engine reads the

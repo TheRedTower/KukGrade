@@ -1,4 +1,4 @@
-"""Stored rows and the batch API (import overhaul A1-A2, decision log 2026-10-20).
+"""Stored rows and the batch API.
 
 A file is read once, at upload, into rows; matching columns, fixing a row and
 leaving one out work on those rows, can be left and resumed, and survive a

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { useDialogFocus } from "./useDialogFocus";
 
-/** A short confirmation, FDR-040's two sentences and two buttons. */
+/** A short confirmation: two sentences and two buttons. */
 export function ImportDialog({
   title,
   children,

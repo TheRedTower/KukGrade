@@ -6,7 +6,7 @@ decision, 2026-09-29). A later `SyllabusRequirement` row for the same item
 extends or restates the earlier one rather than sitting alongside it. This
 module is the one place that turns the flat per-(rank, age band, item) rows
 into that cumulative, one-row-per-item view. The syllabus browser serves it
-and assessment generation snapshots it, so the two cannot disagree (KG-A05).
+and assessment generation snapshots it, so the two cannot disagree.
 """
 
 from __future__ import annotations

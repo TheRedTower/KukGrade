@@ -1,9 +1,8 @@
 """Expire abandoned import batches, remove source files nothing names, and
 delete the stored rows of imports finished long enough ago.
 
-No background worker exists in this codebase (see the deviations recorded
-in docs/decision_log.md) - run manually or from an external cron, e.g.
-`uv run python manage.py expire_stale_import_batches --hours 24`.
+No background worker exists in this codebase - run manually or from an
+external cron, e.g. `uv run python manage.py expire_stale_import_batches --hours 24`.
 """
 
 from __future__ import annotations

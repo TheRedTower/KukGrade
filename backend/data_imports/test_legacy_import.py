@@ -131,7 +131,7 @@ def test_preview_leaves_an_unmatched_rank_text_unsuggested() -> None:
 
     preview = preview_legacy_grading_import(batch)
 
-    # A slip for DBN, but a near miss is never guessed (import Decision 4).
+    # A slip for DBN, but a near miss is never guessed.
     suggestion = next(s for s in preview.rank_suggestions if s.source_text == "DNB")
     assert suggestion.suggested_rank_code is None
 

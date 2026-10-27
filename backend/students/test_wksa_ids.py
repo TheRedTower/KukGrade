@@ -1,4 +1,4 @@
-"""The WKSA ID scheme: two forms, nothing else (decision log 2026-10-20)."""
+"""The WKSA ID scheme: two forms, nothing else."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from students.models import Student
 pytestmark = pytest.mark.django_db
 
 FORMAT_MESSAGE = (
-    "Use a student ID such as 206-2-150 or a black belt ID such as A-20819."
+    "Use a student ID such as 123-4-150 or a black belt ID such as A-20819."
 )
 
 

@@ -1,6 +1,6 @@
 """How the container serves the app: `gunicorn -c python:kukgrade.gunicorn_conf`.
 
-One threaded worker is intentional (docs/deployment.md, "Boundaries"). The
+One threaded worker is intentional (docs/installation.md). The
 port, and whether the app serves HTTPS itself, come from the settings, so the
 image, the health check and the docs share one answer.
 """
@@ -15,7 +15,7 @@ bind = f"0.0.0.0:{settings.PORT}"
 workers = 1
 worker_class = "gthread"
 threads = 4
-# A writable place even when the root filesystem is read-only (compose.prod.yml).
+# A writable place even when the root filesystem is read-only (compose.external-db.yml).
 worker_tmp_dir = "/tmp"
 control_socket_disable = True
 # Only Django decides which proxies to trust (DJANGO_NUM_PROXIES); gunicorn

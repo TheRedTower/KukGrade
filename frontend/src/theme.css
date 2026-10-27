@@ -1,11 +1,6 @@
 /**
- * Design tokens for the "Quiet Command" visual direction - see
- * frontend/Frontend-Design-Register/FRONTEND_DESIGN_REGISTER.md, FDR-001
- * through FDR-004 and FDR-012. Values are read off the approved concept
- * screens (01-overview-light.png, 02-overview-dark.png, 08-login.png) and
- * are approximate pending a real design-tool export - see the register's own
- * "Do not treat image-generated spacing or text as exact implementation
- * measurements" note.
+ * Design tokens for the "Quiet Command" visual direction: warm charcoal and
+ * gold, with light and dark themes.
  *
  * Colour is meant to come through these custom properties. Some component
  * stylesheets still carry literal colours with a `[data-theme="dark"] .x`
@@ -25,7 +20,7 @@
   --color-field: #ffffff;
   /* The structural ink panel (nav rail, login brand panel). In dark mode it
      must differ from the page background, or the panel would read as a
-     seamless void instead of its own object - see FDR-004 and FDR-012. */
+     seamless void instead of its own object */
   --color-rail: #15130f;
   --color-rail-border: transparent;
   --color-border: #e1dbcb;
@@ -56,7 +51,7 @@
   --btn-primary-hover-text: #17140f;
   --btn-primary-shadow: 0 2px 8px rgb(197 155 39 / 20%);
 
-  /* Reserved for operational meaning (FDR-003) - never the sole carrier of
+  /* Reserved for operational meaning - never the sole carrier of
      it, always paired with text or an icon. */
   --color-success: #1a6e42;
   --color-success-surface: #e1f3e7;
@@ -91,7 +86,7 @@
 }
 
 /* Layered charcoal, not an inversion of the light palette: no pure-black
-   panels, neon glow or large gold fills (FDR-012). Surfaces sit one step
+   panels, neon glow or large gold fills. Surfaces sit one step
    lighter than the page so cards still read as distinct objects. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {

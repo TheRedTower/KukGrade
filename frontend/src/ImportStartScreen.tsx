@@ -221,7 +221,7 @@ function FoundChecklist({
   );
 }
 
-/** Step 1 of an import: choose the file, see what KukGrade found (FDR-050). */
+/** Step 1 of an import: choose the file, see what KukGrade found. */
 export function ImportStartScreen() {
   const [searchParams] = useSearchParams();
   const kind = parseKind(searchParams.get("kind"));

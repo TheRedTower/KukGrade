@@ -1,4 +1,4 @@
-"""A roster maps onto KukGrade's own fields (import overhaul A4).
+"""A roster maps onto KukGrade's own fields.
 
 Whatever matches a field is imported there; a field the file lacks can be
 given once for the whole file; a column KukGrade has no field for can be kept

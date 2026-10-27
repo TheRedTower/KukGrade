@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Candidate assessment: shared chrome for SCR-026 and SCR-027
+   Candidate assessment: shared chrome for mat-side scoring and completion review
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .caw-page {
@@ -250,7 +250,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCR-026 / FDR-042: Mat-side scoring — Single Column Run
+   Mat-side scoring — Single Column Run
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /*
@@ -367,7 +367,7 @@
   transition: width 160ms ease;
 }
 
-/* ── Requirement rows: divider-led, not cards (FDR-008) ──────────────────── */
+/* ── Requirement rows: divider-led, not cards ──────────────────── */
 
 .caw-row {
   display: flex;
@@ -379,7 +379,7 @@
 
 /*
   Result is carried by the button's pressed state and its label; the tint is a
-  secondary cue only, never the sole carrier of meaning (FDR-003).
+  secondary cue only, never the sole carrier of meaning.
 */
 .caw-row-met {
   background: color-mix(in srgb, var(--color-success) 5%, transparent);
@@ -546,7 +546,7 @@
   color: var(--color-text);
 }
 
-/* ── Inline clear confirmation (FDR-045) ─────────────────────────────────── */
+/* ── Inline clear confirmation ─────────────────────────────────── */
 
 .caw-clear-confirm {
   width: 100%;
@@ -729,7 +729,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SCR-027 / FDR-043: Completion review — Certificate Proof
+   Completion review — Certificate Proof
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .acp-page {
@@ -1021,7 +1021,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Text plus icon, never colour alone (FDR-003). */
+/* Text plus icon, never colour alone. */
 .acp-result {
   display: inline-flex;
   align-items: center;

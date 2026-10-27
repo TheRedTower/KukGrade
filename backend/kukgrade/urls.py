@@ -12,7 +12,7 @@ handler500 = "kukgrade.exceptions.server_error"
 
 # The Django admin is deliberately not mounted here: the network app has one
 # sign-in, the app's own. The admin is served only by kukgrade.urls_admin, run
-# by hand from a shell (docs/deployment.md, "The Django admin site").
+# by hand from a shell (docs/installation.md).
 urlpatterns = [
     path("api/site/", site_settings, name="site-settings"),
     path("api/about/", about, name="about"),

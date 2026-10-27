@@ -1,4 +1,4 @@
-"""A number stays with its student and is never reused (decision log 2026-10-20).
+"""A number stays with its student and is never reused.
 
 When WKSA hands a student their black belt ID the student ID is replaced; it is
 kept as a previous ID, and nobody else may ever take it.

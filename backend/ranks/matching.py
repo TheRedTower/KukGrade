@@ -4,7 +4,7 @@ Shared by the imports and historical-record matching. What a match is used
 for differs:
 
 - a historical record's rank text is only ever a suggestion - nothing is set
-  from it until a person chooses (import Decision 4);
+  from it until a person chooses;
 - a roster's rank is the rank a student is created at, so an exact name or
   code, or one of the club's fixed spellings below, is taken as that rank,
   and anything doubtful or misspelt is left for the importer

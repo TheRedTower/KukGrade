@@ -156,8 +156,8 @@ class PreviousWksaId(models.Model):
 
     Written only when the ID changes (`students.services.update_student`),
     never edited. A number is never reused, so each is unique for good and
-    anything outside KukGrade that still quotes one is found by it
-    (decision log, 2026-10-20). Always a student ID: a mistyped black belt
+    anything outside KukGrade that still quotes one is found by it.
+    Always a student ID: a mistyped black belt
     ID can be corrected, but the mistaken value is not kept here.
     """
 
@@ -226,10 +226,9 @@ def wksa_id_ever_held(wksa_id: str) -> bool:
 class StudentExtraInfo(models.Model):
     """Something a file said about a student that KukGrade has no field for.
 
-    A column the importer chose to keep (decision log, 2026-10-20 import
-    overhaul) - a parent's phone, a note - stored as the file labelled it,
-    rather than dropped or turned into a new field. Personal data like the
-    rest of the student, and deleted with them.
+    A column the importer chose to keep - a parent's phone, a note - stored as
+    the file labelled it, rather than dropped or turned into a new field.
+    Personal data like the rest of the student, and deleted with them.
     """
 
     student = models.ForeignKey(

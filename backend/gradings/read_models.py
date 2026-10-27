@@ -145,7 +145,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
     source-labelled and date-precision-explicit.
 
     Deliberately separate from student_rank_timeline / `/rank-history/`,
-    which stays Promotion-only (import Decision 6) - this is a read model for
+    which stays Promotion-only - this is a read model for
     display, not a second claim about rank history. A native item's
     "current rank at the time" is not tracked as its own field anywhere in
     the native workflow (only testing_for_rank is), so it is left out here
@@ -209,7 +209,7 @@ def unified_student_grading_history(student: Student) -> StudentGradingHistory:
 
 
 def _summary_from_tally(tally: Mapping[str, int]) -> OverallAssessmentSummary:
-    """The one place a count of items becomes a summary (FDR-046).
+    """The one place a count of items becomes a summary.
 
     Fed by the in-Python tally below and by the database annotations of
     `with_overall_counts`, so an assessment list and its summary endpoint

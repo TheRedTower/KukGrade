@@ -1,4 +1,4 @@
-/* Settings (FDR-057, FDR-058). Tokens only, from theme.css. */
+/* Settings. Tokens only, from theme.css. */
 
 .st-page {
   display: flex;
@@ -225,7 +225,7 @@
   color: var(--color-on-gold);
 }
 
-/* About (FDR-058). */
+/* About. */
 .st-about {
   display: flex;
   flex-direction: column;

@@ -1,9 +1,9 @@
 /**
- * Instructor outcome proposal (SCR-021), restyled under FDR-047 to the Cohort
+ * Instructor outcome proposal, in the Cohort
  * Adjudication Board's language: the instructor reads the same sealed
  * assessment evidence the Master will (`SealedAssessmentEvidence`) and picks
  * from the same Pass / Conditional / Fail segments before proposing. Counts
- * are served, never recounted (FDR-046). Proposing never finalises or
+ * are served, never recounted. Proposing never finalises or
  * promotes; the Master decides on the board.
  */
 import React, { useId, useState } from "react";
@@ -197,7 +197,7 @@ export function OutcomeProposalDrawer({
 }
 
 /**
- * The candidate's outcome, created if it does not exist yet (KG-A17). A
+ * The candidate's outcome, created if it does not exist yet. A
  * creation can succeed on the server while its response is lost, or the
  * outcome can have been created since this drawer loaded; either way the
  * retry resumes with that outcome instead of being refused as a duplicate.

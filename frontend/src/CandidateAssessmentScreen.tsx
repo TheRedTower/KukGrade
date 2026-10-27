@@ -1,20 +1,20 @@
 /**
- * Mat-side scoring - Single Column Run (SCR-026, FDR-042).
+ * Mat-side scoring - Single Column Run.
  *
- * Rebuilt from SCR-019's dual-pane workspace. The differences that matter:
+ * What sets it apart:
  *
  * - No category sub-rail. One continuous scroll in syllabus order with sticky
  *   category headers carrying their own progress. A grading runs in ceremony
  *   order, so the rail forced mode-switching for a jump nobody makes.
- * - Requirement rows are divider-led, not cards (FDR-008).
+ * - Requirement rows are divider-led, not cards.
  * - Two verdict targets. `NOT_ASSESSED` is an undo, not a peer of Met and Not
  *   met, so it becomes a `Clear` that confirms inline and names the
- *   attribution it erases (FDR-045).
+ *   attribution it erases.
  * - Header chrome collapses to one line, and the live count plus the
  *   completion action move to a persistent mat bar.
  * - Attribution renders on every scored row, not only the failures.
  *
- * Counts are served, never recounted here (FDR-046) - see
+ * Counts are served, never recounted here - see
  * `candidateAssessmentData.ts`.
  */
 import { useEffect, useRef, useState } from "react";
@@ -114,7 +114,7 @@ export function CandidateAssessmentScreen() {
     },
   });
 
-  // Item writes (KG-A18). Several can be in flight at once - scoring is fast -
+  // Item writes. Several can be in flight at once - scoring is fast -
   // so each keeps to its own item: writes to one item go out in the order
   // they were made, so the server keeps the last; each confirms or rolls back
   // only that item, and only if nothing newer was written to it since; and
@@ -191,7 +191,7 @@ export function CandidateAssessmentScreen() {
       if (queryClient.isMutating({ mutationKey: itemWriteKey }) > 1) return;
       queryClient.invalidateQueries({ queryKey: itemsKey });
       // The rollup is served, so a scored item has to refetch it or the mat
-      // bar and category headers go stale (FDR-046).
+      // bar and category headers go stale.
       queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
     },
@@ -596,13 +596,12 @@ function DeleteAssessmentDialog({
 }
 
 /**
- * One requirement, as a divider-led row (FDR-008).
+ * One requirement, as a divider-led row.
  *
  * Two verdict targets. `Clear` sits with the row tools rather than in the
  * verdict group, and confirms inline naming the assessor and time it erases:
  * the `candidate_item_assessor_matches_result` constraint nulls both when a
- * result returns to `NOT_ASSESSED`, and that attribution cannot be restored
- * (FDR-045).
+ * result returns to `NOT_ASSESSED`, and that attribution cannot be restored.
  */
 function AssessmentItemRow({
   item,

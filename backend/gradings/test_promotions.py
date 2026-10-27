@@ -258,7 +258,7 @@ def test_promotion_database_constraints_and_model_validation() -> None:
     # Attaching an outcome to another candidate's assessment used to be
     # possible through QuerySet.update(), which bypasses model validation.
     # The composite foreign key now refuses the write itself, so the
-    # mismatched state this once set up can no longer exist (KG-010). Not
+    # mismatched state this once set up can no longer exist. Not
     # finalised: that would hit the separate immutable-outcome guard first
     # and never reach the constraint this is testing.
     assessment_mismatch_built, _assessment_mismatch_generated = (
@@ -398,7 +398,7 @@ def test_promotion_rejects_invalid_candidate_assessment_and_session_states() -> 
         promote_candidate(second_outcome, promoter("promotion-assessment@example.com"))
 
     # The service still validates this, but the state is now unreachable:
-    # the database refuses to create it. See KG-010. Not finalised, so the
+    # the database refuses to create it. Not finalised, so the
     # write reaches the constraint rather than the immutable-outcome guard.
     mismatch_built, _mismatch_generated = locked_completed_candidate()
     mismatch_outcome = create_candidate_outcome(

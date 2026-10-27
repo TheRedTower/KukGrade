@@ -280,7 +280,7 @@ def _session_started_work(
 def with_session_progress(
     sessions: QuerySet[GradingSession],
 ) -> QuerySet[GradingSession]:
-    """Each session's progress, defined once for every screen (KG-A15).
+    """Each session's progress, defined once for every screen.
 
     Counted in the database, so a cohort larger than a page is counted in
     full. A withdrawn candidate counts in none of the three: they are not
@@ -335,8 +335,8 @@ def update_grading_session(
 
     Only the fields in `changes` are written, onto the locked row. Saving the
     caller's copy whole wrote back its status and cancellation reason too, so
-    a transition committed while the edit waited was silently undone
-    (KG-A12). The API and Django admin both edit through here - admin's form
+    a transition committed while the edit waited was silently undone.
+    The API and Django admin both edit through here - admin's form
     has more editable fields than the API, which is why `changes` is a
     mapping.
     """
@@ -891,7 +891,7 @@ def delete_grading_session(session: GradingSession, actor: User | None = None) -
         # Checked against each student as they are now, under the student's
         # lock, not as a join read them: a promotion from another session can
         # move a student on at any moment, and rolling back to this one's
-        # from_rank would then overwrite it (KG-A04).
+        # from_rank would then overwrite it.
         students = lock_students(promotion.student_id for promotion in promotions)
         for promotion in promotions:
             validate_assessment_deletion_promotion(
@@ -992,7 +992,7 @@ def _save_candidate(candidate: GradingCandidate) -> None:
 
     The session lock already stops two registrations of one student racing,
     and full_clean() refuses a duplicate it can see; this is the backstop if
-    either is ever bypassed (KG-A11).
+    either is ever bypassed.
     """
     try:
         candidate.save()
@@ -1096,7 +1096,7 @@ def apply_candidate_update(
     # Only `candidate`'s id is used. The API loaded it before this
     # transaction began, and Django admin has already written its form onto
     # it, so saving it as received wrote back whatever another edit changed
-    # in the meantime (KG-A12). The requested changes go onto the locked row,
+    # in the meantime. The requested changes go onto the locked row,
     # and a move locks the destination session in the same ascending pass.
     locked = lock_in_session(
         GradingCandidate.objects.select_related(

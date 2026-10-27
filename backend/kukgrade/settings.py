@@ -89,7 +89,7 @@ if not _SECRET_KEY:
 SECRET_KEY = _SECRET_KEY
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
-# How the app is reached (docs/deployment.md, "How the app is reached").
+# How the app is reached (docs/installation.md).
 # The port the app listens on inside the container (or on the host, for a
 # bare-metal install). It is fixed and not an environment variable: to reach
 # the app on another port, map it in Compose (`ports: "7443:6942"`), the way
@@ -374,7 +374,7 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-# Which build this is, shown on the About page (docs/deployment.md passes them
+# Which build this is, shown on the About page (docs/installation.md passes them
 # as build arguments). Unset when running from a checkout.
 BUILD_COMMIT = os.environ.get("KUKGRADE_BUILD_COMMIT", "").strip()[:40]
 if not re.fullmatch("[0-9a-f]{7,40}", BUILD_COMMIT):
@@ -388,13 +388,13 @@ except ValueError:
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"
 
-# The school's own prefix in its student IDs, 206-2 for Colchester
+# The school's own prefix in its student IDs, such as 123-4
 # (students/wksa_ids.py). Used in the example IDs shown; a transfer's ID may
 # carry another school's. Its pattern is a literal here, since settings
 # cannot import application code.
-SCHOOL_ID_PREFIX = os.environ.get("KUKGRADE_SCHOOL_PREFIX", "").strip() or "206-2"
+SCHOOL_ID_PREFIX = os.environ.get("KUKGRADE_SCHOOL_PREFIX", "").strip() or "123-4"
 if not re.fullmatch("[0-9]{3}-[0-9]", SCHOOL_ID_PREFIX):
-    msg = "KUKGRADE_SCHOOL_PREFIX must look like 206-2."
+    msg = "KUKGRADE_SCHOOL_PREFIX must look like 123-4."
     raise ImproperlyConfigured(msg)
 
 CORS_ALLOWED_ORIGINS = env_list(
@@ -437,7 +437,7 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
 # HTTPS redirect covers the first visit well enough. Opt in deliberately.
 SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 # check --deploy warns when preload is off; that is the decision above, not an
-# oversight (2026-09-28 decision log entry).
+# oversight.
 SILENCED_SYSTEM_CHECKS = [] if SECURE_HSTS_PRELOAD else ["security.W021"]
 
 # Set when proxies are declared in front (PROXY_HOPS above zero), so Django

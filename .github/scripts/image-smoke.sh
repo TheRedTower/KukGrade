@@ -2,7 +2,7 @@
 # Starts the production image the two ways it is deployed and checks it works:
 #   1. with its own database (deploy/compose.yml): healthy, the first
 #      administrator set up and signed in, the admin closed, a clean stop;
-#   2. as compose.prod.yml runs it: UID 10001, a read-only root, every
+#   2. as deploy/compose.external-db.yml runs it: UID 10001, a read-only root, every
 #      capability dropped, an external PostgreSQL and two proxies declared.
 #
 #   .github/scripts/image-smoke.sh kukgrade:ci
@@ -94,12 +94,12 @@ wait_healthy kg-own
     || fail "the session did not survive a restart (data or secret key lost)"
 docker rm -f kg-own >/dev/null
 
-echo "== As compose.prod.yml runs it"
+echo "== As compose.external-db.yml runs it"
 docker network create kg-smoke >/dev/null
 docker run -d --name kg-db --network kg-smoke \
     -e POSTGRES_DB=kukgrade -e POSTGRES_USER=kukgrade -e POSTGRES_PASSWORD=smoke \
     postgres:17-alpine >/dev/null
-# Restarted until the database answers, as unless-stopped does in compose.prod.yml.
+# Restarted until the database answers, as unless-stopped does in compose.external-db.yml.
 docker run -d --name kg-prod --network kg-smoke -p 127.0.0.1:16942:6942 \
     --restart on-failure --user 10001:10001 --read-only \
     -v kg-uploads:/var/lib/kukgrade/import_uploads \

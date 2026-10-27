@@ -1,7 +1,7 @@
 # Base images are pinned by digest so a rebuild gives the same image. Dependabot
 # keeps the digests (and Python and Node packages) up to date by opening pull
 # requests that CI checks, so none of this is edited by hand
-# (.github/dependabot.yml; docs/development-workflow.md, "Dependency updates").
+# (.github/dependabot.yml; docs/development.md).
 # Each image is named once, in a FROM line, which is what Dependabot reads.
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS frontend-build
 WORKDIR /app/frontend
@@ -51,7 +51,7 @@ RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
 # The database the image carries, from Debian's own PostgreSQL package. No
 # cluster is made at install time: kukgrade/serve.py makes the database in
 # /var/lib/kukgrade/postgres on first start. Its major version is the one this
-# image is built with; changing it means dumping and restoring (docs/deployment.md).
+# image is built with; changing it means dumping and restoring (docs/installation.md).
 RUN set -e \
     && mkdir -p /etc/postgresql-common \
     && printf 'create_main_cluster = false\n' > /etc/postgresql-common/createcluster.conf \
@@ -87,7 +87,7 @@ RUN set -e \
 # repair tools; the app makes its own certificate with openssl).
 RUN set -e \
     # What only building, testing or documenting the app needs.
-    && rm -rf pyproject.toml uv.lock schema.yml README.md .python-version docker \
+    && rm -rf pyproject.toml uv.lock schema.yml .python-version docker \
     # Django and the REST framework ship message catalogues for every language;
     # the app answers in English only (no locale middleware). Only the
     # catalogues go: Django's locale folders also hold code.

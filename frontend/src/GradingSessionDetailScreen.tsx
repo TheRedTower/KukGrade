@@ -176,7 +176,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const sessionId = id ? parseInt(id, 10) : NaN;
   const { user: currentUser } = useAuth();
 
-  // Drawer state for SCR-021 Instructor Outcome Proposal
+  // Drawer state for the instructor outcome proposal
   const [proposalDrawerItem, setProposalDrawerItem] = useState<EnrichedCandidate | null>(null);
   const [attendanceDialogOpen, setAttendanceDialogOpen] = useState(false);
   const [withdrawalCandidate, setWithdrawalCandidate] = useState<EnrichedCandidate | null>(null);
@@ -1109,8 +1109,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                       <td className="gsd-cell-rank">
                         <div className="gsd-rank-item">
                           <RankBelt rankId={item.candidate.from_rank} />
-                          {/* The rank held at registration, not the live current rank - see the
-                              2026-09-25 decision log entry. */}
+                          {/* The rank held at registration, not the live current rank. */}
                           <span>{item.candidate.from_rank_name}</span>
                         </div>
                       </td>
@@ -1424,7 +1423,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         />
       )}
 
-      {/* ── Instructor Outcome Proposal Drawer (SCR-021) ────────────────────── */}
+      {/* ── Instructor Outcome Proposal Drawer ────────────────────── */}
       {proposalDrawerItem && session && (
         <OutcomeProposalDrawer
           key={proposalDrawerItem.candidate.id}

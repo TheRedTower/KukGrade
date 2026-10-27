@@ -327,7 +327,7 @@ def test_ambiguous_optional_black_belt_material_is_not_seeded_as_requirement() -
 
 
 # ---------------------------------------------------------------------------
-# Cumulative effective requirements (FDR-041 / SCR-025)
+# Cumulative effective requirements
 # ---------------------------------------------------------------------------
 
 
@@ -360,7 +360,7 @@ def test_effective_syllabus_requirement_api_rejects_invalid_parameters() -> None
 
 
 def test_effective_syllabus_requirement_blue_stripe_regression() -> None:
-    """The exact worked example from FDR-041/SCR-025, against seeded data.
+    """The exact worked example from the specification, against seeded data.
 
     Blue Stripe, Adult/Youth 13-17: Sohn Ppae Ki is unchanged since Yellow
     Stripe; Ki Bohn Soo's range was extended at Yellow, so 1-15 (not the

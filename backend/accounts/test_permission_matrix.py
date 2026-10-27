@@ -410,7 +410,7 @@ def test_every_routed_action_declares_its_permissions(
 
 
 # --------------------------------------------------------------------------
-# Sensitive actions: a permission_map entry alone is not enough (KG-035)
+# Sensitive actions: a permission_map entry alone is not enough
 # --------------------------------------------------------------------------
 
 # Actions gated by a per-user authority permission - never granted to a

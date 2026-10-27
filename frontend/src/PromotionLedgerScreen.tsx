@@ -81,7 +81,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   const ledgerQueries = [candidatesQuery, outcomesQuery, promotionsQuery, eligibilityQuery];
   // The ledger needs all four answers; a missing or failed one must not read
-  // as "nothing promoted yet" (KG-A16).
+  // as "nothing promoted yet".
   const ledgerFailed = ledgerQueries.some((query) => query.isError);
   const ledgerLoaded = ledgerQueries.every((query) => query.isSuccess);
   const candidatesData = ledgerLoaded ? candidatesQuery.data : undefined;
@@ -511,7 +511,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         )}
       </div>
 
-      {/* Pinned Batch Confirmation Preview Tray (SCR-023 bottom dock) */}
+      {/* Pinned Batch Confirmation Preview Tray */}
       {isBatchTrayOpen && eligibleCohort.length > 0 && (
         <aside
           className="pl-batch-tray"

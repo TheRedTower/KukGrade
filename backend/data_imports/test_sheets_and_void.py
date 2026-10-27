@@ -1,8 +1,8 @@
 """Choosing a roster's sheet, and undoing a wrong historical import (A7).
 
 A roster on another tab of a workbook is no longer silently missed; a wrong
-workbook imported is voided as a whole, since a record is never deleted
-(import Decision 16). Synthetic files only.
+workbook imported is voided as a whole, since a record is never deleted.
+Synthetic files only.
 """
 
 from __future__ import annotations

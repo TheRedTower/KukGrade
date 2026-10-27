@@ -1,144 +1,197 @@
-# KukGrade
+<div align="center">
 
-KukGrade is an internal grading management application for Kuk Sool Won
-instructors, administrators, and authorised Masters. It replaces
-spreadsheet-based grading with a maintainable web application for student
-records, syllabus lookup, grading sessions and assessments, final grading
-decisions, promotion and rank history, user management, and an append-only
-audit log.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+  <img src="docs/assets/logo-light.svg" alt="KukGrade" width="360">
+</picture>
 
-Students do not directly access the application.
+### Grading management for Kuk Sool Won schools
 
-## Current Status
+Plan a grading, assess every candidate against the syllabus, record the Master's
+decision, and promote students, with a permanent audit trail behind every step.
 
-The backend is complete for the core grading domain: authentication and
-permissions, students, ranks, syllabus, grading sessions and candidates,
-assessment snapshots, candidate outcomes, promotion and rank history, user
-management, audit logging, and bulk data import (student roster and
-historical KSW Colchester grading-workbook migration into a separate,
-immutable `LegacyGradingRecord` model). Administrator-only hard-delete
-tooling (user accounts, completed assessments, students with full cascade,
-and grading sessions in any status) covers corruption/test-data cleanup and
-routine record removal without weakening the audit trail. The frontend
-implements the main
-instructor workflow: overview, student records, syllabus browsing,
-grading-session and cohort management, assessment preparation and marking,
-outcome decisions, and promotion. Session detail includes bulk no-show
-confirmation before locking, moving or removing a registration while the
-session is draft or open, and reasoned, authority-gated candidate
-withdrawal after locking. The Audit route provides a paginated, filterable
-event browser with event detail for administrators and the designated
-Master. The Users route is an administrator-only staff-account workspace for
-creation, account updates, role/status management, Master authority, and
-password resets. Administrator-only import screens handle student-roster and
-historical-grading uploads, review, and reconciliation. Offline/PWA support
-and a live production host remain to be set up. A single-container production
-image (with its own PostgreSQL, or using an existing one) and Compose files for
-running it directly or behind a proxy or tunnel are available; see
-`docs/deployment.md`.
+[![CI](https://github.com/TheRedTower/KukGrade/actions/workflows/ci.yml/badge.svg)](https://github.com/TheRedTower/KukGrade/actions/workflows/ci.yml)
+[![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-f2a71b?labelColor=17140f)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-one%20container-f2a71b?labelColor=17140f&logo=docker&logoColor=white)](docs/installation.md)
+[![Status](https://img.shields.io/badge/status-pre--1.0-f2a71b?labelColor=17140f)](docs/roadmap.md)
 
-This is a summary. **`docs/current-system.md` is the authoritative,
-continuously-verified description of what exists on `dev` right now** - it
-states exactly which tools were run to confirm each claim, and takes
-precedence over this file and over any planning document if they disagree.
-`backend/README.md` covers backend configuration and domain rules in detail;
-`docs/api_contract.md` is the endpoint-by-endpoint API reference.
+[**Quick start**](#quick-start) ·
+[Features](#features) ·
+[Screenshots](#screenshots) ·
+[Documentation](docs/README.md) ·
+[Roadmap](docs/roadmap.md) ·
+[Contributing](CONTRIBUTING.md)
 
-Repository layout:
+<br>
 
-- `backend/` - Django and Django REST Framework API.
-- `frontend/` - React, TypeScript, and Vite application.
-- `docs/` - planning, architecture, domain, and decision documentation.
-- `compose.yaml` - local PostgreSQL service for development.
-- `compose.prod.yml` - the owner's production host (existing Traefik and
-  PostgreSQL).
-- `deploy/` - Compose files and one `.env` for running the image anywhere.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/overview-dark.png">
+  <img src="docs/assets/screenshots/overview-light.png" alt="The KukGrade overview: the grading in progress, what needs attention, and recent activity" width="900">
+</picture>
 
-## Confirmed Direction
+</div>
 
-- Backend: Django and Django REST Framework.
-- Frontend: React and TypeScript.
-- Database: PostgreSQL.
-- Production deployment: one Docker container, carrying its own PostgreSQL or
-  using an existing one; the owner's host runs it behind existing Traefik and
-  PostgreSQL. Not yet deployed.
-- Architecture: modular monolith, not microservices.
-- Syllabus: data-driven. Historical gradings must reference the exact
-  syllabus content used - fulfilled today by copying requirements into
-  immutable per-candidate snapshot rows at assessment generation; a dedicated
-  versioned-syllabus entity is deferred by decision, see
-  `docs/decision_log.md`.
-- Permissions: enforced by the backend as the authority primitive, never only
-  in the frontend.
-- Data: use anonymised or synthetic development data only.
+## Why KukGrade
 
-## Local Development
+Most schools run their gradings from spreadsheets: a roster here, a syllabus chart
+there, results in a workbook nobody dares to edit. KukGrade replaces that with one
+place that knows the syllabus, remembers every result exactly as it was recorded,
+and shows who decided what.
 
-Copy `.env.example` to `.env` for local values. Keep real secrets and production data out of the repository.
+- **Built for the grading day.** Mark each requirement met or not met from a tablet or
+  phone, with a live count of what is left.
+- **The right syllabus, automatically.** Each candidate is assessed against everything
+  examinable for their rank and age band. A later syllabus change can never alter a past grading.
+- **The Master decides.** Instructors propose; only people with final-decision authority
+  can make a result final, and promotion is a separate, deliberate step.
+- **Nothing is lost or quietly changed.** Finalised results are immutable, and an
+  append-only audit log records every sensitive action.
+- **Yours to run.** One Docker container with its own database, on your own server.
+  Student data never leaves your hands.
 
-Start PostgreSQL:
+## Features
+
+| | |
+| --- | --- |
+| **Grading sessions** | Draft → Open → Locked → Completed, with a cohort builder that registers a whole mixed-belt group in one step |
+| **Assessment** | Item-level *Met / Not met* with notes, results rolled up by category, attendance confirmed in bulk |
+| **Decisions** | Instructor proposals, a Master's decision board, Pass / Fail / Conditional, then promotion with permanent rank history |
+| **Students** | Records, status (active, inactive, left), school and national IDs, and one timeline of every grading |
+| **Syllabus** | WKSA 2014 charts for every rank and age band, held as data, never hard-coded |
+| **Import** | Bring in an existing roster, and past gradings from an old spreadsheet, with a guided review |
+| **Accounts & roles** | Instructors and administrators; Master authority granted per person; temporary passwords that expire |
+| **Audit log** | Who did what, when, written in the same transaction as the change |
+| **Secure by default** | HTTPS, no default accounts, a strong password policy, a minimal unprivileged image |
+
+See [docs/features.md](docs/features.md) for the full picture, including who can do what.
+
+## Quick start
+
+You need [Docker](https://docs.docker.com/get-docker/) with Compose v2 and git.
 
 ```sh
-docker compose up -d db
+git clone https://github.com/TheRedTower/KukGrade.git
+cd KukGrade/deploy
+cp .env.example .env
+docker compose up -d
 ```
 
-Install and run the backend:
+The first run builds the image, which takes a few minutes. Then:
 
 ```sh
-cd backend
-uv sync
-uv run python manage.py migrate
-uv run python manage.py runserver 0.0.0.0:8000
+docker compose logs | grep "setup code"
 ```
 
-On a fresh database, run `uv run python manage.py issue_setup_code` once and
-enter the code it prints on the site's setup page to create the first
-administrator. `createsuperuser` is switched off.
+Open <https://localhost:6942> (accept the self-signed certificate warning), enter the setup
+code, and create your first administrator. That is the whole install: the container carries
+its own PostgreSQL, and everything it stores is in `deploy/data/`.
 
-Install and run the frontend:
+For a real deployment, put it behind HTTPS with Caddy, nginx, Traefik, a Cloudflare Tunnel or
+Pangolin: see the [installation guide](docs/installation.md). Every setting is in
+[configuration](docs/configuration.md).
 
-```sh
-cd frontend
-npm install
-npm run dev
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/session-dark.png">
+        <img src="docs/assets/screenshots/session-light.png" alt="A grading session with its lifecycle and candidates">
+      </picture>
+      <p align="center"><b>Run a grading session</b><br>Lifecycle, candidates and next actions at a glance</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/assessment-dark.png">
+        <img src="docs/assets/screenshots/assessment-light.png" alt="Scoring a candidate requirement by requirement">
+      </picture>
+      <p align="center"><b>Assess on the mat</b><br>Mark every requirement, with a live count</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/decisions-dark.png">
+        <img src="docs/assets/screenshots/decisions-light.png" alt="The Master's final decision board">
+      </picture>
+      <p align="center"><b>Decide</b><br>The evidence, the proposal and the final decision, side by side</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/cohort-dark.png">
+        <img src="docs/assets/screenshots/cohort-light.png" alt="Building a grading cohort">
+      </picture>
+      <p align="center"><b>Build a cohort</b><br>Add whole groups, then review exceptions</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/students-dark.png">
+        <img src="docs/assets/screenshots/students-light.png" alt="The student list">
+      </picture>
+      <p align="center"><b>Know your students</b><br>Search, filter, and see each one's current grading</p>
+    </td>
+    <td width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/syllabus-dark.png">
+        <img src="docs/assets/screenshots/syllabus-light.png" alt="The syllabus by rank and age band">
+      </picture>
+      <p align="center"><b>Browse the syllabus</b><br>By rank and age band, cumulative to each rank</p>
+    </td>
+  </tr>
+</table>
+
+*All data shown is made up.*
+
+## How a grading flows
+
+```mermaid
+flowchart LR
+    A[Create session] --> B[Register candidates]
+    B --> C[Assess each requirement]
+    C --> D[Instructor proposes]
+    D --> E[Master decides]
+    E --> F[Promote]
+    F --> G[Lock and complete]
 ```
 
-The backend health endpoint is `http://localhost:8000/api/health/`. Frontend
-API calls use `VITE_API_BASE_URL`, defaulting to `http://localhost:8000`.
+## Documentation
 
-## Verification
+| | |
+| --- | --- |
+| [Installation](docs/installation.md) | Run it, put it on the internet, back it up, update it |
+| [Configuration](docs/configuration.md) | Every setting |
+| [Features](docs/features.md) | What it does, and who can do what |
+| [Importing data](docs/importing-data.md) | Rosters and historical gradings |
+| [API](docs/api.md) | The HTTP API and its OpenAPI schema |
+| [Architecture](docs/architecture.md) | How it is built |
+| [Development](docs/development.md) | Run from source, run the tests |
+| [Roadmap](docs/roadmap.md) | What is coming, and what is not |
 
-```sh
-cd backend && uv run pytest && uv run ruff check . && uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports
-cd frontend && npm run test && npm run lint && npm run typecheck
-```
+## Built with
 
-`docs/development-workflow.md` has the complete list - including the
-migration, deployment-settings, OpenAPI-schema and generated-type drift
-checks - and CI runs all of it on every push and pull request.
+Python 3.14 · Django · Django REST Framework · PostgreSQL 17 · React 19 · TypeScript · Vite ·
+Docker. Fully typed and tested (pytest, Vitest, Ruff, mypy, ESLint), with every API type
+generated from one OpenAPI schema.
 
-## Documentation Map
+## Status
 
-- `docs/current-system.md` - what exists today, how it was verified, and the
-  known gaps; takes precedence over every other document.
-- `docs/api_contract.md` - the HTTP contract, endpoint by endpoint;
-  `backend/schema.yml` is its machine-readable form.
-- `backend/README.md` - how the backend code is organised and configured.
-- `docs/permissions.md` - roles, the Django-permission authority model, and
-  sensitive-action authority.
-- `docs/data-import-and-legacy-migration.md` - bulk student-roster import and
-  historical KSW Colchester grading-workbook migration.
-- `docs/deployment.md` - the production image and how to run it.
-- `docs/decision_log.md` - dated decisions and their reasoning.
-- `docs/README.md` - the full index, including the product, architecture,
-  and planning documents.
+KukGrade is **pre-1.0**. It is complete for the core grading workflow and is being prepared
+for its first production use; see the [roadmap](docs/roadmap.md) for what remains. It holds
+personal data about students, so take a backup and test a restore before relying on it.
 
-## Non-Goals For The Current Foundation
+## Contributing and security
 
-- No production secrets, real student data, or production exports.
-- No certificates, payments or notifications. Corrections are possible only
-  before a session locks (a completed assessment can be reopened while the
-  session is open); there is no correction workflow after lock yet.
-- No offline/PWA support yet; the frontend is online-first.
-- No background worker until there is a confirmed asynchronous workload.
-- No production host connection or verified database restore yet.
+Bug reports and pull requests are welcome: read [CONTRIBUTING.md](CONTRIBUTING.md) first, and
+please never include real student data. To report a vulnerability, follow [SECURITY.md](SECURITY.md).
+Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Licence
+
+[GNU Affero General Public License v3.0](LICENSE). You may use, modify and self-host KukGrade freely;
+if you offer a modified version to others over a network, you must make your source available to them.
+
+KukGrade is an independent project. It is not affiliated with, endorsed by or sponsored by the World
+Kuk Sool Association; "Kuk Sool Won" and "WKSA" belong to their respective owners.

@@ -45,7 +45,7 @@ function rowDetail(row: DataImportRow, kind: DataImportKind): string {
   return [ranks, values.outcome, words ? `“${words}”` : ""].filter(Boolean).join(" · ");
 }
 
-/** Counts that double as filters (FDR-052). */
+/** Counts that double as filters. */
 function CountTiles<View extends string>({
   tiles,
   view,
@@ -70,7 +70,7 @@ function CountTiles<View extends string>({
   );
 }
 
-/** The way to a last look at everything that will be saved (FDR-052). */
+/** The way to a last look at everything that will be saved. */
 function LastLook({ pressed, lead, label, onShow }: { pressed: boolean; lead: string; label: string; onShow: () => void }) {
   return (
     <div className={`ix-banner ix-card${pressed ? " ix-picked" : ""}`}>
@@ -626,7 +626,7 @@ function LegacyReview({
   );
 }
 
-/** The seal: once every row is sorted, the summary and the import itself (FDR-053). */
+/** The seal: once every row is sorted, the summary and the import itself. */
 function Seal({
   batch,
   unresolvedRanks,
@@ -703,7 +703,7 @@ function Seal({
 
 /**
  * Steps 3 and 4: every row reviewed, the ones needing attention first, and -
- * once all are sorted - the confirmation on the same page (FDR-052, FDR-053).
+ * once all are sorted - the confirmation on the same page.
  */
 export function ImportReview({
   batch,

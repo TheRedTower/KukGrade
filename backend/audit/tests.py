@@ -369,7 +369,7 @@ def test_deleting_a_session_records_what_was_cascaded_away() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Logistics is an administrator concern (KG-048)
+# Logistics is an administrator concern
 # ---------------------------------------------------------------------------
 
 

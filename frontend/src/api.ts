@@ -3,8 +3,7 @@ import type { components, operations } from "./api/schema";
 const DEFAULT_API_BASE_URL = "http://localhost:8000";
 
 // Generated from backend/schema.yml (`npm run generate:types`) rather than
-// hand-maintained, so these cannot silently drift from the serializers - see
-// the 2026-09-14 decision log entry. Regenerate after any serializer change.
+// hand-maintained, so these cannot silently drift from the serializers. Regenerate after any serializer change.
 // Every request and response body is declared in the schema; the only
 // hand-written API shapes are the error envelope and the page envelope.
 type Schemas = components["schemas"];
@@ -600,8 +599,7 @@ export async function proposeCandidateOutcome(
 
 /**
  * Rollup for one assessment, reachable at any assessment status - scoring,
- * completion review and the adjudication board all read counts from here
- * (FDR-046).
+ * completion review and the adjudication board all read counts from here.
  */
 export async function getAssessmentSummary(
   assessmentId: number,

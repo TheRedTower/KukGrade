@@ -282,7 +282,7 @@ def test_outcome_cannot_be_attached_to_another_candidates_assessment() -> None:
     # QuerySet.update() bypasses model validation entirely; before the
     # composite foreign key this silently succeeded. Not finalised, so this
     # reaches the constraint rather than the separate immutable-outcome
-    # guard on QuerySet.update() (KG-044).
+    # guard on QuerySet.update().
     with pytest.raises(IntegrityError), transaction.atomic():
         CandidateOutcome.objects.filter(pk=outcome.pk).update(
             assessment=other_generated,

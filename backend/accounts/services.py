@@ -166,7 +166,7 @@ def update_platform_user(
     # began (for PATCH /api/auth/me/ it is request.user itself), and Django
     # admin has already written its form onto it, so saving it as received
     # wrote back every column - the password hash included - that another
-    # request changed in the meantime (KG-A12). The locked row is also what
+    # request changed in the meantime. The locked row is also what
     # makes the Master check below race-proof: set_user_authority() takes the
     # same lock, so a role change and a Master grant cannot both read the
     # other's field as it was.
@@ -492,7 +492,7 @@ def _password_set(locked: User, *, actor: User) -> User:
     locked.must_change_password = not chosen_by_owner
     locked.temporary_password_expires_at = expires_at
     # One transaction with the password itself, so the change and its record
-    # land together or not at all (KG-A14). The value never appears in the
+    # land together or not at all. The value never appears in the
     # summary or metadata.
     locked.save(
         update_fields=[
@@ -528,7 +528,7 @@ def set_admin_site_access(
     is_superuser: bool | None = None,
 ) -> User:
     """Django admin's own two flags, which the API never sets, audited like
-    every other account change (KG-A14). Only a superuser grants or removes
+    every other account change. Only a superuser grants or removes
     them - anyone else could make themselves one."""
     locked = _lock_user(target.pk)
     before = {"is_staff": locked.is_staff, "is_superuser": locked.is_superuser}

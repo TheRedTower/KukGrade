@@ -4,7 +4,7 @@ Django runs `user_can_authenticate` both when a password is checked - the
 API's sign-in and the admin site's - and when a session's user is loaded on
 every later request. So an expired temporary password can neither sign in nor
 keep using a session it opened; the owner needs a new one from an
-administrator (`docs/email-and-credential-lifecycle.md` amendment 5).
+administrator.
 
 The refusal is the same as a wrong password's, by design: telling the two
 apart would confirm the password was right.

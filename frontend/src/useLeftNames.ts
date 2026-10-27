@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 /**
- * Names on the linking page put aside for now (FDR-059). Per browser, like the
+ * Names on the linking page put aside for now. Per browser, like the
  * theme: a personal note about what to come back to, not data the club keeps.
  * The page sends these to the server as group keys, which accepts at most
  * this many, so the oldest drop off first.

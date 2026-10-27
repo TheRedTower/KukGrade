@@ -132,7 +132,7 @@ function metadataString(event: AuditEvent, ...path: string[]): string | undefine
 /**
  * An event's status, from its action and structured outcome - never from
  * words in the prose summary, which labelled a password reset or a failed
- * grading "Approved" (KG-A19). Unknown actions stay neutral under the
+ * grading "Approved". Unknown actions stay neutral under the
  * server's own label.
  */
 function activityStatus(event: AuditEvent): { type: ActivityStatus; outcome?: string } {
@@ -222,7 +222,7 @@ export function OverviewScreen() {
       : [];
   }, [assessmentsQuery.data]);
 
-  // Counted on the server, so they agree with every other screen (KG-A15).
+  // Counted on the server, so they agree with every other screen.
   const candidatesCount = openSession?.candidate_count ?? 0;
   const completedAssessmentsCount = openSession?.completed_assessment_count ?? 0;
   const awaitingDecisionCount = openSession?.awaiting_decision_count ?? 0;

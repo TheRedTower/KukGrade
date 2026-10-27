@@ -148,7 +148,7 @@ def test_locked_withdrawal_clears_an_undecided_outcome() -> None:
     assert not CandidateOutcome.objects.filter(pk=outcome.pk).exists()
 
     # But discarding it silently would erase that someone proposed PASS -
-    # captured into the withdrawal event before the delete (KG-041).
+    # captured into the withdrawal event before the delete.
     event = AuditEvent.objects.filter(
         action=AuditAction.CANDIDATE_WITHDRAWN,
         entity_id=str(withdrawn.pk),
@@ -200,7 +200,7 @@ def test_admin_session_form_accepts_a_cancellation_reason() -> None:
     # stub form (as the test below does) never exercises Meta.fields at all,
     # so it would pass even with the field missing from the real form. Only
     # binding real POST-shaped data through GradingSessionAdminForm proves
-    # the field is there to submit in the first place (KG-050).
+    # the field is there to submit in the first place.
     session, _built = locked_session_with_undecided_candidate()
 
     form = GradingSessionAdminForm(

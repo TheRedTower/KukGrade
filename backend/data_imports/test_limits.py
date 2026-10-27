@@ -1,4 +1,4 @@
-"""Every upload is bounded while it is read, not after (KG-A10).
+"""Every upload is bounded while it is read, not after.
 
 Limits are patched down where the real ones would need a large fixture: the
 boundary logic is the same at any size. Synthetic workbooks only.

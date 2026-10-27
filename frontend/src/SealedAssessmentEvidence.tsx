@@ -1,9 +1,9 @@
 /**
- * The sealed assessment as evidence for an outcome: the served counts
- * (FDR-046), every shortfall, and every other recorded `assessor_notes` value
+ * The sealed assessment as evidence for an outcome: the served counts,
+ * every shortfall, and every other recorded `assessor_notes` value
  * with its attribution - positive observations included, as on the
- * Certificate Proof (FDR-043). Shared by the Master's Cohort Adjudication
- * Board and the instructor's proposal drawer (FDR-047), so both read the same
+ * Certificate Proof. Shared by the Master's Cohort Adjudication
+ * Board and the instructor's proposal drawer, so both read the same
  * evidence the same way.
  */
 import { useId } from "react";

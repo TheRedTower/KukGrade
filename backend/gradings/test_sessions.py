@@ -666,8 +666,7 @@ def test_admin_session_form_rejects_non_draft_initial_status() -> None:
 
 def test_admin_created_session_is_persisted_and_audited() -> None:
     # Previously this went straight through ModelAdmin's default save,
-    # bypassing create_grading_session() and its audit call entirely
-    # (KG-036).
+    # bypassing create_grading_session() and its audit call entirely.
     creator = user("admin-session-creator@example.com")
     obj = GradingSession(
         title="Admin-created session",

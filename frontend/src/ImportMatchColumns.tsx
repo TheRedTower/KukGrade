@@ -70,7 +70,7 @@ function rowState(row: DataImportRow): { label: string; tone: string } {
 
 /**
  * Step 2 of a roster import: the file's first rows, a field chooser above
- * each column, read live, and every matched cell typable (FDR-051).
+ * each column, read live, and every matched cell typable.
  */
 export function ImportMatchColumns({
   batch,

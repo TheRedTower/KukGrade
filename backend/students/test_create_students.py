@@ -1,4 +1,4 @@
-"""Many students at once, under the same rules as one (import overhaul A3)."""
+"""Many students at once, under the same rules as one."""
 
 from __future__ import annotations
 

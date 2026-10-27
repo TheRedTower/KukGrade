@@ -174,7 +174,7 @@ class CanPromoteStudent(BasePermission):
 
 
 class CanViewAuditLog(BasePermission):
-    """Logistics access (KG-048) plus Master authority, not every instructor.
+    """Logistics access plus Master authority, not every instructor.
 
     Administrators see it as part of running the school; a Master sees it
     because they are the one who adjudicates the decisions it records. An

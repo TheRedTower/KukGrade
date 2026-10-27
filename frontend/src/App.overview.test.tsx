@@ -92,7 +92,7 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
-  // KG-A19: an event's status comes from its action and structured outcome,
+  // An event's status comes from its action and structured outcome,
   // never from words in its summary.
   it("labels activity by what happened, not by words in the summary", async () => {
     const event = (

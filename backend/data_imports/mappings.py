@@ -1,8 +1,8 @@
 """Standard student-roster template and best-effort header suggestions.
 
 Suggestions are never authoritative - the admin confirms or overrides the
-mapping before anything is validated or committed (import Decision 11:
-support both the standard template and a custom mapping).
+mapping before anything is validated or committed (both the
+standard template and a custom mapping are supported).
 """
 
 from __future__ import annotations

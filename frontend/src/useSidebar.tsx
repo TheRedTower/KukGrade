@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 /**
- * Whether the sidebar is a strip of icons (FDR-056). Per browser, like the
+ * Whether the sidebar is a strip of icons. Per browser, like the
  * theme: a person's own habit, not the club's setting. One state shared by the
  * sidebar and the Appearance tab, so a change in either shows in both.
  */

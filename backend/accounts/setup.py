@@ -6,8 +6,7 @@ log (`issue_setup_code`, run by the container's entrypoint) - which only the
 host's owner can read. The setup page asks for that code with the first
 administrator's email, name and password; `complete_setup` checks the code,
 holds the password to the policy every password meets, and creates a
-superuser with every permission (decision log, 2026-10-19 amendment 10, and
-2026-10-20). So whoever reaches the site first cannot claim it.
+superuser with every permission. So whoever reaches the site first cannot claim it.
 
 The code is 12 characters from an alphabet without look-alikes (about 56
 bits), kept only as a SHA-256 hash, valid for SETUP_CODE_LIFETIME, used once,

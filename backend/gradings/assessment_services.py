@@ -95,7 +95,7 @@ def delete_candidate_assessment(
     if promotion is not None:
         # Locked and re-read, not taken from the join above: a promotion from
         # another session can move the student on at any moment, and rolling
-        # back to this one's from_rank would then overwrite it (KG-A04).
+        # back to this one's from_rank would then overwrite it.
         student = lock_student(locked.candidate.student_id)
         validate_assessment_deletion_promotion(promotion, student)
         reverted_rank = {"from": promotion.to_rank.code, "to": promotion.from_rank.code}

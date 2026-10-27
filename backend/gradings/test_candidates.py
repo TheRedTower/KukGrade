@@ -283,7 +283,7 @@ def test_real_candidate_update_records_exactly_one_event_with_full_metadata() ->
 def test_admin_created_candidate_is_persisted_and_audited() -> None:
     # Previously this called build_candidate() (unsaved) and relied on the
     # plain ModelAdmin save to persist it, so register_candidate()'s audit
-    # call never ran (KG-036).
+    # call never ran.
     session = grading_session()
     learner = student()
     obj = GradingCandidate(
@@ -1098,7 +1098,7 @@ def test_bulk_registration_reports_a_duplicate_insert_and_keeps_the_other_rows()
 def test_a_move_onto_an_existing_registration_is_refused_by_the_service() -> None:
     # The duplicate is translated where the save happens, so Django admin -
     # which calls the service directly - gets the same refusal the API did,
-    # instead of an IntegrityError (KG-A11).
+    # instead of an IntegrityError.
     source = grading_session(status=GradingSession.Status.OPEN, title="Source")
     target = grading_session(status=GradingSession.Status.OPEN, title="Target")
     both = student()

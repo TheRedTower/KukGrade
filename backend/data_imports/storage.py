@@ -4,7 +4,7 @@ Never wired to `MEDIA_URL` or served statically - a source file holds
 personal data (student names, dates of birth) and is only ever read
 server-side, between upload and commit/cancel/expiry. `IMPORT_UPLOAD_ROOT`
 must be a persistent volume in any deployment, the same requirement the
-database's own data directory already has - see docs/deployment.md.
+database's own data directory already has - see docs/installation.md.
 
 The storage backend itself is the "import_uploads" alias registered in
 `kukgrade.settings.STORAGES`, resolved through `import_upload_storage()`

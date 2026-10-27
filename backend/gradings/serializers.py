@@ -50,7 +50,7 @@ class GradingYearsSerializer(serializers.Serializer[dict[str, list[int]]]):
 
 class GradingSessionSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
-    # Counted by gradings.services.with_session_progress (KG-A15).
+    # Counted by gradings.services.with_session_progress.
     candidate_count = serializers.IntegerField(read_only=True)
     completed_assessment_count = serializers.IntegerField(read_only=True)
     awaiting_decision_count = serializers.IntegerField(read_only=True)
@@ -197,7 +197,7 @@ class GradingCandidateSerializer(serializers.ModelSerializer):
             "can_be_removed",
         )
         # PATCH moves a registration to another session and does nothing
-        # else (KG-A13): withdrawal and status go through their own actions,
+        # else: withdrawal and status go through their own actions,
         # and the rest is fixed at registration.
         read_only_fields = (
             "id",
@@ -340,7 +340,7 @@ class CandidateAssessmentSerializer(serializers.ModelSerializer):
         source="generated_by.email",
         read_only=True,
     )
-    # The served overall counts (FDR-046), so a list of assessments needs no
+    # The served overall counts, so a list of assessments needs no
     # per-assessment summary request.
     overall = serializers.SerializerMethodField()
 

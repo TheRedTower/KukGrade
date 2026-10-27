@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /**
- * One setting (FDR-057): its name and a plain line on the left, its control on
+ * One setting: its name and a plain line on the left, its control on
  * the right. A row can carry more underneath, such as a form it opens.
  */
 export function SettingsRow({

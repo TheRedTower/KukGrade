@@ -274,8 +274,8 @@ def void_legacy_record(
     reason: str,
     actor: User,
 ) -> LegacyGradingRecord:
-    """Excludes the record from active history without deleting it
-    (import Decision 16). Deterministically refused a second time - no
+    """Excludes the record from active history without deleting it.
+    Deterministically refused a second time - no
     "unvoid" path exists, the same convention as a second import-batch
     commit."""
     cleaned_reason = (reason or "").strip()

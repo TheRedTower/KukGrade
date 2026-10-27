@@ -372,7 +372,7 @@ def test_the_school_prefix_defaults_to_colchester_unless_configured(
         KUKGRADE_SCHOOL_PREFIX=" 301-4 ",
     )
 
-    assert default.SCHOOL_ID_PREFIX == "206-2"
+    assert default.SCHOOL_ID_PREFIX == "123-4"
     assert configured.SCHOOL_ID_PREFIX == "301-4"
 
 

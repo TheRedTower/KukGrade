@@ -1,6 +1,6 @@
 """Reading uploaded spreadsheets into rows of values, never interpreting them.
 
-Every budget is enforced while reading, not after (KG-A10): a small file can
+Every budget is enforced while reading, not after: a small file can
 describe a huge sheet - a workbook with one cell at row 200,000 makes the
 reader produce 200,000 rows - so a row or column limit checked once
 everything is loaded bounds nothing. Every row read counts, blank or not.
@@ -20,7 +20,7 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 
 # One school's roster is a few hundred students; a file needing more is not
-# one school's (owner, 2026-10-20 import overhaul).
+# one school's.
 MAX_ROWS = 1000
 MAX_COLUMNS = 50
 # Expanded size of every part of an .xlsx archive together. Sizes are the

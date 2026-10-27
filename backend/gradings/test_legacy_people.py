@@ -1,6 +1,6 @@
-"""Suggested students and bulk links for historical records (import overhaul A6).
+"""Suggested students and bulk links for historical records.
 
-Suggestions only - KukGrade never links on its own (import Decision 3). The
+Suggestions only - KukGrade never links on its own. The
 names are written as the club's workbook writes them: first names, initials,
 a title in front, a slip in the spelling. Synthetic names only.
 """

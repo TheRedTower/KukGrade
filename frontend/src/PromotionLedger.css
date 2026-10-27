@@ -1,5 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   SCR-023: Student Promotion Ledger (23-student-promotion-flow.png / FDR-039)
+   Student Promotion Ledger
    ───────────────────────────────────────────────────────────────────────────── */
 
 .pl-container {
@@ -698,7 +698,7 @@
   animation: plSpin 0.7s linear infinite;
 }
 
-/* ── Dark Mode Parity for SCR-023 ─────────────────────────────────────────── */
+/* ── Dark Mode Parity ─────────────────────────────────────────── */
 
 [data-theme="dark"] .pl-summary-card {
   background: #241c0f;

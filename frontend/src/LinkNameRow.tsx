@@ -24,7 +24,7 @@ function recordRanks(record: LegacyGradingRecord): string {
   return tested ? `${held} → ${tested}` : held;
 }
 
-/** One name's records beside the students it could be (FDR-059). */
+/** One name's records beside the students it could be. */
 function NameDetails({
   person,
   batch,
@@ -160,7 +160,7 @@ function NameDetails({
   );
 }
 
-/** A name as written, the student suggested for it, and what can be done with it (FDR-059). */
+/** A name as written, the student suggested for it, and what can be done with it. */
 export function NameRow({
   person,
   view,

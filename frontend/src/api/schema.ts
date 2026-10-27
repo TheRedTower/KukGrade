@@ -135,7 +135,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
+         * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -143,7 +143,7 @@ export interface paths {
         get: operations["data_imports_batches_list"];
         put?: never;
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
+         * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -163,7 +163,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
+         * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -187,7 +187,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
+         * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -246,7 +246,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * @description Administrator-only bulk data import (import Decision 1).
+         * @description Administrator-only bulk data import.
          *
          *     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
          *     `accounts.groups._DATA_IMPORT_PERMISSIONS`.
@@ -458,7 +458,7 @@ export interface paths {
          * @description Category and overall rollup for one assessment, at any status.
          *
          *     Served here rather than recounted by the client, so scoring, review
-         *     and the final-decision board all read the same counts. See FDR-046.
+         *     and the final-decision board all read the same counts.
          */
         get: operations["gradings_assessments_summary_retrieve"];
         put?: never;
@@ -662,10 +662,10 @@ export interface paths {
         };
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         get: operations["gradings_legacy_records_list"];
         put?: never;
@@ -685,10 +685,10 @@ export interface paths {
         };
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         get: operations["gradings_legacy_records_retrieve"];
         put?: never;
@@ -710,10 +710,10 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         post: operations["gradings_legacy_records_link_student_create"];
         delete?: never;
@@ -733,10 +733,10 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         post: operations["gradings_legacy_records_resolve_current_rank_create"];
         delete?: never;
@@ -756,10 +756,10 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         post: operations["gradings_legacy_records_resolve_testing_for_rank_create"];
         delete?: never;
@@ -779,10 +779,10 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         post: operations["gradings_legacy_records_unlink_student_create"];
         delete?: never;
@@ -802,10 +802,10 @@ export interface paths {
         put?: never;
         /**
          * @description Historical import records - read for both roles, reconciliation
-         *     (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-         *     and 15). No ordinary create/update/delete: rows are only ever
-         *     created by data_imports.services.commit_legacy_grading_import, and only
-         *     ever changed through the five gradings.legacy_services functions.
+         *     (link/unlink/resolve-rank/void) administrator-only. No ordinary
+         *     create/update/delete: rows are only ever created by
+         *     data_imports.services.commit_legacy_grading_import, and only ever changed
+         *     through the five gradings.legacy_services functions.
          */
         post: operations["gradings_legacy_records_void_create"];
         delete?: never;
@@ -844,8 +844,8 @@ export interface paths {
         /**
          * @description Records grouped by the name as written, with suggested students.
          *
-         *     Suggestions only: nothing is linked until a person confirms it
-         *     (import Decision 3). Voided records and sheet notes are left out.
+         *     Suggestions only: nothing is linked until a person confirms it.
+         *     Voided records and sheet notes are left out.
          *     Only the names on the page are scored for suggested students, unless
          *     the list is filtered by how clear those are, which needs them all.
          */
@@ -1752,8 +1752,8 @@ export interface components {
          *     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
          *     the effective (latest applicable) `SyllabusRequirement` row, so most
          *     fields are simple dotted lookups into it. `introduced_rank`,
-         *     `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
-         *     requires the backend to derive.
+         *     `effective_since_rank` and `is_new_at_rank` are the provenance the
+         *     backend derives.
          */
         EffectiveSyllabusRequirement: {
             readonly item_code: string;
@@ -2125,8 +2125,8 @@ export interface components {
          *
          *     Keys are the source rank text exactly as it appeared in the workbook
          *     (case-insensitive on the service side); a null/omitted value explicitly
-         *     means "leave unresolved" - never a block on committing that row
-         *     (import Decision 4, unlike the student roster importer's required rank).
+         *     means "leave unresolved" - never a block on committing that row,
+         *     unlike the student roster importer's required rank.
          */
         LegacyImportRequest: {
             rank_mappings?: {
@@ -2723,7 +2723,7 @@ export interface components {
          * @description Combines finalised native outcomes with linked, non-voided legacy
          *     records - kept deliberately separate from
          *     StudentRankHistorySerializer/`/rank-history/`, which remains
-         *     Promotion-only (import Decision 6).
+         *     Promotion-only.
          */
         StudentGradingHistory: {
             items: components["schemas"]["GradingHistoryItem"][];

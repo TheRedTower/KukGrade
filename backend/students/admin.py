@@ -77,7 +77,7 @@ class StudentAdmin(ServiceDeleteMixin, admin.ModelAdmin):
     ) -> None:
         # Routed through the same services the API uses, so an admin-created
         # or admin-edited student is audited too, attributed to whoever is
-        # signed into admin (KG-036).
+        # signed into admin.
         if not change:
             created = create_student(
                 wksa_id=obj.wksa_id,

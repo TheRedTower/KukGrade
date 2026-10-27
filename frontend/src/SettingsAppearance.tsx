@@ -2,7 +2,7 @@ import { ThemeToggle } from "./AuthChrome";
 import { SettingsRow } from "./SettingsRow";
 import { useSidebar } from "./useSidebar";
 
-/** How KukGrade looks for you, on this browser only (FDR-057). */
+/** How KukGrade looks for you, on this browser only. */
 export function SettingsAppearance() {
   const { collapsed, setCollapsed } = useSidebar();
 

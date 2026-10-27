@@ -1,7 +1,7 @@
 """Read endpoints cost the same number of queries however much history there is.
 
 Each test warms the endpoint, counts it with one record, adds more, and counts
-again: a per-row query shows as growth (KG-A21).
+again: a per-row query shows as growth.
 """
 
 from __future__ import annotations

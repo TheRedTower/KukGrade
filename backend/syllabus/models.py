@@ -157,7 +157,7 @@ CATEGORY_ORDER: dict[str, int] = {
     code: index for index, code in enumerate(SyllabusItem.Category.values)
 }
 
-# The six universal core grading areas (FDR-018), which every rank shares;
+# The six universal core grading areas, which every rank shares;
 # Techniques, Forms, Weapons and Other are rank-specific content. Served as
 # `category_is_core` so screens group by it without keeping their own list
 # (audit F-31).

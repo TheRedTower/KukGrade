@@ -50,7 +50,9 @@ status() {
 echo "== Setuid files and the tools kept for repairs"
 docker run --rm --entrypoint sh "$image" -c '
     [ -z "$(find / -xdev -perm /6000 -type f 2>/dev/null)" ] || exit 1
-    command -v sh python psql pg_dump openssl >/dev/null
+    for tool in sh python psql pg_dump pg_restore openssl; do
+        command -v "$tool" >/dev/null || exit 1
+    done
 ' || fail "setuid files present or a repair tool missing"
 
 echo "== With its own database"

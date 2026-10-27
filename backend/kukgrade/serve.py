@@ -118,9 +118,9 @@ def prepare_folders(data_dir: Path, *, with_database: bool) -> None:
         hand_over(folder)
         # Rosters and workbooks are personal data, and tls/ may hold an
         # operator's own key: the app's user only, however the folder was made.
-        # Changed only when it is not already (the image ships both at 700),
+        # Set to exactly 700 when it is not already (the image ships both so),
         # since the rest of /var/lib/kukgrade may be read-only (compose.prod.yml).
-        if folder.stat().st_mode & 0o077:
+        if folder.stat().st_mode & 0o777 != 0o700:
             folder.chmod(0o700)
     if with_database:
         folder = data_dir / "postgres"

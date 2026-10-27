@@ -88,8 +88,8 @@ def test_the_import_and_tls_folders_are_made_private(
     data = tmp_path / "data"
     (data / "import_uploads").mkdir(parents=True, mode=0o755)
     (data / "import_uploads").chmod(0o755)
-    (data / "tls").mkdir(mode=0o755)
-    (data / "tls").chmod(0o755)
+    (data / "tls").mkdir(mode=0o500)
+    (data / "tls").chmod(0o500)
     serve.prepare_folders(data, with_database=False)
     assert (data / "import_uploads").stat().st_mode & 0o777 == 0o700
     assert (data / "tls").stat().st_mode & 0o777 == 0o700

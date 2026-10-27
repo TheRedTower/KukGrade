@@ -3,6 +3,7 @@ PostgreSQL installed; the whole of it is exercised by running the image)."""
 
 from __future__ import annotations
 
+import os
 import signal
 import subprocess
 import sys
@@ -22,6 +23,7 @@ class FakeProcess:
     ) -> None:
         self.returncode = returncode
         self.stubborn = stubborn
+        self.pid = id(self)
         self.signals: list[int] = []
 
     def poll(self) -> int | None:
@@ -88,8 +90,8 @@ def test_the_import_and_tls_folders_are_made_private(
     data = tmp_path / "data"
     (data / "import_uploads").mkdir(parents=True, mode=0o755)
     (data / "import_uploads").chmod(0o755)
-    (data / "tls").mkdir(mode=0o755)
-    (data / "tls").chmod(0o755)
+    (data / "tls").mkdir(mode=0o500)
+    (data / "tls").chmod(0o500)
     serve.prepare_folders(data, with_database=False)
     assert (data / "import_uploads").stat().st_mode & 0o777 == 0o700
     assert (data / "tls").stat().st_mode & 0o777 == 0o700
@@ -175,3 +177,39 @@ def test_root_never_follows_a_link_in_the_data_folder(
     with pytest.raises(SystemExit, match="symbolic link"):
         serve.secret_key(tmp_path / "data")
     assert not (tmp_path / "nowhere").exists()
+
+
+def test_the_app_role_is_a_non_superuser_that_can_make_databases() -> None:
+    sql = serve.app_role_sql("kukgrade")
+    assert 'CREATE ROLE "kukgrade" LOGIN' in sql
+    assert "NOSUPERUSER LOGIN CREATEDB NOCREATEROLE" in sql
+    assert "NOREPLICATION NOBYPASSRLS" in sql
+    assert "SUPERUSER" not in sql.replace("NOSUPERUSER", "")
+
+
+@pytest.mark.parametrize("bad", ["postgres", "kuk grade", 'a"b', "x;drop", "1abc", ""])
+def test_a_database_user_or_name_that_could_not_be_quoted_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bad: str
+) -> None:
+    monkeypatch.setattr(serve, "postgres_bin", lambda: tmp_path / "17" / "bin")
+    with pytest.raises(SystemExit, match="not usable"):
+        serve.start_database(tmp_path, {"POSTGRES_USER": bad})
+    with pytest.raises(SystemExit, match="not usable"):
+        serve.start_database(tmp_path, {"POSTGRES_DB": bad})
+
+
+def test_a_finished_process_nobody_owns_is_collected_and_the_known_ones_are_not() -> (
+    None
+):
+    orphan = subprocess.Popen(["true"])
+    known = subprocess.Popen(["sleep", "30"])
+    try:
+        while not os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT):
+            pass
+        serve.reap_orphans({known.pid})
+        with pytest.raises(ChildProcessError):
+            os.waitpid(orphan.pid, os.WNOHANG)
+        assert known.poll() is None
+    finally:
+        known.kill()
+        known.wait()

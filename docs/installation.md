@@ -121,6 +121,14 @@ Everything is under `deploy/data/`, mounted into the container at
 | `tls/` | The self-signed certificate | The app makes a new one. |
 | `caddy/` | Caddy's certificates (Caddy file only) | Caddy asks for new ones. |
 
+The built-in database is PostgreSQL 17 on a socket that exists only inside the container: it
+listens on no network, so there is no port or password to protect. It has two roles: the
+app's (`POSTGRES_USER`, default `kukgrade`), which owns the app's database but is **not** a
+superuser, so a flaw in the app cannot read the server's files or run programs on it; and
+`postgres`, the superuser, for an operator who needs it (`docker compose exec kukgrade psql -U postgres`).
+A database created by an earlier build has the app's role as its superuser and says so in the
+log at every start; dump it, empty `data/postgres/` and restore to move it over.
+
 `data/` belongs to UID 10001, the unprivileged user the container runs as. Do
 not run `git clean -fdx` in the checkout, and do not commit the folder (it is
 git-ignored).

@@ -50,7 +50,9 @@ status() {
 echo "== Setuid files and the tools kept for repairs"
 docker run --rm --entrypoint sh "$image" -c '
     [ -z "$(find / -xdev -perm /6000 -type f 2>/dev/null)" ] || exit 1
-    command -v sh python psql pg_dump openssl >/dev/null
+    for tool in sh python psql pg_dump pg_restore openssl; do
+        command -v "$tool" >/dev/null || exit 1
+    done
 ' || fail "setuid files present or a repair tool missing"
 
 echo "== With its own database"
@@ -84,6 +86,10 @@ login='{"email":"admin@example.com","password":"'"$password"'"}'
 [ "$(post /api/auth/login/ "$login")" = 200 ] || fail "sign-in"
 [ "$(status -b "$jar" "$base/api/auth/me/")" = 200 ] || fail "signed-in request"
 
+[ "$(docker exec kg-own psql -tAc 'SELECT rolsuper FROM pg_roles WHERE rolname = current_user')" = f ] \
+    || fail "the app's database role is a superuser"
+[ "$(docker exec kg-own psql -U postgres -tAc 'SELECT rolsuper FROM pg_roles WHERE rolname = current_user')" = t ] \
+    || fail "the operator's superuser role is missing"
 # As long as the compose files allow.
 docker stop -t 120 kg-own >/dev/null
 docker logs kg-own 2>&1 | grep -q "database system is shut down" \

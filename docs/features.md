@@ -59,7 +59,8 @@ Every step is recorded in the [audit log](#audit-log).
 ## The syllabus
 
 The syllabus is read-only reference data in the database (the World Kuk Sool
-Association 2014 charts), never hard-coded in the interface. Which requirements
+Association 2014 charts, plus the WKSA black belt requirement charts), never
+hard-coded in the interface. Which requirements
 apply depends on **rank** and **age band** (8 and under, 9–12, 13–17, 18+). Each
 grading covers the *cumulative* syllabus: everything examinable up to the rank
 being tested, not only that rank's new material.
@@ -134,5 +135,5 @@ Notes:
 
 ## What KukGrade does not do (yet)
 
-Reports and exports, certificates, notifications, offline use, and the syllabus beyond
-Jo Kyo Nim. See the [roadmap](roadmap.md).
+Reports and exports, certificates, notifications and offline use, and it has no syllabus
+for Pyung Kwahn Jung Nim. See the [roadmap](roadmap.md).

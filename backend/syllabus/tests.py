@@ -610,14 +610,28 @@ def test_effective_syllabus_is_everything_examinable_through_the_rank(
     assert all(row["required"] for row in rows)
 
 
-@pytest.mark.parametrize("rank_code", ["WHITE", "KSN", "PKJN"])
-@pytest.mark.parametrize("age_band", AgeBand.values)
+NO_SYLLABUS_RECORDED = [
+    (rank_code, age_band)
+    for rank_code in ("WHITE", "KSN", "PSBN", "SBN", "PKJN")
+    for age_band in AgeBand.values
+    if (rank_code, age_band)
+    not in {
+        ("KSN", AgeBand.AGE_13_TO_17),
+        ("KSN", AgeBand.AGE_18_AND_OVER),
+        ("PSBN", AgeBand.AGE_18_AND_OVER),
+        ("SBN", AgeBand.AGE_18_AND_OVER),
+    }
+]
+
+
+@pytest.mark.parametrize(("rank_code", "age_band"), NO_SYLLABUS_RECORDED)
 def test_effective_syllabus_is_empty_for_a_rank_with_no_recorded_syllabus(
     rank_code: str,
     age_band: str,
 ) -> None:
-    # KSN and above have no syllabus recorded yet. Serving everything through
-    # JKN for them would present it as their whole curriculum.
+    # The black belt charts are recorded for KSN (13-17 and adults), PSBN and
+    # SBN (adults) only; PKJN has none. Serving everything through a lower rank
+    # for the rest would present it as their whole curriculum.
     response = auth_client().get(
         "/api/syllabus/requirements/effective/",
         {"rank_code": rank_code, "age_band": age_band},

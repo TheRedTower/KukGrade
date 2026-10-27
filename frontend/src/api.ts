@@ -187,19 +187,17 @@ function withQuery(path: string, params: object = {}): string {
 async function collectAllPages<T>(
   loadPage: (page: number) => Promise<PaginatedResponse<T>>,
 ): Promise<PaginatedResponse<T>> {
-  const results: T[] = [];
   let page = 1;
-  let total = 0;
+  let response = await loadPage(page);
+  const results: T[] = [...response.results];
 
-  for (;;) {
-    const response = await loadPage(page);
-    total = response.count;
-    results.push(...response.results);
-    if (!response.next) break;
+  while (response.next) {
     page += 1;
+    response = await loadPage(page);
+    results.push(...response.results);
   }
 
-  return { count: total, next: null, previous: null, results };
+  return { count: response.count, next: null, previous: null, results };
 }
 
 export type SiteSettings = Schemas["SiteSettings"];

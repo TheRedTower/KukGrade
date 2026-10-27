@@ -13,7 +13,8 @@ from graphlib import TopologicalSorter
 
 from django.apps import apps
 from django.core.management import call_command
-from django.db import DatabaseError, connection, transaction
+from django.db import Error as DatabaseFailure
+from django.db import close_old_connections, connection, transaction
 from django.db.models import Model
 
 from demo import seed
@@ -77,6 +78,15 @@ def reset() -> None:
     A visitor saving something in the same instant can make this fail (their
     row points at one just removed); the whole reset then rolls back and
     `reset_and_tidy` tries again.
+
+    Row numbers carry on rather than starting again at 1: a sequence cannot be
+    set back inside a transaction, and one set back by a reset that then rolled
+    back would hand out numbers already in use.
+
+    The deletion order is worked out from the models' foreign keys and has no
+    answer if two club tables ever point at each other; the test of
+    `deletion_order` fails first, in CI, so that is met when the model is
+    changed rather than when the demo stops resetting.
     """
     seed.assert_safe_to_build()
     with connection.cursor() as cursor:
@@ -89,14 +99,6 @@ def reset() -> None:
         for table in deletion_order():
             name = connection.ops.quote_name(table)
             cursor.execute(f"DELETE FROM {name}")  # noqa: S608 - our own table names
-            # So numbering starts at 1 again, as on a fresh start. Not part of
-            # the transaction, which is harmless: a rolled-back reset restarts
-            # a counter whose rows are all gone anyway.
-            cursor.execute(
-                "SELECT setval(pg_get_serial_sequence(%s, 'id'), 1, false) "
-                "WHERE pg_get_serial_sequence(%s, 'id') IS NOT NULL",
-                [table, table],
-            )
     seed.build()
 
 
@@ -106,10 +108,13 @@ def reset_and_tidy(*, attempts: int = 4) -> float:
     """
     started = time.monotonic()
     for attempt in range(1, attempts + 1):
+        # A connection that sat idle through hours of sleeping may be dead; a
+        # management command is never told, as a web request is.
+        close_old_connections()
         try:
             reset()
             break
-        except DatabaseError:
+        except DatabaseFailure:
             if attempt == attempts:
                 raise
             time.sleep(attempt)

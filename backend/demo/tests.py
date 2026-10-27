@@ -6,6 +6,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.conf import settings
 from django.core.management.base import CommandError
 from django.db import connection
 from django.test import override_settings
@@ -266,8 +267,8 @@ def test_a_reset_rebuilds_the_same_club_and_keeps_the_accounts_and_catalogue() -
     )
     assert Promotion.objects.count() == 14
     assert User.objects.filter(email="deleted-user@kukgrade.internal").exists()
-    # Numbering starts over, so a visitor never sees a creeping id.
-    assert session_named("Autumn Grading").pk == 1
+    # Numbering carries on: a sequence cannot be set back safely in a transaction.
+    assert session_named("Autumn Grading").pk > 5
 
 
 @pytest.mark.django_db(transaction=True, serialized_rollback=True)
@@ -460,3 +461,19 @@ def test_tables_are_emptied_after_everything_that_refers_to_them() -> None:
         ("gradings_promotion", "gradings_candidateoutcome"),
     ]:
         assert order.index(child) < order.index(parent)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("club")
+def test_every_students_age_is_the_roster_age() -> None:
+    today = datetime.now(ZoneInfo(settings.TIME_ZONE)).date()
+    ages = {
+        (first, last): age
+        for first, last, age, _ in [*seed.ROSTER, *seed.INACTIVE, *seed.LEFT]
+    }
+    for student in Student.objects.all():
+        born = student.date_of_birth
+        age = (
+            today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+        )
+        assert age == ages[(student.first_name, student.last_name)]

@@ -1,6 +1,15 @@
 import "./Demo.css";
-import { formatTime } from "./dates";
+import { formatDayMonth, formatShortDateTime, formatTime } from "./dates";
 import { useSiteSettingsQuery } from "./queries";
+
+/**
+ * "18:00", or "28 Oct 2026, 00:00" when the next reset is not today, so a
+ * midnight reset is never mistaken for the one that has just passed.
+ */
+function resetTime(iso: string): string {
+  const today = formatDayMonth(new Date().toISOString());
+  return formatDayMonth(iso) === today ? formatTime(iso) : formatShortDateTime(iso);
+}
 
 /**
  * On the public demo only: one button per shared account, so a visitor can
@@ -23,7 +32,7 @@ export function DemoSignIn({
       <h2 id="demo-title">Try the demo</h2>
       <p>
         Everything here is made up, and anyone can use these accounts at the same time. The data
-        is reset at {formatTime(demo.next_reset_at)}.
+        is reset at {resetTime(demo.next_reset_at)}.
       </p>
       <ul className="demo-accounts">
         {demo.accounts.map((account) => (
@@ -54,7 +63,7 @@ export function DemoBanner() {
 
   return (
     <div className="demo-banner" role="note">
-      You are using a demo with made-up data. It is reset at {formatTime(demo.next_reset_at)}.
+      You are using a demo with made-up data. It is reset at {resetTime(demo.next_reset_at)}.
     </div>
   );
 }

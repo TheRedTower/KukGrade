@@ -29,6 +29,8 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from types import FrameType
 
+from kukgrade.envflags import env_bool
+
 APP_ID = 10001
 DATA_DIR = Path("/var/lib/kukgrade")
 SOCKET_DIR = Path(os.environ.get("KUKGRADE_EMBEDDED_SOCKET", "/tmp/kukgrade-pg"))
@@ -373,12 +375,7 @@ def main() -> int:
     database: subprocess.Popen[bytes] | None = None
     app: subprocess.Popen[bytes] | None = None
     timer: subprocess.Popen[bytes] | None = None
-    demo = os.environ.get("KUKGRADE_DEMO_MODE", "").lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+    demo = env_bool("KUKGRADE_DEMO_MODE", False)
     try:
         with_database = embedded()
         prepare_folders(DATA_DIR, with_database=with_database)

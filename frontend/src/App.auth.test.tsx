@@ -897,6 +897,8 @@ describe("App demo", () => {
     expect(await screen.findByRole("heading", { name: "Try the demo" })).toBeVisible();
     expect(screen.getByText("Makes the final decision.")).toBeVisible();
     expect(screen.getByText("KukGradeDemo2026!")).toBeVisible();
+    // A reset on another day is named by its date, never a bare clock time.
+    expect(screen.getByText(/is reset at 1 Mar 2027/)).toBeVisible();
     await user.click(screen.getByRole("button", { name: /Sign in as Master/ }));
 
     expect(await screen.findByRole("note")).toHaveTextContent(

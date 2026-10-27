@@ -10,17 +10,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.core.exceptions import ImproperlyConfigured
 
+from kukgrade.envflags import env_bool
 from kukgrade.version import VERSION as APP_VERSION
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIST = BASE_DIR / "frontend_dist"
-
-
-def env_bool(name: str, default: bool) -> bool:
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    return value.lower() in {"1", "true", "yes", "on"}
 
 
 def env_list(name: str, default: str = "") -> list[str]:
@@ -127,7 +121,8 @@ DEMO_MODE = env_bool("KUKGRADE_DEMO_MODE", False)
 # How often the demo club is wiped and rebuilt, at whole multiples from
 # midnight club time, so it must divide the day.
 DEMO_RESET_HOURS = env_int("KUKGRADE_DEMO_RESET_HOURS", 6)
-if DEMO_RESET_HOURS not in {1, 2, 3, 4, 6, 8, 12, 24}:
+# Only checked for the demo: a stray value elsewhere means nothing.
+if DEMO_MODE and DEMO_RESET_HOURS not in {1, 2, 3, 4, 6, 8, 12, 24}:
     _MSG = f"KUKGRADE_DEMO_RESET_HOURS must divide 24 evenly, got {DEMO_RESET_HOURS}."
     raise ImproperlyConfigured(_MSG)
 

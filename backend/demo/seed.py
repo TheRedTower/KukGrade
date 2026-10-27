@@ -251,9 +251,17 @@ def grant_authority(accounts: dict[str, User]) -> None:
 
 
 def birthday(today: date, age: int, index: int) -> date:
-    """A date of birth giving `age` today, spread across the year."""
-    base = today.replace(day=1) - timedelta(days=365 * age + (index * 37) % 300)
-    return base
+    """A date of birth giving exactly `age` today, spread across the year.
+
+    The birthday is `age` calendar years ago, then moved back by up to 300
+    days: still `age` today, so the student sits in the age band the roster
+    says.
+    """
+    try:
+        exact = today.replace(year=today.year - age)
+    except ValueError:  # 29 February, in a year that has none
+        exact = today.replace(year=today.year - age, day=28)
+    return exact - timedelta(days=(index * 37) % 300)
 
 
 def create_students(club: Club) -> None:

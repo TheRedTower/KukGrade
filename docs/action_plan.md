@@ -63,9 +63,8 @@ that an unresolved defect still exists.
 - **Black belt syllabus**: KSN (adult and Youth), PSBN and SBN are recorded as
   the charts print them (decision log, 2026-10-27); PKJN has no chart (the owner
   teaches at that grade). To confirm: that a black belt grading assesses a chart
-  on top of the cumulative lower ranks (as every grading does today), a
-  Korean reader's check of the hangul read from the sheets, and the section
-  names the charts group lines under (kept in each line's notes).
+  on top of the cumulative lower ranks (as every grading does today), and how
+  the charts' section names (kept in each line's notes) should show on screen.
 - Backup ownership and retention.
 
 ## Deferred until there is a real need

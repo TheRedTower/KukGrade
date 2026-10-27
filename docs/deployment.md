@@ -104,8 +104,11 @@ subdomain is needed.
 ## How the app is reached
 
 One setting says what is in front of the app: `DJANGO_NUM_PROXIES`, the number
-of reverse proxies or tunnels, each trusted to overwrite `X-Forwarded-For` and
-`X-Forwarded-Proto`. Everything else follows from it.
+of reverse proxies or tunnels in a chain, all trusted. The first one, facing
+the public, must discard any `X-Forwarded-For` and `X-Forwarded-Proto` a client
+sent and start them from the connection it saw; each further proxy appends the
+address of the one before it and passes the scheme on. Everything else follows
+from the count.
 
 | `DJANGO_NUM_PROXIES` | The app | TLS | Client address for the login throttle |
 | --- | --- | --- | --- |
@@ -126,8 +129,9 @@ directly with forged headers.
   `KUKGRADE_TLS_CERT` and the key in `KUKGRADE_TLS_KEY` (both or neither), or,
   with neither, from a self-signed pair the app makes on first start and keeps
   in `KUKGRADE_TLS_DIR` (default `/var/lib/kukgrade/tls`, a volume that must be
-  writable by UID 10001), made again at start when under 30 days remain (restart
-  to renew a long-running container or to add a new host name). A self-signed
+  writable by UID 10001), made again at start when under 30 days remain or when
+  `DJANGO_ALLOWED_HOSTS` has changed (restart to renew a long-running container
+  or to add a new host name). A self-signed
   certificate encrypts the connection but browsers will warn about it; bring a
   real certificate for a real name. `http` turns the HTTPS redirect, secure
   cookies and HSTS off, and logs a warning at start: passwords and sessions

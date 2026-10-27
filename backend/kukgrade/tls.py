@@ -17,6 +17,8 @@ from kukgrade import settings
 
 CERT_NAME = "kukgrade.crt"
 KEY_NAME = "kukgrade.key"
+# The host names the pair was made for, so a changed ALLOWED_HOSTS remakes it.
+NAMES_NAME = "kukgrade.names"
 VALID_DAYS = 825
 # A generated certificate is replaced once it has this long (30 days) to run.
 RENEW_BEFORE_SECONDS = 30 * 24 * 60 * 60
@@ -49,7 +51,14 @@ def _is_current(cert: Path) -> bool:
     return check.returncode == 0
 
 
-def _generate(cert: Path, key: Path) -> None:
+def _names_match(names_file: Path) -> bool:
+    try:
+        return names_file.read_text() == _alternative_names()
+    except OSError:
+        return False
+
+
+def _generate(cert: Path, key: Path, names_file: Path) -> None:
     cert.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
@@ -82,6 +91,7 @@ def _generate(cert: Path, key: Path) -> None:
         capture_output=True,
         check=True,
     )
+    names_file.write_text(_alternative_names())
 
 
 def certificate_files() -> tuple[str, str]:
@@ -90,9 +100,15 @@ def certificate_files() -> tuple[str, str]:
         return settings.TLS_CERT_FILE, settings.TLS_KEY_FILE
     cert = settings.TLS_DIR / CERT_NAME
     key = settings.TLS_DIR / KEY_NAME
+    names_file = settings.TLS_DIR / NAMES_NAME
     try:
-        if not (cert.is_file() and key.is_file() and _is_current(cert)):
-            _generate(cert, key)
+        if not (
+            cert.is_file()
+            and key.is_file()
+            and _names_match(names_file)
+            and _is_current(cert)
+        ):
+            _generate(cert, key, names_file)
     except (OSError, subprocess.CalledProcessError) as exc:
         detail = getattr(exc, "stderr", b"") or b""
         msg = (

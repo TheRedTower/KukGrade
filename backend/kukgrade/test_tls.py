@@ -71,6 +71,23 @@ def test_a_current_pair_is_kept_not_remade(tls_dir: Path) -> None:
 
 
 @needs_openssl
+def test_a_pair_is_remade_when_the_hosts_change(
+    tls_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cert, _key = tls.certificate_files()
+    made = Path(cert).read_bytes()
+    monkeypatch.setattr(
+        settings, "ALLOWED_HOSTS", ["kukgrade.example.com", "new.example.org"]
+    )
+
+    tls.certificate_files()
+
+    assert Path(cert).read_bytes() != made
+    assert "DNS:new.example.org" in subject_alt_names(cert)
+
+
+@needs_openssl
 def test_a_pair_close_to_expiry_is_replaced(
     tls_dir: Path,
     monkeypatch: pytest.MonkeyPatch,

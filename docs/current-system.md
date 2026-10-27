@@ -1,6 +1,6 @@
 # Current System
 
-Describes the implementation in this checkout, refreshed on 2026-10-21.
+Describes the implementation in this checkout, refreshed on 2026-10-27.
 This document takes precedence over every other document for what exists now.
 
 The 2026-10-21 dev audit and its fixes are recorded in
@@ -38,8 +38,14 @@ push and pull request.
   (commit and time, passed as image build arguments) are served to signed-in
   users by `/api/about/`.
   See `docs/deployment.md`. Host integration and restore verification remain.
+- **Dependency updates** arrive as Dependabot pull requests (Python and npm
+  packages with their lockfiles, the Dockerfile's digest-pinned base images,
+  GitHub Actions; `.github/dependabot.yml`); Django 6, django-stubs 6 and
+  TypeScript 7 are held back on purpose (`development-workflow.md`,
+  "Dependency updates").
 - **Settings fail closed.** `DEBUG` defaults false; a missing
-  `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
+  `DJANGO_SECRET_KEY` with debug off refuses to start, unless the image kept one
+  in `/var/lib/kukgrade/secret_key` (made by `kukgrade.serve` when none is given). HSTS (one year,
   subdomains included), SSL redirect and secure cookies default on; HSTS
   preload defaults off and is an explicit opt-in. The reverse-proxy scheme
   header is trusted only once proxies are declared (`DJANGO_NUM_PROXIES` above

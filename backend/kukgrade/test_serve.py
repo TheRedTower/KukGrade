@@ -82,6 +82,19 @@ def test_folders_are_made_and_the_database_folder_only_when_it_is_embedded(
     assert (tmp_path / "data" / "postgres").is_dir()
 
 
+def test_the_import_and_tls_folders_are_made_private(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    (data / "import_uploads").mkdir(parents=True, mode=0o755)
+    (data / "import_uploads").chmod(0o755)
+    (data / "tls").mkdir(mode=0o755)
+    (data / "tls").chmod(0o755)
+    serve.prepare_folders(data, with_database=False)
+    assert (data / "import_uploads").stat().st_mode & 0o777 == 0o700
+    assert (data / "tls").stat().st_mode & 0o777 == 0o700
+
+
 def test_a_database_from_another_postgresql_major_is_refused(tmp_path: Path) -> None:
     (tmp_path / "PG_VERSION").write_text("16\n")
     programs = tmp_path / "usr" / "17" / "bin"

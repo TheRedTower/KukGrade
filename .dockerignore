@@ -26,3 +26,6 @@ backend/**/testing.py
 backend/kukgrade/settings_test.py
 **/.DS_Store
 deploy/
+/audit/
+.playwright-cli/
+.vscode/

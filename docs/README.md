@@ -15,8 +15,9 @@ what exists today and `decision_log.md` for why.
 - `data-import-and-legacy-migration.md` - student-roster import, historical
   KSW Colchester workbook migration, and the sixteen locked import decisions
   the code cites as "import Decision N".
-- `deployment.md` - production image, Traefik/PostgreSQL connections,
-  startup, update, and recovery.
+- `deployment.md` - the production image, the owner's Traefik/PostgreSQL host,
+  running it anywhere (`deploy/`), how it is reached, startup, update, backup
+  and recovery.
 - `email-and-credential-lifecycle.md` - the accepted design for optional
   email (Resend), temporary credentials, forced and voluntary password
   changes, and forgotten-password recovery, with the owner's 2026-10-19

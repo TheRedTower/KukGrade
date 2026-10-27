@@ -7,7 +7,7 @@ import { useState } from "react";
  * this many, so the oldest drop off first.
  */
 const STORAGE_KEY = "kukgrade-left-names";
-export const LEFT_NAMES_LIMIT = 100;
+const LEFT_NAMES_LIMIT = 100;
 
 function read(): string[] {
   try {

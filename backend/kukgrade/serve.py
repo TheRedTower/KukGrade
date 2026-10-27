@@ -116,9 +116,12 @@ def prepare_folders(data_dir: Path, *, with_database: bool) -> None:
         refuse_link(folder)
         folder.mkdir(exist_ok=True)
         hand_over(folder)
-        # Rosters and workbooks are personal data: the app's user only, however
-        # the folder was made.
-        folder.chmod(0o700)
+        # Rosters and workbooks are personal data, and tls/ may hold an
+        # operator's own key: the app's user only, however the folder was made.
+        # Changed only when it is not already (the image ships both at 700),
+        # since the rest of /var/lib/kukgrade may be read-only (compose.prod.yml).
+        if folder.stat().st_mode & 0o077:
+            folder.chmod(0o700)
     if with_database:
         folder = data_dir / "postgres"
         refuse_link(folder)

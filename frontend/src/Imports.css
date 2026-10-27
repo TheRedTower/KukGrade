@@ -149,10 +149,6 @@
   align-items: flex-start;
 }
 
-.ix-align-baseline {
-  align-items: baseline;
-}
-
 .ix-ruled {
   border-top: 1px solid var(--color-border);
 }

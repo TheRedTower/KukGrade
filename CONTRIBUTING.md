@@ -47,7 +47,8 @@ cd ../frontend && npm ci
    cd frontend && npm run lint && npm run typecheck && npm run test
    ```
 
-6. Open a pull request against `dev` and fill in the template. Use
+6. Open a pull request against `dev` (never `prod`, which only receives
+   what `dev` has proved; see [Releasing](docs/development.md#releasing)) and fill in the template. Use
    [Conventional Commit](https://www.conventionalcommits.org/) style for the
    title (`feat: …`, `fix: …`, `docs: …`).
 

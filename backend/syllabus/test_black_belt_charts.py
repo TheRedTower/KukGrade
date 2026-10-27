@@ -101,7 +101,7 @@ KSN_ADULT = [
 KSN_YOUTH = [
     under(""),
     ("You Dahn Soo 유단수", [("Yahng Sohn Mohk Soo", "1-15"),
-                            ("Ssahng Soo", "1-15")], {}),  # the chart prints "Ssang Soo"
+                            ("Ssahng Soo", "1-15")], {}),
     ("Goh Geup Soo 고급수", [("Ki Bohn Bohn", "1-10"), ("Gahk Doh Bup", "1-10"),
                             ("Juhn Hwahn Bup", "1-10"), ("Dahn Doh Mahk Ki", "1-15")],
      {"Dahn Doh Mahk Ki": "*Must be taught AFTER age of 18 y.o."}),

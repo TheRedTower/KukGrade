@@ -17,6 +17,7 @@ its restart policy brings both back.
 from __future__ import annotations
 
 import os
+import re
 import secrets
 import signal
 import subprocess
@@ -29,6 +30,11 @@ from types import FrameType
 APP_ID = 10001
 DATA_DIR = Path("/var/lib/kukgrade")
 SOCKET_DIR = Path(os.environ.get("KUKGRADE_EMBEDDED_SOCKET", "/tmp/kukgrade-pg"))
+# The database's own superuser, which only the operator uses (psql -U postgres in
+# a shell in the container). The app connects as POSTGRES_USER, which owns its
+# database but is not a superuser.
+ADMIN_USER = "postgres"
+_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 POSTGRES_START_SECONDS = 60
 APP_STOP_SECONDS = 40
 POSTGRES_STOP_SECONDS = 60
@@ -174,6 +180,13 @@ def start_database(data_dir: Path, env: Mapping[str, str]) -> subprocess.Popen[b
     pgdata = data_dir / "postgres"
     user = env.get("POSTGRES_USER", "kukgrade")
     name = env.get("POSTGRES_DB", "kukgrade")
+    for value in (user, name):
+        if not _NAME.fullmatch(value) or value == ADMIN_USER:
+            msg = (
+                f"{value!r} is not usable as the database's user or name: letters, "
+                f"digits and underscores only, and not {ADMIN_USER!r}."
+            )
+            raise SystemExit(msg)
     if (pgdata / "PG_VERSION").exists():
         check_version(pgdata, programs)
     else:
@@ -181,7 +194,7 @@ def start_database(data_dir: Path, env: Mapping[str, str]) -> subprocess.Popen[b
             [
                 programs / "initdb",
                 "-D", pgdata,
-                "-U", user,
+                "-U", ADMIN_USER,
                 "--auth-local=trust",
                 "--auth-host=reject",
                 "--encoding=UTF8",
@@ -212,26 +225,68 @@ def wait_until_ready(
 ) -> None:
     """Wait for the database to answer, and make the app's database if new."""
     deadline = time.monotonic() + POSTGRES_START_SECONDS
-    while run(
-        [programs / "pg_isready", "-h", SOCKET_DIR, "-U", user], check=False
-    ).returncode:
+    while run([programs / "pg_isready", "-h", SOCKET_DIR], check=False).returncode:
         if server.poll() is not None:
             raise SystemExit("The database stopped while starting.")
         if time.monotonic() > deadline:
             raise SystemExit("The database did not start in time.")
         time.sleep(0.3)
+    psql: list[str | Path] = [
+        programs / "psql", "-h", SOCKET_DIR, "-d", "postgres",
+        "-qtA", "-v", "ON_ERROR_STOP=1",
+    ]  # fmt: skip
+    # A database made before the app had a role of its own has POSTGRES_USER as
+    # its bootstrap superuser, which PostgreSQL cannot demote. It keeps working
+    # as it did, with a warning saying how to move to the new arrangement.
+    if run(
+        [*psql, "-U", ADMIN_USER, "-c", "SELECT 1"], check=False, capture=True
+    ).returncode:
+        print(
+            f"WARNING: this database was made before the app had a role of its own, "
+            f"so {user!r} is its superuser. To change that, dump it with pg_dump, "
+            "empty data/postgres and restore the dump (docs/deployment.md, "
+            '"What is stored, and where").',
+            flush=True,
+        )
+        return
+    run([*psql, "-U", ADMIN_USER, "-c", app_role_sql(user)])
     exists = run(
         [
-            programs / "psql",
-            "-h", SOCKET_DIR,
-            "-U", user,
-            "-d", "postgres",
-            "-tAc", f"SELECT 1 FROM pg_database WHERE datname = '{name}'",
+            *psql,
+            "-U",
+            ADMIN_USER,
+            "-c",
+            f"SELECT 1 FROM pg_database WHERE datname = '{name}'",
         ],
         capture=True,
-    )  # fmt: skip
+    )
     if exists.stdout.strip() != "1":
-        run([programs / "createdb", "-h", SOCKET_DIR, "-U", user, name])
+        run(
+            [
+                programs / "createdb",
+                "-h",
+                SOCKET_DIR,
+                "-U",
+                ADMIN_USER,
+                "-O",
+                user,
+                name,
+            ]
+        )
+    run([*psql, "-U", ADMIN_USER, "-c", f'ALTER DATABASE "{name}" OWNER TO "{user}"'])
+
+
+def app_role_sql(user: str) -> str:
+    """SQL, safe to repeat, that leaves `user` able to sign in, make databases
+    and own what it makes, and nothing more: not a superuser, and not able to
+    make other roles, replicate, or read the server's files or programs."""
+    return (
+        "DO $$ BEGIN "
+        f"IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{user}') THEN "
+        f'CREATE ROLE "{user}" LOGIN; END IF; END $$; '
+        f'ALTER ROLE "{user}" NOSUPERUSER LOGIN CREATEDB NOCREATEROLE '
+        "NOREPLICATION NOBYPASSRLS"
+    )
 
 
 def stop(process: subprocess.Popen[bytes], sig: int, wait: float) -> None:

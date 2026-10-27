@@ -175,3 +175,22 @@ def test_root_never_follows_a_link_in_the_data_folder(
     with pytest.raises(SystemExit, match="symbolic link"):
         serve.secret_key(tmp_path / "data")
     assert not (tmp_path / "nowhere").exists()
+
+
+def test_the_app_role_is_a_non_superuser_that_can_make_databases() -> None:
+    sql = serve.app_role_sql("kukgrade")
+    assert 'CREATE ROLE "kukgrade" LOGIN' in sql
+    assert "NOSUPERUSER LOGIN CREATEDB NOCREATEROLE" in sql
+    assert "NOREPLICATION NOBYPASSRLS" in sql
+    assert "SUPERUSER" not in sql.replace("NOSUPERUSER", "")
+
+
+@pytest.mark.parametrize("bad", ["postgres", "kuk grade", 'a"b', "x;drop", "1abc", ""])
+def test_a_database_user_or_name_that_could_not_be_quoted_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, bad: str
+) -> None:
+    monkeypatch.setattr(serve, "postgres_bin", lambda: tmp_path / "17" / "bin")
+    with pytest.raises(SystemExit, match="not usable"):
+        serve.start_database(tmp_path, {"POSTGRES_USER": bad})
+    with pytest.raises(SystemExit, match="not usable"):
+        serve.start_database(tmp_path, {"POSTGRES_DB": bad})

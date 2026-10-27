@@ -19,10 +19,11 @@ Want something here, or something that is missing? Open an
 - [ ] **Go live and prove it**: run a real deployment end to end, including a tested backup and
       restore and a request-size cap at the proxy, before calling a release production-ready.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
-- [ ] **Branch protection and a demo site**: once the repository is public, require green CI
-      and a pull request on `dev` and `prod` (only merge commits into `prod`), and protect
-      the `v*` tags. Run a demo site that
-      follows `latest` (the newest stable release, cut from `prod`) with only made-up data.
+- [ ] **Branch protection**: once the repository is public, require green CI and a pull
+      request on `dev` and `prod` (only merge commits into `prod`), and protect the `v*` tags.
+- [ ] **Put the demo site online**: it is built (see [demo.md](demo.md)); what is left is to run it
+      on its own machine behind a tunnel, following `latest` (the newest stable release, cut
+      from `prod`), and to link it from the repository's About box.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first

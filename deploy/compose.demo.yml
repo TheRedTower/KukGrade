@@ -1,0 +1,56 @@
+# The public demo site: made-up data, shared sign-ins, wiped every few hours.
+# Read docs/demo.md first. Run it on a machine of its own, not beside a real
+# KukGrade.
+#   KUKGRADE_HOST=demo.example.org docker compose -f compose.demo.yml up -d
+#
+# It brings no tunnel or proxy of its own: connect the one you already run to
+# the network "kukgrade-demo" and point its public hostname at
+# http://kukgrade-demo:6942 (docs/demo.md).
+#
+# If the app were taken over, it could reach nothing: its network has no way
+# out, it holds no secrets and no files worth having (the database is in
+# memory and is gone when it restarts), and it is read-only, without
+# privileges, and limited in memory, processors and processes.
+services:
+  demo:
+    # A fixed name, so the tunnel can find it on the network.
+    container_name: kukgrade-demo
+    image: ghcr.io/theredtower/kukgrade:${KUKGRADE_VERSION:-latest}
+    restart: unless-stopped
+    stop_grace_period: 45s
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 2
+    pids_limit: 512
+    # Shared memory for the database; Docker's default is too small.
+    shm_size: 256m
+    environment:
+      KUKGRADE_DEMO_MODE: "1"
+      KUKGRADE_DEMO_RESET_HOURS: ${KUKGRADE_DEMO_RESET_HOURS:-6}
+      KUKGRADE_CLUB_NAME: Riverside Kuk Sool Won
+      DJANGO_ALLOWED_HOSTS: ${KUKGRADE_HOST:?Set KUKGRADE_HOST to the demo's address}
+      DJANGO_CSRF_TRUSTED_ORIGINS: https://${KUKGRADE_HOST}
+      # The tunnel is the one proxy in front. Check it with check-proxy-count.sh.
+      DJANGO_NUM_PROXIES: ${DJANGO_NUM_PROXIES:-1}
+      TZ: ${TZ:-Europe/London}
+    # Nothing is kept: the database, the secret key and the uploads folder all
+    # live in memory (and count towards the memory limit above).
+    tmpfs:
+      - /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    networks: [inside]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+
+networks:
+  # No route out: a container that is only here cannot call anything. Only
+  # what you connect to it (your tunnel) can reach the demo, and the tunnel
+  # keeps its own way to the internet.
+  inside:
+    name: kukgrade-demo
+    internal: true

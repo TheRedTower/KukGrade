@@ -15,6 +15,18 @@ import {
   signedOutResponse,
 } from "./appTestSupport";
 
+/**
+ * A fetch mock that hands out `responses` in order, except for the site
+ * settings: the sign-in page also asks for those (to offer the demo's
+ * accounts), which these tests do not follow.
+ */
+function inOrderExceptSiteSettings(responses: Response[]) {
+  const queue = [...responses];
+  return vi.fn().mockImplementation(async (url: string) =>
+    url.includes("/api/site/") ? jsonResponse(200, {}) : queue.shift(),
+  );
+}
+
 describe("App authentication", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -130,23 +142,19 @@ describe("App authentication", () => {
   });
 
   it("uses a generic login error for failed credentials", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(authRequiredResponse())
-      .mockResolvedValueOnce(jsonResponse(200, { setup_needed: false }))
-      .mockResolvedValueOnce(
-        jsonResponse(400, {
-          error: {
-            code: "validation_error",
-            message: "Unable to log in with the provided credentials.",
-            fields: {
-              non_field_errors: [
-                "Unable to log in with the provided credentials.",
-              ],
-            },
+    const fetchMock = inOrderExceptSiteSettings([
+      authRequiredResponse(),
+      jsonResponse(200, { setup_needed: false }),
+      jsonResponse(400, {
+        error: {
+          code: "validation_error",
+          message: "Unable to log in with the provided credentials.",
+          fields: {
+            non_field_errors: ["Unable to log in with the provided credentials."],
           },
-        }),
-      );
+        },
+      }),
+    ]);
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -161,18 +169,16 @@ describe("App authentication", () => {
   });
 
   it("shows the server's own message when login is throttled, not a credential error", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(authRequiredResponse())
-      .mockResolvedValueOnce(jsonResponse(200, { setup_needed: false }))
-      .mockResolvedValueOnce(
-        jsonResponse(429, {
-          error: {
-            code: "throttled",
-            message: "Request was throttled. Expected available in 42 seconds.",
-          },
-        }),
-      );
+    const fetchMock = inOrderExceptSiteSettings([
+      authRequiredResponse(),
+      jsonResponse(200, { setup_needed: false }),
+      jsonResponse(429, {
+        error: {
+          code: "throttled",
+          message: "Request was throttled. Expected available in 42 seconds.",
+        },
+      }),
+    ]);
     vi.stubGlobal("fetch", fetchMock);
     const user = userEvent.setup();
 
@@ -828,5 +834,91 @@ describe("Mandatory password change", () => {
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Choose a new password" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Sign out" })).toBeEnabled();
+  });
+});
+
+describe("App demo", () => {
+  const demoSite = {
+    club_name: "Riverside",
+    time_zone: "Europe/London",
+    demo: {
+      password: "KukGradeDemo2026!",
+      next_reset_at: "2027-03-01T18:00:00Z",
+      accounts: [
+        {
+          key: "instructor",
+          email: "instructor@demo.example.com",
+          label: "Instructor",
+          description: "Assesses candidates and recommends a verdict.",
+        },
+        {
+          key: "master",
+          email: "master@demo.example.com",
+          label: "Master",
+          description: "Makes the final decision.",
+        },
+      ],
+    },
+  };
+
+  beforeEach(() => {
+    window.history.replaceState({}, "", "/");
+    document.cookie = "csrftoken=test-csrf-token";
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    document.cookie = "csrftoken=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  });
+
+  it("offers the demo accounts on the sign-in page and signs in with one click", async () => {
+    let signedIn = false;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes("/api/site/")) return jsonResponse(200, demoSite);
+      if (url.includes("/api/setup/")) return jsonResponse(200, { setup_needed: false });
+      if (url.includes("/api/auth/login/")) {
+        signedIn = true;
+        expect(JSON.parse(String(init?.body))).toEqual({
+          email: "master@demo.example.com",
+          password: "KukGradeDemo2026!",
+        });
+        return jsonResponse(200, authUser);
+      }
+      if (url.includes("/api/auth/me/")) {
+        return signedIn ? jsonResponse(200, authUser) : authRequiredResponse();
+      }
+      return jsonResponse(200, { results: [], count: 0 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Try the demo" })).toBeVisible();
+    expect(screen.getByText("Makes the final decision.")).toBeVisible();
+    expect(screen.getByText("KukGradeDemo2026!")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: /Sign in as Master/ }));
+
+    expect(await screen.findByRole("note")).toHaveTextContent(
+      "You are using a demo with made-up data.",
+    );
+  });
+
+  it("shows no demo card on an ordinary deployment", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/site/")) {
+          return jsonResponse(200, { club_name: "Riverside", time_zone: "Europe/London" });
+        }
+        if (url.includes("/api/setup/")) return jsonResponse(200, { setup_needed: false });
+        return authRequiredResponse();
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Sign in" });
+    expect(screen.queryByRole("heading", { name: "Try the demo" })).not.toBeInTheDocument();
   });
 });

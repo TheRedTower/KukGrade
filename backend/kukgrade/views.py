@@ -75,6 +75,25 @@ class WksaIdSchemeSerializer(serializers.Serializer):
     forms = WksaIdFormSerializer(many=True)
 
 
+class DemoAccountSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    email = serializers.CharField()
+    label = serializers.CharField(  # type: ignore[assignment]
+        help_text="Who the account is, in a word.",
+    )
+    description = serializers.CharField(help_text="What this account can do.")
+
+
+class DemoSerializer(serializers.Serializer):
+    accounts = DemoAccountSerializer(many=True)
+    password = serializers.CharField(
+        help_text="The password every demo account shares. Published on purpose.",
+    )
+    next_reset_at = serializers.DateTimeField(
+        help_text="When the demo's data is next wiped and rebuilt.",
+    )
+
+
 class SiteSettingsSerializer(serializers.Serializer):
     club_name = serializers.CharField()
     time_zone = serializers.CharField(
@@ -88,6 +107,30 @@ class SiteSettingsSerializer(serializers.Serializer):
     )
     password_policy = PasswordPolicySerializer()
     wksa_id = WksaIdSchemeSerializer()
+    demo = DemoSerializer(
+        required=False,
+        help_text="Present only on the public demo: its accounts and when it resets.",
+    )
+
+
+def _demo() -> dict[str, object]:
+    # Imported here: the demo app is inert, and nothing else needs it loaded.
+    from demo.personas import DEMO_PASSWORD, PERSONAS
+    from demo.schedule import next_reset_at
+
+    return {
+        "accounts": [
+            {
+                "key": persona.key,
+                "email": persona.email,
+                "label": persona.label,
+                "description": persona.description,
+            }
+            for persona in PERSONAS
+        ],
+        "password": DEMO_PASSWORD,
+        "next_reset_at": next_reset_at(),
+    }
 
 
 @extend_schema(responses=SiteSettingsSerializer)
@@ -111,6 +154,7 @@ def site_settings(_request: Request) -> Response:
                 "import_upload_max_bytes": settings.IMPORT_UPLOAD_MAX_BYTES,
                 "password_policy": password_policy(),
                 "wksa_id": wksa_ids.described(),
+                **({"demo": _demo()} if settings.DEMO_MODE else {}),
             },
         ).data,
     )

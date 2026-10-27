@@ -5,7 +5,9 @@ image's own PostgreSQL is started first, on a unix socket that nothing outside t
 container can reach, with its files in /var/lib/kukgrade/postgres. With
 POSTGRES_HOST set, the database is somebody else's and only the app is started.
 Either way the app is then migrated, prints its first-administrator setup code if
-one is needed, and is served by gunicorn (kukgrade/gunicorn_conf.py).
+one is needed, and is served by gunicorn (kukgrade/gunicorn_conf.py). The public demo
+(KUKGRADE_DEMO_MODE, docs/demo.md) also builds its made-up club, and runs the timer
+that wipes it every few hours.
 
 It starts as root only to hand /var/lib/kukgrade to the app's user (UID 10001),
 which a folder Docker makes on the host does not belong to, and runs everything
@@ -38,6 +40,7 @@ _NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]{0,62}")
 POSTGRES_START_SECONDS = 60
 APP_STOP_SECONDS = 40
 POSTGRES_STOP_SECONDS = 60
+TIMER_STOP_SECONDS = 5
 
 
 def embedded() -> bool:
@@ -318,14 +321,30 @@ def supervise(
     app: subprocess.Popen[bytes],
     database: subprocess.Popen[bytes] | None,
     stopping: list[bool],
+    timer: subprocess.Popen[bytes] | None = None,
 ) -> int:
-    """Wait for the app (or the database) to stop or for a stop signal; stop both."""
-    known = {app.pid, *([database.pid] if database else [])}
+    """Wait for the app (or the database) to stop or for a stop signal; stop both.
+
+    The demo's reset timer, when there is one, is part of the same unit: if it
+    dies the container exits, rather than carrying on with data that never
+    resets.
+    """
+    known = {
+        app.pid,
+        *([database.pid] if database else []),
+        *([timer.pid] if timer else []),
+    }
     while not stopping[0]:
-        if app.poll() is not None or (database and database.poll() is not None):
+        if (
+            app.poll() is not None
+            or (database and database.poll() is not None)
+            or (timer and timer.poll() is not None)
+        ):
             break
         reap_orphans(known)
         time.sleep(0.5)
+    if timer:
+        stop(timer, signal.SIGTERM, TIMER_STOP_SECONDS)
     stop(app, signal.SIGTERM, APP_STOP_SECONDS)
     if database:
         # SIGINT is PostgreSQL's fast shutdown: end sessions, then stop cleanly.
@@ -353,18 +372,29 @@ def main() -> int:
     signal.signal(signal.SIGINT, request_stop)
     database: subprocess.Popen[bytes] | None = None
     app: subprocess.Popen[bytes] | None = None
+    timer: subprocess.Popen[bytes] | None = None
+    demo = os.environ.get("KUKGRADE_DEMO_MODE", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     try:
         with_database = embedded()
         prepare_folders(DATA_DIR, with_database=with_database)
         env = child_env(DATA_DIR)
         if with_database:
             database = start_database(DATA_DIR, env)
-        for command in (
+        commands = [
             ["manage.py", "migrate", "--noinput"],
             # While there is no administrator, writes the one-time setup code the
             # setup page asks for to this log (accounts/setup.py).
             ["manage.py", "issue_setup_code"],
-        ):
+        ]
+        if demo:
+            # Builds the made-up club once; refuses a database with real accounts.
+            commands.append(["manage.py", "seed_demo"])
+        for command in commands:
             run([sys.executable, *command], env=env)
         app = spawn(
             [
@@ -375,15 +405,19 @@ def main() -> int:
             ],
             env=env,
         )
+        if demo:
+            timer = spawn([sys.executable, "manage.py", "run_demo_resets"], env=env)
         starting[0] = False
     except BaseException:
         starting[0] = False
+        if timer:
+            stop(timer, signal.SIGTERM, TIMER_STOP_SECONDS)
         if app:
             stop(app, signal.SIGTERM, APP_STOP_SECONDS)
         if database:
             stop(database, signal.SIGINT, POSTGRES_STOP_SECONDS)
         raise
-    return supervise(app, database, stopping)
+    return supervise(app, database, stopping, timer)
 
 
 if __name__ == "__main__":

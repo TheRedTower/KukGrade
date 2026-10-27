@@ -3589,6 +3589,42 @@ components:
       description: |-
         * `MONTH` - Month
         * `DAY` - Day
+    Demo:
+      type: object
+      properties:
+        accounts:
+          type: array
+          items:
+            $ref: '#/components/schemas/DemoAccount'
+        password:
+          type: string
+          description: The password every demo account shares. Published on purpose.
+        next_reset_at:
+          type: string
+          format: date-time
+          description: When the demo's data is next wiped and rebuilt.
+      required:
+      - accounts
+      - next_reset_at
+      - password
+    DemoAccount:
+      type: object
+      properties:
+        key:
+          type: string
+        email:
+          type: string
+        label:
+          type: string
+          description: Who the account is, in a word.
+        description:
+          type: string
+          description: What this account can do.
+      required:
+      - description
+      - email
+      - key
+      - label
     EffectiveSyllabusRequirement:
       type: object
       description: |-
@@ -5599,6 +5635,11 @@ components:
           $ref: '#/components/schemas/PasswordPolicy'
         wksa_id:
           $ref: '#/components/schemas/WksaIdScheme'
+        demo:
+          allOf:
+          - $ref: '#/components/schemas/Demo'
+          description: 'Present only on the public demo: its accounts and when it
+            resets.'
       required:
       - club_name
       - import_upload_max_bytes

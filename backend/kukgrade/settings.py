@@ -120,6 +120,17 @@ TLS_DIR = Path(
     os.environ.get("KUKGRADE_TLS_DIR", "").strip() or "/var/lib/kukgrade/tls"
 )
 
+# The public demo (docs/demo.md): made-up data, shared sign-ins, wiped on a
+# timer. Off for every real deployment; the demo app refuses to run against a
+# database that holds anyone's real accounts (demo/seed.py).
+DEMO_MODE = env_bool("KUKGRADE_DEMO_MODE", False)
+# How often the demo club is wiped and rebuilt, at whole multiples from
+# midnight club time, so it must divide the day.
+DEMO_RESET_HOURS = env_int("KUKGRADE_DEMO_RESET_HOURS", 6)
+if DEMO_RESET_HOURS not in {1, 2, 3, 4, 6, 8, 12, 24}:
+    _MSG = f"KUKGRADE_DEMO_RESET_HOURS must divide 24 evenly, got {DEMO_RESET_HOURS}."
+    raise ImproperlyConfigured(_MSG)
+
 # Transport security. Every value defaults to the secure setting whenever
 # DEBUG is false, so a production deployment is hardened by default and a
 # developer opts out locally rather than opting in for production. The one
@@ -150,6 +161,7 @@ INSTALLED_APPS = [
     "gradings",
     "audit",
     "data_imports",
+    "demo",
     "drf_spectacular",
 ]
 
@@ -163,6 +175,8 @@ MIDDLEWARE = [
     # Immediately after authentication: it needs request.user, and every
     # view behind it must be gated.
     "accounts.middleware.ForcePasswordChangeMiddleware",
+    # Inert unless DEMO_MODE; closes what one visitor could do to the others.
+    "demo.middleware.DemoModeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -323,7 +337,8 @@ REST_FRAMEWORK = {
     # and first-administrator setup opt in to their own scopes.
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
     "DEFAULT_THROTTLE_RATES": {
-        "login": "10/min",
+        # Visitors to the demo share a few addresses (an office, a school).
+        "login": "60/min" if DEMO_MODE else "10/min",
         "password_change": "10/min",
         "setup": "10/min",
     },

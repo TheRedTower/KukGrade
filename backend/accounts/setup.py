@@ -22,6 +22,7 @@ import logging
 import secrets
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -47,6 +48,11 @@ EXPIRED_CODE_MESSAGE = (
 
 
 def setup_needed() -> bool:
+    # The public demo has no superuser and is never set up by a visitor: its
+    # accounts are its own (demo/personas.py). Closed here, so the sign-in page
+    # is shown, no code is issued, and the setup endpoint refuses everyone.
+    if settings.DEMO_MODE:
+        return False
     return not User.objects.filter(is_superuser=True).exists()
 
 

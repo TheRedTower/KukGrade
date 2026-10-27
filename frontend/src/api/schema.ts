@@ -1746,6 +1746,24 @@ export interface components {
          * @enum {string}
          */
         DatePrecisionEnum: "MONTH" | "DAY";
+        Demo: {
+            accounts: components["schemas"]["DemoAccount"][];
+            /** @description The password every demo account shares. Published on purpose. */
+            password: string;
+            /**
+             * Format: date-time
+             * @description When the demo's data is next wiped and rebuilt.
+             */
+            next_reset_at: string;
+        };
+        DemoAccount: {
+            key: string;
+            email: string;
+            /** @description Who the account is, in a word. */
+            label: string;
+            /** @description What this account can do. */
+            description: string;
+        };
         /**
          * @description One cumulative row for a selected rank and age band, in syllabus order.
          *
@@ -2680,6 +2698,8 @@ export interface components {
             import_upload_max_bytes: number;
             password_policy: components["schemas"]["PasswordPolicy"];
             wksa_id: components["schemas"]["WksaIdScheme"];
+            /** @description Present only on the public demo: its accounts and when it resets. */
+            demo?: components["schemas"]["Demo"];
         };
         /**
          * @description * `KUKGRADE` - KUKGRADE

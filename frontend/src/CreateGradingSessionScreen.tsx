@@ -271,7 +271,7 @@ export function CreateGradingSessionScreen() {
                 id="cgs-location-input"
                 name="location"
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Colchester Dojang"
+                placeholder="e.g. Riverside Dojang"
                 type="text"
                 value={location}
               />

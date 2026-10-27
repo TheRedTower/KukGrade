@@ -60,7 +60,7 @@ def test_delete_requires_the_students_delete_permission() -> None:
 
 def test_administrator_can_delete_a_student_with_no_history() -> None:
     student = Student.objects.create(
-        wksa_id="206-2-500",
+        wksa_id="123-4-500",
         first_name="No",
         last_name="History",
         date_of_birth="2015-01-01",
@@ -78,7 +78,7 @@ def test_administrator_can_delete_a_student_with_no_history() -> None:
         entity_id=str(student_pk),
         action=AuditAction.STUDENT_DELETED,
     ).get()
-    assert event.metadata["wksa_id"] == "206-2-500"
+    assert event.metadata["wksa_id"] == "123-4-500"
     assert event.metadata["cascaded_grading_candidates"] == []
     assert event.metadata["cascaded_promotions"] == 0
     assert event.metadata["cascaded_outcomes"] == 0
@@ -204,7 +204,7 @@ def test_deleting_a_student_with_multiple_promotions_needs_no_supersession_check
 
 def test_api_admin_can_delete_student() -> None:
     student = Student.objects.create(
-        wksa_id="206-2-501",
+        wksa_id="123-4-501",
         first_name="Api",
         last_name="Delete",
         date_of_birth="2015-01-01",
@@ -224,7 +224,7 @@ def test_api_admin_can_delete_student() -> None:
 def test_admin_delete_goes_through_the_service_even_with_history() -> None:
     # Django's own delete refuses a student with registrations (PROTECT) or,
     # with none, deletes the row without the domain event; the service does
-    # neither (KG-A14).
+    # neither.
     built = candidate()
     student = built.student
     request = RequestFactory().post("/admin/")

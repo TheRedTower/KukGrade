@@ -53,7 +53,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
     can_be_deleted: false,
-    location: "Colchester Dojang",
+    location: "Riverside Dojang",
     notes: "Please arrive 15 minutes before the start time.",
   } satisfies GradingSession;
 
@@ -359,7 +359,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     render(<App />);
 
     expect(await screen.findByRole("heading", { name: "Autumn Grading" })).toBeVisible();
-    expect(screen.getByText("Colchester Dojang")).toBeVisible();
+    expect(screen.getByText("Riverside Dojang")).toBeVisible();
     expect(screen.getByText("Open", { selector: ".gsd-status-pill" })).toBeVisible();
 
     // Stepper track

@@ -494,8 +494,8 @@ class LegacyImportSerializer(serializers.Serializer):
 
     Keys are the source rank text exactly as it appeared in the workbook
     (case-insensitive on the service side); a null/omitted value explicitly
-    means "leave unresolved" - never a block on committing that row
-    (import Decision 4, unlike the student roster importer's required rank).
+    means "leave unresolved" - never a block on committing that row,
+    unlike the student roster importer's required rank.
     """
 
     rank_mappings = serializers.DictField(

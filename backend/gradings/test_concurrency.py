@@ -29,7 +29,7 @@ Two different guarantees are under test here, and it matters which:
   the tests below hold either way, which is the point of layering both.
 
 The second half tests the lock protocol in `gradings/locking.py` across
-*different* operations (KG-A03, KG-A04, KG-A12). A barrier cannot force those
+*different* operations. A barrier cannot force those
 schedules - which thread wins is left to the scheduler - so `interleave()`
 holds the first operation just before it commits and runs the second against
 it. Each asserts the result matches the one serial order the protocol allows.
@@ -372,7 +372,7 @@ def events(action: str, entity: object) -> int:
 
 
 def test_item_edit_and_completion_cannot_interleave() -> None:
-    """KG-A03 schedule 1: completion must see an item being cleared.
+    """Completion must see an item being cleared.
 
     Without a shared lock, completion read the item as still assessed while
     the edit clearing it was uncommitted, and committed a completed
@@ -418,7 +418,7 @@ def test_item_edit_and_completion_cannot_interleave() -> None:
 
 
 def test_reopen_and_session_lock_cannot_interleave() -> None:
-    """KG-A03 schedule 2: locking must see an assessment being reopened.
+    """Locking must see an assessment being reopened.
 
     Without a shared lock, the session locked on the strength of a completed
     assessment that an uncommitted reopen was returning to in-progress.
@@ -451,7 +451,7 @@ def test_reopen_and_session_lock_cannot_interleave() -> None:
 
 
 def test_registration_and_session_lock_cannot_interleave() -> None:
-    """KG-A03: registration must see the session it registers into lock.
+    """Registration must see the session it registers into lock.
 
     Without a shared lock, registration checked the session was open, then
     inserted once the lock committed, leaving a locked session holding a
@@ -561,7 +561,7 @@ def test_moving_a_candidate_waits_for_an_edit_to_its_student() -> None:
 
 
 def test_candidate_move_and_session_lock_cannot_interleave() -> None:
-    """KG-A03: moving a candidate into a session must see that session lock."""
+    """Moving a candidate into a session must see that session lock."""
     source = grading_session(status=GradingSession.Status.OPEN, title="Source")
     target = grading_session(status=GradingSession.Status.OPEN, title="Target")
     completed_candidate(target, student())
@@ -589,7 +589,7 @@ def test_candidate_move_and_session_lock_cannot_interleave() -> None:
 
 
 def test_withdrawal_and_finalisation_cannot_interleave() -> None:
-    """KG-A03: a withdrawal must not discard a decision finalised meanwhile.
+    """A withdrawal must not discard a decision finalised meanwhile.
 
     Without a shared lock, the withdrawal read the outcome as still proposed,
     waited on the finalisation's row lock, then deleted the outcome the
@@ -635,7 +635,7 @@ def test_withdrawal_and_finalisation_cannot_interleave() -> None:
 
 
 def test_cancellation_and_promotion_follow_arrival_order() -> None:
-    """KG-A03: a promotion waits for a cancellation that got there first.
+    """A promotion waits for a cancellation that got there first.
 
     Unlike the races above this pairing was already serialisable: cancelling
     reads nothing a promotion writes, so the old outcome - promotion first,
@@ -669,7 +669,7 @@ def test_cancellation_and_promotion_follow_arrival_order() -> None:
 
 
 def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:
-    """KG-A12: a details edit must not write back a stale status.
+    """A details edit must not write back a stale status.
 
     The edit used to save the session as the request had loaded it - status
     and cancellation reason included - so a cancellation committed while it
@@ -711,7 +711,7 @@ def test_session_details_edit_keeps_a_concurrent_cancellation() -> None:
 
 
 def test_assessment_cleanup_refuses_after_a_later_promotion() -> None:
-    """KG-A04: cleanup must not roll a rank back over a newer promotion.
+    """Cleanup must not roll a rank back over a newer promotion.
 
     Cleanup checked "this is the student's latest promotion" against a
     student read before a later grading's promotion committed, then wrote
@@ -740,7 +740,7 @@ def test_assessment_cleanup_refuses_after_a_later_promotion() -> None:
 
 
 def test_session_cleanup_refuses_after_a_later_promotion() -> None:
-    """KG-A04: the same guarantee for deleting the whole earlier session."""
+    """The same guarantee for deleting the whole earlier session."""
     graded = student()
     earlier, (later_outcome,) = promoted_then_passed_again(graded)
     promoting_actor = promoter("race-session-cleanup-promoter@example.com")
@@ -765,7 +765,7 @@ def test_session_cleanup_refuses_after_a_later_promotion() -> None:
 
 
 def test_student_deletion_and_promotion_serialise() -> None:
-    """KG-A04: promoting a student being deleted is refused, not a crash.
+    """Promoting a student being deleted is refused, not a crash.
 
     The promotion used to wait on a row the deletion had removed, then fail
     with an unhandled DoesNotExist - a 500 for what is a plain refusal.
@@ -792,7 +792,7 @@ def test_student_deletion_and_promotion_serialise() -> None:
 
 
 def test_bulk_promotion_and_session_cleanup_do_not_deadlock() -> None:
-    """KG-A04: two operations over the same students, in opposite orders.
+    """Two operations over the same students, in opposite orders.
 
     Bulk promotion used to lock each student as it reached its row - here
     the higher id first - while session cleanup rolled ranks back in its
@@ -829,7 +829,7 @@ def test_bulk_promotion_and_session_cleanup_do_not_deadlock() -> None:
 
 
 def test_concurrent_student_edits_both_survive() -> None:
-    """KG-A12: two edits to different fields of one student both land."""
+    """Two edits to different fields of one student both land."""
     subject = student(first_name="Before")
     first_copy = Student.objects.get(pk=subject.pk)
     second_copy = Student.objects.get(pk=subject.pk)
@@ -857,7 +857,7 @@ def test_concurrent_student_edits_both_survive() -> None:
 
 
 def test_admin_edit_does_not_revert_a_password_change() -> None:
-    """KG-A12: an account edit must not write back a stale password hash."""
+    """An account edit must not write back a stale password hash."""
     account = User.objects.create_user(
         email="race-password@example.com",
         password="kg-Temporary-Pass-123!",
@@ -898,7 +898,7 @@ def test_admin_edit_does_not_revert_a_password_change() -> None:
 
 
 def test_role_change_and_master_grant_cannot_both_succeed() -> None:
-    """KG-A12: an administrator is never a Master, even under a race.
+    """An administrator is never a Master, even under a race.
 
     Each check read the other's field without a lock: the grant saw an
     instructor, the role change saw no Master authority, and both committed.
@@ -931,7 +931,7 @@ def test_role_change_and_master_grant_cannot_both_succeed() -> None:
 
 
 def test_concurrent_candidate_edits_both_survive() -> None:
-    """KG-A12: a note and a withdrawal on one registration both land."""
+    """A note and a withdrawal on one registration both land."""
     session = grading_session(status=GradingSession.Status.OPEN)
     registered = candidate(session=session)
     first_copy = GradingCandidate.objects.get(pk=registered.pk)

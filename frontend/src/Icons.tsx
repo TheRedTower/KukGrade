@@ -1,6 +1,6 @@
 /**
  * Inline icons, so each glyph is drawn once with the same stroke props:
- * shared glyphs, the navigation rail's (FDR-004, FDR-005) and the theme
+ * shared glyphs, the navigation rail's and the theme
  * toggle's. Screen-specific icons stay beside their screen. Every icon is
  * aria-hidden; the control around it supplies the accessible name.
  */
@@ -177,7 +177,7 @@ export function MonitorIcon() {
   );
 }
 
-// The sidebar's foot (FDR-056).
+// The sidebar's foot.
 export function SettingsIcon() {
   return (
     <svg {...iconProps(NAV_ICON)}>

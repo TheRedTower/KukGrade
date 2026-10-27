@@ -48,7 +48,7 @@ function rowState(row: DataImportRow, roster: boolean): { label: string; tone: s
   return { label: row.corrected_fields.length ? "Added, your fix" : "Added", tone: "success" };
 }
 
-/** Past gradings: who each record is, linked on the spot (FDR-054). */
+/** Past gradings: who each record is, linked on the spot. */
 function LinkPanel({ batch }: { batch: DataImportBatch }) {
   const { user } = useAuth();
   const canLink = Boolean(user?.can_reconcile_imported_history);
@@ -250,7 +250,7 @@ function useAddedCount(batch: DataImportBatch, filter: "corrected" | "status" | 
   }).data?.count;
 }
 
-/** Students: what KukGrade filled in, for a second look (FDR-054). */
+/** Students: what KukGrade filled in, for a second look. */
 function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter: RowFilter) => void }) {
   const fixed = useAddedCount(batch, "corrected") ?? 0;
   const givenStatus = useAddedCount(batch, "status") ?? 0;
@@ -497,7 +497,7 @@ function AlsoItem({ title, body, children }: { title: string; body: string; chil
   );
 }
 
-/** An import's results: its own page, with the next job on top (FDR-054). */
+/** An import's results: its own page, with the next job on top. */
 export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const { user } = useAuth();
   const roster = batch.kind === "STUDENT_ROSTER";

@@ -1,4 +1,4 @@
-"""A number stays with its student and is never reused (decision log 2026-10-20).
+"""A number stays with its student and is never reused.
 
 When WKSA hands a student their black belt ID the student ID is replaced; it is
 kept as a previous ID, and nobody else may ever take it.
@@ -27,7 +27,7 @@ from students.wksa_ids import PREVIOUS_ID_TAKEN_MESSAGE
 
 pytestmark = pytest.mark.django_db
 
-OLD = "206-2-150"
+OLD = "123-4-150"
 NEW = "A-20819"
 
 
@@ -97,11 +97,11 @@ def test_correcting_a_mistyped_id_keeps_nothing_but_the_audit() -> None:
     else's real number - so it is neither kept nor retired."""
     student = dahn_bo()
 
-    update_student(student, wksa_id="206-2-151", actor=admin())
+    update_student(student, wksa_id="123-4-151", actor=admin())
 
     assert not PreviousWksaId.objects.exists()
     student.refresh_from_db()
-    assert student.wksa_id == "206-2-151"
+    assert student.wksa_id == "123-4-151"
     event = AuditEvent.objects.filter(entity_id=str(student.pk)).latest("pk")
     assert event.metadata["before"]["wksa_id"] == OLD
     # The mistyped number is free for its real holder.
@@ -129,7 +129,7 @@ def test_a_refused_change_keeps_nothing() -> None:
     student = promoted()
 
     with pytest.raises(ValidationError, match="never goes back to a student ID"):
-        update_student(student, wksa_id="206-2-151", actor=admin())
+        update_student(student, wksa_id="123-4-151", actor=admin())
 
     student.refresh_from_db()
     assert student.wksa_id == NEW
@@ -164,7 +164,7 @@ def test_the_api_refuses_a_previous_id_in_plain_words() -> None:
 
 def test_correcting_to_an_id_someone_holds_or_held_is_refused() -> None:
     other = promoted()
-    student = dahn_bo("206-2-160")
+    student = dahn_bo("123-4-160")
     client = api()
 
     for taken in (OLD, NEW):
@@ -175,13 +175,13 @@ def test_correcting_to_an_id_someone_holds_or_held_is_refused() -> None:
         )
         assert response.status_code == 400, taken
     student.refresh_from_db()
-    assert student.wksa_id == "206-2-160"
+    assert student.wksa_id == "123-4-160"
     assert other.previous_wksa_ids.count() == 1
 
 
 def test_the_database_holds_each_previous_id_to_one_student_in_student_form() -> None:
     first = promoted()
-    other = dahn_bo("206-2-151")
+    other = dahn_bo("123-4-151")
 
     with pytest.raises(IntegrityError), transaction.atomic():
         PreviousWksaId.objects.create(student=other, wksa_id=OLD)
@@ -190,12 +190,12 @@ def test_the_database_holds_each_previous_id_to_one_student_in_student_form() ->
     with pytest.raises(IntegrityError), transaction.atomic():
         RetiredWksaId.objects.create(wksa_id="DEMO-001")
     with pytest.raises(IntegrityError), transaction.atomic():
-        PreviousWksaId.objects.create(student=first, wksa_id="206-2-777")
+        PreviousWksaId.objects.create(student=first, wksa_id="123-4-777")
 
 
 def test_the_detail_shows_previous_ids_and_the_list_finds_a_student_by_one() -> None:
     student = promoted()
-    other = dahn_bo("206-2-151", first_name="Pat")
+    other = dahn_bo("123-4-151", first_name="Pat")
     client = api()
 
     detail = client.get(f"/api/students/{student.pk}/").json()
@@ -307,7 +307,7 @@ def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
         entity_type="Student",
         entity_id="999999",
         summary="a student since deleted",
-        metadata={"before": {"wksa_id": "206-2-999"}, "after": {"wksa_id": "A-20999"}},
+        metadata={"before": {"wksa_id": "123-4-999"}, "after": {"wksa_id": "A-20999"}},
     )
     deletion = AuditEvent.objects.create(
         action=AuditAction.STUDENT_DELETED,
@@ -322,7 +322,7 @@ def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
         entity_type="Student",
         entity_id="888888",
         summary="deleted before retirement existed",
-        metadata={"wksa_id": "A-30000", "previous_wksa_ids": ["206-2-300"]},
+        metadata={"wksa_id": "A-30000", "previous_wksa_ids": ["123-4-300"]},
     )
     AuditEvent.objects.create(
         action=AuditAction.STUDENT_DELETED,
@@ -336,13 +336,13 @@ def test_the_migration_carries_over_ids_replaced_before_it_existed() -> None:
 
     assert list(PreviousWksaId.objects.values_list("wksa_id", flat=True)) == [OLD]
     assert sorted(RetiredWksaId.objects.values_list("wksa_id", flat=True)) == [
-        "206-2-300",
-        "206-2-999",
+        "123-4-300",
+        "123-4-999",
         "A-20999",
         "A-30000",
     ]
     assert (
-        RetiredWksaId.objects.get(wksa_id="206-2-999").retired_at
+        RetiredWksaId.objects.get(wksa_id="123-4-999").retired_at
         == deletion.occurred_at
     )
     migration.carry_over_from_audit(django_apps, None)

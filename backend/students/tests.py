@@ -31,7 +31,7 @@ def white_rank() -> Rank:
 
 def student_kwargs(**overrides: object) -> dict[str, object]:
     data: dict[str, object] = {
-        "wksa_id": "206-2-500",
+        "wksa_id": "123-4-500",
         "first_name": "Alex",
         "last_name": "Kim",
         "date_of_birth": timezone.localdate().replace(year=2012),
@@ -45,14 +45,14 @@ def test_valid_student_can_be_created() -> None:
     student = Student.objects.create(**student_kwargs())
 
     assert student.pk is not None
-    assert student.wksa_id == "206-2-500"
+    assert student.wksa_id == "123-4-500"
     assert student.first_name == "Alex"
     assert student.last_name == "Kim"
     assert student.current_rank == white_rank()
     assert student.status == Student.Status.ACTIVE
     assert student.created_at is not None
     assert student.updated_at is not None
-    assert str(student) == "Alex Kim (206-2-500)"
+    assert str(student) == "Alex Kim (123-4-500)"
 
 
 def test_duplicate_wksa_ids_are_rejected() -> None:
@@ -93,11 +93,11 @@ def test_blank_wksa_id_is_rejected_by_database_constraint() -> None:
 
 
 def test_wksa_id_preserves_leading_zeros() -> None:
-    Student.objects.create(**student_kwargs(wksa_id="206-2-007"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-007"))
 
-    student = Student.objects.get(wksa_id="206-2-007")
+    student = Student.objects.get(wksa_id="123-4-007")
 
-    assert student.wksa_id == "206-2-007"
+    assert student.wksa_id == "123-4-007"
 
 
 def test_age_band_turns_over_on_the_club_date_not_the_utc_date() -> None:
@@ -181,7 +181,7 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
         old_apps = executor.loader.project_state(old_targets).apps
         OldStudent = old_apps.get_model("students", "Student")
         OldStudent.objects.create(
-            wksa_id="206-2-502",
+            wksa_id="123-4-502",
             first_name="Migration",
             last_name="Student",
             date_of_birth=date(2010, 3, 1),
@@ -197,7 +197,7 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
         ).apps
         NewStudent = new_apps.get_model("students", "Student")
 
-        student = NewStudent.objects.get(wksa_id="206-2-502")
+        student = NewStudent.objects.get(wksa_id="123-4-502")
 
         assert student.current_rank.code == "WHITE"
     finally:
@@ -207,14 +207,14 @@ def test_existing_student_migration_path_assigns_white_rank() -> None:
 
 def test_student_status_defaults_to_active() -> None:
     assert (
-        Student.objects.create(**student_kwargs(wksa_id="206-2-503")).status
+        Student.objects.create(**student_kwargs(wksa_id="123-4-503")).status
         == Student.Status.ACTIVE
     )
 
 
 def test_inactive_students_can_still_be_graded() -> None:
     # A break - injury, exams, travel - blocks nothing.
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-504"))
+    learner = Student.objects.create(**student_kwargs(wksa_id="123-4-504"))
     learner.status = Student.Status.INACTIVE
     learner.save()
 
@@ -222,7 +222,7 @@ def test_inactive_students_can_still_be_graded() -> None:
 
 
 def test_a_student_who_has_left_cannot_be_graded() -> None:
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-505"))
+    learner = Student.objects.create(**student_kwargs(wksa_id="123-4-505"))
     learner.status = Student.Status.LEFT
     learner.save()
 
@@ -230,7 +230,7 @@ def test_a_student_who_has_left_cannot_be_graded() -> None:
 
 
 def test_leaving_is_reversible_and_keeps_history() -> None:
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-506"))
+    learner = Student.objects.create(**student_kwargs(wksa_id="123-4-506"))
     original_rank = learner.current_rank
 
     learner.status = Student.Status.LEFT
@@ -244,7 +244,7 @@ def test_leaving_is_reversible_and_keeps_history() -> None:
 
 
 def test_invalid_student_status_is_rejected_by_the_database() -> None:
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-507"))
+    learner = Student.objects.create(**student_kwargs(wksa_id="123-4-507"))
 
     with pytest.raises(IntegrityError), transaction.atomic():
         Student.objects.filter(pk=learner.pk).update(status="GONE_FISHING")
@@ -263,7 +263,7 @@ def auth_client(email: str = "students-api@example.com") -> APIClient:
 
 def create_via_api(client: APIClient, **overrides: object) -> dict[str, Any]:
     payload: dict[str, object] = {
-        "wksa_id": "206-2-508",
+        "wksa_id": "123-4-508",
         "first_name": "Api",
         "last_name": "Student",
         "date_of_birth": "2010-06-15",
@@ -292,7 +292,7 @@ def test_anonymous_cannot_read_or_write_students() -> None:
 
 def test_list_excludes_date_of_birth_but_detail_includes_it() -> None:
     client = auth_client("list-vs-detail@example.com")
-    created = create_via_api(client, wksa_id="206-2-509")
+    created = create_via_api(client, wksa_id="123-4-509")
 
     listing = client.get("/api/students/").json()
     detail = client.get(f"/api/students/{created['id']}/").json()
@@ -305,7 +305,7 @@ def test_create_records_a_student_created_event() -> None:
     client = auth_client("create-audit@example.com")
     before = AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
 
-    create_via_api(client, wksa_id="206-2-510")
+    create_via_api(client, wksa_id="123-4-510")
 
     assert (
         AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
@@ -315,12 +315,12 @@ def test_create_records_a_student_created_event() -> None:
 
 def test_duplicate_wksa_id_is_a_field_error_not_a_server_error() -> None:
     client = auth_client("duplicate-wksa@example.com")
-    create_via_api(client, wksa_id="206-2-511")
+    create_via_api(client, wksa_id="123-4-511")
 
     response = client.post(
         "/api/students/",
         {
-            "wksa_id": "206-2-511",
+            "wksa_id": "123-4-511",
             "first_name": "Second",
             "last_name": "Student",
             "date_of_birth": "2011-01-01",
@@ -335,7 +335,7 @@ def test_duplicate_wksa_id_is_a_field_error_not_a_server_error() -> None:
 
 def test_a_no_op_patch_writes_nothing() -> None:
     client = auth_client("no-op-patch@example.com")
-    created = create_via_api(client, wksa_id="206-2-513")
+    created = create_via_api(client, wksa_id="123-4-513")
     before = AuditEvent.objects.count()
     written_at = Student.objects.get(pk=created["id"]).updated_at
 
@@ -347,7 +347,7 @@ def test_a_no_op_patch_writes_nothing() -> None:
 
     assert response.status_code == 200
     assert AuditEvent.objects.count() == before
-    # Not just no event: no row update either (KG-A12).
+    # Not just no event: no row update either.
     assert Student.objects.get(pk=created["id"]).updated_at == written_at
 
 
@@ -355,7 +355,7 @@ def test_a_status_change_alongside_other_edits_writes_exactly_one_event() -> Non
     # Not one generic STUDENT_UPDATED plus a separate STUDENT_STATUS_CHANGED
     # for what is a single PATCH - that would be recording the same edit twice.
     client = auth_client("combined-edit@example.com")
-    created = create_via_api(client, wksa_id="206-2-514")
+    created = create_via_api(client, wksa_id="123-4-514")
     before = AuditEvent.objects.count()
 
     response = client.patch(
@@ -379,7 +379,7 @@ def test_a_status_change_alongside_other_edits_writes_exactly_one_event() -> Non
 
 def test_a_plain_field_edit_records_student_updated_not_status_changed() -> None:
     client = auth_client("plain-edit@example.com")
-    created = create_via_api(client, wksa_id="206-2-515")
+    created = create_via_api(client, wksa_id="123-4-515")
 
     client.patch(
         f"/api/students/{created['id']}/",
@@ -396,7 +396,7 @@ def test_a_plain_field_edit_records_student_updated_not_status_changed() -> None
 
 def test_put_is_not_allowed() -> None:
     client = auth_client("no-put@example.com")
-    created = create_via_api(client, wksa_id="206-2-516")
+    created = create_via_api(client, wksa_id="123-4-516")
 
     put_response = client.put(
         f"/api/students/{created['id']}/",
@@ -411,7 +411,7 @@ def test_put_is_not_allowed() -> None:
 
 def test_delete_requires_the_students_delete_permission() -> None:
     client = auth_client("no-delete-permission@example.com")
-    created = create_via_api(client, wksa_id="206-2-517")
+    created = create_via_api(client, wksa_id="123-4-517")
 
     delete_response = client.delete(f"/api/students/{created['id']}/")
 
@@ -422,10 +422,10 @@ def test_delete_requires_the_students_delete_permission() -> None:
 def test_status_filter_and_search_and_rank_filter_work() -> None:
     client = auth_client("filters@example.com")
     yellow_stripe = Rank.objects.get(code="YELLOW_STRIPE")
-    create_via_api(client, wksa_id="206-2-518", first_name="Alex", last_name="Kim")
+    create_via_api(client, wksa_id="123-4-518", first_name="Alex", last_name="Kim")
     left_student = create_via_api(
         client,
-        wksa_id="206-2-519",
+        wksa_id="123-4-519",
         first_name="Blair",
         last_name="Diaz",
         current_rank=yellow_stripe.id,
@@ -443,9 +443,9 @@ def test_status_filter_and_search_and_rank_filter_work() -> None:
     by_search = client.get("/api/students/?search=kim").json()
     unknown_status = client.get("/api/students/?status=NONSENSE").json()
 
-    assert {r["wksa_id"] for r in by_status["results"]} == {"206-2-519"}
-    assert {r["wksa_id"] for r in by_rank["results"]} == {"206-2-519"}
-    assert {r["wksa_id"] for r in by_search["results"]} == {"206-2-518"}
+    assert {r["wksa_id"] for r in by_status["results"]} == {"123-4-519"}
+    assert {r["wksa_id"] for r in by_rank["results"]} == {"123-4-519"}
+    assert {r["wksa_id"] for r in by_search["results"]} == {"123-4-518"}
     assert unknown_status["count"] == 0
 
 
@@ -453,10 +453,10 @@ def test_can_be_graded_reflects_status_in_the_student_list() -> None:
     # The cohort builder reads eligibility from the list, so the rule is
     # stated once, on the model, rather than re-derived from status in React.
     client = auth_client("can-be-graded@example.com")
-    created = create_via_api(client, wksa_id="206-2-520")
+    created = create_via_api(client, wksa_id="123-4-520")
 
     def listed() -> bool:
-        body = client.get("/api/students/?search=206-2-520").json()
+        body = client.get("/api/students/?search=123-4-520").json()
         return bool(body["results"][0]["can_be_graded"])
 
     assert listed() is True
@@ -499,7 +499,7 @@ def test_only_students_view_student_can_read() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Admin routes through the same services the API uses (KG-036)
+# Admin routes through the same services the API uses
 # ---------------------------------------------------------------------------
 
 
@@ -510,7 +510,7 @@ def admin_request(email: str) -> Any:
 
 
 def test_admin_created_student_is_persisted_and_audited() -> None:
-    obj = Student(**student_kwargs(wksa_id="206-2-521"))
+    obj = Student(**student_kwargs(wksa_id="123-4-521"))
     model_admin = StudentAdmin(Student, admin.site)
     request = admin_request("admin-student-creator@example.com")
     before = AuditEvent.objects.filter(action=AuditAction.STUDENT_CREATED).count()
@@ -534,7 +534,7 @@ def test_admin_created_student_is_persisted_and_audited() -> None:
 
 
 def test_admin_student_update_is_audited() -> None:
-    learner = Student.objects.create(**student_kwargs(wksa_id="206-2-522"))
+    learner = Student.objects.create(**student_kwargs(wksa_id="123-4-522"))
     model_admin = StudentAdmin(Student, admin.site)
     learner.first_name = "Changed"
     request = admin_request("admin-student-updater@example.com")
@@ -565,7 +565,7 @@ def test_admin_can_correct_any_id() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Roster filters the cohort builder relies on (KG-A20).
+# Roster filters the cohort builder relies on.
 # ---------------------------------------------------------------------------
 
 
@@ -578,21 +578,21 @@ def roster_names(client: APIClient, query: str) -> list[str]:
 def test_students_filter_by_several_statuses_a_rank_and_a_search_term() -> None:
     yellow = Rank.objects.get(code="YELLOW")
     kept = Student.objects.create(
-        **student_kwargs(wksa_id="206-2-524", first_name="Mina")
+        **student_kwargs(wksa_id="123-4-524", first_name="Mina")
     )
-    Student.objects.create(**student_kwargs(wksa_id="206-2-525", status="INACTIVE"))
-    Student.objects.create(**student_kwargs(wksa_id="206-2-526", status="LEFT"))
-    Student.objects.create(**student_kwargs(wksa_id="206-2-527", current_rank=yellow))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-525", status="INACTIVE"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-526", status="LEFT"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-527", current_rank=yellow))
     client = auth_client("roster-filters@example.com")
 
     assert sorted(roster_names(client, "status=ACTIVE,INACTIVE")) == [
-        "206-2-524",
-        "206-2-525",
-        "206-2-527",
+        "123-4-524",
+        "123-4-525",
+        "123-4-527",
     ]
-    assert roster_names(client, "status=LEFT") == ["206-2-526"]
+    assert roster_names(client, "status=LEFT") == ["123-4-526"]
     assert roster_names(client, "status=ACTIVE,NOPE") == []
-    assert sorted(roster_names(client, f"current_rank={yellow.pk}")) == ["206-2-527"]
+    assert sorted(roster_names(client, f"current_rank={yellow.pk}")) == ["123-4-527"]
     assert roster_names(client, "current_rank=abc") == []
     assert roster_names(client, "search=mina") == [kept.wksa_id]
 
@@ -607,11 +607,11 @@ def test_students_filter_by_age_band_agrees_with_the_age_band_they_are_served() 
     }
     for index, dob in enumerate(born.values()):
         Student.objects.create(
-            **student_kwargs(wksa_id=f"206-2-{610 + index:03d}", date_of_birth=dob),
+            **student_kwargs(wksa_id=f"123-4-{610 + index:03d}", date_of_birth=dob),
         )
     nine_today = date(today.year - 9, today.month, min(today.day, 28))
     Student.objects.create(
-        **student_kwargs(wksa_id="206-2-528", date_of_birth=nine_today)
+        **student_kwargs(wksa_id="123-4-528", date_of_birth=nine_today)
     )
     client = auth_client("roster-age-band@example.com")
     served = {
@@ -632,7 +632,7 @@ def test_age_band_filter_keeps_the_leap_day_rule_of_calculate_age_on() -> None:
     from gradings.age import calculate_age_on, with_age_band_on
 
     Student.objects.create(
-        **student_kwargs(wksa_id="206-2-529", date_of_birth=date(2016, 2, 29))
+        **student_kwargs(wksa_id="123-4-529", date_of_birth=date(2016, 2, 29))
     )
 
     for on_date, band in (
@@ -659,7 +659,7 @@ def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
     # Turns 13 ten days from now: 12 today, 13 on the grading date.
     birthday = today + timedelta(days=10)
     born = date(birthday.year - 13, birthday.month, min(birthday.day, 28))
-    Student.objects.create(**student_kwargs(wksa_id="206-2-530", date_of_birth=born))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-530", date_of_birth=born))
     client = auth_client("grading-date-band@example.com")
 
     def served(query: str) -> str:
@@ -669,11 +669,11 @@ def test_a_session_list_bands_students_by_age_on_its_grading_date() -> None:
         assert row["age_band_display"]
         return str(row["age_band"])
 
-    assert served("search=206-2-530") == "AGE_9_TO_12"
+    assert served("search=123-4-530") == "AGE_9_TO_12"
     assert served(f"eligible_for_session={session.pk}") == "AGE_13_TO_17"
     assert roster_names(
         client, f"eligible_for_session={session.pk}&age_band=AGE_13_TO_17"
-    ) == ["206-2-530"]
+    ) == ["123-4-530"]
     assert (
         roster_names(client, f"eligible_for_session={session.pk}&age_band=AGE_9_TO_12")
         == []
@@ -706,7 +706,7 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
     names: dict[str, str] = {}
 
     def named(built: GradingCandidate, name: str) -> GradingCandidate:
-        wksa_id = f"206-2-{600 + len(names):03d}"
+        wksa_id = f"123-4-{600 + len(names):03d}"
         names[wksa_id] = name
         Student.objects.filter(pk=built.student_id).update(wksa_id=wksa_id)
         return built
@@ -750,7 +750,7 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
     )
     named(
         candidate(session=session, status=GradingCandidate.Status.WITHDRAWN),
-        "206-2-537",
+        "123-4-537",
     )
     cancelled = grading_session(status=GradingSession.Status.OPEN, title="Cancelled")
     named(candidate(session=cancelled), "CANCELLED")
@@ -759,7 +759,7 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
         GradingSession.Status.CANCELLED,
         actor=user("stage-canceller@example.com"),
     )
-    Student.objects.create(**student_kwargs(wksa_id="206-2-531"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-531"))
 
     response = auth_client("current-grading@example.com").get(
         "/api/students/?page_size=200",
@@ -780,7 +780,7 @@ def test_student_list_shows_each_students_current_grading_and_its_stage() -> Non
     assert by_id["ASSESSED"]["stage"] == "ASSESSED"
     assert by_id["DECIDING"]["stage"] == "AWAITING_DECISION"
     assert by_id["PASSED"]["stage"] == "AWAITING_PROMOTION"
-    for settled in ("PROMOTED", "FAILED", "206-2-537", "CANCELLED", "206-2-531"):
+    for settled in ("PROMOTED", "FAILED", "123-4-537", "CANCELLED", "123-4-531"):
         assert by_id[settled] is None, settled
 
 
@@ -789,12 +789,12 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
 
     session = grading_session(status="OPEN")
     other_session = grading_session(title="Another", status="OPEN")
-    Student.objects.create(**student_kwargs(wksa_id="206-2-532"))
-    Student.objects.create(**student_kwargs(wksa_id="206-2-533", status="INACTIVE"))
-    Student.objects.create(**student_kwargs(wksa_id="206-2-534", status="LEFT"))
-    registered = Student.objects.create(**student_kwargs(wksa_id="206-2-535"))
-    elsewhere = Student.objects.create(**student_kwargs(wksa_id="206-2-536"))
-    withdrew = Student.objects.create(**student_kwargs(wksa_id="206-2-537"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-532"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-533", status="INACTIVE"))
+    Student.objects.create(**student_kwargs(wksa_id="123-4-534", status="LEFT"))
+    registered = Student.objects.create(**student_kwargs(wksa_id="123-4-535"))
+    elsewhere = Student.objects.create(**student_kwargs(wksa_id="123-4-536"))
+    withdrew = Student.objects.create(**student_kwargs(wksa_id="123-4-537"))
     candidate(session=session, student=registered)
     # One grading at a time: an unsettled registration elsewhere excludes the
     # student; a withdrawn one does not.
@@ -803,13 +803,13 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
     client = auth_client("roster-eligible@example.com")
 
     mine = {
-        "206-2-532",
-        "206-2-533",
-        "206-2-534",
-        "206-2-535",
-        "206-2-536",
-        "206-2-537",
+        "123-4-532",
+        "123-4-533",
+        "123-4-534",
+        "123-4-535",
+        "123-4-536",
+        "123-4-537",
     }
     eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
-    assert eligible & mine == {"206-2-532", "206-2-533", "206-2-537"}
+    assert eligible & mine == {"123-4-532", "123-4-533", "123-4-537"}
     assert roster_names(client, "eligible_for_session=abc") == []

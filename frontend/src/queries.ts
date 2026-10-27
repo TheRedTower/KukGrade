@@ -58,7 +58,7 @@ export function useAssessmentItemsQuery(assessmentId: number | undefined) {
 /**
  * Whether the evidence an outcome decision rests on - the assessment's
  * served counts and its items - has loaded. A decision must not be made on
- * evidence that failed or is still on its way (KG-A16). True when there is no
+ * evidence that failed or is still on its way. True when there is no
  * assessment to load.
  */
 export function useSealedEvidenceLoaded(assessmentId: number | undefined): boolean {

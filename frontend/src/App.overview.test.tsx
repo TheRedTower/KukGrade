@@ -92,7 +92,7 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(await screen.findByText("No recent activity recorded.")).toBeVisible();
   });
 
-  // KG-A19: an event's status comes from its action and structured outcome,
+  // An event's status comes from its action and structured outcome,
   // never from words in its summary.
   it("labels activity by what happened, not by words in the summary", async () => {
     const event = (
@@ -180,7 +180,7 @@ describe("Overview screen (Operational Ledger)", () => {
       completed_assessment_count: 1,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
     } satisfies GradingSession;
 
     const upcomingSession = {
@@ -286,7 +286,7 @@ describe("Overview screen (Operational Ledger)", () => {
 
     // Now card
     expect(await screen.findByRole("heading", { name: "Spring Grading 2026" })).toBeVisible();
-    expect(screen.getByText("Colchester Dojang")).toBeVisible();
+    expect(screen.getByText("Riverside Dojang")).toBeVisible();
     expect(await screen.findByText("1 / 2")).toBeVisible(); // 1 of 2 completed
     expect(screen.getByText("2")).toBeVisible(); // candidates count
     expect(screen.getByText("Awaiting final decision").previousElementSibling).toHaveTextContent(
@@ -358,7 +358,7 @@ describe("Overview screen (Operational Ledger)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
     } satisfies GradingSession;
 
     const fetchMock = vi.fn().mockImplementation(async (url: string) => {

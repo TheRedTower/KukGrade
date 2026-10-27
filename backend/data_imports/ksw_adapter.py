@@ -1,4 +1,4 @@
-"""KSW Colchester historical grading workbook -> canonical rows.
+"""KSW historical grading workbook -> canonical rows.
 
 Deliberately source-specific: this adapter understands one workbook's
 structure and nothing else. Its only job is:
@@ -9,11 +9,11 @@ It never creates domain models itself (that is
 `gradings.legacy_services.create_legacy_grading_records`, called with every
 row by a data_imports commit service) and it never resolves a rank or
 links a student - source text is extracted verbatim and normalised fields
-are left unset, because both of those are explicitly admin-review steps
-(import Decisions 3 and 4), not parser steps.
+are left unset, because both of those are explicitly admin-review steps,
+not parser steps.
 
 First built from a written description of the workbook; checked against
-the owner's real workbook on 2026-10-20 (decision log, import overhaul),
+the owner's real workbook on 2026-10-20,
 which is read outside this repository and must never enter it. What that
 showed is handled here: bare `MMYYYY` sheet titles; side tables written
 beside the main table, in the same rows - "Unaccounted" with its own outcome
@@ -42,7 +42,7 @@ from data_imports.parsers import (
 from gradings.legacy_matching import SHEET_NOTE_NAME
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
-# Budgets for the whole workbook (KG-A10), every sheet counted, known or not.
+# Budgets for the whole workbook, every sheet counted, known or not.
 # Generous for a club's history - a sheet per grading cycle, tens of rows
 # each - and far below what exhausts a request.
 MAX_SHEETS = 500
@@ -159,7 +159,7 @@ def _classify_outcome(source_outcome_text: str) -> tuple[str, str | None, str]:
         )
     # N/A, free-form text ("Testing? JKN Adi: No"), or anything else
     # uncertain - preserved verbatim, left unresolved for review rather
-    # than forced into Pass/Fail/Conditional (import Decision 5).
+    # than forced into Pass/Fail/Conditional.
     return LegacyRecordKind.GRADING_RESULT, None, LegacyAttendance.ATTENDED
 
 
@@ -587,7 +587,7 @@ class _RowBudget:
             yield row
 
 
-def parse_ksw_colchester_workbook(content: bytes) -> WorkbookParseResult:
+def parse_ksw_workbook(content: bytes) -> WorkbookParseResult:
     try:
         with open_workbook(content) as workbook:
             return _parse_workbook(workbook)

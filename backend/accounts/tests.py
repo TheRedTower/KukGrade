@@ -1347,7 +1347,7 @@ def test_search_and_role_filters_work() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Admin routes through the same services the API uses (KG-036)
+# Admin routes through the same services the API uses
 # ---------------------------------------------------------------------------
 
 
@@ -1729,7 +1729,7 @@ def test_self_name_edit_is_audited_against_the_user() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Every admin write lands like the API's, with its audit event (KG-A14)
+# Every admin write lands like the API's, with its audit event
 # ---------------------------------------------------------------------------
 
 NEW_SECRET = "An0ther-Str0ng-Passphrase!"

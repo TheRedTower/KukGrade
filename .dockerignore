@@ -19,7 +19,6 @@ backend/var/
 docs/
 output/
 tmp/
-frontend/Frontend-Design-Register/
 backend/**/tests.py
 backend/**/test_*.py
 backend/**/testing.py

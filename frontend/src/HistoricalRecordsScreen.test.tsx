@@ -44,7 +44,7 @@ beforeEach(() => {
   api.getLegacyGradingRecords.mockResolvedValue(page([legacyRecord()]));
   api.getLegacyGradingRecord.mockResolvedValue(legacyRecord());
   api.getRanks.mockResolvedValue(page(RANKS));
-  api.getStudents.mockResolvedValue(page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "206-2-032" }]));
+  api.getStudents.mockResolvedValue(page([{ id: 32, first_name: "Mia", last_name: "Reynolds", current_rank_name: "Blue", wksa_id: "123-4-032" }]));
 });
 
 describe("Historical record recovery", () => {

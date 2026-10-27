@@ -1,5 +1,5 @@
 /* Shared by the Master's Cohort Adjudication Board and the instructor's
-   proposal drawer (FDR-047): the candidate heading, the Pass / Conditional /
+   proposal drawer: the candidate heading, the Pass / Conditional /
    Fail choice and its note fields. A segment is either a toggle button
    (aria-pressed) or a label wrapping a radio input. */
 

@@ -153,7 +153,7 @@ def test_assessment_snapshots_the_cumulative_syllabus_the_browser_serves(
     testing_for: str,
     age_band: str,
 ) -> None:
-    # One resolver behind both (KG-A05): what the syllabus screen lists for a
+    # One resolver behind both: what the syllabus screen lists for a
     # rank and age band is exactly what a grading for them assesses, in the
     # same order. syllabus/tests.py pins that content for these cases.
     built = candidate(
@@ -347,8 +347,8 @@ def test_generation_is_atomic_if_item_creation_fails() -> None:
 
     # The same requirement twice breaks the item snapshot's own uniqueness: a
     # defect in the data, not a second assessment. It surfaces as the
-    # integrity error it is rather than as "already has an assessment"
-    # (KG-A11), and takes the half-built assessment with it.
+    # integrity error it is rather than as "already has an assessment",
+    # and takes the half-built assessment with it.
     with (
         patch(
             "gradings.assessment_services.effective_syllabus_requirements",
@@ -726,7 +726,7 @@ def test_the_model_refuses_a_candidate_created_in_any_status_but_registered() ->
     # Admin and the shell reach the model directly, not the serializer.
     built = build_candidate(
         session=grading_session(),
-        student=student(wksa_id="206-2-500"),
+        student=student(wksa_id="123-4-500"),
         testing_for_rank=rank("YELLOW_STRIPE"),
     )
     built.status = GradingCandidate.Status.COMPLETED
@@ -811,7 +811,7 @@ def test_assessment_item_result_update_rejected_in_draft_session() -> None:
 def test_candidate_core_fields_cannot_change_after_assessment_generation() -> None:
     generated = assessment()
     built = generated.candidate
-    built.student = student(wksa_id="206-2-501")
+    built.student = student(wksa_id="123-4-501")
 
     with pytest.raises(ValidationError):
         built.save()
@@ -954,7 +954,7 @@ def test_assessment_api_generation_lists_and_filters() -> None:
 def test_assessment_summary_is_served_while_the_assessment_is_in_progress() -> None:
     # The whole point of this endpoint: the outcome route is unreachable here,
     # because a CandidateOutcome needs a LOCKED session and a COMPLETED
-    # assessment. See FDR-046.
+    # assessment.
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
     generated = assessment(
         candidate=built,
@@ -1408,7 +1408,7 @@ def test_assessment_item_api_lists_items_in_syllabus_order() -> None:
 def test_notes_only_item_change_is_recorded() -> None:
     # Previously only a result change recorded anything, so the written
     # judgement about a candidate - the part a dispute would turn on -
-    # could be silently rewritten with no trace (KG-037).
+    # could be silently rewritten with no trace.
     session = grading_session(status=GradingSession.Status.OPEN)
     built = candidate(session=session)
     generated = assessment(candidate=built)

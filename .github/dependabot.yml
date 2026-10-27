@@ -7,7 +7,7 @@
 # dependency; a major version gets a pull request of its own to be read.
 # Tools whose output is committed (the API schema, the generated types, code
 # formatting) are grouped apart so one that needs a follow-up commit does not
-# hold the rest back. docs/development-workflow.md, "Dependency updates".
+# hold the rest back. docs/development.md.
 version: 2
 updates:
   - package-ecosystem: uv

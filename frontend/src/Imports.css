@@ -1,4 +1,4 @@
-/* The Imports area (FDR-049 to FDR-055). Tokens only, from theme.css. */
+/* The Imports area. Tokens only, from theme.css. */
 
 .ix-page {
   display: flex;
@@ -345,7 +345,7 @@
   margin-top: auto;
 }
 
-/* Status pills carry text as well as colour (FDR-011). */
+/* Status pills carry text as well as colour. */
 .ix-pill {
   display: inline-flex;
   align-items: center;
@@ -645,7 +645,7 @@
   margin: 0;
 }
 
-/* The step bar (FDR-050). */
+/* The step bar. */
 .ix-steps ol {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -716,7 +716,7 @@
   color: var(--color-on-gold);
 }
 
-/* Choose file (FDR-050). */
+/* Choose file. */
 .ix-drop {
   display: flex;
   flex: 1 1 auto;
@@ -941,7 +941,7 @@
   }
 }
 
-/* Typing into a row (FDR-051, FDR-052). */
+/* Typing into a row. */
 .ix-cell-input {
   width: 100%;
   min-width: 7rem;
@@ -1136,7 +1136,7 @@
   accent-color: var(--color-gold);
 }
 
-/* The linking page: every name as written, one row each (FDR-059). */
+/* The linking page: every name as written, one row each. */
 .ix-link-progress {
   display: flex;
   flex-direction: column;
@@ -1294,7 +1294,7 @@
   margin-top: 0.35rem;
 }
 
-/* The counts on the review page, each a filter (FDR-052). */
+/* The counts on the review page, each a filter. */
 .ix-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
@@ -1339,7 +1339,7 @@
   font-weight: 600;
 }
 
-/* The seal on the review page (FDR-053). */
+/* The seal on the review page. */
 .ix-seal-text {
   flex: 1 1 22rem;
   min-width: 0;

@@ -58,7 +58,7 @@ function RailLink({
   );
 }
 
-/** The club, under the brand (FDR-056). The strip has no room for it. */
+/** The club, under the brand. The strip has no room for it. */
 function ClubCard({ name }: { name: string | undefined }) {
   return (
     <div className="nav-club-card">
@@ -69,7 +69,7 @@ function ClubCard({ name }: { name: string | undefined }) {
 }
 
 /**
- * The sidebar (FDR-056): the brand, which goes to the dashboard; the club;
+ * The sidebar: the brand, which goes to the dashboard; the club;
  * the pages; and at its foot the signed-in person, Settings, About and the
  * project. It opens at full width or collapses to a strip of icons, and on a
  * phone it folds behind a Menu button.

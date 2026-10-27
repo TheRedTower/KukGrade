@@ -1,4 +1,4 @@
-"""The KSW Colchester workbook adapter - synthetic fixtures only.
+"""The KSW workbook adapter - synthetic fixtures only.
 
 Never the real historical workbook - every workbook
 here is built in-memory from made-up names and values.
@@ -14,7 +14,7 @@ from openpyxl.workbook import Workbook
 from data_imports.ksw_adapter import (
     CanonicalLegacyRow,
     WorkbookStructureError,
-    parse_ksw_colchester_workbook,
+    parse_ksw_workbook,
 )
 from data_imports.testing import MAIN_TABLE_HEADER, standard_workbook, workbook_bytes
 from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
@@ -22,7 +22,7 @@ from gradings.models import LegacyAttendance, LegacyOutcome, LegacyRecordKind
 
 def test_information_sheet_is_ignored() -> None:
     content = standard_workbook([["A. Example", "White", "Yellow Stripe", "Pass", ""]])
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert all(row.source_sheet != "Information" for row in result.rows)
     assert not any("Information" in warning for warning in result.warnings)
@@ -33,7 +33,7 @@ def test_valid_cycle_sheet_derives_year_and_month() -> None:
         [["A. Example", "White", "Yellow Stripe", "Pass", ""]],
         sheet="03-2026",
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert len(result.rows) == 1
     assert result.rows[0].cycle_year == 2026
@@ -45,7 +45,7 @@ def test_standard_main_table_parses_all_five_columns() -> None:
     content = standard_workbook(
         [["A. Example", "Yellow Belt", "Blue Stripe", "Pass", "Good form"]],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     row = result.rows[0]
     assert row.source_name == "A. Example"
@@ -67,7 +67,7 @@ def test_blank_rows_within_the_main_table_do_not_stop_parsing() -> None:
             ["B. Second", "White", "Yellow Stripe", "Fail", ""],
         ],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     names = [row.source_name for row in result.rows]
     assert names == ["A. Example", "B. Second"]
@@ -83,7 +83,7 @@ def test_auxiliary_section_after_the_main_table_is_captured() -> None:
         ws.append(["C. Third", "Left message with parent"])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     grading_kind = LegacyRecordKind.GRADING_RESULT
     aux_kind = LegacyRecordKind.AUXILIARY_NOTE
@@ -105,7 +105,7 @@ def test_each_known_auxiliary_section_is_recognised(section_name: str) -> None:
         ws.append(["D. Fourth", "some note"])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert len(result.rows) == 1
     assert result.rows[0].record_kind == LegacyRecordKind.AUXILIARY_NOTE
@@ -120,7 +120,7 @@ def test_did_not_attend_section_produces_did_not_attend_record_kind() -> None:
         ws.append(["E. Fifth"])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert len(result.rows) == 1
     row = result.rows[0]
@@ -131,7 +131,7 @@ def test_did_not_attend_section_produces_did_not_attend_record_kind() -> None:
 
 def test_dna_in_the_main_outcome_column_is_did_not_attend_not_fail() -> None:
     content = standard_workbook([["F. Sixth", "White", "Yellow Stripe", "DNA", ""]])
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     row = result.rows[0]
     assert row.record_kind == LegacyRecordKind.DID_NOT_ATTEND
@@ -149,7 +149,7 @@ def test_unknown_non_empty_sheet_produces_a_warning() -> None:
         main.append(["A. Example", "White", "Yellow Stripe", "Pass", ""])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert any("Notes" in warning for warning in result.warnings)
     assert all(row.source_sheet != "Notes" for row in result.rows)
@@ -163,7 +163,7 @@ def test_unknown_empty_sheet_produces_no_warning() -> None:
         main.append(["A. Example", "White", "Yellow Stripe", "Pass", ""])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert not any("Blank Sheet" in warning for warning in result.warnings)
 
@@ -202,7 +202,7 @@ def test_comments_with_line_breaks_are_preserved() -> None:
     content = standard_workbook(
         [["A. Example", "White", "Yellow Stripe", "Pass", "Line one\nLine two"]],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert result.rows[0].comments == "Line one\nLine two"
 
@@ -210,7 +210,7 @@ def test_comments_with_line_breaks_are_preserved() -> None:
 def test_empty_comments_are_an_empty_string_not_none() -> None:
     row: list[object] = ["A. Example", "White", "Yellow Stripe", "Pass", None]
     content = standard_workbook([row])
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert result.rows[0].comments == ""
 
@@ -219,7 +219,7 @@ def test_free_form_outcome_is_preserved_unresolved() -> None:
     content = standard_workbook(
         [["A. Example", "White", "Yellow Stripe", "Testing? JKN Adi: No", ""]],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     row = result.rows[0]
     assert row.source_outcome_text == "Testing? JKN Adi: No"
@@ -229,7 +229,7 @@ def test_free_form_outcome_is_preserved_unresolved() -> None:
 
 def test_na_outcome_is_preserved_unresolved_not_an_outcome() -> None:
     content = standard_workbook([["A. Example", "White", "Yellow Stripe", "N/A", ""]])
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     row = result.rows[0]
     assert row.source_outcome_text == "N/A"
@@ -240,7 +240,7 @@ def test_uncertain_rank_with_question_mark_is_preserved_verbatim_unresolved() ->
     content = standard_workbook(
         [["A. Example", "White", "Blue Stripe?", "Pass", ""]],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     row = result.rows[0]
     assert row.source_testing_for_rank_text == "Blue Stripe?"
@@ -250,7 +250,7 @@ def test_uncertain_rank_with_question_mark_is_preserved_verbatim_unresolved() ->
 
 def test_typo_like_rank_text_is_preserved_verbatim() -> None:
     content = standard_workbook([["A. Example", "White", "DNB", "Pass", ""]])
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert result.rows[0].source_testing_for_rank_text == "DNB"
 
@@ -262,7 +262,7 @@ def test_abbreviated_and_duplicate_names_are_preserved_as_separate_rows() -> Non
             ["Alex P", "Yellow", "Yellow Stripe", "Pass", ""],
         ],
     )
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert len(result.rows) == 2
     assert result.rows[0].source_name == result.rows[1].source_name == "Alex P"
@@ -276,7 +276,7 @@ def test_sheet_with_no_recognisable_header_produces_a_warning_and_no_rows() -> N
         ws.append(["Just some unrelated text"])
 
     content = workbook_bytes(build)
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     assert result.rows == []
     assert any(
@@ -286,7 +286,7 @@ def test_sheet_with_no_recognisable_header_produces_a_warning_and_no_rows() -> N
 
 def test_malformed_file_raises_workbook_structure_error() -> None:
     with pytest.raises(WorkbookStructureError):
-        parse_ksw_colchester_workbook(b"not a real workbook")
+        parse_ksw_workbook(b"not a real workbook")
 
 
 # --- the real workbook's layouts (2026-10-20), rebuilt from made-up values ----
@@ -303,7 +303,7 @@ def sheet(*rows: Sequence[object], title: str = "062025") -> bytes:
 
 def by_section(content: bytes) -> dict[str, list[CanonicalLegacyRow]]:
     grouped: dict[str, list[CanonicalLegacyRow]] = {}
-    for row in parse_ksw_colchester_workbook(content).rows:
+    for row in parse_ksw_workbook(content).rows:
         grouped.setdefault(row.source_section, []).append(row)
     return grouped
 
@@ -333,7 +333,7 @@ def test_an_unaccounted_table_beside_the_main_one_is_read_as_results() -> None:
         ],
     )
 
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
     side = [row for row in result.rows if row.source_section == "Unaccounted"]
 
     assert [row.source_name for row in side] == ["Q. Side", "R. Side"]
@@ -404,7 +404,7 @@ def test_a_repeated_main_column_is_read_once_with_a_warning() -> None:
         title="092026",
     )
 
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
 
     [row] = result.rows
     assert (row.source_name, row.source_current_rank_text, row.comments) == (
@@ -425,7 +425,7 @@ def test_notes_in_no_table_are_kept_with_a_warning_never_dropped() -> None:
         title="062026",
     )
 
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
     notes = [row for row in result.rows if row.source_name == "Sheet note"]
 
     assert [
@@ -449,7 +449,7 @@ def test_a_row_with_no_name_and_anything_above_the_table_are_kept_as_notes() -> 
         [None, None, None, None, "KSN Kim", "and good kicks."],
     )
 
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
     notes = [row for row in result.rows if row.source_name == "Sheet note"]
 
     assert [
@@ -471,7 +471,7 @@ def test_a_note_far_to_the_right_cannot_be_mistaken_for_a_main_row() -> None:
     row = ["A. Example", "White", "Yellow", "Pass", "", *far[5:]]
     content = sheet(MAIN_TABLE_HEADER, row)
 
-    locators = [r.source_locator for r in parse_ksw_colchester_workbook(content).rows]
+    locators = [r.source_locator for r in parse_ksw_workbook(content).rows]
 
     assert locators == ["062025!R2", "062025!Note!R2"]
 
@@ -483,7 +483,7 @@ def test_a_main_table_column_kukgrade_has_no_field_for_is_kept_on_the_record() -
         ["B. Example", "White", "Yellow", "Pass", "", ""],
     )
 
-    first, second = parse_ksw_colchester_workbook(content).rows
+    first, second = parse_ksw_workbook(content).rows
 
     assert first.admin_note == "Examiner: KSN Lee"
     assert first.comments == "Fine."
@@ -542,7 +542,7 @@ def test_every_non_blank_cell_of_a_grading_sheet_is_kept_somewhere() -> None:
     ]
     content = sheet(*rows)
 
-    result = parse_ksw_colchester_workbook(content)
+    result = parse_ksw_workbook(content)
     kept = set()
     for row in result.rows:
         for value in (

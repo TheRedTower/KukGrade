@@ -2,10 +2,10 @@
 
 `ImportBatch` is the upload: what was uploaded, by whom, and what became of
 it. `ImportRow` is each row read from it, stored once at upload with its
-classification and any fix the importer made (decision log, 2026-10-20 import
-overhaul), so an import can be left and resumed, reviewed page by page, and
-seen afterwards row by row. Rows hold personal data: they go when an import
-is cancelled or expires, and a finished import's rows go after
+classification and any fix the importer made, so an import can be left and
+resumed, reviewed page by page, and seen afterwards row by row. Rows hold
+personal data: they go when an import is cancelled or expires, and a finished
+import's rows go after
 `COMMITTED_ROWS_KEPT_FOR` (`expire_stale_import_batches`).
 """
 

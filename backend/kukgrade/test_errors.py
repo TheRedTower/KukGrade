@@ -219,7 +219,7 @@ def test_a_domain_validation_error_is_enveloped_by_the_handler(
 
 def test_an_unknown_api_url_is_enveloped() -> None:
     # A URL that matches no route never reaches a DRF view, so without
-    # handler404 the API answered with Django's HTML page (KG-A22).
+    # handler404 the API answered with Django's HTML page.
     from django.http import Http404
     from django.test import Client
 

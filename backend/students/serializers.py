@@ -82,7 +82,7 @@ class StudentGradingHistorySerializer(serializers.Serializer[StudentGradingHisto
     """Combines finalised native outcomes with linked, non-voided legacy
     records - kept deliberately separate from
     StudentRankHistorySerializer/`/rank-history/`, which remains
-    Promotion-only (import Decision 6)."""
+    Promotion-only."""
 
     items = GradingHistoryItemSerializer(many=True)
 

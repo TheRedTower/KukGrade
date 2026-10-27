@@ -20,15 +20,14 @@ savepoint, or one failed row would leave the rest of the batch unprotected.
 Why whole-session locks rather than a lock per row: the rules that matter span
 rows - a completed assessment has every required item assessed, a locked
 session has every candidate complete, a rank rollback undoes the student's
-latest promotion. Locking each row on its own cannot make those checks atomic
-(KG-A03, KG-A04). Contention is not a concern at this scale: a session's writes
+latest promotion. Locking each row on its own cannot make those checks atomic.
+Contention is not a concern at this scale: a session's writes
 are single-row edits that finish in milliseconds.
 
 Every lock is taken by a query that joins nothing, and a row is read with its
 joins only once it is locked - see lock_students() for what goes wrong
-otherwise. KG-021 removed session and student locks that `select_related`
-picked up incidentally, in no particular order; these are deliberate, ordered
-and explicit.
+otherwise. Locks that `select_related` picked up incidentally, in no
+particular order, were removed; these are deliberate, ordered and explicit.
 """
 
 from __future__ import annotations

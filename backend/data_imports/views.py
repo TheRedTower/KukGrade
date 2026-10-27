@@ -138,7 +138,7 @@ class ImportBatchViewSet(
     mixins.RetrieveModelMixin,
     GenericViewSet,
 ):
-    """Administrator-only bulk data import (import Decision 1).
+    """Administrator-only bulk data import.
 
     No `INSTRUCTOR_GROUP` permission is ever granted for this app - see
     `accounts.groups._DATA_IMPORT_PERMISSIONS`.

@@ -59,7 +59,7 @@ _creator_counter = itertools.count()
 def grading_session(**overrides: object) -> GradingSession:
     status = cast(str, overrides.pop("status", GradingSession.Status.DRAFT))
     data: dict[str, object] = {
-        "title": "March 2027 Colchester Grading",
+        "title": "March 2027 Riverside Grading",
         "grading_date": date(2027, 3, 20),
     }
     if "created_by" not in overrides:
@@ -85,7 +85,7 @@ def student(**overrides: object) -> Student:
     black_belt = cast(Rank, data["current_rank"]).category == Rank.Category.BLACK_BELT
     data.setdefault(
         "wksa_id",
-        f"A-{number:05d}" if black_belt else f"206-2-{number:03d}",
+        f"A-{number:05d}" if black_belt else f"123-4-{number:03d}",
     )
     return Student.objects.create(**data)
 

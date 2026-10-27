@@ -19,8 +19,8 @@ class EffectiveSyllabusRequirementSerializer(serializers.Serializer):
     Wraps `syllabus.services.EffectiveSyllabusRequirement`: `requirement` is
     the effective (latest applicable) `SyllabusRequirement` row, so most
     fields are simple dotted lookups into it. `introduced_rank`,
-    `effective_since_rank` and `is_new_at_rank` are the provenance FDR-041
-    requires the backend to derive.
+    `effective_since_rank` and `is_new_at_rank` are the provenance the
+    backend derives.
     """
 
     item_code = serializers.CharField(source="requirement.item.code", read_only=True)

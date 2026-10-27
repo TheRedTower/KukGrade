@@ -64,7 +64,7 @@ export function BuildGradingCohortScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Exception Resolver (SCR-018) state
+  // Exception Resolver state
   const [registrationResult, setRegistrationResult] = useState<BulkCandidateRegistrationResponse | null>(null);
   const [flaggedItems, setFlaggedItems] = useState<FlaggedCandidateItem[]>([]);
   const [showSuccessfulList, setShowSuccessfulList] = useState(false);
@@ -300,7 +300,7 @@ export function BuildGradingCohortScreen() {
         // Complete 100% success! Navigate directly to grading session detail
         navigate(`/gradings/${sessionId}`);
       } else {
-        // Partial success or errors: transition to Exception Resolver (SCR-018)
+        // Partial success or errors: transition to Exception Resolver
         setRegistrationResult(response);
 
         const flagged: FlaggedCandidateItem[] = errorKeys.map((idxStr) => {
@@ -431,7 +431,7 @@ export function BuildGradingCohortScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // VIEW: Exception Resolver (SCR-018 / FDR-031)
+  // VIEW: Exception Resolver
   // ══════════════════════════════════════════════════════════════════════════
   if (registrationResult && flaggedItems.length > 0) {
     const createdCount = registrationResult.created.length;
@@ -639,7 +639,7 @@ export function BuildGradingCohortScreen() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // VIEW: Cohort Builder Workspace (SCR-017 / FDR-030)
+  // VIEW: Cohort Builder Workspace
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <section aria-labelledby="bgc-title" className="bgc-page" data-testid="bgc-page">

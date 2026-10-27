@@ -93,8 +93,8 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ordering = ("email",)
     # Groups follow the role, and per-user permissions are Master authority,
     # granted in the app through set_user_authority() and its rules - never
-    # edited here, where they would skip both the rules and the audit
-    # (KG-A14). The two dates are Django's bookkeeping, and the password
+    # edited here, where they would skip both the rules and the audit.
+    # The two dates are Django's bookkeeping, and the password
     # state follows whoever last set the password.
     readonly_fields = (
         "groups",
@@ -173,7 +173,7 @@ class UserAdmin(ServiceDeleteMixin, DjangoUserAdmin):
     ) -> None:
         # Routed through the same services the API uses, so an admin-created
         # or admin-edited user is audited too, attributed to whoever is
-        # signed into admin (KG-036). is_staff/is_superuser stay a direct
+        # signed into admin. is_staff/is_superuser stay a direct
         # admin capability - create_platform_user() deliberately refuses
         # them, the same way the API does, so they are applied as an
         # explicit second step on create rather than routed through it.

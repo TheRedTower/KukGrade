@@ -3,7 +3,7 @@
 The network app (kukgrade.urls) does not serve the Django admin. An operator
 with a shell on the host starts it by hand for the length of a repair, with
 kukgrade.settings_admin, reachable only from that host's loopback; see
-docs/deployment.md, "The Django admin site".
+docs/installation.md.
 """
 
 from __future__ import annotations

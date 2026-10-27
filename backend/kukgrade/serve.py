@@ -9,7 +9,7 @@ one is needed, and is served by gunicorn (kukgrade/gunicorn_conf.py).
 
 It starts as root only to hand /var/lib/kukgrade to the app's user (UID 10001),
 which a folder Docker makes on the host does not belong to, and runs everything
-else as that user. Started as that user already (compose.prod.yml does), it skips
+else as that user. Started as that user already (compose.external-db.yml does), it skips
 both. If either process stops, the other is stopped and the container exits, so
 its restart policy brings both back.
 """
@@ -125,7 +125,7 @@ def prepare_folders(data_dir: Path, *, with_database: bool) -> None:
         # Rosters and workbooks are personal data, and tls/ may hold an
         # operator's own key: the app's user only, however the folder was made.
         # Set to exactly 700 when it is not already (the image ships both so),
-        # since the rest of /var/lib/kukgrade may be read-only (compose.prod.yml).
+        # since the rest of /var/lib/kukgrade may be read-only (external-db file).
         if folder.stat().st_mode & 0o777 != 0o700:
             folder.chmod(0o700)
     if with_database:
@@ -249,8 +249,8 @@ def wait_until_ready(
         print(
             f"WARNING: this database was made before the app had a role of its own, "
             f"so {user!r} is its superuser. To change that, dump it with pg_dump, "
-            "empty data/postgres and restore the dump (docs/deployment.md, "
-            '"What is stored, and where").',
+            "empty data/postgres and restore the dump (docs/installation.md, "
+            '"Backups").',
             flush=True,
         )
     else:

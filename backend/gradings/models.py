@@ -1312,8 +1312,7 @@ class LegacyGradingRecord(models.Model):
     A distinct, deliberately weaker evidence model from CandidateAssessment/
     CandidateOutcome/Promotion: the historical workbook does not contain
     enough evidence (exact date, syllabus snapshot, item-level judgement,
-    assessor, decision attribution) to honestly recreate those. See
-    docs/data-import-and-legacy-migration.md.
+    assessor, decision attribution) to honestly recreate those.
 
     Source-text fields (everything except `student`, `current_rank`,
     `testing_for_rank` and the void fields) are immutable after import -
@@ -1322,8 +1321,7 @@ class LegacyGradingRecord(models.Model):
     save() so the immutability check and an audit event both run; ordinary
     queryset mutation and physical deletion are blocked outright
     (LegacyGradingRecordQuerySet above) - void is the only removal path,
-    consistent with "historical records are never physically deleted"
-    (import Decision 16).
+    consistent with "historical records are never physically deleted".
     """
 
     if TYPE_CHECKING:
@@ -1353,7 +1351,7 @@ class LegacyGradingRecord(models.Model):
     )
 
     # Nullable, PROTECT: a legacy record may be committed with no known
-    # Student match (import Decision 2) but must never silently lose that link once
+    # Student match but must never silently lose that link once
     # deleting a user is possible.
     student = models.ForeignKey(
         "students.Student",
@@ -1375,7 +1373,7 @@ class LegacyGradingRecord(models.Model):
 
     cycle_year = models.PositiveSmallIntegerField()
     cycle_month = models.PositiveSmallIntegerField()
-    # Never invented beyond what the source states (import Decision 14) - MONTH
+    # Never invented beyond what the source states - MONTH
     # unless a specific day was genuinely present in the source.
     grading_date = models.DateField(null=True, blank=True)
     date_precision = models.CharField(
@@ -1404,7 +1402,7 @@ class LegacyGradingRecord(models.Model):
     )
 
     source_outcome_text = models.CharField(max_length=200, blank=True)
-    # Deterministic Pass/Fail/Conditional mappings only (import Decision 5) -
+    # Deterministic Pass/Fail/Conditional mappings only -
     # never set from free-form/uncertain source text, so unlike
     # current_rank/testing_for_rank this has no separate admin-resolution
     # service and is immutable alongside the other source-derived fields.

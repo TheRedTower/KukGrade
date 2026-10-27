@@ -216,7 +216,7 @@ def update_student(
     # Only `student`'s id is used. The API loaded it before this transaction
     # began, and Django admin has already written its form onto it, so
     # saving it as received wrote back every field another edit changed in
-    # the meantime (KG-A12). The requested changes go onto the locked row -
+    # the meantime. The requested changes go onto the locked row -
     # the same student lock promotion and rank rollback take.
     locked = lock_student(student.pk)
     before = _snapshot(locked)

@@ -42,7 +42,7 @@ class ReadOnlyCatalogueAdmin(admin.ModelAdmin):
 
 
 class ServiceDeleteMixin:
-    """Admin deletes go through the model's own deletion service (KG-A14).
+    """Admin deletes go through the model's own deletion service.
 
     The service takes its locks, re-checks its rule, records the deletion and
     deals with every dependent itself - reassigning or removing what Django's

@@ -85,7 +85,7 @@ class StateGatedDeleteMixin(ServiceDeleteMixin):
     Without this, admin bulk delete walked past rules the API enforced -
     and instructors now hold the delete permissions, so the changelist is
     the most reachable way to reach them. The delete itself runs through
-    the service (ServiceDeleteMixin, KG-036, KG-A03).
+    the service.
     """
 
     deletion_validator: Any
@@ -156,7 +156,7 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     ) -> None:
         if not change:
             # Routed through the same service the API uses to create a
-            # session, so an admin-created session is audited too (KG-036).
+            # session, so an admin-created session is audited too.
             created = create_grading_session(
                 title=obj.title,
                 grading_date=obj.grading_date,
@@ -170,7 +170,7 @@ class GradingSessionAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
 
         # The same service the API edits through: only the changed fields are
         # written, onto the locked row, and a status change becomes a
-        # transition rather than a plain field write (KG-A12).
+        # transition rather than a plain field write.
         changed_data = set(form.changed_data)
         update_grading_session(
             obj,
@@ -409,7 +409,7 @@ class GradingCandidateAdmin(StateGatedDeleteMixin, admin.ModelAdmin):
     ) -> None:
         # Routed through the same services the API uses, so an admin-created
         # or admin-edited candidate is audited too, attributed to whoever is
-        # signed into admin (KG-036).
+        # signed into admin.
         if not change:
             created = register_candidate(
                 session=obj.session,

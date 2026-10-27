@@ -62,7 +62,7 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
     student_response = instructor.post(
         "/api/students/",
         {
-            "wksa_id": "206-2-500",
+            "wksa_id": "123-4-500",
             "first_name": "Riley",
             "last_name": "Endo",
             "date_of_birth": "2015-04-01",
@@ -78,7 +78,7 @@ def test_end_to_end_http_grading_workflow_uses_only_response_data() -> None:
         {
             "title": "End-to-end HTTP Grading",
             "grading_date": "2027-06-01",
-            "location": "Colchester Dojang",
+            "location": "Riverside Dojang",
         },
         format="json",
     )

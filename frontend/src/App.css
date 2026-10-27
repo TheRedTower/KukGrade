@@ -89,7 +89,7 @@ button:disabled {
   border: 0;
 }
 
-/* FDR-007: every control is at least a 44px target, everywhere. Specific
+/* Every control is at least a 44px target, everywhere. Specific
    enough (one class, through :not) to outrank a component's own smaller
    size, so no screen restates it. Checkboxes and radios take their label as
    the target; the theme toggle stays a compact pill (it is above WCAG's
@@ -138,7 +138,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   box-shadow: 0 18px 38px rgb(21 19 15 / 10%);
 }
 
-/* SCR-008 (08-login.png): a permanent ink brand panel beside the sign-in
+/* A permanent ink brand panel beside the sign-in
    form, rather than the single centered card the other auth states
    (connection failure, loading) still use - see FRONTEND_DESIGN_REGISTER.md. */
 

@@ -18,7 +18,7 @@ function key(text: string): string {
 
 /**
  * Step 2 of a historical import: each way the workbook writes a rank, the
- * records that use it, and the KukGrade rank it means (FDR-051). The
+ * records that use it, and the KukGrade rank it means. The
  * workbook's own words are kept as written.
  */
 export function ImportMatchRanks({

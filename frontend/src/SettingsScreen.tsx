@@ -11,7 +11,7 @@ const TABS = [
   { to: "/settings/about", label: "About" },
 ];
 
-/** Settings as tabs of rows (FDR-057): Account, Appearance and About. */
+/** Settings as tabs of rows: Account, Appearance and About. */
 export function SettingsScreen() {
   return (
     <section aria-labelledby="st-title" className="st-page">

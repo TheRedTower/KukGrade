@@ -25,7 +25,7 @@ ADMINISTRATOR_GROUP = "Administrator"
 # separate, administrator-only capability (_DATA_CLEANUP_PERMISSIONS below);
 # every relationship to a Student is PROTECT, so it cascades through a
 # service, not this ordinary CRUD grant. Ranks and the syllabus are read-only
-# while syllabus versioning is deferred (see docs/decision_log.md).
+# while syllabus versioning is deferred.
 _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("students", "view_student"),
     ("students", "add_student"),
@@ -50,7 +50,7 @@ _KUK_SOOL_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("gradings", "change_candidateoutcome"),
     ("gradings", "view_promotion"),
     # Historical grading visibility matches native grading visibility
-    # (import Decision 15) - both roles may view imported
+    # - both roles may view imported
     # legacy records; only an administrator may import/reconcile/void one
     # (_LEGACY_GRADING_RECONCILIATION_PERMISSIONS below).
     ("gradings", "view_legacygradingrecord"),
@@ -80,8 +80,7 @@ _DATA_CLEANUP_PERMISSIONS: tuple[tuple[str, str], ...] = (
 )
 
 # Bulk data import (student rosters and legacy grading workbooks).
-# Administrator-only by decision - import Decision 1 in
-# docs/data-import-and-legacy-migration.md. "can_commit_import" is a custom
+# Administrator-only by decision. "can_commit_import" is a custom
 # permission (ImportBatch.Meta.permissions) rather than the auto-generated
 # "change_importbatch", so upload/preview can be separated from the
 # irreversible act of actually creating students.
@@ -92,8 +91,8 @@ _DATA_IMPORT_PERMISSIONS: tuple[tuple[str, str], ...] = (
     ("data_imports", "can_commit_import"),
 )
 
-# Link/unlink/resolve-rank/void a historical record - Administrator-only
-# (import Decisions 1 and 15), distinct from view_legacygradingrecord
+# Link/unlink/resolve-rank/void a historical record - Administrator-only,
+# distinct from view_legacygradingrecord
 # above so an instructor can read imported history without being able to
 # correct it.
 _LEGACY_GRADING_RECONCILIATION_PERMISSIONS: tuple[tuple[str, str], ...] = (

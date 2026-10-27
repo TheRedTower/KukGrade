@@ -1,0 +1,139 @@
+# Development
+
+How to run KukGrade from source, check your changes, and keep dependencies current.
+For the shape of the code, see [architecture.md](architecture.md); for how to submit
+a change, [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/), for a local PostgreSQL
+- [uv](https://docs.astral.sh/uv/), which installs Python 3.14 and the backend's dependencies
+- Node 22.22.2 or newer (Vite 8 and jsdom 30 require it)
+
+## Run it locally
+
+```sh
+# 1. PostgreSQL, bound to 127.0.0.1 only, data in .local/postgres/
+docker compose up -d db
+
+# 2. Backend (http://localhost:8000)
+cd backend
+export DJANGO_DEBUG=true            # development defaults: local database, no secret key needed
+uv sync
+uv run python manage.py migrate
+uv run python manage.py issue_setup_code   # prints the one-time code for a fresh database
+uv run python manage.py runserver 0.0.0.0:8000
+
+# 3. Frontend (http://localhost:5173), in another terminal
+cd frontend
+npm ci
+npm run dev
+```
+
+Open <http://localhost:5173>, enter the setup code on the setup page and create the
+first administrator. The API's health check is <http://localhost:8000/api/health/>.
+
+With `DJANGO_DEBUG=true` the database defaults match `compose.yaml`, so no `.env`
+file is needed. The Django browsable API is available only in debug. See
+[configuration.md](configuration.md) for every setting.
+
+## Checks
+
+CI runs all of these on every push and pull request. Run them before opening a pull
+request.
+
+**Backend** (needs the local PostgreSQL):
+
+```sh
+cd backend
+uv sync --frozen
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports
+DJANGO_DEBUG=true uv run python manage.py check
+DJANGO_DEBUG=true uv run python manage.py makemigrations --check --dry-run
+DJANGO_SETTINGS_MODULE=kukgrade.settings_test uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn
+git diff --exit-code -- schema.yml
+uv run pytest -n auto
+```
+
+**Frontend:**
+
+```sh
+cd frontend
+npm ci
+npm run generate:types
+git diff --exit-code -- src/api/schema.ts
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm audit --audit-level=high
+```
+
+**Production image** (from the repository root):
+
+```sh
+docker build --target production -t kukgrade:ci .
+.github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly
+```
+
+The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
+serializers and the committed frontend types match the schema.
+
+## Conventions
+
+- **Every feature has tests**: a success case, a validation case and a permission
+  case where they apply. Sensitive writes also need an audit-event test. A bug fix
+  comes with a test that fails without it.
+- **Test data is synthetic.** Use `example.com` addresses and made-up names. Never
+  commit real student data, exports, secrets or screenshots containing them.
+- **Builders live in `testing.py`** inside their own app, never in another app's tests.
+- **Frontend tests mock the API at the `./api` module boundary**, with fixtures declared
+  `satisfies <GeneratedType>`, so a contract change breaks the test instead of hiding.
+- **Never hand-write an API type** in the frontend. Declare the shape in the backend
+  (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
+- **Database changes need a migration** and a test; model rules are tested at the model
+  as well as through the API.
+- **Keep syllabus and grading rules in the backend.** Components render what the API
+  returns.
+
+## Dependency updates
+
+Nobody edits dependency versions or base-image digests by hand.
+[Dependabot](../.github/dependabot.yml) opens a weekly pull request when a Python
+package, an npm package, a GitHub Action, or a base image pinned in the `Dockerfile` has
+a newer version. Each updates the manifest and its lockfile together and runs the full
+CI. Merge one once its checks are green.
+
+- Minor and patch updates arrive grouped; a major version gets its own pull request.
+- A new Python or Node *line* is never proposed automatically: it is a decision. Change
+  `python:3.14-slim` in the `Dockerfile`, `requires-python` and the tool targets in
+  `backend/pyproject.toml` (then `uv lock`), `backend/.python-version`, `node:22-alpine`
+  and `node-version` in `.github/workflows/ci.yml`, together.
+- Held back on purpose (ignored in the Dependabot config): Django 6 and django-stubs 6
+  (Django 5.2 is long-term support to 2028) and TypeScript 7 (`openapi-typescript` does
+  not support it yet). Security updates are still taken.
+- A package whose output is committed can fail CI until you add a follow-up commit to the
+  Dependabot branch: `drf-spectacular` needs `schema.yml` regenerated,
+  `openapi-typescript` needs `npm run generate:types`, and `ruff` may need `ruff format`.
+- The PostgreSQL image is not tracked automatically: a new major version is a data
+  migration (see [installation.md](installation.md#updating)).
+
+## Releasing
+
+The version is a single number in `backend/kukgrade/version.py`, kept equal to
+`backend/pyproject.toml` and `frontend/package.json` by a test.
+
+To publish, merge the version bump, then push a tag equal to it, for example
+`git tag v0.2.0 && git push origin v0.2.0`. The `Publish image` workflow
+([publish.yml](../.github/workflows/publish.yml)) builds `ghcr.io/theredtower/kukgrade` for
+amd64 and arm64 on native runners, runs `manage.py check --deploy` and
+`.github/scripts/image-smoke.sh` on each, and only then joins them under `0.2.0`, `0.2`,
+`latest` (and the major from 1.0). A pre-release tag such as `v0.2.0-rc.1` is published
+under its own name only. A tag that differs from `VERSION` fails the build. Running the
+workflow by hand from a branch does everything except push, to rehearse a release.
+
+First time only: the package is private until it is made public (the package's own page,
+Package settings, Change visibility), and the arm64 runner is free only for public
+repositories, so make the repository public first.

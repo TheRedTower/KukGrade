@@ -124,7 +124,7 @@ def test_instructor_can_run_a_grading_end_to_end() -> None:
     assert (
         client.patch(
             f"/api/gradings/sessions/{session_id}/",
-            {"location": "Colchester"},
+            {"location": "Riverside"},
             format="json",
         ).status_code
         == 200
@@ -410,7 +410,7 @@ def test_every_routed_action_declares_its_permissions(
 
 
 # --------------------------------------------------------------------------
-# Sensitive actions: a permission_map entry alone is not enough (KG-035)
+# Sensitive actions: a permission_map entry alone is not enough
 # --------------------------------------------------------------------------
 
 # Actions gated by a per-user authority permission - never granted to a

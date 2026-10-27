@@ -1,17 +1,16 @@
 /**
- * Completion review - Certificate Proof (SCR-027, FDR-043).
+ * Completion review - Certificate Proof.
  *
- * Rebuilt from SCR-020's dual-card ledger. The record renders as the document
+ * The record renders as the document
  * it becomes, so the instructor proofreads rather than fills in a form:
  * candidate and rank transition, core grading areas, the requirement ledgers,
  * every recorded note, the assessment note, and a seal line that stays blank
  * until the record is sealed. Provenance and counts sit in a side column.
  *
- * Two things FDR-043 is explicit about, both of which would be easy to get
- * wrong:
+ * Two things that would be easy to get wrong:
  *
  * - **Every** recorded `assessor_notes` value renders, not only those on
- *   `NOT_MET` items. Since the 2026-09-23 decision that field carries positive
+ *   `NOT_MET` items. That field carries positive
  *   observations too, so a note on a met requirement would otherwise be
  *   invisible at the last moment it can be read, and absent from the permanent
  *   record afterwards.
@@ -21,7 +20,7 @@
  *   and the 1A scoring screen has no overall-note control, so rendering it as
  *   static prose would remove the only write path in the application.
  *
- * Counts are served, never recounted here (FDR-046). No percentages: `Result`
+ * Counts are served, never recounted here. No percentages: `Result`
  * is NOT_ASSESSED / MET / NOT_MET and carries no partial credit.
  */
 import { useState } from "react";
@@ -117,7 +116,7 @@ export function AssessmentCompletionScreen() {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
-      // The session's served progress counts change with it (KG-A15).
+      // The session's served progress counts change with it.
       queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       navigate(`/gradings/${numSessionId}`);
     },
@@ -137,7 +136,7 @@ export function AssessmentCompletionScreen() {
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
       queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
-      // The session's served progress counts change with it (KG-A15).
+      // The session's served progress counts change with it.
       queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
       navigate(scoringPath);
     },
@@ -212,7 +211,7 @@ export function AssessmentCompletionScreen() {
 
   /*
     The proof separates the six universal core areas from the rank-specific
-    ledgers (FDR-018, by each item's served `category_is_core`). Everything that is not a core
+    ledgers (by each item's served `category_is_core`). Everything that is not a core
     area gets a ledger of its own under its served `category_display` - not
     just Techniques and Forms. A Weapons or Other requirement that was scored
     during the grading must still appear, or the permanent record would be
@@ -221,7 +220,7 @@ export function AssessmentCompletionScreen() {
   const coreGroups = categoryGroups.filter((group) => group.isCore);
   const ledgerGroups = categoryGroups.filter((group) => !group.isCore);
 
-  // Every recorded note, whichever way the requirement went (FDR-043).
+  // Every recorded note, whichever way the requirement went.
   const notedItems = items.filter((item) => item.assessor_notes);
 
   // Distinct assessors across the record, in the order they first appear.
@@ -450,7 +449,7 @@ export function AssessmentCompletionScreen() {
             {/*
               No percentage. `Result` is NOT_ASSESSED / MET / NOT_MET with no
               partial credit, so a percentage would imply a score the model
-              cannot express (FDR-046). Counts are served, not recounted.
+              cannot express. Counts are served, not recounted.
             */}
             <div className="acp-count-figure">
               <strong>{stats.requiredAssessed}</strong>

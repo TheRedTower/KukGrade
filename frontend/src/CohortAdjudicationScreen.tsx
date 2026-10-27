@@ -1,18 +1,18 @@
 /**
- * Master final decision - Cohort Adjudication Board (SCR-028, FDR-044).
+ * Master final decision - Cohort Adjudication Board.
  *
- * Replaces SCR-022's per-candidate slide-over. A locked session's cohort is a
+ * A locked session's cohort is a
  * decision queue: each row carries the served evidence counts, the
  * instructor's proposal and an inline Pass / Conditional / Fail; a detail pane
  * holds the row in focus. Decisions are staged first, then written one
- * candidate at a time, and every row succeeds or fails on its own (FDR-028) -
+ * candidate at a time, and every row succeeds or fails on its own -
  * nothing here is all-or-nothing, and failures stay staged for a retry.
  *
  * One deliberate deviation from the board: the detail pane lists **every**
  * recorded `assessor_notes` value, not only shortfalls (see
  * `SealedAssessmentEvidence`, which the proposal drawer shares).
  *
- * Counts are served (each assessment's `overall`, FDR-046), never
+ * Counts are served (each assessment's `overall`), never
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
@@ -142,7 +142,7 @@ export function CohortAdjudicationScreen() {
     rows.find((row) => row.decidable) ??
     rows[0];
   // A single decision is recorded beside its evidence, so not before that
-  // evidence has loaded (KG-A16).
+  // evidence has loaded.
   const focusEvidenceLoaded = useSealedEvidenceLoaded(focusRow?.assessment?.id);
 
   function stage(row: BoardRow, outcome: CandidateOutcomeOutcome) {

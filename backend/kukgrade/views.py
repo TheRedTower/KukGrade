@@ -134,7 +134,7 @@ class AboutSerializer(serializers.Serializer):
 
 def _build_time() -> datetime | None:
     """When the image was built; a time given without a zone is taken as UTC,
-    as `date -u` writes it (docs/deployment.md)."""
+    as `date -u` writes it (docs/installation.md)."""
     if not settings.BUILD_TIME:
         return None
     built = datetime.fromisoformat(settings.BUILD_TIME)

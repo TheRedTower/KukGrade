@@ -483,7 +483,7 @@ class CandidateAssessmentViewSet(
         """Category and overall rollup for one assessment, at any status.
 
         Served here rather than recounted by the client, so scoring, review
-        and the final-decision board all read the same counts. See FDR-046.
+        and the final-decision board all read the same counts.
         """
         summary = candidate_assessment_summary(self.get_object())
         return Response(CandidateAssessmentSummarySerializer(summary).data)
@@ -761,10 +761,10 @@ class LegacyGradingRecordViewSet(
     GenericViewSet,
 ):
     """Historical import records - read for both roles, reconciliation
-    (link/unlink/resolve-rank/void) administrator-only (import Decisions 1
-    and 15). No ordinary create/update/delete: rows are only ever
-    created by data_imports.services.commit_legacy_grading_import, and only
-    ever changed through the five gradings.legacy_services functions."""
+    (link/unlink/resolve-rank/void) administrator-only. No ordinary
+    create/update/delete: rows are only ever created by
+    data_imports.services.commit_legacy_grading_import, and only ever changed
+    through the five gradings.legacy_services functions."""
 
     serializer_class = LegacyGradingRecordSerializer
     permission_classes = [HasRequiredPermissions]
@@ -974,8 +974,8 @@ class LegacyGradingRecordViewSet(
     def people(self, request: Request, *args: object, **kwargs: object) -> Response:
         """Records grouped by the name as written, with suggested students.
 
-        Suggestions only: nothing is linked until a person confirms it
-        (import Decision 3). Voided records and sheet notes are left out.
+        Suggestions only: nothing is linked until a person confirms it.
+        Voided records and sheet notes are left out.
         Only the names on the page are scored for suggested students, unless
         the list is filtered by how clear those are, which needs them all.
         """

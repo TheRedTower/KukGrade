@@ -1,4 +1,4 @@
-"""Every upload is bounded while it is read, not after (KG-A10).
+"""Every upload is bounded while it is read, not after.
 
 Limits are patched down where the real ones would need a large fixture: the
 boundary logic is the same at any size. Synthetic workbooks only.
@@ -19,7 +19,7 @@ from openpyxl.workbook import Workbook
 
 from data_imports.ksw_adapter import (
     WorkbookStructureError,
-    parse_ksw_colchester_workbook,
+    parse_ksw_workbook,
 )
 from data_imports.models import ImportBatch
 from data_imports.parsers import (
@@ -237,19 +237,19 @@ def test_a_workbook_with_too_many_sheets_is_refused() -> None:
         patch("data_imports.ksw_adapter.MAX_SHEETS", 2),
         pytest.raises(WorkbookStructureError, match="more than 2 sheets"),
     ):
-        parse_ksw_colchester_workbook(cycle_sheets(3))
+        parse_ksw_workbook(cycle_sheets(3))
 
 
 def test_the_row_budget_is_shared_across_every_sheet() -> None:
     # Two sheets of three rows (header included) fit six; a seventh does not.
     content = cycle_sheets(2, rows_each=2)
     with patch("data_imports.ksw_adapter.MAX_WORKBOOK_ROWS", 6):
-        assert len(parse_ksw_colchester_workbook(content).rows) == 4
+        assert len(parse_ksw_workbook(content).rows) == 4
     with (
         patch("data_imports.ksw_adapter.MAX_WORKBOOK_ROWS", 5),
         pytest.raises(WorkbookStructureError, match="more than 5 rows"),
     ):
-        parse_ksw_colchester_workbook(content)
+        parse_ksw_workbook(content)
 
 
 def test_scanning_an_unknown_sheet_counts_against_the_budget() -> None:
@@ -263,7 +263,7 @@ def test_scanning_an_unknown_sheet_counts_against_the_budget() -> None:
         patch("data_imports.ksw_adapter.MAX_WORKBOOK_ROWS", 50),
         pytest.raises(WorkbookStructureError, match="more than 50 rows"),
     ):
-        parse_ksw_colchester_workbook(workbook_bytes(build))
+        parse_ksw_workbook(workbook_bytes(build))
 
 
 @pytest.mark.parametrize(
@@ -284,7 +284,7 @@ def test_the_workbook_is_closed_whether_or_not_it_parses(
         patch.object(Workbook, "close", autospec=True, side_effect=close) as spy,
     ):
         try:
-            parse_ksw_colchester_workbook(content)
+            parse_ksw_workbook(content)
         except WorkbookStructureError:
             pass
     assert spy.call_count == 1

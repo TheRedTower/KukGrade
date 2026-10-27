@@ -15,20 +15,16 @@ Before implementation, read:
 
 - `README.md`
 - `docs/README.md` - the index, which says what each document is for
-- `docs/current-system.md`
-- `docs/action_plan.md`
-- `docs/decision_log.md`
-- `docs/product-requirements.md`
-- `docs/architecture.md`
-- `docs/permissions.md`
-- `docs/development-workflow.md`
-- `docs/api_contract.md`
-- `backend/README.md`
+- `docs/features.md` - what exists, and who may do what
+- `docs/architecture.md` - how it is built and the rules the code follows
+- `docs/development.md` - running it, the checks, and the conventions
+- `docs/api.md` - the API conventions (`backend/schema.yml` is the contract)
+- `docs/roadmap.md` - what is still to come and what needs a decision
 
 Implemented stack: Django, Django REST Framework, React, TypeScript, Vite,
 PostgreSQL, pytest, Ruff, mypy, React Testing Library, Vitest, GitHub Actions
 CI, local Docker Compose for PostgreSQL, and a single-container production
-image (`docs/deployment.md`) that is not yet deployed to a live host.
+image (`docs/installation.md`).
 
 ## Domain Rules
 
@@ -43,8 +39,7 @@ image (`docs/deployment.md`) that is not yet deployed to a live host.
   never stored. Per-item free text is the single `assessor_notes` field, which
   records both shortfalls and positive observations; `CandidateAssessment.notes`
   carries the overall observation for the assessment. There is no separate
-  praise or positive-observation field, and none is planned - see the
-  2026-09-23 decision log entry.
+  praise or positive-observation field, and none is planned.
 - Historical grading records must remain reproducible.
 - The applicable syllabus depends on rank, age band, and syllabus version.
 - Every grading assesses the cumulative syllabus: everything examinable
@@ -54,7 +49,7 @@ image (`docs/deployment.md`) that is not yet deployed to a live host.
 - Each grading must retain the exact syllabus it was assessed against.
   Assessment item snapshots copy the full requirement text, so a past grading
   is reconstructable and cannot be changed by a later syllabus edit. An
-  explicit `SyllabusVersion` is deliberately deferred - see the decision log.
+  explicit `SyllabusVersion` is deliberately deferred (`docs/roadmap.md`).
 - Updating a syllabus must not change historical grading records.
 - Never hard-code syllabus rules directly into React components. Keep syllabus and grading rules in backend/domain data and APIs.
 - Student status is `ACTIVE`, `INACTIVE` or `LEFT`. `INACTIVE` is a temporary
@@ -113,11 +108,10 @@ Ranks:
 - Run relevant tests, linting, and type checking before finishing.
 - Avoid unrelated changes.
 - Prefer small, reviewable implementation slices.
-- Confirm unresolved decisions in `docs/decision_log.md` before large scaffolding, dependency, schema, or workflow choices.
-- `docs/current-system.md` is the current-state source of truth and
-  `docs/action_plan.md` lists the remaining work. The files in `docs/audits/`
-  are dated snapshots; do not treat their open findings as current without
-  checking.
+- Confirm unresolved decisions (`docs/roadmap.md`, "Needs a decision first") with
+  the owner before large scaffolding, dependency, schema, or workflow choices.
+- `docs/features.md` describes what exists and `docs/roadmap.md` is the one list
+  of remaining work. Update them in the same change when behaviour or scope changes.
 - Every API request and response is declared in `backend/schema.yml` and the
   frontend's types are generated from it. Never hand-write an API type in the
   frontend; declare the shape in the backend and regenerate.

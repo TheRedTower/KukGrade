@@ -165,8 +165,8 @@ def not_found(request: HttpRequest, exception: Exception) -> HttpResponse:
     """Handler404: an unknown `/api/` URL answers in the API's envelope.
 
     DRF only envelopes a 404 raised inside one of its views; a URL that
-    matches no route never reaches one, and got Django's HTML page instead
-    (KG-A22). Everything outside the API keeps Django's own page.
+    matches no route never reaches one, and got Django's HTML page instead.
+    Everything outside the API keeps Django's own page.
     """
     if request.path.startswith("/api/"):
         return JsonResponse(

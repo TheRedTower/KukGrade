@@ -318,13 +318,13 @@ def test_the_log_searches_summary_entity_and_actor() -> None:
     event = record(
         AuditAction.SESSION_CREATED,
         actor,
-        "Winter grading opened for Colchester.",
+        "Winter grading opened for Riverside.",
         actor=actor,
     )
     client = APIClient()
     client.force_authenticate(user=actor)
 
-    by_summary = client.get("/api/audit-events/?search=Colchester").json()
+    by_summary = client.get("/api/audit-events/?search=Riverside").json()
     by_entity = client.get(f"/api/audit-events/?search={actor.pk}").json()
     by_actor = client.get("/api/audit-events/?search=searchable-master").json()
 
@@ -369,7 +369,7 @@ def test_deleting_a_session_records_what_was_cascaded_away() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Logistics is an administrator concern (KG-048)
+# Logistics is an administrator concern
 # ---------------------------------------------------------------------------
 
 

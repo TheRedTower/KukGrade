@@ -1,9 +1,8 @@
 """The two forms a WKSA ID can take: defined once, enforced, served.
 
-A WKSA ID is the identifier a student is known by, never free text
-(decision log, "2026-10-20 - The WKSA ID scheme"):
+A WKSA ID is the identifier a student is known by, never free text:
 
-- a student ID, `NNN-N-NNN`: the school's prefix (`206-2` for Colchester,
+- a student ID, `NNN-N-NNN`: the school's prefix (`123-4` by default,
   `KUKGRADE_SCHOOL_PREFIX`) and the student's three-digit number, issued by
   the school owner; a student who transferred in may hold another school's
   prefix in the same form;

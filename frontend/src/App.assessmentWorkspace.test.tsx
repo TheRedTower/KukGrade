@@ -189,7 +189,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // The status pill also carries the start time in 1A, so match on the pill.
     expect(screen.getByTestId("caw-status-pill")).toHaveTextContent("In progress");
 
-    // Mat bar (FDR-042) carries the live count in place of the progress ledger
+    // Mat bar carries the live count in place of the progress ledger
     expect(screen.getByText("2 / 3")).toBeVisible();
     expect(screen.getByText("required assessed")).toBeVisible();
     expect(screen.getByText("1 met")).toBeVisible();
@@ -361,7 +361,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
   // The rollup and the item rows are separate requests. If the rollup fails on
   // its own the screen must say so, not render every count as zero.
-  // FDR-043: `assessor_notes` carries positive observations as well as
+  // `assessor_notes` carries positive observations as well as
   // shortfalls since the 2026-09-23 decision, so a note on a MET requirement
   // must appear on the proof. The review this replaced rendered only the notes
   // attached to NOT_MET items, which made a praise note invisible at the last
@@ -740,7 +740,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
 
     resolvePatch?.(jsonResponse(200, { ...mockItem1, result: "NOT_ASSESSED" }) as Response);
   });
-  // FDR-046: the rollup is served, not recounted here. The summary below
+  // The rollup is served, not recounted here. The summary below
   // deliberately disagrees with the items so a client-side recount would give
   // a visibly different answer.
   it("renders served counts rather than recounting the item rows", async () => {
@@ -845,7 +845,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     );
   });
 
-  // KG-A18: several item saves can be in flight at once. Each PATCH is held
+  // Several item saves can be in flight at once. Each PATCH is held
   // until the test releases it, and the "server" keeps the saved state, so a
   // refetch shows what was really stored.
   function scoringServer(initial: CandidateAssessmentItem[]) {
@@ -1012,7 +1012,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(patchedBody).toEqual({ result: "MET" });
   });
 
-  // FDR-045: the `candidate_item_assessor_matches_result` constraint nulls
+  // The `candidate_item_assessor_matches_result` constraint nulls
   // `assessor` and `assessed_at` when a result returns to NOT_ASSESSED, and
   // that attribution cannot be restored. Clearing therefore confirms inline
   // and names what it erases, instead of sitting as a third verdict button.
@@ -1237,7 +1237,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     expect(kicking).toHaveTextContent("1 of 2 required");
   });
 
-  it("transitions to the completion proof (SCR-027) and seals the record", async () => {
+  it("transitions to the completion proof and seals the record", async () => {
     // Assessment with all 3 items assessed (2 Met, 1 Not Met, 0 Not Assessed)
     const completedItemsAssessment: CandidateAssessment = {
       ...mockAssessment,
@@ -1304,7 +1304,7 @@ describe("Candidate Assessment Workspace Screen (/gradings/:sessionId/assessment
     // Click to enter review mode
     await user.click(completeBtn);
 
-    // The proof sheet renders as the document the record becomes (SCR-027)
+    // The proof sheet renders as the document the record becomes
     expect(await screen.findByRole("heading", { name: "Assessment record" })).toBeVisible();
     expect(screen.getByTestId("acp-stamp")).toHaveTextContent("Unsealed draft");
     expect(screen.getByText("Alex Carter")).toBeVisible();

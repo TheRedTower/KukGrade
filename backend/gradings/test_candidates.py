@@ -283,7 +283,7 @@ def test_real_candidate_update_records_exactly_one_event_with_full_metadata() ->
 def test_admin_created_candidate_is_persisted_and_audited() -> None:
     # Previously this called build_candidate() (unsaved) and relied on the
     # plain ModelAdmin save to persist it, so register_candidate()'s audit
-    # call never ran (KG-036).
+    # call never ran.
     session = grading_session()
     learner = student()
     obj = GradingCandidate(
@@ -458,7 +458,7 @@ def test_reinstating_a_withdrawn_candidate_clears_the_withdrawal() -> None:
 
 def test_candidate_patch_changes_nothing_but_the_session() -> None:
     built = candidate(session=grading_session(status=GradingSession.Status.OPEN))
-    other = student(wksa_id="206-2-500")
+    other = student(wksa_id="123-4-500")
 
     response = auth_client("student-swap@example.com").patch(
         f"/api/gradings/candidates/{built.pk}/",
@@ -485,7 +485,7 @@ def test_candidate_patch_changes_nothing_but_the_session() -> None:
 
 def test_a_registrations_student_cannot_be_changed() -> None:
     built = candidate()
-    built.student = student(wksa_id="206-2-500")
+    built.student = student(wksa_id="123-4-500")
 
     with pytest.raises(ValidationError):
         built.save()
@@ -504,11 +504,11 @@ def test_boolean_filters_accept_only_true_and_false() -> None:
 
 def test_candidate_api_filters_work() -> None:
     session = grading_session()
-    candidate_student = student(wksa_id="206-2-501")
+    candidate_student = student(wksa_id="123-4-501")
     built = candidate(session=session, student=candidate_student)
     candidate(
         session=grading_session(title="Other Session"),
-        student=student(wksa_id="206-2-502", first_name="Blair"),
+        student=student(wksa_id="123-4-502", first_name="Blair"),
     )
     client = auth_client("candidate-filter@example.com")
 
@@ -604,7 +604,7 @@ def test_candidate_api_delete_rules_work() -> None:
     )
     open_candidate = candidate(
         session=grading_session(status=GradingSession.Status.OPEN),
-        student=student(wksa_id="206-2-503"),
+        student=student(wksa_id="123-4-503"),
     )
     locked_candidate = candidate()
     GradingSession.objects.filter(pk=locked_candidate.session_id).update(
@@ -633,10 +633,10 @@ def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
         status=GradingSession.Status.DRAFT,
         title="Draft grading",
     )
-    unassessed = candidate(session=open_session, student=student(wksa_id="206-2-504"))
-    started = candidate(session=open_session, student=student(wksa_id="206-2-505"))
+    unassessed = candidate(session=open_session, student=student(wksa_id="123-4-504"))
+    started = candidate(session=open_session, student=student(wksa_id="123-4-505"))
     start_assessment(assessment(candidate=started))
-    prepared = candidate(session=draft_session, student=student(wksa_id="206-2-506"))
+    prepared = candidate(session=draft_session, student=student(wksa_id="123-4-506"))
     assessment(candidate=prepared)
     client = auth_client("candidate-flags@example.com")
 
@@ -660,8 +660,8 @@ def test_candidate_api_serves_whether_it_can_be_moved_or_removed() -> None:
 
 def test_bulk_register_creates_every_candidate_in_one_request() -> None:
     session = grading_session()
-    first_student = student(wksa_id="206-2-507")
-    second_student = student(wksa_id="206-2-508", first_name="Sam")
+    first_student = student(wksa_id="123-4-507")
+    second_student = student(wksa_id="123-4-508", first_name="Sam")
     client = auth_client("bulk-register@example.com")
 
     response = client.post(
@@ -700,14 +700,14 @@ def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -
     # one request with no rank picked at all, and each resolves to that
     # student's own next active rank.
     session = grading_session()
-    white_student = student(wksa_id="206-2-509", current_rank=rank("WHITE"))
+    white_student = student(wksa_id="123-4-509", current_rank=rank("WHITE"))
     blue_student = student(
-        wksa_id="206-2-510",
+        wksa_id="123-4-510",
         current_rank=rank("BLUE"),
         first_name="Robin",
     )
     brown_stripe_student = student(
-        wksa_id="206-2-511",
+        wksa_id="123-4-511",
         current_rank=rank("BROWN_STRIPE"),
         first_name="Sam",
     )
@@ -742,8 +742,8 @@ def test_bulk_register_resolves_testing_for_rank_from_each_students_own_belt() -
 
 def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
     session = grading_session()
-    valid_student = student(wksa_id="206-2-512")
-    already_registered_student = student(wksa_id="206-2-513")
+    valid_student = student(wksa_id="123-4-512")
+    already_registered_student = student(wksa_id="123-4-513")
     candidate(session=session, student=already_registered_student)
     client = auth_client("bulk-register-partial@example.com")
 
@@ -775,8 +775,8 @@ def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
 
 def test_bulk_register_can_generate_assessments_in_the_same_request() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    first_student = student(wksa_id="206-2-514")
-    second_student = student(wksa_id="206-2-515", first_name="Robin")
+    first_student = student(wksa_id="123-4-514")
+    second_student = student(wksa_id="123-4-515", first_name="Robin")
     client = auth_client("bulk-register-generate@example.com")
 
     response = client.post(
@@ -809,7 +809,7 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
     # active rank to resolve to), but that must not block the other row's
     # registration-and-generation in the same request.
     session = grading_session(status=GradingSession.Status.OPEN)
-    registerable_student = student(wksa_id="206-2-516")
+    registerable_student = student(wksa_id="123-4-516")
     topped_out_student = student(
         wksa_id="A-00517",
         current_rank=rank("PKJN"),
@@ -842,8 +842,8 @@ def test_bulk_register_with_generation_rolls_back_only_the_failing_row() -> None
 
 def test_bulk_generate_assessments_creates_every_snapshot_in_one_request() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    first_candidate = candidate(session=session, student=student(wksa_id="206-2-518"))
-    second_candidate = candidate(session=session, student=student(wksa_id="206-2-519"))
+    first_candidate = candidate(session=session, student=student(wksa_id="123-4-518"))
+    second_candidate = candidate(session=session, student=student(wksa_id="123-4-519"))
     client = auth_client("bulk-generate@example.com")
 
     response = client.post(
@@ -869,8 +869,8 @@ def test_bulk_generate_assessments_creates_every_snapshot_in_one_request() -> No
 
 def test_bulk_generate_assessments_is_independent_per_row() -> None:
     session = grading_session(status=GradingSession.Status.OPEN)
-    fresh_candidate = candidate(session=session, student=student(wksa_id="206-2-520"))
-    already_assessed = candidate(session=session, student=student(wksa_id="206-2-521"))
+    fresh_candidate = candidate(session=session, student=student(wksa_id="123-4-520"))
+    already_assessed = candidate(session=session, student=student(wksa_id="123-4-521"))
     assessment(candidate=already_assessed)
     client = auth_client("bulk-generate-partial@example.com")
 
@@ -892,10 +892,10 @@ def test_bulk_start_starts_every_assessment_in_one_request() -> None:
     # caller chooses whether to bulk-start assessments or not.
     session = grading_session(status=GradingSession.Status.OPEN)
     first_assessment = assessment(
-        candidate=candidate(session=session, student=student(wksa_id="206-2-522")),
+        candidate=candidate(session=session, student=student(wksa_id="123-4-522")),
     )
     second_assessment = assessment(
-        candidate=candidate(session=session, student=student(wksa_id="206-2-523")),
+        candidate=candidate(session=session, student=student(wksa_id="123-4-523")),
     )
     client = auth_client("bulk-start@example.com")
 
@@ -927,7 +927,7 @@ def test_bulk_start_is_independent_per_row() -> None:
     fresh_assessment = assessment(
         candidate=candidate(
             session=open_session,
-            student=student(wksa_id="206-2-524"),
+            student=student(wksa_id="123-4-524"),
         ),
     )
     # Generated while still draft (allowed), but starting requires the
@@ -936,7 +936,7 @@ def test_bulk_start_is_independent_per_row() -> None:
     draft_session_assessment = assessment(
         candidate=candidate(
             session=grading_session(status=GradingSession.Status.DRAFT),
-            student=student(wksa_id="206-2-525"),
+            student=student(wksa_id="123-4-525"),
         ),
     )
     client = auth_client("bulk-start-partial@example.com")
@@ -962,10 +962,10 @@ def test_bulk_update_status_confirms_attendance_independently_per_row() -> None:
     # not show up, set them WITHDRAWN in one request, and everyone else is
     # left untouched.
     session = grading_session()
-    absent_first = candidate(session=session, student=student(wksa_id="206-2-526"))
+    absent_first = candidate(session=session, student=student(wksa_id="123-4-526"))
     absent_second = candidate(
         session=session,
-        student=student(wksa_id="206-2-527", first_name="Robin"),
+        student=student(wksa_id="123-4-527", first_name="Robin"),
     )
     client = auth_client("bulk-attendance@example.com")
 
@@ -1004,9 +1004,9 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
 ):
     open_session_candidate = candidate(
         session=grading_session(status=GradingSession.Status.OPEN),
-        student=student(wksa_id="206-2-528"),
+        student=student(wksa_id="123-4-528"),
     )
-    locked_session_candidate = candidate(student=student(wksa_id="206-2-529"))
+    locked_session_candidate = candidate(student=student(wksa_id="123-4-529"))
     GradingSession.objects.filter(
         pk=locked_session_candidate.session_id,
     ).update(status=GradingSession.Status.LOCKED)
@@ -1034,7 +1034,7 @@ def test_bulk_update_status_is_independent_when_one_candidates_session_is_locked
 
 def test_a_student_who_has_left_cannot_be_registered_for_a_grading() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
-    learner = student(wksa_id="206-2-530")
+    learner = student(wksa_id="123-4-530")
     learner.status = Student.Status.LEFT
     learner.save()
 
@@ -1050,7 +1050,7 @@ def test_a_student_who_has_left_cannot_be_registered_for_a_grading() -> None:
 
 def test_an_inactive_student_can_still_be_registered() -> None:
     session = grading_session(status=GradingSession.Status.DRAFT)
-    learner = student(wksa_id="206-2-531")
+    learner = student(wksa_id="123-4-531")
     learner.status = Student.Status.INACTIVE
     learner.save()
 
@@ -1098,7 +1098,7 @@ def test_bulk_registration_reports_a_duplicate_insert_and_keeps_the_other_rows()
 def test_a_move_onto_an_existing_registration_is_refused_by_the_service() -> None:
     # The duplicate is translated where the save happens, so Django admin -
     # which calls the service directly - gets the same refusal the API did,
-    # instead of an IntegrityError (KG-A11).
+    # instead of an IntegrityError.
     source = grading_session(status=GradingSession.Status.OPEN, title="Source")
     target = grading_session(status=GradingSession.Status.OPEN, title="Target")
     both = student()

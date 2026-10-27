@@ -1,6 +1,6 @@
-"""Suggested students and bulk links for historical records (import overhaul A6).
+"""Suggested students and bulk links for historical records.
 
-Suggestions only - KukGrade never links on its own (import Decision 3). The
+Suggestions only - KukGrade never links on its own. The
 names are written as the club's workbook writes them: first names, initials,
 a title in front, a slip in the spelling. Synthetic names only.
 """
@@ -55,7 +55,7 @@ def student(
 ) -> Student:
     number = Student.objects.count() + 1
     return Student.objects.create(
-        wksa_id=wksa_id or f"206-2-{number:03d}",
+        wksa_id=wksa_id or f"123-4-{number:03d}",
         first_name=first,
         last_name=last,
         date_of_birth=date(2012, 5, 1),

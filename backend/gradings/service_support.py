@@ -17,7 +17,7 @@ def each_independently[T, R](
     the others. A refusal is a ValidationError - including the one uniqueness
     race a service expects, which that service translates itself - and the
     savepoint rolls back whatever the row had written. Any other exception is
-    a real failure and aborts the whole batch (KG-A11). Returns what
+    a real failure and aborts the whole batch. Returns what
     succeeded plus a map of row index to that row's error messages.
     `.messages` flattens dict- and list-shaped ValidationErrors alike.
     """
@@ -38,7 +38,7 @@ def unique_violation_on(exc: IntegrityError, model: type[models.Model]) -> bool:
     That is the one integrity error a create expects - another request
     creating the same record first - so it becomes a domain error. Anything
     else is a real defect and propagates as itself rather than being
-    reported as a duplicate (KG-A11).
+    reported as a duplicate.
     """
     cause = exc.__cause__
     return (

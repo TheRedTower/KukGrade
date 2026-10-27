@@ -7,7 +7,7 @@
  * here rather than being duplicated across both files.
  *
  * Counts come from `GET /api/gradings/assessments/{id}/summary/`, not from
- * recounting rows here (FDR-046). It works at any assessment status, so it
+ * recounting rows here. It works at any assessment status, so it
  * serves scoring as well as review.
  *
  * The client groups the served items by category for rendering, since headers
@@ -92,7 +92,7 @@ export function useCandidateAssessmentData(
 
   // Grouped by category for rendering only, keeping the served syllabus order.
   // The counts on each group come from the served summary, not from
-  // recounting these rows (FDR-046).
+  // recounting these rows.
   const categoryGroups: CategoryGroup[] = useMemo(() => {
     if (items.length === 0) return [];
 
@@ -188,7 +188,7 @@ export function useCandidateAssessmentData(
  * query cache, so it survives the round trip and is cleared once the
  * assessment is sealed.
  *
- * Keyed by assessment, not candidate (KG-A18): a deleted and regenerated
+ * Keyed by assessment, not candidate: a deleted and regenerated
  * assessment is a new record and starts without the old one's draft, and
  * moving to another assessment without a remount shows that one's draft.
  * Signing out clears the cache, so a draft never reaches another account.
@@ -225,7 +225,7 @@ export function useAssessmentNotesDraft(assessmentId: number | undefined) {
 }
 
 /**
- * Everything a deleted assessment leaves cached (KG-A18). The delete cascades
+ * Everything a deleted assessment leaves cached. The delete cascades
  * through its outcome and promotion and can revert the student's rank, so
  * those reads are refetched; the assessment's own record, items, rollup and
  * notes draft are dropped, so a regenerated assessment starts clean.

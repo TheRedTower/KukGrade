@@ -38,7 +38,7 @@ function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen 
 
 /**
  * Linking historical records to students: every name as written in the
- * workbook, many at a time (FDR-059). KukGrade only suggests; nothing is
+ * workbook, many at a time. KukGrade only suggests; nothing is
  * linked until a person says so, and a link can be undone.
  */
 export function LinkRecordsScreen() {

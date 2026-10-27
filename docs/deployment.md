@@ -215,7 +215,8 @@ other roles), and `postgres`, the superuser, for an operator who needs it
 (`docker compose exec kukgrade psql -U postgres`). A database made before this
 split has the app's role as its superuser and says so in the log at each start;
 dump it, empty `data/postgres/` and restore to move it over. The container stops the database cleanly when it stops (the compose files allow two minutes, enough for the app to finish what it is doing and then the database to checkpoint).
-If either the database or the app stops, the container exits and `restart:
+Processes left running in the background from a `docker exec` shell are
+collected when they end, so none is left as a zombie. If either the database or the app stops, the container exits and `restart:
 unless-stopped` brings both back.
 
 A PostgreSQL you already run can be used instead: set `POSTGRES_HOST` (and

@@ -47,6 +47,36 @@ RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
     && mkdir -p /var/lib/kukgrade/import_uploads /var/lib/kukgrade/tls \
     && chown -R appuser:appuser /var/lib/kukgrade \
     && chmod 755 /app/entrypoint.sh
+# The database the image carries, from Debian's own PostgreSQL package. No
+# cluster is made at install time: kukgrade/serve.py makes the database in
+# /var/lib/kukgrade/postgres on first start. Its major version is the one this
+# image is built with; changing it means dumping and restoring (docs/deployment.md).
+RUN set -e \
+    && mkdir -p /etc/postgresql-common \
+    && printf 'create_main_cluster = false\n' > /etc/postgresql-common/createcluster.conf \
+    && apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends postgresql-17 \
+    && rm -rf /var/lib/apt/lists/* \
+    # Left out because the app never uses them: just-in-time compilation is
+    # off (it pulls in LLVM), the server's Perl and the cluster-management
+    # wrappers (the app makes its own cluster), locale source data (the
+    # database uses C.UTF-8), and tools for replication, upgrades and
+    # benchmarks. The tools an operator needs stay: psql, pg_dump, pg_restore.
+    && rm -rf /usr/lib/x86_64-linux-gnu/libLLVM* /usr/lib/aarch64-linux-gnu/libLLVM* \
+              /usr/lib/x86_64-linux-gnu/libz3* /usr/lib/aarch64-linux-gnu/libz3* \
+              /usr/lib/postgresql/*/lib/llvmjit* /usr/lib/postgresql/*/lib/bitcode \
+              /usr/lib/*-linux-gnu/libperl* /usr/lib/*-linux-gnu/perl /usr/share/perl \
+              /usr/lib/*-linux-gnu/gconv \
+              /usr/share/i18n /usr/share/locale /usr/share/postgresql-common \
+    && cd /usr/lib/postgresql/17/bin \
+    && rm -f pgbench pg_test_fsync pg_test_timing pg_waldump pg_walsummary \
+             pg_rewind pg_receivewal pg_recvlogical pg_basebackup pg_combinebackup \
+             pg_verifybackup pg_createsubscriber pg_upgrade oid2name vacuumlo \
+             pg_archivecleanup pg_amcheck clusterdb reindexdb \
+    && find /usr/bin -lname '*pg_wrapper' -delete \
+    && for tool in psql pg_dump pg_dumpall pg_restore pg_isready createdb; do \
+         ln -s "/usr/lib/postgresql/17/bin/$tool" "/usr/local/bin/$tool"; \
+       done
 # Then remove what neither the app nor an emergency repair needs. Kept on
 # purpose: the shell, Python, manage.py and the openssl command (an operator's
 # repair tools; the app makes its own certificate with openssl).
@@ -94,14 +124,19 @@ ENV PATH=/app/backend/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bi
     LANG=C.UTF-8 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    KUKGRADE_IMPORT_UPLOAD_ROOT=/var/lib/kukgrade/import_uploads
+    KUKGRADE_IMPORT_UPLOAD_ROOT=/var/lib/kukgrade/import_uploads \
+    KUKGRADE_EMBEDDED_SOCKET=/tmp/kukgrade-pg \
+    PGHOST=/tmp/kukgrade-pg \
+    PGUSER=kukgrade \
+    PGDATABASE=kukgrade
 # Which build this is, for the About page; empty when not passed.
 ARG KUKGRADE_BUILD_COMMIT=""
 ARG KUKGRADE_BUILD_TIME=""
 ENV KUKGRADE_BUILD_COMMIT=$KUKGRADE_BUILD_COMMIT \
     KUKGRADE_BUILD_TIME=$KUKGRADE_BUILD_TIME
 WORKDIR /app/backend
-USER appuser
+# Starts as root only to hand /var/lib/kukgrade to the app's user, then runs the
+# database and the app as that user (kukgrade/serve.py).
 EXPOSE 6942
 HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
     CMD ["python", "-m", "kukgrade.container_health"]

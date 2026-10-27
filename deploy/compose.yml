@@ -1,0 +1,12 @@
+# KukGrade on its own, reached directly on port 6942 over HTTPS.
+# Copy .env.example to .env, fill it in, then: docker compose up -d
+services:
+  kukgrade:
+    image: ghcr.io/theredtower/kukgrade:latest
+    restart: unless-stopped
+    stop_grace_period: 2m
+    env_file: .env
+    ports:
+      - "6942:6942"
+    volumes:
+      - ./data:/var/lib/kukgrade

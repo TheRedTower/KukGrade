@@ -1,0 +1,19 @@
+# KukGrade behind a Cloudflare Tunnel: no port is opened on this host. Put
+# TUNNEL_TOKEN (from the Cloudflare dashboard) in .env, and give the tunnel a
+# public hostname whose service is http://kukgrade:6942.
+#   docker compose -f compose.cloudflared.yml up -d
+services:
+  kukgrade:
+    image: ghcr.io/theredtower/kukgrade:latest
+    restart: unless-stopped
+    stop_grace_period: 2m
+    env_file: .env
+    volumes:
+      - ./data:/var/lib/kukgrade
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Set TUNNEL_TOKEN in .env}

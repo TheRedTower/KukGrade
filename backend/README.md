@@ -17,8 +17,10 @@ With `DJANGO_DEBUG=false` the transport-security settings
 (`SECURE_SSL_REDIRECT`, `SECURE_HSTS_SECONDS`, `SECURE_HSTS_INCLUDE_SUBDOMAINS`,
 `SECURE_HSTS_PRELOAD`) and the secure cookie flags all default to their
 hardened values; each can be overridden individually to opt out.
-`DJANGO_BEHIND_TLS_PROXY` is the exception and defaults off even in
-production - see the comment in `kukgrade/settings.py`. The browsable API
+The forwarded scheme is trusted only once proxies are declared with
+`DJANGO_NUM_PROXIES` - see the comment in `kukgrade/settings.py`; a deployment
+with no proxy in front serves HTTPS itself or, deliberately, plain HTTP
+(`KUKGRADE_TRANSPORT`). The browsable API
 renderer is only registered when debug is on. `manage.py check --deploy
 --fail-level WARNING` is clean and enforced in CI.
 

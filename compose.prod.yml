@@ -39,7 +39,7 @@ services:
       - "traefik.http.routers.kukgrade.entrypoints=websecure"
       - "traefik.http.routers.kukgrade.tls=true"
       - "traefik.http.routers.kukgrade.tls.certresolver=cloudflare"
-      - "traefik.http.services.kukgrade.loadbalancer.server.port=8000"
+      - "traefik.http.services.kukgrade.loadbalancer.server.port=6942"
 
 networks:
   apps_net:

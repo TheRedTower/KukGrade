@@ -36,7 +36,7 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    `X-Forwarded-For` Cloudflare set, leaving the visitor second from the end -
    and if the host accepts web traffic only from Cloudflare. Verify both, and
    that `X-Forwarded-Proto` cannot be set by a client, before keeping
-   `DJANGO_BEHIND_TLS_PROXY=true` and `DJANGO_NUM_PROXIES=2`. With the wrong
+   `DJANGO_NUM_PROXIES=2`. With the wrong
    count every visitor shares Cloudflare's address and the login throttle
    locks everyone out together.
 
@@ -100,6 +100,47 @@ Check `https://www.kukgrade.co.uk/`, a deep link such as
 write to confirm session cookies and CSRF across the HTTPS proxy. The
 frontend calls `/api/` on the same origin; no production CORS origin or API
 subdomain is needed.
+
+## How the app is reached
+
+One setting says what is in front of the app: `DJANGO_NUM_PROXIES`, the number
+of reverse proxies or tunnels in a chain, all trusted. The first one, facing
+the public, must discard any `X-Forwarded-For` and `X-Forwarded-Proto` a client
+sent and start them from the connection it saw; each further proxy appends the
+address of the one before it and passes the scheme on. Everything else follows
+from the count.
+
+| `DJANGO_NUM_PROXIES` | The app | TLS | Client address for the login throttle |
+| --- | --- | --- | --- |
+| `0` (default) | reached directly on its port | the app serves HTTPS itself, or plain HTTP if `KUKGRADE_TRANSPORT=http` | the connection's own address; `X-Forwarded-For` is ignored |
+| `N` above 0 | plain HTTP behind `N` proxies | ends at the proxies; the forwarded scheme is trusted | the Nth-from-last `X-Forwarded-For` entry |
+
+The count must match what really sits in front. Too low and visitors are all
+seen as the proxy's address (the login throttle locks everyone out together);
+too high and a client can choose its own address. Do not publish the app's port
+to anyone but the proxy when proxies are declared, or a client could reach it
+directly with forged headers.
+
+- The app listens on port `6942`, fixed (not a common service's port nor one
+  of this project's development servers' 8000, 5173 and 5432). There is no
+  setting for it: to reach the app on another host port, map it in Compose,
+  for example `ports: "7443:6942"`. Anything routing to the app (a proxy, a
+  tunnel) targets 6942.
+- `KUKGRADE_TRANSPORT` (`https`, the default, or `http`): only for
+  `DJANGO_NUM_PROXIES=0`. `https` serves TLS from the certificate in
+  `KUKGRADE_TLS_CERT` and the key in `KUKGRADE_TLS_KEY` (both or neither), or,
+  with neither, from a self-signed pair the app makes on first start and keeps
+  in `KUKGRADE_TLS_DIR` (default `/var/lib/kukgrade/tls`, a volume that must be
+  writable by UID 10001), made again at start when under 30 days remain or when
+  `DJANGO_ALLOWED_HOSTS` has changed (restart to renew a long-running container
+  or to add a new host name). A self-signed
+  certificate encrypts the connection but browsers will warn about it; bring a
+  real certificate for a real name. `http` turns the HTTPS redirect, secure
+  cookies and HSTS off, and logs a warning at start: passwords and sessions
+  travel unencrypted, so use it only on a network you trust.
+
+The owner's Traefik deployment (`compose.prod.yml`) is `DJANGO_NUM_PROXIES=2`
+(Cloudflare, then Traefik); the app's own port stays unpublished there.
 
 ## Updates, backups and recovery
 

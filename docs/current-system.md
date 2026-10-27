@@ -37,10 +37,14 @@ push and pull request.
 - **Settings fail closed.** `DEBUG` defaults false; a missing
   `DJANGO_SECRET_KEY` with debug off refuses to start. HSTS (one year,
   subdomains included), SSL redirect and secure cookies default on; HSTS
-  preload defaults off and is an explicit opt-in. The one exception is the reverse-proxy header
-  (`DJANGO_BEHIND_TLS_PROXY`), which defaults **off** even in production and
-  must be opted into explicitly - trusting it without a proxy that actually
-  strips it lets a client spoof an already-secure request. The browsable API
+  preload defaults off and is an explicit opt-in. The reverse-proxy scheme
+  header is trusted only once proxies are declared (`DJANGO_NUM_PROXIES` above
+  zero) - trusting it without a proxy that actually strips it lets a client
+  spoof an already-secure request. With no proxy declared the app listens on
+  port 6942 (fixed; map another host port in Compose) and serves HTTPS itself, from a mounted
+  certificate or a self-signed one it makes, unless told to serve plain HTTP
+  (`KUKGRADE_TRANSPORT=http`, which turns the HTTPS redirect, secure cookies
+  and HSTS off and logs a warning). The browsable API
   is debug-only. PostgreSQL only; a SQLite fallback used to exist and could
   not actually run this application, so it was removed rather than fixed.
 - **Authentication**: email-first custom user, Django sessions, CSRF.
@@ -764,8 +768,9 @@ push and pull request.
   bound holds as stated. If that ever becomes multi-process, the throttle
   needs a shared cache (Redis) or the bound loosens to 10/min per process;
   see the 2026-09-15 decision log entry.
-  Production sits behind Cloudflare and then Traefik, so the throttle trusts
-  two proxy hops (`DJANGO_NUM_PROXIES=2`) to find the visitor's address.
+  The throttle trusts as many proxy hops as are declared
+  (`DJANGO_NUM_PROXIES`; the owner's deployment sits behind Cloudflare and then
+  Traefik, so 2) to find the visitor's address.
 - **Sessions end after two hours without a request** (`SESSION_COOKIE_AGE`,
   with `SESSION_SAVE_EVERY_REQUEST` sliding it forward). Nothing in the
   frontend polls, so an idle tab does not keep a session alive. Any request

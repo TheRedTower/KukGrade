@@ -39,6 +39,15 @@ def env_int(name: str, default: int) -> int:
         raise ImproperlyConfigured(msg) from exc
 
 
+def env_choice(name: str, default: str, choices: tuple[str, ...]) -> str:
+    """One of a fixed set of words, checked when settings load."""
+    value = os.environ.get(name, "").strip().lower() or default
+    if value not in choices:
+        msg = f"{name} must be one of {', '.join(choices)}, got {value!r}."
+        raise ImproperlyConfigured(msg)
+    return value
+
+
 def env_time_zone(name: str, default: str) -> str:
     """An IANA zone name such as Europe/London, checked when settings load.
 
@@ -73,6 +82,56 @@ if not _SECRET_KEY:
     _SECRET_KEY = "unsafe-development-only-kukgrade-secret-key"
 SECRET_KEY = _SECRET_KEY
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+
+# How the app is reached (docs/deployment.md, "How the app is reached").
+# The port the app listens on inside the container (or on the host, for a
+# bare-metal install). It is fixed and not an environment variable: to reach
+# the app on another port, map it in Compose (`ports: "7443:6942"`), the way
+# any container's port is chosen. Not a common service's port, nor one of this
+# project's development servers' (8000, 5173, 5432).
+PORT = 6942
+if "DJANGO_BEHIND_TLS_PROXY" in os.environ:
+    _MSG = (
+        "DJANGO_BEHIND_TLS_PROXY no longer exists. Declare the proxies in front "
+        "with DJANGO_NUM_PROXIES (a number above 0), or remove it."
+    )
+    raise ImproperlyConfigured(_MSG)
+# How many reverse proxies or tunnels sit in front of the app, each trusted.
+# 0: reached directly. Above 0: TLS ends at the proxies, the forwarded scheme
+# is trusted, and the client address is the Nth-from-last X-Forwarded-For
+# entry. The wrong count lets every visitor share one address (the login
+# throttle then locks everyone out together) or lets a client choose theirs.
+PROXY_HOPS = env_int("DJANGO_NUM_PROXIES", 0)
+if PROXY_HOPS < 0:
+    _MSG = f"DJANGO_NUM_PROXIES must be 0 or more, got {PROXY_HOPS}."
+    raise ImproperlyConfigured(_MSG)
+# With no proxy in front: "https" serves TLS itself (a mounted certificate or
+# a generated self-signed one, kukgrade/tls.py); "http" serves plain HTTP,
+# only for a network you trust. With proxies in front it has no effect.
+TRANSPORT = env_choice("KUKGRADE_TRANSPORT", "https", ("https", "http"))
+# The certificate and key to serve TLS with; both or neither. Neither means a
+# self-signed pair, generated under KUKGRADE_TLS_DIR and kept there.
+TLS_CERT_FILE = os.environ.get("KUKGRADE_TLS_CERT", "").strip()
+TLS_KEY_FILE = os.environ.get("KUKGRADE_TLS_KEY", "").strip()
+if bool(TLS_CERT_FILE) != bool(TLS_KEY_FILE):
+    _MSG = "KUKGRADE_TLS_CERT and KUKGRADE_TLS_KEY must be set together."
+    raise ImproperlyConfigured(_MSG)
+TLS_DIR = Path(
+    os.environ.get("KUKGRADE_TLS_DIR", "").strip() or "/var/lib/kukgrade/tls"
+)
+
+# Transport security. Every value defaults to the secure setting whenever
+# DEBUG is false, so a production deployment is hardened by default and a
+# developer opts out locally rather than opting in for production. The one
+# deliberate exception is a deployment reached directly (no proxy) that has
+# been told to serve plain HTTP: KUKGRADE_TRANSPORT=http, for a trusted
+# network, turns the HTTPS redirect, secure cookies and HSTS off, since a
+# browser would otherwise never send the session cookie back.
+PLAIN_HTTP = not DEBUG and PROXY_HOPS == 0 and TRANSPORT == "http"
+_SECURE_TRANSPORT = not DEBUG and not PLAIN_HTTP
+# The app itself terminates TLS: reached directly, told to serve HTTPS, and not
+# the development server (kukgrade/gunicorn_conf.py reads this).
+SERVES_TLS = not DEBUG and PROXY_HOPS == 0 and TRANSPORT == "https"
 
 INSTALLED_APPS = [
     "accounts",
@@ -264,10 +323,10 @@ REST_FRAMEWORK = {
         "password_change": "10/min",
         "setup": "10/min",
     },
-    # Production sits behind Cloudflare and then Traefik: two trusted hops,
-    # so the client address is the second-to-last X-Forwarded-For entry.
-    # Zero ignores untrusted X-Forwarded-For in native development.
-    "NUM_PROXIES": env_int("DJANGO_NUM_PROXIES", 0),
+    # How many proxies sit in front, each trusted: the client address is the
+    # Nth-from-last X-Forwarded-For entry (see PROXY_HOPS). Zero ignores
+    # X-Forwarded-For altogether.
+    "NUM_PROXIES": PROXY_HOPS,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -344,8 +403,8 @@ CSRF_TRUSTED_ORIGINS = env_list(
     "http://localhost:5173",
 )
 CSRF_FAILURE_VIEW = "kukgrade.exceptions.csrf_failure"
-SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", not DEBUG)
-CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", not DEBUG)
+SESSION_COOKIE_SECURE = env_bool("DJANGO_SESSION_COOKIE_SECURE", _SECURE_TRANSPORT)
+CSRF_COOKIE_SECURE = env_bool("DJANGO_CSRF_COOKIE_SECURE", _SECURE_TRANSPORT)
 SESSION_COOKIE_HTTPONLY = True
 # Signed out after two hours with no request. Saving on every request slides
 # the expiry forward, so the two hours count from the last activity, not
@@ -357,17 +416,16 @@ CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = os.environ.get("DJANGO_SESSION_COOKIE_SAMESITE", "Lax")
 CSRF_COOKIE_SAMESITE = os.environ.get("DJANGO_CSRF_COOKIE_SAMESITE", "Lax")
 
-# Transport security. Every value defaults to the secure setting whenever
-# DEBUG is false, so a production deployment is hardened by default and a
-# developer opts out locally rather than opting in for production.
-SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", not DEBUG)
+# Transport security. Every value defaults to the secure setting; see
+# _SECURE_TRANSPORT above.
+SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", _SECURE_TRANSPORT)
 SECURE_HSTS_SECONDS = env_int(
     "DJANGO_SECURE_HSTS_SECONDS",
-    0 if DEBUG else 31536000,
+    31536000 if _SECURE_TRANSPORT else 0,
 )
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool(
     "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS",
-    not DEBUG,
+    _SECURE_TRANSPORT,
 )
 # Preload is off by default: listing the domain in browsers' preload lists is
 # close to permanent for kukgrade.co.uk and every subdomain, and the header's
@@ -378,16 +436,15 @@ SECURE_HSTS_PRELOAD = env_bool("DJANGO_SECURE_HSTS_PRELOAD", False)
 # oversight (2026-09-28 decision log entry).
 SILENCED_SYSTEM_CHECKS = [] if SECURE_HSTS_PRELOAD else ["security.W021"]
 
-# Set when TLS terminates at a reverse proxy that forwards the scheme, so
-# Django can tell an already-secure request from one that needs redirecting.
-# Defaults off even in production, unlike every other transport setting
-# above: trusting this header is only safe when the proxy is guaranteed to
-# strip or overwrite any client-supplied value first, and Django's own
-# documentation warns that enabling it without that guarantee lets a client
-# spoof "this request is already secure" and defeat SECURE_SSL_REDIRECT.
-# That guarantee is a deployment fact this code cannot verify, so it has to
-# be opted into rather than assumed.
-if env_bool("DJANGO_BEHIND_TLS_PROXY", False):
+# Set when proxies are declared in front (PROXY_HOPS above zero), so Django
+# can tell an already-secure request from one that needs redirecting. Declaring
+# a proxy is the opt-in: trusting this header is only safe when the proxy is
+# guaranteed to strip or overwrite any client-supplied value first, and
+# Django's own documentation warns that trusting it without that guarantee
+# lets a client spoof "this request is already secure" and defeat
+# SECURE_SSL_REDIRECT. That guarantee is a deployment fact this code cannot
+# verify, so with no proxy declared the header is never trusted.
+if PROXY_HOPS > 0:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # No request body, no user object and no exception argument is ever passed

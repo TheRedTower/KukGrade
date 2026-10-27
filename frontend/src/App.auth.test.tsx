@@ -578,9 +578,7 @@ describe("Login theme toggle", () => {
     await screen.findByRole("heading", { name: "Sign in" });
     // The shim's system preference is light; the resolved theme is still
     // written, so component overrides keyed on data-theme apply.
-    await waitFor(() => {
-      expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-    });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
     expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
       "aria-pressed",
       "true",

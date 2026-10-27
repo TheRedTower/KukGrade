@@ -42,11 +42,10 @@ Want something here, or something that is missing? Open an
 
 ## Needs a decision first
 
-- **Black belt syllabus.** The WKSA black belt charts are recorded exactly as printed for Kyo Sa Nim
-  (adult, and the Youth chart for 13-17), Pu Sa buhm Nim and Sa Buhm nim (adults only); Pyung Kwahn
-  Jung Nim has no chart. To confirm: whether a black belt grading assesses its chart on top of the
-  cumulative lower ranks, as every grading does today, and how the charts' section names (kept in
-  each line's notes) should appear on screen.
+- **Black belt syllabus.** The app holds the syllabus up to Jo Kyo Nim. The charts for the
+  ranks above it (Kyo Sa Nim and up) are not included; a school that needs them can enter them
+  as syllabus data. To decide: whether a black belt grading assesses its own chart on top of the
+  cumulative lower ranks, as every grading does today.
 - **Black belt testing.** Black belt candidates register and pay the national association, then
   must sit a minimum number of gradings (six for Jo Kyo Nim, more above) before a final national
   testing. What KukGrade should model of this (registration, the count, national testings as

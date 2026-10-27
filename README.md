@@ -51,7 +51,7 @@ and shows who decided what.
 | **Assessment** | Item-level *Met / Not met* with notes, results rolled up by category, attendance confirmed in bulk |
 | **Decisions** | Instructor proposals, a Master's decision board, Pass / Fail / Conditional, then promotion with permanent rank history |
 | **Students** | Records, status (active, inactive, left), school and national IDs, and one timeline of every grading |
-| **Syllabus** | WKSA charts for every rank and age band (black belt charts included), held as data, never hard-coded |
+| **Syllabus** | WKSA charts for the ranks up to Jo Kyo Nim and every age band, held as data, never hard-coded |
 | **Import** | Bring in an existing roster, and past gradings from an old spreadsheet, with a guided review |
 | **Accounts & roles** | Instructors and administrators; Master authority granted per person; temporary passwords that expire |
 | **Audit log** | Who did what, when, written in the same transaction as the change |

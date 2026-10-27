@@ -23,8 +23,9 @@ class RankSerializer(serializers.ModelSerializer):
     has_syllabus = serializers.BooleanField(
         read_only=True,
         help_text=(
-            "False for the ranks above the highest one with any syllabus "
-            "recorded; their charts are not in the app yet."
+            "False for a rank with no syllabus recorded of its own (White, and "
+            "the ranks above Jo Kyo Nim until their charts are in). Such a rank "
+            "is left out of the syllabus screen and cannot be graded for."
         ),
     )
 

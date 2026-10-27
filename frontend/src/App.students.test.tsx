@@ -671,6 +671,38 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByText("No grading history recorded")).toBeVisible();
   });
 
+  it("does not offer a next rank whose syllabus is not recorded", async () => {
+    const ranks = testRanks.map((rank) => (rank.id === 3 ? { ...rank, has_syllabus: false } : rank));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+        if (url.includes("/api/ranks/")) {
+          return jsonResponse(200, { count: 3, next: null, previous: null, results: ranks });
+        }
+        if (url.includes("/api/students/10/rank-history/")) {
+          return jsonResponse(200, {
+            student: 10,
+            student_display_name: "Alex Carter (UK-5001)",
+            student_wksa_id: "UK-5001",
+            current_rank: 2,
+            current_rank_code: "YS",
+            current_rank_name: "Yellow Stripe",
+            promotions: [],
+          });
+        }
+        if (url.includes("/api/students/10/")) return jsonResponse(200, testStudent);
+        return jsonResponse(404, {});
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByRole("heading", { name: "Grading readiness" });
+    expect(screen.getByText("Highest curriculum rank")).toBeVisible();
+    expect(screen.queryByText("Yellow Belt")).not.toBeInTheDocument();
+  });
+
   it("renders populated grading history table and timeline with past promotions", async () => {
     const testPromotions = [
       {

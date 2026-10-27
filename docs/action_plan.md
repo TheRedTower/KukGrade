@@ -60,12 +60,11 @@ that an unresolved defect still exists.
 - Reports and exports, from an accepted reporting specification.
 - Explicit syllabus version publication (deferred by decision; immutable
   assessment snapshots already make history reproducible).
-- The syllabus for KSN (2nd Dahn) and above. Nothing is recorded past JKN, so
-  no candidate can be assessed for those ranks yet. The owner has sheets for
-  KSN (adult and youth), PSBN and SBN, kept outside the repository; none is
-  needed for PKJN (the owner teaches at that grade). Their charts are separate
-  versions (2-1, 3-1, 4-1) with weapon forms, staff sparring and sections the
-  current categories do not name; the owner confirms content and grouping.
+- **Black belt syllabus**: KSN (adult and Youth), PSBN and SBN are recorded as
+  the charts print them (decision log, 2026-10-27); PKJN has no chart (the owner
+  teaches at that grade). To confirm: that a black belt grading assesses a chart
+  on top of the cumulative lower ranks (as every grading does today), and how
+  the charts' section names (kept in each line's notes) should show on screen.
 - Backup ownership and retention.
 
 ## Deferred until there is a real need

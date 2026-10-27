@@ -280,21 +280,21 @@ def test_generate_candidate_assessment_excludes_inactive_requirements_and_items(
 def test_generate_candidate_assessment_refuses_a_rank_with_no_recorded_syllabus() -> (
     None
 ):
-    # Everything through JKN is recorded, but nothing for KSN itself: that is
-    # not KSN's syllabus, so no assessment is generated from it.
+    # Everything through SBN is recorded for adults, but nothing for PKJN
+    # itself: that is not PKJN's syllabus, so no assessment is generated.
     built = candidate(
         student=student(
             date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
-            current_rank=rank("JKN"),
+            current_rank=rank("SBN"),
         ),
-        testing_for_rank=rank("KSN"),
+        testing_for_rank=rank("PKJN"),
     )
 
     with pytest.raises(ValidationError) as exc_info:
         assessment(candidate=built)
 
     assert exc_info.value.message_dict["candidate"] == [
-        "No syllabus is recorded for KSN (18+), so this candidate cannot be "
+        "No syllabus is recorded for PKJN (18+), so this candidate cannot be "
         "assessed yet.",
     ]
     assert not CandidateAssessment.objects.filter(candidate=built).exists()

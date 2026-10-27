@@ -2615,6 +2615,8 @@ export interface components {
             readonly stripe_colour: components["schemas"]["BeltColourEnum"] | components["schemas"]["BlankEnum"];
             readonly stripe_count: number;
             readonly next_rank: number | null;
+            /** @description False for the ranks above the highest one with any syllabus recorded; their charts are not in the app yet. */
+            readonly has_syllabus: boolean;
         };
         RankMappingSuggestion: {
             source_text: string;

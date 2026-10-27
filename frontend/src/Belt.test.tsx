@@ -20,6 +20,7 @@ const blueStripe: Rank = {
   stripe_colour: "BLUE",
   stripe_count: 1,
   next_rank: 5,
+  has_syllabus: true,
 };
 
 describe("BeltSwatch", () => {

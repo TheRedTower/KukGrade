@@ -32,6 +32,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "",
     stripe_count: 0,
     next_rank: 2,
+    has_syllabus: true,
   },
   {
     id: 2,
@@ -42,6 +43,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "YELLOW",
     stripe_count: 1,
     next_rank: 3,
+    has_syllabus: true,
   },
   {
     id: 3,
@@ -52,6 +54,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "",
     stripe_count: 0,
     next_rank: 4,
+    has_syllabus: true,
   },
   {
     id: 4,
@@ -62,6 +65,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "BLUE",
     stripe_count: 1,
     next_rank: 5,
+    has_syllabus: true,
   },
   {
     id: 5,
@@ -72,6 +76,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "",
     stripe_count: 0,
     next_rank: 6,
+    has_syllabus: true,
   },
   {
     id: 6,
@@ -82,6 +87,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "",
     stripe_count: 0,
     next_rank: null,
+    has_syllabus: true,
   },
 ];
 
@@ -243,7 +249,7 @@ function paginated<T>(results: T[]) {
 
 function stubFetch(
   effectiveByRank: Record<string, EffectiveSyllabusRequirement[]>,
-  { effectiveFails = false }: { effectiveFails?: boolean } = {},
+  { effectiveFails = false, ranks = mockRanks }: { effectiveFails?: boolean; ranks?: Rank[] } = {},
 ) {
   vi.stubGlobal(
     "fetch",
@@ -253,7 +259,7 @@ function stubFetch(
         return Promise.resolve(jsonResponse(200, paginated(mockAgeBands)));
       }
       if (url.includes("/api/ranks/")) {
-        return Promise.resolve(jsonResponse(200, paginated(mockRanks)));
+        return Promise.resolve(jsonResponse(200, paginated(ranks)));
       }
       if (url.includes("/api/syllabus/requirements/effective/")) {
         if (effectiveFails) {
@@ -477,6 +483,29 @@ describe("SyllabusScreen", () => {
     await user.selectOptions(ageSelect, "AGE_8_AND_UNDER");
     expect(curriculumSelect).toHaveValue("JUNIOR");
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
+  });
+
+  it("leaves out the ranks whose syllabus is not recorded yet", async () => {
+    const jkn = mockRanks.find((rank) => rank.code === "JKN");
+    const notRecorded: Rank = {
+      id: 99,
+      code: "KSN",
+      name: "Kyo Sa Nim",
+      order: 13,
+      belt_colour: "BLACK",
+      stripe_colour: "",
+      stripe_count: 0,
+      next_rank: null,
+      has_syllabus: false,
+    };
+    stubFetch({ YELLOW: mockYellowEffective }, { ranks: [...mockRanks.map((rank) => (rank === jkn ? { ...rank, next_rank: 99 } : rank)), notRecorded] });
+
+    renderScreen();
+
+    await screen.findByRole("button", { name: "Blue Stripe" });
+    expect(screen.queryByRole("button", { name: "Kyo Sa Nim" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Kyo Sa Nim" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "JKN" })).toBeInTheDocument();
   });
 
   it("says so when no syllabus is recorded for the rank, rather than showing earlier ranks' content", async () => {

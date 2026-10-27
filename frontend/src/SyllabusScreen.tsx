@@ -116,7 +116,11 @@ function SyllabusLedgerTable({
 export function SyllabusScreen() {
   const ranksQuery = useRanksQuery();
   const ageBandsQuery = useAgeBandsQuery();
-  const ranks = useMemo(() => ranksQuery.data?.results ?? [], [ranksQuery.data]);
+  // Only the ranks whose syllabus is recorded; the server says which.
+  const ranks = useMemo(
+    () => (ranksQuery.data?.results ?? []).filter((rank) => rank.has_syllabus),
+    [ranksQuery.data],
+  );
   const ageBands = useMemo(() => ageBandsQuery.data?.results ?? [], [ageBandsQuery.data]);
 
   // Until the viewer picks, the screen opens on the first rank that has a

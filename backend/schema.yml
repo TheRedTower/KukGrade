@@ -5458,9 +5458,15 @@ components:
           type: integer
           readOnly: true
           nullable: true
+        has_syllabus:
+          type: boolean
+          readOnly: true
+          description: False for the ranks above the highest one with any syllabus
+            recorded; their charts are not in the app yet.
       required:
       - belt_colour
       - code
+      - has_syllabus
       - id
       - name
       - next_rank

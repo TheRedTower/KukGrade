@@ -134,5 +134,6 @@ export const RANKS: Rank[] = ["White", "Yellow stripe", "Yellow", "Blue stripe",
     stripe_colour: "",
     stripe_count: 0,
     next_rank: index + 2,
+    has_syllabus: true,
   }),
 );

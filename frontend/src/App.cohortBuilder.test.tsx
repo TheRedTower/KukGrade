@@ -61,6 +61,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       stripe_colour: "",
       stripe_count: 0,
       next_rank: 2,
+      has_syllabus: true,
     },
     {
       id: 2,
@@ -71,6 +72,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       stripe_colour: "YELLOW",
       stripe_count: 1,
       next_rank: 3,
+      has_syllabus: true,
     },
     {
       id: 3,
@@ -81,6 +83,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       stripe_colour: "",
       stripe_count: 0,
       next_rank: null,
+      has_syllabus: true,
     },
   ];
 

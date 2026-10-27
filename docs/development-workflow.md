@@ -110,6 +110,9 @@ you want read.
   and TypeScript 7 (`openapi-typescript` does not support it, so `npm install`
   fails). Vulnerability fixes are still taken: turn on Dependabot security
   updates in the repository settings, and they ignore these entries.
+- The frontend toolchain needs a recent Node: Vite 8 and jsdom 30 want Node
+  22.22.2 or newer (or 24.15+), and the build stage uses `node:22-alpine`. An
+  older Node 22 on a developer machine warns about the engine mismatch.
 - The PostgreSQL image (`compose.yaml`, the CI service in `ci.yml`) is not
   tracked at all: a new major is a data migration (`deployment.md`).
 - Dependabot only regenerates a manifest and its lockfile. A package whose

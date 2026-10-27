@@ -1,0 +1,179 @@
+name: Publish image
+
+# Publishes ghcr.io/theredtower/kukgrade for linux/amd64 and linux/arm64 when a
+# version tag (v1.2.3, or v1.2.3-rc.1 for a pre-release) is pushed. Each
+# architecture is built on its own runner (no emulation), started with the same
+# smoke test CI uses, and only then pushed; the two are joined into one tag
+# afterwards, so a tag never points at an image that did not start.
+# "Run workflow" (any branch) does everything except push, to rehearse a release.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/theredtower/kukgrade
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUSH: ${{ github.event_name == 'push' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # A tag that disagrees with the code would publish an image whose About
+      # page shows another version.
+      - name: Check the tag is the version in the code
+        if: env.PUSH == 'true'
+        run: |
+          version="$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' backend/kukgrade/version.py)"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match VERSION $version in backend/kukgrade/version.py" >&2
+            exit 1
+          fi
+
+      - name: Build arguments
+        id: build
+        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" >> "$GITHUB_OUTPUT"
+
+      # Built into the local Docker, started, then (for a tag) built again for
+      # the registry from the same cache, which costs no rebuild.
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: kukgrade:ci
+          build-args: |
+            KUKGRADE_BUILD_COMMIT=${{ github.sha }}
+            KUKGRADE_BUILD_TIME=${{ steps.build.outputs.time }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,scope=${{ matrix.platform }},mode=max
+
+      - name: Check production settings in image
+        run: >-
+          docker run --rm
+          --entrypoint python
+          -e DJANGO_SECRET_KEY=ci-only-secret-key-000000000000000000000000000000000000
+          -e DJANGO_ALLOWED_HOSTS=ci.example
+          kukgrade:ci
+          manage.py check --deploy --fail-level WARNING
+
+      - name: Start the image and sign in
+        run: .github/scripts/image-smoke.sh kukgrade:ci
+
+      - name: Log in to ghcr.io
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push this architecture by digest
+        id: push
+        if: env.PUSH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            KUKGRADE_BUILD_COMMIT=${{ github.sha }}
+            KUKGRADE_BUILD_TIME=${{ steps.build.outputs.time }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Keep the digest
+        if: env.PUSH == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          digest="${{ steps.push.outputs.digest }}"
+          touch "$RUNNER_TEMP/digests/${digest#sha256:}"
+
+      - name: Upload the digest
+        if: env.PUSH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.runner }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish the tags
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # v1.2.3 gives 1.2.3, 1.2 and 1 (the major only from 1.0, never for 0.x), and latest;
+      # a pre-release gets only its own tag, never latest.
+      - name: Work out the tags
+        id: meta
+        uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+          annotations: |
+            org.opencontainers.image.source=https://github.com/TheRedTower/KukGrade
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+
+      - name: Join the architectures under the tags
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          args=()
+          while read -r tag; do args+=(-t "$tag"); done < <(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          while read -r note; do args+=(--annotation "$note"); done < <(jq -r '.annotations[]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          for digest in *; do args+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${args[@]}"
+
+      - name: Show the result
+        run: docker buildx imagetools inspect "$IMAGE:${{ steps.meta.outputs.version }}"

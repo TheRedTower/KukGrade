@@ -20,8 +20,10 @@ deployed and signs in are built (`deployment.md`). In order, what is left:
    DKIM, DMARC; the domain verified in Resend), an outbound HTTPS check and
    `email_enabled` on `/api/site/`, as `email-and-credential-lifecycle.md`
    specifies. No sending code.
-3. **Publish the image** to `ghcr.io/theredtower/kukgrade` (the `deploy/` files
-   name it; until then it is built locally).
+3. **Publish the image** to `ghcr.io/theredtower/kukgrade`. The workflow
+   (`.github/workflows/publish.yml`) is in place; the first image appears when
+   the first version tag is pushed, after the repository and the package are made
+   public.
 4. **Go live** on the owner's host: connect `compose.prod.yml` to the real
    Traefik and PostgreSQL, cap the request body at Traefik, and verify backup,
    restore and monitoring before describing it as live (`deployment.md`).

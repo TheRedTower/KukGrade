@@ -726,11 +726,13 @@ export function BuildGradingCohortScreen() {
                   onChange={(e) => setRankFilter(e.target.value)}
                 >
                   <option value="ALL">All ranks</option>
-                  {ranks.map((r) => (
-                    <option key={r.id} value={String(r.id)}>
-                      {r.name}
-                    </option>
-                  ))}
+                  {ranks
+                    .filter((r) => nextRankMap.get(r.id)?.has_syllabus)
+                    .map((r) => (
+                      <option key={r.id} value={String(r.id)}>
+                        {r.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 

@@ -31,6 +31,7 @@ from gradings.services import (
     apply_candidate_update,
     build_candidate,
     bulk_register_candidates,
+    ranks_open_for_grading,
     register_candidate,
 )
 from gradings.testing import (
@@ -186,6 +187,29 @@ def test_next_rank_validation_rejects_student_at_highest_active_rank() -> None:
     assert exc_info.value.message_dict["testing_for_rank"] == [
         "Student has no next active rank.",
     ]
+
+
+def test_registration_is_refused_for_a_rank_with_no_recorded_syllabus() -> None:
+    # Everything through JKN is recorded; the ranks above it are not in the
+    # app yet, so a JKN student has nothing to be graded on.
+    jkn_student = student(current_rank=rank("JKN"))
+
+    with pytest.raises(ValidationError) as exc_info:
+        candidate(student=jkn_student, testing_for_rank=rank("KSN"))
+
+    assert exc_info.value.message_dict["testing_for_rank"] == [
+        "No syllabus is recorded for KSN yet, so nobody can be graded for it.",
+    ]
+    assert not GradingCandidate.objects.filter(student=jkn_student).exists()
+
+
+def test_ranks_open_for_grading_stop_below_the_first_rank_without_a_syllabus() -> None:
+    open_ranks = set(ranks_open_for_grading())
+
+    assert rank("WHITE").pk in open_ranks
+    assert rank("DAHN_BO").pk in open_ranks
+    assert rank("JKN").pk not in open_ranks
+    assert rank("PKJN").pk not in open_ranks
 
 
 @pytest.mark.parametrize("target_code", ["WHITE", "YELLOW", "BLUE_STRIPE"])

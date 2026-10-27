@@ -800,6 +800,10 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
     # student; a withdrawn one does not.
     candidate(session=other_session, student=elsewhere)
     candidate(session=other_session, student=withdrew, status="WITHDRAWN")
+    # A rank whose next rank has no syllabus recorded has nothing to grade on.
+    Student.objects.create(
+        **student_kwargs(wksa_id="A-20819", current_rank=Rank.objects.get(code="JKN")),
+    )
     client = auth_client("roster-eligible@example.com")
 
     mine = {
@@ -809,6 +813,7 @@ def test_eligible_for_session_leaves_out_left_and_already_registered_students() 
         "123-4-535",
         "123-4-536",
         "123-4-537",
+        "A-20819",
     }
     eligible = set(roster_names(client, f"eligible_for_session={session.pk}"))
     assert eligible & mine == {"123-4-532", "123-4-533", "123-4-537"}

@@ -193,12 +193,12 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "stripe_colour": "",
         "stripe_count": 0,
         "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
-        "has_syllabus": True,
+        "has_syllabus": False,
     }
     assert payload[-1]["next_rank"] is None
 
 
-def test_ranks_above_the_recorded_syllabus_are_flagged() -> None:
+def test_ranks_without_a_recorded_syllabus_are_flagged() -> None:
     user = User.objects.create_user(email="rank-flag@example.com")
     client = APIClient()
     client.force_authenticate(user=user)
@@ -208,9 +208,10 @@ def test_ranks_above_the_recorded_syllabus_are_flagged() -> None:
         for rank in results(client.get("/api/ranks/"))
     }
 
-    assert flags["WHITE"] is True
+    assert flags["YELLOW_STRIPE"] is True
     assert flags["JKN"] is True
     assert [code for code, recorded in flags.items() if not recorded] == [
+        "WHITE",
         "KSN",
         "PSBN",
         "SBN",

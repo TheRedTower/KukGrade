@@ -32,7 +32,7 @@ const mockRanks: Rank[] = [
     stripe_colour: "",
     stripe_count: 0,
     next_rank: 2,
-    has_syllabus: true,
+    has_syllabus: false,
   },
   {
     id: 2,
@@ -485,7 +485,7 @@ describe("SyllabusScreen", () => {
     expect(screen.getByText("Little Dragon ages 8 and under")).toBeVisible();
   });
 
-  it("leaves out the ranks whose syllabus is not recorded yet", async () => {
+  it("leaves out the ranks that have no syllabus recorded", async () => {
     const jkn = mockRanks.find((rank) => rank.code === "JKN");
     const notRecorded: Rank = {
       id: 99,
@@ -504,6 +504,8 @@ describe("SyllabusScreen", () => {
 
     await screen.findByRole("button", { name: "Blue Stripe" });
     expect(screen.queryByRole("button", { name: "Kyo Sa Nim" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "White" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "White" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "Kyo Sa Nim" })).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "JKN" })).toBeInTheDocument();
   });

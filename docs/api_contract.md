@@ -301,7 +301,8 @@ so far, so 8-and-under Cho Geup Hyung reads `Parts 1-3` from Red),
 `introduced_rank_code`/`introduced_rank_name`, `effective_since_rank_code`/
 `effective_since_rank_name`, and `is_new_at_rank` (true when the effective
 row's rank is the selected rank itself). An empty page means no syllabus is
-recorded for that rank and age band (White, KSN and above): earlier ranks'
+recorded for that rank and age band (White; PKJN; KSN, PSBN and SBN for any age
+band but the ones their black belt charts cover): earlier ranks'
 content is never served as its curriculum. 400 with `rank_code`/`age_band`
 field errors when either is missing or invalid.
 

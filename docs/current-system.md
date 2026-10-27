@@ -87,8 +87,11 @@ push and pull request.
   form taught in parts across ranks names every part taught so far
   (8-and-under Cho Geup Hyung reads "Parts 1-3" from Red; 2026-10-18). The
   syllabus screen shows it, and assessment generation snapshots exactly these
-  rows. A rank with no syllabus of its own recorded (White, KSN and above)
-  gets nothing, and the screen says so.
+  rows. A rank with no syllabus of its own recorded (White, PKJN, and KSN, PSBN
+  and SBN for an age band their chart does not cover) gets nothing, and the
+  screen says so. The WKSA black belt requirement charts are recorded as
+  written: KSN for adults and for 13-17 (the Youth chart), PSBN and SBN for
+  adults (migration `syllabus/0004_black_belt_charts`; decision log, 2026-10-27).
 - Student model with `ACTIVE` / `INACTIVE` / `LEFT`. `LEFT` blocks grading
   registration; both non-active states are reversible and keep history.
 - **Students API**: list, retrieve, create, partial update.

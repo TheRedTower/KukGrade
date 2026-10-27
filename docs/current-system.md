@@ -41,7 +41,7 @@ push and pull request.
   header is trusted only once proxies are declared (`DJANGO_NUM_PROXIES` above
   zero) - trusting it without a proxy that actually strips it lets a client
   spoof an already-secure request. With no proxy declared the app listens on
-  port 6942 (`KUKGRADE_PORT`) and serves HTTPS itself, from a mounted
+  port 6942 (fixed; map another host port in Compose) and serves HTTPS itself, from a mounted
   certificate or a self-signed one it makes, unless told to serve plain HTTP
   (`KUKGRADE_TRANSPORT=http`, which turns the HTTPS redirect, secure cookies
   and HSTS off and logs a warning). The browsable API

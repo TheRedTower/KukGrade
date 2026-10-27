@@ -121,9 +121,11 @@ too high and a client can choose its own address. Do not publish the app's port
 to anyone but the proxy when proxies are declared, or a client could reach it
 directly with forged headers.
 
-- `KUKGRADE_PORT` (default `6942`): the port the app listens on, inside the
-  container and published outside it. It is not a common service's port nor
-  one of this project's development servers' (8000, 5173, 5432).
+- The app listens on port `6942`, fixed (not a common service's port nor one
+  of this project's development servers' 8000, 5173 and 5432). There is no
+  setting for it: to reach the app on another host port, map it in Compose,
+  for example `ports: "7443:6942"`. Anything routing to the app (a proxy, a
+  tunnel) targets 6942.
 - `KUKGRADE_TRANSPORT` (`https`, the default, or `http`): only for
   `DJANGO_NUM_PROXIES=0`. `https` serves TLS from the certificate in
   `KUKGRADE_TLS_CERT` and the key in `KUKGRADE_TLS_KEY` (both or neither), or,

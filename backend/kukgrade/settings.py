@@ -84,11 +84,12 @@ SECRET_KEY = _SECRET_KEY
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
 # How the app is reached (docs/deployment.md, "How the app is reached").
-# The port the app listens on.
-PORT = env_int("KUKGRADE_PORT", 6942)
-if not 1 <= PORT <= 65535:
-    _MSG = f"KUKGRADE_PORT must be a port number from 1 to 65535, got {PORT}."
-    raise ImproperlyConfigured(_MSG)
+# The port the app listens on inside the container (or on the host, for a
+# bare-metal install). It is fixed and not an environment variable: to reach
+# the app on another port, map it in Compose (`ports: "7443:6942"`), the way
+# any container's port is chosen. Not a common service's port, nor one of this
+# project's development servers' (8000, 5173, 5432).
+PORT = 6942
 if "DJANGO_BEHIND_TLS_PROXY" in os.environ:
     _MSG = (
         "DJANGO_BEHIND_TLS_PROXY no longer exists. Declare the proxies in front "

@@ -13,10 +13,6 @@ services:
         KUKGRADE_BUILD_TIME: ${KUKGRADE_BUILD_TIME:-}
     env_file:
       - .env.production
-    environment:
-      # The same value Traefik routes to below, so a port exported in the shell
-      # (which Compose uses for the label) reaches the app too.
-      KUKGRADE_PORT: ${KUKGRADE_PORT:-6942}
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -43,7 +39,7 @@ services:
       - "traefik.http.routers.kukgrade.entrypoints=websecure"
       - "traefik.http.routers.kukgrade.tls=true"
       - "traefik.http.routers.kukgrade.tls.certresolver=cloudflare"
-      - "traefik.http.services.kukgrade.loadbalancer.server.port=${KUKGRADE_PORT:-6942}"
+      - "traefik.http.services.kukgrade.loadbalancer.server.port=6942"
 
 networks:
   apps_net:

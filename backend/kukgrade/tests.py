@@ -38,7 +38,6 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "DJANGO_SECURE_HSTS_SECONDS",
         "DJANGO_NUM_PROXIES",
         "DJANGO_BEHIND_TLS_PROXY",
-        "KUKGRADE_PORT",
         "KUKGRADE_TRANSPORT",
         "KUKGRADE_TLS_CERT",
         "KUKGRADE_TLS_KEY",
@@ -204,9 +203,6 @@ def test_the_development_server_never_serves_tls_itself(
 @pytest.mark.parametrize(
     ("name", "value", "message"),
     [
-        ("KUKGRADE_PORT", "0", "port number"),
-        ("KUKGRADE_PORT", "70000", "port number"),
-        ("KUKGRADE_PORT", "http", "must be an integer"),
         ("DJANGO_NUM_PROXIES", "-1", "0 or more"),
         ("KUKGRADE_TRANSPORT", "ftp", "must be one of https, http"),
         ("KUKGRADE_TLS_CERT", "/certs/site.crt", "must be set together"),

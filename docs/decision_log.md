@@ -55,8 +55,9 @@ single setting for what is in front: 0 means reached directly; N means N
 trusted proxies or tunnels, so the forwarded scheme is trusted and the client
 address is the Nth-from-last `X-Forwarded-For` entry. `DJANGO_BEHIND_TLS_PROXY`
 is removed; declaring a proxy is the opt-in it used to be. With no proxy the
-app listens on `KUKGRADE_PORT` (default 6942, not a common service's port and
-not a development server's) and serves HTTPS itself (`KUKGRADE_TRANSPORT=https`,
+app listens on port 6942, fixed (not a common service's port and not a
+development server's; another host port is chosen in Compose's `ports:`, not
+by a setting) and serves HTTPS itself (`KUKGRADE_TRANSPORT=https`,
 the default) from a mounted certificate (`KUKGRADE_TLS_CERT`/`KUKGRADE_TLS_KEY`)
 or a self-signed pair it generates with `openssl` and keeps in
 `KUKGRADE_TLS_DIR`; or, only when asked (`KUKGRADE_TRANSPORT=http`), plain HTTP
@@ -76,8 +77,7 @@ HTTPS needs a writable volume at `KUKGRADE_TLS_DIR` (the image creates the
 directory for UID 10001); without it startup stops with a message naming the
 four ways out (a writable volume, your own certificate, plain HTTP, or a
 proxy). The `openssl` command must stay in the image (slice 3 keeps it).
-`compose.prod.yml` keeps `DJANGO_NUM_PROXIES=2` and now routes Traefik to
-`${KUKGRADE_PORT:-6942}`.
+`compose.prod.yml` keeps `DJANGO_NUM_PROXIES=2` and now routes Traefik to 6942.
 
 ### 2026-10-24 - Linking historical records becomes a review table
 

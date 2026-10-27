@@ -7,7 +7,7 @@ services:
   kukgrade:
     image: ghcr.io/theredtower/kukgrade:latest
     restart: unless-stopped
-    stop_grace_period: 45s
+    stop_grace_period: 2m
     env_file: .env
     volumes:
       - ./data:/var/lib/kukgrade

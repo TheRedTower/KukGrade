@@ -214,7 +214,7 @@ DATABASES = {
         ),
         # The image carries its own PostgreSQL, on a socket in this folder
         # (kukgrade/serve.py); the variable is set only inside that image.
-        "HOST": os.environ.get("POSTGRES_HOST")
+        "HOST": os.environ.get("POSTGRES_HOST", "").strip()
         or os.environ.get("KUKGRADE_EMBEDDED_SOCKET")
         or "127.0.0.1",
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),

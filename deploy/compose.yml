@@ -4,7 +4,7 @@ services:
   kukgrade:
     image: ghcr.io/theredtower/kukgrade:latest
     restart: unless-stopped
-    stop_grace_period: 45s
+    stop_grace_period: 2m
     env_file: .env
     ports:
       - "6942:6942"

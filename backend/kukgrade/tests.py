@@ -420,5 +420,5 @@ def test_the_database_is_the_images_own_socket_unless_a_host_is_given(
     )
     assert external.DATABASES["default"]["HOST"] == "db.example.com"
 
-    plain = load_settings(monkeypatch, **PRODUCTION_ENV, POSTGRES_HOST="")
+    plain = load_settings(monkeypatch, **PRODUCTION_ENV, POSTGRES_HOST="  ")
     assert plain.DATABASES["default"]["HOST"] == "127.0.0.1"

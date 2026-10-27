@@ -116,6 +116,9 @@ def prepare_folders(data_dir: Path, *, with_database: bool) -> None:
         refuse_link(folder)
         folder.mkdir(exist_ok=True)
         hand_over(folder)
+        # Rosters and workbooks are personal data: the app's user only, however
+        # the folder was made.
+        folder.chmod(0o700)
     if with_database:
         folder = data_dir / "postgres"
         refuse_link(folder)
@@ -193,6 +196,18 @@ def start_database(data_dir: Path, env: Mapping[str, str]) -> subprocess.Popen[b
             "-c", "jit=off",
         ]
     )  # fmt: skip
+    try:
+        wait_until_ready(programs, server, user, name)
+    except BaseException:
+        stop(server, signal.SIGINT, POSTGRES_STOP_SECONDS)
+        raise
+    return server
+
+
+def wait_until_ready(
+    programs: Path, server: subprocess.Popen[bytes], user: str, name: str
+) -> None:
+    """Wait for the database to answer, and make the app's database if new."""
     deadline = time.monotonic() + POSTGRES_START_SECONDS
     while run(
         [programs / "pg_isready", "-h", SOCKET_DIR, "-U", user], check=False
@@ -200,7 +215,6 @@ def start_database(data_dir: Path, env: Mapping[str, str]) -> subprocess.Popen[b
         if server.poll() is not None:
             raise SystemExit("The database stopped while starting.")
         if time.monotonic() > deadline:
-            stop(server, signal.SIGINT, POSTGRES_STOP_SECONDS)
             raise SystemExit("The database did not start in time.")
         time.sleep(0.3)
     exists = run(
@@ -215,7 +229,6 @@ def start_database(data_dir: Path, env: Mapping[str, str]) -> subprocess.Popen[b
     )  # fmt: skip
     if exists.stdout.strip() != "1":
         run([programs / "createdb", "-h", SOCKET_DIR, "-U", user, name])
-    return server
 
 
 def stop(process: subprocess.Popen[bytes], sig: int, wait: float) -> None:
@@ -253,31 +266,33 @@ def supervise(
 
 def main() -> int:
     stopping = [False]
+    starting = [True]
 
     def request_stop(_signal: int, _frame: FrameType | None) -> None:
         stopping[0] = True
+        if starting[0]:
+            # Interrupts whatever start-up step is waiting; subprocess.run ends
+            # its child, and the handler below stops the database.
+            raise SystemExit(0)
 
     # First of all: as PID 1 an unhandled SIGTERM is ignored.
     signal.signal(signal.SIGTERM, request_stop)
     signal.signal(signal.SIGINT, request_stop)
-    with_database = embedded()
-    prepare_folders(DATA_DIR, with_database=with_database)
-    env = child_env(DATA_DIR)
-    database = start_database(DATA_DIR, env) if with_database else None
+    database: subprocess.Popen[bytes] | None = None
+    app: subprocess.Popen[bytes] | None = None
     try:
+        with_database = embedded()
+        prepare_folders(DATA_DIR, with_database=with_database)
+        env = child_env(DATA_DIR)
+        if with_database:
+            database = start_database(DATA_DIR, env)
         for command in (
             ["manage.py", "migrate", "--noinput"],
             # While there is no administrator, writes the one-time setup code the
             # setup page asks for to this log (accounts/setup.py).
             ["manage.py", "issue_setup_code"],
         ):
-            if stopping[0]:
-                break
             run([sys.executable, *command], env=env)
-        if stopping[0]:
-            if database:
-                stop(database, signal.SIGINT, POSTGRES_STOP_SECONDS)
-            return 0
         app = spawn(
             [
                 "gunicorn",
@@ -287,7 +302,11 @@ def main() -> int:
             ],
             env=env,
         )
+        starting[0] = False
     except BaseException:
+        starting[0] = False
+        if app:
+            stop(app, signal.SIGTERM, APP_STOP_SECONDS)
         if database:
             stop(database, signal.SIGINT, POSTGRES_STOP_SECONDS)
         raise

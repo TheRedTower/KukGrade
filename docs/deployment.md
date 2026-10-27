@@ -208,7 +208,7 @@ setups) set the owner by hand.
 
 The database is PostgreSQL 17, started by the container on a socket that exists
 only inside it: it listens on no network, so there is no port or password to
-protect. The container stops the database cleanly when it stops (the compose files allow 45 seconds, enough for the app to finish what it is doing first).
+protect. The container stops the database cleanly when it stops (the compose files allow two minutes, enough for the app to finish what it is doing and then the database to checkpoint).
 If either the database or the app stops, the container exits and `restart:
 unless-stopped` brings both back.
 
@@ -216,23 +216,26 @@ A PostgreSQL you already run can be used instead: set `POSTGRES_HOST` (and
 `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) in `.env`, and
 the container starts no database of its own. `compose.prod.yml` is that setup.
 
-Back up with the stack running; a dump, not a copy of `data/postgres/`:
+Back up with the stack running; a dump, not a copy of `data/postgres/`. The
+commands run inside the container, where the database settings from `.env` are
+already set (the uploads are private to the app's user, so they are read from
+inside too):
 
 ```sh
-docker compose exec -T kukgrade pg_dump -Fc > kukgrade-$(date +%F).dump
-tar -C data -czf kukgrade-uploads-$(date +%F).tar.gz import_uploads
+docker compose exec -T kukgrade sh -c 'pg_dump -Fc -U "${POSTGRES_USER:-kukgrade}" "${POSTGRES_DB:-kukgrade}"' > kukgrade-$(date +%F).dump
+docker compose exec -T kukgrade tar -C /var/lib/kukgrade -czf - import_uploads > kukgrade-uploads-$(date +%F).tar.gz
 ```
 
-To restore, stop the app (`docker compose down`), empty `data/postgres/`, start
-(`docker compose up -d`; it makes a new empty database and migrates it), then load
-the dump and restart:
+To restore, replace the database with the dump's (this signs everyone out and
+drops what is there), then restart so the app migrates whatever the dump lacks:
 
 ```sh
-docker compose exec -T kukgrade pg_restore -d kukgrade --clean --if-exists < kukgrade-DATE.dump
+docker compose exec -T kukgrade sh -c 'U=${POSTGRES_USER:-kukgrade}; D=${POSTGRES_DB:-kukgrade}; psql -U $U -d postgres -c "DROP DATABASE IF EXISTS \"$D\" WITH (FORCE)" -c "CREATE DATABASE \"$D\"" && pg_restore -U $U -d $D' < kukgrade-DATE.dump
 docker compose restart
 ```
 
-and unpack the uploads tarball into `data/`. Keep copies off the host and test a
+and unpack the uploads tarball with `docker compose exec -T kukgrade tar -C
+/var/lib/kukgrade -xzf - < kukgrade-uploads-DATE.tar.gz`. Keep copies off the host and test a
 restore before real student data goes in. The data sits inside the Git checkout
 if you cloned there: do not run `git clean -fdx` in it.
 

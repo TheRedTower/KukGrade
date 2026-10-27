@@ -136,6 +136,25 @@ Notes:
   session removes its dependent records and is itself audited; removing a user keeps
   the history attributed to them by name.
 
+## The demo mode
+
+Started with `KUKGRADE_DEMO_MODE=1`, the same image runs as a public demo with made-up data,
+for people to try the whole workflow without consequences. It is for a demo site only, never
+a real club. See [demo.md](demo.md) for how to run it.
+
+- **Shared sign-ins.** The sign-in page offers three accounts (Instructor, Master,
+  Administrator) with one click each. None is a superuser, so the permission boundaries are
+  the real ones, and any number of people can use the same account at once.
+- **A made-up club**, with a grading in every state: completed (with promotions and a Master
+  override of a recommendation), locked and waiting for the final decision, open with
+  assessments part way, and planned with students not yet registered.
+- **It resets itself** every few hours (`KUKGRADE_DEMO_RESET_HOURS`, default 6), so whatever
+  visitors type does not last. The accounts stay, so nobody is signed out. A banner shows when.
+- **What is closed:** changing a password, changing accounts, and uploading files. First-time
+  setup is never offered.
+- **It never touches real data.** It refuses to build or reset a database that holds any
+  account other than its own three.
+
 ## What KukGrade does not do (yet)
 
 Reports and exports, certificates, notifications and offline use, and it has no syllabus

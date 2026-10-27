@@ -49,7 +49,7 @@ cd backend
 uv sync --frozen
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports
+uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports demo
 DJANGO_DEBUG=true uv run python manage.py check
 DJANGO_DEBUG=true uv run python manage.py makemigrations --check --dry-run
 DJANGO_SETTINGS_MODULE=kukgrade.settings_test uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn

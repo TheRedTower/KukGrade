@@ -3,6 +3,7 @@
 | I want to… | Read |
 | --- | --- |
 | Run KukGrade and put it on the internet | [Installation](installation.md) |
+| Run a public demo with made-up data | [The demo site](demo.md) |
 | Change a setting | [Configuration](configuration.md) |
 | See what it does and who can do what | [Features](features.md) |
 | Bring in my existing students and results | [Importing data](importing-data.md) |

@@ -14,7 +14,9 @@ from kukgrade import settings
 bind = f"0.0.0.0:{settings.PORT}"
 workers = 1
 worker_class = "gthread"
-threads = 4
+# The demo has many visitors at once, each request short; a thread waiting on
+# the database costs little, and the database's 100 connections are ample.
+threads = 16 if settings.DEMO_MODE else 4
 # A writable place even when the root filesystem is read-only (compose.external-db.yml).
 worker_tmp_dir = "/tmp"
 control_socket_disable = True

@@ -41,6 +41,7 @@ testpaths = [
     "syllabus",
     "gradings",
     "data_imports",
+    "demo",
 ]
 
 [tool.ruff]

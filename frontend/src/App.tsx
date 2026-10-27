@@ -13,6 +13,7 @@ import "./App.css";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
+import { DemoBanner, DemoSignIn } from "./DemoSignIn";
 import { NavigationRail } from "./NavigationRail";
 import { useSiteSettingsQuery } from "./queries";
 import { SidebarProvider } from "./useSidebar";
@@ -82,13 +83,17 @@ function LoginPage() {
   // does not change while the login form is on screen.
   const [isReturningVisitor] = useState(hasSignedInBefore);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    void signIn(email, password);
+  }
+
+  async function signIn(address: string, secret: string) {
     setError(null);
     setIsSubmitting(true);
 
     try {
-      await login(email, password);
+      await login(address, secret);
       navigate("/");
     } catch (loginError) {
       if (loginError instanceof ApiError) {
@@ -122,6 +127,7 @@ function LoginPage() {
         <section className="login-content" aria-labelledby="login-title">
           <h1 id="login-title">{isReturningVisitor ? "Welcome back" : "Sign in"}</h1>
           <p className="login-subtitle">Sign in to KukGrade</p>
+          <DemoSignIn busy={status === "loading" || isSubmitting} onSignIn={(a, p) => void signIn(a, p)} />
           <form className="login-form" onSubmit={handleSubmit}>
             <label>
               Email address
@@ -246,6 +252,7 @@ function ApplicationShell() {
       <div className="app-layout">
         <NavigationRail clubName={site.data?.club_name} isLoggingOut={isLoggingOut} onLogout={handleLogout} user={user} />
         <div className="app-main">
+          <DemoBanner />
           {logoutError ? (
             <div className="workspace-alert" role="alert">
               <p className="form-error">{logoutError}</p>

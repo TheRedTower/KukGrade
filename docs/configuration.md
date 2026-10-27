@@ -77,6 +77,15 @@ export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
 export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
+## The public demo
+
+Only for [the demo site](demo.md). Leave these unset on a real install.
+
+| Variable | Meaning |
+| --- | --- |
+| `KUKGRADE_DEMO_MODE` | `1` runs the image as the demo: builds a made-up club, publishes three shared accounts on the sign-in page, closes password changes, account changes and uploads, and wipes the club on a timer. It refuses to run on a database that holds any other account. Default off. |
+| `KUKGRADE_DEMO_RESET_HOURS` | How often the demo is wiped and rebuilt, at whole multiples from midnight club time. Must divide 24 (1, 2, 3, 4, 6, 8, 12 or 24). Default 6. |
+
 ## Development only
 
 | Variable | Meaning |

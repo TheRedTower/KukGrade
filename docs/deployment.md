@@ -158,10 +158,12 @@ docker compose logs         # the first administrator's setup code is here
 
 That serves HTTPS itself on port 6942 with a self-signed certificate (see "How the
 app is reached"). `.env` is the only thing to edit; the compose files have no
-settings of their own. The image is `ghcr.io/theredtower/kukgrade:latest`, or build
-it from a checkout (`docker build -t ghcr.io/theredtower/kukgrade:latest .`): the
-image is not published to ghcr.io yet, so until it is, `docker compose pull` finds
-nothing and the build is the way.
+settings of their own. The image is `ghcr.io/theredtower/kukgrade:latest`, published
+when a version tag is pushed (`development-workflow.md`, "Publishing the image"). Until
+the first release exists, `docker compose pull` finds nothing: build it from a checkout
+(`docker build -t ghcr.io/theredtower/kukgrade:latest .`). To go back to an earlier
+release, name its tag instead of `latest` (`ghcr.io/theredtower/kukgrade:0.1.0`) in the
+compose file.
 
 To put something in front instead, use the file for it (and add
 `DJANGO_NUM_PROXIES=1` to `.env`): the app then publishes no port and only the proxy

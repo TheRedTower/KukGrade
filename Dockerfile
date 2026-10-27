@@ -134,6 +134,9 @@ ENV PATH=/app/backend/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bi
     PGHOST=/tmp/kukgrade-pg \
     PGUSER=kukgrade \
     PGDATABASE=kukgrade
+LABEL org.opencontainers.image.title="KukGrade" \
+      org.opencontainers.image.source="https://github.com/TheRedTower/KukGrade" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 # Which build this is, for the About page; empty when not passed.
 ARG KUKGRADE_BUILD_COMMIT=""
 ARG KUKGRADE_BUILD_TIME=""

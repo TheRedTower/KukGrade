@@ -58,11 +58,13 @@ updates:
     groups:
       # Python and Node image refreshes (their security fixes) travel together;
       # the uv image is not grouped, so a uv release that breaks the build
-      # cannot hold them back.
+      # cannot hold them back. No update-types here: a refresh of an unchanged
+      # tag (python:3.14-slim, node:22-alpine) raises no version component, so
+      # a minor/patch filter would split each into its own pull request. A new
+      # Python or Node line is already ignored below.
       base-images:
         patterns: ["*"]
         exclude-patterns: ["astral-sh/uv"]
-        update-types: [minor, patch]
     ignore:
       # The tags python:3.14-slim and node:22-alpine are followed by digest
       # only. A new Python or Node line is a decision, not a refresh: it also

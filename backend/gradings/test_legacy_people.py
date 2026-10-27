@@ -19,7 +19,13 @@ from rest_framework.test import APIClient
 from accounts.models import User
 from audit.models import AuditAction, AuditEvent
 from data_imports.testing import legacy_batch, legacy_record
-from gradings.legacy_matching import name_tokens, person_groups, score_student
+from gradings.legacy_matching import (
+    PersonGroup,
+    group_records,
+    name_tokens,
+    score_student,
+    suggest_for_groups,
+)
 from gradings.legacy_services import (
     bulk_link_legacy_records,
     link_legacy_record_to_student,
@@ -134,6 +140,12 @@ def test_a_contradicting_name_rules_a_student_out(
     assert score_student(name_tokens(written), student(first, last), None) is None
 
 
+def _person_groups() -> list[PersonGroup]:
+    groups = group_records(LegacyGradingRecord.objects.all())
+    suggest_for_groups(groups)
+    return groups
+
+
 def test_a_rank_that_fits_counts_for_a_student_and_a_lower_one_against() -> None:
     blue_now = student("Zac", "Wood", "BLUE")
     white_now = student("Zac", "Ward", "WHITE")
@@ -164,7 +176,7 @@ def test_records_are_grouped_by_the_name_as_written_with_suggestions() -> None:
     voided = legacy_record(source_batch=batch, source_name="Zac W")
     void_legacy_record(voided, reason="Entered twice", actor=admin())
 
-    [group] = person_groups(LegacyGradingRecord.objects.all())
+    [group] = _person_groups()
 
     assert sorted(record.pk for record in group.records) == sorted(
         [first.pk, second.pk]
@@ -183,7 +195,7 @@ def test_two_students_who_fit_equally_well_are_both_shown_and_flagged() -> None:
     student("Alex", "Park")
     legacy_record(source_name="Alex")
 
-    [group] = person_groups(LegacyGradingRecord.objects.all())
+    [group] = _person_groups()
 
     assert len(group.candidates) == 2
     assert group.shared

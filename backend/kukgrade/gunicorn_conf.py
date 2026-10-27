@@ -14,14 +14,14 @@ from kukgrade import settings
 bind = f"0.0.0.0:{settings.PORT}"
 workers = 1
 worker_class = "gthread"
-threads = settings.env_int("GUNICORN_THREADS", 4)
-# The container's tmpfs: the root filesystem is read-only.
+threads = 4
+# A writable place even when the root filesystem is read-only (compose.prod.yml).
 worker_tmp_dir = "/tmp"
 control_socket_disable = True
 # Only Django decides which proxies to trust (DJANGO_NUM_PROXIES); gunicorn
 # must not act on forwarded headers of its own, even from a loopback proxy.
 forwarded_allow_ips = ""
-timeout = settings.env_int("GUNICORN_TIMEOUT", 30)
+timeout = 30
 graceful_timeout = 30
 accesslog = "-"
 errorlog = "-"

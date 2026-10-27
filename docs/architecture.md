@@ -64,8 +64,10 @@ stylesheet per feature area, on the design tokens in `frontend/src/theme.css`.
 
 ## Deployment
 
-One production image contains the Django API, the built React frontend, and
-its static files. `compose.prod.yml` defines only that app service, joined to
-the host's existing Traefik and PostgreSQL containers through external Docker
-networks. `compose.yaml` is local-development PostgreSQL only. See
-`deployment.md`.
+One production image contains the Django API, the built React frontend, its
+static files and PostgreSQL 17. `kukgrade.serve` starts the image's own
+database when `POSTGRES_HOST` is unset, then the app; with it set, the app uses
+that database. `compose.prod.yml` defines only the app service, joined to the
+owner's existing Traefik and PostgreSQL containers through external Docker
+networks; `deploy/` runs the image anywhere else. `compose.yaml` is
+local-development PostgreSQL only. See `deployment.md`.

@@ -41,9 +41,9 @@ working Open WebUI service, with `www.kukgrade.co.uk` as the host rule.
    locks everyone out together.
 
 The app's named volume holds private, temporary roster/workbook uploads across
-container replacement. It is never served by WhiteNoise. The image has a
-read-only root filesystem and runs as UID 10001; a pre-existing replacement
-volume must permit writes by that UID.
+container replacement. It is never served by WhiteNoise. `compose.prod.yml`
+runs the image with a read-only root filesystem as UID 10001; a pre-existing
+replacement volume must permit writes by that UID.
 
 The image, port, worker configuration and Traefik labels have chosen defaults
 in the Compose/Docker files. `.env.production` is for the production database,
@@ -130,8 +130,8 @@ directly with forged headers.
   `DJANGO_NUM_PROXIES=0`. `https` serves TLS from the certificate in
   `KUKGRADE_TLS_CERT` and the key in `KUKGRADE_TLS_KEY` (both or neither), or,
   with neither, from a self-signed pair the app makes on first start and keeps
-  in `KUKGRADE_TLS_DIR` (default `/var/lib/kukgrade/tls`, a volume that must be
-  writable by UID 10001), made again at start when under 30 days remain or when
+  in `KUKGRADE_TLS_DIR` (default `/var/lib/kukgrade/tls`, which must be writable by
+  UID 10001: `data/tls/` with `deploy/`, a volume with a read-only root), made again at start when under 30 days remain or when
   `DJANGO_ALLOWED_HOSTS` has changed (restart to renew a long-running container
   or to add a new host name). A self-signed
   certificate encrypts the connection but browsers will warn about it; bring a
@@ -272,7 +272,8 @@ Dependabot follows the Dockerfile's images, not the proxy images named in these
 files, which only change when you pull.
 
 To serve your own certificate from the app instead of the self-signed one, put the
-two files in `data/tls/` and set `KUKGRADE_TLS_CERT=/var/lib/kukgrade/tls/your.crt`
+two files in `data/tls/` (the container makes the folder private to the app's
+user) and set `KUKGRADE_TLS_CERT=/var/lib/kukgrade/tls/your.crt`
 and `KUKGRADE_TLS_KEY=/var/lib/kukgrade/tls/your.key` in `.env`.
 
 ## What is in the image
@@ -290,7 +291,8 @@ capabilities dropped and `no-new-privileges`.
   (`shell`, `migrate`, any command: how an operator repairs a deployment) and
   the `openssl` command (the app makes its own certificate with it), and the
   PostgreSQL clients `psql`, `pg_dump`, `pg_restore`, `createdb` and `pg_isready`
-  (a shell opened in the container is already connected: `psql`).
+  (with the image's own database, a shell opened in the container is already
+  connected: `psql`).
 - **Left out:** the app's tests, `schema.yml`, `uv.lock`, `pyproject.toml`,
   READMEs, the docs and design register, the uncollected copy of the built
   frontend assets, Django's and the REST framework's translations other than
@@ -309,7 +311,9 @@ capabilities dropped and `no-new-privileges`.
   (and so its Debian, OpenSSL and Python fixes) or a package changes, CI builds
   it and checks it, and merging a green one is the update (`docs/development-workflow.md`,
   "Dependency updates"). A new Python or Node *line* is a decision, not a
-  refresh, and is never proposed automatically.
+  refresh, and is never proposed automatically. PostgreSQL comes from Debian's
+  packages at build time, so each rebuild (every base-image refresh is one)
+  takes its latest 17.x fix release.
 
 ## Updates, backups and recovery
 

@@ -32,8 +32,10 @@ Master. The Users route is an administrator-only staff-account workspace for
 creation, account updates, role/status management, Master authority, and
 password resets. Administrator-only import screens handle student-roster and
 historical-grading uploads, review, and reconciliation. Offline/PWA support
-and a production deployment target remain to be set up. A single-container
-production image and Compose definition are available; see `docs/deployment.md`.
+and a live production host remain to be set up. A single-container production
+image (with its own PostgreSQL, or using an existing one) and Compose files for
+running it directly or behind a proxy or tunnel are available; see
+`docs/deployment.md`.
 
 This is a summary. **`docs/current-system.md` is the authoritative,
 continuously-verified description of what exists on `dev` right now** - it
@@ -48,15 +50,18 @@ Repository layout:
 - `frontend/` - React, TypeScript, and Vite application.
 - `docs/` - planning, architecture, domain, and decision documentation.
 - `compose.yaml` - local PostgreSQL service for development.
-- `compose.prod.yml` - one-service production application definition.
+- `compose.prod.yml` - the owner's production host (existing Traefik and
+  PostgreSQL).
+- `deploy/` - Compose files and one `.env` for running the image anywhere.
 
 ## Confirmed Direction
 
 - Backend: Django and Django REST Framework.
 - Frontend: React and TypeScript.
 - Database: PostgreSQL.
-- Production deployment: one Docker app container behind existing Traefik,
-  using an existing PostgreSQL container; not yet deployed.
+- Production deployment: one Docker container, carrying its own PostgreSQL or
+  using an existing one; the owner's host runs it behind existing Traefik and
+  PostgreSQL. Not yet deployed.
 - Architecture: modular monolith, not microservices.
 - Syllabus: data-driven. Historical gradings must reference the exact
   syllabus content used - fulfilled today by copying requirements into

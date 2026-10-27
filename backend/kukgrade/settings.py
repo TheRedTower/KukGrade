@@ -96,12 +96,6 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 # any container's port is chosen. Not a common service's port, nor one of this
 # project's development servers' (8000, 5173, 5432).
 PORT = 6942
-if "DJANGO_BEHIND_TLS_PROXY" in os.environ:
-    _MSG = (
-        "DJANGO_BEHIND_TLS_PROXY no longer exists. Declare the proxies in front "
-        "with DJANGO_NUM_PROXIES (a number above 0), or remove it."
-    )
-    raise ImproperlyConfigured(_MSG)
 # How many reverse proxies or tunnels sit in front of the app, each trusted.
 # 0: reached directly. Above 0: TLS ends at the proxies, the forwarded scheme
 # is trusted, and the client address is the Nth-from-last X-Forwarded-For

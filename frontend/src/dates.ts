@@ -59,7 +59,7 @@ function clubDay(instant: Date): { year: number; month: number; day: number } {
  * Parses an API date or timestamp, or returns `null` when the value is absent
  * or unparseable. Callers decide what to render for `null`.
  */
-export function parseApiDate(value: string | null | undefined): Date | null {
+function parseApiDate(value: string | null | undefined): Date | null {
   if (!value) return null;
 
   if (DATE_ONLY.test(value)) {

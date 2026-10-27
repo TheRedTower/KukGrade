@@ -177,7 +177,8 @@ jobs:
 
   container:
     name: Production image
-    # Not gated on the test jobs: it only builds, so it runs alongside them.
+    # Not gated on the test jobs: it builds and starts the image on its own, so
+    # it runs alongside them.
     runs-on: ubuntu-latest
 
     steps:
@@ -191,6 +192,15 @@ jobs:
           cp .env.production.example .env.production
           docker compose --env-file .env.production -f compose.prod.yml config --no-env-resolution --quiet
 
+      # The deploy/ files with a .env naming every variable one of them needs.
+      - name: Validate the deploy/ Compose files
+        working-directory: deploy
+        run: |
+          cp .env.example .env
+          printf '%s\n' KUKGRADE_DOMAIN=ci.example TRAEFIK_NETWORK=ci KUKGRADE_HOST=ci.example \
+            TUNNEL_TOKEN=ci PANGOLIN_ENDPOINT=https://ci.example NEWT_ID=ci NEWT_SECRET=ci >> .env
+          for file in compose*.yml; do docker compose -f "$file" config --quiet; done
+
       - name: Build production image
         run: docker build --target production -t kukgrade:ci .
 
@@ -202,3 +212,9 @@ jobs:
           -e DJANGO_ALLOWED_HOSTS=www.kukgrade.co.uk
           kukgrade:ci
           manage.py check --deploy --fail-level WARNING
+
+      # Starts the image with its own database and as compose.prod.yml runs it
+      # (read-only, UID 10001, an external database), signs in, and checks the
+      # admin is closed and the database stops cleanly.
+      - name: Start the image and sign in
+        run: .github/scripts/image-smoke.sh kukgrade:ci

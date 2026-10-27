@@ -71,7 +71,7 @@ Django's `handler500`, returns the same `{"error": {...}}` shape with code
 `server_error` and no detail about the cause - that belongs in the logs,
 not the response.
 
-## 0c. Health, readiness and site settings
+## 0c. Health and site settings
 
 | Method | Endpoint | Description |
 | --- | --- | --- |

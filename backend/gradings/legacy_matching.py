@@ -200,13 +200,3 @@ def suggest_for_groups(
         ]
         scored.sort(key=lambda candidate: (-candidate.score, candidate.student.pk))
         group.candidates = scored[:_SHOWN]
-
-
-def person_groups(
-    records: Iterable[LegacyGradingRecord],
-    students: Iterable[Student] | None = None,
-) -> list[PersonGroup]:
-    """Group and score all records when a caller needs the whole list."""
-    groups = group_records(records)
-    suggest_for_groups(groups, students)
-    return groups

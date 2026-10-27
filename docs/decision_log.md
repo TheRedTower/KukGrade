@@ -18,6 +18,63 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - Review of the deployment work, and a CI job that starts the image
+
+Status: Accepted; built
+
+Decision:
+Everything built since the deployment overhaul began (2026-10-26, "The deployment
+overhaul: what the owner asked for") was re-verified with
+real containers, and CI now does the same on every push:
+`.github/scripts/image-smoke.sh` starts the image with its own database (sets up
+the first administrator, signs in, checks the closed admin, a clean database
+stop, and that a session survives a restart) and as `compose.prod.yml` runs it
+(UID 10001, read-only root, no capabilities, an external PostgreSQL, two proxies
+declared). Removed as stale or unused: the refusal of the old
+`DJANGO_BEHIND_TLS_PROXY` variable (never deployed with it), the undocumented
+`GUNICORN_THREADS` and `GUNICORN_TIMEOUT` knobs (fixed at 4 and 30), the
+test-only `legacy_matching.person_groups`, exports used only inside their own
+frontend module, an unused CSS rule, and the sample "snakeoil" key the
+PostgreSQL package left in the image.
+
+Context:
+The owner asked for everything done so far to be checked and the repository
+made coherent. The review found one real defect the earlier checks missed: the
+import-folder permission fix made the app refuse to start as `compose.prod.yml`
+runs it (it changed a folder on the read-only root), which no test or CI step
+started the image in that mode to see. The image now ships `import_uploads/` and
+`tls/` private (700), the container tightens them only when they are not, and
+the CI job covers that mode. CI also validates every `deploy/` Compose file.
+
+Consequences:
+The action plan was rewritten (the audit-fix branch it still listed was merged
+in pull request #12), and the README, architecture, documentation index and API
+contract headings were brought in line with the image carrying its own database.
+
+### 2026-10-27 - How black belt testing works (recorded, not yet modelled)
+
+Status: Recorded; nothing built
+
+Decision:
+Recorded as the owner described it, so a later slice can model it: a student
+testing for black belt and above first registers and pays the WKSA fee, then
+must sit a minimum number of gradings before the final one. For JKN that is six:
+the school's quarterly gradings and the national testings (for the Colchester
+school, Norwich in June and Liverpool in November); the association may require
+more. The final national testing is where WKSA's senior masters decide the
+promotion, with a ceremony and a certificate. The association's sheet gives 6-8
+tests for JKN, 8 for KSN, PSBN and SBN, and 12 for PKJN, counted from
+registration; its "Norwich/Scotland (June)" and "Liverpool (November)" are the
+national dates (Scotland does not apply to Colchester).
+
+Context:
+The action plan waited on the owner's explanation before modelling black belt
+gradings beyond the ID rule.
+
+Consequences:
+None in the code yet. What to model (registration, the count, national
+testings as sessions or as outside events) is an open decision.
+
 ### 2026-10-27 - One container: PostgreSQL in the image, one .env, files in deploy/
 
 Status: Accepted; built
@@ -133,6 +190,33 @@ updates entry) opens the pull requests. Adding a new Django app
 needs no Dockerfile change (the whole backend is copied, then named files are
 removed). A new tool the app needs from the base image (a command, a library)
 has to be checked against the trimmed filesystem.
+
+### 2026-10-26 - The deployment overhaul: what the owner asked for
+
+Status: Accepted; partly built
+
+Decision:
+KukGrade is to be easy to deploy beyond the owner's own host, in slices: the
+Django admin closed to the network; one proxy count, port 6942, and HTTPS or
+plain HTTP when reached directly; an image stripped to what runs or repairs the
+app (shell, Python, `manage.py` and `openssl` kept for emergencies); dependency
+and base-image updates by pull request; Compose files for running it directly
+or behind nginx, Caddy, Traefik, a Cloudflare Tunnel or Pangolin; a bare-metal
+Linux release (a tarball with its own Python, an installer and a systemd unit,
+for amd64 and arm64, with a documented build from source); the deployment side
+of email made ready but switched off (variables, the DNS checklist, an outbound
+check and `email_enabled`; no sending code); and the docs and CI brought up to
+date. Audience: the owner's school first, easy for others to deploy; a public
+release and licence are a later question.
+
+Context:
+Before this, the only deployment was `compose.prod.yml` on the owner's Traefik
+host, and the image carried build and test files.
+
+Consequences:
+Each slice has its own entry below or above as it is built; `action_plan.md`
+lists what is left (the bare-metal release, email readiness, publishing the
+image, going live).
 
 ### 2026-10-26 - The Django admin is not served over the network
 ### 2026-10-26 - How the app is reached: one proxy count, a port, and HTTPS or plain HTTP

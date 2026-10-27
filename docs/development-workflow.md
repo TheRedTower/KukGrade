@@ -66,6 +66,13 @@ npm run build
 npm audit --audit-level=high
 ```
 
+Production image (from the repository root):
+
+```sh
+docker build --target production -t kukgrade:ci .
+.github/scripts/image-smoke.sh kukgrade:ci   # starts it both ways it is deployed and signs in
+```
+
 The two `git diff --exit-code` steps prove the committed OpenAPI schema
 matches the serializers, and the committed frontend types match the schema.
 
@@ -89,8 +96,8 @@ Nobody edits dependency versions or base-image digests by hand. Dependabot
 and `package-lock.json`), a GitHub Action, or a pinned base image in the
 `Dockerfile` has a newer version. Each pull request changes the manifest and its
 lockfile together and CI runs on it like on any other (tests in both time zones,
-the build, `npm audit`; for a base image, the image build and a `check --deploy`
-inside it). Merge one once its checks are green: nothing enforces that on this
+the build, `npm audit`; for a base image, the image build, a `check --deploy`
+inside it and `.github/scripts/image-smoke.sh`, which starts it and signs in). Merge one once its checks are green: nothing enforces that on this
 plan. Codex reviews pull requests as they open; ask for a Copilot review on one
 you want read.
 

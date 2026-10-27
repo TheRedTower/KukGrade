@@ -46,6 +46,7 @@ RUN DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
     && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin appuser \
     && mkdir -p /var/lib/kukgrade/import_uploads /var/lib/kukgrade/tls \
     && chown -R appuser:appuser /var/lib/kukgrade \
+    && chmod 700 /var/lib/kukgrade/import_uploads /var/lib/kukgrade/tls \
     && chmod 755 /app/entrypoint.sh
 # The database the image carries, from Debian's own PostgreSQL package. No
 # cluster is made at install time: kukgrade/serve.py makes the database in
@@ -60,14 +61,18 @@ RUN set -e \
     # Left out because the app never uses them: just-in-time compilation is
     # off (it pulls in LLVM), the server's Perl and the cluster-management
     # wrappers (the app makes its own cluster), locale source data (the
-    # database uses C.UTF-8), and tools for replication, upgrades and
-    # benchmarks. The tools an operator needs stay: psql, pg_dump, pg_restore.
+    # database uses C.UTF-8), the sample "snakeoil" certificate and key made
+    # at install (every copy of the image would share that key; nothing uses
+    # it), and tools for replication, upgrades and benchmarks. The tools an
+    # operator needs stay (linked into /usr/local/bin below).
     && rm -rf /usr/lib/x86_64-linux-gnu/libLLVM* /usr/lib/aarch64-linux-gnu/libLLVM* \
               /usr/lib/x86_64-linux-gnu/libz3* /usr/lib/aarch64-linux-gnu/libz3* \
               /usr/lib/postgresql/*/lib/llvmjit* /usr/lib/postgresql/*/lib/bitcode \
               /usr/lib/*-linux-gnu/libperl* /usr/lib/*-linux-gnu/perl /usr/share/perl \
               /usr/lib/*-linux-gnu/gconv \
               /usr/share/i18n /usr/share/locale /usr/share/postgresql-common \
+              /etc/ssl/private/ssl-cert-snakeoil.key /etc/ssl/certs/ssl-cert-snakeoil.pem \
+    && find /etc/ssl/certs -xtype l -delete \
     && cd /usr/lib/postgresql/17/bin \
     && rm -f pgbench pg_test_fsync pg_test_timing pg_waldump pg_walsummary \
              pg_rewind pg_receivewal pg_recvlogical pg_basebackup pg_combinebackup \

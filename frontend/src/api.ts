@@ -16,7 +16,7 @@ export type ManagedUser = components["schemas"]["UserManagement"];
 /** A managed user with the temporary password just issued for them, shown once. */
 export type IssuedTemporaryPassword = components["schemas"]["IssuedTemporaryPassword"];
 
-export type PaginatedResponse<T> = {
+type PaginatedResponse<T> = {
   count: number;
   next: string | null;
   previous: string | null;
@@ -206,7 +206,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return apiRequest<SiteSettings>("/api/site/");
 }
 
-export type About = Schemas["About"];
+type About = Schemas["About"];
 
 export async function getAbout(): Promise<About> {
   return apiRequest<About>("/api/about/");
@@ -216,7 +216,7 @@ export async function getCurrentUser(): Promise<AuthUser> {
   return apiRequest<AuthUser>("/api/auth/me/");
 }
 
-export type SelfProfilePayload = Schemas["PatchedSelfProfileRequest"];
+type SelfProfilePayload = Schemas["PatchedSelfProfileRequest"];
 
 /** Your own first and last name - the only things a user edits about themselves. */
 export async function updateCurrentUser(data: SelfProfilePayload): Promise<AuthUser> {
@@ -280,7 +280,7 @@ export async function getManagedUser(id: string): Promise<ManagedUser> {
   return apiRequest<ManagedUser>(`/api/users/${id}/`);
 }
 
-export type CreateManagedUserPayload = Schemas["UserManagementRequest"];
+type CreateManagedUserPayload = Schemas["UserManagementRequest"];
 
 export async function createManagedUser(
   data: CreateManagedUserPayload,
@@ -348,7 +348,7 @@ export async function getGradingSessionYears(): Promise<number[]> {
   return body.years;
 }
 
-export type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
+type CreateGradingSessionPayload = Schemas["GradingSessionRequest"];
 
 export async function createGradingSession(
   payload: CreateGradingSessionPayload,
@@ -678,7 +678,7 @@ export async function getStudent(id: number): Promise<StudentDetail> {
   return apiRequest<StudentDetail>(`/api/students/${id}/`);
 }
 
-export type CreateStudentPayload = Schemas["StudentRequest"];
+type CreateStudentPayload = Schemas["StudentRequest"];
 
 export async function createStudent(
   payload: CreateStudentPayload,
@@ -695,7 +695,7 @@ export async function getStudentRankHistory(id: number): Promise<StudentRankHist
   return apiRequest<StudentRankHistory>(`/api/students/${id}/rank-history/`);
 }
 
-export type UpdateStudentPayload = Schemas["PatchedStudentRequest"];
+type UpdateStudentPayload = Schemas["PatchedStudentRequest"];
 
 export async function updateStudent(
   id: number,
@@ -737,7 +737,7 @@ export async function promoteCandidateOutcome(
   });
 }
 
-export type BulkPromoteResponse = Schemas["BulkPromotionResult"];
+type BulkPromoteResponse = Schemas["BulkPromotionResult"];
 
 export async function bulkPromoteCandidateOutcomes(
   data: Schemas["BulkPromotionRequest"],
@@ -820,8 +820,8 @@ export async function voidDataImportRecords(
   );
 }
 
-export type DataImportMapping = Schemas["ImportMappingRequest"];
-export type DataImportRowChanges = Schemas["PatchedImportRowCorrectionRequest"];
+type DataImportMapping = Schemas["ImportMappingRequest"];
+type DataImportRowChanges = Schemas["PatchedImportRowCorrectionRequest"];
 
 /** Match a roster's columns to KukGrade's fields; every row is checked again. */
 export async function saveDataImportMapping(
@@ -934,7 +934,7 @@ export async function getLegacyPeople(
   );
 }
 
-export type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
+type LegacyPeopleSummary = Schemas["LegacyPeopleSummary"];
 
 /** How many names still wait to be linked, by how clear their suggested students are. */
 export async function getLegacyPeopleSummary(

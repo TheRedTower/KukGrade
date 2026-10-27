@@ -165,13 +165,13 @@ capabilities dropped and `no-new-privileges` (as `compose.prod.yml` does).
   are really absent from it, not just hidden: the finished filesystem is
   copied into a fresh image, because a file deleted in a later layer would
   still be shipped in the earlier one.
-- **Pinned:** the Python, Node and `uv` base images are pinned by digest in the
-  `Dockerfile`, so a rebuild gives the same image. A pin also means a rebuild
-  does **not** pick up the base's security fixes (Debian, OpenSSL, Python) by
-  itself: refresh the three digests regularly, and whenever a fix you need is
-  announced. Read a digest with `docker buildx imagetools inspect
-  python:3.14-slim` (likewise `node:22-alpine`, `ghcr.io/astral-sh/uv:<version>`),
-  put it after the tag in the `FROM`/`COPY --from` line, rebuild and test.
+- **Pinned, and kept current for you:** the Python, Node and `uv` base images
+  are pinned by digest in the `Dockerfile`, so a rebuild gives the same image.
+  Nobody edits the digests: Dependabot opens a pull request when a base image
+  (and so its Debian, OpenSSL and Python fixes) or a package changes, CI builds
+  it and checks it, and merging a green one is the update (`docs/development-workflow.md`,
+  "Dependency updates"). A new Python or Node *line* is a decision, not a
+  refresh, and is never proposed automatically.
 
 ## Updates, backups and recovery
 
@@ -179,8 +179,8 @@ Before updating, take a PostgreSQL backup using the existing database
 container and store it off the host. Record the current Git commit, image
 identity and backup location. Then update the checkout and rerun the two
 build/start commands above. The image rebuilds from locked Python/npm
-dependencies and pinned base images (refresh those digests too: see "What is
-in the image"); it does not fetch a moving KukGrade image tag.
+dependencies and pinned base images, which merged dependency-update pull
+requests keep current; it does not fetch a moving KukGrade image tag.
 
 If an import batch is pending, back up the `kukgrade_import_uploads` volume
 alongside the database at a consistent point, or complete/expire the batch

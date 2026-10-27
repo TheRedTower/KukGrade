@@ -301,15 +301,35 @@ def stop(process: subprocess.Popen[bytes], sig: int, wait: float) -> None:
         process.wait()
 
 
+def reap_orphans(known: set[int]) -> None:
+    """Collect finished processes nobody else will, as the container's PID 1.
+
+    A process started in the container with `docker exec` and left running in
+    the background is handed to PID 1 when its parent exits, and stays a
+    zombie when it ends unless PID 1 collects it. The app's and database's own
+    processes are left to their Popen objects.
+    """
+    while True:
+        try:
+            found = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        except ChildProcessError:
+            return
+        if found is None or found.si_pid in known:
+            return
+        os.waitpid(found.si_pid, 0)
+
+
 def supervise(
     app: subprocess.Popen[bytes],
     database: subprocess.Popen[bytes] | None,
     stopping: list[bool],
 ) -> int:
     """Wait for the app (or the database) to stop or for a stop signal; stop both."""
+    known = {app.pid, *([database.pid] if database else [])}
     while not stopping[0]:
         if app.poll() is not None or (database and database.poll() is not None):
             break
+        reap_orphans(known)
         time.sleep(0.5)
     stop(app, signal.SIGTERM, APP_STOP_SECONDS)
     if database:

@@ -3,6 +3,7 @@ PostgreSQL installed; the whole of it is exercised by running the image)."""
 
 from __future__ import annotations
 
+import os
 import signal
 import subprocess
 import sys
@@ -22,6 +23,7 @@ class FakeProcess:
     ) -> None:
         self.returncode = returncode
         self.stubborn = stubborn
+        self.pid = id(self)
         self.signals: list[int] = []
 
     def poll(self) -> int | None:
@@ -194,3 +196,20 @@ def test_a_database_user_or_name_that_could_not_be_quoted_is_refused(
         serve.start_database(tmp_path, {"POSTGRES_USER": bad})
     with pytest.raises(SystemExit, match="not usable"):
         serve.start_database(tmp_path, {"POSTGRES_DB": bad})
+
+
+def test_a_finished_process_nobody_owns_is_collected_and_the_known_ones_are_not() -> (
+    None
+):
+    orphan = subprocess.Popen(["true"])
+    known = subprocess.Popen(["sleep", "30"])
+    try:
+        while not os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT):
+            pass
+        serve.reap_orphans({known.pid})
+        with pytest.raises(ChildProcessError):
+            os.waitpid(orphan.pid, os.WNOHANG)
+        assert known.poll() is None
+    finally:
+        known.kill()
+        known.wait()

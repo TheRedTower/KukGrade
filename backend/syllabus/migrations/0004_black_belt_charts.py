@@ -136,7 +136,6 @@ def levels(teaching_note: str) -> tuple[str, list]:
 
 KSN_ADULT = [
     levels(""),
-    section("Ki Cho Moo Ki Sool 기초 무기술", *[line(c) for c in KI_CHO_MOO_KI]),
     section(
         "You Dahn Soo 유단수",
         line("KI_BOHN_BOHN", 10),
@@ -144,15 +143,23 @@ KSN_ADULT = [
         line("JUHN_HWAHN_BUP", 10),
     ),
     section(
+        "Goh Geup Soo 고급수",
+        line("GOH_GEUP_SOHN_MOHK_SOO", 15),
+        line("GOH_GEUP_EUE_BOHK_SOO", 15),
+    ),
+    section(
+        "Dae Geup Soo 대급수",
+        line("JAH_KI", 15),
+        line("WAH_KI", 15),
+        line("EE_IN_JEH_AHP_SOOL", 10),
+    ),
+    section("Hyung 형", line("BAEK_PAHL_KI_HYUNG")),
+    section("Ki Cho Moo Ki Sool 기초 무기술", *[line(c) for c in KI_CHO_MOO_KI]),
+    section(
         "Moo Ki Hyung 무기형",
         line("JUHNG_GUHM_HYUNG"),
         line("JOONG_BONG_IL_HYUNG"),
         line("DAHN_BONG_HYUNG", None, FOUR_DIRECTIONAL),
-    ),
-    section(
-        "Goh Geup Soo 고급수",
-        line("GOH_GEUP_SOHN_MOHK_SOO", 15),
-        line("GOH_GEUP_EUE_BOHK_SOO", 15),
     ),
     section(
         "Dae Ryuhn 대련",
@@ -163,32 +170,18 @@ KSN_ADULT = [
         line("JAH_YU_DAE_RYUHN"),
     ),
     section(
-        "Dae Geup Soo 대급수",
-        line("JAH_KI", 15),
-        line("WAH_KI", 15),
-        line("EE_IN_JEH_AHP_SOOL", 10),
-    ),
-    section(
         "Teuk Soo Johk Sool & Kyuhk Pah 특수 족술 및 격파",
         *[line(c, None, CHART_KICKS if c == "EE_DAHN_CHA_KI" else "") for c in KICKS],
     ),
-    section("Hyung 형", line("BAEK_PAHL_KI_HYUNG")),
     section("WKSA Pledge", line("WKSA_PLEDGE")),
 ]
 
 KSN_YOUTH = [
     levels(""),
-    section("Ki Cho Moo Ki Sool 기초 무기술", *[line(c) for c in KI_CHO_MOO_KI]),
     section(
         "You Dahn Soo 유단수",
         line("YAHNG_SOHN_MOHK_SOO", 15),
         line("SSAHNG_SOO", 15),
-    ),
-    section(
-        "Moo Ki Hyung 무기형",
-        line("JUHNG_GUHM_HYUNG"),
-        line("JOONG_BONG_IL_HYUNG"),
-        line("DAHN_BONG_HYUNG", None, FOUR_DIRECTIONAL),
     ),
     section(
         "Goh Geup Soo 고급수",
@@ -198,6 +191,19 @@ KSN_YOUTH = [
         line("DAHN_DOH_MAHK_KI", 15, AFTER_18),
     ),
     section(
+        "Dae Geup Soo 대급수",
+        line("GOH_GEUP_SOHN_MOHK_SOO", 15),
+        line("GOH_GEUP_EUE_BOHK_SOO", 15),
+    ),
+    section("Hyung 형", line("BAEK_PAHL_KI_HYUNG")),
+    section("Ki Cho Moo Ki Sool 기초 무기술", *[line(c) for c in KI_CHO_MOO_KI]),
+    section(
+        "Moo Ki Hyung 무기형",
+        line("JUHNG_GUHM_HYUNG"),
+        line("JOONG_BONG_IL_HYUNG"),
+        line("DAHN_BONG_HYUNG", None, FOUR_DIRECTIONAL),
+    ),
+    section(
         "Dae Ryuhn 대련",
         line("BONG_DAE_RYUHN", 5),
         line("KEUN_DAE_RYUHN", 8),
@@ -206,20 +212,14 @@ KSN_YOUTH = [
         line("JAH_YU_DAE_RYUHN"),
     ),
     section(
-        "Dae Geup Soo 대급수",
-        line("GOH_GEUP_SOHN_MOHK_SOO", 15),
-        line("GOH_GEUP_EUE_BOHK_SOO", 15),
-    ),
-    section(
         "Teuk Soo Johk Sool & Kyuhk Pah 특수 족술 및 격파",
         *[line(c, None, CHART_KICKS if c == "EE_DAHN_CHA_KI" else "") for c in KICKS],
     ),
-    section("Hyung 형", line("BAEK_PAHL_KI_HYUNG")),
     section("WKSA Pledge", line("WKSA_PLEDGE")),
 ]
 
 PSBN = [
-    levels("Written 실습경력 on this chart."),
+    levels("실습경력"),
     section(
         "You Dahn Soo 유단 수",
         line("KI_BOHN_BOHN"),
@@ -280,7 +280,7 @@ PSBN = [
 ]
 
 SBN = [
-    levels("Written 실습경력 on this chart."),
+    levels("실습경력"),
     section(
         "You Dahn Soo 유단 수",
         line("KI_BOHN_BOHN"),

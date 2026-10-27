@@ -31,56 +31,57 @@ KICKS = [
     ("Yuhn Sohk Cha Ki", None),
     ("Ee Dahn Cha Ki", None),
 ]
-KSN_ADULT = [
-    *LEVELS,
+KI_CHO_MOO_KI = [
     ("Ki Cho Bong", None),
     ("Ki Cho Juhng Guhm", None),
     ("Ki Cho Dahn Bohn", None),
     ("Ki Cho Yuhk Guhm", None),
-    ("Ki Bohn Bohn", "1-10"),
-    ("Gahk Doh Bup", "1-10"),
-    ("Juhn Hwahn Bup", "1-10"),
+]
+MOO_KI_HYUNG = [
     ("Juhng Guhm Hyung", None),
     ("Joong Bong Il Hyung", None),
     ("Dahn Bong Hyung", None),
-    ("Goh Geup Sohn Mohk Soo", "1-15"),
-    ("Goh Geup Eue Bohk Soo", "1-15"),
+]
+DAE_RYUHN = [
     ("Bong Dae Ryuhn", "1-5"),
     ("Keun Dae Ryuhn", "1-8"),
     ("Johk Bahng Uh Sool", "1-15"),
     ("Jahp Ki", "1-20"),
     ("Jah Yu Dae Ryuhn", None),
+]
+# The sheets are read down the left column, then down the right.
+KSN_ADULT = [
+    *LEVELS,
+    ("Ki Bohn Bohn", "1-10"),
+    ("Gahk Doh Bup", "1-10"),
+    ("Juhn Hwahn Bup", "1-10"),
+    ("Goh Geup Sohn Mohk Soo", "1-15"),
+    ("Goh Geup Eue Bohk Soo", "1-15"),
     ("Jah Ki", "1-15"),
     ("Wah Ki", "1-15"),
     ("Ee In Jeh Ahp Sool", "1-10"),
-    *KICKS,
     ("Baek Pahl Ki Hyung", None),
+    *KI_CHO_MOO_KI,
+    *MOO_KI_HYUNG,
+    *DAE_RYUHN,
+    *KICKS,
     ("WKSA Pledge", None),
 ]
 KSN_YOUTH = [
     *LEVELS,
-    ("Ki Cho Bong", None),
-    ("Ki Cho Juhng Guhm", None),
-    ("Ki Cho Dahn Bohn", None),
-    ("Ki Cho Yuhk Guhm", None),
     ("Yahng Sohn Mohk Soo", "1-15"),
     ("Ssahng Soo", "1-15"),  # the chart prints "Ssang Soo"
-    ("Juhng Guhm Hyung", None),
-    ("Joong Bong Il Hyung", None),
-    ("Dahn Bong Hyung", None),
     ("Ki Bohn Bohn", "1-10"),
     ("Gahk Doh Bup", "1-10"),
     ("Juhn Hwahn Bup", "1-10"),
     ("Dahn Doh Mahk Ki", "1-15"),
-    ("Bong Dae Ryuhn", "1-5"),
-    ("Keun Dae Ryuhn", "1-8"),
-    ("Johk Bahng Uh Sool", "1-15"),
-    ("Jahp Ki", "1-20"),
-    ("Jah Yu Dae Ryuhn", None),
     ("Goh Geup Sohn Mohk Soo", "1-15"),
     ("Goh Geup Eue Bohk Soo", "1-15"),
-    *KICKS,
     ("Baek Pahl Ki Hyung", None),
+    *KI_CHO_MOO_KI,
+    *MOO_KI_HYUNG,
+    *DAE_RYUHN,
+    *KICKS,
     ("WKSA Pledge", None),
 ]
 PSBN = [

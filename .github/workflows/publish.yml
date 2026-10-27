@@ -41,17 +41,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: docker/setup-buildx-action@v4
 
-      # A tag that disagrees with the code would publish an image whose About
-      # page shows another version.
-      - name: Check the tag is the version in the code
+      # The branch rules (docs/development.md, "Releasing"): a pre-release is cut
+      # on dev to be tried there; a stable release is cut on prod, which only
+      # takes what dev has already proved. The tag's number must be the
+      # version in the code (a candidate shows the version it is a candidate
+      # for), or the About page would show another one.
+      - name: Check the tag follows the release rules
         if: env.PUSH == 'true'
         run: |
           version="$(sed -n 's/^VERSION = "\(.*\)"$/\1/p' backend/kukgrade/version.py)"
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+          number="${GITHUB_REF_NAME#v}"
+          if [ "${number%%-*}" != "$version" ]; then
             echo "Tag $GITHUB_REF_NAME does not match VERSION $version in backend/kukgrade/version.py" >&2
+            exit 1
+          fi
+          case "$number" in
+            *-*) branch=dev; kind="A pre-release (-rc.N)" ;;
+            *)   branch=prod; kind="A stable release" ;;
+          esac
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$branch"; then
+            echo "$kind must be tagged on a commit that is on $branch; $GITHUB_SHA is not." >&2
             exit 1
           fi
 

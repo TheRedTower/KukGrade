@@ -122,17 +122,49 @@ CI. Merge one once its checks are green.
 
 ## Releasing
 
+Two long-lived branches carry the whole flow:
+
+- **`dev`** is where work lands and where every release is tried first. Pull requests
+  target it, and its CI must be green.
+- **`prod`** is stable. It only ever receives what `dev` has already proved, never a
+  change of its own. Proper releases are cut from it, and so is the demo site.
+
+```text
+feature branch ──PR──▶ dev ──tag vX.Y.Z-rc.N──▶ try it ──PR (merge commit)──▶ prod ──tag vX.Y.Z──▶ release
+```
+
 The version is a single number in `backend/kukgrade/version.py`, kept equal to
 `backend/pyproject.toml` and `frontend/package.json` by a test.
 
-To publish, merge the version bump, then push a tag equal to it, for example
-`git tag v0.2.0 && git push origin v0.2.0`. The `Publish image` workflow
-([publish.yml](../.github/workflows/publish.yml)) builds `ghcr.io/theredtower/kukgrade` for
-amd64 and arm64 on native runners, runs `manage.py check --deploy` and
-`.github/scripts/image-smoke.sh` on each, and only then joins them under `0.2.0`, `0.2`,
-`latest` (and the major from 1.0). A pre-release tag such as `v0.2.0-rc.1` is published
-under its own name only. A tag that differs from `VERSION` fails the build. Running the
-workflow by hand from a branch does everything except push, to rehearse a release.
+1. **Bump the version** on `dev` in a pull request, as for any change.
+2. **Cut a release candidate on `dev`**: `git tag v0.2.0-rc.1 && git push origin v0.2.0-rc.1`.
+   The [Publish image](../.github/workflows/publish.yml) workflow builds
+   `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs
+   `manage.py check --deploy` and `.github/scripts/image-smoke.sh` on each, and only then
+   publishes it. It never moves `latest`, and it shows the version it is a candidate for
+   (`0.2.0`), told apart from the final release by its build commit. A production-ready build is still tried this way
+   first.
+3. **Try it.** Run the candidate as a real deployment (the image tag goes in the compose
+   file), work through the checks that matter for the change, and fix what turns up on
+   `dev`. Each fix is a new candidate (`-rc.2`, ...).
+4. **Promote**: open a pull request from `dev` into `prod` and merge it with a merge commit
+   (not a squash), so `prod` holds the same commits `dev` proved. Nothing is committed to
+   `prod` directly.
+5. **Release**: tag the merge on `prod` as `vX.Y.Z` (no `-rc`). The workflow publishes
+   `0.2.0`, `0.2` and `latest`, plus the major from 1.0. The demo site, once there is one
+   (see the [roadmap](roadmap.md)), follows `latest`.
+6. **A fix to a release already out** takes the same road: it is made on `dev`, tried as a
+   new candidate (`v0.2.1-rc.1`), promoted and tagged `v0.2.1`. There is no shortcut into
+   `prod`, so `prod` is never ahead of `dev`.
+
+The first stable release also needs the first promotion: `prod` starts as the repository's
+first commit, so no `latest` exists until a pull request from `dev` has been merged into it
+and tagged. A candidate publishes only its own tag, so pulling `latest` before then fails.
+
+The workflow enforces the rules rather than trusting memory: a tag whose number is not
+`VERSION` fails, a `-rc` tag must be on a commit that is on `dev`, and a stable tag must be
+on a commit that is on `prod`. Running the workflow by hand from a branch does everything
+except push, to rehearse a release.
 
 First time only: the package is private until it is made public (the package's own page,
 Package settings, Change visibility), and the arm64 runner is free only for public

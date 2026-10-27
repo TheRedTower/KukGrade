@@ -37,7 +37,7 @@ sheet's "*Must be taught AFTER age of 18 y.o." are the note verbatim. The "Under
 Black Belt Curriculum" levels, the Teaching Experience line and the WKSA Pledge
 are requirements too (category Other). PKJN has none. Three techniques the earlier
 syllabus already holds (Yahng Sohn Mohk Soo, Ssahng Soo, Dahn Doh Mahk Ki) reuse
-those items; the Youth chart prints Ssahng Soo as "Ssang Soo".
+those items, spelled as the syllabus already spells them.
 
 Context:
 The owner asked for the sheets' syllabi to be added exactly as written. A second

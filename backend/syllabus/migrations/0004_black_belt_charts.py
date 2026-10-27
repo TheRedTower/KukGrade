@@ -380,39 +380,65 @@ def add_charts(apps: Any, _schema_editor: Any) -> None:
     SyllabusItem = apps.get_model("syllabus", "SyllabusItem")
     SyllabusRequirement = apps.get_model("syllabus", "SyllabusRequirement")
     for code, name, korean_name, category in NEW_ITEMS:
-        SyllabusItem.objects.create(
+        SyllabusItem.objects.get_or_create(
             code=code,
-            name=name,
-            korean_name=korean_name,
-            category=category,
-            description="WKSA Official Black Belt Requirement Chart.",
-            active=True,
+            defaults={
+                "name": name,
+                "korean_name": korean_name,
+                "category": category,
+                "description": "WKSA Official Black Belt Requirement Chart.",
+                "active": True,
+            },
         )
     for rank_code, age_band, chart in CHARTS:
         rank = Rank.objects.get(code=rank_code)
         for code, end, notes, sequence in rows(chart):
-            SyllabusRequirement.objects.create(
+            SyllabusRequirement.objects.update_or_create(
                 rank=rank,
                 age_band=age_band,
                 item=SyllabusItem.objects.get(code=code),
+                defaults={
+                    "required": True,
+                    "sequence": sequence,
+                    "start_number": 1 if end else None,
+                    "end_number": end,
+                    "notes": notes,
+                    "active": True,
+                },
+            )
+
+
+def remove_charts(apps: Any, _schema_editor: Any) -> None:
+    """Remove only what add_charts wrote, as it wrote it.
+
+    A requirement someone added or edited since is left alone, and so is a new
+    item that has been changed or is used by anything else.
+    """
+    Rank = apps.get_model("ranks", "Rank")
+    SyllabusItem = apps.get_model("syllabus", "SyllabusItem")
+    SyllabusRequirement = apps.get_model("syllabus", "SyllabusRequirement")
+    for rank_code, age_band, chart in CHARTS:
+        rank_id = Rank.objects.get(code=rank_code).pk
+        for code, end, notes, sequence in rows(chart):
+            SyllabusRequirement.objects.filter(
+                rank_id=rank_id,
+                age_band=age_band,
+                item__code=code,
                 required=True,
                 sequence=sequence,
                 start_number=1 if end else None,
                 end_number=end,
                 notes=notes,
                 active=True,
-            )
-
-
-def remove_charts(apps: Any, _schema_editor: Any) -> None:
-    Rank = apps.get_model("ranks", "Rank")
-    SyllabusItem = apps.get_model("syllabus", "SyllabusItem")
-    SyllabusRequirement = apps.get_model("syllabus", "SyllabusRequirement")
-    for rank_code, age_band, _chart in CHARTS:
-        SyllabusRequirement.objects.filter(
-            rank_id=Rank.objects.get(code=rank_code).pk, age_band=age_band
+            ).delete()
+    for code, name, korean_name, category in NEW_ITEMS:
+        SyllabusItem.objects.filter(
+            code=code,
+            name=name,
+            korean_name=korean_name,
+            category=category,
+            requirements__isnull=True,
         ).delete()
-    SyllabusItem.objects.filter(code__in=[item[0] for item in NEW_ITEMS]).delete()
 
 
 class Migration(migrations.Migration):

@@ -237,10 +237,15 @@ def wait_until_ready(
     ]  # fmt: skip
     # A database made before the app had a role of its own has POSTGRES_USER as
     # its bootstrap superuser, which PostgreSQL cannot demote. It keeps working
-    # as it did, with a warning saying how to move to the new arrangement.
-    if run(
-        [*psql, "-U", ADMIN_USER, "-c", "SELECT 1"], check=False, capture=True
-    ).returncode:
+    # as it did (that role also makes the database), with a warning saying how
+    # to move to the new arrangement.
+    legacy = bool(
+        run(
+            [*psql, "-U", ADMIN_USER, "-c", "SELECT 1"], check=False, capture=True
+        ).returncode
+    )
+    admin = user if legacy else ADMIN_USER
+    if legacy:
         print(
             f"WARNING: this database was made before the app had a role of its own, "
             f"so {user!r} is its superuser. To change that, dump it with pg_dump, "
@@ -248,32 +253,22 @@ def wait_until_ready(
             '"What is stored, and where").',
             flush=True,
         )
-        return
-    run([*psql, "-U", ADMIN_USER, "-c", app_role_sql(user)])
+    else:
+        run([*psql, "-U", admin, "-c", app_role_sql(user)])
     exists = run(
         [
             *psql,
             "-U",
-            ADMIN_USER,
+            admin,
             "-c",
             f"SELECT 1 FROM pg_database WHERE datname = '{name}'",
         ],
         capture=True,
     )
     if exists.stdout.strip() != "1":
-        run(
-            [
-                programs / "createdb",
-                "-h",
-                SOCKET_DIR,
-                "-U",
-                ADMIN_USER,
-                "-O",
-                user,
-                name,
-            ]
-        )
-    run([*psql, "-U", ADMIN_USER, "-c", f'ALTER DATABASE "{name}" OWNER TO "{user}"'])
+        run([programs / "createdb", "-h", SOCKET_DIR, "-U", admin, "-O", user, name])
+    if not legacy:
+        run([*psql, "-U", admin, "-c", f'ALTER DATABASE "{name}" OWNER TO "{user}"'])
 
 
 def app_role_sql(user: str) -> str:

@@ -1,0 +1,33 @@
+# A self-hosted Pangolin tunnel in front of KukGrade: no port is opened on this
+# host. Newt connects out to your Pangolin server, which serves the public name.
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml \
+#     -f deploy/proxies/pangolin.yml up -d --build
+# Put PANGOLIN_ENDPOINT (https://pangolin.example.com), NEWT_ID and NEWT_SECRET in
+# deploy/.env (not on the command line, where the secret would stay in your shell
+# history; Compose needs them for every command).
+# In Pangolin, add a resource for this site whose target is http://app:6942 (plain
+# HTTP: Pangolin ends TLS), and put its hostname in DJANGO_ALLOWED_HOSTS and
+# https://that-hostname in DJANGO_CSRF_TRUSTED_ORIGINS.
+#
+# DJANGO_NUM_PROXIES=1 is what is expected (Pangolin's Traefik is the only hop
+# that writes the forwarded headers). That has NOT been confirmed against a running
+# Pangolin: check it with deploy/check-proxy-count.sh before relying on it.
+services:
+  app:
+    ports: !reset []
+    environment:
+      # One proxy in front by default. Set DJANGO_NUM_PROXIES in deploy/.env to
+      # change it (for example 2 with Cloudflare in front of this proxy).
+      DJANGO_NUM_PROXIES: "${DJANGO_NUM_PROXIES:-1}"
+
+  newt:
+    image: fosrl/newt:latest
+    container_name: kukgrade-newt
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PANGOLIN_ENDPOINT: ${PANGOLIN_ENDPOINT:?Set PANGOLIN_ENDPOINT to your Pangolin server}
+      NEWT_ID: ${NEWT_ID:?Set NEWT_ID from Pangolin}
+      NEWT_SECRET: ${NEWT_SECRET:?Set NEWT_SECRET from Pangolin}

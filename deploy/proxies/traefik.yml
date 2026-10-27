@@ -1,0 +1,34 @@
+# An existing Traefik in front of KukGrade. One proxy in front:
+# DJANGO_NUM_PROXIES=1 (2 with Cloudflare in front of Traefik: set
+# DJANGO_NUM_PROXIES=2 in deploy/.env, and Traefik must trust Cloudflare's
+# addresses: see docs/deployment.md).
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml \
+#     -f deploy/proxies/traefik.yml up -d --build
+# Put TRAEFIK_NETWORK (the Docker network your Traefik watches; it must already
+# exist) and KUKGRADE_HOST (the name this host answers to) in deploy/.env: Compose
+# needs them for every command, not only up. The labels assume an entrypoint named
+# websecure and a certificate resolver named letsencrypt, so change them to match
+# your Traefik.
+services:
+  app:
+    ports: !reset []
+    environment:
+      # One proxy in front by default. Set DJANGO_NUM_PROXIES in deploy/.env to
+      # change it (for example 2 with Cloudflare in front of this proxy).
+      DJANGO_NUM_PROXIES: "${DJANGO_NUM_PROXIES:-1}"
+    networks:
+      - default
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:?Set TRAEFIK_NETWORK to your Traefik's network}
+      - traefik.http.routers.kukgrade.rule=Host(`${KUKGRADE_HOST:?Set KUKGRADE_HOST to the name this host answers to}`)
+      - traefik.http.routers.kukgrade.entrypoints=websecure
+      - traefik.http.routers.kukgrade.tls=true
+      - traefik.http.routers.kukgrade.tls.certresolver=letsencrypt
+      - traefik.http.services.kukgrade.loadbalancer.server.port=6942
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}

@@ -1,0 +1,43 @@
+# A PostgreSQL that comes with KukGrade. Add it after compose.yml:
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml up -d --build
+# The database is not published on the host; only the app reaches it.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: kukgrade-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/.env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    # Only the app can reach it: it is on a network with nothing else (and no way
+    # out), not the one the proxy or tunnel containers share.
+    networks:
+      - database
+    volumes:
+      # On the host, with the rest of KukGrade's data (see compose.yml).
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  app:
+    networks:
+      - default
+      - database
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  database:
+    internal: true

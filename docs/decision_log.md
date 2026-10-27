@@ -18,6 +18,45 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - Running it on any Docker host: files in deploy/, data in one folder
+
+Status: Accepted; built
+
+Decision:
+`deploy/` has Compose files for any Docker host: `compose.yml` (the app, hardened
+like `compose.prod.yml`), `compose.bundled-db.yml` (an optional PostgreSQL) and one
+file per front door in `deploy/proxies/` (nginx, Caddy, Traefik, Cloudflare
+Tunnel, Pangolin). Everything the app keeps is bind-mounted under `deploy/data/`
+(`postgres/`, `import_uploads/`, `tls/`, and Caddy's), so it persists across
+containers and is one folder to back up; a one-off `permissions` service gives the
+app's UID 10001 its two folders. The compose project is `kukgrade-deploy`. The
+settings stay in one `deploy/.env`; there is no separate data or config directory.
+`deploy/check-proxy-count.sh` tells whether `DJANGO_NUM_PROXIES` is too high.
+
+Context:
+The owner wants it deployable on a range of setups, with data that persists and is
+easy to find, and no extra variables (the port stays fixed at 6942; the host port is
+the left-hand side of `ports:`). Bind mounts rather than named volumes make the
+data visible and backup-friendly at the price of ownership needing care (handled
+by the `permissions` service). `compose.prod.yml` (the owner's host) is unchanged
+and keeps its named volume.
+
+Consequences:
+nginx, Caddy and Traefik were brought up in front of the app and checked (pages,
+closed admin, the count check); the Cloudflare Tunnel and Pangolin recipes were not,
+because they need an account or server, and the Pangolin hop count is an
+expectation to confirm. A first draft shared the project name `kukgrade` with the
+development Compose file and a `--remove-orphans` run removed the development
+database container (its data, in `.local/postgres`, was untouched and the container
+was restarted): hence the distinct project name. None of the images named in
+the Compose files is tracked by Dependabot (it follows the Dockerfile only), so
+the update steps pull them by hand. The database sits on an internal network that
+only the app joins. An independent review of the first version found the check
+script reporting a CSRF refusal as a wrong count (it now tells them apart), the
+proxy count in `traefik.yml` ignoring `.env`, secrets given only on the command
+line, a development CORS default leaking into production, and restore wording that
+assumed an empty database; all fixed.
+
 ### 2026-10-27 - Dependencies are updated by pull request, never by hand
 
 Status: Accepted; built

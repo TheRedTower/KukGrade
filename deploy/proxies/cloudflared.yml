@@ -1,0 +1,28 @@
+# A Cloudflare Tunnel in front of KukGrade: no port is opened on this host.
+# Cloudflare then cloudflared forward the request as one trusted hop:
+# DJANGO_NUM_PROXIES=1.
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml \
+#     -f deploy/proxies/cloudflared.yml up -d --build
+# Put CLOUDFLARE_TUNNEL_TOKEN in deploy/.env (not on the command line, where it
+# would stay in your shell history; Compose needs it for every command).
+# In the Cloudflare dashboard, give the tunnel a public hostname whose service is
+# http://app:6942 (plain HTTP: Cloudflare ends TLS), and put that hostname in
+# DJANGO_ALLOWED_HOSTS and https://that-hostname in DJANGO_CSRF_TRUSTED_ORIGINS.
+services:
+  app:
+    ports: !reset []
+    environment:
+      # One proxy in front by default. Set DJANGO_NUM_PROXIES in deploy/.env to
+      # change it (for example 2 with Cloudflare in front of this proxy).
+      DJANGO_NUM_PROXIES: "${DJANGO_NUM_PROXIES:-1}"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: kukgrade-cloudflared
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN from the Cloudflare dashboard}

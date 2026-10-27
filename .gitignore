@@ -47,3 +47,7 @@ tmp/
 
 # Local audit notes at the repo root, never committed (not backend/audit/)
 /audit/
+
+# What the stand-alone Compose files keep on the host (deploy/compose.yml).
+deploy/data/
+deploy/proxies/nginx/certs/

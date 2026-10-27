@@ -20,7 +20,9 @@ push and pull request.
   files with WhiteNoise. `compose.prod.yml` defines one app service attached
   to external Traefik and PostgreSQL networks; it does not create either
   existing service. The container runs migrations before one threaded
-  Gunicorn worker starts. The container health check asks `/api/health/`
+  Gunicorn worker starts. Any other Docker host runs from `deploy/` (Compose files
+  for the app, an optional bundled PostgreSQL and one proxy or tunnel recipe, with
+  all data bind-mounted under `deploy/data/`: `deployment.md`, "Running it anywhere"). The container health check asks `/api/health/`
   (process liveness, public) and then PostgreSQL directly; nothing public
   reports whether the database is up. The Django admin
   site is not served by the network app: it is run from a shell only, by

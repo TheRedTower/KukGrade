@@ -142,6 +142,131 @@ directly with forged headers.
 The owner's Traefik deployment (`compose.prod.yml`) is `DJANGO_NUM_PROXIES=2`
 (Cloudflare, then Traefik); the app's own port stays unpublished there.
 
+## Running it anywhere
+
+`compose.prod.yml` is the owner's own host (an existing Traefik and PostgreSQL).
+For any other Docker host, the files in `deploy/` run KukGrade on its own or
+behind a proxy or tunnel, with its data in one folder on the host.
+
+```sh
+cp deploy/.env.example deploy/.env        # fill it in (secret key, database password, host names)
+docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml up -d --build
+docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml logs app   # the first setup code
+```
+
+That serves HTTPS itself on port 6942 with a self-signed certificate (see "How the
+app is reached"). It needs Docker Compose 2.24.4 or newer. To put something in front, add one file from `deploy/proxies/`
+after the other two (`-f deploy/proxies/nginx.yml`); it removes the app's published
+port, sets `DJANGO_NUM_PROXIES` (to 1; set `DJANGO_NUM_PROXIES` in `deploy/.env` to
+change it) and adds the proxy. Paths inside these files are relative to `deploy/`,
+and any variable a proxy file needs (a tunnel token, a domain: see the end of
+`deploy/.env.example`) goes in `deploy/.env`, not on the command line, because
+Compose needs it for every command, not only `up`. The compose project is named `kukgrade-deploy`, so it never
+touches the development database (`docker compose up -d db` in the repository
+root) or `compose.prod.yml`.
+
+- `compose.yml`: the app, hardened as in `compose.prod.yml` (read-only root,
+  all capabilities dropped, `no-new-privileges`), with a one-off `permissions`
+  service that hands its two data folders to the app's user before it starts.
+- `compose.bundled-db.yml`: a PostgreSQL 17 that comes with it, not published on
+  the host and on a network of its own that only the app joins (so a proxy or
+  tunnel container cannot reach it). Changing `POSTGRES_PASSWORD` later does not
+  change the database's: it only applies when the database is first created. To use a database you already run, leave this file out and set
+  `POSTGRES_HOST` (and `POSTGRES_PORT`) in `deploy/.env`.
+- `proxies/`: `nginx.yml`, `caddy.yml`, `traefik.yml`, `cloudflared.yml`,
+  `pangolin.yml`.
+
+### What is stored, and where
+
+Everything KukGrade keeps is under `deploy/data/` on the host (bind mounts), so it
+survives replacing or rebuilding a container and is one folder to back up. There is
+no other data directory and no config directory: the settings are the environment
+in `deploy/.env`.
+
+| Folder | What | If you lose it |
+| --- | --- | --- |
+| `data/postgres/` | the database (with `compose.bundled-db.yml`) | everything: restore from a backup |
+| `data/import_uploads/` | workbooks and rosters waiting to be imported (private, cleared after 24 hours) | an unfinished import must be started again |
+| `data/tls/` | the self-signed certificate and the host names it was made for | the app makes a new one; browsers warn again |
+| `data/caddy/` | Caddy's certificates (with `caddy.yml`) | Caddy asks for new ones (rate limits apply) |
+
+`deploy/data/` is ignored by Git and left out of image builds. Move or change a
+folder by editing the left-hand side of the mounts in the compose files. The
+`permissions` service makes `import_uploads` and `tls` belong to the app's user
+(UID 10001); PostgreSQL looks after its own folder. On a host that manages file
+ownership itself (some NAS and Windows setups), set the owners by hand.
+
+Back up with the stack running:
+
+```sh
+docker exec kukgrade-db pg_dump -U kukgrade -d kukgrade -Fc > kukgrade-$(date +%F).dump
+tar -C deploy/data -czf kukgrade-uploads-$(date +%F).tar.gz import_uploads
+```
+
+(`data/postgres/` must not be copied while the database runs, so dump instead.)
+(`-U kukgrade -d kukgrade` are the names in `.env.example`; use yours.) To restore,
+stop the app first (`docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml
+stop app`), then `docker exec -i kukgrade-db pg_restore -U kukgrade -d kukgrade --clean
+--if-exists < kukgrade-DATE.dump`, unpack the uploads tarball into `deploy/data/` and
+start the app again. The database is never empty once the app has run (it migrates
+at start), and `--clean` replaces what the dump contains; restoring an older dump
+over a newer schema can leave extra tables behind, so for a clean slate drop and
+recreate the database first. Keep copies off the host, and test a restore before
+real student data goes in. The data sits inside the Git checkout: do not run `git
+clean -fdx` there.
+
+### Choosing how it is reached
+
+| File | Terminates TLS | Open on the host | `DJANGO_NUM_PROXIES` | Tried here |
+| --- | --- | --- | --- | --- |
+| none | the app (self-signed, or yours) | 6942 | 0 | yes |
+| `nginx.yml` | nginx (your certificate in `proxies/nginx/certs/`) | 80, 443 | 1 | yes |
+| `caddy.yml` | Caddy (automatic certificates for `KUKGRADE_DOMAIN`) | 80, 443 | 1 | yes |
+| `traefik.yml` | your Traefik | none (Traefik's own) | 1 (2 with Cloudflare in front) | yes |
+| `cloudflared.yml` | Cloudflare | none | 1 | no: needs a Cloudflare account; the count follows Cloudflare's documented headers (it appends the visitor's address to any `X-Forwarded-For` the client sent) |
+| `pangolin.yml` | your Pangolin server | none | 1 expected | no: needs a Pangolin server; confirm the count with the check below |
+
+"Tried here" means brought up with the real proxy in front of the app and
+checked: pages served, `/admin/` closed, and the check below. nginx and Caddy
+cap an upload a little above the import limit (6 MB); nginx refuses an oversized
+one at once, Caddy when the app reads it. Behind nginx on a port other than 443,
+list that origin (with the port) in `DJANGO_CSRF_TRUSTED_ORIGINS`. Set `DJANGO_ALLOWED_HOSTS` and
+`DJANGO_CSRF_TRUSTED_ORIGINS` in `deploy/.env` to the name people type.
+
+Check that the count matches what is in front, from anywhere that can reach it:
+
+```sh
+deploy/check-proxy-count.sh https://kukgrade.example.com
+```
+
+It sends 14 failed sign-ins that each claim a different address and reports `OK`
+if the sign-in limit still treats them as one visitor. If it reports `TOO HIGH`,
+lower `DJANGO_NUM_PROXIES`; if it reports an unexpected HTTP status (a CSRF or host
+setting, not the count), fix that first. It uses up the sign-in limit, so your own
+sign-ins are refused for about a minute afterwards. A count too low is not caught by one visitor: every
+person behind the proxy would share one limit, so if sign-ins lock people out
+together, raise it.
+
+To update, take a backup, `git pull`, then pull the images that are not built here
+(PostgreSQL and the proxy) and rebuild the app:
+
+```sh
+docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml pull --ignore-buildable
+docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml up -d --build
+```
+
+(with your proxy file added to both). Dependabot follows the Dockerfile's images
+but not these Compose files', so the proxy and PostgreSQL images only change when
+you pull; the Cloudflare and Pangolin images are on `latest`.
+
+To serve your own certificate from the app instead of the self-signed one, put the
+two files in `deploy/data/tls/` and set `KUKGRADE_TLS_CERT=/var/lib/kukgrade/tls/your.crt`
+and `KUKGRADE_TLS_KEY=/var/lib/kukgrade/tls/your.key` in `deploy/.env`. A host
+database on the same machine, or on another Compose network, is not reachable from
+this stack as written: add the network or `extra_hosts` to `compose.yml` yourself.
+The import limit raised through `KUKGRADE_UPLOAD_MAX_BYTES` is still capped by the
+6 MB the nginx and Caddy recipes allow (`client_max_body_size`, `max_size`).
+
 ## What is in the image
 
 The image is the Python base image plus the app and nothing else it needs to

@@ -1,0 +1,12 @@
+# Caddy in front of KukGrade (deploy/proxies/caddy.yml).
+{$KUKGRADE_DOMAIN} {
+	# A little above the app's import limit (KUKGRADE_UPLOAD_MAX_BYTES, 5 MiB).
+	request_body {
+		max_size 6MB
+	}
+
+	# Caddy does not trust a client's X-Forwarded-For unless told to, so it starts
+	# the chain from the address it saw and sets X-Forwarded-Proto itself:
+	# DJANGO_NUM_PROXIES=1.
+	reverse_proxy app:6942
+}

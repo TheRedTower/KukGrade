@@ -1,0 +1,32 @@
+# Caddy in front of KukGrade, getting its own certificate. One proxy in front:
+# DJANGO_NUM_PROXIES=1.
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml \
+#     -f deploy/proxies/caddy.yml up -d --build
+# Put KUKGRADE_DOMAIN in deploy/.env (Compose needs it for every command). It must
+# be a name that points at this host, with ports 80 and 443 reachable, or Caddy
+# cannot get a certificate. "localhost" works for trying it out, but only Caddy's
+# own container trusts that certificate, so a browser on the host will warn.
+services:
+  app:
+    ports: !reset []
+    environment:
+      # One proxy in front by default. Set DJANGO_NUM_PROXIES in deploy/.env to
+      # change it (for example 2 with Cloudflare in front of this proxy).
+      DJANGO_NUM_PROXIES: "${DJANGO_NUM_PROXIES:-1}"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: kukgrade-caddy
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      KUKGRADE_DOMAIN: ${KUKGRADE_DOMAIN:?Set KUKGRADE_DOMAIN to the name this host answers to}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./proxies/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data

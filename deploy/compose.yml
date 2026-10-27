@@ -1,0 +1,82 @@
+# KukGrade on any Docker host, on its own or behind a proxy or tunnel.
+#
+#   cp deploy/.env.example deploy/.env      # then fill it in
+#   docker compose -f deploy/compose.yml -f deploy/compose.bundled-db.yml up -d --build
+#
+# Everything KukGrade keeps lives in deploy/data/ on the host (bind mounts), so it
+# survives replacing or rebuilding the containers and is one folder to back up:
+#   data/postgres/        the database (with compose.bundled-db.yml)
+#   data/import_uploads/  workbooks and rosters waiting to be imported
+#   data/tls/             the self-signed certificate, when the app serves HTTPS
+# The settings are in deploy/.env. Nothing else is written anywhere.
+#
+# This file is the app. Add compose.bundled-db.yml for a PostgreSQL that comes
+# with it (or set POSTGRES_HOST in .env to one you already have), and one file
+# from proxies/ to put a reverse proxy or tunnel in front. docs/deployment.md,
+# "Running it anywhere", explains each choice.
+name: kukgrade-deploy
+
+services:
+  app:
+    image: kukgrade:local
+    container_name: kukgrade
+    build:
+      context: ..
+      target: production
+      # Shown on the About page; empty when the shell does not set them.
+      args:
+        KUKGRADE_BUILD_COMMIT: ${KUKGRADE_BUILD_COMMIT:-}
+        KUKGRADE_BUILD_TIME: ${KUKGRADE_BUILD_TIME:-}
+    env_file:
+      - .env
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # The app's port is fixed at 6942. To reach it on another host port, change
+    # the left-hand number (for example "7443:6942"). A proxy file removes this
+    # mapping: with a proxy in front, only the proxy is published.
+    ports:
+      - "6942:6942"
+    volumes:
+      - ./data/import_uploads:/var/lib/kukgrade/import_uploads
+      # The self-signed certificate the app makes when it serves HTTPS itself.
+      - ./data/tls:/var/lib/kukgrade/tls
+    depends_on:
+      permissions:
+        condition: service_completed_successfully
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  # Runs once before the app and exits: the app runs as UID 10001, and a folder
+  # Docker makes on the host belongs to root, so hand the two folders over.
+  permissions:
+    image: kukgrade:local
+    pull_policy: never
+    user: "0:0"
+    entrypoint:
+      - chown
+      - -R
+      - "10001:10001"
+      - /var/lib/kukgrade/import_uploads
+      - /var/lib/kukgrade/tls
+    read_only: true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+    security_opt:
+      - no-new-privileges:true
+    restart: "no"
+    volumes:
+      - ./data/import_uploads:/var/lib/kukgrade/import_uploads
+      - ./data/tls:/var/lib/kukgrade/tls

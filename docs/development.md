@@ -166,6 +166,22 @@ The workflow enforces the rules rather than trusting memory: a tag whose number 
 on a commit that is on `prod`. Running the workflow by hand from a branch does everything
 except push, to rehearse a release.
 
+Each tag also gets a page under
+[Releases](https://github.com/TheRedTower/KukGrade/releases), with notes written from the
+pull requests merged since the last one; a candidate is marked as a pre-release.
+
 First time only: the package is private until it is made public (the package's own page,
-Package settings, Change visibility), and the arm64 runner is free only for public
-repositories, so make the repository public first.
+Package settings, Change visibility).
+
+### How the repository is protected
+
+GitHub enforces the branch rules above, so they hold for everyone:
+
+- `dev` and `prod` take changes only through a pull request that merges with a merge
+  commit (no squash or rebase), and only once the four CI checks pass (Backend, Frontend,
+  Frontend tests (non-UTC timezone), Production image). Force-pushes and deletion are
+  blocked. The owner can bypass this only through a pull request.
+- Tags matching `v*` cannot be moved or deleted.
+- Secret scanning with push protection, Dependabot alerts and security updates, and private
+  vulnerability reporting (the route [SECURITY.md](../SECURITY.md) names) are on.
+- Branches are deleted when their pull request merges.

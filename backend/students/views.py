@@ -20,7 +20,7 @@ from gradings.read_models import (
     unified_student_grading_history,
     with_current_grading,
 )
-from gradings.services import unsettled_registrations
+from gradings.services import ranks_open_for_grading, unsettled_registrations
 from kukgrade.filtering import (
     QueryFilter,
     by_id,
@@ -60,6 +60,7 @@ def _eligible_for_session(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
         queryset.exclude(status=Student.Status.LEFT)
         .exclude(pk__in=registered)
         .exclude(pk__in=registered_elsewhere)
+        .filter(current_rank__in=ranks_open_for_grading())
     )
 
 
@@ -76,8 +77,9 @@ _ELIGIBLE_FOR_SESSION = QueryFilter(
     _eligible_for_session,
     {"type": "integer"},
     "Students who could still be registered for this grading session: "
-    "not Left, not already one of its candidates, and not registered for "
-    "another grading that has not reached its result.",
+    "not Left, not already one of its candidates, not registered for "
+    "another grading that has not reached its result, and at a rank whose "
+    "next rank has a syllabus recorded.",
 )
 
 

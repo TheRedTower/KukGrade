@@ -120,10 +120,12 @@ export function StudentDetailScreen() {
     return Array.isArray(ranksQuery.data?.results) ? ranksQuery.data.results : [];
   }, [ranksQuery.data]);
 
-  // The next rank as the server defines it (Rank.next_rank).
+  // The next rank as the server defines it (Rank.next_rank), unless its syllabus
+  // is not recorded yet: such a rank is not offered.
   const nextRank = useMemo(() => {
     const current = ranks.find((r) => r.id === student?.current_rank);
-    return ranks.find((r) => r.id === current?.next_rank) ?? null;
+    const next = ranks.find((r) => r.id === current?.next_rank);
+    return next?.has_syllabus ? next : null;
   }, [student, ranks]);
 
   async function handleSaveStatus(e: FormEvent) {

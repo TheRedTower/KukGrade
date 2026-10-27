@@ -19,11 +19,10 @@ Want something here, or something that is missing? Open an
 - [ ] **Go live and prove it**: run a real deployment end to end, including a tested backup and
       restore and a request-size cap at the proxy, before calling a release production-ready.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
-- [ ] **Branch protection**: once the repository is public, require green CI and a pull
-      request on `dev` and `prod` (only merge commits into `prod`), and protect the `v*` tags.
 - [ ] **Put the demo site online**: it is built (see [demo.md](demo.md)); what is left is to run it
-      on its own machine behind a tunnel, following `latest` (the newest stable release, cut
-      from `prod`), and to link it from the repository's About box.
+      on its own machine behind a tunnel, first from a release candidate and then following
+      `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
+      About box.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first
@@ -45,7 +44,8 @@ Want something here, or something that is missing? Open an
 
 - **Black belt syllabus.** The app holds the syllabus up to Jo Kyo Nim. The charts for the
   ranks above it (Kyo Sa Nim and up) are not included; a school that needs them can enter them
-  as syllabus data. To decide: whether a black belt grading assesses its own chart on top of the
+  as syllabus data. Until then those ranks are kept out of the syllabus screen and the
+  grading flow, and appear again by themselves once their syllabus is recorded. To decide: whether a black belt grading assesses its own chart on top of the
   cumulative lower ranks, as every grading does today.
 - **Black belt testing.** Black belt candidates register and pay the national association, then
   must sit a minimum number of gradings (six for Jo Kyo Nim, more above) before a final national

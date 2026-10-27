@@ -14,8 +14,30 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from django.db.models import Exists, OuterRef, QuerySet
+
 from ranks.models import Rank
 from syllabus.models import CATEGORY_ORDER, SyllabusRequirement
+
+
+def rank_has_syllabus() -> Exists:
+    """Whether a rank has requirements of its own recorded, for annotating
+    ranks (`Rank.objects.annotate(has_syllabus=rank_has_syllabus())`).
+
+    The one statement of the rule that keeps a rank out of the syllabus screen
+    and out of the grading flow while its charts are not in the app. It is data
+    driven: the rank joins both as soon as a requirement is recorded for it.
+    """
+    return Exists(_recorded().filter(rank=OuterRef("pk")))
+
+
+def has_recorded_syllabus(rank: Rank) -> bool:
+    return _recorded().filter(rank=rank).exists()
+
+
+def _recorded() -> QuerySet[SyllabusRequirement]:
+    return SyllabusRequirement.objects.filter(active=True, item__active=True)
+
 
 _CHART_NOTATION_RE = re.compile(r"^Chart notation: \((.+)\)\.$")
 _PART_OF_RE = re.compile(r"^(\d+)/(\d+)$")

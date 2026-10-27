@@ -48,6 +48,7 @@ from gradings.models import (
 from gradings.service_support import each_independently, unique_violation_on
 from ranks.models import Rank
 from students.models import Student
+from syllabus.services import has_recorded_syllabus, rank_has_syllabus
 
 ALLOWED_SESSION_TRANSITIONS: dict[str, set[str]] = {
     GradingSession.Status.DRAFT: {
@@ -74,6 +75,21 @@ def get_next_active_rank(current_rank: Rank) -> Rank | None:
     return Rank.objects.next_active_after(current_rank.order).first()
 
 
+def ranks_open_for_grading() -> list[int]:
+    """The ranks whose students can be registered for a grading: those whose
+    next rank has a syllabus recorded. While the charts above Jo Kyo Nim are
+    not in the app, a Jo Kyo Nim student has nothing to be graded on."""
+    ranks = list(Rank.objects.filter(active=True).order_by("order"))
+    with_syllabus = set(
+        Rank.objects.filter(rank_has_syllabus()).values_list("pk", flat=True),
+    )
+    return [
+        current.pk
+        for current, following in zip(ranks, ranks[1:], strict=False)
+        if following.pk in with_syllabus
+    ]
+
+
 def validate_student_can_be_graded(student: Student) -> None:
     if not student.can_be_graded:
         raise ValidationError(
@@ -98,6 +114,15 @@ def validate_testing_for_rank(student: Student, testing_for_rank: Rank) -> None:
                 "testing_for_rank": [
                     "Testing-for rank must be the next active rank after "
                     "the student's current rank.",
+                ],
+            },
+        )
+    if not has_recorded_syllabus(testing_for_rank):
+        raise ValidationError(
+            {
+                "testing_for_rank": [
+                    f"No syllabus is recorded for {testing_for_rank.name} yet, "
+                    "so nobody can be graded for it.",
                 ],
             },
         )

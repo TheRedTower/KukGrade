@@ -282,13 +282,16 @@ def test_generate_candidate_assessment_refuses_a_rank_with_no_recorded_syllabus(
 ):
     # Everything through JKN is recorded, but nothing for KSN itself: that is
     # not KSN's syllabus, so no assessment is generated from it.
-    built = candidate(
-        student=student(
-            date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
-            current_rank=rank("JKN"),
-        ),
-        testing_for_rank=rank("KSN"),
-    )
+    # Registering for KSN is refused now, so this is a registration from before
+    # that rule.
+    with patch("gradings.services.validate_testing_for_rank"):
+        built = candidate(
+            student=student(
+                date_of_birth=BORN_IN_BAND[AgeBand.AGE_18_AND_OVER],
+                current_rank=rank("JKN"),
+            ),
+            testing_for_rank=rank("KSN"),
+        )
 
     with pytest.raises(ValidationError) as exc_info:
         assessment(candidate=built)

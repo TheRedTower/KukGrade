@@ -50,10 +50,10 @@ jobs:
       POSTGRES_PORT: 5432
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
@@ -104,11 +104,11 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Pinned to an LTS line that Vite 7 supports. Local development is
       # currently on a newer Node; add an .nvmrc if that drift ever bites.
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -158,9 +158,9 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -180,7 +180,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # compose.prod.yml loads .env.production into the container, and that
       # file only exists on the deployment host - validate against a copy of

@@ -193,8 +193,52 @@ def test_rank_api_returns_active_ranks_in_progression_order() -> None:
         "stripe_colour": "",
         "stripe_count": 0,
         "next_rank": Rank.objects.get(code="YELLOW_STRIPE").id,
+        "has_syllabus": True,
     }
     assert payload[-1]["next_rank"] is None
+
+
+def test_ranks_above_the_recorded_syllabus_are_flagged() -> None:
+    user = User.objects.create_user(email="rank-flag@example.com")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    flags = {
+        rank["code"]: rank["has_syllabus"]
+        for rank in results(client.get("/api/ranks/"))
+    }
+
+    assert flags["WHITE"] is True
+    assert flags["JKN"] is True
+    assert [code for code, recorded in flags.items() if not recorded] == [
+        "KSN",
+        "PSBN",
+        "SBN",
+        "PKJN",
+    ]
+
+
+def test_a_rank_gains_its_flag_when_a_syllabus_is_recorded_for_it() -> None:
+    user = User.objects.create_user(email="rank-flag-new@example.com")
+    client = APIClient()
+    client.force_authenticate(user=user)
+    ksn = Rank.objects.get(code="KSN")
+    template = SyllabusRequirement.objects.filter(rank__code="JKN").first()
+    assert template is not None
+    SyllabusRequirement.objects.create(
+        rank=ksn,
+        item=template.item,
+        age_band=template.age_band,
+        sequence=999,
+    )
+
+    flags = {
+        rank["code"]: rank["has_syllabus"]
+        for rank in results(client.get("/api/ranks/"))
+    }
+
+    assert flags["KSN"] is True
+    assert flags["PSBN"] is False
 
 
 def test_next_rank_skips_inactive_ranks() -> None:

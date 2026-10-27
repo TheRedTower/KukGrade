@@ -20,6 +20,14 @@ class RankSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
 
+    has_syllabus = serializers.BooleanField(
+        read_only=True,
+        help_text=(
+            "False for the ranks above the highest one with any syllabus "
+            "recorded; their charts are not in the app yet."
+        ),
+    )
+
     class Meta:
         model = Rank
         fields = (
@@ -31,5 +39,6 @@ class RankSerializer(serializers.ModelSerializer):
             "stripe_colour",
             "stripe_count",
             "next_rank",
+            "has_syllabus",
         )
         read_only_fields = fields

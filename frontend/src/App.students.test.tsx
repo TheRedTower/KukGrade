@@ -76,9 +76,9 @@ describe("Students registry screen (/students)", () => {
 
   it("renders populated student rows with ranks, status badges, and privacy compliance", async () => {
     const testRanks = [
-      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
-      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
-      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+      { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
+      { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
+      { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
     ] satisfies Rank[];
 
     const testStudents = [
@@ -222,7 +222,7 @@ describe("Students registry screen (/students)", () => {
           count: 1,
           next: null,
           previous: null,
-          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null } satisfies Rank],
+          results: [{ id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true } satisfies Rank],
         });
       }
       if (url.includes("/api/students/")) {
@@ -283,9 +283,9 @@ describe("Students registry screen (/students)", () => {
 
 describe("Add student screen (/students/new)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5 },
-    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null },
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 5, has_syllabus: true },
+    { id: 5, code: "B", name: "Blue Belt", order: 5, belt_colour: "BLUE", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
   ] satisfies Rank[];
 
   beforeEach(() => {
@@ -569,9 +569,9 @@ describe("Add student screen (/students/new)", () => {
 
 describe("Student detail screen (/students/:id)", () => {
   const testRanks = [
-    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2 },
-    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3 },
-    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null },
+    { id: 1, code: "W", name: "White Belt", order: 1, belt_colour: "WHITE", stripe_colour: "", stripe_count: 0, next_rank: 2, has_syllabus: true },
+    { id: 2, code: "YS", name: "Yellow Stripe", order: 2, belt_colour: "WHITE", stripe_colour: "YELLOW", stripe_count: 1, next_rank: 3, has_syllabus: true },
+    { id: 3, code: "Y", name: "Yellow Belt", order: 3, belt_colour: "YELLOW", stripe_colour: "", stripe_count: 0, next_rank: null, has_syllabus: true },
   ] satisfies Rank[];
 
   const testStudent = {

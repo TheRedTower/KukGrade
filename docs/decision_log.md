@@ -18,6 +18,45 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - The black belt requirement charts are recorded as written
+
+Status: Accepted; built (migration `syllabus/0004_black_belt_charts`)
+
+Decision:
+The WKSA Official Black Belt Requirement Charts the owner supplied are recorded
+as the syllabus of the ranks they belong to, with nothing added, left out or
+reworded: the 2nd degree chart for KSN adults (18+) and the Youth 2nd degree chart
+for KSN 13-17 (both WKSA Version 2-1), the 3rd degree chart for PSBN (Version 3-1)
+and the 4th degree chart for SBN (Version 4-1), the last two for adults only
+because the sheets give no other band. That is 36, 36, 47 and 49 lines. Each line
+is a requirement in the chart's reading order (down the left column, then the
+right), with the range the chart prints (`1-10`, `1-15`, ...), its Korean as
+printed, and a note saying which chart section it sits under; the chart's own
+parentheses (`(4 DIRECTIONAL)`, `(AHP, YUHP, DEE, BAHL DEUNG)`) and the Youth
+sheet's "*Must be taught AFTER age of 18 y.o." are the note verbatim. The "Under
+Black Belt Curriculum" levels, the Teaching Experience line and the WKSA Pledge
+are requirements too (category Other). PKJN has none. Three techniques the earlier
+syllabus already holds (Yahng Sohn Mohk Soo, Ssahng Soo, Dahn Doh Mahk Ki) reuse
+those items; the Youth chart prints Ssahng Soo as "Ssang Soo".
+
+Context:
+The owner asked for the sheets' syllabi to be added exactly as written. A second
+reader compared every line, range, note and hangul with the images and found them
+matching; the one difference found (the order of the KSN lines) was corrected.
+
+Consequences:
+Every grading assesses the cumulative syllabus (2026-09-29), so a KSN, PSBN or
+SBN assessment also carries the earlier ranks' content under the chart's lines;
+each higher chart restates the sets of the one below it (PSBN prints them
+without a range, which replaces KSN's), as the chart does. Whether a black belt
+grading should be exempt from that is for the owner to say. The 3rd and 4th
+degree sheets print the teaching line as 실습경력 (the 2nd as 실습경험), kept in
+the note of those lines. The special kicks' "(AHP, YUHP, DEE, BAHL DEUNG)" is
+printed under Ee Dahn Cha Ki and is recorded on it. Category choices for the
+lines (a chart section is not a category) are Other for sparring, study and
+pledge lines, Technique set for sets and kicks, Form and Weapons for forms and
+weapon skills.
+
 ### 2026-10-27 - Review of the deployment work, and a CI job that starts the image
 
 Status: Accepted; built

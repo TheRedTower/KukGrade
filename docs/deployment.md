@@ -142,13 +142,45 @@ directly with forged headers.
 The owner's Traefik deployment (`compose.prod.yml`) is `DJANGO_NUM_PROXIES=2`
 (Cloudflare, then Traefik); the app's own port stays unpublished there.
 
+## What is in the image
+
+The image is the Python base image plus the app and nothing else it needs to
+run or to be repaired. It runs as an unprivileged user (UID 10001) with no
+setuid programs, and is meant to run with a read-only root filesystem, all
+capabilities dropped and `no-new-privileges` (as `compose.prod.yml` does).
+
+- **Kept, on purpose:** the shell (`sh`), `python`, Django's `manage.py`
+  (`shell`, `migrate`, any command: how an operator repairs a deployment) and
+  the `openssl` command (the app makes its own certificate with it). There is
+  no `psql`; use the PostgreSQL container's.
+- **Left out:** the app's tests, `schema.yml`, `uv.lock`, `pyproject.toml`,
+  READMEs, the docs and design register, the uncollected copy of the built
+  frontend assets, Django's and the REST framework's translations other than
+  English, the compiled extensions' C sources, the Django admin's and the
+  browsable API's static files, the Brotli library (the compressed assets it
+  made are served without it), `pip`, `setuptools`, `wheel`, `idle`, `tkinter`,
+  `ensurepip`, C headers, package-manager lists, documentation and manual
+  pages (so the Debian per-package copyright files too: keep that in mind
+  before publishing the image for others). The image is built so that these
+  are really absent from it, not just hidden: the finished filesystem is
+  copied into a fresh image, because a file deleted in a later layer would
+  still be shipped in the earlier one.
+- **Pinned:** the Python, Node and `uv` base images are pinned by digest in the
+  `Dockerfile`, so a rebuild gives the same image. A pin also means a rebuild
+  does **not** pick up the base's security fixes (Debian, OpenSSL, Python) by
+  itself: refresh the three digests regularly, and whenever a fix you need is
+  announced. Read a digest with `docker buildx imagetools inspect
+  python:3.14-slim` (likewise `node:22-alpine`, `ghcr.io/astral-sh/uv:<version>`),
+  put it after the tag in the `FROM`/`COPY --from` line, rebuild and test.
+
 ## Updates, backups and recovery
 
 Before updating, take a PostgreSQL backup using the existing database
 container and store it off the host. Record the current Git commit, image
 identity and backup location. Then update the checkout and rerun the two
 build/start commands above. The image rebuilds from locked Python/npm
-dependencies; it does not fetch a moving KukGrade image tag.
+dependencies and pinned base images (refresh those digests too: see "What is
+in the image"); it does not fetch a moving KukGrade image tag.
 
 If an import batch is pending, back up the `kukgrade_import_uploads` volume
 alongside the database at a consistent point, or complete/expire the batch

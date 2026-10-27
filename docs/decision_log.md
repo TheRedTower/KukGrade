@@ -18,6 +18,44 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - Dependencies are updated by pull request, never by hand
+
+Status: Accepted; built
+
+Decision:
+`.github/dependabot.yml` has Dependabot open weekly pull requests for the
+Python packages (`pyproject.toml` with `uv.lock`), the npm packages
+(`package.json` with `package-lock.json`), the pinned base-image digests in the
+`Dockerfile`, and the GitHub Actions in the CI. Minor and patch updates are
+grouped into one pull request per kind; a major version gets its own. Tools
+whose output is committed (`drf-spectacular`, `openapi-typescript`, `ruff`,
+`mypy`) are grouped apart, and the `uv` image is not grouped with the Python and
+Node images, so one that needs a follow-up commit or breaks the build cannot
+hold the rest back. A three-day cooldown keeps freshly published packages out.
+The Dockerfile names each image once, in a `FROM` line (the `uv` image and a
+shared Python base are their own stages), because that is what Dependabot reads.
+The Python and Node image tags are followed by digest only: a new Python or
+Node line is ignored, because it is a decision, not a refresh. The Dockerfile
+does not hard-code the Python minor version in its paths.
+
+Context:
+The owner does not want to edit dependency versions or image digests by hand:
+updating a package should update it everywhere, then be checked by CI and
+review before it lands. A pull request is the review point; on this plan
+nothing enforces that CI is green before a merge, and a Copilot review has to
+be requested.
+
+Consequences:
+A deliberate move to a new Python or Node line still changes several places
+together (the list is in `development-workflow.md`). The PostgreSQL image is
+not tracked (a new major is a data migration). Dependabot only regenerates a
+manifest and lockfile, so an update to a package with committed output can need
+a follow-up commit. GitHub may suppress digest-only updates for an unchanged
+tag, so it is worth watching that a Python or Node digest pull request arrives.
+Security updates for a vulnerable dependency can be turned on in the
+repository's Dependabot settings (not a file). The first run may open several
+pull requests at once.
+
 ### 2026-10-27 - The production image keeps only what runs or repairs
 
 Status: Accepted; built
@@ -49,8 +87,8 @@ chosen in this slice) or removing tools the owner wants for emergencies.
 Consequences:
 A base image only changes when its digest is changed in the `Dockerfile`, which
 also means it does not pick up the base's security fixes by itself: refreshing
-the three digests is a regular job (steps in `deployment.md`; there is no
-Dependabot or Renovate configuration to prompt it). Adding a new Django app
+the three digests is not left as a manual job: Dependabot (see the dependency
+updates entry) opens the pull requests. Adding a new Django app
 needs no Dockerfile change (the whole backend is copied, then named files are
 removed). A new tool the app needs from the base image (a command, a library)
 has to be checked against the trimmed filesystem.

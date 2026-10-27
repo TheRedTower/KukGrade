@@ -80,3 +80,43 @@ uv run python manage.py migrate
 The local Compose database binds PostgreSQL to `127.0.0.1` only and stores data
 under `.local/postgres/`, which Git ignores. Use `.env` for local overrides.
 Production commands live in `deployment.md`.
+
+## Dependency updates
+
+Nobody edits dependency versions or base-image digests by hand. Dependabot
+(`.github/dependabot.yml`) opens a pull request every week when a Python package
+(`backend/pyproject.toml` and `uv.lock`), an npm package (`frontend/package.json`
+and `package-lock.json`), a GitHub Action, or a pinned base image in the
+`Dockerfile` has a newer version. Each pull request changes the manifest and its
+lockfile together and CI runs on it like on any other (tests in both time zones,
+the build, `npm audit`; for a base image, the image build and a `check --deploy`
+inside it). Merge one once its checks are green: nothing enforces that on this
+plan. Codex reviews pull requests as they open; ask for a Copilot review on one
+you want read.
+
+- Minor and patch updates arrive grouped, one pull request per kind of
+  dependency; a major version gets its own, to be read before it is merged.
+- A new Python or Node *line* is never proposed: it is a decision. When you
+  make one, change them together: `python:3.14-slim` in the `Dockerfile`,
+  `requires-python` in `backend/pyproject.toml` (then run `uv lock`),
+  `backend/.python-version` (what the CI's `uv sync` follows), `[tool.ruff]
+  target-version` and `[tool.mypy] python_version` in the same file;
+  `node:22-alpine` and the two `node-version: "22"` in
+  `.github/workflows/ci.yml` (and the `@types/node` major).
+- The PostgreSQL image (`compose.yaml`, the CI service in `ci.yml`) is not
+  tracked at all: a new major is a data migration (`deployment.md`).
+- Dependabot only regenerates a manifest and its lockfile. A package whose
+  output is committed can fail CI until you add a follow-up commit to the
+  Dependabot branch (after which Dependabot stops rebasing it): `drf-spectacular`
+  needs `schema.yml` regenerated, `openapi-typescript` needs `npm run
+  generate:types`, and a `ruff` update may need `ruff format`. Those are grouped
+  apart so they do not hold the rest back.
+- Three uv versions can touch `uv.lock`: the Dockerfile's (tracked), the CI's
+  `setup-uv` (the latest) and Dependabot's own. The image build in CI catches a
+  lock the image's uv cannot read.
+- Watch that a digest-refresh pull request for the Python or Node image
+  actually arrives within a few weeks: GitHub can suppress digest-only updates
+  for unchanged tags on its side, which would silently stop the base's security
+  fixes arriving.
+- To update something by hand anyway, change the manifest and regenerate the
+  lockfile (`uv lock`, `npm install`), then run the verification commands above.

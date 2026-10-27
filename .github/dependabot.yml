@@ -1,0 +1,85 @@
+# Dependency updates arrive as pull requests, so nothing is edited by hand:
+# Dependabot updates the manifest and its lockfile together (pyproject.toml and
+# uv.lock; package.json and package-lock.json), the base-image digests in the
+# Dockerfile, and the GitHub Actions the CI uses. CI runs on every pull request;
+# merge one only once its checks are green (nothing enforces that on this plan).
+# Minor and patch updates are grouped into one pull request per kind of
+# dependency; a major version gets a pull request of its own to be read.
+# Tools whose output is committed (the API schema, the generated types, code
+# formatting) are grouped apart so one that needs a follow-up commit does not
+# hold the rest back. docs/development-workflow.md, "Dependency updates".
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Groups are matched in this order: the first one a package fits.
+      backend-schema:
+        patterns: ["drf-spectacular", "djangorestframework-stubs", "django-stubs"]
+        update-types: [minor, patch]
+      backend-lint-and-types:
+        patterns: ["ruff", "mypy"]
+        update-types: [minor, patch]
+      backend-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend-api-types:
+        patterns: ["openapi-typescript"]
+        update-types: [minor, patch]
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Python and Node image refreshes (their security fixes) travel together;
+      # the uv image is not grouped, so a uv release that breaks the build
+      # cannot hold them back.
+      base-images:
+        patterns: ["*"]
+        exclude-patterns: ["astral-sh/uv"]
+        update-types: [minor, patch]
+    ignore:
+      # The tags python:3.14-slim and node:22-alpine are followed by digest
+      # only. A new Python or Node line is a decision, not a refresh: it also
+      # means changing requires-python, backend/.python-version and the CI.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: node
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: [minor, patch]

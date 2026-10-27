@@ -1,6 +1,8 @@
-# Base images are pinned by digest so a rebuild gives the same image. A pin also
-# means a rebuild does not pick up the base's security fixes by itself: refresh
-# the digests on a schedule (docs/deployment.md, "What is in the image").
+# Base images are pinned by digest so a rebuild gives the same image. Dependabot
+# keeps the digests (and Python and Node packages) up to date by opening pull
+# requests that CI checks, so none of this is edited by hand
+# (.github/dependabot.yml; docs/development-workflow.md, "Dependency updates").
+# Each image is named once, in a FROM line, which is what Dependabot reads.
 FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS frontend-build
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -8,8 +10,12 @@ RUN npm ci
 COPY frontend/ ./
 RUN VITE_API_BASE_URL= npm run build -- --base=/static/
 
-FROM python:3.14-slim@sha256:c2aca8207dfb68e7d20fecb7fad7e145c5d79d2ff36712d416c144130606d71d AS python-deps
-COPY --from=ghcr.io/astral-sh/uv:0.9.17@sha256:5cb6b54d2bc3fe2eb9a8483db958a0b9eebf9edff68adedb369df8e7b98711a2 /uv /uvx /usr/local/bin/
+FROM ghcr.io/astral-sh/uv:0.9.17@sha256:5cb6b54d2bc3fe2eb9a8483db958a0b9eebf9edff68adedb369df8e7b98711a2 AS uv
+
+FROM python:3.14-slim@sha256:c2aca8207dfb68e7d20fecb7fad7e145c5d79d2ff36712d416c144130606d71d AS python-base
+
+FROM python-base AS python-deps
+COPY --from=uv /uv /uvx /usr/local/bin/
 ENV UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy
 WORKDIR /app/backend
 COPY backend/pyproject.toml backend/uv.lock ./
@@ -18,7 +24,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Everything is put together and trimmed here. The final image below is a copy
 # of this stage's finished filesystem (not a layer on top of it), because
 # deleting a file in a later layer only hides it: its bytes would still ship.
-FROM python:3.14-slim@sha256:c2aca8207dfb68e7d20fecb7fad7e145c5d79d2ff36712d416c144130606d71d AS runtime-build
+FROM python-base AS runtime-build
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH=/app/backend/.venv/bin:$PATH \
@@ -56,23 +62,23 @@ RUN set -e \
     && find .venv \( -name '*.c' -o -name '*.pyx' -o -name '*.pxd' \) -type f -delete \
     # Brotli only compresses the assets just collected; serving the .br files
     # needs no library. The virtualenv's activation scripts are for people.
-    && rm -rf .venv/lib/python3.14/site-packages/_brotli*.so \
-              .venv/lib/python3.14/site-packages/brotli.py \
-              .venv/lib/python3.14/site-packages/brotli-*.dist-info \
+    && rm -rf .venv/lib/python3.*/site-packages/_brotli*.so \
+              .venv/lib/python3.*/site-packages/brotli.py \
+              .venv/lib/python3.*/site-packages/brotli-*.dist-info \
               .venv/bin/activate* .venv/bin/deactivate.bat .venv/bin/pydoc.bat \
               .venv/.gitignore .venv/.lock .venv/CACHEDIR.TAG \
     # The package installer and its build tooling, the unused graphical and
     # bootstrap parts of Python, C headers, documentation and package-manager
     # data.
-    && rm -rf /usr/local/lib/python3.14/site-packages/pip* \
-              /usr/local/lib/python3.14/site-packages/setuptools* \
-              /usr/local/lib/python3.14/site-packages/wheel* \
-              /usr/local/lib/python3.14/site-packages/_distutils_hack \
-              /usr/local/lib/python3.14/ensurepip \
-              /usr/local/lib/python3.14/idlelib \
-              /usr/local/lib/python3.14/tkinter \
-              /usr/local/lib/python3.14/turtledemo \
-              /usr/local/lib/python3.14/config-3.14-* \
+    && rm -rf /usr/local/lib/python3.*/site-packages/pip* \
+              /usr/local/lib/python3.*/site-packages/setuptools* \
+              /usr/local/lib/python3.*/site-packages/wheel* \
+              /usr/local/lib/python3.*/site-packages/_distutils_hack \
+              /usr/local/lib/python3.*/ensurepip \
+              /usr/local/lib/python3.*/idlelib \
+              /usr/local/lib/python3.*/tkinter \
+              /usr/local/lib/python3.*/turtledemo \
+              /usr/local/lib/python3.*/config-* \
               /usr/local/bin/pip* /usr/local/bin/idle* /usr/local/bin/pydoc* \
               /usr/local/bin/python*-config \
               /usr/local/include \

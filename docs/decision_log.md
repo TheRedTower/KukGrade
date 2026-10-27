@@ -191,6 +191,31 @@ needs no Dockerfile change (the whole backend is copied, then named files are
 removed). A new tool the app needs from the base image (a command, a library)
 has to be checked against the trimmed filesystem.
 
+### 2026-10-27 - The app's database role is not a superuser
+
+Status: Accepted; built
+
+Decision:
+With the image's own database, `kukgrade.serve` makes `postgres` the cluster's
+superuser (for the operator only) and a separate role, `POSTGRES_USER` (default
+`kukgrade`), for the app. The app's role signs in, owns its database and may
+create databases (a developer's test database), but is not a superuser and has no
+`CREATEROLE`, `REPLICATION` or `BYPASSRLS`. It can do everything the app's
+conventions need: migrations, every table, the dumps and restores in
+`deployment.md`. `postgres` and a user or database name that is not plain
+letters, digits and underscores are refused as `POSTGRES_USER` / `POSTGRES_DB`.
+
+Context:
+The owner asked for a role "superuser adjacent": able to do whatever the app's
+conventions allow, without server-level power. As a superuser, a flaw that
+allowed arbitrary SQL could also read the server's files or run programs.
+
+Consequences:
+A cluster made earlier has the app's role as its bootstrap superuser, which
+PostgreSQL cannot demote; it keeps working with a warning in the log. Nothing
+was deployed with it. An external database is the operator's to arrange: give
+KukGrade's role ownership of its database and nothing server-wide.
+
 ### 2026-10-26 - The deployment overhaul: what the owner asked for
 
 Status: Accepted; partly built

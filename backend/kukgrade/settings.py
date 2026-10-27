@@ -72,6 +72,12 @@ DEBUG = env_bool("DJANGO_DEBUG", False)
 # access, so an unconfigured non-debug deployment must refuse to start.
 _SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
 if not _SECRET_KEY:
+    # The image made and kept one on its first start (kukgrade/serve.py), so a
+    # shell opened in the container finds the same key the app runs with.
+    _KEPT_KEY = Path("/var/lib/kukgrade/secret_key")
+    if _KEPT_KEY.is_file():
+        _SECRET_KEY = _KEPT_KEY.read_text().strip()
+if not _SECRET_KEY:
     if not DEBUG:
         _MSG = (
             "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false. "
@@ -206,7 +212,11 @@ DATABASES = {
             "POSTGRES_PASSWORD",
             "kukgrade_local_password",
         ),
-        "HOST": os.environ.get("POSTGRES_HOST", "127.0.0.1"),
+        # The image carries its own PostgreSQL, on a socket in this folder
+        # (kukgrade/serve.py); the variable is set only inside that image.
+        "HOST": os.environ.get("POSTGRES_HOST")
+        or os.environ.get("KUKGRADE_EMBEDDED_SOCKET")
+        or "127.0.0.1",
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }

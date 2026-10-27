@@ -1,0 +1,22 @@
+# KukGrade behind Caddy, which gets its own certificate. Needs ports 80 and 443
+# reachable and KUKGRADE_DOMAIN (a name that points at this host) in .env.
+#   docker compose -f compose.caddy.yml up -d
+services:
+  kukgrade:
+    image: ghcr.io/theredtower/kukgrade:latest
+    restart: unless-stopped
+    stop_grace_period: 45s
+    env_file: .env
+    volumes:
+      - ./data:/var/lib/kukgrade
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    command: caddy reverse-proxy --from ${KUKGRADE_DOMAIN:?Set KUKGRADE_DOMAIN in .env} --to kukgrade:6942
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./data/caddy:/data

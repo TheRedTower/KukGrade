@@ -25,3 +25,4 @@ backend/**/test_*.py
 backend/**/testing.py
 backend/kukgrade/settings_test.py
 **/.DS_Store
+deploy/

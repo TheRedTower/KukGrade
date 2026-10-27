@@ -18,6 +18,47 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - One container: PostgreSQL in the image, one .env, files in deploy/
+
+Status: Accepted; built
+
+Decision:
+The production image carries PostgreSQL 17 (Debian's package, pruned: no JIT/LLVM,
+Perl, replication or benchmark tools; `psql`, `pg_dump`, `pg_restore` stay). With
+`POSTGRES_HOST` unset the container makes and runs its own database in
+`/var/lib/kukgrade/postgres`, on a unix socket that exists only inside it (no
+network listener, no password); with `POSTGRES_HOST` set it starts none and uses
+that database, as `compose.prod.yml` does. `kukgrade.serve` is the one process
+that does this (database, migrations, setup code, gunicorn, signals; if either
+process stops the container exits). It starts as root only to hand
+`/var/lib/kukgrade` to UID 10001 and runs the database and the app as that user (the supervisor itself stays root); started as
+10001 already it skips that, so `compose.prod.yml` gains `user: "10001:10001"`. A
+generated Django secret key is kept in `/var/lib/kukgrade/secret_key` when none is
+given. `deploy/` has one small Compose file per way of being reached (direct,
+nginx, Caddy, Traefik, Cloudflare Tunnel, Pangolin), each complete, naming the
+image `ghcr.io/theredtower/kukgrade:latest`, with one `env_file: .env` and one
+`./data` bind mount, and no `environment`, `db`, `build` or `ports` that the mode
+does not need. Superseded the draft in pull request #42 (a separate database
+service, a permissions service, layered override files and two sets of variables).
+
+Context:
+The owner found the first design too much to set up: two places for settings, a
+database service for an image that could carry its own, and ports declared where
+a proxy fronts it. A single container with one `.env` and one data folder is the
+easiest thing to deploy and back up. The cost is about 80 MB more image and that
+the database's major version is fixed by the image (a change is a dump and
+restore, which the image detects and refuses to guess at).
+
+Consequences:
+Verified with real containers: first start, restart and `docker stop` (clean
+database shutdown in under a second), data persisting in a bind mount, the setup
+code, health check, the external-database mode as UID 10001 with a read-only
+root filesystem and all capabilities dropped, the emergency admin screens, and
+direct, Caddy and nginx deployments with `deploy/check-proxy-count.sh`
+(Traefik started; Cloudflare Tunnel and Pangolin only had their files validated,
+because they need an account or server). A container started without a data
+volume keeps its data inside the container until it is removed.
+
 ### 2026-10-27 - Dependencies are updated by pull request, never by hand
 
 Status: Accepted; built

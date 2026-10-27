@@ -42,6 +42,8 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "KUKGRADE_TLS_CERT",
         "KUKGRADE_TLS_KEY",
         "KUKGRADE_TLS_DIR",
+        "POSTGRES_HOST",
+        "KUKGRADE_EMBEDDED_SOCKET",
         "KUKGRADE_CLUB_NAME",
         "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
@@ -383,3 +385,40 @@ def test_a_school_prefix_in_the_wrong_form_refuses_to_start(
 ) -> None:
     with pytest.raises(ImproperlyConfigured):
         load_settings(monkeypatch, **PRODUCTION_ENV, KUKGRADE_SCHOOL_PREFIX=prefix)
+
+
+def test_a_secret_key_the_image_kept_is_used_when_none_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kept = "kept-" + "b" * 60
+    monkeypatch.setattr(Path, "is_file", lambda self: True)
+    monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: kept + "\n")
+
+    settings = load_settings(
+        monkeypatch, DJANGO_DEBUG="false", DJANGO_ALLOWED_HOSTS="kukgrade.example.com"
+    )
+
+    assert settings.SECRET_KEY == kept
+
+
+def test_the_database_is_the_images_own_socket_unless_a_host_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    own = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        POSTGRES_HOST="",
+        KUKGRADE_EMBEDDED_SOCKET="/tmp/kukgrade-pg",
+    )
+    assert own.DATABASES["default"]["HOST"] == "/tmp/kukgrade-pg"
+
+    external = load_settings(
+        monkeypatch,
+        **PRODUCTION_ENV,
+        POSTGRES_HOST="db.example.com",
+        KUKGRADE_EMBEDDED_SOCKET="/tmp/kukgrade-pg",
+    )
+    assert external.DATABASES["default"]["HOST"] == "db.example.com"
+
+    plain = load_settings(monkeypatch, **PRODUCTION_ENV, POSTGRES_HOST="")
+    assert plain.DATABASES["default"]["HOST"] == "127.0.0.1"

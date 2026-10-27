@@ -1,0 +1,28 @@
+# KukGrade behind a Traefik you already run. Put TRAEFIK_NETWORK (the network
+# your Traefik watches) and KUKGRADE_HOST (the name it answers to) in .env. The
+# labels assume an entrypoint named websecure and a certificate resolver named
+# letsencrypt: change them to match your Traefik.
+#   docker compose -f compose.traefik.yml up -d
+services:
+  kukgrade:
+    image: ghcr.io/theredtower/kukgrade:latest
+    restart: unless-stopped
+    stop_grace_period: 45s
+    env_file: .env
+    volumes:
+      - ./data:/var/lib/kukgrade
+    networks:
+      - default
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:?Set TRAEFIK_NETWORK in .env}
+      - traefik.http.routers.kukgrade.rule=Host(`${KUKGRADE_HOST:?Set KUKGRADE_HOST in .env}`)
+      - traefik.http.routers.kukgrade.entrypoints=websecure
+      - traefik.http.routers.kukgrade.tls.certresolver=letsencrypt
+      - traefik.http.services.kukgrade.loadbalancer.server.port=6942
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK}

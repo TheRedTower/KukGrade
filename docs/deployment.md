@@ -142,17 +142,152 @@ directly with forged headers.
 The owner's Traefik deployment (`compose.prod.yml`) is `DJANGO_NUM_PROXIES=2`
 (Cloudflare, then Traefik); the app's own port stays unpublished there.
 
+## Running it anywhere
+
+`compose.prod.yml` is the owner's own host (an existing Traefik and PostgreSQL).
+On any other Docker host, KukGrade is one container: the image carries its own
+PostgreSQL, so there is no database to set up, and everything it keeps is in one
+folder on the host. The files are in `deploy/`; each is complete on its own.
+
+```sh
+cd deploy
+cp .env.example .env        # fill it in
+docker compose up -d
+docker compose logs         # the first administrator's setup code is here
+```
+
+That serves HTTPS itself on port 6942 with a self-signed certificate (see "How the
+app is reached"). `.env` is the only thing to edit; the compose files have no
+settings of their own. The image is `ghcr.io/theredtower/kukgrade:latest`, or build
+it from a checkout (`docker build -t ghcr.io/theredtower/kukgrade:latest .`): the
+image is not published to ghcr.io yet, so until it is, `docker compose pull` finds
+nothing and the build is the way.
+
+To put something in front instead, use the file for it (and add
+`DJANGO_NUM_PROXIES=1` to `.env`): the app then publishes no port and only the proxy
+is reachable.
+
+| File | Terminates TLS | Open on the host | `DJANGO_NUM_PROXIES` | Tried here |
+| --- | --- | --- | --- | --- |
+| `compose.yml` | the app (self-signed, or yours) | 6942 | 0 | yes |
+| `compose.nginx.yml` | nginx (your certificate in `certs/`) | 80, 443 | 1 | yes |
+| `compose.caddy.yml` | Caddy (automatic certificates for `KUKGRADE_DOMAIN`) | 80, 443 | 1 | yes |
+| `compose.traefik.yml` | your Traefik | none (Traefik's own) | 1 (2 with Cloudflare in front) | yes |
+| `compose.cloudflared.yml` | Cloudflare | none | 1 | no: needs a Cloudflare account; the count follows Cloudflare's documented headers (it appends the visitor's address to any `X-Forwarded-For` the client sent) |
+| `compose.pangolin.yml` | your Pangolin server | none | 1 expected | no: needs a Pangolin server; confirm the count with the check below |
+
+For example `docker compose -f compose.caddy.yml up -d`. "Tried here" means brought
+up with the real proxy in front of the app and checked: pages served, and the
+check below. Variables a file needs (a domain, a tunnel token) are named in its
+header and in `.env.example`, and go in `.env`. Set `DJANGO_ALLOWED_HOSTS` and
+`DJANGO_CSRF_TRUSTED_ORIGINS` there to the name people type (behind nginx on a port
+other than 443, include the port in the origin). nginx refuses an upload above 6 MB
+at once, a little over the import limit; the other recipes leave it to the app.
+
+### What is stored, and where
+
+Everything is under `deploy/data/` (a bind mount of `/var/lib/kukgrade`), so it
+survives replacing the container and is one folder to back up. There is no other
+data folder and no config folder: the settings are the environment in `.env`.
+
+| Inside `data/` | What | If you lose it |
+| --- | --- | --- |
+| `postgres/` | the database | everything: restore from a backup |
+| `secret_key` | the key sessions are signed with, made on first start (unless `DJANGO_SECRET_KEY` is set) | everyone is signed out |
+| `import_uploads/` | workbooks and rosters waiting to be imported (private, cleared after 24 hours) | an unfinished import must be started again |
+| `tls/` | the self-signed certificate and the host names it was made for | the app makes a new one; browsers warn again |
+| `caddy/` | Caddy's certificates (with `compose.caddy.yml`) | Caddy asks for new ones (rate limits apply) |
+
+`deploy/data/` is ignored by Git and left out of image builds. The container
+starts as root only to hand `data/` to the app's user (UID 10001, which a folder
+Docker makes on the host does not belong to) and runs the database and the app as
+that user (the supervisor itself stays root, and so do `docker exec` shells; run
+them with `-u 10001` to avoid root-owned files in `data/`). Whichever host account has
+UID 10001 owns `data/`. On a host that manages file ownership itself (some NAS and Windows
+setups) set the owner by hand.
+
+The database is PostgreSQL 17, started by the container on a socket that exists
+only inside it: it listens on no network, so there is no port or password to
+protect. The container stops the database cleanly when it stops (the compose files allow 45 seconds, enough for the app to finish what it is doing first).
+If either the database or the app stops, the container exits and `restart:
+unless-stopped` brings both back.
+
+A PostgreSQL you already run can be used instead: set `POSTGRES_HOST` (and
+`POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`) in `.env`, and
+the container starts no database of its own. `compose.prod.yml` is that setup.
+
+Back up with the stack running; a dump, not a copy of `data/postgres/`:
+
+```sh
+docker compose exec -T kukgrade pg_dump -Fc > kukgrade-$(date +%F).dump
+tar -C data -czf kukgrade-uploads-$(date +%F).tar.gz import_uploads
+```
+
+To restore, stop the app (`docker compose down`), empty `data/postgres/`, start
+(`docker compose up -d`; it makes a new empty database and migrates it), then load
+the dump and restart:
+
+```sh
+docker compose exec -T kukgrade pg_restore -d kukgrade --clean --if-exists < kukgrade-DATE.dump
+docker compose restart
+```
+
+and unpack the uploads tarball into `data/`. Keep copies off the host and test a
+restore before real student data goes in. The data sits inside the Git checkout
+if you cloned there: do not run `git clean -fdx` in it.
+
+PostgreSQL's major version is fixed by the image (17). A later image with another
+major refuses to start on `data/postgres/` made by this one, and says so; move
+data across with a dump from the old image, an empty `data/postgres/` and a
+restore into the new, as above.
+
+### Checking the proxy count
+
+```sh
+deploy/check-proxy-count.sh https://kukgrade.example.com
+```
+
+It sends 14 failed sign-ins that each claim a different address and reports `OK`
+if the sign-in limit still treats them as one visitor. If it reports `TOO HIGH`,
+lower `DJANGO_NUM_PROXIES`; if it reports an unexpected HTTP status (a CSRF or host
+setting, not the count), fix that first. It uses up the sign-in limit, so your own
+sign-ins are refused for about a minute afterwards. A count too low is not caught by one visitor: every
+person behind the proxy would share one limit, so if sign-ins lock people out
+together, raise it.
+
+### Updating
+
+Take a backup, then:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+(with your file: `-f compose.caddy.yml`). Migrations run when the container starts.
+Dependabot follows the Dockerfile's images, not the proxy images named in these
+files, which only change when you pull.
+
+To serve your own certificate from the app instead of the self-signed one, put the
+two files in `data/tls/` and set `KUKGRADE_TLS_CERT=/var/lib/kukgrade/tls/your.crt`
+and `KUKGRADE_TLS_KEY=/var/lib/kukgrade/tls/your.key` in `.env`.
+
 ## What is in the image
 
-The image is the Python base image plus the app and nothing else it needs to
-run or to be repaired. It runs as an unprivileged user (UID 10001) with no
-setuid programs, and is meant to run with a read-only root filesystem, all
-capabilities dropped and `no-new-privileges` (as `compose.prod.yml` does).
+The image is the Python base image plus the app, PostgreSQL 17 (Debian's own
+package, without its JIT compiler, Perl and replication tools) and nothing else
+it needs to run or to be repaired. The app and the database run as an
+unprivileged user (UID 10001), with no setuid programs. Started as root (the
+default, for `deploy/`) it only first hands `/var/lib/kukgrade` to that user;
+started as UID 10001 (`user: "10001:10001"`, as in `compose.prod.yml`, which uses an
+external database) it can also run with a read-only root filesystem, all
+capabilities dropped and `no-new-privileges`.
 
 - **Kept, on purpose:** the shell (`sh`), `python`, Django's `manage.py`
   (`shell`, `migrate`, any command: how an operator repairs a deployment) and
-  the `openssl` command (the app makes its own certificate with it). There is
-  no `psql`; use the PostgreSQL container's.
+  the `openssl` command (the app makes its own certificate with it), and the
+  PostgreSQL clients `psql`, `pg_dump`, `pg_restore`, `createdb` and `pg_isready`
+  (a shell opened in the container is already connected: `psql`).
 - **Left out:** the app's tests, `schema.yml`, `uv.lock`, `pyproject.toml`,
   READMEs, the docs and design register, the uncollected copy of the built
   frontend assets, Django's and the REST framework's translations other than
@@ -238,9 +373,8 @@ Emergency repair is done from a shell, never over the network:
 - `docker exec -it kukgrade python manage.py shell` (or `migrate`,
   `issue_setup_code`, any management command) works in the running
   container. SQL can be run there through `django.db.connection.cursor()`;
-  the image has no `psql`, so `manage.py dbshell` does not work in it. The
-  PostgreSQL container's own `psql` is the other route
-  (`docker exec -it <postgres-container> psql -U <database-user> <database-name>`).
+  with the image's own database `psql` and `manage.py dbshell` work as they
+  are; with an external one, `psql` there is the other route.
 - The admin screens, only when truly needed, are started by hand in a
   throwaway container of the same image, published to the host's loopback
   only, and removed afterwards (substitute the PostgreSQL network and
@@ -251,6 +385,16 @@ Emergency repair is done from a shell, never over the network:
       -p 127.0.0.1:9001:9001 --entrypoint python kukgrade:local \
       manage.py runserver 0.0.0.0:9001 --insecure --noreload \
       --settings=kukgrade.settings_admin
+  ```
+
+  With the image's own database, stop the stack first (two copies must not
+  share `data/`) and start the database inside the throwaway container instead:
+
+  ```sh
+  docker compose stop
+  docker run --rm -it -v ./data:/var/lib/kukgrade -p 127.0.0.1:9001:9001 \
+      --entrypoint sh ghcr.io/theredtower/kukgrade:latest -c \
+      'python -m kukgrade.serve & sleep 25; exec python manage.py runserver 0.0.0.0:9001 --insecure --noreload --settings=kukgrade.settings_admin'
   ```
 
   then open `http://localhost:9001/admin/` on that host (over an SSH tunnel

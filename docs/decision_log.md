@@ -18,6 +18,43 @@ Consequences:
 
 ## Accepted decisions
 
+### 2026-10-27 - The production image keeps only what runs or repairs
+
+Status: Accepted; built
+
+Decision:
+The image is stripped of what neither the app nor an emergency repair needs,
+but not of the repair tools: `sh`, `python`, `manage.py` and `openssl` stay (the
+owner's rule: strip anything not needed even in an emergency). Removed: test,
+schema and project files, uncollected duplicate frontend assets, non-English
+message catalogues, C sources of compiled extensions, the Brotli library after
+it has compressed the assets, `pip`/`setuptools`/`wheel`, `idle`/`tkinter`,
+C headers, documentation and package-manager lists, and the setuid bit on
+system programs. The app's files are assembled in a separate build stage so
+the final image holds exactly the running code. The three base images are
+pinned by digest.
+
+Context:
+Slimming was measured, not assumed (arm64, Docker Desktop): about 313 MB
+before and 244 MB after, the "before" built on the base image then cached
+locally (Python 3.14.7; the pinned one is 3.14.10 and a few MB larger).
+Deleting a file in a later layer does not shrink an image, so the finished
+filesystem is copied into a fresh `FROM scratch` image (with the base image's
+`PATH` and `LANG` set again by hand); a first version that only deleted in
+a later layer saved about 32 MB, this one about 70. Most of what remains is
+the Debian base, Python itself and the PostgreSQL driver's bundled libraries.
+Going lower would need a different base (Alpine or a distroless image was not
+chosen in this slice) or removing tools the owner wants for emergencies.
+
+Consequences:
+A base image only changes when its digest is changed in the `Dockerfile`, which
+also means it does not pick up the base's security fixes by itself: refreshing
+the three digests is a regular job (steps in `deployment.md`; there is no
+Dependabot or Renovate configuration to prompt it). Adding a new Django app
+needs no Dockerfile change (the whole backend is copied, then named files are
+removed). A new tool the app needs from the base image (a command, a library)
+has to be checked against the trimmed filesystem.
+
 ### 2026-10-26 - The Django admin is not served over the network
 ### 2026-10-26 - How the app is reached: one proxy count, a port, and HTTPS or plain HTTP
 

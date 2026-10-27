@@ -103,6 +103,13 @@ you want read.
   target-version` and `[tool.mypy] python_version` in the same file;
   `node:22-alpine` and the two `node-version: "22"` in
   `.github/workflows/ci.yml` (and the `@types/node` major).
+- Majors held back on purpose (ignored in `.github/dependabot.yml`; revisit when
+  wanted or when a CVE needs one): Django 6 and django-stubs 6 (Django 5.2 is
+  long-term support to 2028; 6.1 changes the admin's `response_action`, which
+  our `ServiceDeleteMixin` overrides, and django-stubs 6 gives 80+ mypy errors),
+  and TypeScript 7 (`openapi-typescript` does not support it, so `npm install`
+  fails). Vulnerability fixes are still taken: turn on Dependabot security
+  updates in the repository settings, and they ignore these entries.
 - The PostgreSQL image (`compose.yaml`, the CI service in `ci.yml`) is not
   tracked at all: a new major is a data migration (`deployment.md`).
 - Dependabot only regenerates a manifest and its lockfile. A package whose

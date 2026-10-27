@@ -20,6 +20,14 @@ updates:
       default-days: 3
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # Django 5.2 is a long-term-support release (security fixes to 2028) and the
+      # next major needs porting work (the admin's response_action signature,
+      # django-stubs 6 typing). Left until it is wanted or a CVE needs it.
+      - dependency-name: django
+        update-types: ["version-update:semver-major"]
+      - dependency-name: django-stubs
+        update-types: ["version-update:semver-major"]
     groups:
       # Groups are matched in this order: the first one a package fits.
       backend-schema:
@@ -41,6 +49,11 @@ updates:
       default-days: 3
     commit-message:
       prefix: "chore(deps)"
+    ignore:
+      # openapi-typescript (the API type generator) does not support TypeScript 7
+      # yet: npm refuses to install it. Left until it does.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     groups:
       frontend-api-types:
         patterns: ["openapi-typescript"]

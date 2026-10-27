@@ -274,7 +274,7 @@ def test_promotion_database_constraints_and_model_validation() -> None:
             assessment=foreign_generated,
         )
 
-    wrong_student = student(wksa_id="206-2-500")
+    wrong_student = student(wksa_id="123-4-500")
     mismatch_student = Promotion(
         student=wrong_student,
         outcome=other_outcome,

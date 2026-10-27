@@ -16,7 +16,8 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The first run builds the image, which takes a few minutes. When it finishes:
+The first run downloads the image from the GitHub Container Registry
+(`ghcr.io/theredtower/kukgrade`), which takes a minute or two. When it finishes:
 
 1. Find the one-time setup code in the log:
 
@@ -161,14 +162,31 @@ Restarting runs any migrations the dump lacks. To restore uploads too:
 Take a backup first, then:
 
 ```sh
-git pull
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-(add `-f compose.caddy.yml` or your own file). Database migrations run
-automatically when the container starts. To go back, check out the previous
-version; if its schema is incompatible with migrations already applied, restore
-the backup you took first.
+(add `-f compose.caddy.yml` or your own file to both). Database migrations run
+automatically when the container starts. `latest` follows the newest release; to
+stay on one version, or to go back to an earlier one, name its tag instead of
+`latest` in the compose file (`ghcr.io/theredtower/kukgrade:0.2.0`). If that
+version's schema is incompatible with migrations already applied, restore the backup
+you took first. Releases are listed under
+[Releases](https://github.com/TheRedTower/KukGrade/releases).
+
+The image is published for `amd64` and `arm64` (a Raspberry Pi 4 or 5 works).
+
+## Building from source
+
+To run your own changes, or a commit that has no release, build the image from the
+checkout instead of pulling it:
+
+```sh
+git pull
+docker compose -f compose.yml -f compose.build.yml up -d --build
+```
+
+Use the same pair of files for every later update.
 
 The PostgreSQL version is fixed by the image (17). A later image with a different
 major version refuses to start on an old `data/postgres/` and says so; move the

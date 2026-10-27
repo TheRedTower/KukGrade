@@ -35,7 +35,7 @@ from data_imports.ksw_adapter import (
     CanonicalLegacyRow,
     WorkbookParseResult,
     WorkbookStructureError,
-    parse_ksw_colchester_workbook,
+    parse_ksw_workbook,
 )
 from data_imports.mappings import (
     EXTRA_LABEL_MAX_LENGTH,
@@ -1405,7 +1405,7 @@ def _record_created(locked: ImportBatch, created_ids: dict[int, int]) -> None:
 
 def _parse_legacy_workbook(content: bytes, *, error_key: str) -> WorkbookParseResult:
     try:
-        parsed = parse_ksw_colchester_workbook(content)
+        parsed = parse_ksw_workbook(content)
     except WorkbookStructureError as exc:
         raise DjangoValidationError({error_key: [str(exc)]}) from exc
     _check_legacy_field_lengths(parsed.rows, error_key=error_key)

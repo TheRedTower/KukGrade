@@ -124,7 +124,7 @@ def test_instructor_can_run_a_grading_end_to_end() -> None:
     assert (
         client.patch(
             f"/api/gradings/sessions/{session_id}/",
-            {"location": "Colchester"},
+            {"location": "Riverside"},
             format="json",
         ).status_code
         == 200

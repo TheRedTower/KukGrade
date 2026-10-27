@@ -41,7 +41,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     id: 10,
     title: "Autumn Grading",
     grading_date: "2026-10-15",
-    location: "Colchester Dojang",
+    location: "Riverside Dojang",
     status: "DRAFT",
     status_display: "Draft",
     candidate_count: 0,

@@ -404,9 +404,9 @@ describe("Add student screen (/students/new)", () => {
           time_zone: "Europe/London",
           password_policy: { min_length: 16, max_length: 64, character_rules: [], checked_on_save: [] },
           wksa_id: {
-            hint: "Use a student ID such as 206-2-150 or a black belt ID such as A-20819.",
+            hint: "Use a student ID such as 123-4-150 or a black belt ID such as A-20819.",
             forms: [
-              { code: "student", label: "Student ID", pattern: "x", example: "206-2-150" },
+              { code: "student", label: "Student ID", pattern: "x", example: "123-4-150" },
               { code: "black_belt", label: "Black belt ID", pattern: "x", example: "A-20819" },
             ],
           },
@@ -466,7 +466,7 @@ describe("Add student screen (/students/new)", () => {
     // The forms come from the server; the ID goes as typed, for it to tidy.
     expect(
       await screen.findByText(
-        /Use a student ID such as 206-2-150 or a black belt ID such as A-20819\./,
+        /Use a student ID such as 123-4-150 or a black belt ID such as A-20819\./,
       ),
     ).toBeVisible();
     await user.type(screen.getByLabelText(/WKSA ID/i), " a-20819");

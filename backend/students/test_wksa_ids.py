@@ -36,10 +36,10 @@ def make(wksa_id: str) -> Student:
 @pytest.mark.parametrize(
     ("typed", "stored"),
     [
-        ("206-2-150", "206-2-150"),
-        ("206-2-007", "206-2-007"),
+        ("123-4-150", "123-4-150"),
+        ("123-4-007", "123-4-007"),
         # A transfer keeps their own school's prefix, in the same form.
-        ("206-1-044", "206-1-044"),
+        ("123-5-044", "123-5-044"),
         ("A-20819", "A-20819"),
         (" a-20819 ", "A-20819"),
     ],
@@ -51,11 +51,11 @@ def test_either_form_is_accepted(typed: str, stored: str) -> None:
 @pytest.mark.parametrize(
     "typed",
     [
-        "206-2-15",
-        "206-2-1500",
-        "2062150",
-        "206-22-150",
-        "206 2 150",
+        "123-4-15",
+        "123-4-1500",
+        "1234150",
+        "123-44-150",
+        "123 4 150",
         "A-2081",
         "A-208190",
         "B-20819",
@@ -183,7 +183,7 @@ def at_rank(wksa_id: str, code: str) -> Student:
 @pytest.mark.parametrize("code", ["JKN", "KSN", "PKJN"])
 def test_a_black_belt_rank_needs_a_black_belt_id(code: str) -> None:
     with pytest.raises(ValidationError) as refused:
-        at_rank("206-2-150", code)
+        at_rank("123-4-150", code)
 
     assert refused.value.message_dict["wksa_id"] == [BLACK_BELT_RANK_MESSAGE]
     assert at_rank("A-20819", code).wksa_id == "A-20819"
@@ -191,7 +191,7 @@ def test_a_black_belt_rank_needs_a_black_belt_id(code: str) -> None:
 
 def test_ranks_below_black_belt_hold_a_student_id() -> None:
     # Dahn Bo is a black belt candidate, not yet a black belt.
-    assert at_rank("206-2-150", "DAHN_BO").wksa_id == "206-2-150"
+    assert at_rank("123-4-150", "DAHN_BO").wksa_id == "123-4-150"
 
 
 def patch(client: APIClient, student: Student, wksa_id: str) -> Any:
@@ -215,7 +215,7 @@ def test_a_student_id_changes_once_to_the_black_belt_id_and_is_kept() -> None:
     # back - before the promotion that needs it.
     from audit.models import AuditEvent
 
-    student = at_rank("206-2-150", "DAHN_BO")
+    student = at_rank("123-4-150", "DAHN_BO")
     client = staff()
     assert client.get(f"/api/students/{student.pk}/").json()["wksa_id_can_change"]
 
@@ -225,14 +225,14 @@ def test_a_student_id_changes_once_to_the_black_belt_id_and_is_kept() -> None:
     assert response.json()["wksa_id"] == "A-20819"
     assert response.json()["wksa_id_can_change"] is False
     event = AuditEvent.objects.filter(entity_id=str(student.pk)).latest("pk")
-    assert event.metadata["before"]["wksa_id"] == "206-2-150"
+    assert event.metadata["before"]["wksa_id"] == "123-4-150"
     assert event.metadata["after"]["wksa_id"] == "A-20819"
 
 
 @pytest.mark.parametrize(
     ("current", "new"),
     [
-        ("206-2-150", "206-2-151"),
+        ("123-4-150", "123-4-151"),
         ("A-20819", "A-20891"),
     ],
 )
@@ -249,7 +249,7 @@ def test_a_mistyped_id_of_either_form_can_be_corrected(current: str, new: str) -
 def test_a_black_belt_id_never_goes_back_to_a_student_id() -> None:
     student = at_rank("A-20819", "DAHN_BO")
 
-    response = patch(staff(), student, "206-2-150")
+    response = patch(staff(), student, "123-4-150")
 
     assert response.status_code == 400
     assert response.json()["error"]["fields"]["wksa_id"] == [

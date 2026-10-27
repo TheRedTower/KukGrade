@@ -46,8 +46,8 @@ from students.models import Student
 pytestmark = pytest.mark.django_db
 
 BASE = "/api/data-imports/batches/"
-SECOND = ["206-2-501", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
-BAD_DATE = ["206-2-502", "Casey", "Lee", "not a date", "White", "ACTIVE"]
+SECOND = ["123-4-501", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
+BAD_DATE = ["123-4-502", "Casey", "Lee", "not a date", "White", "ACTIVE"]
 
 
 def client_for(user: User) -> APIClient:
@@ -75,13 +75,13 @@ def outcomes(batch: ImportBatch) -> dict[int, str]:
 def test_upload_stores_every_row_as_read_with_dates_as_days() -> None:
     from datetime import date
 
-    batch = roster(["206-2-500", "Alex", "Kim", date(2012, 5, 1), "White", ""])
+    batch = roster(["123-4-500", "Alex", "Kim", date(2012, 5, 1), "White", ""])
 
     row = batch.rows.get()
     assert row.row_number == 2
     assert row.source_locator == "R2"
     assert row.raw["Date of Birth"] == "2012-05-01"
-    assert row.raw["WKSA ID"] == "206-2-500"
+    assert row.raw["WKSA ID"] == "123-4-500"
     assert batch.configuration_json["detected_headers"] == list(
         STANDARD_MAPPING.values(),
     )
@@ -137,17 +137,17 @@ def test_a_fix_is_stored_and_a_null_goes_back_to_the_file() -> None:
 
 
 def test_fixing_one_repeated_id_clears_the_other_row_too() -> None:
-    repeat = ["206-2-500", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
+    repeat = ["123-4-500", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
     batch = mapped(CLEAN_ROW, repeat)
     assert outcomes(batch) == {2: "READY", 3: "REVIEW_REQUIRED"}
 
-    correct_import_row(batch, row_number=2, changes={"wksa_id": "206-2-599"})
+    correct_import_row(batch, row_number=2, changes={"wksa_id": "123-4-599"})
 
     assert outcomes(batch) == {2: "READY", 3: "READY"}
 
 
 def test_a_row_left_out_is_not_a_repeat_and_is_not_imported() -> None:
-    repeat = ["206-2-500", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
+    repeat = ["123-4-500", "Blair", "Park", "2013-06-02", "Yellow", "ACTIVE"]
     batch = mapped(CLEAN_ROW, repeat)
 
     left_out = set_import_row_excluded(batch, row_number=2, excluded=True)
@@ -462,7 +462,7 @@ def test_finishing_costs_the_same_queries_for_two_rows_as_for_forty() -> None:
     def roster_of(count: int, start: int) -> list[list[object]]:
         return [
             [
-                f"206-2-{start + index:03d}",
+                f"123-4-{start + index:03d}",
                 "Alex",
                 f"Kim{index}",
                 "2012-05-01",
@@ -717,7 +717,7 @@ def test_leaving_out_the_rest_needs_permission_and_an_open_import() -> None:
 
 def test_a_row_names_the_fields_its_issues_are_about() -> None:
     admin = admin_user()
-    twin = ["206-2-500", "Alex", "Kim", "2012-05-01", "Purple", "ACTIVE"]
+    twin = ["123-4-500", "Alex", "Kim", "2012-05-01", "Purple", "ACTIVE"]
     batch = mapped(CLEAN_ROW, BAD_DATE, twin, admin=admin)
 
     served = {
@@ -810,8 +810,8 @@ def test_historical_rows_can_be_listed_by_kind() -> None:
 
 def test_roster_rows_can_be_listed_by_a_value_kukgrade_gave_them() -> None:
     admin = admin_user()
-    no_status = ["206-2-501", "Blair", "Park", "2013-06-02", "", ""]
-    no_rank = ["206-2-502", "Casey", "Lee", "2013-06-02", "", "ACTIVE"]
+    no_status = ["123-4-501", "Blair", "Park", "2013-06-02", "", ""]
+    no_rank = ["123-4-502", "Casey", "Lee", "2013-06-02", "", "ACTIVE"]
     batch = save_import_mapping(
         roster(CLEAN_ROW, no_status, no_rank, admin=admin),
         column_mapping=STANDARD_MAPPING,

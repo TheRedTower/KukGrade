@@ -54,7 +54,7 @@ def two_sheet_workbook() -> bytes:
         roster = workbook.create_sheet("Roster")
         roster.append(HEADERS)
         roster.append(CLEAN_ROW)
-        roster.append(["206-2-501", "Blair", "Park", "2013-06-02", "Yellow", ""])
+        roster.append(["123-4-501", "Blair", "Park", "2013-06-02", "Yellow", ""])
         workbook.active = 0
 
     return workbook_bytes(build)
@@ -289,7 +289,7 @@ def test_a_voided_import_leaves_its_students_history() -> None:
     admin = admin_user()
     batch = finished_workbook(admin)
     alex = Student.objects.create(
-        wksa_id="206-2-777",
+        wksa_id="123-4-777",
         first_name="Alex",
         last_name="Example",
         date_of_birth=date(2012, 5, 1),

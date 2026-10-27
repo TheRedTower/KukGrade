@@ -59,7 +59,7 @@ def many_students() -> int:
     total = DefaultPagination.max_page_size + 10
     Student.objects.bulk_create(
         Student(
-            wksa_id=f"206-2-{index:03d}",
+            wksa_id=f"123-4-{index:03d}",
             first_name="Page",
             last_name=f"Student {index:04d}",
             date_of_birth=date(2000, 1, 1),

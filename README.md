@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-  <img src="docs/assets/logo-light.svg" alt="KukGrade" width="360">
-</picture>
+<img src="docs/assets/logo.png" alt="KukGrade" width="360">
 
 ### Grading management for Kuk Sool Won schools
 
@@ -24,10 +21,7 @@ decision, and promote students, with a permanent audit trail behind every step.
 
 <br>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/overview-dark.png">
-  <img src="docs/assets/screenshots/overview-light.png" alt="The KukGrade overview: the grading in progress, what needs attention, and recent activity" width="900">
-</picture>
+<img src="docs/assets/screenshots/overview.png" alt="The KukGrade overview: the grading in progress, what needs attention, and recent activity" width="900">
 
 </div>
 
@@ -76,7 +70,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The first run builds the image, which takes a few minutes. Then:
+The first run pulls the image, which takes a minute or two. Then:
 
 ```sh
 docker compose logs | grep "setup code"
@@ -95,49 +89,31 @@ Pangolin: see the [installation guide](docs/installation.md). Every setting is i
 <table>
   <tr>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/session-dark.png">
-        <img src="docs/assets/screenshots/session-light.png" alt="A grading session with its lifecycle and candidates">
-      </picture>
+      <img src="docs/assets/screenshots/session.png" alt="A grading session with its lifecycle and candidates">
       <p align="center"><b>Run a grading session</b><br>Lifecycle, candidates and next actions at a glance</p>
     </td>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/assessment-dark.png">
-        <img src="docs/assets/screenshots/assessment-light.png" alt="Scoring a candidate requirement by requirement">
-      </picture>
+      <img src="docs/assets/screenshots/assessment.png" alt="Scoring a candidate requirement by requirement">
       <p align="center"><b>Assess on the mat</b><br>Mark every requirement, with a live count</p>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/decisions-dark.png">
-        <img src="docs/assets/screenshots/decisions-light.png" alt="The Master's final decision board">
-      </picture>
+      <img src="docs/assets/screenshots/decisions.png" alt="The Master's final decision board">
       <p align="center"><b>Decide</b><br>The evidence, the proposal and the final decision, side by side</p>
     </td>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/cohort-dark.png">
-        <img src="docs/assets/screenshots/cohort-light.png" alt="Building a grading cohort">
-      </picture>
+      <img src="docs/assets/screenshots/cohort.png" alt="Building a grading cohort">
       <p align="center"><b>Build a cohort</b><br>Add whole groups, then review exceptions</p>
     </td>
   </tr>
   <tr>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/students-dark.png">
-        <img src="docs/assets/screenshots/students-light.png" alt="The student list">
-      </picture>
+      <img src="docs/assets/screenshots/students.png" alt="The student list">
       <p align="center"><b>Know your students</b><br>Search, filter, and see each one's current grading</p>
     </td>
     <td width="50%">
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/syllabus-dark.png">
-        <img src="docs/assets/screenshots/syllabus-light.png" alt="The syllabus by rank and age band">
-      </picture>
+      <img src="docs/assets/screenshots/syllabus.png" alt="The syllabus by rank and age band">
       <p align="center"><b>Browse the syllabus</b><br>By rank and age band, cumulative to each rank</p>
     </td>
   </tr>

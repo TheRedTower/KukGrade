@@ -1,4 +1,4 @@
-"""KSW Colchester historical grading workbook -> canonical rows.
+"""KSW historical grading workbook -> canonical rows.
 
 Deliberately source-specific: this adapter understands one workbook's
 structure and nothing else. Its only job is:
@@ -587,7 +587,7 @@ class _RowBudget:
             yield row
 
 
-def parse_ksw_colchester_workbook(content: bytes) -> WorkbookParseResult:
+def parse_ksw_workbook(content: bytes) -> WorkbookParseResult:
     try:
         with open_workbook(content) as workbook:
             return _parse_workbook(workbook)

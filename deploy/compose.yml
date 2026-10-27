@@ -3,8 +3,6 @@
 services:
   kukgrade:
     image: ghcr.io/theredtower/kukgrade:latest
-    # Until the image is published, the first `up` builds it from this checkout.
-    build: ..
     restart: unless-stopped
     stop_grace_period: 2m
     env_file: .env

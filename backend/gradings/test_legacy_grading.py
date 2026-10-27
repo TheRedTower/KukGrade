@@ -143,7 +143,7 @@ def test_did_not_attend_has_no_outcome() -> None:
 
 def test_link_and_unlink_record_to_student() -> None:
     record = legacy_record()
-    target = student(wksa_id="206-2-500")
+    target = student(wksa_id="123-4-500")
     actor = user("legacy-link-admin@example.com")
     events_before = AuditEvent.objects.count()
 
@@ -180,8 +180,8 @@ def test_unlink_an_unlinked_record_is_refused() -> None:
 def test_moving_a_link_to_another_student_must_be_confirmed() -> None:
     record = legacy_record()
     actor = user("legacy-relink-admin@example.com")
-    first = student(wksa_id="206-2-501")
-    second = student(wksa_id="206-2-502")
+    first = student(wksa_id="123-4-501")
+    second = student(wksa_id="123-4-502")
 
     link_legacy_record_to_student(record, first, actor=actor)
     with pytest.raises(ValidationError, match="already linked to another student"):
@@ -222,7 +222,7 @@ def test_resolve_and_clear_current_rank_mapping() -> None:
 def test_a_correction_that_changes_nothing_records_nothing() -> None:
     record = legacy_record(source_current_rank_text="Yellow Belt")
     actor = user("legacy-noop-admin@example.com")
-    linked = student(wksa_id="206-2-503")
+    linked = student(wksa_id="123-4-503")
     link_legacy_record_to_student(record, linked, actor=actor)
     resolve_legacy_current_rank(record, rank("YELLOW"), actor=actor)
     events_before = AuditEvent.objects.filter(entity_id=str(record.pk)).count()
@@ -310,7 +310,7 @@ def test_deleting_a_linked_student_is_protected() -> None:
     from django.db.models.deletion import ProtectedError
 
     record = legacy_record()
-    target = student(wksa_id="206-2-504")
+    target = student(wksa_id="123-4-504")
     actor = user("legacy-protect-admin@example.com")
     link_legacy_record_to_student(record, target, actor=actor)
 

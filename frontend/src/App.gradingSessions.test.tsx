@@ -30,7 +30,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 3,
       awaiting_decision_count: 1,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     },
     {
@@ -43,7 +43,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     },
     {
@@ -56,7 +56,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     },
   ] satisfies GradingSession[];
@@ -278,7 +278,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
@@ -322,7 +322,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: true,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
@@ -373,7 +373,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: true,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
@@ -419,7 +419,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: true,
-      location: "Colchester Dojang",
+      location: "Riverside Dojang",
       notes: "",
     } satisfies GradingSession;
 
@@ -561,8 +561,8 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     expect(within(previewTable).getByText("Saturday, 12 December 2026")).toBeVisible();
 
     // Type location
-    await user.type(screen.getByLabelText(/location/i), "Colchester Dojang");
-    expect(within(previewTable).getByText("Colchester Dojang")).toBeVisible();
+    await user.type(screen.getByLabelText(/location/i), "Riverside Dojang");
+    expect(within(previewTable).getByText("Riverside Dojang")).toBeVisible();
 
     // Check notes counter
     await user.type(screen.getByLabelText(/staff notes/i), "Bring extra forms");
@@ -603,7 +603,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       completed_assessment_count: 0,
       awaiting_decision_count: 0,
       can_be_deleted: false,
-      location: "Colchester Central Dojang",
+      location: "Riverside Central Dojang",
       notes: "High rank candidates expected",
     } satisfies GradingSession;
 
@@ -633,7 +633,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: "Grading day" }), "20");
     await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "03");
     await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2027");
-    await user.type(screen.getByLabelText(/location/i), "Colchester Central Dojang");
+    await user.type(screen.getByLabelText(/location/i), "Riverside Central Dojang");
     await user.type(screen.getByLabelText(/staff notes/i), "High rank candidates expected");
 
     await user.click(screen.getByRole("button", { name: "Create draft session" }));
@@ -642,7 +642,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
       expect(postBody).toEqual({
         title: "Spring Grading 2027",
         grading_date: "2027-03-20",
-        location: "Colchester Central Dojang",
+        location: "Riverside Central Dojang",
         notes: "High rank candidates expected",
       });
     });

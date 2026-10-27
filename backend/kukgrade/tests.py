@@ -298,11 +298,11 @@ def test_club_name_comes_from_the_environment(monkeypatch: pytest.MonkeyPatch) -
     configured = load_settings(
         monkeypatch,
         **PRODUCTION_ENV,
-        KUKGRADE_CLUB_NAME="  Kuk Sool Won Colchester ",
+        KUKGRADE_CLUB_NAME="  Kuk Sool Won Riverside ",
     )
     unset = load_settings(monkeypatch, **PRODUCTION_ENV)
 
-    assert configured.CLUB_NAME == "Kuk Sool Won Colchester"
+    assert configured.CLUB_NAME == "Kuk Sool Won Riverside"
     assert unset.CLUB_NAME == "Kuk Sool Won"
 
 
@@ -362,7 +362,7 @@ def test_a_temporary_password_lifetime_under_an_hour_refuses_to_start(
         )
 
 
-def test_the_school_prefix_defaults_to_colchester_unless_configured(
+def test_the_school_prefix_defaults_to_the_generic_prefix_unless_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     default = load_settings(monkeypatch, **PRODUCTION_ENV)
@@ -376,7 +376,7 @@ def test_the_school_prefix_defaults_to_colchester_unless_configured(
     assert configured.SCHOOL_ID_PREFIX == "301-4"
 
 
-@pytest.mark.parametrize("prefix", ["206", "206-22", "2062", "A-2"])
+@pytest.mark.parametrize("prefix", ["123", "123-44", "1234", "A-2"])
 def test_a_school_prefix_in_the_wrong_form_refuses_to_start(
     monkeypatch: pytest.MonkeyPatch,
     prefix: str,

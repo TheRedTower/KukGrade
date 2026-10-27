@@ -82,7 +82,7 @@ const instructorUser: AuthUser = {
 function lockedSession(): GradingSession {
   return {
     id: 7,
-    title: "March 2027 Colchester Grading",
+    title: "March 2027 Riverside Grading",
     grading_date: "2027-03-20",
     status: "LOCKED",
     status_display: "Locked",
@@ -90,7 +90,7 @@ function lockedSession(): GradingSession {
     completed_assessment_count: 0,
     awaiting_decision_count: 0,
     can_be_deleted: false,
-    location: "Colchester",
+    location: "Riverside",
     notes: "",
   };
 }
@@ -134,7 +134,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     renderScreen();
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "March 2027 Colchester Grading" }),
+        screen.getByRole("heading", { name: "March 2027 Riverside Grading" }),
       ).toBeInTheDocument(),
     );
 
@@ -154,7 +154,7 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     renderScreen();
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", { name: "March 2027 Colchester Grading" }),
+        screen.getByRole("heading", { name: "March 2027 Riverside Grading" }),
       ).toBeInTheDocument(),
     );
 

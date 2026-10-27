@@ -36,7 +36,7 @@ def tidy_and_check(apps: Any, schema_editor: Any) -> None:
             )
     if wrong:
         msg = (
-            "These WKSA IDs are neither a student ID (206-2-150) nor a black "
+            "These WKSA IDs are neither a student ID (123-4-150) nor a black "
             "belt ID (A-20819). Correct them, then migrate again:\n  "
             + "\n  ".join(wrong)
         )

@@ -59,7 +59,7 @@ def client_for(user: User) -> APIClient:
 
 
 def test_a_whole_file_rank_fills_a_missing_column() -> None:
-    batch = club_file(row("206-2-001"), row("206-2-002"))
+    batch = club_file(row("123-4-001"), row("123-4-002"))
 
     save_import_mapping(
         batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
@@ -73,7 +73,7 @@ def test_a_whole_file_rank_fills_a_missing_column() -> None:
 
 
 def test_a_whole_file_value_fills_only_blank_cells() -> None:
-    batch = club_file(row("206-2-001", belt="Yellow"), row("206-2-002"))
+    batch = club_file(row("123-4-001", belt="Yellow"), row("123-4-002"))
 
     save_import_mapping(
         batch,
@@ -83,8 +83,8 @@ def test_a_whole_file_value_fills_only_blank_cells() -> None:
     commit_student_import(batch, actor=admin_user("blank-cells@example.com"))
 
     assert dict(Student.objects.values_list("wksa_id", "current_rank__code")) == {
-        "206-2-001": "YELLOW",
-        "206-2-002": "WHITE",
+        "123-4-001": "YELLOW",
+        "123-4-002": "WHITE",
     }
     assert set(Student.objects.values_list("status", flat=True)) == {"INACTIVE"}
 
@@ -94,7 +94,7 @@ def test_a_needed_field_with_no_column_is_typed_in_row_by_row() -> None:
     # by whoever knows it. The mapping is accepted; each row waits until its
     # value is given.
     admin = admin_user()
-    batch = club_file(row("206-2-001"), row("206-2-002"), admin=admin)
+    batch = club_file(row("123-4-001"), row("123-4-002"), admin=admin)
 
     response = client_for(admin).post(
         f"{BASE}{batch.pk}/mapping/",
@@ -120,7 +120,7 @@ def test_an_import_with_a_row_still_needing_attention_is_refused_whole() -> None
     # Only rows whose KukGrade fields are right are imported (owner,
     # 2026-10-20): a row needing attention is fixed or left out first.
     admin = admin_user()
-    batch = club_file(row("206-2-001", belt="White"), row("206-2-002"), admin=admin)
+    batch = club_file(row("123-4-001", belt="White"), row("123-4-002"), admin=admin)
     save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
 
     response = client_for(admin).post(f"{BASE}{batch.pk}/commit/", {}, format="json")
@@ -136,13 +136,13 @@ def test_an_import_with_a_row_still_needing_attention_is_refused_whole() -> None
 
     set_import_row_excluded(batch, row_number=3, excluded=True)
     commit_student_import(batch, actor=admin)
-    assert list(Student.objects.values_list("wksa_id", flat=True)) == ["206-2-001"]
+    assert list(Student.objects.values_list("wksa_id", flat=True)) == ["123-4-001"]
 
 
 @pytest.mark.parametrize(
     ("defaults", "message"),
     [
-        ({"wksa_id": "206-2-001"}, "Only current rank and status"),
+        ({"wksa_id": "123-4-001"}, "Only current rank and status"),
         ({"date_of_birth": "2012-01-01"}, "Only current rank and status"),
         (
             {"current_rank": "White", "status": "GONE"},
@@ -155,7 +155,7 @@ def test_only_rank_and_status_can_be_given_for_everyone(
     message: str,
 ) -> None:
     admin = admin_user()
-    batch = club_file(row("206-2-001"), admin=admin)
+    batch = club_file(row("123-4-001"), admin=admin)
 
     response = client_for(admin).post(
         f"{BASE}{batch.pk}/mapping/",
@@ -168,7 +168,7 @@ def test_only_rank_and_status_can_be_given_for_everyone(
 
 
 def test_a_whole_file_rank_must_be_a_rank_kukgrade_knows() -> None:
-    batch = club_file(row("206-2-001"))
+    batch = club_file(row("123-4-001"))
 
     with pytest.raises(ValidationError) as refused:
         save_import_mapping(
@@ -207,7 +207,7 @@ def test_a_column_named_must_be_in_the_file_and_used_once(
     field: str,
     message: str,
 ) -> None:
-    batch = club_file(row("206-2-001", belt="White"))
+    batch = club_file(row("123-4-001", belt="White"))
 
     with pytest.raises(ValidationError) as refused:
         save_import_mapping(batch, column_mapping=mapping, extra_columns=extra)
@@ -216,7 +216,7 @@ def test_a_column_named_must_be_in_the_file_and_used_once(
 
 
 def test_a_column_matched_to_two_fields_is_refused() -> None:
-    batch = club_file(row("206-2-001", belt="White"))
+    batch = club_file(row("123-4-001", belt="White"))
 
     with pytest.raises(ValidationError) as refused:
         save_import_mapping(
@@ -234,7 +234,7 @@ def test_a_kept_columns_heading_must_fit_a_label() -> None:
     long_heading = "Parent " * 30
     batch = upload_batch(
         content=student_workbook(
-            [["206-2-001", "Alex", "Kim", "2012-05-01", "White", "x"]],
+            [["123-4-001", "Alex", "Kim", "2012-05-01", "White", "x"]],
             headers=["ID", "First", "Last", "Born", "Belt", long_heading.strip()],
         ),
     )
@@ -253,8 +253,8 @@ def test_a_kept_columns_heading_must_fit_a_label() -> None:
 def test_kept_columns_become_each_new_students_extra_information() -> None:
     admin = admin_user()
     batch = club_file(
-        row("206-2-001", "White", phone="07700 900001", notes="Asthma inhaler"),
-        row("206-2-002", "White", phone="", notes="Left-handed"),
+        row("123-4-001", "White", phone="07700 900001", notes="Asthma inhaler"),
+        row("123-4-002", "White", phone="", notes="Left-handed"),
         admin=admin,
     )
     save_import_mapping(
@@ -277,14 +277,14 @@ def test_kept_columns_become_each_new_students_extra_information() -> None:
 
     commit_student_import(batch, actor=admin)
 
-    first = Student.objects.get(wksa_id="206-2-001")
+    first = Student.objects.get(wksa_id="123-4-001")
     kept = {info.label: info for info in first.extra_information.all()}
     assert {label: info.value for label, info in kept.items()} == {
         "Notes": "Asthma inhaler",
         "Parent phone": "07700 900001",
     }
     assert {info.source_import for info in kept.values()} == {batch.pk}
-    second = Student.objects.get(wksa_id="206-2-002")
+    second = Student.objects.get(wksa_id="123-4-002")
     assert list(second.extra_information.values_list("label", flat=True)) == ["Notes"]
 
     detail = client.get(f"/api/students/{first.pk}/").json()
@@ -303,14 +303,14 @@ def test_an_existing_student_is_skipped_and_their_extra_information_left_alone()
 
     admin = admin_user()
     create_student(
-        wksa_id="206-2-001",
+        wksa_id="123-4-001",
         first_name="Already",
         last_name="Here",
         date_of_birth=date(2012, 5, 1),
         current_rank=Rank.objects.get(code="WHITE"),
         actor=admin,
     )
-    batch = club_file(row("206-2-001", "White", notes="From the file"), admin=admin)
+    batch = club_file(row("123-4-001", "White", notes="From the file"), admin=admin)
     save_import_mapping(
         batch,
         column_mapping={**MAPPING, "current_rank": "Belt"},
@@ -324,7 +324,7 @@ def test_an_existing_student_is_skipped_and_their_extra_information_left_alone()
 
 def test_extra_information_goes_with_the_student() -> None:
     admin = admin_user()
-    batch = club_file(row("206-2-001", "White", notes="A note"), admin=admin)
+    batch = club_file(row("123-4-001", "White", notes="A note"), admin=admin)
     save_import_mapping(
         batch,
         column_mapping={**MAPPING, "current_rank": "Belt"},
@@ -340,7 +340,7 @@ def test_extra_information_goes_with_the_student() -> None:
 def test_the_current_screens_check_keeps_the_whole_file_values() -> None:
     from data_imports.services import preview_student_import
 
-    batch = club_file(row("206-2-001"))
+    batch = club_file(row("123-4-001"))
     save_import_mapping(
         batch, column_mapping=MAPPING, defaults={"current_rank": "White"}
     )
@@ -371,7 +371,7 @@ def test_a_roster_takes_the_clubs_own_rank_spellings_but_never_a_doubt_or_a_slip
     issue: str,
 ) -> None:
     admin = admin_user()
-    batch = club_file(row("206-2-001", belt=written), admin=admin)
+    batch = club_file(row("123-4-001", belt=written), admin=admin)
 
     save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
 
@@ -386,7 +386,7 @@ def test_a_roster_takes_the_clubs_own_rank_spellings_but_never_a_doubt_or_a_slip
 
 
 def test_a_whole_file_rank_may_be_written_the_clubs_way() -> None:
-    batch = club_file(row("206-2-001"))
+    batch = club_file(row("123-4-001"))
 
     save_import_mapping(
         batch, column_mapping=MAPPING, defaults={"current_rank": "White Belt"}
@@ -401,7 +401,7 @@ def test_a_column_with_no_heading_is_named_by_its_letter_and_can_be_kept() -> No
         content=student_workbook(
             [
                 [
-                    "206-2-001",
+                    "123-4-001",
                     "Alex",
                     "Kim",
                     "2012-05-01",
@@ -431,7 +431,7 @@ def test_a_heading_used_twice_is_refused_at_upload() -> None:
     with pytest.raises(ValidationError, match="'Notes' appears more than once"):
         upload_batch(
             content=student_workbook(
-                [["206-2-001", "Alex", "Kim", "2012-05-01", "White", "a", "b"]],
+                [["123-4-001", "Alex", "Kim", "2012-05-01", "White", "a", "b"]],
                 headers=["ID", "First", "Last", "Born", "Belt", "Notes", "Notes"],
             ),
         )
@@ -448,7 +448,7 @@ def test_the_students_list_shows_just_the_students_an_import_added() -> None:
 
     admin = admin_user()
     by_hand = create_student(
-        wksa_id="206-2-009",
+        wksa_id="123-4-009",
         first_name="By",
         last_name="Hand",
         date_of_birth=date(2012, 5, 1),
@@ -456,15 +456,15 @@ def test_the_students_list_shows_just_the_students_an_import_added() -> None:
         actor=admin,
     )
     assert by_hand.source_import is None
-    first = club_file(row("206-2-001", belt="White"), admin=admin)
-    second = club_file(row("206-2-002", belt="White"), admin=admin)
+    first = club_file(row("123-4-001", belt="White"), admin=admin)
+    second = club_file(row("123-4-002", belt="White"), admin=admin)
     for batch in (first, second):
         save_import_mapping(batch, column_mapping={**MAPPING, "current_rank": "Belt"})
         commit_student_import(batch, actor=admin)
-    assert Student.objects.get(wksa_id="206-2-002").source_import == second.pk
+    assert Student.objects.get(wksa_id="123-4-002").source_import == second.pk
     client = client_for(admin)
 
     listed = results(client.get("/api/students/", {"source_import": first.pk}))
 
-    assert [student["wksa_id"] for student in listed] == ["206-2-001"]
+    assert [student["wksa_id"] for student in listed] == ["123-4-001"]
     assert results(client.get("/api/students/", {"source_import": "x"})) == []

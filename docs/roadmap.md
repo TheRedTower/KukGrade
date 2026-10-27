@@ -9,8 +9,9 @@ Want something here, or something that is missing? Open an
 
 ## Next: getting to 1.0
 
-- [ ] **Publish the container image** to `ghcr.io/theredtower/kukgrade` on each release, so
-      installing is a `docker compose pull` instead of a local build.
+- [ ] **First published image**: the release workflow is in place, but the first image appears
+      only when the first version tag is pushed, after the repository and the package are made
+      public.
 - [ ] **Bare-metal Linux release**: a tarball with its own Python, the built frontend and a
       systemd unit (amd64 and arm64), plus documented build-from-source, for people who do not
       use Docker.

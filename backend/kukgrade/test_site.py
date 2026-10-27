@@ -8,12 +8,12 @@ from rest_framework.test import APIClient
 
 
 def test_site_settings_serve_the_configured_club_name(settings: Any) -> None:
-    settings.CLUB_NAME = "Kuk Sool Won Colchester"
+    settings.CLUB_NAME = "Kuk Sool Won Riverside"
 
     response = APIClient().get("/api/site/")
 
     assert response.status_code == 200
-    assert response.json()["club_name"] == "Kuk Sool Won Colchester"
+    assert response.json()["club_name"] == "Kuk Sool Won Riverside"
 
 
 def test_site_settings_serve_the_club_time_zone(settings: Any) -> None:

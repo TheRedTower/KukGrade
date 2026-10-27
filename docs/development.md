@@ -124,3 +124,16 @@ CI. Merge one once its checks are green.
 
 The version is a single number in `backend/kukgrade/version.py`, kept equal to
 `backend/pyproject.toml` and `frontend/package.json` by a test.
+
+To publish, merge the version bump, then push a tag equal to it, for example
+`git tag v0.2.0 && git push origin v0.2.0`. The `Publish image` workflow
+([publish.yml](../.github/workflows/publish.yml)) builds `ghcr.io/theredtower/kukgrade` for
+amd64 and arm64 on native runners, runs `manage.py check --deploy` and
+`.github/scripts/image-smoke.sh` on each, and only then joins them under `0.2.0`, `0.2`,
+`latest` (and the major from 1.0). A pre-release tag such as `v0.2.0-rc.1` is published
+under its own name only. A tag that differs from `VERSION` fails the build. Running the
+workflow by hand from a branch does everything except push, to rehearse a release.
+
+First time only: the package is private until it is made public (the package's own page,
+Package settings, Change visibility), and the arm64 runner is free only for public
+repositories, so make the repository public first.

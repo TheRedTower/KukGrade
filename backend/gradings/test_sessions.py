@@ -60,10 +60,10 @@ def test_valid_grading_session_can_be_created() -> None:
     session = grading_session(created_by=creator)
 
     assert session.pk is not None
-    assert session.title == "March 2027 Colchester Grading"
+    assert session.title == "March 2027 Riverside Grading"
     assert session.status == GradingSession.Status.DRAFT
     assert session.created_by == creator
-    assert str(session) == "March 2027 Colchester Grading (2027-03-20)"
+    assert str(session) == "March 2027 Riverside Grading (2027-03-20)"
 
 
 def test_grading_session_blank_title_rejected() -> None:
@@ -205,7 +205,7 @@ def test_authenticated_session_crud_and_created_by_spoofing_rejected() -> None:
             "title": "API Grading",
             "grading_date": "2027-04-01",
             "status": GradingSession.Status.DRAFT,
-            "location": "Colchester",
+            "location": "Riverside",
             "created_by": spoofed.id,
         },
         format="json",
@@ -323,13 +323,13 @@ def test_session_api_searches_title_and_location() -> None:
     title_match = grading_session(title="Spring Black Belt Grading")
     location_match = grading_session(
         title="Junior Grading",
-        location="Colchester Central Dojang",
+        location="Riverside Central Dojang",
     )
     grading_session(title="Unrelated", location="Ipswich")
     client = auth_client("session-search@example.com")
 
     title_response = client.get("/api/gradings/sessions/?search=black%20belt")
-    location_response = client.get("/api/gradings/sessions/?search=colchester")
+    location_response = client.get("/api/gradings/sessions/?search=riverside")
 
     assert [item["id"] for item in results(title_response)] == [title_match.id]
     assert [item["id"] for item in results(location_response)] == [location_match.id]

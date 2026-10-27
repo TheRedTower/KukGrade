@@ -51,7 +51,7 @@ def refusal(raised: pytest.ExceptionInfo[ValidationError]) -> dict[str, list[str
 def test_each_is_created_and_audited_as_one_created_alone_would_be() -> None:
     actor = admin()
     alone = create_student(
-        wksa_id="206-2-100",
+        wksa_id="123-4-100",
         first_name="Alex",
         last_name="Kim",
         date_of_birth=date(2012, 5, 1),
@@ -60,11 +60,11 @@ def test_each_is_created_and_audited_as_one_created_alone_would_be() -> None:
     )
 
     created = create_students(
-        [new(" 206-2-101 "), new("a-20819", "JKN", status=Student.Status.INACTIVE)],
+        [new(" 123-4-101 "), new("a-20819", "JKN", status=Student.Status.INACTIVE)],
         actor=actor,
     )
 
-    assert [student.wksa_id for student in created] == ["206-2-101", "A-20819"]
+    assert [student.wksa_id for student in created] == ["123-4-101", "A-20819"]
     assert all(student.pk for student in created)
     assert created[1].status == Student.Status.INACTIVE
     events = {
@@ -88,10 +88,10 @@ def test_each_is_created_and_audited_as_one_created_alone_would_be() -> None:
     ("wksa_id", "rank", "overrides", "message"),
     [
         ("NOT-AN-ID", "WHITE", {}, "Use a student ID"),
-        ("206-2-150", "JKN", {}, "A black belt rank needs a black belt ID"),
-        ("206-2-150", "WHITE", {"last_name": ""}, "Last name is required."),
+        ("123-4-150", "JKN", {}, "A black belt rank needs a black belt ID"),
+        ("123-4-150", "WHITE", {"last_name": ""}, "Last name is required."),
         (
-            "206-2-150",
+            "123-4-150",
             "WHITE",
             {"date_of_birth": date(2999, 1, 1)},
             "cannot be in the future",
@@ -106,7 +106,7 @@ def test_one_refusal_creates_none_of_them(
 ) -> None:
     bad = new(wksa_id, rank, **overrides)
     with pytest.raises(ValidationError) as raised:
-        create_students([new("206-2-001"), bad], actor=admin())
+        create_students([new("123-4-001"), bad], actor=admin())
 
     assert any(message in text for text in refusal(raised)[bad.wksa_id.strip()])
     assert not Student.objects.exists()
@@ -115,31 +115,31 @@ def test_one_refusal_creates_none_of_them(
 
 def test_an_id_given_twice_is_refused() -> None:
     with pytest.raises(ValidationError) as raised:
-        create_students([new("206-2-001"), new("206-2-001")], actor=admin())
+        create_students([new("123-4-001"), new("123-4-001")], actor=admin())
 
-    assert refusal(raised) == {"206-2-001": ["This WKSA ID is given twice."]}
+    assert refusal(raised) == {"123-4-001": ["This WKSA ID is given twice."]}
 
 
 def test_an_id_held_now_before_or_by_a_deleted_student_is_refused() -> None:
     actor = admin()
-    create_students([new("206-2-001")], actor=actor)
-    black_belt = create_students([new("206-2-002", "DAHN_BO")], actor=actor)[0]
+    create_students([new("123-4-001")], actor=actor)
+    black_belt = create_students([new("123-4-002", "DAHN_BO")], actor=actor)[0]
     update_student(black_belt, wksa_id="A-20000", actor=actor)
-    gone = create_students([new("206-2-003")], actor=actor)[0]
+    gone = create_students([new("123-4-003")], actor=actor)[0]
     delete_student(gone, actor)
 
     with pytest.raises(ValidationError) as raised:
         create_students(
-            [new("206-2-001"), new("206-2-002"), new("206-2-003"), new("206-2-004")],
+            [new("123-4-001"), new("123-4-002"), new("123-4-003"), new("123-4-004")],
             actor=actor,
         )
 
     assert refusal(raised) == {
-        "206-2-001": [TAKEN_MESSAGE],
-        "206-2-002": [TAKEN_MESSAGE],
-        "206-2-003": [TAKEN_MESSAGE],
+        "123-4-001": [TAKEN_MESSAGE],
+        "123-4-002": [TAKEN_MESSAGE],
+        "123-4-003": [TAKEN_MESSAGE],
     }
-    assert not Student.objects.filter(wksa_id="206-2-004").exists()
+    assert not Student.objects.filter(wksa_id="123-4-004").exists()
 
 
 def test_nothing_given_creates_nothing() -> None:
@@ -155,18 +155,18 @@ def test_a_student_created_alone_meanwhile_holds_the_bulk_back_then_refuses_it()
 
     alone, bulk = interleave(
         lambda: create_student(
-            wksa_id="206-2-001",
+            wksa_id="123-4-001",
             first_name="First",
             last_name="Here",
             date_of_birth=date(2012, 5, 1),
             current_rank=Rank.objects.get(code="WHITE"),
             actor=actor,
         ),
-        lambda: create_students([new("206-2-001"), new("206-2-002")], actor=actor),
+        lambda: create_students([new("123-4-001"), new("123-4-002")], actor=actor),
         pause_first_at="students.services.record",
     )
 
     assert isinstance(alone, Student)
     assert isinstance(bulk, ValidationError), bulk
-    assert bulk.message_dict == {"206-2-001": [TAKEN_MESSAGE]}
+    assert bulk.message_dict == {"123-4-001": [TAKEN_MESSAGE]}
     assert list(Student.objects.values_list("first_name", flat=True)) == ["First"]

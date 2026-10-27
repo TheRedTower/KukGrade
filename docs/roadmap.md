@@ -9,9 +9,10 @@ Want something here, or something that is missing? Open an
 
 ## Next: getting to 1.0
 
-- [ ] **First published image**: the release workflow is in place, but the first image appears
-      only when the first version tag is pushed, after the repository and the package are made
-      public.
+- [ ] **First published image**: the release workflow is in place, but `latest` appears
+      only when the first stable tag is cut on `prod`, after the first `dev` to `prod` merge
+      and once the repository and the package are public. A release candidate publishes only
+      its own tag.
 - [ ] **Bare-metal Linux release**: a tarball with its own Python, the built frontend and a
       systemd unit (amd64 and arm64), plus documented build-from-source, for people who do not
       use Docker.
@@ -19,7 +20,8 @@ Want something here, or something that is missing? Open an
       restore and a request-size cap at the proxy, before calling a release production-ready.
 - [ ] **Release assurance**: a repeatable pre-release checklist covering the install paths.
 - [ ] **Branch protection and a demo site**: once the repository is public, require green CI
-      and a pull request on `dev` and `prod`, and protect the `v*` tags. Run a demo site that
+      and a pull request on `dev` and `prod` (only merge commits into `prod`), and protect
+      the `v*` tags. Run a demo site that
       follows `latest` (the newest stable release, cut from `prod`) with only made-up data.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.

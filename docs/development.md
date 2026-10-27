@@ -141,7 +141,8 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
    The [Publish image](../.github/workflows/publish.yml) workflow builds
    `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs
    `manage.py check --deploy` and `.github/scripts/image-smoke.sh` on each, and only then
-   publishes it. It never moves `latest`. A production-ready build is still tried this way
+   publishes it. It never moves `latest`, and it shows the version it is a candidate for
+   (`0.2.0`), told apart from the final release by its build commit. A production-ready build is still tried this way
    first.
 3. **Try it.** Run the candidate as a real deployment (the image tag goes in the compose
    file), work through the checks that matter for the change, and fix what turns up on
@@ -150,11 +151,15 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
    (not a squash), so `prod` holds the same commits `dev` proved. Nothing is committed to
    `prod` directly.
 5. **Release**: tag the merge on `prod` as `vX.Y.Z` (no `-rc`). The workflow publishes
-   `0.2.0`, `0.2` and `latest`, plus the major from 1.0, and the demo site, which follows
-   `latest`, moves with it.
-6. **A fix to a release already out** is made on a branch from `prod`, merged into `prod`
-   by pull request, tagged as a new patch version, and then `prod` is merged back into
-   `dev` so the fix is not lost there.
+   `0.2.0`, `0.2` and `latest`, plus the major from 1.0. The demo site, once there is one
+   (see the [roadmap](roadmap.md)), follows `latest`.
+6. **A fix to a release already out** takes the same road: it is made on `dev`, tried as a
+   new candidate (`v0.2.1-rc.1`), promoted and tagged `v0.2.1`. There is no shortcut into
+   `prod`, so `prod` is never ahead of `dev`.
+
+The first stable release also needs the first promotion: `prod` starts as the repository's
+first commit, so no `latest` exists until a pull request from `dev` has been merged into it
+and tagged. A candidate publishes only its own tag, so pulling `latest` before then fails.
 
 The workflow enforces the rules rather than trusting memory: a tag whose number is not
 `VERSION` fails, a `-rc` tag must be on a commit that is on `dev`, and a stable tag must be

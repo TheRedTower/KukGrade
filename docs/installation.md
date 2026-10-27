@@ -167,8 +167,8 @@ docker compose up -d
 ```
 
 (add `-f compose.caddy.yml` or your own file to both). Database migrations run
-automatically when the container starts. `latest` follows the newest stable release (never a release candidate); to
-stay on one version, or to go back to an earlier one, name its tag instead of
+automatically when the container starts. `latest` follows the newest stable release (never a
+release candidate); to stay on one version, or to go back to an earlier one, name its tag instead of
 `latest` in the compose file (`ghcr.io/theredtower/kukgrade:0.2.0`). If that
 version's schema is incompatible with migrations already applied, restore the backup
 you took first. Releases are listed under

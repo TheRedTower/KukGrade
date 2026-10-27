@@ -49,7 +49,8 @@ jobs:
       # The branch rules (docs/development.md, "Releasing"): a pre-release is cut
       # on dev to be tried there; a stable release is cut on prod, which only
       # takes what dev has already proved. The tag's number must be the
-      # version in the code, or the About page would show another one.
+      # version in the code (a candidate shows the version it is a candidate
+      # for), or the About page would show another one.
       - name: Check the tag follows the release rules
         if: env.PUSH == 'true'
         run: |

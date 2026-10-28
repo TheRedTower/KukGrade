@@ -681,17 +681,6 @@ h2 {
   background: currentColor;
 }
 
-.btn-pagination:hover:not(:disabled):not(.active) {
-  border-color: var(--color-accent);
-  color: var(--color-accent-text);
-}
-
-.btn-pagination.active {
-  background: var(--btn-primary-bg);
-  border-color: var(--btn-primary-border);
-  color: var(--btn-primary-text);
-}
-
 .empty-state-title {
   color: var(--color-text);
   font-size: 1.25rem;

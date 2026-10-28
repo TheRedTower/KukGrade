@@ -55,7 +55,7 @@ export function TemporaryPasswordIssued({
             ? "It couldn't be copied. Select it and copy it instead."
             : ""}
       </p>
-      <div className="users-dialog-actions">
+      <div className="action-row users-dialog-actions">
         <button
           ref={copyRef}
           type="button"

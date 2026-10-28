@@ -62,6 +62,24 @@ const SCREENS: Screen[] = [
     },
   },
   { name: "users", role: "administrator", path: () => "/users" },
+  {
+    name: "users-add-dialog",
+    role: "administrator",
+    path: () => "/users",
+    after: async (page) => {
+      await page.getByRole("button", { name: "Add user" }).click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
+  {
+    name: "user-reset-dialog",
+    role: "administrator",
+    path: (ids) => `/users/${ids.user}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: "Reset password" }).click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
   { name: "user-detail", role: "administrator", path: (ids) => `/users/${ids.user}` },
   {
     name: "assessment-review",
@@ -113,6 +131,7 @@ test.beforeAll(async ({ browser }) => {
   contexts.set("administrator", await signIn(browser, "administrator"));
   const admin = contexts.get("administrator")!.request;
   const master = contexts.get("master")!.request;
+  const me = await (await admin.get("/api/auth/me/")).json();
   const sessions: Record<string, string> = {};
   for (const session of await list(master, "/api/gradings/sessions/")) {
     sessions[String(session.status)] ??= String(session.id);
@@ -124,7 +143,8 @@ test.beforeAll(async ({ browser }) => {
     batch: String((await list(admin, "/api/data-imports/batches/"))[0].id),
     completedCandidate: String(completed[0].id),
     student: String((await list(admin, "/api/students/"))[0].id),
-    user: String((await list(admin, "/api/users/"))[0].id),
+    // Not the signed-in administrator: their own page has no password reset.
+    user: String((await list(admin, "/api/users/")).find((user) => user.id !== me.id)!.id),
     sessions,
     candidate: String(candidates[0].id),
   };

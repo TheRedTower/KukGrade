@@ -10,7 +10,9 @@ import {
   type UserRole,
 } from "./api";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
+import { Pagination } from "./Pagination";
+import { ResponsiveTable } from "./ResponsiveTable";
 import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
 
@@ -43,40 +45,16 @@ function CreateUserDialog({
   });
   const issued = mutation.data;
   const close = issued ? () => onCreated(issued) : onClose;
-  const dialogRef = useDialogFocus<HTMLElement>({
-    isOpen: true,
-    onClose: close,
-    canClose: !mutation.isPending,
-  });
-
   const apiError = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
-    <div
-      className="users-dialog-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        // Not once the password is showing: a stray click must not lose it.
-        if (event.target === event.currentTarget && !mutation.isPending && !issued) onClose();
-      }}
+    <Dialog
+      title={issued ? "Staff user added" : "Add staff user"}
+      eyebrow="Administrator action"
+      onClose={close}
+      canClose={!mutation.isPending}
+      closeOnBackdrop={!issued}
     >
-      <section
-        ref={dialogRef}
-        tabIndex={-1}
-        className="users-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-user-title"
-      >
-        <header>
-          <div>
-            <p>Administrator action</p>
-            <h2 id="create-user-title">{issued ? "Staff user added" : "Add staff user"}</h2>
-          </div>
-          <button type="button" className="users-link-button" onClick={close} disabled={mutation.isPending}>
-            Close
-          </button>
-        </header>
         {issued ? (
           <TemporaryPasswordIssued issued={issued} onDone={close} />
         ) : (
@@ -95,15 +73,15 @@ function CreateUserDialog({
             }}
           >
             <div className="users-form-grid">
-              <label>
+              <label className="field">
                 <span>First name</span>
                 <input data-dialog-autofocus name="first_name" autoComplete="off" />
               </label>
-              <label>
+              <label className="field">
                 <span>Last name</span>
                 <input name="last_name" autoComplete="off" />
               </label>
-              <label className="users-form-wide">
+              <label className="field users-form-wide">
                 <span>Email address</span>
                 <input
                   required
@@ -121,7 +99,7 @@ function CreateUserDialog({
                   </span>
                 )}
               </label>
-              <label className="users-form-wide">
+              <label className="field users-form-wide">
                 <span>Role</span>
                 <select name="role" defaultValue="instructor">
                   <option value="instructor">Instructor</option>
@@ -138,7 +116,7 @@ function CreateUserDialog({
                 {apiError.message}
               </div>
             )}
-            <div className="users-dialog-actions">
+            <div className="action-row users-dialog-actions">
               <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>
                 Cancel
               </button>
@@ -148,8 +126,7 @@ function CreateUserDialog({
             </div>
           </form>
         )}
-      </section>
-    </div>
+    </Dialog>
   );
 }
 
@@ -197,7 +174,7 @@ export function UsersScreen(): React.ReactElement {
 
   return (
     <section className="page page--wide users-page" aria-labelledby="users-heading">
-      <header className="users-page-header">
+      <header className="action-row users-page-header">
         <div>
           <div className="users-title-row">
             <h1 id="users-heading">Users</h1>
@@ -216,26 +193,28 @@ export function UsersScreen(): React.ReactElement {
       </header>
 
       <form
-        className="users-filters"
+        className="filter-bar users-filters"
         aria-label="User filters"
         onSubmit={(event) => {
           event.preventDefault();
           updateFilters({ search: searchRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="users-search">
+        <label className="field filter-bar__full">
           <span className="visually-hidden">Search users</span>
-          <input
-            key={search}
-            ref={searchRef}
-            type="search"
-            aria-label="Search users"
-            defaultValue={search}
-            placeholder="Search name or email"
-          />
-          <button type="submit">Search</button>
+          <div className="field__row">
+            <input
+              key={search}
+              ref={searchRef}
+              type="search"
+              aria-label="Search users"
+              defaultValue={search}
+              placeholder="Search name or email"
+            />
+            <button type="submit">Search</button>
+          </div>
         </label>
-        <label>
+        <label className="field">
           <span>Role</span>
           <select value={role} onChange={(event) => updateFilters({ role: event.target.value })}>
             <option value="">All roles</option>
@@ -243,7 +222,7 @@ export function UsersScreen(): React.ReactElement {
             <option value="administrator">Administrator</option>
           </select>
         </label>
-        <label>
+        <label className="field">
           <span>Status</span>
           <select value={status} onChange={(event) => updateFilters({ status: event.target.value })}>
             <option value="">All statuses</option>
@@ -251,7 +230,7 @@ export function UsersScreen(): React.ReactElement {
             <option value="inactive">Inactive</option>
           </select>
         </label>
-        <strong>{count} user{count === 1 ? "" : "s"}</strong>
+        <strong className="users-count">{count} user{count === 1 ? "" : "s"}</strong>
       </form>
 
       <div className="users-info-note">
@@ -261,42 +240,70 @@ export function UsersScreen(): React.ReactElement {
 
       <div className="users-ledger" aria-live="polite">
         {query.isLoading ? (
-          <div className="users-state" role="status">Loading users…</div>
+          <div className="card users-state" role="status">Loading users…</div>
         ) : query.isError ? (
-          <div className="users-state users-state-error" role="alert">
+          <div className="card users-state users-state-error" role="alert">
             <p>{query.error instanceof ApiError ? query.error.message : "Users could not be loaded."}</p>
             <button type="button" onClick={() => void query.refetch()}>Try again</button>
           </div>
         ) : users.length === 0 ? (
-          <div className="users-state">
+          <div className="card users-state">
             <strong>No users found</strong>
             <span>Try changing the filters or add a staff user.</span>
           </div>
         ) : (
           <>
-            <div className="users-table-scroll">
-              <table className="users-table">
-                <caption className="visually-hidden">Staff user accounts</caption>
-                <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Master authority</th><th scope="col">Status</th><th scope="col">Last active</th><th scope="col"><span className="visually-hidden">Action</span></th></tr></thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td><strong title={user.full_name}>{user.full_name}</strong><span title={user.email}>{user.email}</span></td>
-                      <td>{user.role_display}</td>
-                      <td className="users-authority-summary" title={authoritySummary(user)}>{authoritySummary(user)}</td>
-                      <td><span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>{user.is_active ? "Active" : "Inactive"}</span></td>
-                      <td>{formatShortDateTime(user.last_login, "Never")}</td>
-                      <td><button type="button" className="users-manage-button" onClick={() => navigate(`/users/${user.id}`)}>Manage user</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <nav className="users-pagination" aria-label="User pages">
-              <button type="button" disabled={page <= 1} onClick={() => updateFilters({ page: String(page - 1) }, true)}>Previous</button>
-              <span>Page {page} of {pages}</span>
-              <button type="button" disabled={page >= pages} onClick={() => updateFilters({ page: String(page + 1) }, true)}>Next</button>
-            </nav>
+            <ResponsiveTable
+              label="Staff user accounts"
+              rows={users}
+              rowKey={(user) => user.id}
+              columns={[
+                {
+                  key: "user",
+                  header: "User",
+                  primary: true,
+                  render: (user) => (
+                    <>
+                      <strong>{user.full_name}</strong>
+                      <span className="users-email">{user.email}</span>
+                    </>
+                  ),
+                },
+                { key: "role", header: "Role", render: (user) => user.role_display },
+                {
+                  key: "authority",
+                  header: "Master authority",
+                  render: (user) => <span className="users-authority-summary">{authoritySummary(user)}</span>,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (user) => (
+                    <span className={`users-status ${user.is_active ? "is-active" : "is-inactive"}`}>
+                      {user.is_active ? "Active" : "Inactive"}
+                    </span>
+                  ),
+                },
+                { key: "login", header: "Last active", render: (user) => formatShortDateTime(user.last_login, "Never") },
+                {
+                  key: "action",
+                  header: "Action",
+                  actions: "inline",
+                  render: (user) => (
+                    <button type="button" className="users-manage-button" onClick={() => navigate(`/users/${user.id}`)}>
+                      Manage user
+                    </button>
+                  ),
+                },
+              ]}
+            />
+            <Pagination
+              label="User pages"
+              page={page}
+              totalPages={pages}
+              onPage={(next) => updateFilters({ page: String(next) }, true)}
+              summary={`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, count)} of ${count} users`}
+            />
           </>
         )}
       </div>

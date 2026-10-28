@@ -2,25 +2,20 @@
   "About.css": {
     "widthQueries": 1,
     "nowrap": 2,
-    "overflowX": 2,
-    "fixedMinWidth": 3
+    "overflowX": 2
   },
   "App.css": {
     "widthQueries": 2,
     "nowrap": 1,
-    "fixedMinWidth": 5
-  },
-  "BuildGradingCohort.css": {
-    "fixedMinWidth": 2
+    "fixedMinWidth": 3
   },
   "CandidateAssessment.css": {
     "widthQueries": 3,
-    "fixedMinWidth": 7
+    "fixedMinWidth": 4
   },
   "CohortAdjudication.css": {
     "widthQueries": 2,
-    "overflowX": 1,
-    "fixedMinWidth": 2
+    "overflowX": 1
   },
   "GradingAttendance.css": {
     "widthQueries": 1,
@@ -28,54 +23,38 @@
   },
   "GradingSessions.css": {
     "nowrap": 7,
-    "fixedMinWidth": 6
+    "fixedMinWidth": 1
   },
   "Imports.css": {
     "widthQueries": 1,
     "nowrap": 6,
     "overflowX": 1,
-    "fixedMinWidth": 20
+    "fixedMinWidth": 8
   },
   "NavigationRail.css": {
     "widthQueries": 1,
-    "nowrap": 1,
-    "fixedMinWidth": 2
+    "nowrap": 1
   },
   "OutcomeControls.css": {
     "fixedMinWidth": 1
   },
-  "OutcomeDrawers.css": {
-    "fixedMinWidth": 1
-  },
   "OverviewScreen.css": {
-    "widthQueries": 1,
-    "fixedMinWidth": 3
+    "widthQueries": 1
   },
   "PromotionLedger.css": {
     "widthQueries": 1,
     "nowrap": 2,
-    "overflowX": 1,
-    "fixedMinWidth": 1
+    "overflowX": 1
   },
   "Settings.css": {
-    "nowrap": 1,
-    "fixedMinWidth": 3
+    "nowrap": 1
   },
   "StudentScreens.css": {
-    "widthQueries": 3,
-    "nowrap": 6,
-    "overflowX": 1,
-    "fixedMinWidth": 5
-  },
-  "Syllabus.css": {
-    "nowrap": 2,
-    "overflowX": 2,
+    "widthQueries": 2,
+    "nowrap": 4,
     "fixedMinWidth": 1
   },
-  "UserManagement.css": {
-    "widthQueries": 3,
-    "nowrap": 3,
-    "overflowX": 1,
-    "fixedMinWidth": 8
+  "Syllabus.css": {
+    "nowrap": 1
   }
 }

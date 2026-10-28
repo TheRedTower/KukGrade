@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -11,6 +11,7 @@ import {
   getAuditLabels,
 } from "./api";
 import { Dialog } from "./Dialog";
+import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./AuditScreen.css";
 import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
@@ -48,18 +49,6 @@ function eventMetadata(event: AuditEvent): string {
     return "No further details recorded.";
   }
   return JSON.stringify(event.metadata, null, 2);
-}
-
-function visiblePages(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  const pages = new Set([1, total, current - 1, current, current + 1]);
-  const sorted = [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
-  const result: (number | "ellipsis")[] = [];
-  sorted.forEach((page, index) => {
-    if (index > 0 && page - sorted[index - 1] > 1) result.push("ellipsis");
-    result.push(page);
-  });
-  return result;
 }
 
 export function AuditScreen(): React.ReactElement {
@@ -118,7 +107,6 @@ export function AuditScreen(): React.ReactElement {
   const events = query.data?.results ?? [];
   const totalCount = query.data?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const pageNumbers = useMemo(() => visiblePages(page, totalPages), [page, totalPages]);
   const hasFilters = Boolean(
     action || entityType || entityId || occurredFrom || occurredTo || appliedSearch,
   );
@@ -161,7 +149,7 @@ export function AuditScreen(): React.ReactElement {
               defaultValue={appliedSearch}
               placeholder="Search by number or keyword…"
             />
-            <button type="submit" className="audit-search-button">Search</button>
+            <button type="submit">Search</button>
           </div>
         </label>
 
@@ -305,44 +293,13 @@ export function AuditScreen(): React.ReactElement {
               ]}
             />
 
-            <nav className="action-row audit-pagination" aria-label="Audit event pages">
-              <div className="audit-page-buttons">
-                <button
-                  type="button"
-                  disabled={page <= 1}
-                  onClick={() => updateFilters({ page: String(page - 1) }, true)}
-                  aria-label="Previous page"
-                >
-                  ‹
-                </button>
-                {pageNumbers.map((pageNumber, index) =>
-                  pageNumber === "ellipsis" ? (
-                    <span key={`ellipsis-${index}`} aria-hidden="true">…</span>
-                  ) : (
-                    <button
-                      type="button"
-                      key={pageNumber}
-                      className={pageNumber === page ? "is-current" : ""}
-                      aria-current={pageNumber === page ? "page" : undefined}
-                      onClick={() => updateFilters({ page: String(pageNumber) }, true)}
-                    >
-                      {pageNumber}
-                    </button>
-                  ),
-                )}
-                <button
-                  type="button"
-                  disabled={page >= totalPages}
-                  onClick={() => updateFilters({ page: String(page + 1) }, true)}
-                  aria-label="Next page"
-                >
-                  ›
-                </button>
-              </div>
-              <span>
-                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} events
-              </span>
-            </nav>
+            <Pagination
+              label="Audit event pages"
+              page={page}
+              totalPages={totalPages}
+              onPage={(next) => updateFilters({ page: String(next) }, true)}
+              summary={`Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount} events`}
+            />
           </>
         )}
       </div>

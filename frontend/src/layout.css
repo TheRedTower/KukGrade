@@ -131,6 +131,30 @@
   border-radius: 0.45rem 0 0 0.45rem;
 }
 
+/* The button joined to a search box. */
+.field__row > button {
+  border: 1px solid var(--btn-primary-border);
+  border-left: 0;
+  border-radius: 0 0.45rem 0.45rem 0;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  font: inherit;
+  font-weight: 750;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+.field__row > button:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 1px;
+}
+
+.field__row > button:hover {
+  border-color: var(--btn-primary-hover-border);
+  background: var(--btn-primary-hover-bg);
+  color: var(--btn-primary-hover-text);
+}
+
 /* ── Tables ────────────────────────────────────────────────────────────── */
 
 /* A table where there is room for its columns, a stack of cards where there is
@@ -473,4 +497,105 @@
     position: sticky;
     top: var(--space-5);
   }
+}
+
+/* ── Pagination ────────────────────────────────────────────────────────── */
+
+.pager {
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
+.pager__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pager__buttons button {
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pager__buttons button:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-surface-sunken);
+}
+
+.pager__buttons button.is-current {
+  border-color: var(--color-gold-strong);
+  background: var(--color-gold);
+  color: var(--color-on-gold);
+  font-weight: 800;
+}
+
+.pager__buttons button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.pager__buttons button:focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 1px;
+}
+
+/* ── Scroll rail ───────────────────────────────────────────────────────── */
+
+/* A row of choices that scrolls a page at a time (ScrollRail.tsx): the one
+   deliberate sideways scroller. Items snap to the start, so none is left cut
+   off at the edge once it stops. */
+.rail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rail__track {
+  display: flex;
+  flex: 1 1 auto;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 4px 2px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+.rail__track::-webkit-scrollbar {
+  display: none;
+}
+
+.rail__track > * {
+  flex: 0 0 auto;
+  /* Never wider than the rail, so even a long label can be shown whole: it
+     wraps rather than overflowing. */
+  max-width: 100%;
+  scroll-snap-align: start;
+}
+
+.rail__arrow {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rail__arrow:hover:not(:disabled) {
+  border-color: var(--color-text-muted);
+  background: var(--color-surface-sunken);
+}
+
+.rail__arrow[hidden] {
+  display: none;
 }

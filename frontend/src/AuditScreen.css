@@ -36,33 +36,12 @@
   font-size: 0.65rem;
 }
 
-.audit-search-button:focus-visible,
 .audit-filter-summary button:focus-visible,
 .audit-view-button:focus-visible,
-.audit-pagination button:focus-visible,
 .audit-state-error button:focus-visible {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;
-}
-
-.audit-search-button {
-  min-height: 44px;
-  border: 1px solid var(--btn-primary-border);
-  border-left: 0;
-  border-radius: 0 0.45rem 0.45rem 0;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  font: inherit;
-  font-weight: 750;
-  padding: 0.55rem 0.9rem;
-  cursor: pointer;
-}
-
-.audit-search-button:hover {
-  border-color: var(--btn-primary-hover-border);
-  background: var(--btn-primary-hover-bg);
-  color: var(--btn-primary-hover-text);
 }
 
 .audit-filter-summary {
@@ -111,45 +90,6 @@
 
 .audit-entity-type {
   font-weight: 650;
-}
-
-.audit-pagination {
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
-}
-
-.audit-page-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.audit-page-buttons button {
-  border: 1px solid transparent;
-  border-radius: 0.35rem;
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.audit-page-buttons button:hover:not(:disabled) {
-  border-color: var(--color-border);
-  background: var(--color-surface-sunken);
-}
-
-.audit-page-buttons button.is-current {
-  border-color: var(--color-gold-strong);
-  background: var(--color-gold);
-  color: var(--color-on-gold);
-  font-weight: 800;
-}
-
-.audit-page-buttons button:disabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .audit-state {

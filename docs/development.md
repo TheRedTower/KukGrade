@@ -111,7 +111,9 @@ serializers and the committed frontend types match the schema.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
   on a narrow page), `Dialog` for every modal (a sheet on a phone), `.filter-bar` and
   `.field` for filters, `.action-row` for a row of buttons or a header, `.stats` for key figures, `.split` for a main
-  column with a side panel, `.crumbs` for the trail above a title. A `ResponsiveTable` has one
+  column with a side panel, `.crumbs` for the trail above a title, `Pagination` for page controls, `ScrollRail` for a row
+  of choices too long for the screen (it moves a page at a time and shows only whole items; the
+  one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
   the table when there are no rows.
   `e2e/widthDebt.json` lists screens that still do not fit: delete a screen from it when

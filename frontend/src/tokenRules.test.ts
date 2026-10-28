@@ -58,6 +58,9 @@ function countFile(file: string): Record<string, number> {
       .reduce((sum, { prop, value }) => sum + count(prop, value), 0);
     if (total > 0) counts[rule] = total;
   }
+  // A button is written once, in controls.css: a screen's own button class is a second one.
+  const buttons = file === "controls.css" ? 0 : [...definedClasses(css)].filter((name) => /(?:^|-)(?:btn|button)(?:-|$)/.test(name)).length;
+  if (buttons > 0) counts.buttonClass = buttons;
   const dark = (css.match(/\[data-theme=|prefers-color-scheme/g) ?? []).length;
   if (dark > 0) counts.darkOverride = dark;
   return counts;

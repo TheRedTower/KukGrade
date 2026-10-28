@@ -902,7 +902,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {(session.status === "DRAFT" || session.status === "OPEN") && (
             <Link
               to={`/gradings/${session.id}/register`}
-              className="btn-primary gs-create-btn"
+              className="btn-primary"
               data-testid="gsd-add-candidate-btn"
             >
               Add candidate <span aria-hidden="true">→</span>
@@ -1044,7 +1044,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               <p className="gsd-empty-sub">Add students to begin curriculum assessment and outcome tracking.</p>
               <Link
                 to={`/gradings/${session.id}/register`}
-                className="btn-primary gs-create-btn"
+                className="btn-primary"
               >
                 Add candidate <span aria-hidden="true">→</span>
               </Link>

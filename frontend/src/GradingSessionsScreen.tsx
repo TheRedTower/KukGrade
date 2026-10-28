@@ -213,7 +213,7 @@ export function GradingSessionsScreen() {
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
         <div className="gs-page-header-actions">
-          <button className="btn-primary gs-create-btn" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
+          <button className="btn-primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
             <PlusIcon /> Create grading
           </button>
         </div>
@@ -297,12 +297,12 @@ export function GradingSessionsScreen() {
                     actions: true,
                     render: (session) => (
                       <div className="gs-row-actions">
-                        <button className="btn-ghost-sm gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)} type="button">
+                        <button className="btn-ghost btn--sm gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)} type="button">
                           {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
                         </button>
                         {session.can_be_deleted && (
                           <button
-                            className="btn-ghost-sm gs-delete-row-btn"
+                            className="btn-ghost btn--sm gs-delete-row-btn"
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmSession(session);
@@ -328,7 +328,7 @@ export function GradingSessionsScreen() {
             ) : (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
-                <button className="btn-primary gs-create-btn" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
+                <button className="btn-primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
                   <PlusIcon /> Create grading
                 </button>
               </div>

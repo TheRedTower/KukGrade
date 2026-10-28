@@ -20,6 +20,10 @@
   --space-5: 1.5rem;
   --card-pad: clamp(1rem, 3vw, 1.5rem);
   --radius: 0.75rem;
+  --radius-control: 0.5rem;
+  --target-min: 44px;
+  --focus-outline: 2px solid var(--color-accent-strong);
+  --focus-offset: 2px;
   --dialog-max: 43rem;
 }
 

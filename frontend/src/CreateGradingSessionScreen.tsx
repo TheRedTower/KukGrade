@@ -293,7 +293,7 @@ export function CreateGradingSessionScreen() {
                 Cancel
               </button>
               <button
-                className="btn-primary gs-create-btn"
+                className="btn-primary"
                 disabled={isSubmitting}
                 id="cgs-submit-btn"
                 type="submit"

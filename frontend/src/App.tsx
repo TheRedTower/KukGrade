@@ -10,6 +10,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "rea
 
 import "./theme.css";
 import "./layout.css";
+import "./controls.css";
 import "./App.css";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";

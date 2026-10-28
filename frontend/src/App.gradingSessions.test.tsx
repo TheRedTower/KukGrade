@@ -243,7 +243,6 @@ describe("Grading Sessions List Screen (/gradings)", () => {
 
     // Both buttons share identical coherent primary styling classes
     expect(headerBtn.className).toBe(emptyStateBtn.className);
-    expect(emptyStateBtn.className).toContain("gs-create-btn");
     expect(emptyStateBtn.className).toContain("btn-primary");
   });
 

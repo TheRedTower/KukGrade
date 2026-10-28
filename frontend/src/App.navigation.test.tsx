@@ -239,7 +239,7 @@ describe("The sidebar", () => {
 
     render(<App />);
 
-    expect(await screen.findByRole("link", { name: "KukGrade 0.1.0" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "KukGrade 0.2.0" })).toHaveAttribute(
       "href",
       "/settings/about",
     );
@@ -259,7 +259,7 @@ describe("The sidebar", () => {
 
     expect(screen.getByRole("button", { name: "Expand sidebar" })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("link", { name: "Students" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "About KukGrade, version 0.1.0" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "About KukGrade, version 0.2.0" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /KukGrade on GitHub/ })).toHaveAttribute("target", "_blank");
     expect(screen.queryByText("Casey Instructor")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();

@@ -15,8 +15,9 @@ import {
 } from "./api";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
-import { useDialogFocus } from "./useDialogFocus";
-import { BeltSwatch } from "./Belt";
+import { Dialog } from "./Dialog";
+import { ResponsiveTable } from "./ResponsiveTable";
+import { BeltSwatch, type BeltRank } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
 
@@ -33,6 +34,33 @@ interface FlaggedCandidateItem {
   destinationRank: Rank | null;
   error: string;
   isAlreadyRegistered: boolean;
+}
+
+
+/** A belt and its name. */
+function RankCell({ rank, fallback }: { rank: BeltRank | null | undefined; fallback: string }) {
+  return (
+    <div className="bgc-rank-cell">
+      <BeltSwatch rank={rank} />
+      <span className="bgc-rank-label">{rank?.name || fallback}</span>
+    </div>
+  );
+}
+
+/** From one rank to the next, on one line that wraps when it must. */
+function RankFlow({ from, to, fromFallback = "Unknown" }: {
+  from: BeltRank | null | undefined;
+  to: BeltRank | null | undefined;
+  fromFallback?: string;
+}) {
+  return (
+    <div className="bgc-rank-flow">
+      <RankCell rank={from} fallback={fromFallback} />
+      <span className="bgc-rank-arrow" aria-hidden="true">→</span>
+      <span className="visually-hidden">, next rank: </span>
+      {to ? <RankCell rank={to} fallback="—" /> : <span className="bgc-highest-rank">Highest rank</span>}
+    </div>
+  );
 }
 
 export function BuildGradingCohortScreen() {
@@ -55,10 +83,6 @@ export function BuildGradingCohortScreen() {
 
   // Exceptions modal state
   const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false);
-  const exceptionsDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: exceptionsModalOpen,
-    onClose: () => setExceptionsModalOpen(false),
-  });
 
   // Submitting and registration results state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -441,7 +465,7 @@ export function BuildGradingCohortScreen() {
     return (
       <section aria-labelledby="bgc-resolver-title" className="page page--wide bgc-page" data-testid="bgc-page">
         {/* Breadcrumbs */}
-        <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
+        <nav className="crumbs" aria-label="Breadcrumbs">
           <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
           <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
           <Link to={`/gradings/${session.id}`} className="bgc-breadcrumb-link">{session.title}</Link>
@@ -511,67 +535,66 @@ export function BuildGradingCohortScreen() {
             </span>
           </div>
 
-          <div className="bgc-table-wrap">
-            <table className="bgc-table" aria-label="Flagged candidates">
-              <thead>
-                <tr>
-                  <th scope="col">Student</th>
-                  <th scope="col">WKSA ID</th>
-                  <th scope="col">Issue</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" className="bgc-th-actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {flaggedItems.map((item) => (
-                  <tr key={item.key} className="bgc-tr-flagged">
-                    <td className="bgc-td-student">
-                      <span className="bgc-student-name">
-                        {item.student?.first_name} {item.student?.last_name}
-                      </span>
-                    </td>
-                    <td className="bgc-td-wksa">{item.student?.wksa_id}</td>
-                    <td className="bgc-td-issue">
-                      <span className="bgc-issue-text">{item.error}</span>
-                    </td>
-                    <td className="bgc-td-status">
-                      {item.isAlreadyRegistered ? (
-                        <span className="bgc-status-badge bgc-badge-muted">
-                          {/* One grading at a time: held by another grading, not this one. */}
-                          {item.error.includes("for this session")
-                            ? "No retry needed"
-                            : "Registered for another grading"}
-                        </span>
-                      ) : (
-                        <span className={`bgc-status-badge bgc-status-${item.student?.status?.toLowerCase()}`}>
-                          {item.student?.status_display || item.student?.status}
-                        </span>
-                      )}
-                    </td>
-                    <td className="bgc-td-actions">
-                      <div className="bgc-row-actions">
-                        <Link
-                          to={`/students/${item.student?.id}`}
-                          className="btn-ghost bgc-row-btn"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View student
-                        </Link>
-                        <button
-                          type="button"
-                          className="btn-ghost bgc-row-btn bgc-btn-remove"
-                          onClick={() => handleRemoveFlaggedCandidate(item.key)}
-                        >
-                          Remove from list
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            label="Flagged candidates"
+            rows={flaggedItems}
+            rowKey={(item) => item.key}
+            columns={[
+              {
+                key: "student",
+                header: "Student",
+                primary: true,
+                render: (item) => (
+                  <>
+                    <span className="bgc-student-name">
+                      {item.student?.first_name} {item.student?.last_name}
+                    </span>
+                    <span className="bgc-student-id">{item.student?.wksa_id}</span>
+                  </>
+                ),
+              },
+              { key: "issue", header: "Issue", render: (item) => <span className="bgc-issue-text">{item.error}</span> },
+              {
+                key: "status",
+                header: "Status",
+                render: (item) =>
+                  item.isAlreadyRegistered ? (
+                    <span className="bgc-status-badge bgc-badge-muted">
+                      {/* One grading at a time: held by another grading, not this one. */}
+                      {item.error.includes("for this session") ? "No retry needed" : "Registered for another grading"}
+                    </span>
+                  ) : (
+                    <span className={`bgc-status-badge bgc-status-${item.student?.status?.toLowerCase()}`}>
+                      {item.student?.status_display || item.student?.status}
+                    </span>
+                  ),
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                actions: true,
+                render: (item) => (
+                  <div className="bgc-row-actions">
+                    <Link
+                      to={`/students/${item.student?.id}`}
+                      className="btn-ghost bgc-row-btn"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View student
+                    </Link>
+                    <button
+                      type="button"
+                      className="btn-ghost bgc-row-btn bgc-btn-remove"
+                      onClick={() => handleRemoveFlaggedCandidate(item.key)}
+                    >
+                      Remove from list
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+          />
         </section>
 
         {/* Collapsible successful registrations */}
@@ -644,7 +667,7 @@ export function BuildGradingCohortScreen() {
   return (
     <section aria-labelledby="bgc-title" className="page page--wide bgc-page" data-testid="bgc-page">
       {/* Breadcrumbs */}
-      <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
+      <nav className="crumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
         <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
         <Link to={`/gradings/${session.id}`} className="bgc-breadcrumb-link">{session.title}</Link>
@@ -689,7 +712,7 @@ export function BuildGradingCohortScreen() {
       )}
 
       {/* Main Dual-Column Workspace */}
-      <div className="bgc-workspace-grid">
+      <div className="split">
         {/* ── LEFT COLUMN: Finding & Adding Candidates ──────────────────── */}
         <div className="bgc-left-column">
           {/* Section 1: Find eligible students */}
@@ -702,8 +725,8 @@ export function BuildGradingCohortScreen() {
             </p>
 
             {/* Filter toolbar */}
-            <div className="bgc-filters-bar">
-              <div className="bgc-search-field">
+            <div className="filter-bar">
+              <div className="filter-bar__full bgc-search-field">
                 <span className="bgc-search-icon" aria-hidden="true">🔍</span>
                 <input
                   type="search"
@@ -715,13 +738,10 @@ export function BuildGradingCohortScreen() {
                 />
               </div>
 
-              <div className="bgc-filter-group">
-                <label htmlFor="bgc-rank-filter" className="bgc-filter-label">
-                  Current rank
-                </label>
+              <div className="field">
+                <label htmlFor="bgc-rank-filter">Current rank</label>
                 <select
                   id="bgc-rank-filter"
-                  className="bgc-select"
                   value={rankFilter}
                   onChange={(e) => setRankFilter(e.target.value)}
                 >
@@ -736,13 +756,10 @@ export function BuildGradingCohortScreen() {
                 </select>
               </div>
 
-              <div className="bgc-filter-group">
-                <label htmlFor="bgc-age-filter" className="bgc-filter-label">
-                  Age group
-                </label>
+              <div className="field">
+                <label htmlFor="bgc-age-filter">Age group</label>
                 <select
                   id="bgc-age-filter"
-                  className="bgc-select"
                   value={ageFilter}
                   onChange={(e) => setAgeFilter(e.target.value)}
                   data-testid="bgc-age-filter"
@@ -756,13 +773,10 @@ export function BuildGradingCohortScreen() {
                 </select>
               </div>
 
-              <div className="bgc-filter-group">
-                <label htmlFor="bgc-status-filter" className="bgc-filter-label">
-                  Status
-                </label>
+              <div className="field">
+                <label htmlFor="bgc-status-filter">Status</label>
                 <select
                   id="bgc-status-filter"
-                  className="bgc-select"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as "ACTIVE_INACTIVE" | "ACTIVE" | "INACTIVE")}
                 >
@@ -774,14 +788,14 @@ export function BuildGradingCohortScreen() {
             </div>
 
             {/* Filter matching summary banner */}
-            <div className="bgc-filter-summary-card">
+            <div className="action-row bgc-filter-summary-card">
               <div className="bgc-summary-info">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
                 <span className="bgc-info-text">
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
-              <div className="bgc-summary-actions">
+              <div className="action-row">
                 <span className="bgc-matching-count">
                   {filteredEligibleStudents.length === 1
                     ? "1 student matches"
@@ -800,98 +814,87 @@ export function BuildGradingCohortScreen() {
             </div>
 
             {/* Filtered matching student records table */}
-            <div className="bgc-table-wrap bgc-matching-table-wrap" data-testid="bgc-filtered-students-table">
+            <div data-testid="bgc-filtered-students-table">
               {filteredEligibleStudents.length === 0 ? (
                 <div className="bgc-empty-filtered" data-testid="bgc-empty-filtered">
                   No eligible students match the selected filters.
                 </div>
               ) : (
-                <table className="bgc-table" aria-label="Matching eligible students">
-                  <thead>
-                    <tr>
-                      <th scope="col">Student</th>
-                      <th scope="col">WKSA ID</th>
-                      <th scope="col">Current rank</th>
-                      <th scope="col">Destination rank</th>
-                      <th scope="col">Age band</th>
-                      <th scope="col">Status</th>
-                      <th scope="col" className="bgc-th-action">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEligibleStudents.map((s) => {
-                      const isAdded = cohortStudentIdSet.has(s.id);
-                      const currentRankObj = rankMap.get(s.current_rank);
-                      const destRankObj = nextRankMap.get(s.current_rank);
-
-                      return (
-                        <tr key={s.id} data-testid={`bgc-student-row-${s.id}`}>
-                          <td className="bgc-td-student">
-                            <Link
-                              to={`/students/${s.id}`}
-                              className="bgc-student-name-link"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {s.first_name} {s.last_name}
-                            </Link>
-                          </td>
-                          <td className="bgc-td-wksa">{s.wksa_id || "—"}</td>
-                          <td className="bgc-td-rank">
-                            <div className="bgc-rank-cell">
-                              <BeltSwatch rank={currentRankObj} />
-                              <span className="bgc-rank-label">
-                                {s.current_rank_name || currentRankObj?.name || "—"}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="bgc-td-rank">
-                            {destRankObj ? (
-                              <div className="bgc-rank-cell">
-                                <BeltSwatch rank={destRankObj} />
-                                <span className="bgc-rank-label">{destRankObj.name}</span>
-                              </div>
-                            ) : (
-                              <span className="bgc-highest-rank">Highest rank</span>
-                            )}
-                          </td>
-                          <td className="bgc-td-ageband">
-                            <span className="bgc-ageband-badge">
-                              {s.age_band_display || s.age_band || "—"}
-                            </span>
-                          </td>
-                          <td className="bgc-td-status">
-                            <span className={`bgc-status-badge bgc-status-${s.status.toLowerCase()}`}>
-                              {s.status_display || s.status}
-                            </span>
-                          </td>
-                          <td className="bgc-td-action">
-                            {isAdded ? (
-                              <button
-                                type="button"
-                                className="btn-ghost bgc-student-added-btn"
-                                onClick={() => handleRemoveStudentFromCohort(s.id)}
-                                title="Click to remove student from cohort"
-                                data-testid={`bgc-student-added-${s.id}`}
-                              >
-                                Added ✓
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn-primary gs-create-btn bgc-add-student-btn"
-                                onClick={() => handleAddStudentToCohort(s)}
-                                data-testid={`bgc-add-student-${s.id}`}
-                              >
-                                + Add
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <ResponsiveTable
+                  label="Matching eligible students"
+                  rows={filteredEligibleStudents}
+                  rowKey={(student) => student.id}
+                  rowTestId={(student) => `bgc-student-row-${student.id}`}
+                  columns={[
+                    {
+                      key: "student",
+                      header: "Student",
+                      primary: true,
+                      render: (student) => (
+                        <>
+                          <Link
+                            to={`/students/${student.id}`}
+                            className="bgc-student-name-link"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {student.first_name} {student.last_name}
+                          </Link>
+                          <span className="bgc-student-id">{student.wksa_id || "—"}</span>
+                        </>
+                      ),
+                    },
+                    {
+                      key: "rank",
+                      header: "Rank",
+                      render: (student) => (
+                        <RankFlow
+                          from={rankMap.get(student.current_rank)}
+                          to={nextRankMap.get(student.current_rank)}
+                          fromFallback={student.current_rank_name || "—"}
+                        />
+                      ),
+                    },
+                    {
+                      key: "age-status",
+                      header: "Age and status",
+                      render: (student) => (
+                        <div className="bgc-chips">
+                          <span className="bgc-ageband-badge">{student.age_band_display || student.age_band || "—"}</span>
+                          <span className={`bgc-status-badge bgc-status-${student.status.toLowerCase()}`}>
+                            {student.status_display || student.status}
+                          </span>
+                        </div>
+                      ),
+                    },
+                    {
+                      key: "action",
+                      header: "Action",
+                      actions: "inline",
+                      render: (student) =>
+                        cohortStudentIdSet.has(student.id) ? (
+                          <button
+                            type="button"
+                            className="btn-ghost bgc-student-added-btn"
+                            onClick={() => handleRemoveStudentFromCohort(student.id)}
+                            title="Click to remove student from cohort"
+                            data-testid={`bgc-student-added-${student.id}`}
+                          >
+                            Added ✓
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-primary gs-create-btn bgc-add-student-btn"
+                            onClick={() => handleAddStudentToCohort(student)}
+                            data-testid={`bgc-add-student-${student.id}`}
+                          >
+                            + Add
+                          </button>
+                        ),
+                    },
+                  ]}
+                />
               )}
             </div>
           </section>
@@ -905,111 +908,88 @@ export function BuildGradingCohortScreen() {
               Students are grouped by their current rank. Add whole groups to register them for the next rank.
             </p>
 
-            <div className="bgc-table-wrap">
-              <table className="bgc-table" aria-label="Eligible rank groups">
-                <thead>
-                  <tr>
-                    <th scope="col">Current rank</th>
-                    <th scope="col" aria-hidden="true" className="bgc-th-arrow" />
-                    <th scope="col">Destination rank</th>
-                    <th scope="col">Age mix</th>
-                    <th scope="col">Eligible</th>
-                    <th scope="col" className="bgc-th-action">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rankGroups.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="bgc-empty-td">
-                        {filteredEligibleStudents.length === 0
-                          ? "No eligible students match the selected filters."
-                          : "No eligible students found to register."}
-                      </td>
-                    </tr>
-                  ) : (
-                    rankGroups.map((group) => {
-                      const allGroupAdded = group.students.every((s) => cohortStudentIdSet.has(s.id));
-                      const someGroupAdded = group.students.some((s) => cohortStudentIdSet.has(s.id));
-
-                      return (
-                        <tr key={group.rank.id}>
-                          <td className="bgc-td-rank">
-                            <div className="bgc-rank-cell">
-                              <BeltSwatch rank={group.rank} />
-                              <span className="bgc-rank-label">{group.rank.name}</span>
-                            </div>
-                          </td>
-                          <td className="bgc-td-arrow" aria-hidden="true">
-                            →
-                          </td>
-                          <td className="bgc-td-rank">
-                            {group.destinationRank ? (
-                              <div className="bgc-rank-cell">
-                                <BeltSwatch rank={group.destinationRank} />
-                                <span className="bgc-rank-label">{group.destinationRank.name}</span>
-                              </div>
-                            ) : (
-                              <span className="bgc-highest-rank">Highest rank</span>
-                            )}
-                          </td>
-                          <td className="bgc-td-agemix">
-                            <span className="bgc-agemix-badge">
-                              {group.programmeCounts
-                                .map((entry) => `${entry.label} ${entry.count}`)
-                                .join(" | ")}
-                            </span>
-                          </td>
-                          <td className="bgc-td-eligible">
-                            <div className="bgc-eligible-count-cell">
-                              <span className="bgc-eligible-num">{group.students.length}</span>
-                              <span className="bgc-eligible-breakdown">
-                                ({group.activeCount} active
-                                {group.inactiveCount > 0 && (
-                                  <>
-                                    , <span className="bgc-inactive-alert">{group.inactiveCount} inactive</span>
-                                  </>
-                                )}
-                                )
-                              </span>
-                            </div>
-                          </td>
-                          <td className="bgc-td-action">
-                            {allGroupAdded ? (
-                              <button
-                                type="button"
-                                className="btn-ghost bgc-group-added-btn"
-                                onClick={() => handleRemoveRankGroup(group.rank.id)}
-                                title="Click to remove group"
-                                data-testid={`bgc-group-added-${group.rank.id}`}
-                              >
-                                Added ✓
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn-primary gs-create-btn bgc-add-group-btn"
-                                onClick={() => handleAddRankGroup(group)}
-                                data-testid={`bgc-add-group-${group.rank.id}`}
-                              >
-                                {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                  </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              label="Eligible rank groups"
+              rows={rankGroups}
+              rowKey={(group) => group.rank.id}
+              empty={
+                filteredEligibleStudents.length === 0
+                  ? "No eligible students match the selected filters."
+                  : "No eligible students found to register."
+              }
+              columns={[
+                {
+                  key: "rank",
+                  header: "Rank",
+                  primary: true,
+                  render: (group) => <RankFlow from={group.rank} to={group.destinationRank} />,
+                },
+                {
+                  key: "age-mix",
+                  header: "Age mix",
+                  render: (group) => (
+                    <span className="bgc-agemix-badge">
+                      {group.programmeCounts.map((entry) => `${entry.label} ${entry.count}`).join(" | ")}
+                    </span>
+                  ),
+                },
+                {
+                  key: "eligible",
+                  header: "Eligible",
+                  render: (group) => (
+                    <div className="bgc-eligible-count-cell">
+                      <span className="bgc-eligible-num">{group.students.length}</span>
+                      <span className="bgc-eligible-breakdown">
+                        ({group.activeCount} active
+                        {group.inactiveCount > 0 && (
+                          <>
+                            , <span className="bgc-inactive-alert">{group.inactiveCount} inactive</span>
+                          </>
+                        )}
+                        )
+                      </span>
+                    </div>
+                  ),
+                },
+                {
+                  key: "action",
+                  header: "Action",
+                  actions: "inline",
+                  render: (group) => {
+                    const allGroupAdded = group.students.every((student) => cohortStudentIdSet.has(student.id));
+                    const someGroupAdded = group.students.some((student) => cohortStudentIdSet.has(student.id));
+                    return allGroupAdded ? (
+                      <button
+                        type="button"
+                        className="btn-ghost bgc-group-added-btn"
+                        onClick={() => handleRemoveRankGroup(group.rank.id)}
+                        title="Click to remove group"
+                        data-testid={`bgc-group-added-${group.rank.id}`}
+                      >
+                        Added ✓
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-primary gs-create-btn bgc-add-group-btn"
+                        onClick={() => handleAddRankGroup(group)}
+                        data-testid={`bgc-add-group-${group.rank.id}`}
+                      >
+                        {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
+                      </button>
+                    );
+                  },
+                },
+              ]}
+            />
           </section>
         </div>
 
         {/* ── RIGHT COLUMN: Cohort Ledger & Confirmation ─────────────────── */}
-        <div className="bgc-right-column">
+        <div className="split__aside">
           <aside className="bgc-cohort-tray" aria-label="Cohort to register">
             <div className="bgc-tray-header">
-              <div className="bgc-tray-title-row">
+              <div className="action-row">
                 <h2 className="bgc-tray-title">Cohort to register</h2>
                 <span className="bgc-cohort-count" data-testid="bgc-cohort-count">
                   {cohort.length} candidate{cohort.length === 1 ? "" : "s"} selected
@@ -1021,63 +1001,38 @@ export function BuildGradingCohortScreen() {
             </div>
 
             {/* Selected groups table */}
-            <div className="bgc-tray-table-wrap">
-              <table className="bgc-tray-table" aria-label="Selected cohort groups">
-                <thead>
-                  <tr>
-                    <th scope="col">Current rank</th>
-                    <th scope="col" aria-hidden="true" className="bgc-th-arrow" />
-                    <th scope="col">Next rank</th>
-                    <th scope="col">Count</th>
-                    <th scope="col" className="bgc-th-remove">Remove</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cohortBreakdown.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="bgc-tray-empty-td">
-                        No rank groups added yet. Add a group from the left panel to begin.
-                      </td>
-                    </tr>
-                  ) : (
-                    cohortBreakdown.map((item) => (
-                      <tr key={item.rankId}>
-                        <td className="bgc-tray-td-rank">
-                          <div className="bgc-rank-cell">
-                            <BeltSwatch rank={item.currentRank} />
-                            <span className="bgc-rank-label">
-                              {item.currentRank?.name || "Unknown"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="bgc-tray-td-arrow" aria-hidden="true">
-                          →
-                        </td>
-                        <td className="bgc-tray-td-rank">
-                          <div className="bgc-rank-cell">
-                            <BeltSwatch rank={item.destinationRank} />
-                            <span className="bgc-rank-label">
-                              {item.destinationRank?.name || "—"}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="bgc-tray-td-count">{item.count}</td>
-                        <td className="bgc-tray-td-remove">
-                          <button
-                            type="button"
-                            className="bgc-btn-remove-group"
-                            onClick={() => handleRemoveRankGroup(item.rankId)}
-                            aria-label={`Remove ${item.currentRank?.name} group`}
-                          >
-                            ✕
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              label="Selected cohort groups"
+              rows={cohortBreakdown}
+              rowKey={(item) => item.rankId}
+              empty="No rank groups added yet. Add a group from the left panel to begin."
+              columns={[
+                {
+                  key: "rank",
+                  header: "Rank",
+                  primary: true,
+                  render: (item) => (
+                    <RankFlow from={item.currentRank} to={item.destinationRank} />
+                  ),
+                },
+                { key: "count", header: "Count", render: (item) => <span className="bgc-tray-count">{item.count}</span> },
+                {
+                  key: "remove",
+                  header: "Remove",
+                  actions: "inline",
+                  render: (item) => (
+                    <button
+                      type="button"
+                      className="bgc-btn-remove-group"
+                      onClick={() => handleRemoveRankGroup(item.rankId)}
+                      aria-label={`Remove ${item.currentRank?.name} group`}
+                    >
+                      ✕
+                    </button>
+                  ),
+                },
+              ]}
+            />
 
             {/* Review exceptions link */}
             <div className="bgc-exceptions-callout">
@@ -1116,7 +1071,7 @@ export function BuildGradingCohortScreen() {
             </div>
 
             {/* Action buttons */}
-            <div className="bgc-tray-actions">
+            <div className="action-row bgc-tray-actions">
               <Link
                 to={`/gradings/${session.id}`}
                 className="btn-ghost bgc-cancel-btn"
@@ -1140,80 +1095,53 @@ export function BuildGradingCohortScreen() {
 
       {/* ── Modal: Review Cohort Exceptions ──────────────────────────────── */}
       {exceptionsModalOpen && (
-        <div
-          className="gsd-modal-overlay"
-          role="presentation"
-          onClick={() => setExceptionsModalOpen(false)}
+        <Dialog
+          title={`Review cohort candidates (${cohort.length})`}
+          onClose={() => setExceptionsModalOpen(false)}
         >
-          <div
-            ref={exceptionsDialogRef}
-            className="gsd-modal-card bgc-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bgc-modal-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="gsd-modal-header">
-              <h2 id="bgc-modal-title" className="gsd-modal-title">
-                Review cohort candidates ({cohort.length})
-              </h2>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setExceptionsModalOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+          <p className="gsd-modal-message">
+            Remove individual students who should not be registered in this grading cohort.
+          </p>
 
-            <p className="gsd-modal-message">
-              Remove individual students who should not be registered in this grading cohort.
-            </p>
+          <ul className="bgc-modal-list">
+            {cohort.map((item) => (
+              <li key={item.student.id} className="bgc-modal-list-item">
+                <div className="bgc-modal-student-info">
+                  <span className="bgc-modal-student-name">
+                    {item.student.first_name} {item.student.last_name}
+                  </span>
+                  <span className="bgc-modal-student-wksa">{item.student.wksa_id}</span>
+                  <span className="bgc-modal-rank-flow">
+                    {item.currentRank?.name} ➔ {item.destinationRank?.name || "—"}
+                  </span>
+                  <span className={`bgc-status-badge bgc-status-${item.student.status.toLowerCase()}`}>
+                    {item.student.status_display || item.student.status}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-ghost bgc-btn-remove-individual"
+                  onClick={() => handleRemoveStudentFromCohort(item.student.id)}
+                  data-testid={`bgc-remove-student-${item.student.id}`}
+                >
+                  ✕ Remove
+                </button>
+              </li>
+            ))}
+          </ul>
 
-            <div className="bgc-modal-list-wrap">
-              <ul className="bgc-modal-list">
-                {cohort.map((item) => (
-                  <li key={item.student.id} className="bgc-modal-list-item">
-                    <div className="bgc-modal-student-info">
-                      <span className="bgc-modal-student-name">
-                        {item.student.first_name} {item.student.last_name}
-                      </span>
-                      <span className="bgc-modal-student-wksa">{item.student.wksa_id}</span>
-                      <span className="bgc-modal-rank-flow">
-                        {item.currentRank?.name} ➔ {item.destinationRank?.name || "—"}
-                      </span>
-                      <span className={`bgc-status-badge bgc-status-${item.student.status.toLowerCase()}`}>
-                        {item.student.status_display || item.student.status}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-ghost bgc-btn-remove-individual"
-                      onClick={() => handleRemoveStudentFromCohort(item.student.id)}
-                      data-testid={`bgc-remove-student-${item.student.id}`}
-                    >
-                      ✕ Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="gsd-modal-actions">
-              <button
-                type="button"
-                className="btn-primary gs-create-btn"
-                onClick={() => setExceptionsModalOpen(false)}
-                data-testid="bgc-modal-done-btn"
-                data-dialog-autofocus
-              >
-                Done
-              </button>
-            </div>
+          <div className="action-row dialog__actions">
+            <button
+              type="button"
+              className="btn-primary gs-create-btn"
+              onClick={() => setExceptionsModalOpen(false)}
+              data-testid="bgc-modal-done-btn"
+              data-dialog-autofocus
+            >
+              Done
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </section>
   );

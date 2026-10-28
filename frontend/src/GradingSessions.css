@@ -509,15 +509,6 @@
 
 /* ── Breadcrumbs ─────────────────────────────────────────────────────────── */
 
-.cgs-breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  color: var(--color-text-muted);
-  margin-bottom: -0.5rem;
-}
-
 .cgs-breadcrumb-link {
   background: transparent;
   border: none;
@@ -586,25 +577,6 @@
 }
 
 /* ── Grid Layout ─────────────────────────────────────────────────────────── */
-
-.cgs-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
-  gap: 2.75rem;
-  align-items: start;
-}
-
-@media (max-width: 960px) {
-  .cgs-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2rem;
-  }
-}
-
-.cgs-form-column,
-.cgs-preview-column {
-  min-width: 0;
-}
 
 /* ── Form Panel ──────────────────────────────────────────────────────────── */
 
@@ -755,50 +727,9 @@
   line-height: 1.45;
 }
 
-.cgs-preview-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface-sunken);
-}
-
-.cgs-preview-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.cgs-preview-table th {
-  padding: 0.75rem 1rem;
-  text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.cgs-preview-table td {
-  padding: 0.95rem 1rem;
-  color: var(--color-text);
-  vertical-align: middle;
-  border-bottom: none;
-}
-
-.cgs-preview-title-cell {
-  font-weight: 600;
-}
-
 .cgs-preview-placeholder {
   color: var(--color-text-muted);
   font-style: italic;
-}
-
-.cgs-preview-th-num,
-.cgs-preview-candidates-cell {
-  text-align: right;
 }
 
 /* ==========================================================================
@@ -812,15 +743,6 @@
 }
 
 /* ── Breadcrumbs ─────────────────────────────────────────────────────────── */
-
-.gsd-breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  color: var(--color-text-muted);
-  margin-bottom: -0.5rem;
-}
 
 .gsd-breadcrumb-link {
   color: var(--color-text-muted);
@@ -847,11 +769,7 @@
 /* ── Header ──────────────────────────────────────────────────────────────── */
 
 .gsd-header {
-  display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 1.25rem;
 }
 
 .gsd-header-left {
@@ -891,10 +809,7 @@
 /* ── Header Actions & Dropdown ───────────────────────────────────────────── */
 
 .gsd-header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-start;
 }
 
 .gsd-dropdown-wrap {
@@ -979,26 +894,23 @@
 
 .gsd-lifecycle-section {
   min-width: 0;
-  overflow-x: auto;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 1.25rem 2rem;
+  padding: var(--card-pad);
 }
 
+/* As many steps in a row as fit, each at least 9rem. */
 .gsd-lifecycle-track {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: var(--space-4);
 }
 
 .gsd-lifecycle-step {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-shrink: 0;
 }
 
 .gsd-step-circle {
@@ -1049,17 +961,6 @@
   color: var(--color-text-muted);
 }
 
-.gsd-lifecycle-line {
-  flex: 1;
-  height: 2px;
-  background: var(--color-border);
-  transition: background 150ms ease;
-}
-
-.gsd-line-completed {
-  background: #059669;
-}
-
 /* ── Operational Action Banner ───────────────────────────────────────────── */
 
 .gsd-action-banner {
@@ -1067,10 +968,6 @@
   border: 1px solid #fde68a;
   border-radius: 10px;
   padding: 0.85rem 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
 }
 
 [data-theme="dark"] .gsd-action-banner {
@@ -1163,6 +1060,7 @@
   position: relative;
   display: flex;
   align-items: center;
+  flex: 1 1 14rem;
 }
 
 .gsd-search-icon {
@@ -1174,7 +1072,8 @@
 }
 
 .gsd-search-input {
-  width: 240px;
+  width: 100%;
+  min-width: 0;
   padding: 0.5rem 0.75rem 0.5rem 2.2rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1219,51 +1118,6 @@
 
 /* ── Candidate Table ─────────────────────────────────────────────────────── */
 
-.gsd-table-wrapper {
-  max-width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  overflow-x: auto;
-}
-
-.gsd-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-}
-
-.gsd-table th {
-  padding: 0.85rem 1rem;
-  text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.gsd-table td {
-  padding: 0.95rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  vertical-align: middle;
-}
-
-.gsd-table-row:last-child td {
-  border-bottom: none;
-}
-
-.gsd-table-row:hover {
-  background: var(--color-surface-sunken);
-}
-
-.gsd-cell-candidate {
-  font-weight: 600;
-}
-
 .gsd-candidate-name {
   display: block;
   font-weight: 700;
@@ -1276,10 +1130,6 @@
   font-weight: 400;
   color: var(--color-text-muted);
   margin-top: 0.15rem;
-}
-
-.gsd-cell-rank {
-  white-space: nowrap;
 }
 
 .gsd-rank-item {
@@ -1416,6 +1266,9 @@
 
 .gsd-empty-roster,
 .gsd-empty-search {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
   padding: 3rem 1.5rem;
   text-align: center;
   display: flex;
@@ -1454,10 +1307,7 @@
 }
 
 .gsd-notes-header {
-  display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
 }
 
 .gsd-notes-title {
@@ -1532,8 +1382,7 @@
 }
 
 .gsd-notes-actions {
-  display: flex;
-  gap: 0.75rem;
+  justify-content: flex-start;
 }
 
 /* ── Modals ──────────────────────────────────────────────────────────────── */

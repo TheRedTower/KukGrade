@@ -33,6 +33,16 @@ const SCREENS: Screen[] = [
   { name: "grading-new", role: "master", path: () => "/gradings/new" },
   { name: "grading-open", role: "master", path: (ids) => `/gradings/${ids.sessions.OPEN}` },
   { name: "grading-register", role: "master", path: (ids) => `/gradings/${ids.sessions.DRAFT}/register` },
+  {
+    name: "grading-register-filled",
+    role: "master",
+    path: (ids) => `/gradings/${ids.sessions.DRAFT}/register`,
+    after: async (page) => {
+      await page.getByRole("button", { name: /^Add all \d+$/ }).first().click();
+      await page.getByRole("button", { name: /^Review exceptions/ }).click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
   { name: "grading-decisions", role: "master", path: (ids) => `/gradings/${ids.sessions.LOCKED}/decisions` },
   { name: "grading-promotions", role: "master", path: (ids) => `/gradings/${ids.sessions.COMPLETED}/promotions` },
   {
@@ -149,6 +159,7 @@ for (const screen of SCREENS) {
     }
     await page.close();
     if (owedHere && !authoritative) {
+      if (process.env.KUKGRADE_E2E_REPORT && problems.length) console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
       test.info().annotations.push({
         type: "owed",
         description: problems.length ? "does not fit yet" : "fits here: remove it from widthDebt.json once CI agrees",

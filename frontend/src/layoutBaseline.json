@@ -7,13 +7,10 @@
   },
   "App.css": {
     "widthQueries": 2,
-    "nowrap": 5,
+    "nowrap": 1,
     "fixedMinWidth": 5
   },
   "BuildGradingCohort.css": {
-    "widthQueries": 1,
-    "nowrap": 1,
-    "overflowX": 1,
     "fixedMinWidth": 2
   },
   "CandidateAssessment.css": {
@@ -30,9 +27,7 @@
     "overflowX": 2
   },
   "GradingSessions.css": {
-    "widthQueries": 1,
-    "nowrap": 8,
-    "overflowX": 3,
+    "nowrap": 7,
     "fixedMinWidth": 6
   },
   "Imports.css": {

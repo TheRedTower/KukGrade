@@ -3,7 +3,7 @@ import { type Rank } from "./api";
 import { useRanksQuery } from "./queries";
 import "./Belt.css";
 
-type BeltRank = Pick<Rank, "name" | "belt_colour" | "stripe_colour" | "stripe_count">;
+export type BeltRank = Pick<Rank, "name" | "belt_colour" | "stripe_colour" | "stripe_count">;
 
 /** A rank's belt as the server describes it: belt colour, plus its stripes. */
 export function BeltSwatch({ rank }: { rank: BeltRank | null | undefined }) {

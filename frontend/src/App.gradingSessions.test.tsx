@@ -592,6 +592,34 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     expect(sessionCalls).toHaveLength(0);
   });
 
+  it("says what the server said when it has no field to put it against", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, adminUser);
+      if (url.includes("/api/gradings/sessions/") && options?.method === "POST") {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Some details need correcting.",
+            fields: { non_field_errors: ["A grading is already planned for that day."] },
+          },
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Create grading session" });
+    await user.type(screen.getByLabelText(/session title/i), "Spring Grading");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading day" }), "20");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading month" }), "03");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Grading year" }), "2027");
+    await user.click(screen.getByRole("button", { name: "Create draft session" }));
+
+    expect(await screen.findByText("A grading is already planned for that day.")).toBeVisible();
+  });
+
   it("successfully creates a grading session and navigates to /gradings", async () => {
     const createdSession = {
       id: 99,

@@ -18,9 +18,10 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
+  errorMessage,
   type CandidateAssessment,
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
@@ -173,6 +174,12 @@ export function CohortAdjudicationScreen() {
   const stagedIds = Object.keys(staged).map(Number);
   const incomplete = stagedIds.filter((outcomeId) => missingRequirements(staged[outcomeId]));
 
+  // Each write goes through the mutation cache, so a session that expired mid-way signs the viewer out.
+  const finaliseMutation = useMutation({
+    mutationFn: (write: { outcomeId: number; payload: Parameters<typeof finaliseCandidateOutcome>[1] }) =>
+      finaliseCandidateOutcome(write.outcomeId, write.payload),
+  });
+
   async function record(outcomeIds: number[]) {
     if (outcomeIds.length === 0 || outcomeIds.some((oid) => missingRequirements(staged[oid]))) {
       return;
@@ -185,15 +192,20 @@ export function CohortAdjudicationScreen() {
     for (const outcomeId of outcomeIds) {
       const decision = staged[outcomeId];
       try {
-        await finaliseCandidateOutcome(outcomeId, {
-          final_outcome: decision.outcome,
-          decision_notes: decision.notes.trim(),
-          conditional_requirements:
-            decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
+        await finaliseMutation.mutateAsync({
+          outcomeId,
+          payload: {
+            final_outcome: decision.outcome,
+            decision_notes: decision.notes.trim(),
+            conditional_requirements:
+              decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
+          },
         });
         recorded += 1;
       } catch (err) {
-        failed[outcomeId] = err instanceof ApiError ? err.message : "The decision could not be recorded.";
+        failed[outcomeId] = errorMessage(err, "The decision could not be recorded.");
+        // The session has ended: the viewer is signed out, so the rest would only meet the same answer.
+        if (err instanceof ApiError && err.status === 401) break;
       }
     }
     setStaged((current) => {

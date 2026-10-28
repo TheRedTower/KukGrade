@@ -144,6 +144,8 @@ describe("UserDetailScreen", () => {
       }));
     });
     expect(await screen.findByText("Account details saved.")).toBeInTheDocument();
+    // The change is audited, so the page's activity list is read again.
+    await waitFor(() => expect(mockGetAuditEvents.mock.calls.length).toBeGreaterThan(1));
   });
 
   it("saves independent Master authority", async () => {
@@ -163,6 +165,7 @@ describe("UserDetailScreen", () => {
       });
     });
     expect(await screen.findByText("Master authority saved.")).toBeInTheDocument();
+    await waitFor(() => expect(mockGetAuditEvents.mock.calls.length).toBeGreaterThan(1));
   });
 
   it("resets a password and shows the new temporary one once", async () => {

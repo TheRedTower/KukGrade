@@ -8,6 +8,7 @@ import {
   getManagedUsers,
   type ManagedUser,
   type UserRole,
+  errorMessage,
 } from "./api";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
@@ -243,7 +244,7 @@ export function UsersScreen(): React.ReactElement {
           <div className="card users-state" role="status">Loading users…</div>
         ) : query.isError ? (
           <div className="card users-state users-state-error" role="alert">
-            <p>{query.error instanceof ApiError ? query.error.message : "Users could not be loaded."}</p>
+            <p>{errorMessage(query.error, "Users could not be loaded.")}</p>
             <button type="button" onClick={() => void query.refetch()}>Try again</button>
           </div>
         ) : users.length === 0 ? (

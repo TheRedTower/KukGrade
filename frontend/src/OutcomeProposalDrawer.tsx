@@ -6,10 +6,11 @@
  * are served, never recounted. Proposing never finalises or
  * promotes; the Master decides on the board.
  */
+import { useMutation } from "@tanstack/react-query";
 import React, { useId, useState } from "react";
 
 import {
-  ApiError,
+  errorMessage,
   type CandidateAssessment,
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
@@ -46,8 +47,25 @@ export function OutcomeProposalDrawer({
   // Kept in state so a retry after a refused proposal reuses the outcome the
   // first attempt created instead of creating a second one.
   const [outcomeId, setOutcomeId] = useState(existingOutcome?.id);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      // A candidate has no outcome record until the first proposal creates it.
+      let id = outcomeId;
+      if (id === undefined) {
+        id = await createOrFindOutcome(candidate);
+        setOutcomeId(id);
+      }
+      return proposeCandidateOutcome(id, {
+        proposed_outcome: selectedOutcome,
+        proposal_notes: proposalNotes.trim() || undefined,
+      });
+    },
+    onSuccess: (updated) => onSuccess(updated),
+    onError: (err) => setSubmitError(errorMessage(err, "The proposal could not be submitted.")),
+  });
+  const isSubmitting = submitMutation.isPending;
 
   const evidenceLoaded = useSealedEvidenceLoaded(assessment?.id);
   const titleId = useId();
@@ -57,29 +75,10 @@ export function OutcomeProposalDrawer({
     canClose: !isSubmitting,
   });
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setSubmitError(null);
-    try {
-      // A candidate has no outcome record until the first proposal creates it.
-      let id = outcomeId;
-      if (id === undefined) {
-        id = await createOrFindOutcome(candidate);
-        setOutcomeId(id);
-      }
-      const updated = await proposeCandidateOutcome(id, {
-        proposed_outcome: selectedOutcome,
-        proposal_notes: proposalNotes.trim() || undefined,
-      });
-      onSuccess(updated);
-    } catch (err: unknown) {
-      setSubmitError(
-        err instanceof ApiError ? err.message : "The proposal could not be submitted.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+    submitMutation.mutate();
   };
 
   return (

@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AgeBandEnum,
-  ApiError,
   BulkCandidateRegistrationPayload,
   BulkCandidateRegistrationResponse,
   GradingSession,
@@ -13,6 +12,7 @@ import {
   getAllStudents,
   getGradingSession,
 } from "./api";
+import { failureMessage } from "./forms";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Dialog } from "./Dialog";
@@ -85,7 +85,6 @@ export function BuildGradingCohortScreen() {
   const [exceptionsModalOpen, setExceptionsModalOpen] = useState(false);
 
   // Submitting and registration results state
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Exception Resolver state
@@ -294,25 +293,16 @@ export function BuildGradingCohortScreen() {
     setCohort((prev) => prev.filter((item) => item.student.id !== studentId));
   };
 
-  // Submit bulk candidate registration
-  const handleSubmitCohort = async () => {
-    if (cohort.length === 0 || !session) return;
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    const payload: BulkCandidateRegistrationPayload = {
-      session: session.id,
-      candidates: cohort.map((item) => ({
-        student: item.student.id,
-        testing_for_rank: item.destinationRank?.id,
-      })),
-      generate_assessments: generateAssessments,
-    };
-
-    try {
-      const response = await bulkRegisterCandidates(payload);
-
+  // One registration request: the first for the whole cohort, or a retry of the
+  // flagged ones. `rows` are the people sent, in order: the server names a
+  // failure by its position in them.
+  const registerMutation = useMutation({
+    mutationFn: (request: {
+      payload: BulkCandidateRegistrationPayload;
+      rows: { student: StudentListItem; destinationRank: Rank | null }[];
+      retry: boolean;
+    }) => bulkRegisterCandidates(request.payload),
+    onSuccess: (response, request) => {
       // Invalidate relevant queries so cache reflects newly registered candidates
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["students", "eligible"] });
@@ -321,40 +311,46 @@ export function BuildGradingCohortScreen() {
 
       const errorKeys = Object.keys(response.errors);
       if (errorKeys.length === 0) {
-        // Complete 100% success! Navigate directly to grading session detail
+        // Everything registered: on to the grading session.
         navigate(`/gradings/${sessionId}`);
-      } else {
-        // Partial success or errors: transition to Exception Resolver
-        setRegistrationResult(response);
-
-        const flagged: FlaggedCandidateItem[] = errorKeys.map((idxStr) => {
-          const idx = Number(idxStr);
-          const cohortItem = cohort[idx];
+        return;
+      }
+      // Partial success or errors: the Exception Resolver lists what is left.
+      if (!request.retry) setRegistrationResult(response);
+      setFlaggedItems(
+        errorKeys.map((idxStr) => {
+          const row = request.rows[Number(idxStr)];
           const errorMsg = (response.errors[idxStr] || []).join(", ");
-          const isAlreadyRegistered = errorMsg.toLowerCase().includes("already registered");
-
           return {
             key: idxStr,
-            student: cohortItem?.student,
-            destinationRank: cohortItem?.destinationRank,
-            error: errorMsg || "Registration failed",
-            isAlreadyRegistered,
+            student: row?.student,
+            destinationRank: row?.destinationRank ?? null,
+            error: errorMsg || (request.retry ? "" : "Registration failed"),
+            isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
           };
-        });
+        }),
+      );
+    },
+    onError: (err) => setSubmitError(failureMessage(err, "Failed to register grading candidates.")),
+  });
+  const isSubmitting = registerMutation.isPending;
 
-        setFlaggedItems(flagged);
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.message);
-      } else if (err instanceof Error) {
-        setSubmitError(err.message);
-      } else {
-        setSubmitError("Failed to register grading candidates. Please check your connection.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+  // Submit bulk candidate registration
+  const handleSubmitCohort = () => {
+    if (cohort.length === 0 || !session) return;
+    setSubmitError(null);
+    registerMutation.mutate({
+      payload: {
+        session: session.id,
+        candidates: cohort.map((item) => ({
+          student: item.student.id,
+          testing_for_rank: item.destinationRank?.id,
+        })),
+        generate_assessments: generateAssessments,
+      },
+      rows: cohort.map((item) => ({ student: item.student, destinationRank: item.destinationRank })),
+      retry: false,
+    });
   };
 
   // Exception Resolver: Remove flagged item from retry list
@@ -363,59 +359,22 @@ export function BuildGradingCohortScreen() {
   };
 
   // Exception Resolver: Retry remaining flagged candidates
-  const handleRetryFlagged = async () => {
+  const handleRetryFlagged = () => {
     const retryableItems = flaggedItems.filter((item) => !item.isAlreadyRegistered);
     if (retryableItems.length === 0 || !session) return;
-
-    setIsSubmitting(true);
     setSubmitError(null);
-
-    const retryPayload: BulkCandidateRegistrationPayload = {
-      session: session.id,
-      candidates: retryableItems.map((item) => ({
-        student: item.student.id,
-        testing_for_rank: item.destinationRank?.id,
-      })),
-      generate_assessments: generateAssessments,
-    };
-
-    try {
-      const response = await bulkRegisterCandidates(retryPayload);
-
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["students", "eligible"] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
-
-      const remainingErrorKeys = Object.keys(response.errors);
-      if (remainingErrorKeys.length === 0) {
-        // All retries succeeded! Finish and return to grading session
-        navigate(`/gradings/${sessionId}`);
-      } else {
-        // Update flagged items with remaining errors
-        const newlyFlagged: FlaggedCandidateItem[] = remainingErrorKeys.map((idxStr) => {
-          const idx = Number(idxStr);
-          const item = retryableItems[idx];
-          const errorMsg = (response.errors[idxStr] || []).join(", ");
-          return {
-            key: idxStr,
-            student: item.student,
-            destinationRank: item.destinationRank,
-            error: errorMsg,
-            isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
-          };
-        });
-        setFlaggedItems(newlyFlagged);
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setSubmitError(err.message);
-      } else {
-        setSubmitError("Retry failed. Please try again.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    registerMutation.mutate({
+      payload: {
+        session: session.id,
+        candidates: retryableItems.map((item) => ({
+          student: item.student.id,
+          testing_for_rank: item.destinationRank?.id,
+        })),
+        generate_assessments: generateAssessments,
+      },
+      rows: retryableItems.map((item) => ({ student: item.student, destinationRank: item.destinationRank })),
+      retry: true,
+    });
   };
 
   // Loading and error states for session

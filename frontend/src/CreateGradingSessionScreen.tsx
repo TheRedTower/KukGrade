@@ -1,12 +1,9 @@
 import { type FormEvent, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import {
-  ApiError,
-  type FieldErrors,
-  createGradingSession,
-} from "./api";
+import { createGradingSession } from "./api";
+import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
@@ -59,10 +56,18 @@ export function CreateGradingSessionScreen() {
   const [location, setLocation] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Submission & Validation State
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  // What the server and the browser's own checks say about the form.
+  const form = useServerForm(["title", "grading_date", "location", "notes"]);
+
+  const createMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof createGradingSession>[0]) => createGradingSession(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      navigate("/gradings");
+    },
+    onError: (err) => form.handle(err, "Failed to create grading session. Please check the form."),
+  });
+  const isSubmitting = createMutation.isPending;
 
   const years = useMemo(() => generateYears(), []);
 
@@ -82,21 +87,9 @@ export function CreateGradingSessionScreen() {
     return formatPreviewDate(year, month, day);
   }, [year, month, day]);
 
-  function getFieldError(fieldName: string): string | null {
-    const err = fieldErrors[fieldName];
-    if (Array.isArray(err) && err.length > 0) {
-      return typeof err[0] === "string" ? err[0] : null;
-    }
-    if (typeof err === "string") {
-      return err;
-    }
-    return null;
-  }
-
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setGeneralError(null);
-    setFieldErrors({});
+    form.reset();
 
     const errors: Record<string, string[]> = {};
 
@@ -117,39 +110,18 @@ export function CreateGradingSessionScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
+      form.setClientErrors(errors);
       return;
     }
 
     const formattedIsoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 
-    setIsSubmitting(true);
-    try {
-      await createGradingSession({
-        title: title.trim(),
-        grading_date: formattedIsoDate,
-        location: location.trim(),
-        notes: notes.trim(),
-      });
-
-      // Invalidate grading session lists
-      await queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
-
-      // Navigate back to gradings list
-      navigate("/gradings");
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        if (err.fields && Object.keys(err.fields).length > 0) {
-          setFieldErrors(err.fields);
-        } else {
-          setGeneralError(err.message || "Failed to create grading session. Please check the form.");
-        }
-      } else {
-        setGeneralError("A network error occurred. Please check your connection.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    createMutation.mutate({
+      title: title.trim(),
+      grading_date: formattedIsoDate,
+      location: location.trim(),
+      notes: notes.trim(),
+    });
   }
 
   return (
@@ -175,9 +147,9 @@ export function CreateGradingSessionScreen() {
       </div>
 
       {/* ── General Error Banner */}
-      {generalError && (
+      {form.banner && (
         <div className="cgs-alert-banner" role="alert">
-          <p>{generalError}</p>
+          <p>{form.banner}</p>
         </div>
       )}
 
@@ -192,9 +164,9 @@ export function CreateGradingSessionScreen() {
                 Session title <span className="cgs-required-star">*</span>
               </label>
               <input
-                aria-invalid={!!getFieldError("title")}
+                aria-invalid={!!form.errorFor("title")}
                 aria-required="true"
-                className={`cgs-text-input ${getFieldError("title") ? "cgs-input-error" : ""}`}
+                className={`cgs-text-input ${form.errorFor("title") ? "cgs-input-error" : ""}`}
                 disabled={isSubmitting}
                 id="cgs-title-input"
                 name="title"
@@ -203,8 +175,8 @@ export function CreateGradingSessionScreen() {
                 type="text"
                 value={title}
               />
-              {getFieldError("title") && (
-                <p className="cgs-field-error" role="alert">{getFieldError("title")}</p>
+              {form.errorFor("title") && (
+                <p className="cgs-field-error" role="alert">{form.errorFor("title")}</p>
               )}
             </div>
 
@@ -216,7 +188,7 @@ export function CreateGradingSessionScreen() {
               <div className="cgs-date-row">
                 <select
                   aria-label="Grading day"
-                  className={`cgs-select cgs-date-day ${getFieldError("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select cgs-date-day ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-day-select"
                   onChange={(e) => setDay(e.target.value)}
@@ -230,7 +202,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading month"
-                  className={`cgs-select cgs-date-month ${getFieldError("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select cgs-date-month ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-month-select"
                   onChange={(e) => setMonth(e.target.value)}
@@ -244,7 +216,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading year"
-                  className={`cgs-select cgs-date-year ${getFieldError("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select cgs-date-year ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-year-select"
                   onChange={(e) => setYear(e.target.value)}
@@ -256,8 +228,8 @@ export function CreateGradingSessionScreen() {
                   ))}
                 </select>
               </div>
-              {getFieldError("grading_date") && (
-                <p className="cgs-field-error" role="alert">{getFieldError("grading_date")}</p>
+              {form.errorFor("grading_date") && (
+                <p className="cgs-field-error" role="alert">{form.errorFor("grading_date")}</p>
               )}
             </div>
 
@@ -276,8 +248,8 @@ export function CreateGradingSessionScreen() {
                 type="text"
                 value={location}
               />
-              {getFieldError("location") && (
-                <p className="cgs-field-error" role="alert">{getFieldError("location")}</p>
+              {form.errorFor("location") && (
+                <p className="cgs-field-error" role="alert">{form.errorFor("location")}</p>
               )}
             </div>
 
@@ -304,8 +276,8 @@ export function CreateGradingSessionScreen() {
                   {notes.length}/500
                 </span>
               </div>
-              {getFieldError("notes") && (
-                <p className="cgs-field-error" role="alert">{getFieldError("notes")}</p>
+              {form.errorFor("notes") && (
+                <p className="cgs-field-error" role="alert">{form.errorFor("notes")}</p>
               )}
             </div>
 

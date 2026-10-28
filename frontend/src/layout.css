@@ -573,8 +573,10 @@
 
 .rail__track > * {
   flex: 0 0 auto;
+  /* Never wider than the rail, so even a long label can be shown whole: it
+     wraps rather than overflowing. */
+  max-width: 100%;
   scroll-snap-align: start;
-  white-space: nowrap;
 }
 
 .rail__arrow {

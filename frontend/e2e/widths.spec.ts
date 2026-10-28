@@ -65,6 +65,7 @@ const SCREENS: Screen[] = [
 const quick = Boolean(process.env.KUKGRADE_E2E_QUICK);
 const widths = quick ? QUICK_WIDTHS : ALL_WIDTHS;
 const owed = new Set<string>(debt);
+const authoritative = Boolean(process.env.CI);
 const known = new Set(SCREENS.map((screen) => screen.name));
 const contexts = new Map<Role, BrowserContext>();
 let ids: Ids;
@@ -114,11 +115,14 @@ test("widthDebt.json names only screens that exist", () => {
 
 for (const screen of SCREENS) {
   test(screen.name, async () => {
-    // A screen on the debt list is expected not to fit yet. Playwright reports a
-    // pass of an expected failure as a failure: remove it from widthDebt.json.
-    // The quick run checks too few widths to tell, so it leaves them alone.
-    test.skip(quick && owed.has(screen.name), "owed: only the full run checks it");
-    test.fail(owed.has(screen.name), "still owed: listed in widthDebt.json");
+    // A screen on the debt list is expected not to fit yet. Where the run is
+    // authoritative (CI, all widths) Playwright reports a pass of an expected
+    // failure as a failure: remove the screen from widthDebt.json. Fonts differ
+    // from machine to machine, so a local run only notes what it finds, and the
+    // quick run checks too few widths to tell.
+    const owedHere = owed.has(screen.name);
+    test.skip(quick && owedHere, "owed: only the full run checks it");
+    test.fail(owedHere && authoritative && !quick, "still owed: listed in widthDebt.json");
     const page = await contexts.get(screen.role)!.newPage();
     const problems: string[] = [];
     for (const width of widths) {
@@ -132,6 +136,13 @@ for (const screen of SCREENS) {
       for (const issue of await findOverflow(page)) problems.push(`${width}px  ${issue}`);
     }
     await page.close();
+    if (owedHere && !authoritative) {
+      test.info().annotations.push({
+        type: "owed",
+        description: problems.length ? "does not fit yet" : "fits here: remove it from widthDebt.json once CI agrees",
+      });
+      return;
+    }
     expect(problems, `${screen.name} does not fit:\n  ${problems.join("\n  ")}`).toEqual([]);
   });
 }

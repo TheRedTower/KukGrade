@@ -1,4 +1,4 @@
-"""What is running: the version, its build, and the checks that keep one version."""
+"""What is running: the version, build, who to ask, and the one-version checks."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 from rest_framework.test import APIClient
 
+from about import project
 from accounts.models import User
 from kukgrade.version import VERSION
 
@@ -19,8 +20,8 @@ pytestmark = pytest.mark.django_db
 BACKEND = Path(__file__).resolve().parent.parent
 
 
-def signed_in() -> APIClient:
-    user = User.objects.create_user(email="about@example.com", password="x")
+def signed_in(role: str = User.Role.INSTRUCTOR) -> APIClient:
+    user = User.objects.create_user(email="about@example.com", password="x", role=role)
     client = APIClient()
     client.force_authenticate(user=user)
     return client
@@ -48,12 +49,10 @@ def test_about_serves_the_version_the_build_and_the_clubs_zone(settings: Any) ->
     # The time is the same instant, written in the zone Django is running in.
     built_at = datetime.fromisoformat(served.pop("built_at"))
     assert built_at == datetime(2026, 10, 21, 9, 30, tzinfo=UTC)
-    assert served == {
-        "version": VERSION,
-        "commit": "5198f1b",
-        "time_zone": "Europe/Dublin",
-        "database": "ok",
-    }
+    assert served["version"] == VERSION
+    assert served["commit"] == "5198f1b"
+    assert served["time_zone"] == "Europe/Dublin"
+    assert served["database"] == "ok"
 
 
 def test_a_build_time_without_a_zone_is_taken_as_utc(settings: Any) -> None:
@@ -76,5 +75,32 @@ def test_about_says_so_when_run_from_a_checkout(settings: Any) -> None:
 def test_about_reports_an_unreachable_database(monkeypatch: pytest.MonkeyPatch) -> None:
     client = signed_in()
 
-    monkeypatch.setattr("kukgrade.views.database_reachable", lambda: False)
+    monkeypatch.setattr("about.views.database_reachable", lambda: False)
     assert client.get("/api/about/").json()["database"] == "unavailable"
+
+
+def test_about_says_where_the_project_lives_and_who_to_ask() -> None:
+    served = signed_in().get("/api/about/").json()
+
+    assert served["repository_url"] == project.REPOSITORY_URL
+    assert served["issues_url"] == f"{project.REPOSITORY_URL}/issues"
+    assert served["support_email"] == "support@kukgrade.co.uk"
+    assert served["security_email"] == "security@kukgrade.co.uk"
+    assert served["licence"] == project.LICENCE_ID
+    assert served["copyright"] == project.COPYRIGHT_NOTICE
+
+
+def test_an_administrator_also_sees_the_schools_settings(settings: Any) -> None:
+    settings.CLUB_NAME = "Riverside Kuk Sool Won"
+    settings.SCHOOL_ID_PREFIX = "456-7"
+
+    served = signed_in(User.Role.ADMINISTRATOR).get("/api/about/").json()
+
+    assert served["school"] == {
+        "club_name": "Riverside Kuk Sool Won",
+        "school_id_prefix": "456-7",
+    }
+
+
+def test_an_instructor_does_not_see_the_schools_settings() -> None:
+    assert "school" not in signed_in(User.Role.INSTRUCTOR).get("/api/about/").json()

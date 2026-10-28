@@ -77,6 +77,13 @@ export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
 export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ```
 
+Credits and licence documents are not set here. The image copies `LICENSE`,
+`CODE_OF_CONDUCT.md` and `SECURITY.md` from the repository, and writes the Credits screen's
+data and the full third-party licence notices from the packages it really contains
+(`manage.py write_credits`), so the About section cannot drift from what is running.
+A copy run straight from a checkout reads the documents from the repository and has no credits
+list.
+
 ## The public demo
 
 Only for [the demo site](demo.md). Leave these unset on a real install.

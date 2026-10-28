@@ -3,9 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { setClubTimeZone } from "./dates";
 import {
   getAbout,
+  getAboutDocument,
   getAgeBands,
   getAllCandidateAssessmentItems,
   getAssessmentSummary,
+  getCredits,
+  getPledge,
   getRanks,
   getSiteSettings,
 } from "./api";
@@ -32,6 +35,18 @@ export function useSiteSettingsQuery() {
 
 export function useAboutQuery() {
   return useQuery({ queryKey: ["about"], queryFn: getAbout });
+}
+
+export function useAboutDocumentQuery(slug: string) {
+  return useQuery({ queryKey: ["aboutDocument", slug], queryFn: () => getAboutDocument(slug) });
+}
+
+export function usePledgeQuery() {
+  return useQuery({ queryKey: ["pledge"], queryFn: getPledge });
+}
+
+export function useCreditsQuery() {
+  return useQuery({ queryKey: ["credits"], queryFn: getCredits });
 }
 
 export function useAgeBandsQuery() {

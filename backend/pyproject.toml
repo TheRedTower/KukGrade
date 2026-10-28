@@ -2,6 +2,7 @@
 name = "kukgrade-backend"
 version = "0.1.0"
 description = "Django REST API foundation for KukGrade."
+license = "AGPL-3.0-only"
 requires-python = ">=3.14"
 dependencies = [
     "django>=5.2,<6.0",
@@ -32,6 +33,7 @@ markers = [
     "concurrency: real-thread tests of database locking under a genuine race. Deselect with -m 'not concurrency' if one proves flaky in a given CI environment.",
 ]
 testpaths = [
+    "about",
     "kukgrade",
     "accounts",
     "audit",

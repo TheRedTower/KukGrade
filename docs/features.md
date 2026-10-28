@@ -102,6 +102,13 @@ later deleted.
 - Passwords are 16–64 characters with upper case, lower case, a number and a special
   character, and are checked against common-password lists.
 - Light, dark or system theme, keyboard-accessible dialogs, and layouts that work at phone width.
+- **About** (Settings): the version, build and what to quote when asking for help; the licence
+  (AGPL-3.0-only, with a short plain-words guide and the full text); the Kuk Sool Won pledge and
+  the code of conduct; the security policy; support contacts; and credits for the open source
+  projects KukGrade is built on. Everything comes from the server: the documents are the
+  repository's own files, the contact addresses and licence are written once in
+  `backend/about/project.py`, and the credits are written when each image is built. An
+  administrator also sees the school's settings, read-only.
 
 ## Roles and permissions
 

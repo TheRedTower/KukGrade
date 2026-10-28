@@ -35,7 +35,8 @@ its password is refused with `password_change_required` until it does.
 | `/api/gradings/legacy-records/` | Imported historical records and their reconciliation |
 | `/api/data-imports/` | Import batches, mapping, review and commit |
 | `/api/audit-events/` | The audit log |
-| `/api/health/`, `/api/site/`, `/api/about/` | Liveness, public site settings, build information |
+| `/api/health/`, `/api/site/` | Liveness and public site settings |
+| `/api/about/` | Build information, licence, contact addresses and (for administrators) the school's settings; also `documents/<slug>/` (licence, code of conduct, security policy), `pledge/`, `credits/` and `credits/notices/` (the full licence notices, as text) |
 
 ## Conventions
 

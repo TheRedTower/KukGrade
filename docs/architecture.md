@@ -46,6 +46,7 @@ Dockerfile  The production image
 | `syllabus` | Syllabus items, per-rank and age-band requirements, and the cumulative resolver |
 | `gradings` | Sessions, candidates, assessment snapshots, outcomes, promotions, imported legacy records |
 | `data_imports` | Import batches and stored rows; roster import and the historical workbook adapter |
+| `about` | What is running and on what terms: the project's own facts (`project.py`), its documents read from the repository's files, the Kuk Sool Won pledge, and the credits written when an image is built |
 | `health` | Liveness and database checks used by the container health check |
 
 ## Principles

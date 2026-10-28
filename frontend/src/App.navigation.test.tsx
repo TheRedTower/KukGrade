@@ -13,6 +13,7 @@ import {
   fetchSignedInAs,
   jsonResponse,
   signedInResponse,
+  ABOUT,
 } from "./appTestSupport";
 
 describe("Navigation rail and role-gated routes", () => {
@@ -243,7 +244,7 @@ describe("The sidebar", () => {
       "/settings/about",
     );
     const github = screen.getByRole("link", { name: /^GitHub/ });
-    expect(github).toHaveAttribute("href", "https://github.com/TheRedTower/KukGrade");
+    expect(github).toHaveAttribute("href", ABOUT.repository_url);
     expect(github).toHaveAttribute("target", "_blank");
     expect(github).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });

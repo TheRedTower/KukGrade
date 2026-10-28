@@ -205,10 +205,32 @@ export async function getSiteSettings(): Promise<SiteSettings> {
   return apiRequest<SiteSettings>("/api/site/");
 }
 
-type About = Schemas["About"];
+export type About = Schemas["About"];
+export type AboutDocument = Schemas["Document"];
+export type Pledge = Schemas["Pledge"];
+export type Credits = Schemas["Credits"];
+export type Credit = Schemas["Credit"];
 
 export async function getAbout(): Promise<About> {
   return apiRequest<About>("/api/about/");
+}
+
+/** The licence, code of conduct or security policy, as the repository holds it. */
+export async function getAboutDocument(slug: string): Promise<AboutDocument> {
+  return apiRequest<AboutDocument>(`/api/about/documents/${slug}/`);
+}
+
+export async function getPledge(): Promise<Pledge> {
+  return apiRequest<Pledge>("/api/about/pledge/");
+}
+
+export async function getCredits(): Promise<Credits> {
+  return apiRequest<Credits>("/api/about/credits/");
+}
+
+/** The full third-party licence notices, a text file the browser opens itself. */
+export function creditsNoticesUrl(): string {
+  return `${apiBaseUrl()}/api/about/credits/notices/`;
 }
 
 export async function getCurrentUser(): Promise<AuthUser> {

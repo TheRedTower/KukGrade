@@ -435,6 +435,9 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/students/42")) {
         return jsonResponse(200, {
           id: 42,
+          wksa_id_can_change: true,
+          previous_wksa_ids: [],
+          extra_information: [],
           wksa_id: "UK-9999",
           first_name: "Alex",
           last_name: "Carter",

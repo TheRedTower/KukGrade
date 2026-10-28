@@ -136,8 +136,8 @@
 }
 
 .attendance-danger-button {
-  background: var(--color-danger, #b42318);
-  border-color: var(--color-danger, #b42318);
+  background: var(--color-danger);
+  border-color: var(--color-danger);
 }
 
 .attendance-dialog-error {
@@ -166,7 +166,7 @@
 }
 
 .gsd-withdraw-button {
-  color: var(--color-danger, #b42318);
+  color: var(--color-danger);
 }
 
 @media (max-width: 600px) {

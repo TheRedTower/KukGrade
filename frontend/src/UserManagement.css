@@ -200,7 +200,7 @@
   padding: 0.75rem 0.9rem;
 }
 .users-issued-password-value code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 1.25rem;
   letter-spacing: 0.08em;
   overflow-wrap: anywhere;

@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { SRC, cssFiles as allCssFiles, readCss } from "./cssRules";
 import { BREAKPOINTS_REM } from "./layout";
 
 /**
@@ -13,7 +14,6 @@ import { BREAKPOINTS_REM } from "./layout";
  *   UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layoutRules.test.ts
  */
 
-const SRC = __dirname;
 const BASELINE = join(SRC, "layoutBaseline.json");
 
 const RULES: Record<string, RegExp> = {
@@ -28,23 +28,16 @@ const RULES: Record<string, RegExp> = {
   fixedMinWidth: /(?<![-\w(])min-(?:width|inline-size):[ \t]*(?![ \t])(?!0(?:\.0+)?(?:px|rem|em|vw)?\s*[;}])[^;}]*\d[^;}]*/g,
 };
 
-function strip(css: string): string {
-  return css.replace(/\/\*[\s\S]*?\*\//g, "");
-}
-
 function countViolations(css: string): Record<string, number> {
-  const text = strip(css);
   const counts: Record<string, number> = {};
   for (const [name, pattern] of Object.entries(RULES)) {
-    const found = text.match(pattern)?.length ?? 0;
+    const found = css.match(pattern)?.length ?? 0;
     if (found > 0) counts[name] = found;
   }
   return counts;
 }
 
-const cssFiles = readdirSync(SRC)
-  .filter((name) => name.endsWith(".css") && name !== "layout.css")
-  .sort();
+const cssFiles = allCssFiles().filter((name) => name !== "layout.css");
 
 let baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE, "utf8"));
 
@@ -53,7 +46,7 @@ let baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(B
 if (process.env.UPDATE_LAYOUT_BASELINE) {
   const fresh: Record<string, Record<string, number>> = {};
   for (const file of cssFiles) {
-    const counts = countViolations(readFileSync(join(SRC, file), "utf8"));
+    const counts = countViolations(readCss(file));
     for (const [rule, count] of Object.entries(counts)) {
       if (count > (baseline[file]?.[rule] ?? 0)) {
         throw new Error(`${file} adds ${rule}: ${count}, up from ${baseline[file]?.[rule] ?? 0}. Remove it instead.`);
@@ -67,7 +60,7 @@ if (process.env.UPDATE_LAYOUT_BASELINE) {
 
 describe("layout rules", () => {
   it.each(cssFiles)("%s adds no layout numbers beyond its baseline", (file) => {
-    const actual = countViolations(readFileSync(join(SRC, file), "utf8"));
+    const actual = countViolations(readCss(file));
     const allowed = baseline[file] ?? {};
     expect(actual).toEqual(allowed);
   });
@@ -79,7 +72,7 @@ describe("layout rules", () => {
   });
 
   it("layout.css queries only at the breakpoints in layout.ts", () => {
-    const css = strip(readFileSync(join(SRC, "layout.css"), "utf8"));
+    const css = readCss("layout.css");
     const allowed = new Set<number>(Object.values(BREAKPOINTS_REM));
     const queries = css.match(/@(?:media|container)[^{]*/g) ?? [];
     for (const query of queries) {

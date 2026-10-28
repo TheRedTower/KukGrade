@@ -1,8 +1,6 @@
 .audit-header {
-  display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 2rem;
+  gap: var(--space-4) 2rem;
   margin-bottom: 2rem;
 }
 
@@ -22,7 +20,6 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
-  flex: 0 0 auto;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -39,66 +36,14 @@
   font-size: 0.65rem;
 }
 
-.audit-filters {
-  display: grid;
-  grid-template-columns: minmax(18rem, 1.8fr) repeat(4, minmax(9rem, 1fr));
-  gap: 1rem;
-  align-items: end;
-  padding: 1.25rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.9rem 0.9rem 0 0;
-  background: var(--color-surface);
-}
-
-.audit-filter {
-  display: grid;
-  gap: 0.45rem;
-  min-width: 0;
-}
-
-.audit-filter > span {
-  color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.audit-filter input,
-.audit-filter select {
-  width: 100%;
-  min-height: 44px;
-  box-sizing: border-box;
-  border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font: inherit;
-  padding: 0.62rem 0.72rem;
-}
-
-.audit-filter input:focus,
-.audit-filter select:focus,
 .audit-search-button:focus-visible,
 .audit-filter-summary button:focus-visible,
 .audit-view-button:focus-visible,
 .audit-pagination button:focus-visible,
-.audit-dialog-close:focus-visible,
 .audit-state-error button:focus-visible {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;
-}
-
-.audit-search-row {
-  display: flex;
-}
-
-.audit-filter .audit-search-row input {
-  flex: 1 1 auto;
-  width: auto;
-  min-width: 0;
-  border-radius: 0.45rem 0 0 0.45rem;
 }
 
 .audit-search-button {
@@ -121,18 +66,13 @@
 }
 
 .audit-filter-summary {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   min-height: 1.5rem;
   color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
 .audit-filter-summary button,
-.audit-view-button,
-.audit-dialog-close {
+.audit-view-button {
   border: 0;
   background: transparent;
   color: var(--color-accent-text);
@@ -143,80 +83,25 @@
 }
 
 .audit-filter-summary button:hover,
-.audit-view-button:hover,
-.audit-dialog-close:hover {
+.audit-view-button:hover {
   color: var(--color-accent-text);
   text-decoration: underline;
   text-underline-offset: 0.2rem;
 }
 
 .audit-ledger {
-  min-height: 20rem;
-  min-width: 0;
-  max-width: 100%;
-  border: 1px solid var(--color-border);
-  border-top: 0;
-  border-radius: 0 0 0.9rem 0.9rem;
-  background: var(--color-surface);
-  overflow: hidden;
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
 }
 
-.audit-table-scroll {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  contain: inline-size;
-  overflow-x: auto;
-}
-
-.audit-table {
-  width: 100%;
-  min-width: 62rem;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.audit-table th {
-  position: relative;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.07em;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.audit-table th:nth-child(1) { width: 8rem; }
-.audit-table th:nth-child(2) { width: 10rem; }
-.audit-table th:nth-child(3) { width: 30%; }
-.audit-table th:nth-child(4) { width: 11rem; }
-.audit-table th:nth-child(5) { width: 10rem; }
-.audit-table th:nth-child(6) { width: 7.5rem; }
-
-.audit-table td {
-  padding: 1.05rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 0.88rem;
-  line-height: 1.45;
-  vertical-align: top;
-}
-
-.audit-table tbody tr:last-child td { border-bottom: 0; }
-.audit-table tbody tr:hover { background: var(--color-surface-sunken); }
-
-/* The lines inside a cell, never the cell itself: a block <td> leaves its row,
-   and its border no longer meets the rest of the row's. */
-.audit-time span,
+.audit-date,
 .audit-entity-type,
 .audit-entity-id {
   display: block;
 }
 
-.audit-time time,
+.audit-time,
 .audit-entity-id {
   display: block;
   margin-top: 0.15rem;
@@ -224,35 +109,23 @@
   font-size: 0.78rem;
 }
 
-.audit-action { font-weight: 750; }
-.audit-summary {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.audit-entity-type {
+  font-weight: 650;
 }
-.audit-entity-type { font-weight: 650; }
-.audit-view-button { white-space: nowrap; }
 
 .audit-pagination {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.25rem;
-  border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-size: 0.82rem;
 }
 
 .audit-page-buttons {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
 }
 
 .audit-page-buttons button {
-  min-width: 44px;
-  min-height: 44px;
   border: 1px solid transparent;
   border-radius: 0.35rem;
   background: transparent;
@@ -286,7 +159,6 @@
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  padding: 2rem;
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -319,119 +191,12 @@
   text-align: right;
 }
 
-.audit-dialog-backdrop {
-  position: fixed;
-  z-index: 100;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 1.25rem;
-  background: rgb(0 0 0 / 62%);
+.audit-detail-section h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.9rem;
 }
 
-.audit-dialog {
-  width: min(100%, 43rem);
-  max-height: min(90vh, 48rem);
-  overflow-y: auto;
-  box-sizing: border-box;
-  border: 1px solid var(--color-border);
-  border-radius: 0.9rem;
-  background: var(--color-surface);
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
-  padding: 1.5rem;
-}
-
-.audit-dialog > header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.audit-dialog header p {
-  margin: 0 0 0.35rem;
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.audit-dialog h2 {
+.audit-detail-section p {
   margin: 0;
-  font-size: 1.45rem;
-}
-
-.audit-detail-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin: 1.25rem 0;
-}
-
-.audit-detail-grid div {
-  padding: 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
-  background: var(--color-surface-sunken);
-}
-
-.audit-detail-grid dt {
-  color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.audit-detail-grid dd {
-  margin: 0.35rem 0 0;
   overflow-wrap: anywhere;
-}
-
-.audit-detail-section + .audit-detail-section { margin-top: 1.25rem; }
-.audit-detail-section h3 { margin: 0 0 0.55rem; font-size: 0.9rem; }
-.audit-detail-section p,
-.audit-detail-section pre { margin: 0; }
-
-.audit-detail-section pre {
-  max-height: 14rem;
-  overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font-size: 0.78rem;
-  line-height: 1.5;
-  padding: 0.85rem;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-@media (max-width: 75rem) {
-  .audit-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .audit-filter-search { grid-column: 1 / -1; }
-}
-
-@media (max-width: 42rem) {
-  .audit-header {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .audit-append-only { align-self: flex-start; }
-
-  .audit-filters {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 1rem;
-  }
-
-  .audit-filter-search { grid-column: auto; }
-  .audit-filter-summary,
-  .audit-pagination { align-items: flex-start; flex-direction: column; }
-  .audit-dialog { padding: 1rem; }
-  .audit-detail-grid { grid-template-columns: minmax(0, 1fr); }
 }

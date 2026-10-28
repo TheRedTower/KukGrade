@@ -10,10 +10,11 @@ import {
   getGradingSessionYears,
   getGradingSessions,
 } from "./api";
-import { useDialogFocus } from "./useDialogFocus";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { CheckIcon, LockIcon, SearchIcon } from "./Icons";
+import { Dialog } from "./Dialog";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { useDebouncedValue } from "./useDebouncedValue";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -94,20 +95,18 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
             <SessionStatusBadge status={session.status as GradingSessionStatus} />
           </div>
         </div>
-        <div className="gs-current-metrics">
-          <div className="gs-metric-block">
-            <span className="gs-metric-value">{candidateCount}</span>
-            <span className="gs-metric-label">Candidates</span>
+        <div className="stats">
+          <div className="stat">
+            <span className="stat__value">{candidateCount}</span>
+            <span className="stat__label">Candidates</span>
           </div>
-          <div className="gs-metric-divider" />
-          <div className="gs-metric-block">
-            <span className="gs-metric-value">{assessmentsComplete} / {candidateCount}</span>
-            <span className="gs-metric-label">Assessments complete</span>
+          <div className="stat">
+            <span className="stat__value">{assessmentsComplete} / {candidateCount}</span>
+            <span className="stat__label">Assessments complete</span>
           </div>
-          <div className="gs-metric-divider" />
-          <div className="gs-metric-block">
-            <span className="gs-metric-value">{awaitingDecision}</span>
-            <span className="gs-metric-label">Awaiting final decision</span>
+          <div className="stat">
+            <span className="stat__value">{awaitingDecision}</span>
+            <span className="stat__label">Awaiting final decision</span>
           </div>
         </div>
         <div className="gs-current-action">
@@ -117,65 +116,6 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
         </div>
       </div>
     </section>
-  );
-}
-
-// ─── Session Table Row ─────────────────────────────────────────────────────────
-
-interface SessionRowProps {
-  session: GradingSession;
-  candidateCount: number | null;
-  assessmentsComplete: number | null;
-  onView: () => void;
-  canDelete?: boolean;
-  onDelete?: () => void;
-}
-
-function SessionRow({
-  session,
-  candidateCount,
-  assessmentsComplete,
-  onView,
-  canDelete = false,
-  onDelete,
-}: SessionRowProps) {
-  const statusTyped = session.status as GradingSessionStatus;
-  const isOpen = statusTyped === "OPEN";
-  const isDraft = statusTyped === "DRAFT";
-
-  let progressText = "—";
-  if (candidateCount !== null && !isDraft) {
-    progressText = `${assessmentsComplete ?? 0} of ${candidateCount} complete`;
-  }
-
-  return (
-    <tr className="gs-table-row">
-      <td className="gs-table-cell gs-cell-title">{session.title}</td>
-      <td className="gs-table-cell gs-cell-date">{formatLongDate(session.grading_date)}</td>
-      <td className="gs-table-cell gs-cell-location">{session.location || "—"}</td>
-      <td className="gs-table-cell gs-cell-candidates">{candidateCount ?? "—"}</td>
-      <td className="gs-table-cell gs-cell-progress">{progressText}</td>
-      <td className="gs-table-cell gs-cell-status">
-        <SessionStatusBadge status={statusTyped} />
-      </td>
-      <td className="gs-table-cell gs-cell-action">
-        <div className="gs-row-actions">
-          <button className="btn-ghost-sm gs-view-btn" onClick={onView} type="button">
-            {isOpen ? "Open grading" : "View grading"} <ArrowRightIcon />
-          </button>
-          {canDelete && onDelete && (
-            <button
-              className="btn-ghost-sm gs-delete-row-btn"
-              onClick={onDelete}
-              type="button"
-              aria-label={`Delete session ${session.title}`}
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      </td>
-    </tr>
   );
 }
 
@@ -209,12 +149,6 @@ export function GradingSessionsScreen() {
     setDeleteConfirmSession(null);
     setDeleteError(null);
   };
-
-  const deleteSessionDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: deleteConfirmSession !== null,
-    onClose: closeDeleteConfirm,
-    canClose: !deleteSessionMutation.isPending,
-  });
 
   const yearsQuery = useQuery({
     queryKey: ["gradingSessions", "years"],
@@ -272,7 +206,7 @@ export function GradingSessionsScreen() {
     <section aria-labelledby="gradings-heading" className="page gs-page">
 
       {/* ── Header */}
-      <div className="gs-page-header">
+      <div className="action-row gs-page-header">
         <div>
           <h1 className="gs-page-title" id="gradings-heading">Gradings</h1>
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
@@ -285,8 +219,8 @@ export function GradingSessionsScreen() {
       </div>
 
       {/* ── Filters */}
-      <div className="gs-filter-bar" role="search">
-        <div className="gs-filter-search-wrap">
+      <div className="filter-bar" role="search">
+        <div className="filter-bar__full gs-filter-search-wrap">
           <SearchIcon size={16} className="gs-search-icon" />
           <input
             aria-label="Search grading sessions"
@@ -298,15 +232,15 @@ export function GradingSessionsScreen() {
             value={searchText}
           />
         </div>
-        <div className="gs-filter-group">
-          <label className="gs-filter-label" htmlFor="gs-status-filter">Status</label>
+        <div className="field">
+          <label htmlFor="gs-status-filter">Status</label>
           <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
             {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
           </select>
         </div>
-        <div className="gs-filter-group">
-          <label className="gs-filter-label" htmlFor="gs-year-filter">Year</label>
+        <div className="field">
+          <label htmlFor="gs-year-filter">Year</label>
           <select className="gs-filter-select" id="gs-year-filter" onChange={(e) => handleYearFilter(e.target.value)} value={yearFilter}>
             <option value="ALL">All years</option>
             {availableYears.map((y) => <option key={y} value={String(y)}>{y}</option>)}
@@ -338,39 +272,51 @@ export function GradingSessionsScreen() {
           <div className="gs-table-section">
             <h2 className="gs-table-heading">All grading sessions</h2>
             {sessions.length > 0 ? (
-              <div className="gs-table-wrapper">
-                <table aria-label="Grading sessions" className="gs-table">
-                  <thead>
-                    <tr>
-                      <th className="gs-table-th" scope="col">Session</th>
-                      <th className="gs-table-th" scope="col">Date</th>
-                      <th className="gs-table-th" scope="col">Location</th>
-                      <th className="gs-table-th gs-th-number" scope="col">Candidates</th>
-                      <th className="gs-table-th" scope="col">Progress</th>
-                      <th className="gs-table-th" scope="col">Status</th>
-                      <th className="gs-table-th gs-th-action" scope="col">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sessions.map((session) => {
-                      return (
-                        <SessionRow
-                          assessmentsComplete={session.completed_assessment_count}
-                          candidateCount={session.candidate_count}
-                          key={session.id}
-                          onView={() => navigate(`/gradings/${session.id}`)}
-                          canDelete={session.can_be_deleted}
-                          onDelete={() => {
-                            setDeleteError(null);
-                            setDeleteConfirmSession(session);
-                          }}
-                          session={session}
-                        />
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              <ResponsiveTable
+                label="Grading sessions"
+                rows={sessions}
+                rowKey={(session) => session.id}
+                columns={[
+                  { key: "title", header: "Session", primary: true, render: (session) => session.title },
+                  { key: "date", header: "Date", render: (session) => formatLongDate(session.grading_date) },
+                  { key: "location", header: "Location", render: (session) => session.location || "—" },
+                  { key: "candidates", header: "Candidates", align: "end", render: (session) => session.candidate_count ?? "—" },
+                  {
+                    key: "progress",
+                    header: "Progress",
+                    render: (session) =>
+                      session.candidate_count !== null && session.status !== "DRAFT"
+                        ? `${session.completed_assessment_count ?? 0} of ${session.candidate_count} complete`
+                        : "—",
+                  },
+                  { key: "status", header: "Status", render: (session) => <SessionStatusBadge status={session.status as GradingSessionStatus} /> },
+                  {
+                    key: "action",
+                    header: "Action",
+                    actions: true,
+                    render: (session) => (
+                      <div className="gs-row-actions">
+                        <button className="btn-ghost-sm gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)} type="button">
+                          {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
+                        </button>
+                        {session.can_be_deleted && (
+                          <button
+                            className="btn-ghost-sm gs-delete-row-btn"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setDeleteConfirmSession(session);
+                            }}
+                            type="button"
+                            aria-label={`Delete session ${session.title}`}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
+              />
             ) : isFiltered ? (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions match the selected filters.</p>
@@ -421,51 +367,40 @@ export function GradingSessionsScreen() {
 
       {/* ── Delete Confirmation Modal */}
       {deleteConfirmSession && (
-        <div
-          className="gsd-modal-backdrop"
-          onClick={() => {
-            if (!deleteSessionMutation.isPending) closeDeleteConfirm();
-          }}
+        <Dialog
+          title="Delete Grading Session"
+          closeButton={false}
+          onClose={closeDeleteConfirm}
+          canClose={!deleteSessionMutation.isPending}
         >
-          <div
-            ref={deleteSessionDialogRef}
-            className="gsd-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-session-modal-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="delete-session-modal-title" className="gsd-modal-title">Delete Grading Session</h3>
-            <p className="gsd-modal-message">
-              Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
-            </p>
-            {deleteError && (
-              <div className="alert-banner alert-banner-error" role="alert" style={{ marginBottom: "1rem" }}>
-                <span>{deleteError}</span>
-              </div>
-            )}
-            <div className="gsd-modal-actions">
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={closeDeleteConfirm}
-                disabled={deleteSessionMutation.isPending}
-                data-dialog-autofocus
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
-                disabled={deleteSessionMutation.isPending}
-              >
-                {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
-              </button>
+          <p className="gsd-modal-message">
+            Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
+          </p>
+          {deleteError && (
+            <div className="alert-banner alert-banner-error" role="alert">
+              <span>{deleteError}</span>
             </div>
+          )}
+          <div className="action-row dialog__actions">
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={closeDeleteConfirm}
+              disabled={deleteSessionMutation.isPending}
+              data-dialog-autofocus
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
+              disabled={deleteSessionMutation.isPending}
+            >
+              {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
+            </button>
           </div>
-        </div>
+        </Dialog>
       )}
     </section>
   );

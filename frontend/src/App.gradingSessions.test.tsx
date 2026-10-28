@@ -455,7 +455,7 @@ describe("Grading Sessions List Screen (/gradings)", () => {
     await user.keyboard("{Escape}");
     expect(screen.getByRole("heading", { name: "Delete Grading Session" })).toBeVisible();
 
-    const backdrop = document.querySelector(".gsd-modal-backdrop");
+    const backdrop = document.querySelector(".dialog-backdrop");
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(screen.getByRole("heading", { name: "Delete Grading Session" })).toBeVisible();

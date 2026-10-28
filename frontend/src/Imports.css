@@ -4,17 +4,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-  width: 100%;
-  max-width: 72rem;
-}
-
-.ix-page-narrow {
-  max-width: 54rem;
-  margin: 0 auto;
-}
-
-.ix-page-wide {
-  max-width: 78rem;
 }
 
 .ix-page-title {

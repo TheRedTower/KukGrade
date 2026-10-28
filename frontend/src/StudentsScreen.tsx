@@ -173,7 +173,7 @@ export function StudentsScreen() {
   }
 
   return (
-    <section aria-labelledby="students-page-heading" className="students-view">
+    <section aria-labelledby="students-page-heading" className="page students-view">
       {/* Header */}
       <div className="students-header">
         <div className="students-header-copy">

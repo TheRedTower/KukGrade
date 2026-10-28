@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 
 import "./theme.css";
+import "./layout.css";
 import "./App.css";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";

@@ -1,0 +1,36 @@
+/* The one place layout numbers live. Screens compose these classes and do not
+   restate a width, gutter, breakpoint or max-width of their own; the checks in
+   layoutRules.test.ts keep it that way. Breakpoints are in layout.ts (none are used here yet). */
+
+:root {
+  /* The side gutter of every page. Fluid, so it suits every device between
+     the breakpoints. .workspace applies it; a page never adds its own. */
+  --page-gutter: clamp(1rem, 3vw, 2.5rem);
+
+  --page-max-narrow: 54rem;
+  --page-max-reading: 60rem;
+  --page-max: 76rem;
+  --page-max-wide: 90rem;
+  --page-end-space: 3rem;
+}
+
+/* A screen's root. Centred, never wider than its size, with room beneath. */
+.page {
+  width: 100%;
+  min-width: 0;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-block-end: var(--page-end-space);
+}
+
+.page--narrow {
+  max-width: var(--page-max-narrow);
+}
+
+.page--reading {
+  max-width: var(--page-max-reading);
+}
+
+.page--wide {
+  max-width: var(--page-max-wide);
+}

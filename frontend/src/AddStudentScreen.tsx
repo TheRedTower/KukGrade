@@ -123,7 +123,7 @@ export function AddStudentScreen() {
   }
 
   return (
-    <section aria-labelledby="add-student-title" className="add-student-view">
+    <section aria-labelledby="add-student-title" className="page page--reading add-student-view">
       {/* Breadcrumbs */}
       <nav aria-label="Breadcrumb navigation" className="form-breadcrumbs">
         <button

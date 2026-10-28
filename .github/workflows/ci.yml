@@ -210,3 +210,41 @@ jobs:
       # admin is closed and the database stops cleanly.
       - name: Start the image and sign in
         run: .github/scripts/image-smoke.sh kukgrade:ci
+
+      # Every screen, rendered in a real browser from phone to desktop widths on
+      # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
+      # check four widths; pushes to dev and prod check all nine.
+      - name: Start the demo for the width check
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        run: |
+          docker run -d --name kg-widths -p 127.0.0.1:6943:6942 \
+            --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --shm-size 256m \
+            --tmpfs /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m \
+            --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
+            -e KUKGRADE_DEMO_MODE=1 -e KUKGRADE_CLUB_NAME="Riverside Kuk Sool Won" \
+            -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 \
+            kukgrade:ci
+          for i in $(seq 1 90); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' kg-widths)" = healthy ] && exit 0
+            sleep 2
+          done
+          docker logs kg-widths
+          exit 1
+
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Check every screen fits at every width
+        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run test:widths
+        env:
+          KUKGRADE_E2E_QUICK: ${{ github.event_name == 'pull_request' && '1' || '' }}

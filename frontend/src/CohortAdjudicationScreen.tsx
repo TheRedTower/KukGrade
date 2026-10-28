@@ -227,7 +227,7 @@ export function CohortAdjudicationScreen() {
     outcomesQuery.isLoading
   ) {
     return (
-      <section aria-label="Final decisions" className="cab-page">
+      <section aria-label="Final decisions" className="page cab-page">
         <div className="cab-state" role="status">Loading final decisions…</div>
       </section>
     );
@@ -240,7 +240,7 @@ export function CohortAdjudicationScreen() {
   );
   if (!session || failedQueries.length > 0) {
     return (
-      <section aria-label="Final decisions" className="cab-page">
+      <section aria-label="Final decisions" className="page cab-page">
         <div className="cab-state" role="alert">
           <p>The final decisions could not be loaded.</p>
           {failedQueries.length > 0 && (
@@ -260,7 +260,7 @@ export function CohortAdjudicationScreen() {
   const focusDecision = focusRow?.outcome ? staged[focusRow.outcome.id] : undefined;
 
   return (
-    <section aria-labelledby="cab-title" className="cab-page">
+    <section aria-labelledby="cab-title" className="page cab-page">
       <header className="cab-topbar">
         <Link to={`/gradings/${session.id}`} className="cab-back">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

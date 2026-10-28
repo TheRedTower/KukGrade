@@ -397,7 +397,7 @@ export function BuildGradingCohortScreen() {
   // Loading and error states for session
   if (isNaN(sessionId)) {
     return (
-      <section aria-labelledby="bgc-invalid-id-heading" className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-invalid-id-heading" className="page page--wide bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
           <h2 id="bgc-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the grading sessions list.</p>
@@ -409,7 +409,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Build grading cohort" className="bgc-page" data-testid="bgc-page">
+      <section aria-label="Build grading cohort" className="page page--wide bgc-page" data-testid="bgc-page">
         <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
           <p>Loading the grading session…</p>
@@ -420,7 +420,7 @@ export function BuildGradingCohortScreen() {
 
   if (sessionQuery.isError || !session) {
     return (
-      <section aria-labelledby="bgc-error-heading" className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-error-heading" className="page page--wide bgc-page" data-testid="bgc-page">
         <div className="gsd-error-state">
           <h2 id="bgc-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
@@ -439,7 +439,7 @@ export function BuildGradingCohortScreen() {
     const retryableCount = flaggedItems.filter((i) => !i.isAlreadyRegistered).length;
 
     return (
-      <section aria-labelledby="bgc-resolver-title" className="bgc-page" data-testid="bgc-page">
+      <section aria-labelledby="bgc-resolver-title" className="page page--wide bgc-page" data-testid="bgc-page">
         {/* Breadcrumbs */}
         <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
           <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
@@ -642,7 +642,7 @@ export function BuildGradingCohortScreen() {
   // VIEW: Cohort Builder Workspace
   // ══════════════════════════════════════════════════════════════════════════
   return (
-    <section aria-labelledby="bgc-title" className="bgc-page" data-testid="bgc-page">
+    <section aria-labelledby="bgc-title" className="page page--wide bgc-page" data-testid="bgc-page">
       {/* Breadcrumbs */}
       <nav className="bgc-breadcrumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>

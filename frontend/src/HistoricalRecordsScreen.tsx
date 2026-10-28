@@ -71,7 +71,7 @@ export function HistoricalRecordsScreen() {
   }
 
   return (
-    <section aria-labelledby="ix-history-title" className="ix-page ix-page-wide">
+    <section aria-labelledby="ix-history-title" className="page page--wide ix-page">
       <div className="ix-header">
         <div className="ix-header-text">
           <Link className="ix-back" to="/imports">‹ Imports</Link>

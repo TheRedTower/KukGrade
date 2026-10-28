@@ -23,6 +23,10 @@ Want something here, or something that is missing? Open an
       on its own machine behind a tunnel, first from a release candidate and then following
       `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
       About box.
+- [ ] **Phone and tablet layouts**: most screens still scroll sideways or clip at phone widths.
+      One layout system (`frontend/src/layout.css`) and a Playwright width check are in place;
+      each screen is converted to it in turn, and `frontend/e2e/widthDebt.json` lists those not
+      yet done. Done when that list is empty.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first

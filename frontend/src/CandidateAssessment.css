@@ -3,9 +3,6 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .caw-page {
-  padding: 1.5rem 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -263,9 +260,8 @@
   flex-direction: column;
   gap: 0;
   height: calc(100vh - 2rem);
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
+  /* It fills the screen height, so it keeps no room beneath. */
+  padding-block-end: 0;
 }
 
 .caw-run > .caw-breadcrumbs {

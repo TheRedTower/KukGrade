@@ -373,10 +373,10 @@ export function UserDetailScreen(): React.ReactElement {
     enabled: Boolean(id),
   });
 
-  if (query.isLoading) return <div className="users-state" role="status">Loading user…</div>;
+  if (query.isLoading) return <div className="page users-state" role="status">Loading user…</div>;
   if (query.isError || !query.data) {
     return (
-      <div className="users-state users-state-error" role="alert">
+      <div className="page users-state users-state-error" role="alert">
         <p>{query.error instanceof ApiError ? query.error.message : "This user could not be loaded."}</p>
         <button type="button" onClick={() => navigate("/users")}>Back to users</button>
       </div>
@@ -412,7 +412,7 @@ export function UserDetailScreen(): React.ReactElement {
   };
 
   return (
-    <section className="user-detail-page" aria-labelledby="user-detail-heading">
+    <section className="page page--wide user-detail-page" aria-labelledby="user-detail-heading">
       <Link className="users-back-link" to="/users">Users <span aria-hidden="true">/</span> {managedUser.full_name}</Link>
       <header className="user-detail-header">
         <div>

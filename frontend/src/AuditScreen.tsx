@@ -134,7 +134,7 @@ export function AuditScreen(): React.ReactElement {
   });
 
   return (
-    <section aria-labelledby="audit-heading" className="audit-page">
+    <section aria-labelledby="audit-heading" className="page page--wide audit-page">
       <header className="audit-header">
         <div>
           <h1 id="audit-heading">Audit</h1>

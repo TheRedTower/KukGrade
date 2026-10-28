@@ -3,9 +3,6 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .gs-page {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 2rem 2rem 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
@@ -653,9 +650,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 0.5rem 3rem;
 }
 
 /* ── Breadcrumbs ─────────────────────────────────────────────────────────── */
@@ -960,12 +954,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  width: 100%;
-  min-width: 0;
-  max-width: 1200px;
-  box-sizing: border-box;
-  margin: 0 auto;
-  padding: 0 0.5rem 3rem;
 }
 
 /* ── Breadcrumbs ─────────────────────────────────────────────────────────── */

@@ -7,6 +7,7 @@ import {
   type FieldErrors,
   createGradingSession,
 } from "./api";
+import { ResponsiveTable } from "./ResponsiveTable";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
 
@@ -154,7 +155,7 @@ export function CreateGradingSessionScreen() {
   return (
     <section aria-labelledby="create-session-heading" className="page cgs-page">
       {/* ── Breadcrumbs */}
-      <nav aria-label="Breadcrumb navigation" className="cgs-breadcrumbs">
+      <nav aria-label="Breadcrumb navigation" className="crumbs">
         <button
           className="cgs-breadcrumb-link"
           id="cgs-breadcrumb-gradings"
@@ -181,9 +182,9 @@ export function CreateGradingSessionScreen() {
       )}
 
       {/* ── Two-Column Layout */}
-      <div className="cgs-grid">
+      <div className="split">
         {/* Left Column: Form */}
-        <div className="cgs-form-column">
+        <div >
           <form className="cgs-form" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
             <div className="cgs-field-group">
@@ -309,7 +310,7 @@ export function CreateGradingSessionScreen() {
             </div>
 
             {/* Form Actions */}
-            <div className="cgs-form-actions">
+            <div className="action-row cgs-form-actions">
               <button
                 className="btn-ghost cgs-cancel-btn"
                 disabled={isSubmitting}
@@ -332,44 +333,30 @@ export function CreateGradingSessionScreen() {
         </div>
 
         {/* Right Column: Session Preview */}
-        <div className="cgs-preview-column">
+        <div className="split__aside">
           <div className="cgs-preview-card">
             <h2 className="cgs-preview-title" id="cgs-preview-heading">Session preview</h2>
             <p className="cgs-preview-subtitle">
               This is how the session will appear in the gradings list after creation.
             </p>
 
-            {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-            <div className="cgs-preview-table-wrap" tabIndex={0} role="region" aria-label="Session preview">
-              <table aria-label="Session preview" className="cgs-preview-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Date</th>
-                    <th scope="col">Session title</th>
-                    <th scope="col">Location</th>
-                    <th scope="col">Status</th>
-                    <th className="cgs-preview-th-num" scope="col">Candidates</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="cgs-preview-date-cell">
-                      {previewFormattedDate}
-                    </td>
-                    <td className="cgs-preview-title-cell">
-                      {title.trim() || <span className="cgs-preview-placeholder">Session title</span>}
-                    </td>
-                    <td className="cgs-preview-location-cell">
-                      {location.trim() || "—"}
-                    </td>
-                    <td>
-                      <span className="gs-status-badge gs-status-draft">Draft</span>
-                    </td>
-                    <td className="cgs-preview-candidates-cell">0</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              label="Session preview"
+              rows={[{ id: "preview" }]}
+              rowKey={(row) => row.id}
+              columns={[
+                {
+                  key: "title",
+                  header: "Session title",
+                  primary: true,
+                  render: () => title.trim() || <span className="cgs-preview-placeholder">Session title</span>,
+                },
+                { key: "date", header: "Date", render: () => previewFormattedDate },
+                { key: "location", header: "Location", render: () => location.trim() || "—" },
+                { key: "status", header: "Status", render: () => <span className="gs-status-badge gs-status-draft">Draft</span> },
+                { key: "candidates", header: "Candidates", align: "end", render: () => "0" },
+              ]}
+            />
           </div>
         </div>
       </div>

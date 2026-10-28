@@ -180,6 +180,12 @@
   min-width: 0;
 }
 
+/* A button label wraps between words, never inside one. */
+.rtable button,
+.rtable a {
+  overflow-wrap: normal;
+}
+
 .rtable [data-align="end"] {
   text-align: end;
 }
@@ -205,9 +211,9 @@
   }
 
   .rtable tr {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-1) var(--space-3);
     padding: var(--space-3) var(--space-4);
     border-top: 1px solid var(--color-border);
   }
@@ -224,6 +230,7 @@
 
   .rtable td {
     display: grid;
+    grid-column: 1 / -1;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     gap: var(--space-3);
     padding: var(--space-1) 0;
@@ -242,7 +249,8 @@
   }
 
   .rtable td[data-primary] {
-    order: -1;
+    grid-column: 1;
+    grid-row: 1;
     display: block;
     font-size: 1.05rem;
     font-weight: 700;
@@ -256,10 +264,26 @@
     padding-top: var(--space-2);
   }
 
+  /* One short button on the title's row. */
+  .rtable td[data-actions="inline"] {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    padding: 0;
+  }
+
   .rtable td[data-primary]::before,
   .rtable td[data-actions]::before {
     content: none;
   }
+}
+
+/* Nothing to list: said in the table's own box, centred. */
+.rtable__empty {
+  padding: 2.25rem var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  text-align: center;
 }
 
 /* ── Key figures ───────────────────────────────────────────────────────── */
@@ -412,5 +436,41 @@
     max-height: 92dvh;
     padding-block-end: max(var(--card-pad), env(safe-area-inset-bottom));
     border-radius: var(--radius) var(--radius) 0 0;
+  }
+}
+
+/* ── Page furniture ────────────────────────────────────────────────────── */
+
+/* The trail of links above a page title. */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+/* A main column with a side panel that stays in view beside it. On a narrow
+   page the panel falls below. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.split > * {
+  min-width: 0;
+}
+
+@container (min-width: 56rem) {
+  .split {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  }
+
+  .split__aside {
+    position: sticky;
+    top: var(--space-5);
   }
 }

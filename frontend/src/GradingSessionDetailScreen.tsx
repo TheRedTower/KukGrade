@@ -31,6 +31,7 @@ import {
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
@@ -658,10 +659,52 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     updateSessionMutation.mutate({ notes: notesInput });
   };
 
+  // What a candidate's row offers next, from where their assessment and outcome stand.
+  const nextActionFor = (item: EnrichedCandidate) => {
+    const candidateId = item.candidate.id;
+    const assessmentStatus = item.assessment?.status;
+    const outcomeStatus = item.outcome?.status;
+    const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
+    let label = assessmentStatus ? "Start assessment →" : "Prepare assessment →";
+    let url = `/gradings/${session.id}/assessments/${candidateId}`;
+    let opensProposalDrawer = false;
+
+    if (assessmentStatus === "IN_PROGRESS") {
+      label = "Continue assessment →";
+    } else if (assessmentStatus === "COMPLETED") {
+      if (outcomeStatus === "FINALISED") {
+        if (item.outcome?.final_outcome === "PASS") {
+          label = "Promotion ledger →";
+          url = `/gradings/${session.id}/promotions`;
+        } else {
+          label = "View record →";
+          url = decisionsUrl;
+        }
+      } else if (outcomeStatus === "PROPOSED") {
+        if (currentUser?.can_make_final_grading_decision) {
+          label = "Review decision →";
+          url = decisionsUrl;
+        } else {
+          label = "Review proposal →";
+          opensProposalDrawer = true;
+        }
+      } else if (session.status === "LOCKED") {
+        label = "Propose outcome →";
+        opensProposalDrawer = true;
+      } else {
+        // An outcome can only be created once the session is locked; until then
+        // the record can still be reopened from its review page.
+        label = "View record →";
+        url = `/gradings/${session.id}/assessments/${candidateId}/review`;
+      }
+    }
+    return { label, url, opensProposalDrawer };
+  };
+
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
       {/* ── Breadcrumbs ─────────────────────────────────────────────────── */}
-      <nav className="gsd-breadcrumbs" aria-label="Breadcrumbs">
+      <nav className="crumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="gsd-breadcrumb-link">Gradings</Link>
         <span className="gsd-breadcrumb-sep" aria-hidden="true">/</span>
         <span className="gsd-breadcrumb-current">{session.title}</span>
@@ -696,7 +739,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="gsd-header">
+      <header className="action-row gsd-header">
         <div className="gsd-header-left">
           <div className="gsd-title-row">
             <h1 className="gsd-title" id="gsd-title">{session.title}</h1>
@@ -712,7 +755,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           </p>
         </div>
 
-        <div className="gsd-header-actions">
+        <div className="action-row gsd-header-actions">
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
               to={`/gradings/${session.id}/decisions`}
@@ -869,42 +912,31 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       </header>
 
       {/* ── Lifecycle Progression Track ─────────────────────────────────── */}
-      {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-      <section className="gsd-lifecycle-section" tabIndex={0} aria-label="Session progress">
+      <section className="gsd-lifecycle-section" aria-label="Session progress">
         <div className="gsd-lifecycle-track">
-          {lifecycle.map((step, idx) => (
-            <React.Fragment key={step.key}>
-              <div className={`gsd-lifecycle-step gsd-step-${step.state}`}>
-                <div className="gsd-step-circle" aria-hidden="true">
-                  {step.state === "completed" && "✓"}
-                </div>
-                <div className="gsd-step-content">
-                  <span className="gsd-step-label">{step.label}</span>
-                  <span className="gsd-step-subtext">
-                    {step.state === "completed"
-                      ? "Completed"
-                      : step.state === "current"
-                      ? "Current"
-                      : "Upcoming"}
-                  </span>
-                </div>
+          {lifecycle.map((step) => (
+            <div key={step.key} className={`gsd-lifecycle-step gsd-step-${step.state}`}>
+              <div className="gsd-step-circle" aria-hidden="true">
+                {step.state === "completed" && "✓"}
               </div>
-              {idx < lifecycle.length - 1 && (
-                <div
-                  className={`gsd-lifecycle-line ${
-                    step.state === "completed" ? "gsd-line-completed" : ""
-                  }`}
-                  aria-hidden="true"
-                />
-              )}
-            </React.Fragment>
+              <div className="gsd-step-content">
+                <span className="gsd-step-label">{step.label}</span>
+                <span className="gsd-step-subtext">
+                  {step.state === "completed"
+                    ? "Completed"
+                    : step.state === "current"
+                    ? "Current"
+                    : "Upcoming"}
+                </span>
+              </div>
+            </div>
           ))}
         </div>
       </section>
 
       {/* ── Operational Action Banner ───────────────────────────────────── */}
       {awaitingDecisionCount > 0 && (
-        <section className="gsd-action-banner" role="status" aria-label="Action required">
+        <section className="action-row gsd-action-banner" role="status" aria-label="Action required">
           <div className="gsd-banner-left">
             <span className="gsd-banner-icon" aria-hidden="true">!</span>
             <span className="gsd-banner-text">
@@ -923,12 +955,12 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Candidates Section ──────────────────────────────────────────── */}
       <section className="gsd-candidates-section" aria-labelledby="candidates-heading">
-        <div className="gsd-section-header">
+        <div className="action-row gsd-section-header">
           <h2 id="candidates-heading" className="gsd-section-title">
             Candidates
           </h2>
 
-          <div className="gsd-controls-row">
+          <div className="action-row gsd-controls-row">
             {(session.status === "DRAFT" || session.status === "OPEN") &&
               attendanceCandidates.length > 0 && (
                 <button
@@ -1005,7 +1037,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         </div>
 
         {/* Candidate Roster Table */}
-        <div className="gsd-table-wrapper">
+        <div>
           {enrichedCandidates.length === 0 ? (
             <div className="gsd-empty-roster" data-testid="gsd-empty-roster">
               <p className="gsd-empty-title">No candidates registered in this grading session yet.</p>
@@ -1032,180 +1064,148 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               </button>
             </div>
           ) : (
-            <table className="gsd-table" data-testid="gsd-candidates-table">
-              <thead>
-                <tr>
-                  <th scope="col" className="gsd-th-candidate">Candidate</th>
-                  <th scope="col" className="gsd-th-current-rank">Current rank</th>
-                  <th scope="col" className="gsd-th-target-rank">Grading for</th>
-                  <th scope="col" className="gsd-th-assessment">Assessment</th>
-                  <th scope="col" className="gsd-th-outcome">Outcome</th>
-                  <th scope="col" className="gsd-th-action">Next action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredCandidates.map((item) => {
-                  const candidateId = item.candidate.id;
-                  const assessmentStatus = item.assessment?.status;
-                  const outcomeStatus = item.outcome?.status;
-                  const isWithdrawn = item.candidate.status === "WITHDRAWN";
-                  const canWithdrawLocked =
-                    session.status === "LOCKED" &&
-                    Boolean(currentUser?.can_override_locked_session) &&
-                    !isWithdrawn &&
-                    outcomeStatus !== "FINALISED";
-
-                  let nextActionLabel = assessmentStatus
-                    ? "Start assessment →"
-                    : "Prepare assessment →";
-                  let nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
-                  let isProposalDrawerTrigger = false;
-                  const decisionsUrl = `/gradings/${session.id}/decisions?candidate=${candidateId}`;
-
-                  if (assessmentStatus === "IN_PROGRESS") {
-                    nextActionLabel = "Continue assessment →";
-                    nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}`;
-                  } else if (assessmentStatus === "COMPLETED") {
-                    if (outcomeStatus === "FINALISED") {
-                      if (item.outcome?.final_outcome === "PASS") {
-                        nextActionLabel = "Promotion ledger →";
-                        nextActionUrl = `/gradings/${session.id}/promotions`;
-                      } else {
-                        nextActionLabel = "View record →";
-                        nextActionUrl = decisionsUrl;
-                      }
-                    } else if (outcomeStatus === "PROPOSED") {
-                      if (currentUser?.can_make_final_grading_decision) {
-                        nextActionLabel = "Review decision →";
-                        nextActionUrl = decisionsUrl;
-                      } else {
-                        nextActionLabel = "Review proposal →";
-                        isProposalDrawerTrigger = true;
-                      }
-                    } else if (session.status === "LOCKED") {
-                      nextActionLabel = "Propose outcome →";
-                      isProposalDrawerTrigger = true;
-                    } else {
-                      // An outcome can only be created once the session is
-                      // locked; until then the record can still be reopened
-                      // from its review page.
-                      nextActionLabel = "View record →";
-                      nextActionUrl = `/gradings/${session.id}/assessments/${candidateId}/review`;
-                    }
-                  }
-
-                  return (
-                    <tr key={candidateId} className="gsd-table-row" data-testid={`candidate-row-${candidateId}`}>
-                      <td className="gsd-cell-candidate">
-                        <span className="gsd-candidate-name">
-                          {item.candidate.student_display_name}
+            <ResponsiveTable
+              label="Candidates"
+              testId="gsd-candidates-table"
+              rows={filteredCandidates}
+              rowKey={(item) => item.candidate.id}
+              rowTestId={(item) => `candidate-row-${item.candidate.id}`}
+              columns={[
+                {
+                  key: "candidate",
+                  header: "Candidate",
+                  primary: true,
+                  render: (item) => (
+                    <>
+                      <span className="gsd-candidate-name">{item.candidate.student_display_name}</span>
+                      {item.candidate.student_wksa_id && (
+                        <span className="gsd-candidate-wksa">WKSA: {item.candidate.student_wksa_id}</span>
+                      )}
+                    </>
+                  ),
+                },
+                {
+                  key: "from",
+                  header: "Current rank",
+                  render: (item) => (
+                    <div className="gsd-rank-item">
+                      <RankBelt rankId={item.candidate.from_rank} />
+                      {/* The rank held at registration, not the live current rank. */}
+                      <span>{item.candidate.from_rank_name}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: "to",
+                  header: "Grading for",
+                  render: (item) => (
+                    <div className="gsd-rank-item">
+                      <RankBelt rankId={item.candidate.testing_for_rank} />
+                      <span>{item.candidate.testing_for_rank_name}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: "assessment",
+                  header: "Assessment",
+                  render: (item) =>
+                    item.candidate.status === "WITHDRAWN" ? (
+                      <>
+                        <span className="gsd-badge gsd-badge-neutral">
+                          <span className="gsd-badge-icon" aria-hidden="true">—</span>
+                          Withdrawn
                         </span>
-                        {item.candidate.student_wksa_id && (
-                          <span className="gsd-candidate-wksa">
-                            WKSA: {item.candidate.student_wksa_id}
-                          </span>
-                        )}
-                      </td>
-                      <td className="gsd-cell-rank">
-                        <div className="gsd-rank-item">
-                          <RankBelt rankId={item.candidate.from_rank} />
-                          {/* The rank held at registration, not the live current rank. */}
-                          <span>{item.candidate.from_rank_name}</span>
-                        </div>
-                      </td>
-                      <td className="gsd-cell-rank">
-                        <div className="gsd-rank-item">
-                          <RankBelt rankId={item.candidate.testing_for_rank} />
-                          <span>{item.candidate.testing_for_rank_name}</span>
-                        </div>
-                      </td>
-                      <td className="gsd-cell-assessment">
+                        <span className="gsd-withdrawal-record">
+                          {item.candidate.withdrawal_reason_display && (
+                            <span>{item.candidate.withdrawal_reason_display}</span>
+                          )}
+                          {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
+                        </span>
+                      </>
+                    ) : (
+                      <AssessmentBadge assessment={item.assessment} />
+                    ),
+                },
+                {
+                  key: "outcome",
+                  header: "Outcome",
+                  render: (item) =>
+                    item.candidate.status === "WITHDRAWN" ? (
+                      <span className="gsd-badge gsd-badge-neutral">No outcome</span>
+                    ) : (
+                      <OutcomeBadge outcome={item.outcome} />
+                    ),
+                },
+                {
+                  key: "action",
+                  header: "Next action",
+                  actions: true,
+                  render: (item) => {
+                    const candidateId = item.candidate.id;
+                    const outcomeStatus = item.outcome?.status;
+                    const isWithdrawn = item.candidate.status === "WITHDRAWN";
+                    const canWithdrawLocked =
+                      session.status === "LOCKED" &&
+                      Boolean(currentUser?.can_override_locked_session) &&
+                      !isWithdrawn &&
+                      outcomeStatus !== "FINALISED";
+                    const next = nextActionFor(item);
+                    return (
+                      <div className="gsd-row-actions">
                         {isWithdrawn ? (
-                          <>
-                            <span className="gsd-badge gsd-badge-neutral">
-                              <span className="gsd-badge-icon" aria-hidden="true">—</span>
-                              Withdrawn
-                            </span>
-                            <span className="gsd-withdrawal-record">
-                              {item.candidate.withdrawal_reason_display && (
-                                <span>{item.candidate.withdrawal_reason_display}</span>
-                              )}
-                              {item.candidate.withdrawal_note && (
-                                <span>{item.candidate.withdrawal_note}</span>
-                              )}
-                            </span>
-                          </>
+                          <span className="gsd-withdrawal-record">No further action</span>
+                        ) : next.opensProposalDrawer ? (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn"
+                            onClick={() => setProposalDrawerItem(item)}
+                            data-testid={`propose-outcome-btn-${candidateId}`}
+                          >
+                            {next.label}
+                          </button>
                         ) : (
-                          <AssessmentBadge assessment={item.assessment} />
+                          <Link to={next.url} className="btn-ghost gsd-row-action-btn">
+                            {next.label}
+                          </Link>
                         )}
-                      </td>
-                      <td className="gsd-cell-outcome">
-                        {isWithdrawn ? (
-                          <span className="gsd-badge gsd-badge-neutral">No outcome</span>
-                        ) : (
-                          <OutcomeBadge outcome={item.outcome} />
+                        {item.candidate.can_be_moved && (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn"
+                            onClick={() => setRegistrationAction({ kind: "move", item })}
+                            aria-label={`Move ${item.candidate.student_display_name} to another session`}
+                          >
+                            Move…
+                          </button>
                         )}
-                      </td>
-                      <td className="gsd-cell-action">
-                        <div className="gsd-row-actions">
-                          {isWithdrawn ? (
-                            <span className="gsd-withdrawal-record">No further action</span>
-                          ) : isProposalDrawerTrigger ? (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn"
-                              onClick={() => setProposalDrawerItem(item)}
-                              data-testid={`propose-outcome-btn-${candidateId}`}
-                            >
-                              {nextActionLabel}
-                            </button>
-                          ) : (
-                            <Link
-                              to={nextActionUrl}
-                              className="btn-ghost gsd-row-action-btn"
-                            >
-                              {nextActionLabel}
-                            </Link>
-                          )}
-                          {item.candidate.can_be_moved && (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn"
-                              onClick={() => setRegistrationAction({ kind: "move", item })}
-                              aria-label={`Move ${item.candidate.student_display_name} to another session`}
-                            >
-                              Move…
-                            </button>
-                          )}
-                          {item.candidate.can_be_removed && (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
-                              onClick={() => setRegistrationAction({ kind: "remove", item })}
-                              aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
-                            >
-                              Remove
-                            </button>
-                          )}
-                          {canWithdrawLocked && (
-                            <button
-                              type="button"
-                              className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
-                              onClick={() => {
-                                setWithdrawalError(null);
-                                setWithdrawalCandidate(item);
-                              }}
-                            >
-                              Withdraw candidate
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {item.candidate.can_be_removed && (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                            onClick={() => setRegistrationAction({ kind: "remove", item })}
+                            aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
+                          >
+                            Remove
+                          </button>
+                        )}
+                        {canWithdrawLocked && (
+                          <button
+                            type="button"
+                            className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                            onClick={() => {
+                              setWithdrawalError(null);
+                              setWithdrawalCandidate(item);
+                            }}
+                          >
+                            Withdraw candidate
+                          </button>
+                        )}
+                      </div>
+                    );
+                  },
+                },
+              ]}
+            />
           )}
         </div>
       </section>
@@ -1213,7 +1213,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {/* ── Session Notes Section ───────────────────────────────────────── */}
       <section className="gsd-notes-section" aria-labelledby="notes-heading">
         <div className="gsd-notes-card">
-          <div className="gsd-notes-header">
+          <div className="action-row gsd-notes-header">
             <div>
               <h2 id="notes-heading" className="gsd-notes-title">Session notes</h2>
               <p className="gsd-notes-sub">
@@ -1246,7 +1246,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   rows={4}
                   data-testid="gsd-notes-textarea"
                 />
-                <div className="gsd-notes-actions">
+                <div className="action-row gsd-notes-actions">
                   <button
                     type="submit"
                     className="btn-primary"

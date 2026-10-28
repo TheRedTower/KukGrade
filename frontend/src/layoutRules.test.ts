@@ -46,7 +46,7 @@ const cssFiles = readdirSync(SRC)
   .filter((name) => name.endsWith(".css") && name !== "layout.css")
   .sort();
 
-const baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE, "utf8"));
+let baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE, "utf8"));
 
 // The list can only be lowered here: a count that went up, or a file that was
 // not on it, is a layout number a screen must not add.
@@ -62,6 +62,7 @@ if (process.env.UPDATE_LAYOUT_BASELINE) {
     if (Object.keys(counts).length > 0) fresh[file] = counts;
   }
   writeFileSync(BASELINE, `${JSON.stringify(fresh, null, 2)}\n`);
+  baseline = fresh;
 }
 
 describe("layout rules", () => {

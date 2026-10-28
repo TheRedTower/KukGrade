@@ -8,14 +8,6 @@
   gap: 1.5rem;
 }
 
-.bgc-breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  color: var(--color-text-muted);
-}
-
 .bgc-breadcrumb-link {
   color: var(--color-text-muted);
   text-decoration: none;
@@ -70,6 +62,7 @@
 
 .bgc-session-card-left {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
 }
@@ -82,6 +75,7 @@
 
 .bgc-session-card-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.88rem;
@@ -92,31 +86,10 @@
   color: var(--color-border);
 }
 
-/* ── Dual-Column Layout ─────────────────────────────────────────────────── */
-
-.bgc-workspace-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  gap: 1.75rem;
-  align-items: start;
-}
-
-@media (max-width: 1024px) {
-  .bgc-workspace-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .bgc-left-column {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  min-width: 0;
-}
-
-.bgc-right-column {
-  position: sticky;
-  top: 1.5rem;
   min-width: 0;
 }
 
@@ -142,19 +115,7 @@
 
 /* ── Section 1 Toolbar & Summary ────────────────────────────────────────── */
 
-.bgc-filters-bar {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding: 1rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
 .bgc-search-field {
-  flex: 1 1 180px;
   position: relative;
   display: flex;
   align-items: center;
@@ -170,6 +131,7 @@
 
 .bgc-search-input {
   width: 100%;
+  min-width: 0;
   padding: 0.5rem 0.75rem 0.5rem 2.2rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -184,43 +146,7 @@
   outline-offset: 1px;
 }
 
-.bgc-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.bgc-filter-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.bgc-select {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  min-height: 38px;
-  cursor: pointer;
-}
-
-.bgc-select:focus {
-  border-color: var(--btn-primary-bg, #d97706);
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
 .bgc-filter-summary-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem;
   padding: 0.85rem 1rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
@@ -242,12 +168,6 @@
   color: var(--color-accent-text);
 }
 
-.bgc-summary-actions {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
 .bgc-matching-count {
   font-size: 0.88rem;
   font-weight: 600;
@@ -262,46 +182,6 @@
 
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
 
-.bgc-table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-}
-
-.bgc-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.88rem;
-  text-align: left;
-}
-
-.bgc-table th {
-  padding: 0.75rem 1rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: var(--color-surface-sunken);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.bgc-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  vertical-align: middle;
-}
-
-.bgc-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.bgc-table tbody tr:hover {
-  background: var(--color-surface-sunken);
-}
-
 .bgc-rank-cell {
   display: flex;
   align-items: center;
@@ -311,13 +191,6 @@
 .bgc-rank-label {
   font-weight: 600;
   color: var(--color-text);
-}
-
-.bgc-td-arrow {
-  color: var(--color-text-muted);
-  font-weight: 600;
-  padding: 0.85rem 0.25rem !important;
-  text-align: center;
 }
 
 .bgc-highest-rank {
@@ -371,10 +244,6 @@
   border-color: var(--color-success);
 }
 
-.bgc-matching-table-wrap {
-  margin-top: 1rem;
-}
-
 .bgc-empty-filtered {
   text-align: center;
   padding: 2.25rem 1rem;
@@ -410,10 +279,6 @@
   text-decoration: underline;
 }
 
-.bgc-td-ageband {
-  white-space: nowrap;
-}
-
 .bgc-ageband-badge {
   display: inline-block;
   font-size: 0.78rem;
@@ -423,12 +288,6 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   border: 1px solid var(--color-border);
-}
-
-.bgc-empty-td {
-  text-align: center;
-  padding: 2.5rem 1rem !important;
-  color: var(--color-text-muted);
 }
 
 /* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
@@ -442,13 +301,6 @@
   flex-direction: column;
   gap: 1.25rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
-
-.bgc-tray-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
 }
 
 .bgc-tray-title {
@@ -471,49 +323,6 @@
   margin: 0.35rem 0 0 0;
 }
 
-.bgc-tray-table-wrap {
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.bgc-tray-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
-}
-
-.bgc-tray-table th {
-  padding: 0.6rem 0.75rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  background: var(--color-surface-sunken);
-  border-bottom: 1px solid var(--color-border);
-  text-align: left;
-}
-
-.bgc-tray-table td {
-  padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  vertical-align: middle;
-}
-
-.bgc-tray-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.bgc-tray-td-count {
-  font-weight: 700;
-  text-align: center;
-}
-
-.bgc-tray-td-remove {
-  text-align: center;
-}
-
 .bgc-btn-remove-group {
   background: transparent;
   border: none;
@@ -533,13 +342,6 @@
 [data-theme="dark"] .bgc-btn-remove-group:hover {
   background: rgba(239, 68, 68, 0.18);
   color: #f87171;
-}
-
-.bgc-tray-empty-td {
-  text-align: center;
-  padding: 2rem 1rem !important;
-  color: var(--color-text-muted);
-  font-size: 0.82rem;
 }
 
 .bgc-exceptions-callout {
@@ -661,10 +463,6 @@
 }
 
 .bgc-tray-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
   margin-top: 0.5rem;
 }
 
@@ -674,33 +472,26 @@
 }
 
 .bgc-register-btn {
-  flex: 1;
+  flex: 1 1 auto;
   justify-content: center;
 }
 
 /* ── Review Exceptions Modal ────────────────────────────────────────────── */
 
-.bgc-modal-card {
-  max-width: 600px !important;
-}
-
-.bgc-modal-list-wrap {
-  max-height: 380px;
-  overflow-y: auto;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  margin: 0.5rem 0 1rem;
-}
-
 .bgc-modal-list {
   list-style: none;
   margin: 0;
   padding: 0;
+  max-height: min(50dvh, 24rem);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
 }
 
 .bgc-modal-list-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-border);
@@ -816,19 +607,9 @@
   color: var(--color-text-muted);
 }
 
-.bgc-tr-flagged {
-  background: rgba(217, 119, 6, 0.03);
-}
-
 .bgc-student-name {
   font-weight: 700;
   color: var(--color-text);
-}
-
-.bgc-td-wksa {
-  font-family: monospace;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
 }
 
 .bgc-issue-text {
@@ -863,6 +644,7 @@
 
 .bgc-row-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
 }
@@ -1006,4 +788,35 @@
 .bgc-retry-helper-text {
   font-size: 0.76rem;
   color: var(--color-text-muted);
+}
+
+/* A student's name with their WKSA ID beneath. */
+.bgc-student-id {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+.bgc-rank-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.bgc-rank-arrow {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.bgc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.bgc-tray-count {
+  font-weight: 700;
 }

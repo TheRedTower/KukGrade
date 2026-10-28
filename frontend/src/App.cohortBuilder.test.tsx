@@ -379,7 +379,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(screen.getByTestId("bgc-empty-filtered")).toHaveTextContent(
       "No eligible students match the selected filters.",
     );
-    expect(screen.getByText("No eligible students match the selected filters.", { selector: ".bgc-empty-td" })).toBeVisible();
+    expect(screen.getByText("No eligible students match the selected filters.", { selector: ".rtable__empty" })).toBeVisible();
 
     // Filter to "13-17" (AGE_13_TO_17) - Charlie Brown (103) matches
     await user.selectOptions(ageSelect, "AGE_13_TO_17");

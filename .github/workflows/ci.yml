@@ -68,7 +68,7 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Type check
-        run: uv run mypy kukgrade health accounts audit ranks students syllabus gradings data_imports demo
+        run: uv run mypy about kukgrade health accounts audit ranks students syllabus gradings data_imports demo
 
       - name: Django system checks
         run: uv run python manage.py check

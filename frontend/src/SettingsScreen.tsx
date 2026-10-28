@@ -27,7 +27,7 @@ export function SettingsScreen() {
         <Route element={<Navigate replace to="/settings/account" />} index />
         <Route element={<SettingsAccount />} path="account" />
         <Route element={<SettingsAppearance />} path="appearance" />
-        <Route element={<SettingsAbout />} path="about" />
+        <Route element={<SettingsAbout />} path="about/*" />
         <Route element={<Navigate replace to="/settings/account" />} path="*" />
       </Routes>
     </section>

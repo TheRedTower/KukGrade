@@ -140,6 +140,7 @@ _SECURE_TRANSPORT = not DEBUG and not PLAIN_HTTP
 SERVES_TLS = not DEBUG and PROXY_HOPS == 0 and TRANSPORT == "https"
 
 INSTALLED_APPS = [
+    "about",
     "accounts",
     "accounts.apps.KukGradeAdminConfig",
     "django.contrib.auth",
@@ -394,6 +395,12 @@ try:
     datetime.fromisoformat(BUILD_TIME)
 except ValueError:
     BUILD_TIME = ""
+
+# Where the About screens read the project's own documents (LICENSE,
+# CODE_OF_CONDUCT.md, SECURITY.md: the image carries copies) and the credits
+# written when an image is built (about/credits.py).
+ABOUT_DOCUMENTS_DIR = Path(os.environ.get("KUKGRADE_DOCUMENTS_DIR") or BASE_DIR.parent)
+CREDITS_DIR = Path(os.environ.get("KUKGRADE_CREDITS_DIR") or BASE_DIR / "credits")
 
 # The club this deployment serves, shown in the application's top bar.
 CLUB_NAME = os.environ.get("KUKGRADE_CLUB_NAME", "").strip() or "Kuk Sool Won"

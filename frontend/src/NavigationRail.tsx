@@ -17,7 +17,6 @@ import {
   UsersIcon,
 } from "./Icons";
 import { KukGradeLogo } from "./KukGradeLogo";
-import { GITHUB_URL } from "./project";
 import { useAboutQuery } from "./queries";
 import { useNarrowScreen } from "./useNarrowScreen";
 import { useSidebar } from "./useSidebar";
@@ -90,7 +89,8 @@ export function NavigationRail({
   // On a phone the sidebar is always the full menu; the strip is for desktops.
   const strip = collapsed && !narrow;
   const [menuOpen, setMenuOpen] = useState(false);
-  const version = useAboutQuery().data?.version;
+  const about = useAboutQuery().data;
+  const version = about?.version;
   const initials = initialsOf(user);
   const aboutLabel = version ? `About KukGrade, version ${version}` : "About KukGrade";
 
@@ -149,16 +149,18 @@ export function NavigationRail({
               <Link aria-label={aboutLabel} className="nav-icon-button" title="About" to="/settings/about">
                 <AboutIcon />
               </Link>
-              <a
-                aria-label="KukGrade on GitHub (opens in a new tab)"
-                className="nav-icon-button"
-                href={GITHUB_URL}
-                rel="noopener noreferrer"
-                target="_blank"
-                title="GitHub"
-              >
-                <GitHubIcon />
-              </a>
+              {about ? (
+                <a
+                  aria-label="KukGrade on GitHub (opens in a new tab)"
+                  className="nav-icon-button"
+                  href={about.repository_url}
+                  rel="noopener noreferrer"
+                  target="_blank"
+                  title="GitHub"
+                >
+                  <GitHubIcon />
+                </a>
+              ) : null}
               <Link
                 aria-label={`${user.full_name}, ${user.role_display}: your account`}
                 className="nav-icon-button"
@@ -204,10 +206,14 @@ export function NavigationRail({
                 <Link to="/settings/about">KukGrade{version ? ` ${version}` : ""}</Link>
                 <span aria-hidden="true">·</span>
                 <Link to="/settings/about">About</Link>
-                <span aria-hidden="true">·</span>
-                <a href={GITHUB_URL} rel="noopener noreferrer" target="_blank">
-                  GitHub<span className="visually-hidden"> (opens in a new tab)</span>
-                </a>
+                {about ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <a href={about.repository_url} rel="noopener noreferrer" target="_blank">
+                      GitHub<span className="visually-hidden"> (opens in a new tab)</span>
+                    </a>
+                  </>
+                ) : null}
               </p>
             </>
           )}

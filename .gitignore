@@ -16,6 +16,7 @@ media/
 staticfiles/
 backend/frontend_dist/
 backend/var/
+backend/credits/
 
 # Node
 node_modules/

@@ -178,7 +178,7 @@ jobs:
             type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
           annotations: |
             org.opencontainers.image.source=https://github.com/TheRedTower/KukGrade
-            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.licenses=AGPL-3.0-only
 
       - name: Join the architectures under the tags
         working-directory: ${{ runner.temp }}/digests

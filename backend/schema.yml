@@ -11,7 +11,8 @@ paths:
         What is running: the About page, and what to quote when asking for help.
 
         For anyone signed in. Nothing here is personal data, but a build's exact
-        version and commit are more than the sign-in page needs to show.
+        version and commit are more than the sign-in page needs to show. The
+        school's own settings are added for administrators only.
       tags:
       - about
       security:
@@ -22,6 +23,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/About'
+          description: ''
+  /api/about/credits/:
+    get:
+      operationId: about_credits_retrieve
+      description: |-
+        The software KukGrade is built on, as written when this version was
+        built. Not available when run from a checkout.
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Credits'
+          description: ''
+  /api/about/credits/notices/:
+    get:
+      operationId: about_credits_notices_retrieve
+      description: The full third-party licence notices, as a text file.
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          description: Every package, with its licence text.
+  /api/about/documents/{slug}/:
+    get:
+      operationId: about_documents_retrieve
+      description: |-
+        One of the project's own documents: the licence, the code of conduct or
+        the security policy, read from the file the repository holds.
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+          description: ''
+  /api/about/pledge/:
+    get:
+      operationId: about_pledge_retrieve
+      description: The Kuk Sool Won pledge, in English and Korean.
+      tags:
+      - about
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pledge'
           description: ''
   /api/audit-events/:
     get:
@@ -2787,10 +2854,42 @@ components:
 
             * `ok` - ok
             * `unavailable` - unavailable
+        repository_url:
+          type: string
+          description: Where the source code is published.
+        issues_url:
+          type: string
+          description: Where problems are reported in public.
+        releases_url:
+          type: string
+          description: Where each version's release notes are.
+        support_email:
+          type: string
+          description: Where to ask for help.
+        security_email:
+          type: string
+          description: Where to report a security weakness.
+        licence:
+          type: string
+          description: The licence, as an SPDX identifier.
+        copyright:
+          type: string
+          description: The copyright notice.
+        school:
+          allOf:
+          - $ref: '#/components/schemas/School'
+          description: 'Present only for administrators: the school''s settings, read-only.'
       required:
       - built_at
       - commit
+      - copyright
       - database
+      - issues_url
+      - licence
+      - releases_url
+      - repository_url
+      - security_email
+      - support_email
       - time_zone
       - version
     ActionEnum:
@@ -3556,6 +3655,45 @@ components:
       required:
       - current_password
       - new_password
+    Credit:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        summary:
+          type: string
+          description: The project's own one-line description.
+        licence:
+          type: string
+        homepage:
+          type: string
+          description: Blank when the project gives none.
+      required:
+      - homepage
+      - licence
+      - name
+      - summary
+      - version
+    Credits:
+      type: object
+      properties:
+        available:
+          type: boolean
+          description: False when this copy was not built with its credits (a checkout).
+        server:
+          type: array
+          items:
+            $ref: '#/components/schemas/Credit'
+        browser:
+          type: array
+          items:
+            $ref: '#/components/schemas/Credit'
+      required:
+      - available
+      - browser
+      - server
     CurrentGrading:
       type: object
       description: The grading a student is registered for that has not reached its
@@ -3626,6 +3764,33 @@ components:
       - email
       - key
       - label
+    Document:
+      type: object
+      properties:
+        slug:
+          type: string
+        title:
+          type: string
+        format:
+          allOf:
+          - $ref: '#/components/schemas/FormatEnum'
+          description: |-
+            How `content` is written: plain text, or Markdown.
+
+            * `text` - text
+            * `markdown` - markdown
+        content:
+          type: string
+          description: The document, exactly as the repository holds it.
+        source_url:
+          type: string
+          description: The same document in the repository.
+      required:
+      - content
+      - format
+      - slug
+      - source_url
+      - title
     EffectiveSyllabusRequirement:
       type: object
       description: |-
@@ -3700,6 +3865,14 @@ components:
       - notation
       - notes
       - required
+    FormatEnum:
+      enum:
+      - text
+      - markdown
+      type: string
+      description: |-
+        * `text` - text
+        * `markdown` - markdown
     GradingCandidate:
       type: object
       properties:
@@ -5371,6 +5544,28 @@ components:
           $ref: '#/components/schemas/RoleEnum'
         is_active:
           type: boolean
+    Pledge:
+      type: object
+      properties:
+        title:
+          type: string
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/PledgePoint'
+      required:
+      - points
+      - title
+    PledgePoint:
+      type: object
+      properties:
+        english:
+          type: string
+        korean:
+          type: string
+      required:
+      - english
+      - korean
     PreviousWksaId:
       type: object
       properties:
@@ -5579,6 +5774,17 @@ components:
       description: |-
         * `instructor` - Instructor
         * `administrator` - Administrator
+    School:
+      type: object
+      properties:
+        club_name:
+          type: string
+        school_id_prefix:
+          type: string
+          description: The school's own prefix in student IDs, such as 123-4.
+      required:
+      - club_name
+      - school_id_prefix
     SetupRequest:
       type: object
       description: |-

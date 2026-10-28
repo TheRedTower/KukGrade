@@ -1,9 +1,10 @@
 #!/bin/sh
-# Starts the production image the two ways it is deployed and checks it works:
+# Starts the production image the ways it is deployed and checks it works:
 #   1. with its own database (deploy/compose.yml): healthy, the first
 #      administrator set up and signed in, the admin closed, a clean stop;
 #   2. as deploy/compose.external-db.yml runs it: UID 10001, a read-only root, every
-#      capability dropped, an external PostgreSQL and two proxies declared.
+#      capability dropped, an external PostgreSQL and two proxies declared;
+#   3. as deploy/compose.demo.yml runs it: demo mode, read-only, in-memory data.
 #
 #   .github/scripts/image-smoke.sh kukgrade:ci
 set -eu
@@ -13,7 +14,7 @@ data="$(mktemp -d)"
 jar="$(mktemp)"
 body="$(mktemp)"
 cleanup() {
-    docker rm -f kg-own kg-prod kg-db >/dev/null 2>&1 || true
+    docker rm -f kg-own kg-prod kg-db kg-demo >/dev/null 2>&1 || true
     docker network rm kg-smoke >/dev/null 2>&1 || true
     docker volume rm kg-uploads >/dev/null 2>&1 || true
 }
@@ -86,6 +87,17 @@ login='{"email":"admin@example.com","password":"'"$password"'"}'
 [ "$(post /api/auth/login/ "$login")" = 200 ] || fail "sign-in"
 [ "$(status -b "$jar" "$base/api/auth/me/")" = 200 ] || fail "signed-in request"
 
+# The About screens read the documents and credits the image carries.
+for path in /api/about/documents/licence/ /api/about/documents/code-of-conduct/ \
+    /api/about/documents/security/ /api/about/pledge/ /api/about/credits/notices/; do
+    [ "$(status -b "$jar" "$base$path")" = 200 ] || fail "$path is not served"
+done
+status -b "$jar" "$base/api/about/documents/licence/" >/dev/null
+grep -q 'AFFERO' "$body" || fail "the licence is not in the image"
+status -b "$jar" "$base/api/about/credits/" >/dev/null
+grep -q '"available":true' "$body" && grep -q '"Django"' "$body" && grep -q '"react"' "$body" \
+    || fail "the credits were not written into the image"
+
 [ "$(docker exec kg-own psql -tAc 'SELECT rolsuper FROM pg_roles WHERE rolname = current_user')" = f ] \
     || fail "the app's database role is a superuser"
 [ "$(docker exec kg-own psql -U postgres -tAc 'SELECT rolsuper FROM pg_roles WHERE rolname = current_user')" = t ] \
@@ -121,5 +133,26 @@ wait_healthy kg-prod
     http://127.0.0.1:16942/api/health/)" = 200 ] || fail "the forwarded scheme is not trusted"
 docker exec kg-prod sh -c 'touch /var/lib/kukgrade/import_uploads/probe && rm /var/lib/kukgrade/import_uploads/probe' \
     || fail "the import folder is not writable"
+
+echo "== As the demo site runs it (compose.demo.yml)"
+docker run -d --name kg-demo -p 127.0.0.1:6943:6942 \
+    --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+    --shm-size 256m \
+    --tmpfs /var/lib/kukgrade:uid=10001,gid=10001,mode=0700,size=512m \
+    --tmpfs /tmp:rw,noexec,nosuid,size=64m,mode=1777 \
+    -e KUKGRADE_DEMO_MODE=1 -e KUKGRADE_CLUB_NAME="Riverside Kuk Sool Won" \
+    -e DJANGO_ALLOWED_HOSTS=localhost -e DJANGO_CSRF_TRUSTED_ORIGINS=https://localhost:6943 \
+    "$image" >/dev/null
+wait_healthy kg-demo
+base=https://localhost:6943
+demo_login='{"email":"administrator@demo.example.com","password":"KukGradeDemo2026!"}'
+[ "$(post /api/auth/login/ "$demo_login")" = 200 ] || fail "demo sign-in"
+for path in /api/about/ /api/about/documents/licence/ /api/about/documents/code-of-conduct/ \
+    /api/about/documents/security/ /api/about/pledge/ /api/about/credits/ \
+    /api/about/credits/notices/; do
+    [ "$(status -b "$jar" "$base$path")" = 200 ] || fail "the demo does not serve $path"
+done
+status -b "$jar" "$base/api/about/" >/dev/null
+grep -q 'Riverside Kuk Sool Won' "$body" || fail "the administrator does not see the school"
 
 echo "OK"

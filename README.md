@@ -166,7 +166,8 @@ Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT
 
 ## Licence
 
-[GNU Affero General Public License v3.0](LICENSE). You may use, modify and self-host KukGrade freely;
+Copyright © 2026 TheRedTower. Licensed under the [GNU Affero General Public License, version 3](LICENSE)
+(AGPL-3.0-only). You may use, modify and self-host KukGrade freely;
 if you offer a modified version to others over a network, you must make your source available to them.
 
 KukGrade is an independent project. It is not affiliated with, endorsed by or sponsored by the World

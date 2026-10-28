@@ -34,6 +34,9 @@ COPY --from=python-deps /app/backend/.venv ./.venv
 COPY backend/ ./
 COPY --from=frontend-build /app/frontend/dist ./frontend_dist
 COPY backend/docker/entrypoint.sh /app/entrypoint.sh
+# The documents the About screens show, read from these copies so the app and
+# the repository cannot say different things (about/documents.py).
+COPY LICENSE CODE_OF_CONDUCT.md SECURITY.md /app/documents/
 # Collect the static files, leaving out the Django admin's files (the network
 # app does not serve the admin; kukgrade.urls_admin does, from a shell) and the
 # REST framework's browsable-API files (production answers in JSON only). The
@@ -84,10 +87,10 @@ RUN set -e \
        done
 # Then remove what neither the app nor an emergency repair needs. Kept on
 # purpose: the shell, Python, manage.py and the openssl command (an operator's
-# repair tools; the app makes its own certificate with openssl).
-RUN set -e \
-    # What only building, testing or documenting the app needs.
-    && rm -rf pyproject.toml uv.lock schema.yml .python-version docker \
+# repair tools; the app makes its own certificate with openssl). The browser's
+# packages are read from the frontend stage by a read-only mount, not copied.
+RUN --mount=type=bind,from=frontend-build,source=/app/frontend,target=/frontend \
+    set -e \
     # Django and the REST framework ship message catalogues for every language;
     # the app answers in English only (no locale middleware). Only the
     # catalogues go: Django's locale folders also hold code.
@@ -121,7 +124,12 @@ RUN set -e \
               /var/lib/apt/lists/* /var/cache/apt /var/log/* \
     # The setuid bit on system programs: the app runs unprivileged with
     # no-new-privileges, so it can only matter for harm.
-    && find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null
+    && find / -xdev -perm /6000 -type f -exec chmod a-s {} + 2>/dev/null \
+    # Who the app is built on, written last so it describes what is left (the
+    # Credits screen; about/credits.py). Then what only building needs goes.
+    && DJANGO_SECRET_KEY=build-only-not-a-runtime-secret \
+       python manage.py write_credits --frontend /frontend \
+    && rm -rf pyproject.toml uv.lock schema.yml .python-version docker
 
 FROM scratch AS production
 COPY --from=runtime-build / /
@@ -130,13 +138,14 @@ ENV PATH=/app/backend/.venv/bin:/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bi
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     KUKGRADE_IMPORT_UPLOAD_ROOT=/var/lib/kukgrade/import_uploads \
+    KUKGRADE_DOCUMENTS_DIR=/app/documents \
     KUKGRADE_EMBEDDED_SOCKET=/tmp/kukgrade-pg \
     PGHOST=/tmp/kukgrade-pg \
     PGUSER=kukgrade \
     PGDATABASE=kukgrade
 LABEL org.opencontainers.image.title="KukGrade" \
       org.opencontainers.image.source="https://github.com/TheRedTower/KukGrade" \
-      org.opencontainers.image.licenses="AGPL-3.0-or-later"
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 # Which build this is, for the About page; empty when not passed.
 ARG KUKGRADE_BUILD_COMMIT=""
 ARG KUKGRADE_BUILD_TIME=""

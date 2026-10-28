@@ -15,9 +15,84 @@ export interface paths {
          * @description What is running: the About page, and what to quote when asking for help.
          *
          *     For anyone signed in. Nothing here is personal data, but a build's exact
-         *     version and commit are more than the sign-in page needs to show.
+         *     version and commit are more than the sign-in page needs to show. The
+         *     school's own settings are added for administrators only.
          */
         get: operations["about_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/about/credits/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description The software KukGrade is built on, as written when this version was
+         *     built. Not available when run from a checkout.
+         */
+        get: operations["about_credits_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/about/credits/notices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The full third-party licence notices, as a text file. */
+        get: operations["about_credits_notices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/about/documents/{slug}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description One of the project's own documents: the licence, the code of conduct or
+         *     the security policy, read from the file the repository holds.
+         */
+        get: operations["about_documents_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/about/pledge/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The Kuk Sool Won pledge, in English and Korean. */
+        get: operations["about_pledge_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1411,6 +1486,22 @@ export interface components {
              *     * `unavailable` - unavailable
              */
             database: components["schemas"]["DatabaseEnum"];
+            /** @description Where the source code is published. */
+            repository_url: string;
+            /** @description Where problems are reported in public. */
+            issues_url: string;
+            /** @description Where each version's release notes are. */
+            releases_url: string;
+            /** @description Where to ask for help. */
+            support_email: string;
+            /** @description Where to report a security weakness. */
+            security_email: string;
+            /** @description The licence, as an SPDX identifier. */
+            licence: string;
+            /** @description The copyright notice. */
+            copyright: string;
+            /** @description Present only for administrators: the school's settings, read-only. */
+            school?: components["schemas"]["School"];
         };
         /**
          * @description * `SESSION_CREATED` - Grading session created
@@ -1727,6 +1818,21 @@ export interface components {
             current_password: string;
             new_password: string;
         };
+        Credit: {
+            name: string;
+            version: string;
+            /** @description The project's own one-line description. */
+            summary: string;
+            licence: string;
+            /** @description Blank when the project gives none. */
+            homepage: string;
+        };
+        Credits: {
+            /** @description False when this copy was not built with its credits (a checkout). */
+            available: boolean;
+            server: components["schemas"]["Credit"][];
+            browser: components["schemas"]["Credit"][];
+        };
         /** @description The grading a student is registered for that has not reached its result. */
         CurrentGrading: {
             session: number;
@@ -1764,6 +1870,21 @@ export interface components {
             /** @description What this account can do. */
             description: string;
         };
+        Document: {
+            slug: string;
+            title: string;
+            /**
+             * @description How `content` is written: plain text, or Markdown.
+             *
+             *     * `text` - text
+             *     * `markdown` - markdown
+             */
+            format: components["schemas"]["FormatEnum"];
+            /** @description The document, exactly as the repository holds it. */
+            content: string;
+            /** @description The same document in the repository. */
+            source_url: string;
+        };
         /**
          * @description One cumulative row for a selected rank and age band, in syllabus order.
          *
@@ -1791,6 +1912,12 @@ export interface components {
             readonly effective_since_rank_name: string;
             readonly is_new_at_rank: boolean;
         };
+        /**
+         * @description * `text` - text
+         *     * `markdown` - markdown
+         * @enum {string}
+         */
+        FormatEnum: "text" | "markdown";
         GradingCandidate: {
             readonly id: number;
             session: number;
@@ -2589,6 +2716,14 @@ export interface components {
             role?: components["schemas"]["RoleEnum"];
             is_active?: boolean;
         };
+        Pledge: {
+            title: string;
+            points: components["schemas"]["PledgePoint"][];
+        };
+        PledgePoint: {
+            english: string;
+            korean: string;
+        };
         PreviousWksaId: {
             readonly wksa_id: string;
             /** Format: date-time */
@@ -2672,6 +2807,11 @@ export interface components {
          * @enum {string}
          */
         RoleEnum: "instructor" | "administrator";
+        School: {
+            club_name: string;
+            /** @description The school's own prefix in student IDs, such as 123-4. */
+            school_id_prefix: string;
+        };
         /**
          * @description POST /api/setup/: the first administrator, and the code proving it is
          *     the deployment's owner (accounts/setup.py).
@@ -3013,6 +3153,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["About"];
+                };
+            };
+        };
+    };
+    about_credits_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Credits"];
+                };
+            };
+        };
+    };
+    about_credits_notices_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Every package, with its licence text. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    about_documents_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Document"];
+                };
+            };
+        };
+    };
+    about_pledge_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Pledge"];
                 };
             };
         };

@@ -41,6 +41,8 @@ import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 import { formatDayMonth, formatTime } from "./dates";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
@@ -235,7 +237,7 @@ export function CandidateAssessmentScreen() {
           <p>
             The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
           </p>
-          <Link to={`/gradings/${sessionId}`} className="btn-secondary">
+          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>
         </div>
@@ -248,7 +250,7 @@ export function CandidateAssessmentScreen() {
       <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
-          <Link to={`/gradings/${sessionId}`} className="btn-secondary">
+          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>
         </div>
@@ -349,9 +351,8 @@ export function CandidateAssessmentScreen() {
               Prepare the candidate&rsquo;s assessment form from the syllabus before starting. It keeps the syllabus as it is today, so later changes to the syllabus never alter it.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-primary"
+          <Button
+            variant="primary"
             onClick={() => generateAssessmentMutation.mutate()}
             disabled={generateAssessmentMutation.isPending || !canPrepare}
             data-testid="generate-assessment-btn"
@@ -361,7 +362,7 @@ export function CandidateAssessmentScreen() {
               : !canPrepare
               ? "Session must be draft or open to prepare"
               : "Prepare assessment form"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -375,9 +376,8 @@ export function CandidateAssessmentScreen() {
               can be scored.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn-primary"
+          <Button
+            variant="primary"
             onClick={() => startAssessmentMutation.mutate()}
             disabled={startAssessmentMutation.isPending || session.status !== "OPEN"}
             data-testid="start-assessment-btn"
@@ -387,7 +387,7 @@ export function CandidateAssessmentScreen() {
               : session.status !== "OPEN"
               ? "Session must be Open to start"
               : "Start assessment"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -465,7 +465,7 @@ export function CandidateAssessmentScreen() {
         <div className="caw-identity-spacer" />
 
         {isAssessmentCompleted ? (
-          <Link className="btn-secondary caw-review-btn" to={reviewPath} data-testid="caw-view-review-btn">
+          <Link className={buttonClass({ variant: "secondary" }, "caw-review-btn")} to={reviewPath} data-testid="caw-view-review-btn">
             View completion record →
           </Link>
         ) : (
@@ -578,15 +578,14 @@ function DeleteAssessmentDialog({
           </div>
         )}
         <div className="gsd-modal-actions">
-          <button
-            type="button"
-            className="btn-secondary"
+          <Button
+            variant="secondary"
             onClick={onClose}
             disabled={isPending}
             data-dialog-autofocus
           >
             Cancel
-          </button>
+          </Button>
           <button type="button" className="caw-danger-btn" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Deleting…" : "Delete assessment"}
           </button>
@@ -736,9 +735,9 @@ function AssessmentItemRow({
               , and that cannot be restored.
             </p>
             <div className="caw-clear-confirm-actions">
-              <button type="button" className="btn-secondary" onClick={onCancelClear} ref={keepButtonRef}>
+              <Button variant="secondary" onClick={onCancelClear} ref={keepButtonRef}>
                 Keep
-              </button>
+              </Button>
               <button
                 type="button"
                 className="caw-danger-btn"

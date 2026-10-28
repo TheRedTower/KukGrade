@@ -26,6 +26,7 @@ import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
 import { useDialogFocus } from "./useDialogFocus";
 import "./OutcomeDrawers.css";
+import { Button } from "./Button";
 
 export function OutcomeProposalDrawer({
   candidate,
@@ -178,16 +179,16 @@ export function OutcomeProposalDrawer({
               A proposal does not finalise the grading or promote the candidate. An authorised
               Master records the final decision.
             </p>
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
+            <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="btn-primary"
+              variant="primary"
               disabled={isSubmitting || !evidenceLoaded}
             >
               {isSubmitting ? "Submitting…" : "Submit proposal"}
-            </button>
+            </Button>
           </footer>
         </form>
       </div>

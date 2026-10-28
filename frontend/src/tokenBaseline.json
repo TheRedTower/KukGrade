@@ -1,20 +1,19 @@
 {
   "About.css": {
     "fontSize": 20,
-    "fontWeight": 15,
-    "radius": 12,
+    "fontWeight": 14,
+    "radius": 11,
     "shadow": 1,
-    "outlineNone": 1,
-    "buttonClass": 2
+    "outlineNone": 1
   },
   "App.css": {
     "rawColour": 32,
     "fontSize": 29,
-    "fontWeight": 19,
-    "radius": 18,
+    "fontWeight": 18,
+    "radius": 17,
     "shadow": 4,
     "outlineNone": 1,
-    "buttonClass": 6,
+    "buttonClass": 4,
     "darkOverride": 5
   },
   "AuditScreen.css": {
@@ -64,16 +63,16 @@
     "buttonClass": 2
   },
   "GradingSessions.css": {
-    "rawColour": 138,
-    "important": 32,
+    "rawColour": 124,
+    "important": 18,
     "fontSize": 50,
     "fontWeight": 35,
     "radius": 21,
-    "shadow": 9,
+    "shadow": 7,
     "zIndex": 2,
     "outlineNone": 6,
-    "buttonClass": 8,
-    "darkOverride": 26
+    "buttonClass": 7,
+    "darkOverride": 24
   },
   "Imports.css": {
     "rawColour": 1,
@@ -134,13 +133,13 @@
   },
   "StudentScreens.css": {
     "rawColour": 5,
-    "fontSize": 48,
-    "fontWeight": 37,
-    "radius": 21,
+    "fontSize": 40,
+    "fontWeight": 29,
+    "radius": 13,
     "shadow": 6,
     "zIndex": 1,
     "outlineNone": 1,
-    "buttonClass": 10
+    "buttonClass": 2
   },
   "Syllabus.css": {
     "rawColour": 19,
@@ -153,9 +152,8 @@
   },
   "UserManagement.css": {
     "fontSize": 11,
-    "fontWeight": 6,
-    "radius": 4,
-    "buttonClass": 4
+    "fontWeight": 5,
+    "radius": 3
   },
   "layout.css": {
     "rawColour": 2,

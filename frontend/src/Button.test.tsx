@@ -14,13 +14,13 @@ describe("Button", () => {
 
   it("takes its variant, size and width from props and keeps a caller's own class", () => {
     render(
-      <Button variant="danger" small className="extra" type="submit">
+      <Button variant="danger" small block className="extra" type="submit">
         Delete
       </Button>,
     );
     const button = screen.getByRole("button", { name: "Delete" });
     expect(button).toHaveAttribute("type", "submit");
-    expect(button).toHaveClass("btn", "btn--danger", "btn--sm", "extra");
+    expect(button).toHaveClass("btn", "btn--danger", "btn--sm", "btn--block", "extra");
   });
 
   it("gives a link the same classes", () => {

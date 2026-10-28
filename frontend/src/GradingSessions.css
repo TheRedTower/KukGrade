@@ -1267,28 +1267,3 @@
   color: var(--color-text);
 }
 
-.gsd-modal-btn-danger {
-  background: #dc2626 !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3) !important;
-}
-
-.gsd-modal-btn-danger:hover:not(:disabled) {
-  background: #b91c1c !important;
-  border-color: #b91c1c !important;
-  color: #ffffff !important;
-}
-
-[data-theme="dark"] .gsd-modal-btn-danger {
-  background: #dc2626 !important;
-  border-color: #ef4444 !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5) !important;
-}
-
-[data-theme="dark"] .gsd-modal-btn-danger:hover:not(:disabled) {
-  background: #b91c1c !important;
-  border-color: #dc2626 !important;
-  color: #ffffff !important;
-}

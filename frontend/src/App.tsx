@@ -34,6 +34,7 @@ import { SyllabusScreen } from "./SyllabusScreen";
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
 import { CohortAdjudicationScreen } from "./CohortAdjudicationScreen";
 import { AuditScreen } from "./AuditScreen";
+import { Button } from "./Button";
 
 const UsersScreen = lazy(() =>
   import("./UsersScreen").then((module) => ({ default: module.UsersScreen })),
@@ -164,13 +165,13 @@ function LoginPage() {
               </div>
             </label>
             {error ? <p className="form-error" role="alert">{error}</p> : null}
-            <button
-              className="primary-button"
+            <Button
+              variant="primary"
               disabled={status === "loading" || isSubmitting}
               type="submit"
             >
               {isSubmitting ? "Signing in" : "Sign in"}
-            </button>
+            </Button>
           </form>
           <p className="login-help">
             Having trouble signing in? <strong>Contact your administrator.</strong>
@@ -195,9 +196,9 @@ function ConnectionErrorPage() {
         <p className="form-error" role="alert">
           {error ?? "Something went wrong."}
         </p>
-        <button className="primary-button" onClick={retry} type="button">
+        <Button variant="primary" onClick={retry}>
           Try again
-        </button>
+        </Button>
       </section>
     </main>
   );

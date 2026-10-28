@@ -42,6 +42,8 @@ import {
 import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon } from "./Icons";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 function SealIcon() {
   return (
@@ -164,7 +166,7 @@ export function AssessmentCompletionScreen() {
             The assessment summary could not be loaded, so the record cannot be reviewed or
             sealed right now. Reload to try again.
           </p>
-          <Link to={scoringPath} className="btn-secondary">
+          <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>
         </div>
@@ -177,7 +179,7 @@ export function AssessmentCompletionScreen() {
       <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
-          <Link to={`/gradings/${sessionId}`} className="btn-secondary">
+          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>
         </div>
@@ -201,7 +203,7 @@ export function AssessmentCompletionScreen() {
                   stats.remainingRequired === 1 ? "item remains" : "items remain"
                 } unassessed. Finish scoring before completing the assessment.`}
           </p>
-          <Link to={scoringPath} className="btn-secondary">
+          <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>
         </div>
@@ -485,15 +487,14 @@ export function AssessmentCompletionScreen() {
                 </p>
               </div>
               {session.status === "OPEN" && (
-                <button
-                  type="button"
-                  className="btn-secondary acp-reopen-btn"
+                <Button
+                  variant="secondary" className="acp-reopen-btn"
                   onClick={() => reopenAssessmentMutation.mutate()}
                   disabled={reopenAssessmentMutation.isPending}
                   data-testid="acp-reopen-btn"
                 >
                   {reopenAssessmentMutation.isPending ? "Reopening…" : "Reopen for correction"}
-                </button>
+                </Button>
               )}
             </div>
           ) : (
@@ -517,20 +518,19 @@ export function AssessmentCompletionScreen() {
                 </label>
               </div>
 
-              <button
-                type="button"
-                className="btn-primary acp-seal-btn"
+              <Button
+                variant="primary" className="acp-seal-btn"
                 onClick={() => completeAssessmentMutation.mutate()}
                 disabled={!canSeal}
                 data-testid="confirm-complete-assessment-btn"
               >
                 <CheckIcon size={17} />
                 {completeAssessmentMutation.isPending ? "Sealing..." : "Seal assessment record"}
-              </button>
+              </Button>
             </>
           )}
 
-          <Link to={scoringPath} className="btn-secondary acp-return-btn">
+          <Link to={scoringPath} className={buttonClass({ variant: "secondary" }, "acp-return-btn")}>
             Return to scoring
           </Link>
         </aside>

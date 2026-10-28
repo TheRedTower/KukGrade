@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { IssuedTemporaryPassword } from "./api";
 import { formatDateTime } from "./dates";
+import { Button } from "./Button";
 
 /**
  * A temporary password the server has just issued, shown this once.
@@ -56,17 +57,16 @@ export function TemporaryPasswordIssued({
             : ""}
       </p>
       <div className="action-row users-dialog-actions">
-        <button
+        <Button
           ref={copyRef}
-          type="button"
-          className="users-secondary-button"
+          variant="secondary"
           onClick={() => void copyPassword()}
         >
           Copy password
-        </button>
-        <button type="button" className="users-primary-button" onClick={onDone}>
+        </Button>
+        <Button variant="primary" onClick={onDone}>
           Done
-        </button>
+        </Button>
       </div>
     </div>
   );

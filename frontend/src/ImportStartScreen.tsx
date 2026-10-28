@@ -18,6 +18,7 @@ import { counted, importKindTitle } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
 import { useSiteSettingsQuery } from "./queries";
 import "./Imports.css";
+import { Button } from "./Button";
 
 type Guide = { lead: string; fields: { name: string; hint: string; needed: boolean }[]; foot: string };
 
@@ -322,9 +323,9 @@ export function ImportStartScreen() {
               <p className="ix-strong">{loaded.original_filename}</p>
               <p className="ix-muted ix-small">{fileSize(loaded.file_size)}</p>
             </div>
-            <button className="btn-ghost" disabled={discard.isPending} type="button" onClick={chooseAnother}>
+            <Button variant="ghost" disabled={discard.isPending} onClick={chooseAnother}>
               Choose a different file
-            </button>
+            </Button>
           </div>
           <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
           {kind === "STUDENT_ROSTER" && (loaded.sheet_error || loaded.row_counts.total === 0) ? (
@@ -412,14 +413,13 @@ export function ImportStartScreen() {
                 type="file"
                 onChange={onPicked}
               />
-              <button
-                className="btn-primary"
+              <Button
+                variant="primary"
                 disabled={upload.isPending || (created !== null && batch.isPending)}
-                type="button"
                 onClick={() => inputRef.current?.click()}
               >
                 {upload.isPending || (created !== null && batch.isPending) ? "Reading your file…" : "Choose a file"}
-              </button>
+              </Button>
               <p className="ix-muted ix-small">
                 {kind === "STUDENT_ROSTER"
                   ? `Excel (.xlsx) or CSV, ${limit ? `up to ${limit}` : "size checked when uploaded"} and 1,000 rows`
@@ -438,33 +438,32 @@ export function ImportStartScreen() {
             </h2>
             <GuideList kind={kind} />
             {kind === "STUDENT_ROSTER" ? (
-              <button className="btn-secondary ix-start" type="button" onClick={downloadStandardTemplate}>
+              <Button variant="secondary" className="ix-start" onClick={downloadStandardTemplate}>
                 Download the template
-              </button>
+              </Button>
             ) : null}
           </aside>
         </div>
       )}
 
       <div className="ix-actions ix-actions-split">
-        <button className="btn-ghost" disabled={discard.isPending} type="button" onClick={cancelImport}>
+        <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
           Cancel import
-        </button>
+        </Button>
         <div className="ix-actions">
           {!loaded ? (
             <span className="ix-muted ix-small" id="ix-continue-why">
               Choose a file first.
             </span>
           ) : null}
-          <button
+          <Button
             aria-describedby={loaded ? undefined : "ix-continue-why"}
-            className="btn-primary"
+            variant="primary"
             disabled={!loaded || sheet.isPending || (kind === "STUDENT_ROSTER" && (Boolean(loaded.sheet_error) || loaded.row_counts.total === 0))}
-            type="button"
             onClick={() => navigate(`/imports/${batchId}`)}
           >
             {nextName}
-          </button>
+          </Button>
         </div>
       </div>
     </section>

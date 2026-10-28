@@ -70,5 +70,7 @@ export function usedClasses(source: string): Set<string> {
   };
   for (const match of source.matchAll(/className="([^"]*)"/g)) add(match[1]);
   for (const match of source.matchAll(/className=\{`([^`]*)`\}/g)) add(match[1]);
+  // The extra classes given to buttonClass as its second argument.
+  for (const match of source.matchAll(/buttonClass\(\{[^}]*\},\s*"([^"]*)"\)/g)) add(match[1]);
   return names;
 }

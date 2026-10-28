@@ -4,6 +4,7 @@ import { errorMessage } from "./api";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { SettingsRow } from "./SettingsRow";
+import { Button } from "./Button";
 
 const CAPABILITIES = [
   { key: "can_make_final_grading_decision", label: "Final grading decisions" },
@@ -62,9 +63,9 @@ function NameRow() {
             value={lastName}
           />
         </label>
-        <button className="btn-secondary" disabled={saving || !changed} type="submit">
+        <Button variant="secondary" disabled={saving || !changed} type="submit">
           {saving ? "Saving…" : "Save name"}
-        </button>
+        </Button>
         {error ? (
           <p className="form-error st-full" role="alert">
             {error}
@@ -98,11 +99,10 @@ function PasswordRow() {
               setChanged(true);
             }}
             secondaryAction={(isSubmitting) => (
-              <button className="btn-ghost" disabled={isSubmitting} onClick={() => setOpen(false)} type="button">
+              <Button variant="ghost" disabled={isSubmitting} onClick={() => setOpen(false)}>
                 Cancel
-              </button>
+              </Button>
             )}
-            submitClassName="btn-primary"
             submitLabel="Change password"
             submittingLabel="Changing…"
           />
@@ -118,16 +118,15 @@ function PasswordRow() {
               Your password has been changed.
             </span>
           ) : null}
-          <button
-            className="btn-secondary"
+          <Button
+            variant="secondary"
             onClick={() => {
               setChanged(false);
               setOpen(true);
             }}
-            type="button"
           >
             Change password…
-          </button>
+          </Button>
         </>
       )}
     </SettingsRow>

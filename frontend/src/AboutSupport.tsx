@@ -2,6 +2,7 @@ import { useAuth } from "./auth";
 import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
 import { useAboutQuery } from "./queries";
+import { buttonClass } from "./buttonClass";
 
 /** Where to ask for help, and the details to send with the question. */
 export function AboutSupport() {
@@ -76,7 +77,7 @@ export function AboutSupport() {
                   <strong>Email support</strong>
                   <p className="st-row-description">Questions, help, and code of conduct reports.</p>
                 </div>
-                <a className="ab-button" href={`mailto:${data.support_email}`}>
+                <a className={buttonClass({ variant: "secondary" })} href={`mailto:${data.support_email}`}>
                   {data.support_email}
                 </a>
               </div>
@@ -85,7 +86,7 @@ export function AboutSupport() {
                   <strong>Report a problem or suggest a change</strong>
                   <p className="st-row-description">Public. Do not include student information.</p>
                 </div>
-                <a className="ab-button" href={data.issues_url} rel="noopener noreferrer" target="_blank">
+                <a className={buttonClass({ variant: "secondary" })} href={data.issues_url} rel="noopener noreferrer" target="_blank">
                   Open an issue ↗<span className="visually-hidden"> (opens in a new tab)</span>
                 </a>
               </div>
@@ -94,7 +95,7 @@ export function AboutSupport() {
                   <strong>Report a security weakness</strong>
                   <p className="st-row-description">Private. Please do not open a public issue.</p>
                 </div>
-                <a className="ab-button" href={`mailto:${data.security_email}`}>
+                <a className={buttonClass({ variant: "secondary" })} href={`mailto:${data.security_email}`}>
                   {data.security_email}
                 </a>
               </div>

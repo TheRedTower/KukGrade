@@ -4,6 +4,7 @@ import { ApiError } from "./api";
 import { useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import { PasswordRequirements } from "./PasswordRequirements";
+import { Button } from "./Button";
 
 type Field = "code" | "email" | "first_name" | "last_name" | "password" | "confirm";
 
@@ -203,9 +204,9 @@ export function SetupPage() {
                 {error}
               </p>
             ) : null}
-            <button className="primary-button" disabled={isSubmitting} type="submit">
+            <Button variant="primary" disabled={isSubmitting} type="submit">
               {isSubmitting ? "Setting up" : "Create administrator"}
-            </button>
+            </Button>
           </form>
           <p className="login-security-note">
             This page is shown once. After setup, every other account is added from the Users

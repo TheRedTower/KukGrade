@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { errorMessage } from "./api";
 import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
+import { buttonClass } from "./buttonClass";
 
 const EXTERNAL = /^[a-z][a-z0-9+.-]*:/i;
 
@@ -70,7 +71,7 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
         {subtitle ? <p className="st-row-description">{subtitle}</p> : null}
       </div>
       {sourceUrl ? (
-        <a className="ab-button" href={sourceUrl} rel="noopener noreferrer" target="_blank">
+        <a className={buttonClass({ variant: "secondary" })} href={sourceUrl} rel="noopener noreferrer" target="_blank">
           View on GitHub ↗<span className="visually-hidden"> (opens in a new tab)</span>
         </a>
       ) : null}
@@ -230,7 +231,7 @@ export function AboutLicence() {
         </div>
         <div className="ab-actions">
           {about ? (
-            <a className="btn-primary ab-button" href={about.repository_url} rel="noopener noreferrer" target="_blank">
+            <a className={buttonClass({ variant: "primary" })} href={about.repository_url} rel="noopener noreferrer" target="_blank">
               Get the source code ↗<span className="visually-hidden"> (opens in a new tab)</span>
             </a>
           ) : null}

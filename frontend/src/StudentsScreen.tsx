@@ -14,6 +14,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { Button } from "./Button";
 
 function ClearIcon() {
   return (
@@ -147,15 +148,14 @@ export function StudentsScreen() {
           <p className="students-subtitle">Manage student records and grading history</p>
         </div>
         <div className="students-header-actions">
-          <button
-            type="button"
-            className="btn-add-student"
+          <Button
+            variant="primary"
             onClick={() => navigate("/students/new")}
             aria-label="Add new student"
           >
             <UserPlusIcon />
             <span>Add student</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -229,9 +229,8 @@ export function StudentsScreen() {
           {sourceImport ? (
             <>
               <span className="results-count-text">Only the students one import added</span>
-              <button
-                type="button"
-                className="btn-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   const next = new URLSearchParams(searchParams);
                   next.delete("source_import");
@@ -240,7 +239,7 @@ export function StudentsScreen() {
                 }}
               >
                 Show every student
-              </button>
+              </Button>
             </>
           ) : null}
           <span className="results-count-text">
@@ -263,13 +262,12 @@ export function StudentsScreen() {
                 <p className="empty-state-description">
                   No records match your active search and filter criteria.
                 </p>
-                <button
-                  type="button"
-                  className="btn-clear-filters"
+                <Button
+                  variant="secondary"
                   onClick={handleClearFilters}
                 >
                   Clear all filters
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="empty-zero-container">
@@ -277,13 +275,12 @@ export function StudentsScreen() {
                 <p className="empty-state-description">
                   Add your first student to get started.
                 </p>
-                <button
-                  type="button"
-                  className="btn-add-first-student"
+                <Button
+                  variant="primary"
                   onClick={() => navigate("/students/new")}
                 >
                   Add student +
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -341,15 +338,15 @@ export function StudentsScreen() {
                   header: "Actions",
                   actions: "inline",
                   render: (student) => (
-                    <button
-                      type="button"
-                      className="btn-view-student"
+                    <Button
+                      variant="ghost"
+                      small
                       onClick={() => navigate(`/students/${student.id}`)}
                       aria-label={`View record for ${student.first_name} ${student.last_name}`}
                     >
                       <span>View student</span>
-                      <span aria-hidden="true" className="action-arrow">→</span>
-                    </button>
+                      <span aria-hidden="true">→</span>
+                    </Button>
                   ),
                 },
               ]}

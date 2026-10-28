@@ -10,6 +10,7 @@ import { ImportReview } from "./ImportReview";
 import { ImportStepBar } from "./ImportStepBar";
 import { importKindTitle } from "./importSteps";
 import "./Imports.css";
+import { buttonClass } from "./buttonClass";
 
 /** One import, opened at the step it is up to - so it survives a reload. */
 export function ImportScreen() {
@@ -85,7 +86,7 @@ export function ImportScreen() {
             ? "This import was not finished in time, so it was cleared. Nothing was saved."
             : "This import was cancelled. Nothing was saved."}
         </p>
-        <Link className="btn-primary ix-start" to={`/imports/new?kind=${loaded.kind}`}>
+        <Link className={buttonClass({ variant: "primary" }, "ix-start")} to={`/imports/new?kind=${loaded.kind}`}>
           Start again
         </Link>
       </section>

@@ -20,6 +20,8 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { BeltSwatch, type BeltRank } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 
 interface CohortItem {
@@ -384,7 +386,7 @@ export function BuildGradingCohortScreen() {
         <div className="gsd-error-state">
           <h2 id="bgc-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the grading sessions list.</p>
-          <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
+          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
         </div>
       </section>
     );
@@ -407,7 +409,7 @@ export function BuildGradingCohortScreen() {
         <div className="gsd-error-state">
           <h2 id="bgc-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
-          <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
+          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
         </div>
       </section>
     );
@@ -536,19 +538,18 @@ export function BuildGradingCohortScreen() {
                   <div className="bgc-row-actions">
                     <Link
                       to={`/students/${item.student?.id}`}
-                      className="btn-ghost bgc-row-btn"
+                      className={buttonClass({ variant: "ghost" }, "bgc-row-btn")}
                       target="_blank"
                       rel="noreferrer"
                     >
                       View student
                     </Link>
-                    <button
-                      type="button"
-                      className="btn-ghost bgc-row-btn bgc-btn-remove"
+                    <Button
+                      variant="ghost" className="bgc-row-btn bgc-btn-remove"
                       onClick={() => handleRemoveFlaggedCandidate(item.key)}
                     >
                       Remove from list
-                    </button>
+                    </Button>
                   </div>
                 ),
               },
@@ -597,22 +598,21 @@ export function BuildGradingCohortScreen() {
         <footer className="bgc-resolver-footer">
           <Link
             to={`/gradings/${session.id}`}
-            className="btn-ghost bgc-finish-btn"
+            className={buttonClass({ variant: "ghost" }, "bgc-finish-btn")}
             data-testid="bgc-finish-view-session-btn"
           >
             Finish and view {session.title}
           </Link>
 
           <div className="bgc-retry-action-wrap">
-            <button
-              type="button"
-              className="btn-primary"
+            <Button
+              variant="primary"
               onClick={handleRetryFlagged}
               disabled={isSubmitting || retryableCount === 0}
               data-testid="bgc-retry-flagged-btn"
             >
               {isSubmitting ? "Retrying..." : `Save changes and retry ${retryableCount}`}
-            </button>
+            </Button>
             <span className="bgc-retry-helper-text">Only resolved candidates will be retried.</span>
           </div>
         </footer>
@@ -760,15 +760,14 @@ export function BuildGradingCohortScreen() {
                     ? "1 student matches"
                     : `${filteredEligibleStudents.length} students match`}
                 </span>
-                <button
-                  type="button"
-                  className="btn-primary bgc-add-filtered-btn"
+                <Button
+                  variant="primary" className="bgc-add-filtered-btn"
                   onClick={handleAddAllFiltered}
                   disabled={filteredEligibleStudents.length === 0 || isRosterUpdating}
                   data-testid="bgc-add-all-filtered-btn"
                 >
                   Add all {filteredEligibleStudents.length} filtered students
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -832,24 +831,22 @@ export function BuildGradingCohortScreen() {
                       actions: "inline",
                       render: (student) =>
                         cohortStudentIdSet.has(student.id) ? (
-                          <button
-                            type="button"
-                            className="btn-ghost bgc-student-added-btn"
+                          <Button
+                            variant="ghost" className="bgc-student-added-btn"
                             onClick={() => handleRemoveStudentFromCohort(student.id)}
                             title="Click to remove student from cohort"
                             data-testid={`bgc-student-added-${student.id}`}
                           >
                             Added ✓
-                          </button>
+                          </Button>
                         ) : (
-                          <button
-                            type="button"
-                            className="btn-primary bgc-add-student-btn"
+                          <Button
+                            variant="primary" className="bgc-add-student-btn"
                             onClick={() => handleAddStudentToCohort(student)}
                             data-testid={`bgc-add-student-${student.id}`}
                           >
                             + Add
-                          </button>
+                          </Button>
                         ),
                     },
                   ]}
@@ -918,24 +915,22 @@ export function BuildGradingCohortScreen() {
                     const allGroupAdded = group.students.every((student) => cohortStudentIdSet.has(student.id));
                     const someGroupAdded = group.students.some((student) => cohortStudentIdSet.has(student.id));
                     return allGroupAdded ? (
-                      <button
-                        type="button"
-                        className="btn-ghost bgc-group-added-btn"
+                      <Button
+                        variant="ghost" className="bgc-group-added-btn"
                         onClick={() => handleRemoveRankGroup(group.rank.id)}
                         title="Click to remove group"
                         data-testid={`bgc-group-added-${group.rank.id}`}
                       >
                         Added ✓
-                      </button>
+                      </Button>
                     ) : (
-                      <button
-                        type="button"
-                        className="btn-primary bgc-add-group-btn"
+                      <Button
+                        variant="primary" className="bgc-add-group-btn"
                         onClick={() => handleAddRankGroup(group)}
                         data-testid={`bgc-add-group-${group.rank.id}`}
                       >
                         {someGroupAdded ? `Add remaining` : `Add all ${group.students.length}`}
-                      </button>
+                      </Button>
                     );
                   },
                 },
@@ -1033,20 +1028,19 @@ export function BuildGradingCohortScreen() {
             <div className="action-row bgc-tray-actions">
               <Link
                 to={`/gradings/${session.id}`}
-                className="btn-ghost bgc-cancel-btn"
+                className={buttonClass({ variant: "ghost" }, "bgc-cancel-btn")}
                 data-testid="bgc-cancel-btn"
               >
                 Cancel
               </Link>
-              <button
-                type="button"
-                className="btn-primary bgc-register-btn"
+              <Button
+                variant="primary" className="bgc-register-btn"
                 onClick={handleSubmitCohort}
                 disabled={isSubmitting || cohort.length === 0}
                 data-testid="bgc-register-candidates-btn"
               >
                 {isSubmitting ? "Registering..." : `Register ${cohort.length} candidate${cohort.length === 1 ? "" : "s"}`}
-              </button>
+              </Button>
             </div>
           </aside>
         </div>
@@ -1077,28 +1071,26 @@ export function BuildGradingCohortScreen() {
                     {item.student.status_display || item.student.status}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="btn-ghost bgc-btn-remove-individual"
+                <Button
+                  variant="ghost" className="bgc-btn-remove-individual"
                   onClick={() => handleRemoveStudentFromCohort(item.student.id)}
                   data-testid={`bgc-remove-student-${item.student.id}`}
                 >
                   ✕ Remove
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
 
           <div className="action-row dialog__actions">
-            <button
-              type="button"
-              className="btn-primary"
+            <Button
+              variant="primary"
               onClick={() => setExceptionsModalOpen(false)}
               data-testid="bgc-modal-done-btn"
               data-dialog-autofocus
             >
               Done
-            </button>
+            </Button>
           </div>
         </Dialog>
       )}

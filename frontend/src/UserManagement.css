@@ -31,60 +31,6 @@
   font-size: 0.85rem;
 }
 
-.users-primary-button,
-.users-secondary-button,
-.users-danger-button,
-.users-manage-button,
-.users-state button {
-  min-height: 44px;
-  border-radius: 0.4rem;
-  font: inherit;
-  font-weight: 750;
-  padding: 0.62rem 1rem;
-  cursor: pointer;
-}
-
-.users-primary-button {
-  border: 1px solid var(--btn-primary-border);
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  box-shadow: var(--btn-primary-shadow);
-}
-
-.users-primary-button:hover:not(:disabled) {
-  border-color: var(--btn-primary-hover-border);
-  background: var(--btn-primary-hover-bg);
-  color: var(--btn-primary-hover-text);
-}
-
-.users-danger-button {
-  border: 1px solid var(--color-danger);
-  background: var(--color-danger);
-  color: var(--color-on-danger);
-}
-
-.users-danger-button:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.users-secondary-button,
-.users-manage-button,
-.users-state button {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.users-secondary-button:hover:not(:disabled),
-.users-manage-button:hover,
-.users-state button:hover {
-  background: var(--color-surface-sunken);
-}
-
-.users-primary-button:focus-visible,
-.users-secondary-button:focus-visible,
-.users-danger-button:focus-visible,
-.users-manage-button:focus-visible,
 .users-audit-link:focus-visible,
 .users-back-link:focus-visible,
 .users-form-grid input:focus,
@@ -92,12 +38,6 @@
 .user-authority-options input:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
-}
-
-.users-page button:disabled,
-.user-detail-page button:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 
 .users-dialog-form label > span,
@@ -156,7 +96,6 @@
 
 .users-status.is-active { color: var(--color-success); }
 .users-status.is-inactive { color: var(--color-text-muted); }
-.users-manage-button { min-height: 2.25rem; padding: 0.4rem 0.7rem; }
 
 .users-state {
   min-height: 18rem;

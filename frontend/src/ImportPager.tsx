@@ -1,3 +1,4 @@
+import { Button } from "./Button";
 export function ImportPager({
   page,
   pages,
@@ -16,12 +17,12 @@ export function ImportPager({
         Page {page} of {pages} · {total} in all
       </span>
       <div className="ix-actions">
-        <button className="btn-ghost" disabled={page <= 1} type="button" onClick={() => onPage(page - 1)}>
+        <Button variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>
           Previous
-        </button>
-        <button className="btn-ghost" disabled={page >= pages} type="button" onClick={() => onPage(page + 1)}>
+        </Button>
+        <Button variant="ghost" disabled={page >= pages} onClick={() => onPage(page + 1)}>
           Next
-        </button>
+        </Button>
       </div>
     </div>
   );

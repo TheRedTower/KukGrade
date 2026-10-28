@@ -1,3 +1,4 @@
+import { Button } from "./Button";
 import { useState, type FormEvent, type ReactNode } from "react";
 
 import { ApiError } from "./api";
@@ -22,7 +23,6 @@ type ChangePasswordFormProps = {
   /** Rendered beside the submit button: Sign out, or Cancel. */
   secondaryAction?: (isSubmitting: boolean) => ReactNode;
   actionsClassName: string;
-  submitClassName: string;
 };
 
 /**
@@ -44,7 +44,6 @@ export function ChangePasswordForm({
   onChanged,
   secondaryAction,
   actionsClassName,
-  submitClassName,
 }: ChangePasswordFormProps) {
   const { changePassword } = useAuth();
 
@@ -165,9 +164,9 @@ export function ChangePasswordForm({
       ) : null}
 
       <div className={actionsClassName}>
-        <button className={submitClassName} disabled={isSubmitting} type="submit">
+        <Button variant="primary" disabled={isSubmitting} type="submit">
           {isSubmitting ? submittingLabel : submitLabel}
-        </button>
+        </Button>
         {secondaryAction?.(isSubmitting)}
       </div>
     </form>

@@ -17,6 +17,8 @@ import { ImportPager } from "./ImportPager";
 import { counted, importKindLabel, importStepIndex, importStepNames } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
 import "./Imports.css";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 const PAST_PAGE_SIZE = 10;
 const FINISHED = "COMMITTED,CANCELLED,EXPIRED";
@@ -99,19 +101,18 @@ function UnfinishedImports({
               <div className="ix-actions">
                 <Link
                   aria-label={`Resume ${batch.original_filename}`}
-                  className="btn-primary"
+                  className={buttonClass({ variant: "primary" })}
                   to={`/imports/${batch.id}`}
                 >
                   Resume
                 </Link>
-                <button
+                <Button
                   aria-label={`Cancel ${batch.original_filename}`}
-                  className="btn-ghost"
-                  type="button"
+                  variant="ghost"
                   onClick={() => onCancel(batch)}
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           );
@@ -135,7 +136,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               A list of students, one per row: name, date of birth, WKSA ID and rank.
             </p>
             <div className="ix-actions ix-push-down">
-              <Link className="btn-primary" to="/imports/new?kind=STUDENT_ROSTER">
+              <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
               </Link>
               <button className="ix-link-button" type="button" onClick={downloadStandardTemplate}>
@@ -152,10 +153,10 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               comments.
             </p>
             <div className="ix-actions ix-push-down">
-              <Link className="btn-primary" to="/imports/new?kind=LEGACY_GRADINGS">
+              <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=LEGACY_GRADINGS">
                 Import past gradings
               </Link>
-              {canLink ? <Link className="btn-secondary" to="/imports/history">Browse and correct records</Link> : null}
+              {canLink ? <Link className={buttonClass({ variant: "secondary" })} to="/imports/history">Browse and correct records</Link> : null}
             </div>
           </div>
           {awaitingLink ? (

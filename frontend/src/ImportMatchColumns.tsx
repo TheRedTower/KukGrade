@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { ImportCellInput } from "./ImportCellInput";
 import { useRanksQuery } from "./queries";
+import { Button } from "./Button";
 
 const PREVIEW_ROWS = 5;
 const EXTRA = "extra";
@@ -251,9 +252,9 @@ export function ImportMatchColumns({
                 </select>
               </label>
             ) : null}
-            <button className="btn-secondary" type="button" onClick={() => setTyped([...typed, field.field])}>
+            <Button variant="secondary" onClick={() => setTyped([...typed, field.field])}>
               Type each one in
-            </button>
+            </Button>
           </div>
         ))}
 
@@ -394,9 +395,9 @@ export function ImportMatchColumns({
       </section>
 
       <div className="ix-actions ix-actions-split">
-        <button className="btn-ghost" type="button" onClick={onBack}>
+        <Button variant="ghost" onClick={onBack}>
           Back to Imports
-        </button>
+        </Button>
         <div className="ix-actions">
           {save.isPending ? (
             <span className="ix-muted ix-small" role="status">
@@ -411,15 +412,14 @@ export function ImportMatchColumns({
               {blockedWhy}
             </span>
           ) : null}
-          <button
+          <Button
             aria-describedby={blockedWhy ? "ix-match-why" : undefined}
-            className="btn-primary"
+            variant="primary"
             disabled={Boolean(blockedWhy) || !saved || dirty || save.isPending || save.isError || dirtyCells.length > 0 || correct.isPending || correct.isError}
-            type="button"
             onClick={onContinue}
           >
             Continue to review all {batch.row_counts.total} rows
-          </button>
+          </Button>
         </div>
       </div>
     </>

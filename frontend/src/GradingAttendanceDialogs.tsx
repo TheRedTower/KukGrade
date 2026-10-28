@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
 import { useDialogFocus } from "./useDialogFocus";
 import "./GradingAttendance.css";
+import { Button } from "./Button";
 
 export type AttendanceCandidate = {
   id: number;
@@ -47,9 +48,9 @@ function DialogFrame({ title, eyebrow, pending, onClose, children }: DialogFrame
             <p>{eyebrow}</p>
             <h2 id="attendance-dialog-title">{title}</h2>
           </div>
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
             Close
-          </button>
+          </Button>
         </header>
         {children}
       </div>
@@ -114,17 +115,16 @@ export function NoShowDialog({
       </div>
       {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
       <div className="attendance-dialog-actions">
-        <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+        <Button variant="ghost" onClick={onClose} disabled={pending}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="btn-primary attendance-danger-button"
+        </Button>
+        <Button
+          variant="primary" className="attendance-danger-button"
           onClick={() => onConfirm(selected)}
           disabled={pending || selected.length === 0}
         >
           {pending ? "Confirming…" : "Mark selected as no-show"}
-        </button>
+        </Button>
       </div>
     </DialogFrame>
   );
@@ -201,16 +201,16 @@ export function LockedWithdrawalDialog({
         </label>
         {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
         <div className="attendance-dialog-actions">
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="btn-primary attendance-danger-button"
+            variant="primary" className="attendance-danger-button"
             disabled={pending || !reason || noteMissing}
           >
             {pending ? "Withdrawing…" : "Withdraw candidate"}
-          </button>
+          </Button>
         </div>
       </form>
     </DialogFrame>
@@ -273,12 +273,12 @@ export function MoveRegistrationDialog({
         )}
         {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
         <div className="attendance-dialog-actions">
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={pending}>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
-          </button>
-          <button type="submit" className="btn-primary" disabled={pending || !sessionId}>
+          </Button>
+          <Button type="submit" variant="primary" disabled={pending || !sessionId}>
             {pending ? "Moving…" : "Move registration"}
-          </button>
+          </Button>
         </div>
       </form>
     </DialogFrame>
@@ -312,23 +312,21 @@ export function RemoveRegistrationDialog({
       </p>
       {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
       <div className="attendance-dialog-actions">
-        <button
-          type="button"
-          className="btn-ghost"
+        <Button
+          variant="ghost"
           data-dialog-autofocus="true"
           onClick={onClose}
           disabled={pending}
         >
           Cancel
-        </button>
-        <button
-          type="button"
-          className="btn-primary attendance-danger-button"
+        </Button>
+        <Button
+          variant="primary" className="attendance-danger-button"
           onClick={onConfirm}
           disabled={pending}
         >
           {pending ? "Removing…" : "Remove registration"}
-        </button>
+        </Button>
       </div>
     </DialogFrame>
   );

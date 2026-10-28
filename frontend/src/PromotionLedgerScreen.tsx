@@ -20,6 +20,7 @@ import { RankBelt } from "./Belt";
 import { useDialogFocus } from "./useDialogFocus";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
+import { Button } from "./Button";
 
 type PromotionRowItem = {
   candidate: GradingCandidate;
@@ -260,13 +261,12 @@ export function PromotionLedgerScreen(): React.ReactElement {
           </p>
         </div>
         <div className="pl-header-actions">
-          <button
-            type="button"
-            className="btn btn-ghost pl-back-btn"
+          <Button
+            variant="ghost" className="pl-back-btn"
             onClick={() => navigate(`/gradings/${sessionId}`)}
           >
             ← Back to session
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -321,9 +321,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
           )}
         </div>
 
-        <button
-          type="button"
-          className="btn btn-primary pl-summary-cta"
+        <Button
+          variant="primary" className="pl-summary-cta"
           onClick={() => setIsBatchTrayOpen(true)}
           disabled={eligibleCohort.length === 0 || !canPromote}
           title={
@@ -336,7 +335,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         >
           <span aria-hidden="true">✓</span>
           <span>Promote Qualified Cohort ({eligibleCohort.length} Candidates)</span>
-        </button>
+        </Button>
       </section>
 
       {/* Candidates Promotion Ledger Table */}
@@ -345,9 +344,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
         {ledgerFailed ? (
           <div className="pl-loading-state" role="alert">
             <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
-            <button
-              type="button"
-              className="btn-secondary"
+            <Button
+              variant="secondary"
               onClick={() => {
                 for (const query of ledgerQueries) {
                   if (query.isError) void query.refetch();
@@ -355,7 +353,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               }}
             >
               Try again
-            </button>
+            </Button>
           </div>
         ) : isLoading ? (
           <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
@@ -480,9 +478,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
                           Promoted ✓
                         </span>
                       ) : row.isEligible ? (
-                        <button
-                          type="button"
-                          className="btn btn-secondary pl-row-promote-btn"
+                        <Button
+                          variant="secondary" className="pl-row-promote-btn"
                           onClick={() => {
                             setSinglePromoteCandidate(row);
                             setSinglePromoteNotes("");
@@ -498,7 +495,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                           <span className="pl-btn-caret" aria-hidden="true">
                             ▾
                           </span>
-                        </button>
+                        </Button>
                       ) : (
                         <span className="pl-action-disabled">—</span>
                       )}
@@ -570,9 +567,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary pl-batch-confirm-btn"
+              <Button
+                variant="primary" className="pl-batch-confirm-btn"
                 onClick={handleConfirmBulkPromote}
                 disabled={bulkPromoteMutation.isPending || !canPromote}
               >
@@ -587,7 +583,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                     <span>Confirm promotions</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </aside>
@@ -658,18 +654,16 @@ export function PromotionLedgerScreen(): React.ReactElement {
             </div>
 
             <footer className="pl-modal-footer">
-              <button
-                type="button"
-                className="btn btn-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => setSinglePromoteCandidate(null)}
                 disabled={singlePromoteMutation.isPending}
                 data-dialog-autofocus
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
+              </Button>
+              <Button
+                variant="primary"
                 onClick={handleConfirmSinglePromote}
                 disabled={singlePromoteMutation.isPending || !canPromote}
               >
@@ -681,7 +675,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 ) : (
                   `Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`
                 )}
-              </button>
+              </Button>
             </footer>
           </div>
         </div>

@@ -12,6 +12,7 @@ import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
 import { LockIcon } from "./Icons";
+import { Button } from "./Button";
 
 export function AddStudentScreen() {
   const navigate = useNavigate();
@@ -283,21 +284,20 @@ export function AddStudentScreen() {
 
         {/* Actions Row */}
         <div className="form-actions-bar">
-          <button
-            type="button"
-            className="btn-form-cancel"
+          <Button
+            variant="secondary"
             onClick={() => navigate("/students")}
             disabled={isSubmitting}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
-            className="btn-form-submit"
+            variant="primary"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Creating..." : "Create student"}
-          </button>
+          </Button>
         </div>
       </form>
     </section>

@@ -16,7 +16,7 @@ import {
   type UserRole,
 } from "./api";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
 
@@ -60,9 +60,9 @@ function AccountForm({
       }}
     >
       <div className="users-form-grid">
-        <label><span>First name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label>
-        <label><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
-        <label className="users-form-wide">
+        <label className="field"><span>First name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label>
+        <label className="field"><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
+        <label className="field users-form-wide">
           <span>Email address</span>
           <input
             required
@@ -80,14 +80,14 @@ function AccountForm({
             </span>
           )}
         </label>
-        <label>
+        <label className="field">
           <span>Role</span>
           <select value={role} disabled={isSelf} onChange={(event) => setRole(event.target.value as UserRole)}>
             <option value="instructor">Instructor</option>
             <option value="administrator">Administrator</option>
           </select>
         </label>
-        <label>
+        <label className="field">
           <span>Account status</span>
           <select value={isActive ? "active" : "inactive"} disabled={isSelf} onChange={(event) => setIsActive(event.target.value === "active")}>
             <option value="active">Active</option>
@@ -188,7 +188,7 @@ function AuthorityForm({
           </label>
         ))}
       </div>
-      <div className="user-authority-footer">
+      <div className="action-row user-authority-footer">
         <p>
           {isSelf
             ? "You cannot change your own authority."
@@ -228,41 +228,35 @@ function PasswordResetDialog({
     },
   });
   const issued = mutation.data;
-  const dialogRef = useDialogFocus<HTMLElement>({
-    isOpen: true,
-    onClose,
-    canClose: !mutation.isPending,
-  });
-
   const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
-    <div className="users-dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !mutation.isPending && !issued) onClose(); }}>
-      <section ref={dialogRef} tabIndex={-1} className="users-dialog users-password-dialog" role="dialog" aria-modal="true" aria-labelledby="reset-password-title">
-        <header>
-          <div><p>Security action</p><h2 id="reset-password-title">{issued ? "Password reset" : "Reset password"}</h2></div>
-          <button type="button" className="users-link-button" onClick={onClose} disabled={mutation.isPending}>Close</button>
-        </header>
-        {issued ? (
-          <TemporaryPasswordIssued issued={issued} onDone={onClose} />
-        ) : (
-          <form onSubmit={(event) => {
-            event.preventDefault();
-            mutation.mutate();
-          }}>
-            <p>
-              Reset the password for <strong>{user.full_name}</strong>? Their current password stops
-              working straight away, and you'll be given a temporary one to pass on.
-            </p>
-            {error && <div className="users-error" role="alert">{error.message}</div>}
-            <div className="users-dialog-actions">
-              <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-              <button data-dialog-autofocus type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</button>
-            </div>
-          </form>
-        )}
-      </section>
-    </div>
+    <Dialog
+      title={issued ? "Password reset" : "Reset password"}
+      eyebrow="Security action"
+      onClose={onClose}
+      canClose={!mutation.isPending}
+      closeOnBackdrop={!issued}
+    >
+      {issued ? (
+        <TemporaryPasswordIssued issued={issued} onDone={onClose} />
+      ) : (
+        <form className="users-password-form" onSubmit={(event) => {
+          event.preventDefault();
+          mutation.mutate();
+        }}>
+          <p>
+            Reset the password for <strong>{user.full_name}</strong>? Their current password stops
+            working straight away, and you'll be given a temporary one to pass on.
+          </p>
+          {error && <div className="users-error" role="alert">{error.message}</div>}
+          <div className="action-row users-dialog-actions">
+            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+            <button data-dialog-autofocus type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</button>
+          </div>
+        </form>
+      )}
+    </Dialog>
   );
 }
 
@@ -290,65 +284,38 @@ function DeleteUserDialog({
     },
   });
   const error = mutation.error instanceof ApiError ? mutation.error : null;
-  const dialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: true,
-    onClose,
-    canClose: !mutation.isPending,
-  });
-
   return (
-    <div
-      className="users-dialog-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !mutation.isPending) onClose();
-      }}
+    <Dialog
+      title="Delete this account"
+      eyebrow="Irreversible action"
+      onClose={onClose}
+      canClose={!mutation.isPending}
     >
-      <section
-        ref={dialogRef}
-        className="users-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-user-title"
-        tabIndex={-1}
-      >
-        <header>
-          <div><p>Irreversible action</p><h2 id="delete-user-title">Delete this account</h2></div>
-          <button
-            type="button"
-            className="users-link-button"
-            onClick={onClose}
-            disabled={mutation.isPending}
-          >
-            Close
-          </button>
-        </header>
-        <p>
-          Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
-          undone. Their grading history is kept, credited to a "Deleted user" account.
-        </p>
-        {error && <div className="users-error" role="alert">{error.message}</div>}
-        <div className="users-dialog-actions">
-          <button
-            type="button"
-            className="users-secondary-button"
-            onClick={onClose}
-            disabled={mutation.isPending}
-            data-dialog-autofocus
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="users-danger-button"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? "Deleting…" : "Delete account"}
-          </button>
-        </div>
-      </section>
-    </div>
+      <p>
+        Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
+        undone. Their grading history is kept, credited to a "Deleted user" account.
+      </p>
+      {error && <div className="users-error" role="alert">{error.message}</div>}
+      <div className="action-row users-dialog-actions">
+        <button
+          type="button"
+          className="users-secondary-button"
+          onClick={onClose}
+          disabled={mutation.isPending}
+          data-dialog-autofocus
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="users-danger-button"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? "Deleting…" : "Delete account"}
+        </button>
+      </div>
+    </Dialog>
   );
 }
 
@@ -414,7 +381,7 @@ export function UserDetailScreen(): React.ReactElement {
   return (
     <section className="page page--wide user-detail-page" aria-labelledby="user-detail-heading">
       <Link className="users-back-link" to="/users">Users <span aria-hidden="true">/</span> {managedUser.full_name}</Link>
-      <header className="user-detail-header">
+      <header className="action-row user-detail-header">
         <div>
           <h1 id="user-detail-heading">{managedUser.full_name}</h1>
           <p>{managedUser.email} <span aria-hidden="true">·</span> <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>{managedUser.is_active ? "Active" : "Inactive"}</span></p>
@@ -432,7 +399,7 @@ export function UserDetailScreen(): React.ReactElement {
 
       {notice && <div className="users-success" role="status">{notice}</div>}
 
-      <div className="user-detail-layout">
+      <div className="split">
         <main>
           <fieldset className="user-detail-fieldset" disabled={viewOnly}>
             <section className="user-detail-section">

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Dialog } from "./Dialog";
 
-function renderDialog(props: { canClose?: boolean } = {}) {
+function renderDialog(props: { canClose?: boolean; closeOnBackdrop?: boolean } = {}) {
   const onClose = vi.fn();
   render(
     <Dialog title="Sure?" eyebrow="Record #4" closeLabel="Close the question" onClose={onClose} {...props}>
@@ -35,6 +35,14 @@ describe("Dialog", () => {
     await userEvent.click(screen.getByText("Details"));
     expect(onClose).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("dialog").parentElement as HTMLElement);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a click outside from closing it where something would be lost", async () => {
+    const onClose = renderDialog({ closeOnBackdrop: false });
+    await userEvent.click(screen.getByRole("dialog").parentElement as HTMLElement);
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Escape}");
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

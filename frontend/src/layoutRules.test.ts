@@ -25,7 +25,7 @@ const RULES: Record<string, RegExp> = {
   // overflow-x, and the shorthand when it makes a box scroll.
   overflowX: /overflow(?:-x|-inline)?:\s*(?:auto|scroll)/g,
   // A fixed minimum (not 0, not a keyword), outside a query's parentheses.
-  fixedMinWidth: /(?<![-\w(])min-(?:width|inline-size):\s*(?!0(?:\.0+)?(?:px|rem|em|vw)?\s*[;}])[^;}]*\d[^;}]*/g,
+  fixedMinWidth: /(?<![-\w(])min-(?:width|inline-size):[ \t]*(?![ \t])(?!0(?:\.0+)?(?:px|rem|em|vw)?\s*[;}])[^;}]*\d[^;}]*/g,
 };
 
 function strip(css: string): string {

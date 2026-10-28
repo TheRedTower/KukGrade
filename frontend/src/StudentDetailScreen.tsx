@@ -17,6 +17,7 @@ import {
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
+import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
 import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
@@ -401,61 +402,57 @@ export function StudentDetailScreen() {
           <div className="detail-section-card">
             <h2 className="detail-section-title">Grading history</h2>
             {gradingHistoryItems.length > 0 ? (
-              <div className="table-scroll-wrapper">
-                <table className="students-data-table" aria-label="Grading history">
-                  <thead>
-                    <tr>
-                      <th scope="col">Date</th>
-                      <th scope="col">Source</th>
-                      <th scope="col">Testing for</th>
-                      <th scope="col">Outcome</th>
-                      <th scope="col">Comments</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {gradingHistoryItems.map((item) => (
-                      <tr key={`${item.source}-${item.record_id}`} className="student-table-row">
-                        <td>{formatGradingHistoryDate(item)}</td>
-                        <td>
-                          {item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
-                            <Link className="grading-history-source-badge source-historical" to={`/imports/history/${item.record_id}`}>
-                              Historical · correct
-                            </Link>
-                          ) : (
-                            <span className={`grading-history-source-badge ${item.source === "KUKGRADE" ? "source-kukgrade" : "source-historical"}`}>
-                              {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
-                            </span>
-                          )}
-                        </td>
-                        <td className="cell-rank-highlight">
-                          {item.testing_for_rank_name ||
-                            item.source_testing_for_rank_text ||
-                            "—"}
-                        </td>
-                        <td>
-                          {item.attendance_status === "DID_NOT_ATTEND" ? (
-                            <span className="outcome-badge outcome-dna">
-                              {gradingHistoryOutcomeLabel(item)}
-                            </span>
-                          ) : item.outcome === "PASS" ? (
-                            <span className="outcome-badge outcome-passed">
-                              <CheckIcon size={14} />
-                              <span>{gradingHistoryOutcomeLabel(item)}</span>
-                            </span>
-                          ) : (
-                            <span className="outcome-badge outcome-other">
-                              {gradingHistoryOutcomeLabel(item)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="grading-history-comments-cell">
-                          {item.comments || "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ResponsiveTable
+                label="Grading history"
+                rows={gradingHistoryItems}
+                rowKey={(item) => `${item.source}-${item.record_id}`}
+                columns={[
+                  { key: "date", header: "Date", primary: true, render: (item) => formatGradingHistoryDate(item) },
+                  {
+                    key: "source",
+                    header: "Source",
+                    render: (item) =>
+                      item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
+                        <Link className="grading-history-source-badge source-historical" to={`/imports/history/${item.record_id}`}>
+                          Historical · correct
+                        </Link>
+                      ) : (
+                        <span className={`grading-history-source-badge ${item.source === "KUKGRADE" ? "source-kukgrade" : "source-historical"}`}>
+                          {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
+                        </span>
+                      ),
+                  },
+                  {
+                    key: "rank",
+                    header: "Testing for",
+                    render: (item) => (
+                      <span className="cell-rank-highlight">
+                        {item.testing_for_rank_name || item.source_testing_for_rank_text || "—"}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "outcome",
+                    header: "Outcome",
+                    render: (item) =>
+                      item.attendance_status === "DID_NOT_ATTEND" ? (
+                        <span className="outcome-badge outcome-dna">{gradingHistoryOutcomeLabel(item)}</span>
+                      ) : item.outcome === "PASS" ? (
+                        <span className="outcome-badge outcome-passed">
+                          <CheckIcon size={14} />
+                          <span>{gradingHistoryOutcomeLabel(item)}</span>
+                        </span>
+                      ) : (
+                        <span className="outcome-badge outcome-other">{gradingHistoryOutcomeLabel(item)}</span>
+                      ),
+                  },
+                  {
+                    key: "comments",
+                    header: "Comments",
+                    render: (item) => <span className="grading-history-comments-cell">{item.comments || "—"}</span>,
+                  },
+                ]}
+              />
             ) : (
               <div className="detail-empty-box">
                 <p className="detail-empty-title">No grading history recorded</p>

@@ -9,6 +9,8 @@ import {
   getStudents,
 } from "./api";
 import { useRanksQuery } from "./queries";
+import { Pagination } from "./Pagination";
+import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -51,44 +53,6 @@ function UserPlusIcon() {
       <circle cx="9" cy="7" r="4" />
       <line x1="19" x2="19" y1="8" y2="14" />
       <line x1="22" x2="16" y1="11" y2="11" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="pagination-icon"
-      fill="none"
-      height="16"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="16"
-    >
-      <polyline points="15 18 9 12 15 6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="pagination-icon"
-      fill="none"
-      height="16"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-      width="16"
-    >
-      <polyline points="9 18 15 12 9 6" />
     </svg>
   );
 }
@@ -175,7 +139,7 @@ export function StudentsScreen() {
   return (
     <section aria-labelledby="students-page-heading" className="page students-view">
       {/* Header */}
-      <div className="students-header">
+      <div className="action-row students-header">
         <div className="students-header-copy">
           <h1 id="students-page-heading" className="students-title">
             Students
@@ -196,8 +160,8 @@ export function StudentsScreen() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="students-filter-bar" role="search" aria-label="Student filters">
-        <div className="search-input-wrapper">
+      <div className="filter-bar students-filter-bar" role="search" aria-label="Student filters">
+        <div className="filter-bar__full search-input-wrapper">
           <SearchIcon size={18} className="filter-icon" />
           <input
             type="text"
@@ -225,15 +189,10 @@ export function StudentsScreen() {
           )}
         </div>
 
-        <div className="filter-divider" aria-hidden="true" />
-
-        <div className="filter-select-group">
-          <label htmlFor="status-filter-select" className="filter-label">
-            Status
-          </label>
+        <div className="field">
+          <label htmlFor="status-filter-select">Status</label>
           <select
             id="status-filter-select"
-            className="filter-select"
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value as StudentStatus | "ALL");
@@ -247,15 +206,10 @@ export function StudentsScreen() {
           </select>
         </div>
 
-        <div className="filter-divider" aria-hidden="true" />
-
-        <div className="filter-select-group">
-          <label htmlFor="rank-filter-select" className="filter-label">
-            Rank
-          </label>
+        <div className="field">
+          <label htmlFor="rank-filter-select">Rank</label>
           <select
             id="rank-filter-select"
-            className="filter-select"
             value={rankFilter}
             onChange={(e) => {
               setRankFilter(e.target.value);
@@ -271,25 +225,24 @@ export function StudentsScreen() {
           </select>
         </div>
 
-        {sourceImport ? (
-          <div className="results-count-container">
-            <span className="results-count-text">Only the students one import added</span>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => {
-                const next = new URLSearchParams(searchParams);
-                next.delete("source_import");
-                setSearchParams(next, { replace: true });
-                setPage(1);
-              }}
-            >
-              Show every student
-            </button>
-          </div>
-        ) : null}
-
-        <div className="results-count-container">
+        <div className="action-row filter-bar__full">
+          {sourceImport ? (
+            <>
+              <span className="results-count-text">Only the students one import added</span>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("source_import");
+                  setSearchParams(next, { replace: true });
+                  setPage(1);
+                }}
+              >
+                Show every student
+              </button>
+            </>
+          ) : null}
           <span className="results-count-text">
             {studentsQuery.isLoading ? "Loading..." : `${totalCount} ${totalCount === 1 ? "student" : "students"}`}
           </span>
@@ -297,13 +250,13 @@ export function StudentsScreen() {
       </div>
 
       {/* Data Table / Empty State Container */}
-      <div className="students-table-card">
+      <div className="students-results">
         {studentsQuery.isLoading ? (
-          <div className="table-state-box" role="status">
+          <div className="card table-state-box" role="status">
             <p className="loading-state-text">Loading student records...</p>
           </div>
         ) : students.length === 0 ? (
-          <div className="table-state-box">
+          <div className="card table-state-box">
             {hasActiveFilters ? (
               <div className="empty-filtered-container">
                 <p className="empty-state-title">No matching students found</p>
@@ -336,135 +289,79 @@ export function StudentsScreen() {
           </div>
         ) : (
           <>
-            <div className="table-scroll-wrapper">
-              <table className="students-data-table" aria-label="Students directory">
-                <thead>
-                  <tr>
-                    <th scope="col" className="col-student">Student</th>
-                    <th scope="col" className="col-wksa-id">WKSA ID</th>
-                    <th scope="col" className="col-rank">Current rank</th>
-                    <th scope="col" className="col-status">Status</th>
-                    <th scope="col" className="col-current-grading">Current grading</th>
-                    <th scope="col" className="col-cta">
-                      <span className="visually-hidden">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((s) => (
-                    <tr key={s.id} className="student-table-row">
-                      <td className="col-student cell-student-name">
-                        <span className="student-full-name">
-                          {s.first_name} {s.last_name}
-                        </span>
-                      </td>
-                      <td className="col-wksa-id cell-wksa-id">
-                        <span className="wksa-id-pill">{s.wksa_id}</span>
-                      </td>
-                      <td className="col-rank cell-rank-name">
-                        {s.current_rank_name || s.current_rank_code}
-                      </td>
-                      <td className="col-status cell-status">
-                        {renderStatusBadge(s.status, s.status_display)}
-                      </td>
-                      {/* The registration the server says is still in
-                          progress, and how far it has got - not a guess
-                          from the student's status (audit F-29). */}
-                      <td className="col-current-grading cell-current-grading">
-                        {s.current_grading ? (
-                          <>
-                            <Link
-                              className="current-grading-link"
-                              to={`/gradings/${s.current_grading.session}`}
-                            >
-                              {s.current_grading.session_title}
-                            </Link>
-                            <span className="current-grading-stage">
-                              {s.current_grading.stage_display}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="current-grading-none">Not registered</span>
-                        )}
-                      </td>
-                      <td className="col-cta cell-cta">
-                        <button
-                          type="button"
-                          className="btn-view-student"
-                          onClick={() => navigate(`/students/${s.id}`)}
-                          aria-label={`View record for ${s.first_name} ${s.last_name}`}
-                        >
-                          <span>View student</span>
-                          <span aria-hidden="true" className="action-arrow">→</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination bar */}
-            <div className="table-pagination-bar" aria-label="Table pagination">
-              <div className="pagination-range-text">
-                Showing {Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–
-                {Math.min(page * PAGE_SIZE, totalCount)} of {totalCount} students
-              </div>
-
-              <div className="pagination-controls">
-                <button
-                  type="button"
-                  className="btn-pagination btn-pagination-nav"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  aria-label="Previous page"
-                >
-                  <ChevronLeftIcon />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                  const isCurrent = pageNum === page;
-                  const isVisible =
-                    pageNum === 1 ||
-                    pageNum === totalPages ||
-                    Math.abs(pageNum - page) <= 1;
-
-                  if (!isVisible) {
-                    if (pageNum === 2 || pageNum === totalPages - 1) {
-                      return (
-                        <span key={pageNum} className="pagination-ellipsis" aria-hidden="true">
-                          …
-                        </span>
-                      );
-                    }
-                    return null;
-                  }
-
-                  return (
+            <ResponsiveTable
+              label="Students directory"
+              rows={students}
+              rowKey={(student) => student.id}
+              columns={[
+                {
+                  key: "student",
+                  header: "Student",
+                  primary: true,
+                  render: (student) => (
+                    <span className="student-full-name">
+                      {student.first_name} {student.last_name}
+                    </span>
+                  ),
+                },
+                {
+                  key: "wksa",
+                  header: "WKSA ID",
+                  render: (student) => <span className="wksa-id-pill">{student.wksa_id}</span>,
+                },
+                {
+                  key: "rank",
+                  header: "Current rank",
+                  render: (student) => student.current_rank_name || student.current_rank_code,
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (student) => renderStatusBadge(student.status, student.status_display),
+                },
+                // The registration the server says is still in progress, and how
+                // far it has got - not a guess from the student's status (audit F-29).
+                {
+                  key: "grading",
+                  header: "Current grading",
+                  render: (student) =>
+                    student.current_grading ? (
+                      <div className="cell-current-grading">
+                        <Link className="current-grading-link" to={`/gradings/${student.current_grading.session}`}>
+                          {student.current_grading.session_title}
+                        </Link>
+                        <span className="current-grading-stage">{student.current_grading.stage_display}</span>
+                      </div>
+                    ) : (
+                      <span className="current-grading-none">Not registered</span>
+                    ),
+                },
+                {
+                  key: "view",
+                  header: "Actions",
+                  actions: "inline",
+                  render: (student) => (
                     <button
-                      key={pageNum}
                       type="button"
-                      className={`btn-pagination ${isCurrent ? "active" : ""}`}
-                      onClick={() => setPage(pageNum)}
-                      aria-current={isCurrent ? "page" : undefined}
-                      aria-label={`Page ${pageNum}`}
+                      className="btn-view-student"
+                      onClick={() => navigate(`/students/${student.id}`)}
+                      aria-label={`View record for ${student.first_name} ${student.last_name}`}
                     >
-                      {pageNum}
+                      <span>View student</span>
+                      <span aria-hidden="true" className="action-arrow">→</span>
                     </button>
-                  );
-                })}
+                  ),
+                },
+              ]}
+            />
 
-                <button
-                  type="button"
-                  className="btn-pagination btn-pagination-nav"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  aria-label="Next page"
-                >
-                  <ChevronRightIcon />
-                </button>
-              </div>
-            </div>
+            <Pagination
+              label="Table pagination"
+              page={page}
+              totalPages={totalPages}
+              onPage={setPage}
+              summary={`Showing ${Math.min((page - 1) * PAGE_SIZE + 1, totalCount)}–${Math.min(page * PAGE_SIZE, totalCount)} of ${totalCount} students`}
+            />
           </>
         )}
       </div>

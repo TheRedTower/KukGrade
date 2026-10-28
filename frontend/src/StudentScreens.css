@@ -3,12 +3,7 @@
    ========================================================================== */
 
 .students-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1.5rem;
   margin-bottom: 2rem;
-  flex-wrap: wrap;
 }
 
 .students-header-copy {
@@ -72,30 +67,28 @@
 /* Filter Bar */
 
 .students-filter-bar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 6px rgb(21 19 15 / 2%);
-  min-height: 52px;
-  flex-wrap: wrap;
+}
+
+.students-results {
+  display: grid;
+  gap: var(--space-4);
 }
 
 .search-input-wrapper {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  flex: 1;
-  min-width: 14rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-surface-sunken);
   color: var(--color-text-muted);
 }
 
 .student-search-input {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   font-size: 0.92rem;
@@ -131,107 +124,10 @@
   color: var(--color-text);
 }
 
-.filter-divider {
-  width: 1px;
-  height: 28px;
-  background: var(--color-border);
-}
-
-@media (max-width: 48rem) {
-  .filter-divider {
-    display: none;
-  }
-}
-
-.filter-select-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.filter-select {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 0.88rem;
-  font-weight: 500;
-  padding: 0.35rem 0.75rem;
-  border-radius: 6px;
-  outline: none;
-  cursor: pointer;
-}
-
-.filter-select:focus-visible {
-  border-color: var(--color-accent);
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
-.results-count-container {
-  margin-left: auto;
-}
-
 .results-count-text {
   font-size: 0.88rem;
   font-weight: 600;
   color: var(--color-text-muted);
-}
-
-/* Table Card */
-
-.students-table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgb(21 19 15 / 3%);
-  overflow: hidden;
-}
-
-.table-scroll-wrapper {
-  /* Positioned, so the visually hidden "Actions" heading is clipped with the
-     rest of the table instead of widening the page on a phone. */
-  position: relative;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.students-data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.students-data-table th {
-  padding: 0.85rem 1.25rem;
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-}
-
-.students-data-table td {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 0.92rem;
-  vertical-align: middle;
-}
-
-.student-table-row {
-  transition: background 120ms ease;
-}
-
-.student-table-row:hover {
-  background: var(--color-surface-sunken);
 }
 
 .student-full-name {
@@ -245,11 +141,6 @@
   font-weight: 600;
   color: var(--color-text-muted);
   letter-spacing: 0.02em;
-}
-
-.cell-rank-name {
-  color: var(--color-text);
-  font-weight: 500;
 }
 
 .cell-current-grading {
@@ -334,58 +225,6 @@
 
 .btn-view-student:hover .action-arrow {
   transform: translateX(2px);
-}
-
-/* Table Pagination */
-
-.table-pagination-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.9rem 1.25rem;
-  background: var(--color-surface);
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.pagination-range-text {
-  font-size: 0.88rem;
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.btn-pagination {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 36px;
-  padding: 0 0.5rem;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  border-radius: 6px;
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.btn-pagination:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.pagination-ellipsis {
-  padding: 0 0.25rem;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
 }
 
 /* Empty States */
@@ -926,7 +765,6 @@
 }
 
 .grading-history-comments-cell {
-  max-width: 20rem;
   white-space: pre-wrap;
   color: var(--color-text-muted);
   font-size: 0.88rem;
@@ -1029,6 +867,7 @@
 
 .readiness-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
@@ -1055,7 +894,6 @@
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 700;
-  white-space: nowrap;
 }
 
 .readiness-eligible {

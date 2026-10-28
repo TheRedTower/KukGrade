@@ -20,99 +20,13 @@
 }
 
 .syl-filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  align-items: flex-end;
   margin-bottom: 1.5rem;
-  padding: 1rem 1.25rem;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
 }
 
-.syl-filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 180px;
-  flex: 1;
-}
+/* Rank buttons, in a ScrollRail */
 
-.syl-filter-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-
-.syl-select {
-  padding: 0.55rem 0.85rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-text-muted);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  height: 42px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.syl-select:focus {
-  border-color: var(--color-gold-strong, #b45309);
-  box-shadow: 0 0 0 3px var(--color-focus-ring, rgba(180, 83, 9, 0.2));
-  outline: none;
-}
-
-/* Belt Rail Track */
-
-.syl-belt-rail-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.syl-belt-rail {
   margin-bottom: 2rem;
-  position: relative;
-}
-
-.syl-nav-arrow {
-  width: 36px;
-  height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.syl-nav-arrow:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-text-muted);
-}
-
-.syl-belt-track {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  scroll-behavior: smooth;
-  padding: 4px 2px;
-  flex: 1;
-}
-
-.syl-belt-track::-webkit-scrollbar {
-  display: none;
 }
 
 .syl-belt-btn {
@@ -126,11 +40,9 @@
   color: var(--color-text);
   font-size: 0.875rem;
   font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
   min-height: 42px;
   transition: all 0.15s ease;
-  flex-shrink: 0;
 }
 
 .syl-belt-btn:hover {
@@ -276,45 +188,6 @@
 
 /* Syllabus Requirements Table */
 
-.syl-table-wrapper {
-  overflow-x: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-}
-
-.syl-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 0.925rem;
-}
-
-.syl-table th {
-  padding: 0.85rem 1.25rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.syl-table td {
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: middle;
-}
-
-.syl-table tr:last-child td {
-  border-bottom: none;
-}
-
-/* A table cell like the rest of the row, so its bottom line runs at the
-   row's height: made a flex box, it shrank to its own content and its line
-   sat higher than its neighbours' wherever the row was taller. The name,
-   Korean name and note stack as blocks. */
 .syl-cell-curriculum > * + * {
   margin-top: 0.15rem;
 }
@@ -337,7 +210,7 @@
   margin-top: 0.2rem;
 }
 
-.syl-cell-range {
+.syl-range-value {
   font-weight: 600;
   color: var(--color-text);
   font-variant-numeric: tabular-nums;
@@ -468,36 +341,10 @@
   border-color: #332d24;
 }
 
-[data-theme="dark"] .syl-table th {
-  background: #1c1915;
-}
-
-[data-theme="dark"] .syl-filter-bar {
-  background: #221e18;
-  border-color: #332d24;
-}
-
-[data-theme="dark"] .syl-select {
-  background: #181512;
-  border-color: #38332d;
-  color: #f3efe6;
-}
-
 [data-theme="dark"] .syl-belt-btn {
   background: #221e18;
   border-color: #332d24;
   color: #f3efe6;
-}
-
-[data-theme="dark"] .syl-nav-arrow {
-  background: #221e18;
-  border-color: #332d24;
-  color: #f3efe6;
-}
-
-[data-theme="dark"] .syl-table-wrapper {
-  background: #221e18;
-  border-color: #332d24;
 }
 
 [data-theme="dark"] .syl-loading-state,

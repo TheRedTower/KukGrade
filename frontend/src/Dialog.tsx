@@ -13,6 +13,8 @@ interface DialogProps {
   closeButton?: boolean;
   /** False while something is being saved: Escape, the backdrop and Close do nothing. */
   canClose?: boolean;
+  /** False where a stray click outside would lose something, such as a password shown once. */
+  closeOnBackdrop?: boolean;
   children: ReactNode;
 }
 
@@ -22,7 +24,7 @@ interface DialogProps {
  * is open. Focus starts on the first control, or on a child marked data-dialog-autofocus (a destructive
  * confirmation marks Cancel); it stays inside, and Escape or a click outside closes it.
  */
-export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose = true, closeButton = true, children }: DialogProps) {
+export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose = true, closeOnBackdrop = true, closeButton = true, children }: DialogProps) {
   const titleId = useId();
   const ref = useDialogFocus<HTMLElement>({ isOpen: true, onClose, canClose });
   return (
@@ -30,7 +32,7 @@ export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose
       className="dialog-backdrop"
       role="presentation"
       onMouseDown={(event) => {
-        if (canClose && event.target === event.currentTarget) onClose();
+        if (canClose && closeOnBackdrop && event.target === event.currentTarget) onClose();
       }}
     >
       <section

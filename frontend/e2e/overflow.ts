@@ -59,6 +59,12 @@ export async function findOverflow(page: Page): Promise<string[]> {
       .filter(({ el }) => !found.some((other) => other.el !== el && other.el.contains(el)))
       .map(({ el, why }) => `${why}: ${label(el)}`)
       .slice(0, 12);
-    return pageScrolls ? [pageScrolls, ...culprits] : culprits;
+    if (!pageScrolls) return culprits;
+    // The page is wider than the screen: name the innermost boxes that stick out.
+    const sticking = [...document.body.querySelectorAll("*")].filter(
+      (el) => !skipped(el) && el.getBoundingClientRect().right > screenWidth + 1 && el.getBoundingClientRect().width > 0,
+    );
+    const innermost = sticking.filter((el) => !sticking.some((other) => other !== el && el.contains(other)));
+    return [pageScrolls, ...innermost.slice(0, 5).map((el) => `sticks out: ${label(el)}`), ...culprits];
   });
 }

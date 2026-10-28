@@ -14,6 +14,7 @@ import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { CheckIcon, LockIcon, SearchIcon } from "./Icons";
 import { Dialog } from "./Dialog";
+import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useDebouncedValue } from "./useDebouncedValue";
 
@@ -336,31 +337,17 @@ export function GradingSessionsScreen() {
 
           {/* ── Pagination */}
           {sessions.length > 0 && (
-            <div className="gs-pagination-bar">
-              <p className="gs-pagination-info">
-                {totalPages > 1
+            <Pagination
+              label="Grading sessions pagination"
+              page={page}
+              totalPages={totalPages}
+              onPage={setPage}
+              summary={
+                totalPages > 1
                   ? `Showing ${showingFrom}–${showingTo} of ${totalCount} sessions`
-                  : `Showing ${sessions.length} of ${totalCount} sessions`}
-              </p>
-              {totalPages > 1 && (
-                <div aria-label="Grading sessions pagination" className="gs-pagination-controls" role="navigation">
-                  <button aria-label="Previous page" className="gs-page-btn" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))} type="button">‹</button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                    <button
-                      aria-current={p === page ? "page" : undefined}
-                      aria-label={`Page ${p}`}
-                      className={`gs-page-btn${p === page ? " gs-page-active" : ""}`}
-                      key={p}
-                      onClick={() => setPage(p)}
-                      type="button"
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button aria-label="Next page" className="gs-page-btn" disabled={page === totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} type="button">›</button>
-                </div>
-              )}
-            </div>
+                  : `Showing ${sessions.length} of ${totalCount} sessions`
+              }
+            />
           )}
         </>
       )}

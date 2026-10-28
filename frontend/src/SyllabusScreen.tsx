@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   type AgeBandEnum,
@@ -8,6 +8,8 @@ import {
 } from "./api";
 import { BeltSwatch } from "./Belt";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
+import { ResponsiveTable } from "./ResponsiveTable";
+import { ScrollRail } from "./ScrollRail";
 import "./Syllabus.css";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
@@ -55,61 +57,50 @@ function SyllabusLedgerTable({
   rows: EffectiveSyllabusRequirement[];
 }) {
   return (
-    // Focusable, so a keyboard can scroll it sideways when it is wider than the screen.
-    <div className="syl-table-wrapper" tabIndex={0} role="region" aria-label={`${title} for this rank`}>
-      <table className="syl-table" aria-label={`${title} for this rank`}>
-        <thead>
-          <tr>
-            <th scope="col" style={{ width: "40%" }}>
-              Curriculum
-            </th>
-            <th scope="col" style={{ width: "15%" }}>
-              Range
-            </th>
-            <th scope="col" style={{ width: "30%" }}>
-              Since
-            </th>
-            <th scope="col" style={{ width: "15%", textAlign: "right" }}>
-              Requirement
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const { isNew, text: provenanceText } = provenance(row);
+    <ResponsiveTable
+      label={`${title} for this rank`}
+      rows={rows}
+      rowKey={(row) => row.item_code}
+      columns={[
+        {
+          key: "curriculum",
+          header: "Curriculum",
+          primary: true,
+          render: (row) => {
+            const { isNew } = provenance(row);
             const rangeDisplay = row.display_range || row.notation || "—";
-            const noteText =
-              !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
-
+            const noteText = !row.notation && row.notes && row.notes !== rangeDisplay ? row.notes : "";
             return (
-              <tr key={row.item_code}>
-                <td className="syl-cell-curriculum">
-                  <div className="syl-item-name">
-                    {row.item_name}
-                    {isNew && <span className="syl-new-badge">NEW</span>}
-                  </div>
-                  {row.item_korean_name && (
-                    <div className="syl-item-korean">{row.item_korean_name}</div>
-                  )}
-                  {noteText && <div className="syl-item-notes">{noteText}</div>}
-                </td>
-                <td className="syl-cell-range">
-                  <span className="syl-range-value">{rangeDisplay}</span>
-                </td>
-                <td className="syl-cell-provenance">{provenanceText}</td>
-                <td className="syl-cell-requirement" style={{ textAlign: "right" }}>
-                  {row.required ? (
-                    <span className="syl-badge-required">Required</span>
-                  ) : (
-                    <span className="syl-badge-optional">Optional</span>
-                  )}
-                </td>
-              </tr>
+              <div className="syl-cell-curriculum">
+                <div className="syl-item-name">
+                  {row.item_name}
+                  {isNew && <span className="syl-new-badge">NEW</span>}
+                </div>
+                {row.item_korean_name && <div className="syl-item-korean">{row.item_korean_name}</div>}
+                {noteText && <div className="syl-item-notes">{noteText}</div>}
+              </div>
             );
-          })}
-        </tbody>
-      </table>
-    </div>
+          },
+        },
+        {
+          key: "range",
+          header: "Range",
+          render: (row) => <span className="syl-range-value">{row.display_range || row.notation || "—"}</span>,
+        },
+        { key: "since", header: "Since", render: (row) => <span className="syl-cell-provenance">{provenance(row).text}</span> },
+        {
+          key: "requirement",
+          header: "Requirement",
+          align: "end",
+          render: (row) =>
+            row.required ? (
+              <span className="syl-badge-required">Required</span>
+            ) : (
+              <span className="syl-badge-optional">Optional</span>
+            ),
+        },
+      ]}
+    />
   );
 }
 
@@ -160,8 +151,6 @@ export function SyllabusScreen() {
       : "Failed to load the syllabus."
     : null;
 
-  const beltTrackRef = useRef<HTMLDivElement>(null);
-
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
   function handleProgrammeChange(newProgramme: Programme) {
@@ -173,16 +162,6 @@ export function SyllabusScreen() {
 
   function handleAgeBandChange(newAgeBand: AgeBandEnum) {
     setChosenAgeBand(newAgeBand);
-  }
-
-  // Scroll belt track
-  function scrollBeltTrack(direction: "left" | "right") {
-    if (!beltTrackRef.current) return;
-    const scrollAmount = 240;
-    beltTrackRef.current.scrollBy({
-      left: direction === "left" ? -scrollAmount : scrollAmount,
-      behavior: "smooth",
-    });
   }
 
   const selectedRank = ranks.find((r) => r.code === selectedRankCode) ?? null;
@@ -212,14 +191,11 @@ export function SyllabusScreen() {
       </div>
 
       {/* Top Filter Controls */}
-      <div className="syl-filter-bar" aria-label="Syllabus filters">
-        <div className="syl-filter-group">
-          <label htmlFor="syl-curriculum-select" className="syl-filter-label">
-            Curriculum
-          </label>
+      <div className="filter-bar syl-filter-bar" aria-label="Syllabus filters">
+        <div className="field">
+          <label htmlFor="syl-curriculum-select">Curriculum</label>
           <select
             id="syl-curriculum-select"
-            className="syl-select"
             value={programme}
             onChange={(e) => handleProgrammeChange(e.target.value as Programme)}
           >
@@ -231,13 +207,10 @@ export function SyllabusScreen() {
           </select>
         </div>
 
-        <div className="syl-filter-group">
-          <label htmlFor="syl-age-select" className="syl-filter-label">
-            Age group
-          </label>
+        <div className="field">
+          <label htmlFor="syl-age-select">Age group</label>
           <select
             id="syl-age-select"
-            className="syl-select"
             value={selectedAgeBand ?? ""}
             onChange={(e) => handleAgeBandChange(e.target.value as AgeBandEnum)}
           >
@@ -249,13 +222,10 @@ export function SyllabusScreen() {
           </select>
         </div>
 
-        <div className="syl-filter-group">
-          <label htmlFor="syl-rank-select" className="syl-filter-label">
-            Testing for
-          </label>
+        <div className="field">
+          <label htmlFor="syl-rank-select">Testing for</label>
           <select
             id="syl-rank-select"
-            className="syl-select"
             value={selectedRankCode}
             onChange={(e) => setChosenRankCode(e.target.value)}
             disabled={ranksQuery.isLoading || ranks.length === 0}
@@ -269,51 +239,25 @@ export function SyllabusScreen() {
         </div>
       </div>
 
-      {/* Horizontal Belt Rail */}
-      <div className="syl-belt-rail-wrapper">
-        <button
-          type="button"
-          className="syl-nav-arrow syl-nav-arrow-left"
-          onClick={() => scrollBeltTrack("left")}
-          aria-label="Scroll ranks left"
-        >
-          ‹
-        </button>
-
-        <div
-          ref={beltTrackRef}
-          className="syl-belt-track"
-          role="region"
-          aria-label="Ranks"
-          tabIndex={0}
-        >
-          {ranks.map((rank) => {
-            const isSelected = rank.code === selectedRankCode;
-            return (
-              <button
-                key={rank.code}
-                type="button"
-                className={`syl-belt-btn ${isSelected ? "syl-belt-btn-active" : ""}`}
-                onClick={() => setChosenRankCode(rank.code)}
-                aria-pressed={isSelected}
-                title={`Select ${rank.name}`}
-              >
-                <BeltSwatch rank={rank} />
-                <span className="syl-belt-label">{rank.name}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          className="syl-nav-arrow syl-nav-arrow-right"
-          onClick={() => scrollBeltTrack("right")}
-          aria-label="Scroll ranks right"
-        >
-          ›
-        </button>
-      </div>
+      {/* The ranks: a page at a time, so every one is shown whole. */}
+      <ScrollRail label="Ranks" watch={selectedRankCode} className="syl-belt-rail">
+        {ranks.map((rank) => {
+          const isSelected = rank.code === selectedRankCode;
+          return (
+            <button
+              key={rank.code}
+              type="button"
+              className={`syl-belt-btn ${isSelected ? "syl-belt-btn-active" : ""}`}
+              onClick={() => setChosenRankCode(rank.code)}
+              aria-pressed={isSelected}
+              title={`Select ${rank.name}`}
+            >
+              <BeltSwatch rank={rank} />
+              <span className="syl-belt-label">{rank.name}</span>
+            </button>
+          );
+        })}
+      </ScrollRail>
 
       {/* Main Rank Chapter View */}
       <div className="syl-rank-content">

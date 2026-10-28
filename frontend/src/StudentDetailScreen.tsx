@@ -242,7 +242,7 @@ export function StudentDetailScreen() {
 
   if (studentQuery.isLoading) {
     return (
-      <section aria-labelledby="student-loading-title" className="student-detail-view">
+      <section aria-labelledby="student-loading-title" className="page student-detail-view">
         <div className="table-state-box" role="status">
           <p id="student-loading-title" className="loading-state-text">
             Loading student record...
@@ -254,7 +254,7 @@ export function StudentDetailScreen() {
 
   if (studentQuery.isError || !student || !student.id) {
     return (
-      <section aria-labelledby="student-error-title" className="student-detail-view">
+      <section aria-labelledby="student-error-title" className="page student-detail-view">
         <div className="table-state-box">
           <h2 id="student-error-title" className="empty-state-title">
             Student record not found
@@ -280,7 +280,7 @@ export function StudentDetailScreen() {
   const statusDisplay = student.status_display || statusStr;
 
   return (
-    <section aria-labelledby="student-heading" className="student-detail-view">
+    <section aria-labelledby="student-heading" className="page student-detail-view">
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb navigation" className="form-breadcrumbs">
         <button

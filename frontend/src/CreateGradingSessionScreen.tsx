@@ -152,7 +152,7 @@ export function CreateGradingSessionScreen() {
   }
 
   return (
-    <section aria-labelledby="create-session-heading" className="cgs-page">
+    <section aria-labelledby="create-session-heading" className="page cgs-page">
       {/* ── Breadcrumbs */}
       <nav aria-label="Breadcrumb navigation" className="cgs-breadcrumbs">
         <button

@@ -202,7 +202,7 @@ export function SyllabusScreen() {
   const hasNoSyllabus = requirementsQuery.isSuccess && requirements.length === 0;
 
   return (
-    <section aria-labelledby="syllabus-heading" className="ledger-section syl-container">
+    <section aria-labelledby="syllabus-heading" className="page syl-container">
       {/* Header */}
       <div className="section-header syl-header">
         <div>

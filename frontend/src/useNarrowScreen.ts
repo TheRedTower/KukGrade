@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { BREAKPOINTS_REM, maxWidthQuery } from "./layout";
 
-const QUERY = "(max-width: 56rem)";
+const QUERY = maxWidthQuery(BREAKPOINTS_REM.wide);
 
 /** Whether the screen is phone-sized, where the sidebar becomes a menu. */
 export function useNarrowScreen(): boolean {

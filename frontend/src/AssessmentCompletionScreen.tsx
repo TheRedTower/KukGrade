@@ -147,7 +147,7 @@ export function AssessmentCompletionScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-loading">
+      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-loading">
         <div className="caw-loading-state" role="status">
           <span className="status-dot status-dot-pulse" aria-hidden="true" />
           <p>Loading completion review...</p>
@@ -158,7 +158,7 @@ export function AssessmentCompletionScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-load-error">
+      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-load-error">
         <div className="caw-error-banner" role="alert">
           <p>
             The assessment summary could not be loaded, so the record cannot be reviewed or
@@ -174,7 +174,7 @@ export function AssessmentCompletionScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-not-found">
+      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
           <Link to={`/gradings/${sessionId}`} className="btn-secondary">
@@ -192,7 +192,7 @@ export function AssessmentCompletionScreen() {
   // this state explains itself rather than showing an empty proof.
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
-      <section aria-label="Assessment completion review" className="caw-page" data-testid="caw-review-unavailable">
+      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-unavailable">
         <div className="caw-error-banner" role="alert">
           <p>
             {!assessment
@@ -231,7 +231,7 @@ export function AssessmentCompletionScreen() {
   const canSeal = hasProofread && !completeAssessmentMutation.isPending;
 
   return (
-    <section aria-labelledby="acp-title" className="acp-page" data-testid="caw-review-workspace">
+    <section aria-labelledby="acp-title" className="page page--wide acp-page" data-testid="caw-review-workspace">
       <header className="acp-topbar">
         <Link to={scoringPath} className="acp-back" data-testid="acp-back-to-scoring">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">

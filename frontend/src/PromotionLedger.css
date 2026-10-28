@@ -3,9 +3,8 @@
    ───────────────────────────────────────────────────────────────────────────── */
 
 .pl-container {
-  max-width: 1240px;
-  margin: 0 auto;
-  padding: 28px 32px 160px;
+  /* Room beneath for the batch tray that docks to the bottom of the screen. */
+  padding-bottom: 10rem;
 }
 
 .pl-breadcrumb {

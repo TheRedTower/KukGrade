@@ -218,7 +218,7 @@ export function CandidateAssessmentScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-loading">
+      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-loading">
         <div className="caw-loading-state" role="status">
           <span className="status-dot status-dot-pulse" aria-hidden="true" />
           <p>Loading the assessment…</p>
@@ -229,7 +229,7 @@ export function CandidateAssessmentScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-load-error">
+      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-load-error">
         <div className="caw-error-banner" role="alert">
           <p>
             The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
@@ -244,7 +244,7 @@ export function CandidateAssessmentScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-not-found">
         <div className="caw-error-banner" role="alert">
           <p>Candidate or grading session not found.</p>
           <Link to={`/gradings/${sessionId}`} className="btn-secondary">
@@ -275,7 +275,7 @@ export function CandidateAssessmentScreen() {
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
 
   return (
-    <section aria-labelledby="caw-title" className="caw-run" data-testid="caw-workspace">
+    <section aria-labelledby="caw-title" className="page page--wide caw-run" data-testid="caw-workspace">
       {/* One line of chrome, not four. */}
       <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
         <Link to="/gradings">Gradings</Link>

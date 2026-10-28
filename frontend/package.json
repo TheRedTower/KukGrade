@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "generate:types": "openapi-typescript ../backend/schema.yml -o src/api/schema.ts --default-non-nullable false"
+    "generate:types": "openapi-typescript ../backend/schema.yml -o src/api/schema.ts --default-non-nullable false",
+    "test:widths": "playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.104.5",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",

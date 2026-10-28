@@ -229,7 +229,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
 
   return (
-    <section aria-labelledby="pl-title" className="pl-container" data-testid="promotion-ledger-screen">
+    <section aria-labelledby="pl-title" className="page pl-container" data-testid="promotion-ledger-screen">
       {/* Breadcrumb & Navigation */}
       <nav className="pl-breadcrumb" aria-label="Breadcrumb">
         <Link to="/gradings" className="pl-breadcrumb-link">

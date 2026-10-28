@@ -167,7 +167,7 @@ export function LinkRecordsScreen() {
   const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
 
   return (
-    <section aria-labelledby="ix-link-title" className="ix-page ix-page-wide">
+    <section aria-labelledby="ix-link-title" className="page page--wide ix-page">
       <div className="ix-header">
         <div className="ix-header-text">
           <Link className="ix-back" to="/imports">

@@ -1,11 +1,3 @@
-.users-page,
-.user-detail-page {
-  width: min(100%, 91rem);
-  min-width: 0;
-  max-width: 100%;
-  margin: 0 auto;
-}
-
 .users-page-header,
 .user-detail-header {
   display: flex;

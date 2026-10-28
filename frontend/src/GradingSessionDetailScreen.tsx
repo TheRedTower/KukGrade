@@ -544,7 +544,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // Loading & Error states
   if (isNaN(sessionId)) {
     return (
-      <section aria-labelledby="gsd-invalid-id-heading" className="gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-invalid-id-heading" className="page gsd-page" data-testid="gsd-page">
         <div className="gsd-error-state">
           <h2 id="gsd-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the sessions list.</p>
@@ -556,7 +556,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   if (sessionQuery.isLoading) {
     return (
-      <section aria-label="Grading session" className="gsd-page" data-testid="gsd-page">
+      <section aria-label="Grading session" className="page gsd-page" data-testid="gsd-page">
         <div className="gsd-loading-state" role="status">
           <div className="gsd-spinner" aria-hidden="true" />
           <p>Loading grading session...</p>
@@ -567,7 +567,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   if (sessionQuery.isError || !session) {
     return (
-      <section aria-labelledby="gsd-error-heading" className="gsd-page" data-testid="gsd-page">
+      <section aria-labelledby="gsd-error-heading" className="page gsd-page" data-testid="gsd-page">
         <div className="gsd-error-state">
           <h2 id="gsd-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
@@ -659,7 +659,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   };
 
   return (
-    <section aria-labelledby="gsd-title" className="gsd-page" data-testid="gsd-page">
+    <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
       {/* ── Breadcrumbs ─────────────────────────────────────────────────── */}
       <nav className="gsd-breadcrumbs" aria-label="Breadcrumbs">
         <Link to="/gradings" className="gsd-breadcrumb-link">Gradings</Link>

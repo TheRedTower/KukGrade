@@ -300,7 +300,7 @@ export function ImportStartScreen() {
   const nextName = kind === "STUDENT_ROSTER" ? "Continue to match columns" : "Continue to match ranks";
 
   return (
-    <section aria-labelledby="ix-start-title" className={`ix-page${loaded ? " ix-page-narrow" : ""}`}>
+    <section aria-labelledby="ix-start-title" className={`page${loaded ? " page--narrow" : ""} ix-page`}>
       <div>
         <Link className="ix-back" to="/imports">
           ‹ Imports

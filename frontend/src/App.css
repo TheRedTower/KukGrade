@@ -529,15 +529,11 @@ h2 {
 .workspace {
   flex: 1;
   min-width: 0;
-  padding: 2rem clamp(1rem, 3vw, 2.5rem);
+  padding: 2rem var(--page-gutter);
 }
 
 .workspace-alert {
-  padding: 1rem clamp(1rem, 3vw, 2.5rem) 0;
-}
-
-.ledger-section {
-  max-width: 72rem;
+  padding: 1rem var(--page-gutter) 0;
 }
 
 

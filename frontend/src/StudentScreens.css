@@ -2,12 +2,6 @@
    Students Registry View
    ========================================================================== */
 
-.students-view {
-  max-width: 78rem;
-  margin: 0 auto;
-  padding-bottom: 3.5rem;
-}
-
 .students-header {
   display: flex;
   align-items: center;
@@ -462,12 +456,6 @@
    Add Student Screen
    ========================================================================== */
 
-.add-student-view {
-  max-width: 58rem;
-  margin: 0 auto;
-  padding-bottom: 4rem;
-}
-
 /* Breadcrumb navigation */
 
 .form-breadcrumbs {
@@ -729,12 +717,6 @@
 /* ==========================================================================
    Student Detail & History Screen
    ========================================================================== */
-
-.student-detail-view {
-  max-width: 78rem;
-  margin: 0 auto;
-  padding-bottom: 4rem;
-}
 
 /* Detail Header */
 

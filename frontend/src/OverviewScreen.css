@@ -2,11 +2,6 @@
    Operational Ledger (Overview Screen)
    ========================================================================== */
 
-.overview-container {
-  max-width: 76rem;
-  margin: 0 auto;
-}
-
 .overview-header {
   display: flex;
   justify-content: space-between;

@@ -25,6 +25,8 @@ build/
 .vite/
 
 # Tests and coverage
+frontend/test-results/
+frontend/playwright-report/
 .coverage
 coverage/
 htmlcov/

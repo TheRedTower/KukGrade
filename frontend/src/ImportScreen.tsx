@@ -41,7 +41,7 @@ export function ImportScreen() {
 
   if (!Number.isInteger(batchId) || batchId <= 0 || (batch.error instanceof ApiError && batch.error.status === 404)) {
     return (
-      <section className="ix-page ix-page-narrow">
+      <section className="page page--narrow ix-page">
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>
@@ -70,7 +70,7 @@ export function ImportScreen() {
 
   if (loaded.status !== "UPLOADED") {
     return (
-      <section aria-labelledby="ix-closed-title" className="ix-page ix-page-narrow">
+      <section aria-labelledby="ix-closed-title" className="page page--narrow ix-page">
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>
@@ -98,7 +98,7 @@ export function ImportScreen() {
   const current = matching ? 1 : sorted ? 3 : 2;
 
   return (
-    <section aria-labelledby="ix-step-title" className="ix-page">
+    <section aria-labelledby="ix-step-title" className="page ix-page">
       <div>
         <Link className="ix-back" to="/imports">
           ‹ Imports

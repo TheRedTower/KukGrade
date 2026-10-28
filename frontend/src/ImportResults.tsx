@@ -529,7 +529,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
   const unresolvedRanks = (summary.unresolved_current_rank ?? 0) + (summary.unresolved_testing_for_rank ?? 0);
 
   return (
-    <section aria-labelledby="ix-results-title" className="ix-page">
+    <section aria-labelledby="ix-results-title" className="page ix-page">
       <div>
         <Link className="ix-back" to="/imports">
           ‹ Imports

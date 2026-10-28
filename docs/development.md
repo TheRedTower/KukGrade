@@ -78,6 +78,14 @@ docker build --target production -t kukgrade:ci .
 .github/scripts/image-smoke.sh kukgrade:ci   # starts it as deployed, signs in, stops it cleanly
 ```
 
+**Width check** (the demo image running on port 6943; see `frontend/e2e/README.md`):
+
+```sh
+cd frontend
+npx playwright install chromium     # once
+npm run test:widths                 # every screen at nine widths, 320px to 1280px
+```
+
 The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
 serializers and the committed frontend types match the schema.
 
@@ -93,6 +101,15 @@ serializers and the committed frontend types match the schema.
   `satisfies <GeneratedType>`, so a contract change breaks the test instead of hiding.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
+- **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its
+  root class `page` (with `page--narrow`, `page--reading` or `page--wide`) and writes no
+  width, gutter, max-width or breakpoint of its own; `layoutRules.test.ts` fails if a
+  stylesheet adds a width query, `nowrap`, sideways scroll or fixed `min-width`. The
+  legacy ones are counted in `layoutBaseline.json`, which only ever shrinks. Breakpoints
+  (`compact` 40rem, `wide` 56rem) are in `layout.ts` and must match the CSS. If a screen
+  does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
+  `e2e/widthDebt.json` lists screens that still do not fit: delete a screen from it when
+  you fix it.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

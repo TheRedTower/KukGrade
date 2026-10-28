@@ -172,7 +172,7 @@
   font-weight: 700;
   font-size: 0.95rem;
   border-radius: 8px;
-  border: 1px solid var(--btn-primary-border, transparent);
+  border: 1px solid var(--btn-primary-border);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   box-shadow: var(--btn-primary-shadow);
@@ -1026,7 +1026,7 @@
 
 .gsd-search-input:focus {
   outline: none;
-  border-color: var(--btn-primary-bg, #d97706);
+  border-color: var(--btn-primary-bg);
   box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
@@ -1047,7 +1047,7 @@
 
 .gsd-filter-select:focus {
   outline: none;
-  border-color: var(--btn-primary-bg, #d97706);
+  border-color: var(--btn-primary-bg);
   box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
@@ -1318,7 +1318,7 @@
 
 .gsd-notes-textarea:focus {
   outline: none;
-  border-color: var(--btn-primary-bg, #d97706);
+  border-color: var(--btn-primary-bg);
   box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 

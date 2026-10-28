@@ -118,6 +118,18 @@ serializers and the committed frontend types match the schema.
   the table when there are no rows.
   `e2e/widthDebt.json` lists screens that still do not fit: delete a screen from it when
   you fix it.
+- **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
+  or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
+  `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
+  dark-mode patches, `!important`, type, radius and shadow literals, z-index) and fails if
+  the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`
+  fallback, a token that is used but not defined (or defined but never used), a design token
+  defined outside those two files, and a class used in the code that no stylesheet defines
+  (`classBaseline.json` lists the legacy ones). After converting a screen, lower the lists with
+  `UPDATE_TOKEN_BASELINE=1 npx vitest run src/tokenRules.test.ts`; the command refuses to
+  raise anything. Before adding a style, look for the shared piece that already does it; if
+  there is none and a second screen will want it, add it to `layout.css` or `theme.css`
+  once, not to the screen.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

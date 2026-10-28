@@ -252,7 +252,7 @@
 }
 
 .st-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.9rem;
 }
 
@@ -320,7 +320,7 @@
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface-sunken);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   white-space: pre-wrap;
 }

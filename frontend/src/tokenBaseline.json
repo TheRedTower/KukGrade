@@ -1,0 +1,155 @@
+{
+  "About.css": {
+    "fontSize": 20,
+    "fontWeight": 15,
+    "radius": 12,
+    "shadow": 1,
+    "outlineNone": 1
+  },
+  "App.css": {
+    "rawColour": 48,
+    "important": 12,
+    "fontSize": 33,
+    "fontWeight": 23,
+    "radius": 22,
+    "shadow": 4,
+    "outlineNone": 1,
+    "darkOverride": 11
+  },
+  "AuditScreen.css": {
+    "fontSize": 8,
+    "fontWeight": 4,
+    "radius": 2
+  },
+  "Belt.css": {
+    "radius": 1
+  },
+  "BuildGradingCohort.css": {
+    "rawColour": 23,
+    "important": 16,
+    "fontSize": 52,
+    "fontWeight": 27,
+    "radius": 15,
+    "shadow": 1,
+    "darkOverride": 5
+  },
+  "CandidateAssessment.css": {
+    "rawColour": 3,
+    "fontSize": 66,
+    "fontWeight": 27,
+    "radius": 19,
+    "shadow": 3,
+    "zIndex": 3
+  },
+  "CohortAdjudication.css": {
+    "fontSize": 12,
+    "fontWeight": 10,
+    "radius": 5,
+    "shadow": 2
+  },
+  "Demo.css": {
+    "fontSize": 5,
+    "radius": 2
+  },
+  "GradingAttendance.css": {
+    "rawColour": 3,
+    "fontSize": 5,
+    "fontWeight": 4,
+    "radius": 4,
+    "zIndex": 1
+  },
+  "GradingSessions.css": {
+    "rawColour": 158,
+    "important": 47,
+    "fontSize": 52,
+    "fontWeight": 37,
+    "radius": 23,
+    "shadow": 13,
+    "zIndex": 2,
+    "outlineNone": 6,
+    "darkOverride": 28
+  },
+  "Imports.css": {
+    "rawColour": 1,
+    "fontSize": 39,
+    "fontWeight": 30,
+    "radius": 20,
+    "shadow": 1,
+    "zIndex": 1
+  },
+  "NavigationRail.css": {
+    "rawColour": 8,
+    "fontSize": 9,
+    "fontWeight": 9,
+    "radius": 9,
+    "shadow": 1
+  },
+  "OutcomeControls.css": {
+    "fontSize": 4,
+    "fontWeight": 4,
+    "radius": 2
+  },
+  "OutcomeDrawers.css": {
+    "fontSize": 5,
+    "fontWeight": 2,
+    "radius": 1,
+    "zIndex": 1
+  },
+  "OverviewScreen.css": {
+    "rawColour": 2,
+    "fontSize": 23,
+    "fontWeight": 17,
+    "radius": 11,
+    "shadow": 2,
+    "outlineNone": 2
+  },
+  "PromotionLedger.css": {
+    "rawColour": 85,
+    "fontSize": 35,
+    "fontWeight": 21,
+    "radius": 13,
+    "shadow": 7,
+    "zIndex": 2,
+    "outlineNone": 1,
+    "darkOverride": 22
+  },
+  "SealedAssessmentEvidence.css": {
+    "fontSize": 5,
+    "fontWeight": 4
+  },
+  "Settings.css": {
+    "fontSize": 6,
+    "fontWeight": 7,
+    "radius": 5
+  },
+  "StudentScreens.css": {
+    "rawColour": 5,
+    "fontSize": 48,
+    "fontWeight": 37,
+    "radius": 21,
+    "shadow": 6,
+    "zIndex": 1,
+    "outlineNone": 1
+  },
+  "Syllabus.css": {
+    "rawColour": 19,
+    "fontSize": 23,
+    "fontWeight": 12,
+    "radius": 7,
+    "shadow": 2,
+    "darkOverride": 6
+  },
+  "UserManagement.css": {
+    "fontSize": 11,
+    "fontWeight": 6,
+    "radius": 4
+  },
+  "layout.css": {
+    "rawColour": 2,
+    "fontSize": 15,
+    "fontWeight": 10,
+    "radius": 8,
+    "shadow": 1,
+    "zIndex": 1
+  }
+}

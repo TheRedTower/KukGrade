@@ -27,6 +27,12 @@ Want something here, or something that is missing? Open an
       One layout system (`frontend/src/layout.css`) and a Playwright width check are in place;
       each screen is converted to it in turn, and `frontend/e2e/widthDebt.json` lists those not
       yet done. Done when that list is empty.
+- [ ] **One source for every repeated style and piece of logic**: buttons, badges, alerts, empty
+      states, headers, form controls and every modal move to shared pieces; colours, type, radius,
+      shadows, spacing and stacking come from tokens; the data layer (query keys, error
+      messages, forms) and the labels the backend already serves are written once. Each step has an
+      automatic check (`layoutRules.test.ts`, `tokenRules.test.ts`) whose baseline only shrinks;
+      the work is finished when the baselines are empty or each remaining entry is justified.
 - [ ] **Rehearse the historical import** against a sanitised copy of a real school's
       workbook. The importer has so far only been tried on synthetic workbooks.
 - [ ] **Other schools' spreadsheets**: the historical-workbook adapter was written for the first

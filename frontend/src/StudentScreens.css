@@ -35,35 +35,6 @@
   margin: 0;
 }
 
-.btn-add-student {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: 1px solid var(--btn-primary-border);
-  font-size: 0.95rem;
-  font-weight: 700;
-  padding: 0.65rem 1.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  box-shadow: var(--btn-primary-shadow);
-  transition: opacity 160ms ease, transform 160ms ease, background 160ms ease, border-color 160ms ease;
-}
-
-.btn-add-student:hover {
-  background: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-  color: var(--btn-primary-hover-text);
-  transform: translateY(-1px);
-}
-
-.btn-add-student:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
-}
-
 /* Filter Bar */
 
 .students-filter-bar {
@@ -195,38 +166,6 @@
 
 /* Actions */
 
-.btn-view-student {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.45rem 0.85rem;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  min-width: 44px;
-  transition: all 140ms ease;
-  white-space: nowrap;
-}
-
-.btn-view-student:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent-text);
-  background: var(--color-surface-sunken);
-}
-
-.action-arrow {
-  transition: transform 140ms ease;
-}
-
-.btn-view-student:hover .action-arrow {
-  transform: translateX(2px);
-}
-
 /* Empty States */
 
 .table-state-box {
@@ -244,51 +183,6 @@
   font-size: 0.95rem;
   margin: 0 auto 1.5rem;
   max-width: 26rem;
-}
-
-.btn-clear-filters {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.6rem 1.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  transition: all 140ms ease;
-}
-
-.btn-clear-filters:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-accent);
-  color: var(--color-accent-text);
-}
-
-.btn-add-first-student {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: 1px solid var(--btn-primary-border);
-  font-size: 0.9rem;
-  font-weight: 700;
-  padding: 0.6rem 1.25rem;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  box-shadow: var(--btn-primary-shadow);
-  transition: opacity 140ms ease, background 140ms ease, border-color 140ms ease;
-}
-
-.btn-add-first-student:hover {
-  background: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-  color: var(--btn-primary-hover-text);
 }
 
 /* ==========================================================================
@@ -492,67 +386,6 @@
   margin-top: 0.5rem;
 }
 
-.btn-form-cancel {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 0.65rem 1.4rem;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  transition: all 140ms ease;
-}
-
-.btn-form-cancel:hover:not(:disabled) {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-text-muted);
-}
-
-.btn-form-cancel:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-form-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: 1px solid var(--btn-primary-border);
-  padding: 0.65rem 1.6rem;
-  font-size: 0.92rem;
-  font-weight: 700;
-  border-radius: 6px;
-  cursor: pointer;
-  min-height: 44px;
-  box-shadow: var(--btn-primary-shadow);
-  transition: all 140ms ease;
-}
-
-.btn-form-submit:hover:not(:disabled) {
-  background: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-  color: var(--btn-primary-hover-text);
-  transform: translateY(-1px);
-}
-
-.btn-form-submit:focus-visible {
-  outline: 2px solid var(--color-gold);
-  outline-offset: 2px;
-}
-
-.btn-form-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
 /* ==========================================================================
    Student Detail & History Screen
    ========================================================================== */
@@ -598,28 +431,6 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.btn-edit-student {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 0.55rem 1.25rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  min-height: 44px;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.btn-edit-student:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-accent);
-  color: var(--color-accent-text);
 }
 
 /* Two-Column Layout Grid */
@@ -951,29 +762,6 @@
 
 .record-status-policy-note p {
   margin: 0;
-}
-
-.btn-change-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  background: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-  padding: 0.65rem 1.25rem;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 0.92rem;
-  min-height: 44px;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-
-.btn-change-status:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-accent);
-  color: var(--color-accent-text);
 }
 
 /* Modals */

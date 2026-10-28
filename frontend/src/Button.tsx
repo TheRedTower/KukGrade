@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ComponentProps } from "react";
 
 import { type ButtonStyle, buttonClass } from "./buttonClass";
 
@@ -10,9 +10,10 @@ import { type ButtonStyle, buttonClass } from "./buttonClass";
 export function Button({
   variant,
   small,
+  block,
   className,
   type = "button",
   ...rest
-}: ButtonStyle & ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type={type} className={buttonClass({ variant, small }, className)} {...rest} />;
+}: ButtonStyle & ComponentProps<"button">) {
+  return <button type={type} className={buttonClass({ variant, small, block }, className)} {...rest} />;
 }

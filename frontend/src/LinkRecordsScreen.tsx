@@ -17,6 +17,7 @@ import { useDebouncedValue } from "./useDebouncedValue";
 import { useLeftNames } from "./useLeftNames";
 import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
+import { Button } from "./Button";
 
 const PAGE_SIZE = 50;
 
@@ -238,20 +239,19 @@ export function LinkRecordsScreen() {
             </span>
           </p>
           <div className="ix-actions">
-            <button
-              className="btn-ghost"
+            <Button
+              variant="ghost"
               disabled={clearOnPage.length === 0}
-              type="button"
               onClick={() => setSelected([...new Set([...selected, ...clearOnPage.map((person) => person.group_key)])])}
             >
               Select the {clearOnPage.length} clear {clearOnPage.length === 1 ? "suggestion" : "suggestions"}
-            </button>
-            <button className="btn-ghost" disabled={pageSelected.length === 0} type="button" onClick={() => setSelected([])}>
+            </Button>
+            <Button variant="ghost" disabled={pageSelected.length === 0} onClick={() => setSelected([])}>
               Clear selection
-            </button>
-            <button className="btn-primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} type="button" onClick={() => linkNames(pageSelected)}>
+            </Button>
+            <Button variant="primary" disabled={pageSelected.length === 0 || tooMany || link.isPending} onClick={() => linkNames(pageSelected)}>
               {link.isPending ? "Linking…" : pageSelected.length > 0 ? `Link ${counted(pageSelected.length, "name", "names")} to their students` : "Link selected"}
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -295,9 +295,9 @@ export function LinkRecordsScreen() {
               {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
             </p>
             {page > 1 ? (
-              <button className="btn-ghost" type="button" onClick={() => setPage(1)}>
+              <Button variant="ghost" onClick={() => setPage(1)}>
                 Back to the first page
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : rows.length === 0 ? (

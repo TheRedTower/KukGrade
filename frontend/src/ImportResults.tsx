@@ -21,6 +21,8 @@ import { counted, importKindLabel, importRowName } from "./importSteps";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { periodRange } from "./linkRecords";
 import { PartialUnlinkError, useLegacyLinking } from "./useLegacyLinking";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 const ROWS_PAGE_SIZE = 50;
 const LINK_GROUPS_SHOWN = 4;
@@ -170,15 +172,14 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                   <>
                     <span className="ix-warning-text ix-small ix-semibold ix-full">Students share this name. Choose one.</span>
                     {person.candidates.slice(0, 3).map((candidate) => (
-                      <button
-                        className="btn-secondary"
+                      <Button
+                        variant="secondary"
                         disabled={busy}
                         key={candidate.student}
-                        type="button"
                         onClick={() => linkAll(person, candidate.student, candidate.full_name)}
                       >
                         {candidate.full_name} · {candidate.current_rank_name}
-                      </button>
+                      </Button>
                     ))}
                   </>
                 ) : best ? (
@@ -190,23 +191,22 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                       </span>
                       {best.reasons.length ? <span className="ix-muted ix-small">{best.reasons.join(" · ")}</span> : null}
                     </span>
-                    <button
+                    <Button
                       aria-label={`${person.records === 1 ? "Link it" : `Link all ${person.records}`}: “${person.source_name}” to ${best.full_name}`}
-                      className="btn-primary"
+                      variant="primary"
                       disabled={busy}
-                      type="button"
                       onClick={() => linkAll(person, best.student, best.full_name)}
                     >
                       {person.records === 1 ? "Link it" : `Link all ${person.records}`}
-                    </button>
-                    <Link className="btn-ghost" to="/imports/records">
+                    </Button>
+                    <Link className={buttonClass({ variant: "ghost" })} to="/imports/records">
                       Someone else
                     </Link>
                   </>
                 ) : (
                   <>
                     <span className="ix-muted ix-small">No student looks like this.</span>
-                    <Link className="btn-secondary" to="/imports/records">
+                    <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">
                       Find a student
                     </Link>
                   </>
@@ -228,7 +228,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
               ? `${fromServer.length} of ${people.data.count} names shown. The rest are on the linking page.`
               : "Every name still to link is shown."}
           </span>
-          <Link className="btn-secondary" to="/imports/records">
+          <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">
             Open the linking page
           </Link>
         </div>
@@ -314,9 +314,9 @@ function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter
               <p className="ix-muted ix-small">{item.body}</p>
             </div>
             {item.show ? (
-              <button className="btn-secondary" type="button" onClick={() => onShow(item.show!)}>
+              <Button variant="secondary" onClick={() => onShow(item.show!)}>
                 See the {item.count}
-              </button>
+              </Button>
             ) : null}
           </div>
         ))
@@ -564,12 +564,12 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
           {roster ? (
             <>
               <AlsoItem body="The Students page, showing only those this import added." title="See the new students">
-                <Link className="btn-secondary ix-start" to={`/students?source_import=${batch.id}`}>
+                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to={`/students?source_import=${batch.id}`}>
                   Go to Students
                 </Link>
               </AlsoItem>
               <AlsoItem body="Import the grading record workbook, then link it to these students." title="Bring in their past gradings">
-                <Link className="btn-secondary ix-start" to="/imports/new?kind=LEGACY_GRADINGS">
+                <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/new?kind=LEGACY_GRADINGS">
                   Import past gradings
                 </Link>
               </AlsoItem>
@@ -578,16 +578,16 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
             <>
               {unresolvedRanks ? (
                 <AlsoItem body={`${counted(unresolvedRanks, "rank is", "ranks are")} still as written in the workbook.`} title="Match the last ranks">
-                  <Link className="btn-secondary ix-start" to="/imports/records">
+                  <Link className={buttonClass({ variant: "secondary" }, "ix-start")} to="/imports/records">
                     Match ranks
                   </Link>
                 </AlsoItem>
               ) : null}
               {user?.can_reconcile_imported_history ? (
                 <AlsoItem body="Void the whole import. Its records are kept, marked void, with your reason." title="Wrong workbook?">
-                  <button className="btn-ghost ix-danger-text ix-start" type="button" onClick={() => setVoiding(true)}>
+                  <Button variant="ghost" className="ix-danger-text ix-start" onClick={() => setVoiding(true)}>
                     Void this import
-                  </button>
+                  </Button>
                 </AlsoItem>
               ) : null}
             </>

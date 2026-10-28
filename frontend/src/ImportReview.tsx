@@ -20,6 +20,7 @@ import { usePagedRows } from "./useImportRows";
 import { counted, importRowName } from "./importSteps";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { Button } from "./Button";
 
 const PAGE_SIZE = 20;
 const STATUSES = [
@@ -77,9 +78,9 @@ function LastLook({ pressed, lead, label, onShow }: { pressed: boolean; lead: st
       <p className="ix-small">
         <strong>Last look before you confirm.</strong> {lead}
       </p>
-      <button aria-pressed={pressed} className="btn-secondary" type="button" onClick={onShow}>
+      <Button aria-pressed={pressed} variant="secondary" onClick={onShow}>
         {label}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -242,15 +243,14 @@ function RosterRowEditor({
           {row.issues.length ? <p className="ix-why">{row.issues.join(" ")}</p> : null}
         </div>
         {row.outcome === "REVIEW_REQUIRED" ? (
-          <button
+          <Button
             aria-label={`Leave this row out, row ${row.row_number}`}
-            className="btn-ghost"
+            variant="ghost"
             disabled={exclusion.isPending}
-            type="button"
             onClick={() => exclusion.mutate({ row, excluded: true })}
           >
             Leave this row out
-          </button>
+          </Button>
         ) : <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />}
       </div>
       {batch.extra_columns.length ? (
@@ -471,17 +471,17 @@ function RosterReview({
       </section>
 
       <div className="ix-actions ix-actions-split">
-        <button className="btn-ghost" type="button" onClick={onMatch}>
+        <Button variant="ghost" onClick={onMatch}>
           Back to matching
-        </button>
+        </Button>
         {counts.review_required ? (
           <div className="ix-actions">
             <span className="ix-why">
               Fix or leave out the {counted(counts.review_required, "row that needs", "rows that need")} attention first.
             </span>
-            <button className="btn-secondary" disabled={leaveRest.isPending} type="button" onClick={() => leaveRest.mutate()}>
+            <Button variant="secondary" disabled={leaveRest.isPending} onClick={() => leaveRest.mutate()}>
               {leaveRest.isPending ? "Leaving out…" : `Leave out the ${counts.review_required} left`}
-            </button>
+            </Button>
           </div>
         ) : (
           <span className="ix-muted ix-small">Change anything on this page until you confirm.</span>
@@ -617,9 +617,9 @@ function LegacyReview({
         </RowsList>
       </section>
       <div className="ix-actions ix-actions-split">
-        <button className="btn-ghost" type="button" onClick={onMatch}>
+        <Button variant="ghost" onClick={onMatch}>
           Back to matching ranks
-        </button>
+        </Button>
         <span className="ix-muted ix-small">Ranks still to match can be matched later, when linking records.</span>
       </div>
     </>
@@ -672,9 +672,9 @@ function Seal({
         </h2>
         <p className="ix-muted ix-small">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
       </div>
-      <button className="btn-primary ix-seal-button" disabled={count === 0 || pending || blocked} type="button" onClick={() => setOpen(true)}>
+      <Button variant="primary" className="ix-seal-button" disabled={count === 0 || pending || blocked} onClick={() => setOpen(true)}>
         {pending ? (roster ? "Adding…" : "Importing…") : count === 0 ? "Nothing to import" : action}
-      </button>
+      </Button>
       {blocked ? <p className="ix-warning-text ix-small">Finish saving or retry row changes before adding students.</p> : null}
       {open ? (
         <ImportDialog

@@ -470,35 +470,6 @@ h2 {
   outline: 2px solid var(--color-accent-strong);
 }
 
-.primary-button,
-.secondary-button {
-  min-height: 2.75rem;
-  border-radius: 6px;
-  padding: 0.55rem 0.9rem;
-  font-weight: 700;
-}
-
-.primary-button {
-  border: 1px solid var(--color-gold);
-  background: var(--color-gold);
-  color: var(--color-on-gold);
-}
-
-.primary-button:hover:not(:disabled) {
-  border-color: var(--color-gold-strong);
-  background: var(--color-gold-strong);
-}
-
-.secondary-button {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-}
-
-.secondary-button:hover:not(:disabled) {
-  background: var(--color-surface-sunken);
-}
-
 .form-error {
   margin-bottom: 0;
   border-left: 3px solid var(--color-danger);

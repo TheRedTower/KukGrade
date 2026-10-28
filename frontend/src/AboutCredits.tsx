@@ -1,5 +1,6 @@
 import { creditsNoticesUrl, errorMessage, type Credit } from "./api";
 import { useCreditsQuery } from "./queries";
+import { buttonClass } from "./buttonClass";
 
 function CreditsTable({ credits }: { credits: Credit[] }) {
   return (
@@ -95,7 +96,7 @@ export function AboutCredits() {
                   Every other Python and browser package, with its licence and copyright notice, in one file.
                 </p>
               </div>
-              <a className="ab-button" href={creditsNoticesUrl()} rel="noopener noreferrer" target="_blank">
+              <a className={buttonClass({ variant: "secondary" })} href={creditsNoticesUrl()} rel="noopener noreferrer" target="_blank">
                 Open the full list<span className="visually-hidden"> (opens in a new tab)</span>
               </a>
             </div>

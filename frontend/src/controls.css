@@ -1,15 +1,11 @@
-/* The one button (Button.tsx): .btn with a variant and, where it is smaller, .btn--sm.
+/* The one button (Button.tsx): .btn with a variant, .btn--sm where it is smaller and
+   .btn--block where it fills its box.
    Size, radius, padding, weight, hover and focus are written here and nowhere else (a
    disabled button is dimmed by the global button:disabled rule in App.css); a screen
-   picks a variant and never styles a button of its own. The older names (.btn-primary,
-   .btn-secondary, .btn-ghost, .btn-danger) are the same buttons, kept until every
-   screen has moved to <Button>. A link looks like a button the same way. */
+   picks a variant and never styles a button of its own. A link looks like a button the same
+   way (buttonClass). */
 
-.btn,
-.btn-primary,
-.btn-secondary,
-.btn-ghost,
-.btn-danger {
+.btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -28,63 +24,56 @@
     filter 140ms ease;
 }
 
-.btn:focus-visible,
-.btn-primary:focus-visible,
-.btn-secondary:focus-visible,
-.btn-ghost:focus-visible,
-.btn-danger:focus-visible {
+.btn:focus-visible {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
 }
 
-.btn--primary,
-.btn-primary {
+.btn--primary {
   border-color: var(--btn-primary-border);
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   box-shadow: var(--btn-primary-shadow);
 }
 
-.btn--primary:hover:not(:disabled),
-.btn-primary:hover:not(:disabled) {
+.btn--primary:hover:not(:disabled) {
   filter: brightness(1.07);
 }
 
-.btn--secondary,
-.btn-secondary {
+.btn--secondary {
   border-color: var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
 }
 
-.btn--secondary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled) {
+.btn--secondary:hover:not(:disabled) {
   background: var(--color-surface-sunken);
 }
 
-.btn--ghost,
-.btn-ghost {
+.btn--ghost {
   border-color: var(--color-border);
   background: transparent;
   color: var(--color-text);
 }
 
-.btn--ghost:hover:not(:disabled),
-.btn-ghost:hover:not(:disabled) {
+.btn--ghost:hover:not(:disabled) {
   border-color: var(--color-text-muted);
   background: var(--color-surface-sunken);
 }
 
-.btn--danger,
-.btn-danger {
+.btn--danger {
   border-color: var(--color-danger);
   background: var(--color-danger);
   color: var(--color-on-danger);
 }
 
-.btn--danger:hover:not(:disabled),
-.btn-danger:hover:not(:disabled) {
+.btn--danger:hover:not(:disabled) {
   filter: brightness(1.08);
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
 }
 
 .btn--sm {

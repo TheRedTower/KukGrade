@@ -17,6 +17,8 @@ import { type Chosen } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
@@ -78,7 +80,7 @@ export function HistoricalRecordsScreen() {
           <h1 id="ix-history-title">Historical records</h1>
           <p className="ix-lead">Find an imported record again to correct its link or mapped ranks. The workbook text stays as written.</p>
         </div>
-        <Link className="btn-secondary" to="/imports/records">Link unassigned records</Link>
+        <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">Link unassigned records</Link>
       </div>
       <div className="ix-two-col ix-two-col-queue">
         <div className="ix-section">
@@ -104,14 +106,14 @@ export function HistoricalRecordsScreen() {
                   {link.isError ? <p role="alert" className="ix-danger-text">{errorMessage(link.error, "The link could not be saved.")}</p> : null}
                   {unlink.isError ? <p role="alert" className="ix-danger-text">{errorMessage(unlink.error, "The link could not be removed.")}</p> : null}
                   <div className="ix-actions">
-                    <button className="btn-primary" disabled={!chosen || link.isPending} type="button" onClick={() => {
+                    <Button variant="primary" disabled={!chosen || link.isPending} onClick={() => {
                       if (record.student && record.student !== chosen?.student) setConfirm("replace");
                       else link.mutate(false);
                     }}>
                       {record.student ? "Change linked student" : "Link to selected student"}
-                    </button>
-                    {record.student ? <button className="btn-ghost" type="button" onClick={() => setConfirm("unlink")}>Unlink student…</button> : null}
-                    <button className="btn-ghost ix-danger-text" type="button" onClick={() => setConfirm("void")}>Void record…</button>
+                    </Button>
+                    {record.student ? <Button variant="ghost" onClick={() => setConfirm("unlink")}>Unlink student…</Button> : null}
+                    <Button variant="ghost" className="ix-danger-text" onClick={() => setConfirm("void")}>Void record…</Button>
                   </div>
                 </>
               )}

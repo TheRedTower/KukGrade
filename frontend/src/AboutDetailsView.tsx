@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { CopyIcon } from "./Icons";
+import { Button } from "./Button";
 
 export function DetailsList({ details, columns }: { details: [string, string][]; columns?: 1 }) {
   return (
@@ -30,10 +31,10 @@ export function CopyDetailsButton({ details }: { details: [string, string][] }) 
 
   return (
     <>
-      <button className="btn-primary ab-button" disabled={details.length === 0} onClick={copy} type="button">
+      <Button variant="primary" disabled={details.length === 0} onClick={copy}>
         <CopyIcon />
         Copy details
-      </button>
+      </Button>
       {copied === "done" ? (
         <p className="st-saved" role="status">
           Copied.

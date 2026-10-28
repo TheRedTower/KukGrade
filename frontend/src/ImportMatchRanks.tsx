@@ -9,6 +9,7 @@ import {
   previewLegacyGradingImport,
 } from "./api";
 import { useRanksQuery } from "./queries";
+import { Button } from "./Button";
 
 const EXAMPLES = 5;
 
@@ -84,10 +85,9 @@ export function ImportMatchRanks({
             </p>
           </div>
           {withSuggestion.length ? (
-            <button
-              className="btn-secondary"
+            <Button
+              variant="secondary"
               disabled={save.isPending}
-              type="button"
               onClick={() =>
                 save.mutate(
                   Object.fromEntries(withSuggestion.map((spelling) => [spelling.source_text, spelling.suggested_rank_code])),
@@ -95,7 +95,7 @@ export function ImportMatchRanks({
               }
             >
               Use all {withSuggestion.length} suggestions
-            </button>
+            </Button>
           ) : null}
         </div>
 
@@ -130,14 +130,13 @@ export function ImportMatchRanks({
                     </select>
                   </label>
                   {current.suggested_rank_code && chosen[key(current.source_text)] !== current.suggested_rank_code ? (
-                    <button
-                      className="btn-secondary"
+                    <Button
+                      variant="secondary"
                       disabled={save.isPending}
-                      type="button"
                       onClick={() => save.mutate({ [current.source_text]: current.suggested_rank_code })}
                     >
                       Use suggestion: {rankName(current.suggested_rank_code)}
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
                 {current.doubtful ? (
@@ -213,12 +212,12 @@ export function ImportMatchRanks({
       </section>
 
       <div className="ix-actions ix-actions-split">
-        <button className="btn-ghost" type="button" onClick={onBack}>
+        <Button variant="ghost" onClick={onBack}>
           Back to Imports
-        </button>
-        <button className="btn-primary" disabled={save.isPending} type="button" onClick={onContinue}>
+        </Button>
+        <Button variant="primary" disabled={save.isPending} onClick={onContinue}>
           {matched} of {spellings.length} matched · Continue
-        </button>
+        </Button>
       </div>
     </>
   );

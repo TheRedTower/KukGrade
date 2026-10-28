@@ -7,6 +7,7 @@ import { counted } from "./importSteps";
 import { type Chosen, periodRange, recordMonth, recordsToLink } from "./linkRecords";
 import { RankFix, SomeoneElse, VoidRecord } from "./LinkRecordParts";
 import { useLegacyLinking } from "./useLegacyLinking";
+import { Button } from "./Button";
 
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
@@ -94,14 +95,13 @@ function NameDetails({
                   {record.report || record.note ? <p className="ix-muted ix-small">“{record.report || record.note}”</p> : null}
                   <RankFix record={record} onDone={refresh} />
                 </div>
-                <button
+                <Button
                   aria-label={`Void the ${recordMonth(record)} record`}
-                  className="btn-ghost ix-danger-text"
-                  type="button"
+                  variant="ghost" className="ix-danger-text"
                   onClick={() => setVoiding(record)}
                 >
                   Void…
-                </button>
+                </Button>
               </li>
             ))
           )}
@@ -144,15 +144,15 @@ function NameDetails({
         ) : null}
         <div className="ix-actions ix-actions-split">
           {onLeave ? (
-            <button className="btn-ghost" type="button" onClick={onLeave}>
+            <Button variant="ghost" onClick={onLeave}>
               Leave for now
-            </button>
+            </Button>
           ) : (
             <span />
           )}
-          <button className="btn-primary" disabled={!chosen || ticked === 0 || pending} type="button" onClick={onLink}>
+          <Button variant="primary" disabled={!chosen || ticked === 0 || pending} onClick={onLink}>
             {pending ? "Linking…" : linkLabel}
-          </button>
+          </Button>
         </div>
       </div>
       {voiding ? <VoidRecord record={voiding} onClose={() => setVoiding(null)} onDone={refresh} /> : null}
@@ -270,36 +270,34 @@ export function NameRow({
         </div>
         <div className="ix-actions ix-name-actions">
           {done ? (
-            <button aria-label={`Undo linking “${person.source_name}”`} className="btn-ghost" disabled={pending} type="button" onClick={onUndo}>
+            <Button aria-label={`Undo linking “${person.source_name}”`} variant="ghost" disabled={pending} onClick={onUndo}>
               Undo
-            </button>
+            </Button>
           ) : (
             <>
               {chosen && !open ? (
-                <button
+                <Button
                   aria-label={`Link “${person.source_name}” to ${chosen.name}`}
-                  className="btn-primary"
+                  variant="primary"
                   disabled={pending || recordsToLink(person, unticked).length === 0}
-                  type="button"
                   onClick={onLink}
                 >
                   Link
-                </button>
+                </Button>
               ) : null}
               {left ? (
-                <button aria-label={`Put “${person.source_name}” back`} className="btn-ghost" type="button" onClick={onPutBack}>
+                <Button aria-label={`Put “${person.source_name}” back`} variant="ghost" onClick={onPutBack}>
                   Put back
-                </button>
+                </Button>
               ) : null}
-              <button
+              <Button
                 aria-expanded={open}
                 aria-label={`${open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose a student for"} “${person.source_name}”`}
-                className="btn-ghost"
-                type="button"
+                variant="ghost"
                 onClick={onToggle}
               >
                 {open ? "Close" : person.suggestion === "clear" ? "Review" : "Choose"}
-              </button>
+              </Button>
             </>
           )}
         </div>

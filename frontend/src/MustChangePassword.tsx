@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
+import { Button } from "./Button";
 
 type MustChangePasswordProps = {
   themeToggle?: ReactNode;
@@ -72,16 +73,14 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
           currentPasswordLabel="Temporary password"
           labelledBy="change-password-title"
           secondaryAction={(isSubmitting) => (
-            <button
-              className="secondary-button"
+            <Button
+              variant="secondary"
               disabled={isSubmitting || isSigningOut}
               onClick={() => void handleSignOut()}
-              type="button"
             >
               Sign out
-            </button>
+            </Button>
           )}
-          submitClassName="primary-button"
           submitLabel="Update password and continue"
           submittingLabel="Updating password..."
         />

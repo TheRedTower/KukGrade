@@ -51,8 +51,7 @@
   },
   "StudentScreens.css": {
     "widthQueries": 2,
-    "nowrap": 4,
-    "fixedMinWidth": 1
+    "nowrap": 3
   },
   "Syllabus.css": {
     "nowrap": 1

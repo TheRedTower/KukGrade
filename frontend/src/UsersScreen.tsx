@@ -16,6 +16,7 @@ import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./UserManagement.css";
 import { formatShortDateTime } from "./dates";
+import { Button } from "./Button";
 
 const PAGE_SIZE = 10;
 
@@ -118,12 +119,12 @@ function CreateUserDialog({
               </div>
             )}
             <div className="action-row users-dialog-actions">
-              <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>
+              <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
                 Cancel
-              </button>
-              <button type="submit" className="users-primary-button" disabled={mutation.isPending}>
+              </Button>
+              <Button type="submit" variant="primary" disabled={mutation.isPending}>
                 {mutation.isPending ? "Adding…" : "Add user"}
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -174,7 +175,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page page--wide users-page" aria-labelledby="users-heading">
+    <section className="page page--wide" aria-labelledby="users-heading">
       <header className="action-row users-page-header">
         <div>
           <div className="users-title-row">
@@ -183,14 +184,13 @@ export function UsersScreen(): React.ReactElement {
           </div>
           <p>Manage staff access and authority</p>
         </div>
-        <button
+        <Button
           ref={addButtonRef}
-          type="button"
-          className="users-primary-button"
+          variant="primary"
           onClick={() => setCreateOpen(true)}
         >
           Add user
-        </button>
+        </Button>
       </header>
 
       <form
@@ -245,7 +245,7 @@ export function UsersScreen(): React.ReactElement {
         ) : query.isError ? (
           <div className="card users-state users-state-error" role="alert">
             <p>{errorMessage(query.error, "Users could not be loaded.")}</p>
-            <button type="button" onClick={() => void query.refetch()}>Try again</button>
+            <Button variant="secondary" onClick={() => void query.refetch()}>Try again</Button>
           </div>
         ) : users.length === 0 ? (
           <div className="card users-state">
@@ -291,9 +291,9 @@ export function UsersScreen(): React.ReactElement {
                   header: "Action",
                   actions: "inline",
                   render: (user) => (
-                    <button type="button" className="users-manage-button" onClick={() => navigate(`/users/${user.id}`)}>
+                    <Button variant="secondary" small onClick={() => navigate(`/users/${user.id}`)}>
                       Manage user
-                    </button>
+                    </Button>
                   ),
                 },
               ]}

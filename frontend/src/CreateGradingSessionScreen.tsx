@@ -7,6 +7,7 @@ import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
+import { Button } from "./Button";
 
 const MONTHS = [
   { value: "01", label: "January" },
@@ -283,23 +284,22 @@ export function CreateGradingSessionScreen() {
 
             {/* Form Actions */}
             <div className="action-row cgs-form-actions">
-              <button
-                className="btn-ghost cgs-cancel-btn"
+              <Button
+                variant="ghost" className="cgs-cancel-btn"
                 disabled={isSubmitting}
                 id="cgs-cancel-btn"
                 onClick={() => navigate("/gradings")}
-                type="button"
               >
                 Cancel
-              </button>
-              <button
-                className="btn-primary"
+              </Button>
+              <Button
+                variant="primary"
                 disabled={isSubmitting}
                 id="cgs-submit-btn"
                 type="submit"
               >
                 {isSubmitting ? "Creating…" : "Create draft session"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

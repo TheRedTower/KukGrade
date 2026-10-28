@@ -20,6 +20,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
 import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
+import { Button } from "./Button";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -235,13 +236,12 @@ export function StudentDetailScreen() {
           <p className="empty-state-description">
             The requested student record could not be loaded or may not exist.
           </p>
-          <button
-            type="button"
-            className="btn-clear-filters"
+          <Button
+            variant="secondary"
             onClick={() => navigate("/students")}
           >
             ← Back to students
-          </button>
+          </Button>
         </div>
       </section>
     );
@@ -302,9 +302,8 @@ export function StudentDetailScreen() {
         </div>
 
         <div className="detail-header-actions">
-          <button
-            type="button"
-            className="btn-edit-student"
+          <Button
+            variant="secondary"
             onClick={() => {
               setEditWksaId(student.wksa_id);
               setEditFirstName(student.first_name);
@@ -315,7 +314,7 @@ export function StudentDetailScreen() {
             }}
           >
             Edit student
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -531,9 +530,8 @@ export function StudentDetailScreen() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="btn-change-status"
+              <Button
+                variant="secondary" block
                 onClick={() => {
                   setSelectedStatus(student.status as StudentStatus);
                   setStatusError(null);
@@ -541,19 +539,18 @@ export function StudentDetailScreen() {
                 }}
               >
                 Change status
-              </button>
+              </Button>
 
               {currentUser?.can_delete_students && (
-                <button
-                  type="button"
-                  className="btn-danger btn--sm"
+                <Button
+                  variant="danger"
                   onClick={() => {
                     setDeleteError(null);
                     setIsDeleteModalOpen(true);
                   }}
                 >
                   Delete student
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -675,21 +672,20 @@ export function StudentDetailScreen() {
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-form-cancel"
+                <Button
+                  variant="secondary"
                   onClick={() => setIsStatusModalOpen(false)}
                   disabled={isSavingStatus}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="btn-form-submit"
+                  variant="primary"
                   disabled={isSavingStatus}
                 >
                   {isSavingStatus ? "Updating..." : "Update status"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -743,23 +739,21 @@ export function StudentDetailScreen() {
             </div>
 
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-form-cancel"
+              <Button
+                variant="secondary"
                 onClick={() => setIsDeleteModalOpen(false)}
                 disabled={isDeletingStudent}
                 data-dialog-autofocus
               >
                 Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger btn--sm"
+              </Button>
+              <Button
+                variant="danger"
                 onClick={handleDeleteStudent}
                 disabled={isDeletingStudent}
               >
                 {isDeletingStudent ? "Deleting…" : "Delete student"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -899,21 +893,20 @@ export function StudentDetailScreen() {
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-form-cancel"
+                <Button
+                  variant="secondary"
                   onClick={() => setIsEditModalOpen(false)}
                   disabled={isSavingEdit}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  className="btn-form-submit"
+                  variant="primary"
                   disabled={isSavingEdit}
                 >
                   {isSavingEdit ? "Saving..." : "Save changes"}
-                </button>
+                </Button>
               </div>
             </form>
           </div>

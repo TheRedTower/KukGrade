@@ -41,6 +41,7 @@ import { CheckIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
 import { useSealedEvidenceLoaded } from "./queries";
 import { SealedAssessmentEvidence } from "./SealedAssessmentEvidence";
+import { Button } from "./Button";
 
 type StagedDecision = {
   outcome: CandidateOutcomeOutcome;
@@ -256,13 +257,12 @@ export function CohortAdjudicationScreen() {
         <div className="cab-state" role="alert">
           <p>The final decisions could not be loaded.</p>
           {failedQueries.length > 0 && (
-            <button
-              type="button"
-              className="btn-secondary"
+            <Button
+              variant="secondary"
               onClick={() => failedQueries.forEach((query) => void query.refetch())}
             >
               Try again
-            </button>
+            </Button>
           )}
         </div>
       </section>
@@ -504,16 +504,15 @@ export function CohortAdjudicationScreen() {
                     rows={3}
                   />
                 </label>
-                <button
-                  type="button"
-                  className="btn-secondary cab-record-one"
+                <Button
+                  variant="secondary" className="cab-record-one"
                   disabled={
                     isRecording || missingRequirements(focusDecision) || !focusEvidenceLoaded
                   }
                   onClick={() => record([focusRow.outcome!.id])}
                 >
                   Record decision for {focusRow.candidate.student_display_name.split(" ")[0]}
-                </button>
+                </Button>
               </section>
             )}
           </aside>
@@ -536,18 +535,16 @@ export function CohortAdjudicationScreen() {
             </p>
           )}
           {failedIds.length > 0 && (
-            <button
-              type="button"
-              className="btn-secondary"
+            <Button
+              variant="secondary"
               disabled={isRecording}
               onClick={() => record(failedIds)}
             >
               Retry {failedIds.length} failed
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            className="btn-primary cab-record-all"
+          <Button
+            variant="primary" className="cab-record-all"
             disabled={isRecording || stagedIds.length === 0 || incomplete.length > 0}
             onClick={() => record(stagedIds)}
             data-testid="cab-record-staged"
@@ -557,7 +554,7 @@ export function CohortAdjudicationScreen() {
               : stagedIds.length === 0
                 ? "No decisions staged"
                 : `Record ${stagedIds.length} staged ${stagedIds.length === 1 ? "decision" : "decisions"}`}
-          </button>
+          </Button>
         </footer>
       )}
     </section>

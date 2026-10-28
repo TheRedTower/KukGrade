@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { useDialogFocus } from "./useDialogFocus";
+import { Button } from "./Button";
 
 /** A short confirmation: two sentences and two buttons. */
 export function ImportDialog({
@@ -58,18 +59,17 @@ export function ImportDialog({
           </p>
         ) : null}
         <div className="ix-actions ix-dialog-actions">
-          <button type="button" className="btn-ghost" disabled={pending} onClick={onClose}>
+          <Button variant="ghost" disabled={pending} onClick={onClose}>
             {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={danger ? "btn-danger btn--sm" : "btn-primary"}
+          </Button>
+          <Button
+            variant={danger ? "danger" : "primary"}
             data-dialog-autofocus
             disabled={pending || confirmDisabled}
             onClick={onConfirm}
           >
             {pending ? pendingLabel : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

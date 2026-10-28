@@ -36,6 +36,8 @@ import { useDialogFocus } from "./useDialogFocus";
 import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
+import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 
 
 function AssessmentBadge({ assessment }: { assessment?: CandidateAssessment }) {
@@ -549,7 +551,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <div className="gsd-error-state">
           <h2 id="gsd-invalid-id-heading">Grading session not found</h2>
           <p>Please return to the sessions list.</p>
-          <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
+          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
         </div>
       </section>
     );
@@ -572,7 +574,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <div className="gsd-error-state">
           <h2 id="gsd-error-heading">Failed to load grading session</h2>
           <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
-          <Link to="/gradings" className="btn-primary">Back to Gradings</Link>
+          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
         </div>
       </section>
     );
@@ -727,14 +729,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {actionMessage && (
         <div className="gsd-action-banner" role="status">
           <span>{actionMessage}</span>
-          <button
-            type="button"
-            className="btn-ghost"
+          <Button
+            variant="ghost"
             onClick={() => setActionMessage(null)}
             aria-label="Dismiss status message"
           >
             Dismiss
-          </button>
+          </Button>
         </div>
       )}
 
@@ -759,7 +760,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
               to={`/gradings/${session.id}/decisions`}
-              className="btn btn-secondary gsd-promotion-ledger-btn"
+              className={buttonClass({ variant: "secondary" })}
               data-testid="gsd-final-decisions-btn"
             >
               Final decisions →
@@ -768,7 +769,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
               to={`/gradings/${session.id}/promotions`}
-              className="btn btn-secondary gsd-promotion-ledger-btn"
+              className={buttonClass({ variant: "secondary" })}
               data-testid="gsd-promotion-ledger-btn"
             >
               Promotion ledger →
@@ -777,17 +778,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
           {/* Actions Dropdown */}
           <div className="gsd-dropdown-wrap" ref={actionsMenuRef}>
-            <button
+            <Button
               ref={actionsButtonRef}
-              type="button"
-              className="btn-ghost gsd-actions-btn"
+              variant="ghost" className="gsd-actions-btn"
               onClick={() => setActionsMenuOpen((prev) => !prev)}
               aria-expanded={actionsMenuOpen}
               aria-haspopup="menu"
               data-testid="gsd-actions-btn"
             >
               Session actions <span className="gsd-chevron-down" aria-hidden="true">⌵</span>
-            </button>
+            </Button>
 
             {actionsMenuOpen && (
               <div className="gsd-dropdown-menu" role="menu">
@@ -902,7 +902,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           {(session.status === "DRAFT" || session.status === "OPEN") && (
             <Link
               to={`/gradings/${session.id}/register`}
-              className="btn-primary"
+              className={buttonClass({ variant: "primary" })}
               data-testid="gsd-add-candidate-btn"
             >
               Add candidate <span aria-hidden="true">→</span>
@@ -945,7 +945,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           </div>
           <Link
             to={`/gradings/${session.id}/decisions`}
-            className="btn-ghost gsd-banner-btn"
+            className={buttonClass({ variant: "ghost" }, "gsd-banner-btn")}
             data-testid="gsd-review-decisions-btn"
           >
             Review <span aria-hidden="true">→</span>
@@ -963,41 +963,38 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           <div className="action-row gsd-controls-row">
             {(session.status === "DRAFT" || session.status === "OPEN") &&
               attendanceCandidates.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setActionError(null);
                     setAttendanceDialogOpen(true);
                   }}
                 >
                   Confirm attendance
-                </button>
+                </Button>
               )}
             {(session.status === "DRAFT" || session.status === "OPEN") &&
               unpreparedCandidateIds.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
+                <Button
+                  variant="secondary"
                   onClick={() => bulkPrepareMutation.mutate(unpreparedCandidateIds)}
                   disabled={bulkPrepareMutation.isPending}
                 >
                   {bulkPrepareMutation.isPending
                     ? "Preparing…"
                     : `Prepare all (${unpreparedCandidateIds.length})`}
-                </button>
+                </Button>
               )}
             {session.status === "OPEN" && preparedAssessmentIds.length > 0 && (
-              <button
-                type="button"
-                className="btn btn-primary"
+              <Button
+                variant="primary"
                 onClick={() => bulkStartMutation.mutate(preparedAssessmentIds)}
                 disabled={bulkStartMutation.isPending}
               >
                 {bulkStartMutation.isPending
                   ? "Starting…"
                   : `Start all prepared (${preparedAssessmentIds.length})`}
-              </button>
+              </Button>
             )}
             {/* Search Input */}
             <div className="gsd-search-wrap">
@@ -1044,7 +1041,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               <p className="gsd-empty-sub">Add students to begin curriculum assessment and outcome tracking.</p>
               <Link
                 to={`/gradings/${session.id}/register`}
-                className="btn-primary"
+                className={buttonClass({ variant: "primary" })}
               >
                 Add candidate <span aria-hidden="true">→</span>
               </Link>
@@ -1052,16 +1049,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           ) : filteredCandidates.length === 0 ? (
             <div className="gsd-empty-search" data-testid="gsd-empty-search">
               <p>No candidates match the search or filter criteria.</p>
-              <button
-                type="button"
-                className="btn-ghost"
+              <Button
+                variant="ghost"
                 onClick={() => {
                   setSearch("");
                   setStatusFilter("ALL");
                 }}
               >
                 Clear filters
-              </button>
+              </Button>
             </div>
           ) : (
             <ResponsiveTable
@@ -1155,50 +1151,46 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         {isWithdrawn ? (
                           <span className="gsd-withdrawal-record">No further action</span>
                         ) : next.opensProposalDrawer ? (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn"
+                          <Button
+                            variant="ghost" className="gsd-row-action-btn"
                             onClick={() => setProposalDrawerItem(item)}
                             data-testid={`propose-outcome-btn-${candidateId}`}
                           >
                             {next.label}
-                          </button>
+                          </Button>
                         ) : (
-                          <Link to={next.url} className="btn-ghost gsd-row-action-btn">
+                          <Link to={next.url} className={buttonClass({ variant: "ghost" }, "gsd-row-action-btn")}>
                             {next.label}
                           </Link>
                         )}
                         {item.candidate.can_be_moved && (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn"
+                          <Button
+                            variant="ghost" className="gsd-row-action-btn"
                             onClick={() => setRegistrationAction({ kind: "move", item })}
                             aria-label={`Move ${item.candidate.student_display_name} to another session`}
                           >
                             Move…
-                          </button>
+                          </Button>
                         )}
                         {item.candidate.can_be_removed && (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                          <Button
+                            variant="ghost" className="gsd-row-action-btn gsd-withdraw-button"
                             onClick={() => setRegistrationAction({ kind: "remove", item })}
                             aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
                           >
                             Remove
-                          </button>
+                          </Button>
                         )}
                         {canWithdrawLocked && (
-                          <button
-                            type="button"
-                            className="btn-ghost gsd-row-action-btn gsd-withdraw-button"
+                          <Button
+                            variant="ghost" className="gsd-row-action-btn gsd-withdraw-button"
                             onClick={() => {
                               setWithdrawalError(null);
                               setWithdrawalCandidate(item);
                             }}
                           >
                             Withdraw candidate
-                          </button>
+                          </Button>
                         )}
                       </div>
                     );
@@ -1221,9 +1213,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               </p>
             </div>
             {!isEditingNotes && (
-              <button
-                type="button"
-                className="btn-ghost gsd-edit-notes-btn"
+              <Button
+                variant="ghost" className="gsd-edit-notes-btn"
                 onClick={() => {
                   setIsEditingNotes(true);
                   setNotesInput(session.notes || "");
@@ -1231,7 +1222,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 data-testid="gsd-edit-notes-btn"
               >
                 <span aria-hidden="true">📝</span> {session.notes ? "Edit notes" : "Add note"}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -1247,17 +1238,16 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   data-testid="gsd-notes-textarea"
                 />
                 <div className="action-row gsd-notes-actions">
-                  <button
+                  <Button
                     type="submit"
-                    className="btn-primary"
+                    variant="primary"
                     disabled={updateSessionMutation.isPending}
                     data-testid="gsd-save-notes-btn"
                   >
                     {updateSessionMutation.isPending ? "Saving..." : "Save notes"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost"
+                  </Button>
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       setIsEditingNotes(false);
                       setNotesInput(session.notes || "");
@@ -1265,7 +1255,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     disabled={updateSessionMutation.isPending}
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </form>
             ) : (
@@ -1323,13 +1313,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             )}
 
             <div className="gsd-modal-actions">
-              <button
-                type="button"
-                className={`btn-primary ${
-                  confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE"
-                    ? "gsd-modal-btn-danger"
-                    : ""
-                }`}
+              <Button
+                variant={confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE" ? "danger" : "primary"}
                 onClick={handleConfirmModalAction}
                 disabled={
                   isConfirmModalMutationPending ||
@@ -1344,16 +1329,15 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                     ? "Deleting…"
                     : "Delete session"
                   : "Confirm"}
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => setConfirmModal(null)}
                 disabled={isConfirmModalMutationPending}
                 data-dialog-autofocus
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>

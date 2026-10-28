@@ -17,6 +17,7 @@ import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useDebouncedValue } from "./useDebouncedValue";
+import { Button } from "./Button";
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -111,9 +112,9 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
           </div>
         </div>
         <div className="gs-current-action">
-          <button className="btn-primary gs-open-btn" id="open-current-grading-btn" onClick={onOpen} type="button">
+          <Button variant="primary" className="gs-open-btn" id="open-current-grading-btn" onClick={onOpen}>
             Open grading <ArrowRightIcon />
-          </button>
+          </Button>
         </div>
       </div>
     </section>
@@ -213,9 +214,9 @@ export function GradingSessionsScreen() {
           <p className="gs-page-subtitle">Plan and manage grading sessions</p>
         </div>
         <div className="gs-page-header-actions">
-          <button className="btn-primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")} type="button">
+          <Button variant="primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")}>
             <PlusIcon /> Create grading
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -297,21 +298,20 @@ export function GradingSessionsScreen() {
                     actions: true,
                     render: (session) => (
                       <div className="gs-row-actions">
-                        <button className="btn-ghost btn--sm gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)} type="button">
+                        <Button variant="ghost" small className="gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)}>
                           {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
-                        </button>
+                        </Button>
                         {session.can_be_deleted && (
-                          <button
-                            className="btn-ghost btn--sm gs-delete-row-btn"
+                          <Button
+                            variant="ghost" small className="gs-delete-row-btn"
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmSession(session);
                             }}
-                            type="button"
                             aria-label={`Delete session ${session.title}`}
                           >
                             Delete
-                          </button>
+                          </Button>
                         )}
                       </div>
                     ),
@@ -321,16 +321,16 @@ export function GradingSessionsScreen() {
             ) : isFiltered ? (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions match the selected filters.</p>
-                <button className="btn-ghost" id="gs-reset-filters-btn" onClick={resetFilters} type="button">
+                <Button variant="ghost" id="gs-reset-filters-btn" onClick={resetFilters}>
                   Reset filters
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="gs-empty-state">
                 <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
-                <button className="btn-primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")} type="button">
+                <Button variant="primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")}>
                   <PlusIcon /> Create grading
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -369,23 +369,21 @@ export function GradingSessionsScreen() {
             </div>
           )}
           <div className="action-row dialog__actions">
-            <button
-              type="button"
-              className="btn-ghost"
+            <Button
+              variant="ghost"
               onClick={closeDeleteConfirm}
               disabled={deleteSessionMutation.isPending}
               data-dialog-autofocus
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-danger"
+            </Button>
+            <Button
+              variant="danger"
               onClick={() => deleteSessionMutation.mutate(deleteConfirmSession.id)}
               disabled={deleteSessionMutation.isPending}
             >
               {deleteSessionMutation.isPending ? "Deleting…" : "Delete"}
-            </button>
+            </Button>
           </div>
         </Dialog>
       )}

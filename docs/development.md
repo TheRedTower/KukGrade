@@ -133,10 +133,9 @@ serializers and the committed frontend types match the schema.
 - **A button is `<Button variant="primary|secondary|ghost|danger">`** (or a link given
   `buttonClass({ variant })`), styled in `frontend/src/controls.css` and nowhere else: primary
   for the one thing to do, secondary or ghost beside it, danger for what cannot be undone,
-  `small` inside a table or card. Do not write a new `.xyz-btn` class; `tokenRules.test.ts`
-  counts the button classes outside `controls.css` (`buttonClass`) and fails if the count
-  goes up. The older `btn-primary`, `btn-secondary`, `btn-ghost` and `btn-danger` class names
-  are aliases of the same rules until every screen has moved to `<Button>`.
+  `small` inside a table or card, `block` for one as wide as its box. Do not write a new
+  `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
+  (`buttonClass`) and fails if the count goes up.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

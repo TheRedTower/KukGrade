@@ -20,6 +20,7 @@ import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
 import "./UserManagement.css";
 import { formatDateTime, formatLongDate } from "./dates";
+import { Button } from "./Button";
 
 function AccountForm({
   user,
@@ -103,9 +104,9 @@ function AccountForm({
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
       {error && <div className="users-error" role="alert">{error.message}</div>}
-      <button type="submit" className="users-primary-button" disabled={mutation.isPending}>
+      <Button type="submit" variant="primary" disabled={mutation.isPending}>
         {mutation.isPending ? "Saving…" : "Save account details"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -200,9 +201,9 @@ function AuthorityForm({
               ? "Administrators cannot hold final-decision authority. Other authority changes are audited."
               : "Authority changes are recorded in the audit log."}
         </p>
-        <button type="submit" className="users-primary-button" disabled={isSelf || mutation.isPending}>
+        <Button type="submit" variant="primary" disabled={isSelf || mutation.isPending}>
           {mutation.isPending ? "Saving…" : "Save authority"}
-        </button>
+        </Button>
       </div>
       {error && <div className="users-error" role="alert">{error.message}</div>}
     </form>
@@ -255,8 +256,8 @@ function PasswordResetDialog({
           </p>
           {error && <div className="users-error" role="alert">{error.message}</div>}
           <div className="action-row users-dialog-actions">
-            <button type="button" className="users-secondary-button" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-            <button data-dialog-autofocus type="submit" className="users-primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</button>
+            <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
+            <Button data-dialog-autofocus type="submit" variant="primary" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</Button>
           </div>
         </form>
       )}
@@ -301,23 +302,21 @@ function DeleteUserDialog({
       </p>
       {error && <div className="users-error" role="alert">{error.message}</div>}
       <div className="action-row users-dialog-actions">
-        <button
-          type="button"
-          className="users-secondary-button"
+        <Button
+          variant="secondary"
           onClick={onClose}
           disabled={mutation.isPending}
           data-dialog-autofocus
         >
           Cancel
-        </button>
-        <button
-          type="button"
-          className="users-danger-button"
+        </Button>
+        <Button
+          variant="danger"
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
         >
           {mutation.isPending ? "Deleting…" : "Delete account"}
-        </button>
+        </Button>
       </div>
     </Dialog>
   );
@@ -349,7 +348,7 @@ export function UserDetailScreen(): React.ReactElement {
     return (
       <div className="page users-state users-state-error" role="alert">
         <p>{errorMessage(query.error, "This user could not be loaded.")}</p>
-        <button type="button" onClick={() => navigate("/users")}>Back to users</button>
+        <Button variant="secondary" onClick={() => navigate("/users")}>Back to users</Button>
       </div>
     );
   }
@@ -383,7 +382,7 @@ export function UserDetailScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page page--wide user-detail-page" aria-labelledby="user-detail-heading">
+    <section className="page page--wide" aria-labelledby="user-detail-heading">
       <Link className="users-back-link" to="/users">Users <span aria-hidden="true">/</span> {managedUser.full_name}</Link>
       <header className="action-row user-detail-header">
         <div>
@@ -397,7 +396,7 @@ export function UserDetailScreen(): React.ReactElement {
         ) : viewOnly ? (
           <p className="users-self-password-hint">Only a superuser can change this account.</p>
         ) : (
-          <button ref={passwordButtonRef} type="button" className="users-secondary-button" onClick={() => setPasswordOpen(true)}>Reset password</button>
+          <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
         )}
       </header>
 
@@ -424,14 +423,13 @@ export function UserDetailScreen(): React.ReactElement {
                 &ldquo;Deleted user&rdquo; account. For someone who has left, set the account to
                 Inactive instead.
               </p>
-              <button
+              <Button
                 ref={deleteButtonRef}
-                type="button"
-                className="users-danger-button"
+                variant="danger"
                 onClick={() => setDeleteOpen(true)}
               >
                 Delete account
-              </button>
+              </Button>
             </section>
           )}
         </main>

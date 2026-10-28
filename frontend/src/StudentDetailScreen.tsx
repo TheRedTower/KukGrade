@@ -546,7 +546,7 @@ export function StudentDetailScreen() {
               {currentUser?.can_delete_students && (
                 <button
                   type="button"
-                  className="btn-danger-sm"
+                  className="btn-danger btn--sm"
                   onClick={() => {
                     setDeleteError(null);
                     setIsDeleteModalOpen(true);
@@ -754,7 +754,7 @@ export function StudentDetailScreen() {
               </button>
               <button
                 type="button"
-                className="btn-danger-sm"
+                className="btn-danger btn--sm"
                 onClick={handleDeleteStudent}
                 disabled={isDeletingStudent}
               >

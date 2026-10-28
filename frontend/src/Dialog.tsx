@@ -1,5 +1,6 @@
 import { type ReactNode, useId } from "react";
 
+import { Button } from "./Button";
 import { useDialogFocus } from "./useDialogFocus";
 
 interface DialogProps {
@@ -49,9 +50,9 @@ export function Dialog({ title, eyebrow, closeLabel = "Close", onClose, canClose
             <h2 className="dialog__heading" id={titleId}>{title}</h2>
           </div>
           {closeButton && (
-            <button type="button" className="btn-ghost" onClick={onClose} aria-label={closeLabel} disabled={!canClose}>
+            <Button variant="ghost" onClick={onClose} aria-label={closeLabel} disabled={!canClose}>
               Close
-            </button>
+            </Button>
           )}
         </header>
         {children}

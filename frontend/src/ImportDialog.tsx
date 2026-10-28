@@ -63,7 +63,7 @@ export function ImportDialog({
           </button>
           <button
             type="button"
-            className={danger ? "btn-danger-sm" : "btn-primary"}
+            className={danger ? "btn-danger btn--sm" : "btn-primary"}
             data-dialog-autofocus
             disabled={pending || confirmDisabled}
             onClick={onConfirm}

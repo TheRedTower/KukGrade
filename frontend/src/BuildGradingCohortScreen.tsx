@@ -606,7 +606,7 @@ export function BuildGradingCohortScreen() {
           <div className="bgc-retry-action-wrap">
             <button
               type="button"
-              className="btn-primary gs-create-btn"
+              className="btn-primary"
               onClick={handleRetryFlagged}
               disabled={isSubmitting || retryableCount === 0}
               data-testid="bgc-retry-flagged-btn"
@@ -762,7 +762,7 @@ export function BuildGradingCohortScreen() {
                 </span>
                 <button
                   type="button"
-                  className="btn-primary gs-create-btn bgc-add-filtered-btn"
+                  className="btn-primary bgc-add-filtered-btn"
                   onClick={handleAddAllFiltered}
                   disabled={filteredEligibleStudents.length === 0 || isRosterUpdating}
                   data-testid="bgc-add-all-filtered-btn"
@@ -844,7 +844,7 @@ export function BuildGradingCohortScreen() {
                         ) : (
                           <button
                             type="button"
-                            className="btn-primary gs-create-btn bgc-add-student-btn"
+                            className="btn-primary bgc-add-student-btn"
                             onClick={() => handleAddStudentToCohort(student)}
                             data-testid={`bgc-add-student-${student.id}`}
                           >
@@ -930,7 +930,7 @@ export function BuildGradingCohortScreen() {
                     ) : (
                       <button
                         type="button"
-                        className="btn-primary gs-create-btn bgc-add-group-btn"
+                        className="btn-primary bgc-add-group-btn"
                         onClick={() => handleAddRankGroup(group)}
                         data-testid={`bgc-add-group-${group.rank.id}`}
                       >
@@ -1040,7 +1040,7 @@ export function BuildGradingCohortScreen() {
               </Link>
               <button
                 type="button"
-                className="btn-primary gs-create-btn bgc-register-btn"
+                className="btn-primary bgc-register-btn"
                 onClick={handleSubmitCohort}
                 disabled={isSubmitting || cohort.length === 0}
                 data-testid="bgc-register-candidates-btn"
@@ -1092,7 +1092,7 @@ export function BuildGradingCohortScreen() {
           <div className="action-row dialog__actions">
             <button
               type="button"
-              className="btn-primary gs-create-btn"
+              className="btn-primary"
               onClick={() => setExceptionsModalOpen(false)}
               data-testid="bgc-modal-done-btn"
               data-dialog-autofocus

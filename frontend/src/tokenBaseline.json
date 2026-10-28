@@ -4,22 +4,24 @@
     "fontWeight": 15,
     "radius": 12,
     "shadow": 1,
-    "outlineNone": 1
+    "outlineNone": 1,
+    "buttonClass": 2
   },
   "App.css": {
-    "rawColour": 48,
-    "important": 12,
-    "fontSize": 33,
-    "fontWeight": 23,
-    "radius": 22,
+    "rawColour": 32,
+    "fontSize": 29,
+    "fontWeight": 19,
+    "radius": 18,
     "shadow": 4,
     "outlineNone": 1,
-    "darkOverride": 11
+    "buttonClass": 6,
+    "darkOverride": 5
   },
   "AuditScreen.css": {
     "fontSize": 8,
     "fontWeight": 4,
-    "radius": 2
+    "radius": 2,
+    "buttonClass": 1
   },
   "Belt.css": {
     "radius": 1
@@ -31,6 +33,7 @@
     "fontWeight": 27,
     "radius": 15,
     "shadow": 1,
+    "buttonClass": 13,
     "darkOverride": 5
   },
   "CandidateAssessment.css": {
@@ -39,7 +42,8 @@
     "fontWeight": 27,
     "radius": 19,
     "shadow": 3,
-    "zIndex": 3
+    "zIndex": 3,
+    "buttonClass": 6
   },
   "CohortAdjudication.css": {
     "fontSize": 12,
@@ -56,18 +60,20 @@
     "fontSize": 5,
     "fontWeight": 4,
     "radius": 4,
-    "zIndex": 1
+    "zIndex": 1,
+    "buttonClass": 2
   },
   "GradingSessions.css": {
-    "rawColour": 158,
-    "important": 47,
-    "fontSize": 52,
-    "fontWeight": 37,
-    "radius": 23,
-    "shadow": 13,
+    "rawColour": 138,
+    "important": 32,
+    "fontSize": 50,
+    "fontWeight": 35,
+    "radius": 21,
+    "shadow": 9,
     "zIndex": 2,
     "outlineNone": 6,
-    "darkOverride": 28
+    "buttonClass": 8,
+    "darkOverride": 26
   },
   "Imports.css": {
     "rawColour": 1,
@@ -75,14 +81,16 @@
     "fontWeight": 30,
     "radius": 20,
     "shadow": 1,
-    "zIndex": 1
+    "zIndex": 1,
+    "buttonClass": 2
   },
   "NavigationRail.css": {
     "rawColour": 8,
     "fontSize": 9,
     "fontWeight": 9,
     "radius": 9,
-    "shadow": 1
+    "shadow": 1,
+    "buttonClass": 2
   },
   "OutcomeControls.css": {
     "fontSize": 4,
@@ -101,7 +109,8 @@
     "fontWeight": 17,
     "radius": 11,
     "shadow": 2,
-    "outlineNone": 2
+    "outlineNone": 2,
+    "buttonClass": 2
   },
   "PromotionLedger.css": {
     "rawColour": 85,
@@ -111,6 +120,7 @@
     "shadow": 7,
     "zIndex": 2,
     "outlineNone": 1,
+    "buttonClass": 6,
     "darkOverride": 22
   },
   "SealedAssessmentEvidence.css": {
@@ -129,7 +139,8 @@
     "radius": 21,
     "shadow": 6,
     "zIndex": 1,
-    "outlineNone": 1
+    "outlineNone": 1,
+    "buttonClass": 10
   },
   "Syllabus.css": {
     "rawColour": 19,
@@ -137,12 +148,14 @@
     "fontWeight": 12,
     "radius": 7,
     "shadow": 2,
+    "buttonClass": 3,
     "darkOverride": 6
   },
   "UserManagement.css": {
     "fontSize": 11,
     "fontWeight": 6,
-    "radius": 4
+    "radius": 4,
+    "buttonClass": 4
   },
   "layout.css": {
     "rawColour": 2,

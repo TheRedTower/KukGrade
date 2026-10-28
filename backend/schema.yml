@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: KukGrade API
-  version: 0.1.0
+  version: 0.2.0
   description: Grading management API for Kuk Sool Won instructors and administrators.
 paths:
   /api/about/:

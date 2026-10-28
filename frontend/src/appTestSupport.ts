@@ -114,7 +114,7 @@ export function assessmentSummaryFor(items: CandidateAssessmentItem[]): Candidat
 }
 
 export const ABOUT = {
-  version: "0.1.0",
+  version: "0.2.0",
   commit: "5198f1b",
   built_at: "2026-10-21T09:30:00Z",
   time_zone: "Europe/London",

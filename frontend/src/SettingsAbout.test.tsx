@@ -51,7 +51,7 @@ describe("About: the overview", () => {
     expect(await details.findByText("Europe/London")).toBeVisible();
     expect(details.getByText("5198f1b")).toBeVisible();
     expect(details.getByText("Ready")).toBeVisible();
-    expect(details.getAllByText("0.1.0")).toHaveLength(2);
+    expect(details.getAllByText("0.2.0")).toHaveLength(2);
     expect(screen.getByText(/does not look for updates by itself/)).toBeVisible();
   });
 
@@ -93,7 +93,7 @@ describe("About: the overview", () => {
 
     expect(await screen.findByText("Copied.")).toBeVisible();
     const copied = await navigator.clipboard.readText();
-    expect(copied).toContain("Server: 0.1.0");
+    expect(copied).toContain("Server: 0.2.0");
     expect(copied).toContain("Commit: 5198f1b");
     expect(copied).toContain("Club time zone: Europe/London");
     expect(copied).toContain("Database: Ready");
@@ -256,7 +256,7 @@ describe("About: support", () => {
     await user.click(details.getByRole("button", { name: "Copy details" }));
 
     const copied = await navigator.clipboard.readText();
-    expect(copied).toContain("Server: 0.1.0");
+    expect(copied).toContain("Server: 0.2.0");
     expect(copied).toContain("Your browser: ");
     expect(copied).toContain("Your role: Instructor");
     expect(copied).not.toContain(authUser.email);

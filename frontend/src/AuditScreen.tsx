@@ -10,7 +10,8 @@ import {
   getAuditEvents,
   getAuditLabels,
 } from "./api";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
+import { ResponsiveTable } from "./ResponsiveTable";
 import "./AuditScreen.css";
 import { calendarDaysAgo, currentYear, formatApiDate, formatDateTime, formatTime } from "./dates";
 
@@ -128,14 +129,10 @@ export function AuditScreen(): React.ReactElement {
     setSelectedEvent(null);
     eventTriggerRef.current?.focus();
   };
-  const detailDialogRef = useDialogFocus<HTMLElement>({
-    isOpen: selectedEvent !== null,
-    onClose: closeDetails,
-  });
 
   return (
     <section aria-labelledby="audit-heading" className="page page--wide audit-page">
-      <header className="audit-header">
+      <header className="action-row audit-header">
         <div>
           <h1 id="audit-heading">Audit</h1>
           <p>A permanent record of sensitive activity</p>
@@ -147,16 +144,16 @@ export function AuditScreen(): React.ReactElement {
       </header>
 
       <form
-        className="audit-filters"
+        className="filter-bar"
         aria-label="Audit filters"
         onSubmit={(event) => {
           event.preventDefault();
           updateFilters({ search: searchInputRef.current?.value.trim() ?? "" });
         }}
       >
-        <label className="audit-filter audit-filter-search">
+        <label className="field filter-bar__full">
           <span>Search record number or summary</span>
-          <div className="audit-search-row">
+          <div className="field__row">
             <input
               key={appliedSearch}
               ref={searchInputRef}
@@ -168,7 +165,7 @@ export function AuditScreen(): React.ReactElement {
           </div>
         </label>
 
-        <label className="audit-filter">
+        <label className="field">
           <span>Action</span>
           <select
             value={action}
@@ -181,7 +178,7 @@ export function AuditScreen(): React.ReactElement {
           </select>
         </label>
 
-        <label className="audit-filter">
+        <label className="field">
           <span>Record type</span>
           <select
             value={entityType}
@@ -194,7 +191,7 @@ export function AuditScreen(): React.ReactElement {
           </select>
         </label>
 
-        <label className="audit-filter">
+        <label className="field">
           <span>Date from</span>
           <input
             type="date"
@@ -204,7 +201,7 @@ export function AuditScreen(): React.ReactElement {
           />
         </label>
 
-        <label className="audit-filter">
+        <label className="field">
           <span>Date to</span>
           <input
             type="date"
@@ -214,7 +211,7 @@ export function AuditScreen(): React.ReactElement {
           />
         </label>
 
-        <div className="audit-filter-summary">
+        <div className="action-row filter-bar__full audit-filter-summary">
           <span>
             {totalCount} event{totalCount === 1 ? "" : "s"}
             {entityId && (
@@ -241,7 +238,7 @@ export function AuditScreen(): React.ReactElement {
         {query.isLoading ? (
           <div className="audit-state" role="status">Loading audit events…</div>
         ) : query.isError ? (
-          <div className="audit-state audit-state-error" role="alert">
+          <div className="card audit-state audit-state-error" role="alert">
             <p>
               {query.error instanceof ApiError
                 ? query.error.message
@@ -250,66 +247,65 @@ export function AuditScreen(): React.ReactElement {
             <button type="button" onClick={() => void query.refetch()}>Try again</button>
           </div>
         ) : events.length === 0 ? (
-          <div className="audit-state">
+          <div className="card audit-state">
             <strong>No audit events found</strong>
             <span>{hasFilters ? "Try clearing or changing the filters." : "No sensitive activity has been recorded yet."}</span>
           </div>
         ) : (
           <>
-            <div className="audit-table-scroll">
-              <table className="audit-table">
-                <caption className="visually-hidden">Audit events, newest first</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Time</th>
-                    <th scope="col">Action</th>
-                    <th scope="col">Summary</th>
-                    <th scope="col">Actor</th>
-                    <th scope="col">Record</th>
-                    <th scope="col"><span className="visually-hidden">Event details</span></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {events.map((event) => {
+            <ResponsiveTable
+              label="Audit events, newest first"
+              rows={events}
+              rowKey={(event) => event.id}
+              columns={[
+                {
+                  key: "time",
+                  header: "Time",
+                  render: (event) => {
                     const time = eventTime(event.occurred_at);
                     return (
-                      <tr key={event.id}>
-                        <td className="audit-time">
-                          <span>{time.date}</span>
-                          <time dateTime={event.occurred_at}>{time.time}</time>
-                        </td>
-                        <td className="audit-action">{event.action_display}</td>
-                        <td className="audit-summary" title={event.summary}>
-                          {event.summary}
-                        </td>
-                        <td>{actorLabel(event)}</td>
-                        <td>
-                          <span className="audit-entity-type">
-                            {event.entity_type_display}
-                          </span>
-                          <span className="audit-entity-id">#{event.entity_id}</span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="audit-view-button"
-                            onClick={(clickEvent) => {
-                              eventTriggerRef.current = clickEvent.currentTarget;
-                              setSelectedEvent(event);
-                            }}
-                            aria-label={`View ${event.action_display} event`}
-                          >
-                            View event <span aria-hidden="true">›</span>
-                          </button>
-                        </td>
-                      </tr>
+                      <>
+                        <span className="audit-date">{time.date}</span>
+                        <time className="audit-time" dateTime={event.occurred_at}>{time.time}</time>
+                      </>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  },
+                },
+                { key: "action", header: "Action", primary: true, render: (event) => event.action_display },
+                { key: "summary", header: "Summary", render: (event) => event.summary },
+                { key: "actor", header: "Actor", render: (event) => actorLabel(event) },
+                {
+                  key: "record",
+                  header: "Record",
+                  render: (event) => (
+                    <>
+                      <span className="audit-entity-type">{event.entity_type_display}</span>
+                      <span className="audit-entity-id">#{event.entity_id}</span>
+                    </>
+                  ),
+                },
+                {
+                  key: "details",
+                  header: "Event details",
+                  actions: true,
+                  render: (event) => (
+                    <button
+                      type="button"
+                      className="audit-view-button"
+                      onClick={(clickEvent) => {
+                        eventTriggerRef.current = clickEvent.currentTarget;
+                        setSelectedEvent(event);
+                      }}
+                      aria-label={`View ${event.action_display} event`}
+                    >
+                      View event <span aria-hidden="true">›</span>
+                    </button>
+                  ),
+                },
+              ]}
+            />
 
-            <nav className="audit-pagination" aria-label="Audit event pages">
+            <nav className="action-row audit-pagination" aria-label="Audit event pages">
               <div className="audit-page-buttons">
                 <button
                   type="button"
@@ -354,51 +350,26 @@ export function AuditScreen(): React.ReactElement {
       <p className="audit-integrity-note">Audit events cannot be changed or deleted.</p>
 
       {selectedEvent && (
-        <div
-          className="audit-dialog-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeDetails();
-          }}
+        <Dialog
+          title={selectedEvent.action_display}
+          eyebrow={`Audit event #${selectedEvent.id}`}
+          closeLabel="Close event details"
+          onClose={closeDetails}
         >
-          <section
-            ref={detailDialogRef}
-            tabIndex={-1}
-            className="audit-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="audit-dialog-title"
-          >
-            <header>
-              <div>
-                <p>Audit event #{selectedEvent.id}</p>
-                <h2 id="audit-dialog-title">{selectedEvent.action_display}</h2>
-              </div>
-              <button
-                data-dialog-autofocus
-                type="button"
-                className="audit-dialog-close"
-                onClick={closeDetails}
-                aria-label="Close event details"
-              >
-                Close
-              </button>
-            </header>
-            <dl className="audit-detail-grid">
-              <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
-              <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
-              <div><dt>Record</dt><dd>{selectedEvent.entity_type_display} #{selectedEvent.entity_id}</dd></div>
-            </dl>
-            <div className="audit-detail-section">
-              <h3>Summary</h3>
-              <p>{selectedEvent.summary}</p>
-            </div>
-            <div className="audit-detail-section">
-              <h3>Recorded details</h3>
-              <pre>{eventMetadata(selectedEvent)}</pre>
-            </div>
-          </section>
-        </div>
+          <dl className="facts">
+            <div><dt>Occurred</dt><dd>{formatDateTime(selectedEvent.occurred_at)}</dd></div>
+            <div><dt>Actor</dt><dd>{actorLabel(selectedEvent)}</dd></div>
+            <div><dt>Record</dt><dd>{selectedEvent.entity_type_display} #{selectedEvent.entity_id}</dd></div>
+          </dl>
+          <div className="audit-detail-section">
+            <h3>Summary</h3>
+            <p>{selectedEvent.summary}</p>
+          </div>
+          <div className="audit-detail-section">
+            <h3>Recorded details</h3>
+            <pre className="code-block">{eventMetadata(selectedEvent)}</pre>
+          </div>
+        </Dialog>
       )}
     </section>
   );

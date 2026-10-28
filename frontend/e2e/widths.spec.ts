@@ -1,4 +1,4 @@
-import { type APIRequestContext, type Browser, type BrowserContext, expect, test } from "@playwright/test";
+import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import debt from "./widthDebt.json" with { type: "json" };
 import { findOverflow } from "./overflow";
@@ -20,6 +20,8 @@ interface Screen {
   name: string;
   role: Role;
   path: (ids: Ids) => string;
+  /** What to do on the screen before it is checked, such as opening a dialog. */
+  after?: (page: Page) => Promise<void>;
 }
 
 const SCREENS: Screen[] = [
@@ -40,6 +42,15 @@ const SCREENS: Screen[] = [
   },
   { name: "syllabus", role: "master", path: () => "/syllabus" },
   { name: "audit", role: "master", path: () => "/audit" },
+  {
+    name: "audit-dialog",
+    role: "master",
+    path: () => "/audit",
+    after: async (page) => {
+      await page.getByRole("button", { name: /^View .* event$/ }).first().click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
   { name: "users", role: "administrator", path: () => "/users" },
   { name: "user-detail", role: "administrator", path: (ids) => `/users/${ids.user}` },
   {
@@ -133,6 +144,7 @@ for (const screen of SCREENS) {
       // A redirect or a not-found page would fit and prove nothing.
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);
       await page.waitForLoadState("networkidle");
+      await screen.after?.(page);
       for (const issue of await findOverflow(page)) problems.push(`${width}px  ${issue}`);
     }
     await page.close();

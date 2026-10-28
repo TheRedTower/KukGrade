@@ -22,8 +22,17 @@ export async function findOverflow(page: Page): Promise<string[]> {
       const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 32);
       return `${el.tagName.toLowerCase()}${id}${cls}${text ? ` "${text}"` : ""}`;
     };
+    // Hidden on purpose: the visually-hidden class, or a box clipped to nothing
+    // (a table's header row once its rows are cards).
+    const hiddenOnPurpose = (el: Element) => {
+      for (let up: Element | null = el; up; up = up.parentElement) {
+        if (up.classList.contains("visually-hidden")) return true;
+        if (getComputedStyle(up).clipPath.startsWith("inset(50%")) return true;
+      }
+      return false;
+    };
     const skipped = (el: Element) =>
-      el.closest("[data-scroll-ok], svg, .visually-hidden") !== null;
+      el.closest("[data-scroll-ok], svg") !== null || hiddenOnPurpose(el);
 
     if (document.documentElement.scrollWidth > screenWidth) {
       pageScrolls = `the page scrolls sideways (${document.documentElement.scrollWidth} > ${screenWidth})`;

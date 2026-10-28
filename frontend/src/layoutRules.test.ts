@@ -1,19 +1,20 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { BREAKPOINTS_REM } from "./layout";
-import baseline from "./layoutBaseline.json";
 
 /**
  * Width and layout numbers live in layout.css. These checks stop a screen from
  * growing its own, so a width problem always has the same two places to look:
  * layout.css, or the screen's use of it. layoutBaseline.json lists the legacy
  * uses still to be converted; it only ever shrinks, and a file that is not in
- * it may have none.
+ * it may have none. After converting a screen, lower the list with
+ *   UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layoutRules.test.ts
  */
 
 const SRC = __dirname;
+const BASELINE = join(SRC, "layoutBaseline.json");
 
 const RULES: Record<string, RegExp> = {
   // Width-based queries, in either syntax; colour-scheme and reduced-motion
@@ -45,10 +46,28 @@ const cssFiles = readdirSync(SRC)
   .filter((name) => name.endsWith(".css") && name !== "layout.css")
   .sort();
 
+const baseline: Record<string, Record<string, number>> = JSON.parse(readFileSync(BASELINE, "utf8"));
+
+// The list can only be lowered here: a count that went up, or a file that was
+// not on it, is a layout number a screen must not add.
+if (process.env.UPDATE_LAYOUT_BASELINE) {
+  const fresh: Record<string, Record<string, number>> = {};
+  for (const file of cssFiles) {
+    const counts = countViolations(readFileSync(join(SRC, file), "utf8"));
+    for (const [rule, count] of Object.entries(counts)) {
+      if (count > (baseline[file]?.[rule] ?? 0)) {
+        throw new Error(`${file} adds ${rule}: ${count}, up from ${baseline[file]?.[rule] ?? 0}. Remove it instead.`);
+      }
+    }
+    if (Object.keys(counts).length > 0) fresh[file] = counts;
+  }
+  writeFileSync(BASELINE, `${JSON.stringify(fresh, null, 2)}\n`);
+}
+
 describe("layout rules", () => {
   it.each(cssFiles)("%s adds no layout numbers beyond its baseline", (file) => {
     const actual = countViolations(readFileSync(join(SRC, file), "utf8"));
-    const allowed = (baseline as Record<string, Record<string, number>>)[file] ?? {};
+    const allowed = baseline[file] ?? {};
     expect(actual).toEqual(allowed);
   });
 

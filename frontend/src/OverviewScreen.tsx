@@ -16,6 +16,7 @@ import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIso
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
+import { ResponsiveTable } from "./ResponsiveTable";
 
 function CalendarIcon() {
   return (
@@ -475,44 +476,32 @@ export function OverviewScreen() {
         </div>
 
         {recentActivities.length > 0 ? (
-          <div className="ledger-table-wrapper" tabIndex={0} role="region" aria-label="Recent activity">
-            {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-            <table className="ledger-table" aria-label="Recent activity">
-              <thead>
-                <tr>
-                  <th scope="col">Time</th>
-                  <th scope="col">By</th>
-                  <th scope="col">Event</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentActivities.map((activity) => (
-                  <tr key={activity.id}>
-                    <td className="cell-time">{activity.timeDisplay}</td>
-                    <td className="cell-actor">
-                      <strong>{activity.actorName}</strong>
-                    </td>
-                    <td className="cell-event">{activity.summary}</td>
-                    <td className="cell-status">
-                      <span
-                        className={`status-pill-badge status-pill-${activity.statusType}`}
-                      >
-                        {activity.statusType === "approved" ? (
-                          <CheckIcon size={14} className="overview-icon" />
-                        ) : activity.statusType === "warning" ? (
-                          <AlertIcon />
-                        ) : activity.statusType === "in-progress" ? (
-                          <ClockIcon />
-                        ) : null}
-                        <span>{activity.statusLabel}</span>
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveTable
+            label="Recent activity"
+            rows={recentActivities}
+            rowKey={(activity) => activity.id}
+            columns={[
+              { key: "time", header: "Time", render: (activity) => <span className="cell-time">{activity.timeDisplay}</span> },
+              { key: "actor", header: "By", render: (activity) => <strong>{activity.actorName}</strong> },
+              { key: "event", header: "Event", primary: true, render: (activity) => activity.summary },
+              {
+                key: "status",
+                header: "Status",
+                render: (activity) => (
+                  <span className={`status-pill-badge status-pill-${activity.statusType}`}>
+                    {activity.statusType === "approved" ? (
+                      <CheckIcon size={14} className="overview-icon" />
+                    ) : activity.statusType === "warning" ? (
+                      <AlertIcon />
+                    ) : activity.statusType === "in-progress" ? (
+                      <ClockIcon />
+                    ) : null}
+                    <span>{activity.statusLabel}</span>
+                  </span>
+                ),
+              },
+            ]}
+          />
         ) : (
           <div className="activity-empty-state" role="status">
             <p>

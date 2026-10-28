@@ -1,6 +1,6 @@
 /* The one place layout numbers live. Screens compose these classes and do not
    restate a width, gutter, breakpoint or max-width of their own; the checks in
-   layoutRules.test.ts keep it that way. Breakpoints are in layout.ts (none are used here yet). */
+   layoutRules.test.ts keep it that way. Breakpoints are in layout.ts. */
 
 :root {
   /* The side gutter of every page. Fluid, so it suits every device between
@@ -12,10 +12,22 @@
   --page-max: 76rem;
   --page-max-wide: 90rem;
   --page-end-space: 3rem;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --card-pad: clamp(1rem, 3vw, 1.5rem);
+  --radius: 0.75rem;
+  --dialog-max: 43rem;
 }
 
-/* A screen's root. Centred, never wider than its size, with room beneath. */
+/* A screen's root. Centred, never wider than its size, with room beneath. It
+   is also the container its contents' queries measure: they adapt to the room
+   they have, not to the window. */
 .page {
+  container-type: inline-size;
   width: 100%;
   min-width: 0;
   max-width: var(--page-max);
@@ -33,4 +45,372 @@
 
 .page--wide {
   max-width: var(--page-max-wide);
+}
+
+/* ── Surfaces ──────────────────────────────────────────────────────────── */
+
+.card {
+  padding: var(--card-pad);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+/* Items in a row that wrap when there is no room, so a long button label
+   never overflows. */
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+}
+
+.action-row > * {
+  min-width: 0;
+}
+
+/* ── Filters ───────────────────────────────────────────────────────────── */
+
+/* As many columns as fit, each at least 12rem, so it needs no breakpoint. */
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-4);
+  align-items: end;
+  padding: var(--card-pad);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.filter-bar__full {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.field > span,
+.field > label {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* No weight, so a screen's own control style (a custom select, say) still wins. */
+:where(.field input, .field select) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.62rem 0.72rem;
+  border-radius: 0.45rem;
+  background: var(--color-surface-sunken);
+}
+
+:where(.field input, .field select):focus {
+  border-color: var(--color-gold-strong);
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 1px;
+}
+
+.field__row {
+  display: flex;
+}
+
+/* A search box and its button, joined. */
+.field__row > input {
+  flex: 1 1 auto;
+  width: auto;
+  border-radius: 0.45rem 0 0 0.45rem;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+
+/* A table where there is room for its columns, a stack of cards where there is
+   not (measured on the table's own box). The markup is always a real table (see ResponsiveTable.tsx). */
+.rtable {
+  container-type: inline-size;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: clip;
+}
+
+.rtable table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.rtable th {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.rtable td {
+  padding: 0.9rem 1rem;
+  border-top: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.rtable tbody tr:first-child td {
+  border-top: 0;
+}
+
+.rtable tbody tr:hover {
+  background: var(--color-surface-sunken);
+}
+
+.rtable__value {
+  min-width: 0;
+}
+
+.rtable [data-align="end"] {
+  text-align: end;
+}
+
+.rtable [data-actions] {
+  text-align: end;
+}
+
+@container (max-width: 56rem) {
+  .rtable table,
+  .rtable tbody,
+  .rtable td {
+    display: block;
+  }
+
+  /* Read aloud as the column names; not shown. */
+  .rtable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .rtable tr {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .rtable tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .rtable td,
+  .rtable [data-align="end"],
+  .rtable [data-actions] {
+    text-align: start;
+  }
+
+  .rtable td {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--space-3);
+    padding: var(--space-1) 0;
+    border: 0;
+  }
+
+  .rtable td::before {
+    content: attr(data-label);
+    content: attr(data-label) / "";
+    padding-top: 0.15rem;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .rtable td[data-primary] {
+    order: -1;
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .rtable td[data-actions] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--space-2);
+    padding-top: var(--space-2);
+  }
+
+  .rtable td[data-primary]::before,
+  .rtable td[data-actions]::before {
+    content: none;
+  }
+}
+
+/* ── Key figures ───────────────────────────────────────────────────────── */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.stat {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.stat__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.stat__label {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+/* ── Facts and recorded text, for dialogs and detail panes ─────────────── */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.facts > div {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-surface-sunken);
+}
+
+.facts dt {
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.facts dd {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.code-block {
+  max-height: 14rem;
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 0.45rem;
+  background: var(--color-surface-sunken);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* ── Dialogs ───────────────────────────────────────────────────────────── */
+
+.dialog-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
+    max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
+  background: rgb(0 0 0 / 62%);
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(100%, var(--dialog-max));
+  max-height: 100%;
+  padding: var(--card-pad);
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+}
+
+.dialog > * {
+  flex-shrink: 0;
+}
+
+.dialog__actions {
+  justify-content: flex-end;
+}
+
+.dialog__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dialog__title {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.dialog__eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dialog__heading {
+  margin: 0;
+  font-size: 1.45rem;
+  overflow-wrap: anywhere;
+}
+
+/* On a phone the dialog is a sheet from the bottom edge: it never starts
+   above the top of the screen, however tall it is. The window decides, not the
+   page, because the dialog is fixed to the window. */
+@media (max-width: 40rem) {
+  .dialog-backdrop {
+    align-items: end;
+    padding-inline: 0;
+    padding-block-start: env(safe-area-inset-top);
+    padding-block-end: 0;
+  }
+
+  .dialog {
+    width: 100%;
+    max-height: 92dvh;
+    padding-block-end: max(var(--card-pad), env(safe-area-inset-bottom));
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
 }

@@ -27,10 +27,10 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ApiError,
   CandidateAssessmentItem,
   reopenCandidateAssessment,
   updateCandidateAssessment,
+  errorMessage,
 } from "./api";
 import { RankBelt } from "./Belt";
 import { useSiteSettingsQuery } from "./queries";
@@ -121,7 +121,7 @@ export function AssessmentCompletionScreen() {
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to complete assessment.");
+      setActionError(errorMessage(err, "Failed to complete assessment."));
     },
   });
 
@@ -141,7 +141,7 @@ export function AssessmentCompletionScreen() {
       navigate(scoringPath);
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to reopen assessment.");
+      setActionError(errorMessage(err, "Failed to reopen assessment."));
     },
   });
 

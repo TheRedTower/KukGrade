@@ -14,6 +14,7 @@ import {
   type ManagedUser,
   type UserAuthorityPayload,
   type UserRole,
+  errorMessage,
 } from "./api";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
@@ -46,6 +47,8 @@ function AccountForm({
     onSuccess: (updated) => {
       queryClient.setQueryData(["managedUser", user.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      // The change is audited: the page's own activity list shows it.
+      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
       onSaved("Account details saved.");
     },
   });
@@ -129,6 +132,7 @@ function AuthorityForm({
     onSuccess: (updated) => {
       queryClient.setQueryData(["managedUser", user.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
+      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
       onSaved("Master authority saved.");
     },
   });
@@ -344,7 +348,7 @@ export function UserDetailScreen(): React.ReactElement {
   if (query.isError || !query.data) {
     return (
       <div className="page users-state users-state-error" role="alert">
-        <p>{query.error instanceof ApiError ? query.error.message : "This user could not be loaded."}</p>
+        <p>{errorMessage(query.error, "This user could not be loaded.")}</p>
         <button type="button" onClick={() => navigate("/users")}>Back to users</button>
       </div>
     );

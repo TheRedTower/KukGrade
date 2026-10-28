@@ -29,6 +29,7 @@ import {
   generateCandidateAssessment,
   updateCandidateAssessment,
   updateCandidateAssessmentItem,
+  errorMessage,
 } from "./api";
 import { RankBelt } from "./Belt";
 import {
@@ -94,7 +95,7 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to prepare the assessment form.");
+      setActionError(errorMessage(err, "Failed to prepare the assessment form."));
     },
   });
 
@@ -110,7 +111,7 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
     },
     onError: (err) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to start assessment.");
+      setActionError(errorMessage(err, "Failed to start assessment."));
     },
   });
 
@@ -184,7 +185,7 @@ export function CandidateAssessmentScreen() {
         const before = context.before;
         patchItem(context.itemId, () => before);
       }
-      setActionError(err instanceof ApiError ? err.message : "Could not save this result.");
+      setActionError(errorMessage(err, "Could not save this result."));
     },
     onSettled: () => {
       // This write still counts as pending here, so 1 means it is the last.

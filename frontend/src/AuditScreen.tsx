@@ -6,9 +6,9 @@ import {
   type AuditAction,
   type AuditEntity,
   type AuditEvent,
-  ApiError,
   getAuditEvents,
   getAuditLabels,
+  errorMessage,
 } from "./api";
 import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
@@ -228,9 +228,7 @@ export function AuditScreen(): React.ReactElement {
         ) : query.isError ? (
           <div className="card audit-state audit-state-error" role="alert">
             <p>
-              {query.error instanceof ApiError
-                ? query.error.message
-                : "Audit events could not be loaded."}
+              {errorMessage(query.error, "Audit events could not be loaded.")}
             </p>
             <button type="button" onClick={() => void query.refetch()}>Try again</button>
           </div>

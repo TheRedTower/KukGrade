@@ -1,14 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
 import {
-  ApiError,
-  type FieldErrors,
   type Rank,
   type StudentStatus,
   createStudent,
 } from "./api";
+import { useServerForm } from "./forms";
 import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
 import { todayIsoDate } from "./dates";
@@ -28,10 +27,18 @@ export function AddStudentScreen() {
   const [currentRank, setCurrentRank] = useState<number | null>(null);
   const [status, setStatus] = useState<StudentStatus>("ACTIVE");
 
-  // Submission State
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [generalError, setGeneralError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  // What the server and the browser's own checks say about the form.
+  const form = useServerForm(["first_name", "last_name", "wksa_id", "date_of_birth", "current_rank"]);
+
+  const createMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof createStudent>[0]) => createStudent(payload),
+    onSuccess: async (newStudent) => {
+      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
+      navigate(`/students/${newStudent.id}`);
+    },
+    onError: (err) => form.handle(err, "Failed to create student. Please check the form."),
+  });
+  const isSubmitting = createMutation.isPending;
 
   // 1. Fetch active ranks
   const ranksQuery = useRanksQuery();
@@ -51,10 +58,9 @@ export function AddStudentScreen() {
     return null;
   }, [currentRank, ranks]);
 
-  async function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setGeneralError(null);
-    setFieldErrors({});
+    form.reset();
 
     // Client-side validations
     const errors: Record<string, string[]> = {};
@@ -75,51 +81,19 @@ export function AddStudentScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
+      form.setClientErrors(errors);
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const newStudent = await createStudent({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        // As typed: the server tidies spacing and case, and checks the form.
-        wksa_id: wksaId,
-        date_of_birth: dateOfBirth,
-        current_rank: effectiveRankId!,
-        status,
-      });
-
-      // Invalidate student lists
-      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
-
-      // Navigate to student detail view
-      navigate(`/students/${newStudent.id}`);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        if (err.fields && Object.keys(err.fields).length > 0) {
-          setFieldErrors(err.fields);
-        } else {
-          setGeneralError(err.message || "Failed to create student. Please check the form.");
-        }
-      } else {
-        setGeneralError("A network error occurred. Please check your connection.");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function getFieldError(fieldName: string): string | null {
-    const err = fieldErrors[fieldName];
-    if (Array.isArray(err) && err.length > 0) {
-      return typeof err[0] === "string" ? err[0] : null;
-    }
-    if (typeof err === "string") {
-      return err;
-    }
-    return null;
+    createMutation.mutate({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      // As typed: the server tidies spacing and case, and checks the form.
+      wksa_id: wksaId,
+      date_of_birth: dateOfBirth,
+      current_rank: effectiveRankId!,
+      status,
+    });
   }
 
   return (
@@ -149,9 +123,9 @@ export function AddStudentScreen() {
         <p className="add-student-subtitle">Create a staff-only student record</p>
       </div>
 
-      {generalError && (
+      {form.banner && (
         <div role="alert" className="form-alert-banner">
-          <p>{generalError}</p>
+          <p>{form.banner}</p>
         </div>
       )}
 
@@ -168,17 +142,17 @@ export function AddStudentScreen() {
               <input
                 id="first-name-input"
                 type="text"
-                className={`form-text-input ${getFieldError("first_name") ? "input-error" : ""}`}
+                className={`form-text-input ${form.errorFor("first_name") ? "input-error" : ""}`}
                 placeholder="e.g. Alex"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 disabled={isSubmitting}
                 aria-required="true"
-                aria-invalid={!!getFieldError("first_name")}
-                aria-describedby={getFieldError("first_name") ? "first-name-error" : undefined}
+                aria-invalid={!!form.errorFor("first_name")}
+                aria-describedby={form.errorFor("first_name") ? "first-name-error" : undefined}
               />
-              {getFieldError("first_name") && (
-                <p className="form-field-error" id="first-name-error" role="alert">{getFieldError("first_name")}</p>
+              {form.errorFor("first_name") && (
+                <p className="form-field-error" id="first-name-error" role="alert">{form.errorFor("first_name")}</p>
               )}
             </div>
 
@@ -189,17 +163,17 @@ export function AddStudentScreen() {
               <input
                 id="last-name-input"
                 type="text"
-                className={`form-text-input ${getFieldError("last_name") ? "input-error" : ""}`}
+                className={`form-text-input ${form.errorFor("last_name") ? "input-error" : ""}`}
                 placeholder="e.g. Carter"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 disabled={isSubmitting}
                 aria-required="true"
-                aria-invalid={!!getFieldError("last_name")}
-                aria-describedby={getFieldError("last_name") ? "last-name-error" : undefined}
+                aria-invalid={!!form.errorFor("last_name")}
+                aria-describedby={form.errorFor("last_name") ? "last-name-error" : undefined}
               />
-              {getFieldError("last_name") && (
-                <p className="form-field-error" id="last-name-error" role="alert">{getFieldError("last_name")}</p>
+              {form.errorFor("last_name") && (
+                <p className="form-field-error" id="last-name-error" role="alert">{form.errorFor("last_name")}</p>
               )}
             </div>
           </div>
@@ -211,17 +185,17 @@ export function AddStudentScreen() {
             <input
               id="wksa-id-input"
               type="text"
-              className={`form-text-input ${getFieldError("wksa_id") ? "input-error" : ""}`}
+              className={`form-text-input ${form.errorFor("wksa_id") ? "input-error" : ""}`}
               placeholder={idScheme ? `e.g. ${idScheme.forms.map((form) => form.example).join(" or ")}` : undefined}
               value={wksaId}
               onChange={(e) => setWksaId(e.target.value)}
               disabled={isSubmitting}
               aria-required="true"
-              aria-invalid={!!getFieldError("wksa_id")}
-              aria-describedby={getFieldError("wksa_id") ? "wksa-id-error" : undefined}
+              aria-invalid={!!form.errorFor("wksa_id")}
+              aria-describedby={form.errorFor("wksa_id") ? "wksa-id-error" : undefined}
             />
-            {getFieldError("wksa_id") ? (
-              <p className="form-field-error" id="wksa-id-error" role="alert">{getFieldError("wksa_id")}</p>
+            {form.errorFor("wksa_id") ? (
+              <p className="form-field-error" id="wksa-id-error" role="alert">{form.errorFor("wksa_id")}</p>
             ) : (
               <p className="form-field-help">
                 {idScheme ? `${idScheme.hint} ` : ""}
@@ -243,17 +217,17 @@ export function AddStudentScreen() {
               <input
                 id="dob-input"
                 type="date"
-                className={`form-text-input ${getFieldError("date_of_birth") ? "input-error" : ""}`}
+                className={`form-text-input ${form.errorFor("date_of_birth") ? "input-error" : ""}`}
                 value={dateOfBirth}
                 max={todayIsoDate()}
                 onChange={(e) => setDateOfBirth(e.target.value)}
                 disabled={isSubmitting}
                 aria-required="true"
-                aria-invalid={!!getFieldError("date_of_birth")}
-                aria-describedby={getFieldError("date_of_birth") ? "dob-error" : undefined}
+                aria-invalid={!!form.errorFor("date_of_birth")}
+                aria-describedby={form.errorFor("date_of_birth") ? "dob-error" : undefined}
               />
-              {getFieldError("date_of_birth") ? (
-                <p className="form-field-error" id="dob-error" role="alert">{getFieldError("date_of_birth")}</p>
+              {form.errorFor("date_of_birth") ? (
+                <p className="form-field-error" id="dob-error" role="alert">{form.errorFor("date_of_birth")}</p>
               ) : (
                 <div className="privacy-badge-line">
                   <LockIcon size={14} className="privacy-icon" />
@@ -268,13 +242,13 @@ export function AddStudentScreen() {
               </label>
               <select
                 id="rank-select-input"
-                className={`form-select-input ${getFieldError("current_rank") ? "input-error" : ""}`}
+                className={`form-select-input ${form.errorFor("current_rank") ? "input-error" : ""}`}
                 value={effectiveRankId ?? ""}
                 onChange={(e) => setCurrentRank(Number(e.target.value))}
                 disabled={isSubmitting || ranksQuery.isLoading}
                 aria-required="true"
-                aria-invalid={!!getFieldError("current_rank")}
-                aria-describedby={getFieldError("current_rank") ? "current-rank-error" : undefined}
+                aria-invalid={!!form.errorFor("current_rank")}
+                aria-describedby={form.errorFor("current_rank") ? "current-rank-error" : undefined}
               >
                 {ranks.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -282,8 +256,8 @@ export function AddStudentScreen() {
                   </option>
                 ))}
               </select>
-              {getFieldError("current_rank") && (
-                <p className="form-field-error" id="current-rank-error" role="alert">{getFieldError("current_rank")}</p>
+              {form.errorFor("current_rank") && (
+                <p className="form-field-error" id="current-rank-error" role="alert">{form.errorFor("current_rank")}</p>
               )}
             </div>
 

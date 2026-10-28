@@ -435,6 +435,9 @@ describe("Add student screen (/students/new)", () => {
       if (url.includes("/api/students/42")) {
         return jsonResponse(200, {
           id: 42,
+          wksa_id_can_change: true,
+          previous_wksa_ids: [],
+          extra_information: [],
           wksa_id: "UK-9999",
           first_name: "Alex",
           last_name: "Carter",
@@ -530,6 +533,65 @@ describe("Add student screen (/students/new)", () => {
 
     expect(await screen.findByText("A student with this WKSA ID already exists.")).toBeVisible();
     expect(window.location.pathname).toBe("/students/new");
+  });
+
+  function fillAddStudentForm(user: ReturnType<typeof userEvent.setup>) {
+    return (async () => {
+      await user.type(screen.getByLabelText(/First name/i), "Alex");
+      await user.type(screen.getByLabelText(/Last name/i), "Carter");
+      await user.type(screen.getByLabelText(/WKSA ID/i), "UK-1001");
+      await user.type(screen.getByLabelText(/Date of birth/i), "2005-04-12");
+      await user.click(screen.getByRole("button", { name: "Create student" }));
+    })();
+  }
+
+  it("says what the server said when it has no field to put it against", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/") && options?.method === "POST") {
+        return jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Some details need correcting.",
+            fields: { non_field_errors: ["This school has reached its student limit."] },
+          },
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+    await fillAddStudentForm(userEvent.setup());
+
+    expect(await screen.findByText("This school has reached its student limit.")).toBeVisible();
+    expect(window.location.pathname).toBe("/students/new");
+  });
+
+  it("returns to sign-in when the session ends while the student is being saved", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.includes("/api/auth/me/")) return jsonResponse(200, authUser);
+      if (url.includes("/api/ranks/")) {
+        return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
+      }
+      if (url.includes("/api/students/") && options?.method === "POST") {
+        return jsonResponse(401, {
+          error: { code: "not_authenticated", message: "Authentication credentials were not provided." },
+        });
+      }
+      return jsonResponse(404, {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
+    await fillAddStudentForm(userEvent.setup());
+
+    expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
   it("navigates back to /students when Cancel or breadcrumb is clicked", async () => {

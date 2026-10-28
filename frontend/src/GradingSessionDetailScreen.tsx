@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ApiError,
   CandidateAssessment,
   CandidateOutcome,
   GradingCandidate,
@@ -21,6 +20,7 @@ import {
   updateGradingSession,
   deleteGradingSession,
   withdrawLockedCandidate,
+  errorMessage,
 } from "./api";
 import { useAuth } from "./auth";
 import {
@@ -285,7 +285,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setActionError(null);
     },
     onError: (err: unknown) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to update session.");
+      setActionError(errorMessage(err, "Failed to update session."));
     },
   });
 
@@ -296,7 +296,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       void navigate("/gradings");
     },
     onError: (err: unknown) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to delete session.");
+      setActionError(errorMessage(err, "Failed to delete session."));
     },
   });
 
@@ -328,7 +328,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setActionError(failed ? Object.values(errors).flat().join(" ") : null);
     },
     onError: (err: unknown) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to prepare assessments.");
+      setActionError(errorMessage(err, "Failed to prepare assessments."));
     },
   });
 
@@ -345,7 +345,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setActionError(failed ? Object.values(errors).flat().join(" ") : null);
     },
     onError: (err: unknown) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to start assessments.");
+      setActionError(errorMessage(err, "Failed to start assessments."));
     },
   });
 
@@ -369,7 +369,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       setActionError(failed ? Object.values(errors).flat().join(" ") : null);
     },
     onError: (err: unknown) => {
-      setActionError(err instanceof ApiError ? err.message : "Failed to confirm attendance.");
+      setActionError(errorMessage(err, "Failed to confirm attendance."));
     },
   });
 
@@ -387,7 +387,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
     onError: (err: unknown) => {
       setWithdrawalError(
-        err instanceof ApiError ? err.message : "Failed to withdraw the candidate.",
+        errorMessage(err, "Failed to withdraw the candidate."),
       );
     },
   });
@@ -442,7 +442,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     },
     onError: (err: unknown) => {
       setRegistrationError(
-        err instanceof ApiError ? err.message : "Failed to change the registration.",
+        errorMessage(err, "Failed to change the registration."),
       );
     },
   });

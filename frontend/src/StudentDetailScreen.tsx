@@ -1,10 +1,8 @@
 import { type FormEvent, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import {
-  ApiError,
-  type FieldErrors,
   type GradingHistoryItem,
   type Rank,
   type StudentStatus,
@@ -14,6 +12,7 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { failureMessage, useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
@@ -60,7 +59,6 @@ export function StudentDetailScreen() {
 
   // Status modal state
   const [selectedStatus, setSelectedStatus] = useState<StudentStatus>("ACTIVE");
-  const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
 
   // Edit modal state
@@ -68,13 +66,51 @@ export function StudentDetailScreen() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editDob, setEditDob] = useState("");
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({});
-  const [editGeneralError, setEditGeneralError] = useState<string | null>(null);
+  const editForm = useServerForm(["first_name", "last_name", "wksa_id", "date_of_birth"]);
 
   // Delete modal state
-  const [isDeletingStudent, setIsDeletingStudent] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const statusMutation = useMutation({
+    mutationFn: (change: { id: number; status: StudentStatus }) => updateStudent(change.id, { status: change.status }),
+    onSuccess: async (_saved, change) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", change.id] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
+        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
+      ]);
+      setIsStatusModalOpen(false);
+    },
+    onError: (err) => setStatusError(failureMessage(err, "Failed to update student status.")),
+  });
+  const isSavingStatus = statusMutation.isPending;
+
+  const editMutation = useMutation({
+    mutationFn: (change: { id: number; changes: Parameters<typeof updateStudent>[1] }) =>
+      updateStudent(change.id, change.changes),
+    onSuccess: async (_saved, change) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["students", "detail", change.id] }),
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
+      ]);
+      setIsEditModalOpen(false);
+    },
+    onError: (err) => editForm.handle(err, "Failed to update student details."),
+  });
+  const isSavingEdit = editMutation.isPending;
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteStudent(id),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
+        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
+      ]);
+      navigate("/students");
+    },
+    onError: (err) => setDeleteError(failureMessage(err, "Failed to delete student.")),
+  });
+  const isDeletingStudent = deleteMutation.isPending;
   const statusDialogRef = useDialogFocus<HTMLDivElement>({
     isOpen: isStatusModalOpen,
     onClose: () => setIsStatusModalOpen(false),
@@ -129,60 +165,24 @@ export function StudentDetailScreen() {
     return next?.has_syllabus ? next : null;
   }, [student, ranks]);
 
-  async function handleSaveStatus(e: FormEvent) {
+  function handleSaveStatus(e: FormEvent) {
     e.preventDefault();
     if (!student) return;
-
     setStatusError(null);
-    setIsSavingStatus(true);
-    try {
-      await updateStudent(student.id, { status: selectedStatus });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "detail", student.id] }),
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
-      ]);
-      setIsStatusModalOpen(false);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setStatusError(err.message || "Failed to update student status.");
-      } else {
-        setStatusError("A network error occurred. Please try again.");
-      }
-    } finally {
-      setIsSavingStatus(false);
-    }
+    statusMutation.mutate({ id: student.id, status: selectedStatus });
   }
 
-  async function handleDeleteStudent() {
+  function handleDeleteStudent() {
     if (!student) return;
-
     setDeleteError(null);
-    setIsDeletingStudent(true);
-    try {
-      await deleteStudent(student.id);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
-      ]);
-      navigate("/students");
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setDeleteError(err.message || "Failed to delete student.");
-      } else {
-        setDeleteError("A network error occurred. Please try again.");
-      }
-    } finally {
-      setIsDeletingStudent(false);
-    }
+    deleteMutation.mutate(student.id);
   }
 
-  async function handleSaveEdit(e: FormEvent) {
+  function handleSaveEdit(e: FormEvent) {
     e.preventDefault();
     if (!student) return;
 
-    setEditGeneralError(null);
-    setEditFieldErrors({});
+    editForm.reset();
 
     const errors: Record<string, string[]> = {};
     if (!editFirstName.trim()) {
@@ -196,49 +196,21 @@ export function StudentDetailScreen() {
     }
 
     if (Object.keys(errors).length > 0) {
-      setEditFieldErrors(errors);
+      editForm.setClientErrors(errors);
       return;
     }
 
-    setIsSavingEdit(true);
-    try {
-      await updateStudent(student.id, {
+    editMutation.mutate({
+      id: student.id,
+      changes: {
         // Sent only when changed: the server allows one change, a student ID
         // to the black belt ID, and refuses any other.
         ...(editWksaId !== student.wksa_id ? { wksa_id: editWksaId } : {}),
         first_name: editFirstName.trim(),
         last_name: editLastName.trim(),
         date_of_birth: editDob,
-      });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "detail", student.id] }),
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-      ]);
-      setIsEditModalOpen(false);
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        if (err.fields && Object.keys(err.fields).length > 0) {
-          setEditFieldErrors(err.fields);
-        } else {
-          setEditGeneralError(err.message || "Failed to update student details.");
-        }
-      } else {
-        setEditGeneralError("A network error occurred. Please try again.");
-      }
-    } finally {
-      setIsSavingEdit(false);
-    }
-  }
-
-  function getEditFieldError(fieldName: string): string | null {
-    const err = editFieldErrors[fieldName];
-    if (Array.isArray(err) && err.length > 0) {
-      return typeof err[0] === "string" ? err[0] : null;
-    }
-    if (typeof err === "string") {
-      return err;
-    }
-    return null;
+      },
+    });
   }
 
   if (studentQuery.isLoading) {
@@ -338,8 +310,7 @@ export function StudentDetailScreen() {
               setEditFirstName(student.first_name);
               setEditLastName(student.last_name);
               setEditDob(student.date_of_birth);
-              setEditFieldErrors({});
-              setEditGeneralError(null);
+              editForm.reset();
               setIsEditModalOpen(true);
             }}
           >
@@ -827,9 +798,9 @@ export function StudentDetailScreen() {
               </button>
             </div>
 
-            {editGeneralError && (
+            {editForm.banner && (
               <div role="alert" className="form-alert-banner">
-                <p>{editGeneralError}</p>
+                <p>{editForm.banner}</p>
               </div>
             )}
 
@@ -842,16 +813,16 @@ export function StudentDetailScreen() {
                   <input
                     id="edit-wksa-id"
                     type="text"
-                    className={`form-text-input ${getEditFieldError("wksa_id") ? "input-error" : ""}`}
+                    className={`form-text-input ${editForm.errorFor("wksa_id") ? "input-error" : ""}`}
                     value={editWksaId}
                     onChange={(e) => setEditWksaId(e.target.value)}
                     disabled={isSavingEdit}
-                    aria-invalid={!!getEditFieldError("wksa_id")}
-                    aria-describedby={getEditFieldError("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
+                    aria-invalid={!!editForm.errorFor("wksa_id")}
+                    aria-describedby={editForm.errorFor("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
-                  {getEditFieldError("wksa_id") ? (
+                  {editForm.errorFor("wksa_id") ? (
                     <p className="form-field-error" id="edit-wksa-id-error" role="alert">
-                      {getEditFieldError("wksa_id")}
+                      {editForm.errorFor("wksa_id")}
                     </p>
                   ) : (
                     <p className="form-field-help" id="edit-wksa-id-help">
@@ -870,17 +841,17 @@ export function StudentDetailScreen() {
                     <input
                       id="edit-first-name"
                       type="text"
-                      className={`form-text-input ${getEditFieldError("first_name") ? "input-error" : ""}`}
+                      className={`form-text-input ${editForm.errorFor("first_name") ? "input-error" : ""}`}
                       value={editFirstName}
                       onChange={(e) => setEditFirstName(e.target.value)}
                       disabled={isSavingEdit}
                       aria-required="true"
-                      aria-invalid={!!getEditFieldError("first_name")}
-                      aria-describedby={getEditFieldError("first_name") ? "edit-first-name-error" : undefined}
+                      aria-invalid={!!editForm.errorFor("first_name")}
+                      aria-describedby={editForm.errorFor("first_name") ? "edit-first-name-error" : undefined}
                       data-dialog-autofocus
                     />
-                    {getEditFieldError("first_name") && (
-                      <p className="form-field-error" id="edit-first-name-error" role="alert">{getEditFieldError("first_name")}</p>
+                    {editForm.errorFor("first_name") && (
+                      <p className="form-field-error" id="edit-first-name-error" role="alert">{editForm.errorFor("first_name")}</p>
                     )}
                   </div>
 
@@ -891,16 +862,16 @@ export function StudentDetailScreen() {
                     <input
                       id="edit-last-name"
                       type="text"
-                      className={`form-text-input ${getEditFieldError("last_name") ? "input-error" : ""}`}
+                      className={`form-text-input ${editForm.errorFor("last_name") ? "input-error" : ""}`}
                       value={editLastName}
                       onChange={(e) => setEditLastName(e.target.value)}
                       disabled={isSavingEdit}
                       aria-required="true"
-                      aria-invalid={!!getEditFieldError("last_name")}
-                      aria-describedby={getEditFieldError("last_name") ? "edit-last-name-error" : undefined}
+                      aria-invalid={!!editForm.errorFor("last_name")}
+                      aria-describedby={editForm.errorFor("last_name") ? "edit-last-name-error" : undefined}
                     />
-                    {getEditFieldError("last_name") && (
-                      <p className="form-field-error" id="edit-last-name-error" role="alert">{getEditFieldError("last_name")}</p>
+                    {editForm.errorFor("last_name") && (
+                      <p className="form-field-error" id="edit-last-name-error" role="alert">{editForm.errorFor("last_name")}</p>
                     )}
                   </div>
                 </div>
@@ -912,17 +883,17 @@ export function StudentDetailScreen() {
                   <input
                     id="edit-dob"
                     type="date"
-                    className={`form-text-input ${getEditFieldError("date_of_birth") ? "input-error" : ""}`}
+                    className={`form-text-input ${editForm.errorFor("date_of_birth") ? "input-error" : ""}`}
                     value={editDob}
                     max={todayIsoDate()}
                     onChange={(e) => setEditDob(e.target.value)}
                     disabled={isSavingEdit}
                     aria-required="true"
-                    aria-invalid={!!getEditFieldError("date_of_birth")}
-                    aria-describedby={getEditFieldError("date_of_birth") ? "edit-dob-error" : undefined}
+                    aria-invalid={!!editForm.errorFor("date_of_birth")}
+                    aria-describedby={editForm.errorFor("date_of_birth") ? "edit-dob-error" : undefined}
                   />
-                  {getEditFieldError("date_of_birth") && (
-                    <p className="form-field-error" id="edit-dob-error" role="alert">{getEditFieldError("date_of_birth")}</p>
+                  {editForm.errorFor("date_of_birth") && (
+                    <p className="form-field-error" id="edit-dob-error" role="alert">{editForm.errorFor("date_of_birth")}</p>
                   )}
                 </div>
               </div>

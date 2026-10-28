@@ -5,10 +5,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import {
   type GradingSession,
   type GradingSessionStatus,
-  ApiError,
   deleteGradingSession,
   getGradingSessionYears,
   getGradingSessions,
+  errorMessage,
 } from "./api";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
@@ -142,7 +142,7 @@ export function GradingSessionsScreen() {
       setDeleteError(null);
     },
     onError: (err) => {
-      setDeleteError(err instanceof ApiError ? err.message : "Failed to delete session.");
+      setDeleteError(errorMessage(err, "Failed to delete session."));
     },
   });
 

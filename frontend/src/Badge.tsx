@@ -1,25 +1,13 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
-export type BadgeTone =
-  | "success"
-  | "warning"
-  | "danger"
-  | "info"
-  | "neutral"
-  | "draft"
-  | "open"
-  | "locked"
-  | "completed"
-  | "cancelled";
+import { type BadgeTone, badgeClass } from "./badgeClass";
 
-interface BadgeProps {
+interface BadgeStyle {
   tone: BadgeTone;
   /** A small round mark before the label. */
   dot?: boolean;
   /** An icon before the label; the shared icons are already hidden from assistive technology. */
   icon?: ReactNode;
-  className?: string;
-  children: ReactNode;
 }
 
 /**
@@ -27,9 +15,9 @@ interface BadgeProps {
  * Use StatusBadge for a status the system defines, so the same status looks the
  * same everywhere.
  */
-export function Badge({ tone, dot, icon, className, children }: BadgeProps) {
+export function Badge({ tone, dot, icon, className, children, ...rest }: BadgeStyle & ComponentProps<"span">) {
   return (
-    <span className={`badge badge--${tone}${className ? ` ${className}` : ""}`}>
+    <span className={badgeClass(tone, className)} {...rest}>
       {dot && <span className="badge__dot" aria-hidden="true" />}
       {icon}
       {children}

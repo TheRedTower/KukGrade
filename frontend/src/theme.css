@@ -40,7 +40,6 @@
   /* The accent as text: at least 4.5:1 on every light surface. The two above
      are for fills, borders and focus outlines, and are too light to read. */
   --color-accent-text: #8f5f07;
-  --color-on-accent: #17140f;
 
   /* Primary Action Buttons */
   --btn-primary-bg: #f2a71b;
@@ -133,7 +132,6 @@
     --color-accent: #ffbb3d;
     --color-accent-strong: #ffd073;
     --color-accent-text: #ffbb3d;
-    --color-on-accent: #14110c;
 
     /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
     --btn-primary-bg: #e8a838;
@@ -202,7 +200,6 @@
   --color-accent: #ffbb3d;
   --color-accent-strong: #ffd073;
   --color-accent-text: #ffbb3d;
-  --color-on-accent: #14110c;
 
   /* Primary Action Buttons: switched colour scheme for dark mode, highly legible, easy on the eyes */
   --btn-primary-bg: #e8a838;

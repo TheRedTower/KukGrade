@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { useRanksQuery } from "./queries";
 import { Pagination } from "./Pagination";
+import { StudentStatusBadge } from "./StatusBadge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import "./StudentScreens.css";
 import { SearchIcon } from "./Icons";
@@ -110,31 +111,6 @@ export function StudentsScreen() {
     setStatusFilter("ALL");
     setRankFilter("ALL");
     setPage(1);
-  }
-
-  function renderStatusBadge(status: StudentStatus, display: string) {
-    if (status === "ACTIVE") {
-      return (
-        <span className="student-status-badge status-active">
-          <span className="status-dot" aria-hidden="true" />
-          {display || "Active"}
-        </span>
-      );
-    }
-    if (status === "INACTIVE") {
-      return (
-        <span className="student-status-badge status-inactive">
-          <span className="status-dot" aria-hidden="true" />
-          {display || "Inactive"}
-        </span>
-      );
-    }
-    return (
-      <span className="student-status-badge status-left">
-        <span className="status-dot" aria-hidden="true" />
-        {display || "Left"}
-      </span>
-    );
   }
 
   return (
@@ -314,7 +290,7 @@ export function StudentsScreen() {
                 {
                   key: "status",
                   header: "Status",
-                  render: (student) => renderStatusBadge(student.status, student.status_display),
+                  render: (student) => <StudentStatusBadge status={student.status} label={student.status_display} />,
                 },
                 // The registration the server says is still in progress, and how
                 // far it has got - not a guess from the student's status (audit F-29).

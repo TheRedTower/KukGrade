@@ -254,7 +254,7 @@ describe("CohortAdjudicationScreen", () => {
     const alex = await screen.findByTestId("cab-row-2");
     await waitFor(() => expect(within(alex).getByText("22 / 24 met")).toBeVisible());
     expect(within(alex).getByText("2 not met")).toBeVisible();
-    expect(within(alex).getByText("Conditional", { selector: ".cab-pill" })).toBeVisible();
+    expect(within(alex).getByText("Conditional", { selector: ".badge--warning" })).toBeVisible();
     expect(within(screen.getByTestId("cab-row-3")).getByText("Recorded · Fail")).toBeVisible();
     expect(screen.queryByTestId("cab-row-4")).toBeNull();
     expect(screen.getByText("1 withdrawn candidate is not shown.")).toBeVisible();

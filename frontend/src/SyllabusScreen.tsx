@@ -8,8 +8,10 @@ import {
 } from "./api";
 import { BeltSwatch } from "./Belt";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
+import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { ScrollRail } from "./ScrollRail";
+import { RequirementBadge } from "./StatusBadge";
 import "./Syllabus.css";
 
 function provenance(row: EffectiveSyllabusRequirement): { isNew: boolean; text: string } {
@@ -74,7 +76,7 @@ function SyllabusLedgerTable({
               <div className="syl-cell-curriculum">
                 <div className="syl-item-name">
                   {row.item_name}
-                  {isNew && <span className="syl-new-badge">NEW</span>}
+                  {isNew && <Badge tone="info">NEW</Badge>}
                 </div>
                 {row.item_korean_name && <div className="syl-item-korean">{row.item_korean_name}</div>}
                 {noteText && <div className="syl-item-notes">{noteText}</div>}
@@ -93,11 +95,7 @@ function SyllabusLedgerTable({
           header: "Requirement",
           align: "end",
           render: (row) =>
-            row.required ? (
-              <span className="syl-badge-required">Required</span>
-            ) : (
-              <span className="syl-badge-optional">Optional</span>
-            ),
+            <RequirementBadge required={row.required} />,
         },
       ]}
     />

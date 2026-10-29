@@ -41,8 +41,11 @@ import { useDialogFocus } from "./useDialogFocus";
 import "./CandidateAssessment.css";
 import { formatDayMonth, formatTime } from "./dates";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
+import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { assessmentTone } from "./badgeClass";
+import { RequirementBadge } from "./StatusBadge";
 
 /*
  * One icon set, drawn inline. The previous screen mixed raw emoji into the
@@ -294,26 +297,26 @@ export function CandidateAssessmentScreen() {
           <span className="caw-candidate-wksa">{candidate.student_wksa_id}</span>
         )}
         <span aria-hidden="true" className="caw-identity-divider" />
-        <span className="caw-rank-tag">
+        <Badge tone="neutral">
           {candidate && <RankBelt rankId={candidate.from_rank} />}
           <span>{candidate?.from_rank_name ?? ""}</span>
-        </span>
+        </Badge>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="caw-rank-arrow">
           <path d="M4 12h15M14 7l5 5-5 5" />
         </svg>
-        <span className="caw-rank-tag caw-rank-tag-dest">
+        <Badge tone="neutral">
           <RankBelt rankId={candidate.testing_for_rank} />
           <span>{candidate.testing_for_rank_name}</span>
-        </span>
-        <span className="caw-age-pill">{candidate.age_band_display}</span>
-        <span
-          className={`caw-status-pill caw-status-${(assessment?.status ?? "NOT_STARTED").toLowerCase()}`}
+        </Badge>
+        <Badge tone="info">{candidate.age_band_display}</Badge>
+        <Badge
+          tone={assessmentTone(assessment?.status)}
+          dot
           data-testid="caw-status-pill"
         >
-          <span className="caw-status-dot" aria-hidden="true" />
           {assessment?.status_display || "Not started"}
           {assessment?.started_at && ` · started ${formatTime(assessment.started_at)}`}
-        </span>
+        </Badge>
 
         <div className="caw-identity-spacer" />
 
@@ -675,11 +678,7 @@ function AssessmentItemRow({
           <span className="caw-row-seq">#{item.position}</span>
           <span className="caw-row-name">{item.item_name}</span>
           {item.korean_name && <span className="caw-row-korean">{item.korean_name}</span>}
-          {item.required ? (
-            <span className="caw-required-badge">Required</span>
-          ) : (
-            <span className="caw-optional-badge">Optional</span>
-          )}
+          <RequirementBadge required={item.required} />
           {(item.display_range || item.notation) && (
             <span className="caw-row-range">{item.display_range || item.notation}</span>
           )}

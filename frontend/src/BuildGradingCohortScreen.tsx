@@ -16,8 +16,9 @@ import { failureMessage } from "./forms";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Dialog } from "./Dialog";
+import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
-import { SessionStatusBadge } from "./StatusBadge";
+import { SessionStatusBadge, StudentStatusBadge } from "./StatusBadge";
 import { BeltSwatch, type BeltRank } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
@@ -518,14 +519,12 @@ export function BuildGradingCohortScreen() {
                 header: "Status",
                 render: (item) =>
                   item.isAlreadyRegistered ? (
-                    <span className="bgc-status-badge bgc-badge-muted">
+                    <Badge tone="neutral">
                       {/* One grading at a time: held by another grading, not this one. */}
                       {item.error.includes("for this session") ? "No retry needed" : "Registered for another grading"}
-                    </span>
+                    </Badge>
                   ) : (
-                    <span className={`bgc-status-badge bgc-status-${item.student?.status?.toLowerCase()}`}>
-                      {item.student?.status_display || item.student?.status}
-                    </span>
+                    <StudentStatusBadge status={item.student?.status} label={item.student?.status_display} />
                   ),
               },
               {
@@ -582,7 +581,7 @@ export function BuildGradingCohortScreen() {
                       <span className="bgc-created-wksa">({entry.candidate.student_wksa_id})</span>
                       <span className="bgc-created-rank">➔ {entry.candidate.testing_for_rank_name}</span>
                       {entry.assessment && (
-                        <span className="bgc-badge bgc-badge-form">Form created (Not started)</span>
+                        <Badge tone="info">Form created (Not started)</Badge>
                       )}
                     </li>
                   ))}
@@ -813,10 +812,8 @@ export function BuildGradingCohortScreen() {
                       header: "Age and status",
                       render: (student) => (
                         <div className="bgc-chips">
-                          <span className="bgc-ageband-badge">{student.age_band_display || student.age_band || "—"}</span>
-                          <span className={`bgc-status-badge bgc-status-${student.status.toLowerCase()}`}>
-                            {student.status_display || student.status}
-                          </span>
+                          <Badge tone="neutral">{student.age_band_display || student.age_band || "—"}</Badge>
+                          <StudentStatusBadge status={student.status} label={student.status_display} />
                         </div>
                       ),
                     },
@@ -879,9 +876,9 @@ export function BuildGradingCohortScreen() {
                   key: "age-mix",
                   header: "Age mix",
                   render: (group) => (
-                    <span className="bgc-agemix-badge">
+                    <Badge tone="neutral">
                       {group.programmeCounts.map((entry) => `${entry.label} ${entry.count}`).join(" | ")}
-                    </span>
+                    </Badge>
                   ),
                 },
                 {
@@ -1062,9 +1059,7 @@ export function BuildGradingCohortScreen() {
                   <span className="bgc-modal-rank-flow">
                     {item.currentRank?.name} ➔ {item.destinationRank?.name || "—"}
                   </span>
-                  <span className={`bgc-status-badge bgc-status-${item.student.status.toLowerCase()}`}>
-                    {item.student.status_display || item.student.status}
-                  </span>
+                  <StudentStatusBadge status={item.student.status} label={item.student.status_display} />
                 </div>
                 <Button
                   variant="ghost" className="bgc-btn-remove-individual"

@@ -33,131 +33,15 @@ import {
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
-import { SessionStatusBadge } from "./StatusBadge";
+import { AssessmentBadge, OutcomeBadge, SessionStatusBadge } from "./StatusBadge";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
+import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
 
-
-function AssessmentBadge({ assessment }: { assessment?: CandidateAssessment }) {
-  if (!assessment) {
-    return (
-      <span className="gsd-badge gsd-badge-neutral">
-        <span className="gsd-badge-icon" aria-hidden="true">—</span>
-        Not prepared
-      </span>
-    );
-  }
-
-  const status = assessment?.status;
-
-  if (status === "COMPLETED") {
-    return (
-      <span className="gsd-badge gsd-badge-completed">
-        <span className="gsd-badge-icon" aria-hidden="true">✓</span>
-        Completed
-      </span>
-    );
-  }
-
-  if (status === "IN_PROGRESS") {
-    return (
-      <span className="gsd-badge gsd-badge-in-progress">
-        <span className="gsd-badge-icon" aria-hidden="true">🕒</span>
-        In progress
-      </span>
-    );
-  }
-
-  return (
-    <span className="gsd-badge gsd-badge-not-started">
-      <span className="gsd-badge-icon" aria-hidden="true">—</span>
-      Not started
-    </span>
-  );
-}
-
-function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome }) {
-  if (!outcome) {
-    return (
-      <span className="gsd-badge gsd-badge-neutral">
-        <span className="gsd-badge-icon" aria-hidden="true">—</span>
-        Not proposed
-      </span>
-    );
-  }
-
-  if (outcome.status === "FINALISED") {
-    const finalOutcome = outcome.final_outcome;
-    if (finalOutcome === "PASS") {
-      return (
-        <span className="gsd-badge gsd-badge-final-pass">
-          <span className="gsd-badge-icon" aria-hidden="true">✓</span>
-          Finalised: Pass
-        </span>
-      );
-    }
-    if (finalOutcome === "CONDITIONAL") {
-      return (
-        <span className="gsd-badge gsd-badge-final-conditional">
-          <span className="gsd-badge-icon" aria-hidden="true">!</span>
-          Finalised: Conditional
-        </span>
-      );
-    }
-    if (finalOutcome === "FAIL") {
-      return (
-        <span className="gsd-badge gsd-badge-final-fail">
-          <span className="gsd-badge-icon" aria-hidden="true">✕</span>
-          Finalised: Fail
-        </span>
-      );
-    }
-    return (
-      <span className="gsd-badge gsd-badge-neutral">
-        Finalised
-      </span>
-    );
-  }
-
-  if (outcome.status === "PROPOSED") {
-    const proposed = outcome.proposed_outcome;
-    if (proposed === "PASS") {
-      return (
-        <span className="gsd-badge gsd-badge-proposed-pass">
-          <span className="gsd-badge-icon" aria-hidden="true">✓</span>
-          Proposed: Pass
-        </span>
-      );
-    }
-    if (proposed === "CONDITIONAL") {
-      return (
-        <span className="gsd-badge gsd-badge-proposed-conditional">
-          <span className="gsd-badge-icon" aria-hidden="true">!</span>
-          Proposed: Conditional
-        </span>
-      );
-    }
-    if (proposed === "FAIL") {
-      return (
-        <span className="gsd-badge gsd-badge-proposed-fail">
-          <span className="gsd-badge-icon" aria-hidden="true">✕</span>
-          Proposed: Fail
-        </span>
-      );
-    }
-  }
-
-  return (
-    <span className="gsd-badge gsd-badge-neutral">
-      <span className="gsd-badge-icon" aria-hidden="true">—</span>
-      Not proposed
-    </span>
-  );
-}
 
 interface EnrichedCandidate {
   candidate: GradingCandidate;
@@ -1104,10 +988,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   render: (item) =>
                     item.candidate.status === "WITHDRAWN" ? (
                       <>
-                        <span className="gsd-badge gsd-badge-neutral">
-                          <span className="gsd-badge-icon" aria-hidden="true">—</span>
-                          Withdrawn
-                        </span>
+                        <Badge tone="neutral">Withdrawn</Badge>
                         <span className="gsd-withdrawal-record">
                           {item.candidate.withdrawal_reason_display && (
                             <span>{item.candidate.withdrawal_reason_display}</span>
@@ -1124,7 +1005,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                   header: "Outcome",
                   render: (item) =>
                     item.candidate.status === "WITHDRAWN" ? (
-                      <span className="gsd-badge gsd-badge-neutral">No outcome</span>
+                      <Badge tone="neutral">No outcome</Badge>
                     ) : (
                       <OutcomeBadge outcome={item.outcome} />
                     ),

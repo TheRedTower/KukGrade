@@ -115,7 +115,7 @@ serializers and the committed frontend types match the schema.
   of choices too long for the screen (it moves a page at a time and shows only whole items; the
   one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
-  the table when there are no rows.
+  the table when there are no rows; `selected` marks the row a side panel shows.
   `e2e/widthDebt.json` lists screens that still do not fit: delete a screen from it when
   you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)

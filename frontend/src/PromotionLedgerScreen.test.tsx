@@ -403,7 +403,7 @@ describe("PromotionLedgerScreen", () => {
       "href",
       "/gradings/1",
     );
-    expect(screen.getByText("Promotion Ledger", { selector: ".pl-breadcrumb-current" })).toBeInTheDocument();
+    expect(screen.getByText("Promotion Ledger", { selector: "[aria-current=\"page\"]" })).toBeInTheDocument();
 
     // Summary banner (Alex and Beth are eligible, Carlos is already promoted)
     expect(
@@ -674,7 +674,7 @@ describe("PromotionLedgerScreen", () => {
     expect(promoteButton).toHaveFocus();
   });
 
-  it("opens pinned batch preview tray, displays eligible candidates, and executes bulk promotion", async () => {
+  it("opens batch promotion summary, displays eligible candidates, and executes bulk promotion", async () => {
     const user = userEvent.setup();
     const bulkResponse = {
       promoted: [
@@ -708,14 +708,14 @@ describe("PromotionLedgerScreen", () => {
       ).toBeInTheDocument();
     });
 
-    // Open pinned batch confirmation tray
+    // Open batch promotion summary
     await user.click(
       screen.getByRole("button", {
         name: /Promote Qualified Cohort \(2 Candidates\)/i,
       }),
     );
 
-    const tray = screen.getByRole("region", {
+    const tray = screen.getByRole("dialog", {
       name: "Promotion summary",
     });
     expect(tray).toBeInTheDocument();
@@ -731,9 +731,9 @@ describe("PromotionLedgerScreen", () => {
     expect(screen.getByText("Blue Stripe", { selector: ".pl-chip-target" })).toBeInTheDocument();
 
     // Metadata in right section: the session's grading date, labelled as such.
-    expect(screen.getByText("15 Oct 2026", { selector: ".pl-meta-val" })).toBeInTheDocument();
-    expect(screen.getByText("Grading date", { selector: ".pl-meta-label" })).toBeInTheDocument();
-    expect(screen.getByText("In Hyuk Kim", { selector: ".pl-meta-val" })).toBeInTheDocument();
+    expect(screen.getByText("15 Oct 2026", { selector: "dd" })).toBeInTheDocument();
+    expect(screen.getByText("Grading date", { selector: "dt" })).toBeInTheDocument();
+    expect(screen.getByText("In Hyuk Kim", { selector: "dd" })).toBeInTheDocument();
 
     // Confirm batch promotion
     const confirmBatchBtn = screen.getByRole("button", {
@@ -750,10 +750,10 @@ describe("PromotionLedgerScreen", () => {
         screen.getByText("Successfully promoted all 2 qualified candidates!"),
       ).toBeInTheDocument();
     });
-    expect(screen.queryByRole("region", { name: "Promotion summary" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Promotion summary" })).not.toBeInTheDocument();
   });
 
-  it("can close the pinned batch preview tray without promoting", async () => {
+  it("can close the batch promotion summary without promoting", async () => {
     const user = userEvent.setup();
     renderScreen(1);
 
@@ -771,7 +771,7 @@ describe("PromotionLedgerScreen", () => {
       }),
     );
     expect(
-      screen.getByRole("region", { name: "Promotion summary" }),
+      screen.getByRole("dialog", { name: "Promotion summary" }),
     ).toBeInTheDocument();
 
     const closeBtn = screen.getByRole("button", {
@@ -780,7 +780,7 @@ describe("PromotionLedgerScreen", () => {
     await user.click(closeBtn);
 
     expect(
-      screen.queryByRole("region", { name: "Promotion summary" }),
+      screen.queryByRole("dialog", { name: "Promotion summary" }),
     ).not.toBeInTheDocument();
     expect(mockBulkPromoteCandidateOutcomes).not.toHaveBeenCalled();
   });

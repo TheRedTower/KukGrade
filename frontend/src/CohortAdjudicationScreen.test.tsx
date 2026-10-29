@@ -361,9 +361,10 @@ describe("CohortAdjudicationScreen", () => {
 
   it("moves focus to the detail pane when a row is chosen on a narrow screen", async () => {
     const user = userEvent.setup();
-    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
-      (query: string) => ({ matches: query === "(max-width: 64rem)", media: query }) as MediaQueryList,
-    );
+    // Stacked: the detail heading starts where the queue starts, not beyond it.
+    const rect = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return { left: 0, right: this.classList.contains("rtable") ? 500 : 0 } as DOMRect;
+    });
     renderBoard();
 
     await user.click(within(await screen.findByTestId("cab-row-2")).getByRole("button", { name: "Alex Carter" }));
@@ -371,7 +372,7 @@ describe("CohortAdjudicationScreen", () => {
     await waitFor(() =>
       expect(within(screen.getByTestId("cab-detail")).getByRole("heading", { name: "Alex Carter" })).toHaveFocus(),
     );
-    matchMedia.mockRestore();
+    rect.mockRestore();
   });
 
   it("leaves focus on the row when a row is chosen on a wide screen", async () => {

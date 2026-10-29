@@ -199,16 +199,6 @@
   font-size: 0.82rem;
 }
 
-.bgc-agemix-badge {
-  display: inline-block;
-  font-size: 0.78rem;
-  color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
-}
-
 .bgc-eligible-count-cell {
   display: flex;
   flex-direction: column;
@@ -277,17 +267,6 @@
 .bgc-student-name-link:hover {
   color: var(--color-accent-text);
   text-decoration: underline;
-}
-
-.bgc-ageband-badge {
-  display: inline-block;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-  background: var(--color-surface-sunken);
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  border: 1px solid var(--color-border);
 }
 
 /* ── RIGHT COLUMN: Cohort Ledger Tray ───────────────────────────────────── */
@@ -618,30 +597,6 @@
   font-size: 0.85rem;
 }
 
-.bgc-status-badge {
-  display: inline-block;
-  padding: 0.2rem 0.55rem;
-  border-radius: 4px;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.bgc-badge-muted {
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-}
-
-.bgc-status-active {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
-.bgc-status-inactive {
-  background: rgba(217, 119, 6, 0.1);
-  color: #d97706;
-}
-
 .bgc-row-actions {
   display: flex;
   flex-wrap: wrap;
@@ -752,15 +707,6 @@
   font-weight: 600;
 }
 
-.bgc-badge-form {
-  margin-left: auto;
-  font-size: 0.75rem;
-  padding: 0.2rem 0.5rem;
-  background: var(--color-info-surface);
-  color: var(--color-info);
-  border-radius: 4px;
-}
-
 /* ── Resolver Footer Actions ────────────────────────────────────────────── */
 
 .bgc-resolver-footer {
@@ -819,4 +765,8 @@
 
 .bgc-tray-count {
   font-weight: 700;
+}
+
+.bgc-created-item .badge {
+  margin-left: auto;
 }

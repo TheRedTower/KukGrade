@@ -16,7 +16,10 @@ import { failureMessage, useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { useDialogFocus } from "./useDialogFocus";
+import { Badge } from "./Badge";
+import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
 import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
@@ -278,12 +281,7 @@ export function StudentDetailScreen() {
             <h1 id="student-heading" className="student-detail-name">
               {student.first_name} {student.last_name}
             </h1>
-            <span
-              className={`student-status-badge status-${statusStr.toLowerCase()}`}
-            >
-              <span className="status-dot" aria-hidden="true" />
-              {statusDisplay}
-            </span>
+            <StudentStatusBadge status={student.status} label={statusDisplay} />
           </div>
           <p className="detail-wksa-id">
             WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
@@ -383,13 +381,13 @@ export function StudentDetailScreen() {
                     header: "Source",
                     render: (item) =>
                       item.source === "LEGACY" && currentUser?.can_reconcile_imported_history ? (
-                        <Link className="grading-history-source-badge source-historical" to={`/imports/history/${item.record_id}`}>
+                        <Link className={badgeClass("neutral")} to={`/imports/history/${item.record_id}`}>
                           Historical · correct
                         </Link>
                       ) : (
-                        <span className={`grading-history-source-badge ${item.source === "KUKGRADE" ? "source-kukgrade" : "source-historical"}`}>
+                        <Badge tone={item.source === "KUKGRADE" ? "info" : "neutral"}>
                           {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
-                        </span>
+                        </Badge>
                       ),
                   },
                   {
@@ -406,14 +404,11 @@ export function StudentDetailScreen() {
                     header: "Outcome",
                     render: (item) =>
                       item.attendance_status === "DID_NOT_ATTEND" ? (
-                        <span className="outcome-badge outcome-dna">{gradingHistoryOutcomeLabel(item)}</span>
+                        <Badge tone="neutral">{gradingHistoryOutcomeLabel(item)}</Badge>
                       ) : item.outcome === "PASS" ? (
-                        <span className="outcome-badge outcome-passed">
-                          <CheckIcon size={14} />
-                          <span>{gradingHistoryOutcomeLabel(item)}</span>
-                        </span>
+                        <Badge tone="success" icon={<CheckIcon size={14} />}>{gradingHistoryOutcomeLabel(item)}</Badge>
                       ) : (
-                        <span className="outcome-badge outcome-other">{gradingHistoryOutcomeLabel(item)}</span>
+                        <Badge tone="warning">{gradingHistoryOutcomeLabel(item)}</Badge>
                       ),
                   },
                   {
@@ -484,18 +479,11 @@ export function StudentDetailScreen() {
               <div className="readiness-row">
                 <span className="readiness-label">Current status</span>
                 {student.status === "ACTIVE" ? (
-                  <span className="readiness-badge readiness-eligible">
-                    <CheckIcon size={14} />
-                    <span>Can be registered</span>
-                  </span>
+                  <Badge tone="success" icon={<CheckIcon size={14} />}>Can be registered</Badge>
                 ) : student.status === "INACTIVE" ? (
-                  <span className="readiness-badge readiness-inactive">
-                    <span>Inactive (temporary break)</span>
-                  </span>
+                  <Badge tone="warning">Inactive (temporary break)</Badge>
                 ) : (
-                  <span className="readiness-badge readiness-left">
-                    <span>Left (registration blocked)</span>
-                  </span>
+                  <Badge tone="danger">Left (registration blocked)</Badge>
                 )}
               </div>
 
@@ -515,10 +503,7 @@ export function StudentDetailScreen() {
             <div className="record-status-body">
               <div className="record-status-badge-row">
                 <span className="record-status-label">Status</span>
-                <span className={`student-status-badge status-${statusStr.toLowerCase()}`}>
-                  <span className="status-dot" aria-hidden="true" />
-                  {statusDisplay}
-                </span>
+                <StudentStatusBadge status={student.status} label={statusDisplay} />
               </div>
 
               <div className="record-status-policy-note">
@@ -614,10 +599,7 @@ export function StudentDetailScreen() {
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
-                        <span className="student-status-badge status-active">
-                          <span className="status-dot" aria-hidden="true" />
-                          Active
-                        </span>
+                        <StudentStatusBadge status="ACTIVE" />
                       </div>
                       <p className="status-radio-desc">
                         Active student in regular training. Can be registered for gradings.
@@ -636,10 +618,7 @@ export function StudentDetailScreen() {
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
-                        <span className="student-status-badge status-inactive">
-                          <span className="status-dot" aria-hidden="true" />
-                          Inactive
-                        </span>
+                        <StudentStatusBadge status="INACTIVE" />
                       </div>
                       <p className="status-radio-desc">
                         Temporary break or medical leave. Blocks nothing, and keeps all history.
@@ -658,10 +637,7 @@ export function StudentDetailScreen() {
                     />
                     <div className="status-radio-content">
                       <div className="status-radio-header">
-                        <span className="student-status-badge status-left">
-                          <span className="status-dot" aria-hidden="true" />
-                          Left
-                        </span>
+                        <StudentStatusBadge status="LEFT" />
                       </div>
                       <p className="status-radio-desc">
                         Has left. Cannot be registered for gradings; all history is kept.

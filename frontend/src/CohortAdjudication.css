@@ -157,30 +157,6 @@
   color: var(--color-danger);
 }
 
-.cab-pill {
-  display: inline-block;
-  padding: 0.2rem 0.7rem;
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.cab-pill-pass {
-  color: var(--color-success);
-  background: var(--color-success-surface);
-}
-
-.cab-pill-conditional {
-  color: var(--color-warning);
-  background: var(--color-warning-surface);
-}
-
-.cab-pill-fail {
-  color: var(--color-danger);
-  background: var(--color-danger-surface);
-}
-
 .cab-recorded {
   display: inline-flex;
   align-items: center;

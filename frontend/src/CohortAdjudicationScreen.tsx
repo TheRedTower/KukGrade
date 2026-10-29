@@ -16,6 +16,8 @@
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
+import { Badge } from "./Badge";
+import { outcomeTone } from "./badgeClass";
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,12 +57,6 @@ type BoardRow = {
   outcome?: CandidateOutcome;
   decidable: boolean;
 };
-
-function outcomeClass(outcome: CandidateOutcomeOutcome | null | undefined): string {
-  if (outcome === "PASS") return "cab-pill cab-pill-pass";
-  if (outcome === "FAIL") return "cab-pill cab-pill-fail";
-  return "cab-pill cab-pill-conditional";
-}
 
 function missingRequirements(decision: StagedDecision): boolean {
   return decision.outcome === "CONDITIONAL" && !decision.conditionalRequirements.trim();
@@ -372,9 +368,7 @@ export function CohortAdjudicationScreen() {
                     </td>
                     <td data-label="Proposal">
                       {outcome?.proposed_outcome ? (
-                        <span className={outcomeClass(outcome.proposed_outcome)}>
-                          {outcome.proposed_outcome_display}
-                        </span>
+                        <Badge tone={outcomeTone(outcome.proposed_outcome)}>{outcome.proposed_outcome_display}</Badge>
                       ) : (
                         <span className="cab-flags">Awaiting proposal</span>
                       )}
@@ -445,9 +439,7 @@ export function CohortAdjudicationScreen() {
               {focusRow.outcome?.proposed_outcome ? (
                 <>
                   <p>
-                    <span className={outcomeClass(focusRow.outcome.proposed_outcome)}>
-                      {focusRow.outcome.proposed_outcome_display}
-                    </span>{" "}
+                    <Badge tone={outcomeTone(focusRow.outcome.proposed_outcome)}>{focusRow.outcome.proposed_outcome_display}</Badge>{" "}
                     <span className="cab-note-by">
                       {focusRow.outcome.proposed_by_name}
                       {focusRow.outcome.proposed_at ? ` · ${formatTime(focusRow.outcome.proposed_at)}` : ""}
@@ -464,9 +456,7 @@ export function CohortAdjudicationScreen() {
               <section className="cab-detail-section" aria-labelledby="cab-decision-title">
                 <h3 id="cab-decision-title">Final decision</h3>
                 <p>
-                  <span className={outcomeClass(focusRow.outcome.final_outcome)}>
-                    {focusRow.outcome.final_outcome_display}
-                  </span>{" "}
+                  <Badge tone={outcomeTone(focusRow.outcome.final_outcome)}>{focusRow.outcome.final_outcome_display}</Badge>{" "}
                   <span className="cab-note-by">
                     {focusRow.outcome.decided_by_name}
                     {focusRow.outcome.decided_at ? ` · ${formatTime(focusRow.outcome.decided_at)}` : ""}

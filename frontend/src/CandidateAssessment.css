@@ -39,72 +39,9 @@
   letter-spacing: -0.02em;
 }
 
-.caw-rank-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  padding: 0.3rem 0.65rem;
-  border-radius: 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.caw-rank-tag-dest {
-  border-color: var(--color-gold);
-  background: color-mix(in srgb, var(--color-gold) 8%, transparent);
-}
-
 .caw-rank-arrow {
   color: var(--color-text-muted);
   font-size: 0.9rem;
-}
-
-.caw-age-pill {
-  font-size: 0.8rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 4px;
-  background: var(--color-info-surface);
-  color: var(--color-info);
-  font-weight: 500;
-  border: 1px solid var(--color-info-border);
-}
-
-.caw-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: 4px;
-  font-weight: 500;
-}
-
-.caw-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.caw-status-not_started {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-}
-
-.caw-status-in_progress {
-  background: var(--color-info-surface);
-  color: var(--color-info);
-  border: 1px solid var(--color-info-border);
-}
-
-.caw-status-completed {
-  background: var(--color-success-surface);
-  color: var(--color-success);
-  border: 1px solid color-mix(in srgb, var(--color-success) 25%, transparent);
 }
 
 .caw-complete-action-btn {
@@ -164,27 +101,6 @@
 }
 
 /* ── Shared row badges and empty state ───────────────────────────────────── */
-
-.caw-required-badge {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--color-warning-surface);
-  color: var(--color-warning);
-  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
-}
-
-.caw-optional-badge {
-  font-size: 0.72rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: 4px;
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-}
 
 .caw-empty-items {
   padding: 1.5rem;
@@ -1007,10 +923,6 @@
   color: var(--color-text-muted);
 }
 
-.acp-ledger td .caw-optional-badge {
-  margin-left: 0.4rem;
-}
-
 .acp-ledger-range {
   font-size: 0.78rem;
   color: var(--color-text-muted);
@@ -1317,4 +1229,8 @@
 
 .acp-reopen-btn {
   margin-top: 0.75rem;
+}
+
+.acp-ledger td .badge {
+  margin-left: var(--space-2);
 }

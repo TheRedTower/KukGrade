@@ -43,6 +43,7 @@ import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { Button } from "./Button";
+import { RequirementBadge } from "./StatusBadge";
 import { buttonClass } from "./buttonClass";
 
 function SealIcon() {
@@ -588,7 +589,7 @@ function LedgerTable({ group }: { group: CategoryGroup }) {
               <td>
                 <strong>{item.item_name}</strong>
                 {item.korean_name && <span className="acp-ledger-korean"> {item.korean_name}</span>}
-                {!item.required && <span className="caw-optional-badge">Optional</span>}
+                {!item.required && <RequirementBadge required={false} />}
               </td>
               {hasAnyRange && (
                 <td className="acp-ledger-range">{item.display_range || item.notation}</td>

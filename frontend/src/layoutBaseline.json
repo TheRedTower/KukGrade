@@ -22,7 +22,7 @@
     "overflowX": 2
   },
   "GradingSessions.css": {
-    "nowrap": 4,
+    "nowrap": 3,
     "fixedMinWidth": 1
   },
   "Imports.css": {
@@ -50,10 +50,6 @@
     "nowrap": 1
   },
   "StudentScreens.css": {
-    "widthQueries": 2,
-    "nowrap": 3
-  },
-  "Syllabus.css": {
-    "nowrap": 1
+    "widthQueries": 2
   }
 }

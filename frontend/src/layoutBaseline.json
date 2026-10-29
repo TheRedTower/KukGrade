@@ -13,10 +13,6 @@
     "widthQueries": 3,
     "fixedMinWidth": 4
   },
-  "CohortAdjudication.css": {
-    "widthQueries": 2,
-    "overflowX": 1
-  },
   "GradingAttendance.css": {
     "widthQueries": 1,
     "overflowX": 2
@@ -35,16 +31,11 @@
     "widthQueries": 1,
     "nowrap": 1
   },
-  "OutcomeControls.css": {
-    "fixedMinWidth": 1
-  },
   "OverviewScreen.css": {
     "widthQueries": 1
   },
   "PromotionLedger.css": {
-    "widthQueries": 1,
-    "nowrap": 2,
-    "overflowX": 1
+    "nowrap": 1
   },
   "Settings.css": {
     "nowrap": 1

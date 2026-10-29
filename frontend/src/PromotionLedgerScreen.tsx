@@ -1,5 +1,6 @@
 import { Badge } from "./Badge";
-import type { BadgeTone } from "./badgeClass";
+import { ResponsiveTable } from "./ResponsiveTable";
+import { outcomeTone } from "./badgeClass";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -19,7 +20,7 @@ import {
 } from "./api";
 import { useAuth } from "./auth";
 import { RankBelt } from "./Belt";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import "./PromotionLedger.css";
 import { formatShortDate } from "./dates";
 import { Button } from "./Button";
@@ -40,7 +41,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
-  const [isBatchTrayOpen, setIsBatchTrayOpen] = useState(false);
+  const [isBatchSummaryOpen, setIsBatchSummaryOpen] = useState(false);
   const [singlePromoteCandidate, setSinglePromoteCandidate] = useState<PromotionRowItem | null>(
     null,
   );
@@ -160,11 +161,6 @@ export function PromotionLedgerScreen(): React.ReactElement {
       });
     },
   });
-  const singlePromotionDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: singlePromoteCandidate !== null,
-    onClose: () => setSinglePromoteCandidate(null),
-    canClose: !singlePromoteMutation.isPending,
-  });
 
   // Bulk promote mutation
   const bulkPromoteMutation = useMutation({
@@ -176,7 +172,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["promotionEligibility", sessionId] });
-      setIsBatchTrayOpen(false);
+      setIsBatchSummaryOpen(false);
 
       const failures = Object.entries(res.errors);
       if (failures.length > 0) {
@@ -229,31 +225,53 @@ export function PromotionLedgerScreen(): React.ReactElement {
     });
   }
 
+  const feedbackBanner = actionFeedback && (
+      <div
+        className={`pl-banner pl-banner-${actionFeedback.type}`}
+        role={actionFeedback.type === "error" ? "alert" : "status"}
+      >
+        <span className="pl-banner-icon" aria-hidden="true">
+          {actionFeedback.type === "success" ? "✓" : "✕"}
+        </span>
+        <div className="pl-banner-content">
+          <span>{actionFeedback.message}</span>
+          <button
+            type="button"
+            className="pl-banner-dismiss"
+            onClick={() => setActionFeedback(null)}
+            aria-label="Dismiss message"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+  );
+
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
 
   return (
-    <section aria-labelledby="pl-title" className="page pl-container" data-testid="promotion-ledger-screen">
+    <section aria-labelledby="pl-title" className="page pl-page" data-testid="promotion-ledger-screen">
       {/* Breadcrumb & Navigation */}
-      <nav className="pl-breadcrumb" aria-label="Breadcrumb">
-        <Link to="/gradings" className="pl-breadcrumb-link">
+      <nav className="crumbs" aria-label="Breadcrumb">
+        <Link to="/gradings">
           Grading Sessions
         </Link>
-        <span className="pl-breadcrumb-sep" aria-hidden="true">
+        <span className="crumbs__sep" aria-hidden="true">
           ›
         </span>
-        <Link to={`/gradings/${sessionId}`} className="pl-breadcrumb-link">
+        <Link to={`/gradings/${sessionId}`}>
           {session?.title || "Session"}
         </Link>
-        <span className="pl-breadcrumb-sep" aria-hidden="true">
+        <span className="crumbs__sep" aria-hidden="true">
           ›
         </span>
-        <span className="pl-breadcrumb-current" aria-current="page">
+        <span aria-current="page">
           Promotion Ledger
         </span>
       </nav>
 
       {/* Screen Header */}
-      <header className="pl-header">
+      <header className="action-row">
         <div className="pl-header-main">
           <h1 className="pl-title" id="pl-title">
             {session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
@@ -264,7 +282,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         </div>
         <div className="pl-header-actions">
           <Button
-            variant="ghost" className="pl-back-btn"
+            variant="ghost"
             onClick={() => navigate(`/gradings/${sessionId}`)}
           >
             ← Back to session
@@ -287,31 +305,10 @@ export function PromotionLedgerScreen(): React.ReactElement {
         </div>
       )}
 
-      {/* Action feedback banner */}
-      {actionFeedback && (
-        <div
-          className={`pl-banner pl-banner-${actionFeedback.type}`}
-          role={actionFeedback.type === "error" ? "alert" : "status"}
-        >
-          <span className="pl-banner-icon" aria-hidden="true">
-            {actionFeedback.type === "success" ? "✓" : "✕"}
-          </span>
-          <div className="pl-banner-content">
-            <span>{actionFeedback.message}</span>
-            <button
-              type="button"
-              className="pl-banner-dismiss"
-              onClick={() => setActionFeedback(null)}
-              aria-label="Dismiss message"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
+      {!isBatchSummaryOpen && !singlePromoteCandidate && feedbackBanner}
 
       {/* Top Cohort Promotion Summary Card */}
-      <section className="pl-summary-card" aria-label="Cohort Promotion Summary">
+      <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
         <div className="pl-summary-info">
           <span className="pl-summary-count">
             {eligibleCohort.length} {eligibleCohort.length === 1 ? "Candidate" : "Candidates"} Finalised with Pass · Eligible for Promotion
@@ -324,8 +321,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
         </div>
 
         <Button
-          variant="primary" className="pl-summary-cta"
-          onClick={() => setIsBatchTrayOpen(true)}
+          variant="primary"
+          onClick={() => setIsBatchSummaryOpen(true)}
           disabled={eligibleCohort.length === 0 || !canPromote}
           title={
             !canPromote
@@ -341,342 +338,226 @@ export function PromotionLedgerScreen(): React.ReactElement {
       </section>
 
       {/* Candidates Promotion Ledger Table */}
-      {/* Focusable, so a keyboard can scroll it sideways when it is wider than the screen. */}
-      <div className="pl-table-container" tabIndex={0} role="region" aria-label="Promotion ledger">
-        {ledgerFailed ? (
-          <div className="pl-loading-state" role="alert">
-            <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                for (const query of ledgerQueries) {
-                  if (query.isError) void query.refetch();
-                }
-              }}
-            >
-              Try again
-            </Button>
-          </div>
-        ) : isLoading ? (
-          <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
-        ) : rows.length === 0 ? (
-          <div className="pl-empty-state">
-            <p>No candidates registered in this grading session.</p>
-          </div>
-        ) : (
-          <table className="pl-table" aria-label="Student Promotion Ledger">
-            <thead>
-              <tr>
-                <th scope="col" className="pl-th-candidate">
-                  Candidate
-                </th>
-                <th scope="col" className="pl-th-current-belt">
-                  Current Belt
-                </th>
-                <th scope="col" className="pl-th-outcome">
-                  Outcome
-                </th>
-                <th scope="col" className="pl-th-eligibility">
-                  Promotion Eligibility
-                </th>
-                <th scope="col" className="pl-th-actions" style={{ textAlign: "right" }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const candidateId = row.candidate.id;
-                const studentName = row.candidate.student_display_name;
-                // The rank held at registration, snapshotted on the candidate -
-                // never the student's live rank, which moves on once promoted.
-                const currentRankDisplay = row.candidate.from_rank_name;
-                const outcome = row.outcome;
-
-                let outcomeTone: BadgeTone = "neutral";
-                let outcomeLabel = "Pending Outcome";
-
-                if (outcome?.status === "FINALISED") {
-                  if (outcome.final_outcome === "PASS") {
-                    outcomeTone = "success";
-                    outcomeLabel = "Pass (Finalised)";
-                  } else if (outcome.final_outcome === "CONDITIONAL") {
-                    outcomeTone = "warning";
-                    outcomeLabel = "Conditional (Finalised)";
-                  } else if (outcome.final_outcome === "FAIL") {
-                    outcomeTone = "danger";
-                    outcomeLabel = "Fail (Finalised)";
-                  }
-                } else if (outcome?.status === "PROPOSED") {
-                  outcomeLabel = `Proposed: ${outcome.proposed_outcome_display || "Pending"}`;
-                }
-
-                return (
-                  <tr
-                    key={candidateId}
-                    className={`pl-table-row ${row.isEligible ? "is-eligible" : ""} ${
-                      row.isPromoted ? "is-promoted" : ""
-                    }`}
-                    data-testid={`promotion-row-${candidateId}`}
-                  >
-                    {/* Candidate Identity */}
-                    <td className="pl-cell-candidate">
-                      <div className="pl-candidate-cell">
-                        <span className="pl-candidate-avatar" aria-hidden="true">
-                          {studentName.charAt(0)}
-                        </span>
-                        <div className="pl-candidate-meta">
-                          <span className="pl-candidate-name">{studentName}</span>
-                          <span className="pl-candidate-belt-sub">
-                            ({currentRankDisplay})
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Current Belt */}
-                    <td className="pl-cell-current-belt">
-                      <div className="pl-belt-chip">
-                        <RankBelt rankId={row.candidate.from_rank} />
-                        <span className="pl-belt-name">{row.candidate.from_rank_name}</span>
-                      </div>
-                    </td>
-
-                    {/* Outcome Badge */}
-                    <td className="pl-cell-outcome">
-                      <Badge tone={outcomeTone}>{outcomeLabel}</Badge>
-                    </td>
-
-                    {/* Promotion Eligibility */}
-                    <td className="pl-cell-eligibility">
-                      {row.isPromoted ? (
-                        <div className="pl-eligibility-promoted">
-                          <Badge tone="success">
-                            Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
-                          </Badge>
-                          {row.promotion?.effective_date && (
-                            <span className="pl-promoted-date">
-                              Effective {formatShortDate(row.promotion.effective_date)}
-                            </span>
-                          )}
-                        </div>
-                      ) : row.isEligible ? (
-                        <Badge tone="warning">Eligible for {row.candidate.testing_for_rank_name}</Badge>
-                      ) : (
-                        <span className="pl-ineligible-note">
-                          {row.eligibility?.reason || "Eligibility unavailable"}
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Row Actions */}
-                    <td className="pl-cell-actions" style={{ textAlign: "right" }}>
-                      {row.isPromoted ? (
-                        <span className="pl-action-complete" aria-label="Promotion completed">
-                          Promoted ✓
-                        </span>
-                      ) : row.isEligible ? (
-                        <Button
-                          variant="secondary" className="pl-row-promote-btn"
-                          onClick={() => {
-                            setSinglePromoteCandidate(row);
-                            setSinglePromoteNotes("");
-                          }}
-                          disabled={
-                            !canPromote ||
-                            singlePromoteMutation.isPending ||
-                            bulkPromoteMutation.isPending
-                          }
-                          data-testid={`promote-candidate-btn-${candidateId}`}
-                        >
-                          <span>Promote to {row.candidate.testing_for_rank_name}</span>
-                          <span className="pl-btn-caret" aria-hidden="true">
-                            ▾
-                          </span>
-                        </Button>
-                      ) : (
-                        <span className="pl-action-disabled">—</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Pinned Batch Confirmation Preview Tray */}
-      {isBatchTrayOpen && eligibleCohort.length > 0 && (
-        <aside
-          className="pl-batch-tray"
-          aria-label="Promotion summary"
-          role="region"
-        >
-          <div className="pl-batch-tray-content">
-            {/* Left Section: Header & Candidate Pills List */}
-            <div className="pl-batch-left">
-              <div className="pl-batch-header">
-                <h2 className="pl-batch-title">Promotion summary</h2>
-                <span className="pl-batch-count-tag">
-                  {eligibleCohort.length} Candidates Selected
-                </span>
-              </div>
-              <div className="pl-batch-chips" role="list">
-                {eligibleCohort.map((r, i) => (
-                  <div
-                    key={r.candidate.id}
-                    className="pl-batch-chip"
-                    role="listitem"
-                  >
-                    <span className="pl-chip-num">{i + 1}.</span>
-                    <span className="pl-chip-name">{r.candidate.student_display_name}</span>
-                    <span className="pl-chip-rank">({r.candidate.from_rank_name})</span>
-                    <span className="pl-chip-arrow" aria-hidden="true">
-                      →
-                    </span>
-                    <strong className="pl-chip-target">{r.candidate.testing_for_rank_name}</strong>
+      {ledgerFailed ? (
+        <div className="pl-loading-state" role="alert">
+          <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              for (const query of ledgerQueries) {
+                if (query.isError) void query.refetch();
+              }
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : isLoading ? (
+        <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
+      ) : rows.length === 0 ? (
+        <div className="pl-empty-state">
+          <p>No candidates registered in this grading session.</p>
+        </div>
+      ) : (
+        <ResponsiveTable
+          label="Student Promotion Ledger"
+          rows={rows}
+          rowKey={(row) => row.candidate.id}
+          rowTestId={(row) => `promotion-row-${row.candidate.id}`}
+          columns={[
+            {
+              key: "candidate",
+              header: "Candidate",
+              primary: true,
+              render: (row) => (
+                <div className="pl-candidate-cell">
+                  <span className="pl-candidate-avatar" aria-hidden="true">
+                    {row.candidate.student_display_name.charAt(0)}
+                  </span>
+                  <div className="pl-candidate-meta">
+                    <span className="pl-candidate-name">{row.candidate.student_display_name}</span>
+                    {/* The rank held at registration, snapshotted on the candidate -
+                        never the student's live rank, which moves on once promoted. */}
+                    <span className="pl-candidate-belt-sub">({row.candidate.from_rank_name})</span>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right Section: Metadata Card & Action CTA */}
-            <div className="pl-batch-right">
-              <button
-                type="button"
-                className="pl-batch-close-btn"
-                onClick={() => setIsBatchTrayOpen(false)}
-                aria-label="Close the promotion summary"
-              >
-                ✕
-              </button>
-              <div className="pl-batch-meta">
-                <div className="pl-meta-row">
-                  <span className="pl-meta-label">Grading date</span>
-                  <span className="pl-meta-val">
-                    {formatShortDate(session?.grading_date)}
-                  </span>
                 </div>
-                <div className="pl-meta-row">
-                  <span className="pl-meta-label">Promoter</span>
-                  <span className="pl-meta-val">
-                    {currentUser?.full_name || currentUser?.first_name || "Authorised Master"}
-                  </span>
+              ),
+            },
+            {
+              key: "belt",
+              header: "Current Belt",
+              render: (row) => (
+                <div className="pl-belt-chip">
+                  <RankBelt rankId={row.candidate.from_rank} />
+                  <span className="pl-belt-name">{row.candidate.from_rank_name}</span>
                 </div>
-              </div>
-              <Button
-                variant="primary" className="pl-batch-confirm-btn"
-                onClick={handleConfirmBulkPromote}
-                disabled={bulkPromoteMutation.isPending || !canPromote}
-              >
-                {bulkPromoteMutation.isPending ? (
-                  <>
-                    <span className="pl-spinner" aria-hidden="true" />
-                    <span>Promoting cohort…</span>
-                  </>
+              ),
+            },
+            {
+              key: "outcome",
+              header: "Outcome",
+              render: (row) => {
+                const outcome = row.outcome;
+                if (outcome?.status === "FINALISED") {
+                  const words = { PASS: "Pass", CONDITIONAL: "Conditional", FAIL: "Fail" } as const;
+                  const result = outcome.final_outcome;
+                  if (result) return <Badge tone={outcomeTone(result)}>{words[result]} (Finalised)</Badge>;
+                }
+                if (outcome?.status === "PROPOSED") {
+                  return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;
+                }
+                return <Badge tone="neutral">Pending Outcome</Badge>;
+              },
+            },
+            {
+              key: "eligibility",
+              header: "Promotion Eligibility",
+              render: (row) =>
+                row.isPromoted ? (
+                  <div className="pl-eligibility-promoted">
+                    <Badge tone="success">
+                      Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
+                    </Badge>
+                    {row.promotion?.effective_date && (
+                      <span className="pl-promoted-date">
+                        Effective {formatShortDate(row.promotion.effective_date)}
+                      </span>
+                    )}
+                  </div>
+                ) : row.isEligible ? (
+                  <Badge tone="warning">Eligible for {row.candidate.testing_for_rank_name}</Badge>
                 ) : (
-                  <>
-                    <span aria-hidden="true">✓</span>
-                    <span>Confirm promotions</span>
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </aside>
+                  <span className="pl-ineligible-note">{row.eligibility?.reason || "Eligibility unavailable"}</span>
+                ),
+            },
+            {
+              key: "actions",
+              header: "Actions",
+              actions: true,
+              render: (row) =>
+                row.isPromoted ? (
+                  <span className="pl-action-complete" aria-label="Promotion completed">
+                    Promoted ✓
+                  </span>
+                ) : row.isEligible ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSinglePromoteCandidate(row);
+                      setSinglePromoteNotes("");
+                    }}
+                    disabled={!canPromote || singlePromoteMutation.isPending || bulkPromoteMutation.isPending}
+                    data-testid={`promote-candidate-btn-${row.candidate.id}`}
+                  >
+                    <span>Promote to {row.candidate.testing_for_rank_name}</span>
+                    <span aria-hidden="true">▾</span>
+                  </Button>
+                ) : (
+                  <span className="pl-action-disabled">—</span>
+                ),
+            },
+          ]}
+        />
       )}
 
-      {/* Single Candidate Promotion Confirmation Dialog */}
-      {singlePromoteCandidate && (
-        <div
-          className="pl-modal-backdrop"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !singlePromoteMutation.isPending) {
-              setSinglePromoteCandidate(null);
-            }
-          }}
+      {isBatchSummaryOpen && eligibleCohort.length > 0 && (
+        <Dialog
+          title="Promotion summary"
+          closeLabel="Close the promotion summary"
+          onClose={() => setIsBatchSummaryOpen(false)}
+          canClose={!bulkPromoteMutation.isPending}
         >
-          <div
-            ref={singlePromotionDialogRef}
-            className="pl-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="single-promote-title"
-            tabIndex={-1}
-          >
-            <header className="pl-modal-header">
-              <h2 id="single-promote-title" className="pl-modal-title">
-                Confirm Student Promotion
-              </h2>
-              <button
-                type="button"
-                className="pl-modal-close-btn"
-                onClick={() => setSinglePromoteCandidate(null)}
-                disabled={singlePromoteMutation.isPending}
-                aria-label="Close promotion dialog"
-              >
-                ✕
-              </button>
-            </header>
-
-            <div className="pl-modal-body">
-              <div className="pl-modal-candidate-info">
-                <span className="pl-modal-name">
-                  {singlePromoteCandidate.candidate.student_display_name}
-                </span>
-                <p className="pl-modal-ranks">
-                  <span>Current: <strong>{singlePromoteCandidate.candidate.from_rank_name}</strong></span>
-                  <span className="pl-modal-arrow" aria-hidden="true">→</span>
-                  <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
-                </p>
-                <p className="pl-modal-date-notice">
-                  Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
-                </p>
-              </div>
-
-              <div className="pl-field-wrap">
-                <label htmlFor="single-promote-notes" className="pl-field-label">
-                  Promotion Notes (Optional)
-                </label>
-                <textarea
-                  id="single-promote-notes"
-                  className="pl-textarea"
-                  rows={2}
-                  value={singlePromoteNotes}
-                  onChange={(e) => setSinglePromoteNotes(e.target.value)}
-                  placeholder="Official record notes or ceremonial remarks..."
-                  disabled={singlePromoteMutation.isPending}
-                />
-              </div>
+          {feedbackBanner}
+          <p className="pl-batch-count">{eligibleCohort.length} Candidates Selected</p>
+          <ol className="pl-batch-chips">
+            {eligibleCohort.map((r, i) => (
+              <li key={r.candidate.id} className="pl-batch-chip">
+                <span className="pl-chip-num">{i + 1}.</span>
+                <span className="pl-chip-name">{r.candidate.student_display_name}</span>
+                <span className="pl-chip-rank">({r.candidate.from_rank_name})</span>
+                <span className="pl-chip-arrow" aria-hidden="true">→</span>
+                <strong className="pl-chip-target">{r.candidate.testing_for_rank_name}</strong>
+              </li>
+            ))}
+          </ol>
+          <dl className="facts">
+            <div>
+              <dt>Grading date</dt>
+              <dd>{formatShortDate(session?.grading_date)}</dd>
             </div>
-
-            <footer className="pl-modal-footer">
-              <Button
-                variant="ghost"
-                onClick={() => setSinglePromoteCandidate(null)}
-                disabled={singlePromoteMutation.isPending}
-                data-dialog-autofocus
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleConfirmSinglePromote}
-                disabled={singlePromoteMutation.isPending || !canPromote}
-              >
-                {singlePromoteMutation.isPending ? (
-                  <>
-                    <span className="pl-spinner" aria-hidden="true" />
-                    <span>Recording promotion…</span>
-                  </>
-                ) : (
-                  `Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`
-                )}
-              </Button>
-            </footer>
+            <div>
+              <dt>Promoter</dt>
+              <dd>
+                {currentUser?.full_name || currentUser?.first_name || "Authorised Master"}
+              </dd>
+            </div>
+          </dl>
+          <div className="action-row dialog__actions">
+            <Button
+              variant="primary"
+              onClick={handleConfirmBulkPromote}
+              disabled={bulkPromoteMutation.isPending || !canPromote}
+            >
+              {bulkPromoteMutation.isPending ? "Promoting cohort…" : "Confirm promotions"}
+            </Button>
           </div>
-        </div>
+        </Dialog>
+      )}
+
+      {singlePromoteCandidate && (
+        <Dialog
+          title="Confirm Student Promotion"
+          onClose={() => setSinglePromoteCandidate(null)}
+          canClose={!singlePromoteMutation.isPending}
+          closeButton={false}
+        >
+          {feedbackBanner}
+          <div className="pl-modal-candidate-info">
+            <span className="pl-modal-name">
+              {singlePromoteCandidate.candidate.student_display_name}
+            </span>
+            <p className="pl-modal-ranks">
+              <span>Current: <strong>{singlePromoteCandidate.candidate.from_rank_name}</strong></span>
+              <span className="pl-modal-arrow" aria-hidden="true">→</span>
+              <span>Conferring: <strong className="pl-highlight-rank">{singlePromoteCandidate.candidate.testing_for_rank_name}</strong></span>
+            </p>
+            <p className="pl-modal-date-notice">
+              Effective date: <strong>{formatShortDate(session?.grading_date)}</strong> (the grading day).
+            </p>
+          </div>
+
+          <div className="field">
+            <label htmlFor="single-promote-notes">Promotion Notes (Optional)</label>
+            <textarea
+              id="single-promote-notes"
+              rows={2}
+              value={singlePromoteNotes}
+              onChange={(e) => setSinglePromoteNotes(e.target.value)}
+              placeholder="Official record notes or ceremonial remarks..."
+              disabled={singlePromoteMutation.isPending}
+            />
+          </div>
+
+          <div className="action-row dialog__actions">
+            <Button
+              variant="ghost"
+              onClick={() => setSinglePromoteCandidate(null)}
+              disabled={singlePromoteMutation.isPending}
+              data-dialog-autofocus
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleConfirmSinglePromote}
+              disabled={singlePromoteMutation.isPending || !canPromote}
+            >
+              {singlePromoteMutation.isPending
+                ? "Recording promotion…"
+                : `Promote to ${singlePromoteCandidate.candidate.testing_for_rank_name}`}
+            </Button>
+          </div>
+        </Dialog>
       )}
     </section>
   );

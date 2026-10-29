@@ -110,7 +110,7 @@
 }
 
 /* No weight, so a screen's own control style (a custom select, say) still wins. */
-:where(.field input, .field select) {
+:where(.field input, .field select, .field textarea) {
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -119,7 +119,7 @@
   background: var(--color-surface-sunken);
 }
 
-:where(.field input, .field select):focus {
+:where(.field input, .field select, .field textarea):focus {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;
@@ -203,6 +203,12 @@
 
 .rtable tbody tr:hover {
   background: var(--color-surface-sunken);
+}
+
+.rtable tbody tr[data-selected] {
+  background: var(--color-warning-surface);
+  outline: 2px solid var(--color-gold);
+  outline-offset: -2px;
 }
 
 .rtable__value {
@@ -478,6 +484,28 @@
   gap: var(--space-1) var(--space-2);
   color: var(--color-text-muted);
   font-size: 0.88rem;
+}
+
+.crumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.crumbs a:hover {
+  color: var(--color-text);
+}
+
+.crumbs__sep {
+  color: var(--color-text-muted);
+}
+
+.crumbs [aria-current="page"] {
+  color: var(--color-text);
+  font-weight: var(--font-weight-control);
 }
 
 /* A main column with a side panel that stays in view beside it. On a narrow

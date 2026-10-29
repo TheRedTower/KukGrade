@@ -45,10 +45,9 @@
     "buttonClass": 6
   },
   "CohortAdjudication.css": {
-    "fontSize": 11,
-    "fontWeight": 9,
-    "radius": 4,
-    "shadow": 2
+    "fontSize": 9,
+    "fontWeight": 7,
+    "radius": 3
   },
   "Demo.css": {
     "fontSize": 5,
@@ -112,15 +111,12 @@
     "buttonClass": 2
   },
   "PromotionLedger.css": {
-    "rawColour": 82,
-    "fontSize": 35,
-    "fontWeight": 20,
-    "radius": 13,
-    "shadow": 7,
-    "zIndex": 2,
-    "outlineNone": 1,
-    "buttonClass": 6,
-    "darkOverride": 22
+    "rawColour": 27,
+    "fontSize": 18,
+    "fontWeight": 9,
+    "radius": 4,
+    "shadow": 2,
+    "darkOverride": 4
   },
   "SealedAssessmentEvidence.css": {
     "fontSize": 5,

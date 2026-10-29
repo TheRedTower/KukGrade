@@ -80,3 +80,88 @@
   padding: 0.3rem 0.85rem;
   font-size: var(--font-size-control-sm);
 }
+
+/* The one badge (Badge.tsx): a short label with a tone. A tone is a meaning (success,
+   warning, danger, info, neutral) or one of a grading session's statuses; its colours
+   come from theme.css, so the same thing looks the same on every screen. */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0.22rem 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-badge);
+  font-weight: var(--font-weight-control);
+  /* A label breaks between words, never inside one, even in a table cell. */
+  overflow-wrap: normal;
+}
+
+.badge__dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--success {
+  border-color: var(--color-success);
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.badge--warning {
+  border-color: var(--color-warning);
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.badge--danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+  color: var(--color-danger);
+}
+
+.badge--info {
+  border-color: var(--color-info-border);
+  background: var(--color-info-surface);
+  color: var(--color-info);
+}
+
+.badge--neutral {
+  border-color: var(--color-border);
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+}
+
+.badge--draft {
+  border-color: var(--color-status-draft-border);
+  background: var(--color-status-draft-surface);
+  color: var(--color-status-draft);
+}
+
+.badge--open {
+  border-color: var(--color-status-open-border);
+  background: var(--color-status-open-surface);
+  color: var(--color-status-open);
+}
+
+.badge--locked {
+  border-color: var(--color-status-locked-border);
+  background: var(--color-status-locked-surface);
+  color: var(--color-status-locked);
+}
+
+.badge--completed {
+  border-color: var(--color-status-completed-border);
+  background: var(--color-status-completed-surface);
+  color: var(--color-status-completed);
+}
+
+.badge--cancelled {
+  border-color: var(--color-status-cancelled-border);
+  background: var(--color-status-cancelled-surface);
+  color: var(--color-status-cancelled);
+}

@@ -56,6 +56,15 @@ export function LockIcon(props: IconProps) {
   );
 }
 
+export function XCircleIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props, 2.5)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M15 9 9 15M9 9l6 6" />
+    </svg>
+  );
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <svg {...iconProps(props)}>

@@ -32,6 +32,8 @@ import {
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { SESSION_STATUS_LABELS } from "./sessionStatus";
+import { SessionStatusBadge } from "./StatusBadge";
 import { useDialogFocus } from "./useDialogFocus";
 import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
@@ -521,12 +523,10 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   // Lifecycle stage statuses
   const lifecycle = useMemo(() => {
     const currentStatus = session?.status || "DRAFT";
-    const stages = [
-      { key: "DRAFT", label: "Draft" },
-      { key: "OPEN", label: "Open" },
-      { key: "LOCKED", label: "Locked" },
-      { key: "COMPLETED", label: "Completed" },
-    ];
+    const stages = (["DRAFT", "OPEN", "LOCKED", "COMPLETED"] as const).map((key) => ({
+      key,
+      label: SESSION_STATUS_LABELS[key],
+    }));
 
     const stageOrder = ["DRAFT", "OPEN", "LOCKED", "COMPLETED"];
     const currentIndex = stageOrder.indexOf(currentStatus);
@@ -744,10 +744,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <div className="gsd-header-left">
           <div className="gsd-title-row">
             <h1 className="gsd-title" id="gsd-title">{session.title}</h1>
-            <span className={`gsd-status-pill gsd-status-${session.status?.toLowerCase()}`}>
-              <span className="gsd-status-indicator" aria-hidden="true" />
-              {session.status_display || session.status}
-            </span>
+            <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
           <p className="gsd-meta-row">
             <span>{formatSessionDate(session.grading_date)}</span>

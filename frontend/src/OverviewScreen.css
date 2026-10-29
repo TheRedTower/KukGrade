@@ -101,18 +101,6 @@
   color: var(--color-text);
 }
 
-.session-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: var(--color-success-surface);
-  color: var(--color-success);
-}
-
 .session-location {
   margin: 0.25rem 0 1.25rem;
   color: var(--color-text-muted);

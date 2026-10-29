@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { SessionStatusBadge } from "./StatusBadge";
 import "./GradingSessions.css";
 import { currentYear, formatSessionDate } from "./dates";
 import { Button } from "./Button";
@@ -325,7 +326,7 @@ export function CreateGradingSessionScreen() {
                 },
                 { key: "date", header: "Date", render: () => previewFormattedDate },
                 { key: "location", header: "Location", render: () => location.trim() || "—" },
-                { key: "status", header: "Status", render: () => <span className="gs-status-badge gs-status-draft">Draft</span> },
+                { key: "status", header: "Status", render: () => <SessionStatusBadge status="DRAFT" /> },
                 { key: "candidates", header: "Candidates", align: "end", render: () => "0" },
               ]}
             />

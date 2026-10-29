@@ -62,6 +62,23 @@
   /* Text on a filled status colour. */
   --color-on-success: #ffffff;
   --color-on-danger: #ffffff;
+
+  /* A grading session's status: one palette, on every screen it appears. */
+  --color-status-draft: #3730a3;
+  --color-status-draft-surface: #e8eaf6;
+  --color-status-draft-border: #a5b4fc;
+  --color-status-open: #166534;
+  --color-status-open-surface: #dcfce7;
+  --color-status-open-border: #86efac;
+  --color-status-locked: #92400e;
+  --color-status-locked-surface: #fef3c7;
+  --color-status-locked-border: #fcd34d;
+  --color-status-completed: #0f5c4a;
+  --color-status-completed-surface: #ccfbf1;
+  --color-status-completed-border: #5eead4;
+  --color-status-cancelled: #991b1b;
+  --color-status-cancelled-surface: #fee2e2;
+  --color-status-cancelled-border: #fca5a5;
   --color-info: #1d4ed8;
   --color-info-surface: #eff6ff;
   --color-info-border: #bfdbfe;
@@ -82,6 +99,7 @@
 
   --font-size-control: 0.92rem;
   --font-size-control-sm: 0.82rem;
+  --font-size-badge: 0.78rem;
   --font-weight-control: 600;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --font-sans:
@@ -135,6 +153,22 @@
     /* Text on a filled status colour. */
     --color-on-success: #14110c;
     --color-on-danger: #14110c;
+
+    --color-status-draft: #a5b4fc;
+    --color-status-draft-surface: #1e1b4b;
+    --color-status-draft-border: #3730a3;
+    --color-status-open: #4ade80;
+    --color-status-open-surface: #052e16;
+    --color-status-open-border: #166534;
+    --color-status-locked: #fbbf24;
+    --color-status-locked-surface: #1c1200;
+    --color-status-locked-border: #78350f;
+    --color-status-completed: #2dd4bf;
+    --color-status-completed-surface: #012723;
+    --color-status-completed-border: #0f5c4a;
+    --color-status-cancelled: #f87171;
+    --color-status-cancelled-surface: #2d0707;
+    --color-status-cancelled-border: #7f1d1d;
     --color-info: #93c5fd;
     --color-info-surface: #1b2a44;
     --color-info-border: #2c4470;
@@ -188,6 +222,22 @@
   /* Text on a filled status colour. */
   --color-on-success: #14110c;
   --color-on-danger: #14110c;
+
+  --color-status-draft: #a5b4fc;
+  --color-status-draft-surface: #1e1b4b;
+  --color-status-draft-border: #3730a3;
+  --color-status-open: #4ade80;
+  --color-status-open-surface: #052e16;
+  --color-status-open-border: #166534;
+  --color-status-locked: #fbbf24;
+  --color-status-locked-surface: #1c1200;
+  --color-status-locked-border: #78350f;
+  --color-status-completed: #2dd4bf;
+  --color-status-completed-surface: #012723;
+  --color-status-completed-border: #0f5c4a;
+  --color-status-cancelled: #f87171;
+  --color-status-cancelled-surface: #2d0707;
+  --color-status-cancelled-border: #7f1d1d;
   --color-info: #93c5fd;
   --color-info-surface: #1b2a44;
   --color-info-border: #2c4470;

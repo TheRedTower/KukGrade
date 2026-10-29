@@ -17,6 +17,7 @@ import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Dialog } from "./Dialog";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { SessionStatusBadge } from "./StatusBadge";
 import { BeltSwatch, type BeltRank } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./BuildGradingCohort.css";
@@ -454,10 +455,7 @@ export function BuildGradingCohortScreen() {
         <div className="bgc-session-card">
           <div className="bgc-session-card-left">
             <span className="bgc-session-title">{session.title}</span>
-            <span className={`gsd-status-pill gsd-status-${session.status?.toLowerCase()}`}>
-              <span className="gsd-status-indicator" aria-hidden="true" />
-              {session.status_display || session.status}
-            </span>
+            <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
           <div className="bgc-session-card-meta">
             <span>{formatSessionDate(session.grading_date)}</span>
@@ -644,10 +642,7 @@ export function BuildGradingCohortScreen() {
       <div className="bgc-session-card">
         <div className="bgc-session-card-left">
           <span className="bgc-session-title">{session.title}</span>
-          <span className={`gsd-status-pill gsd-status-${session.status?.toLowerCase()}`}>
-            <span className="gsd-status-indicator" aria-hidden="true" />
-            {session.status_display || session.status}
-          </span>
+          <SessionStatusBadge status={session.status} label={session.status_display} />
         </div>
         <div className="bgc-session-card-meta">
           <span>{formatSessionDate(session.grading_date)}</span>

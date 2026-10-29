@@ -7,14 +7,14 @@
     "outlineNone": 1
   },
   "App.css": {
-    "rawColour": 32,
-    "fontSize": 29,
-    "fontWeight": 18,
-    "radius": 17,
+    "rawColour": 14,
+    "fontSize": 28,
+    "fontWeight": 17,
+    "radius": 16,
     "shadow": 4,
     "outlineNone": 1,
     "buttonClass": 4,
-    "darkOverride": 5
+    "darkOverride": 2
   },
   "AuditScreen.css": {
     "fontSize": 8,
@@ -63,16 +63,16 @@
     "buttonClass": 2
   },
   "GradingSessions.css": {
-    "rawColour": 124,
+    "rawColour": 94,
     "important": 18,
-    "fontSize": 50,
-    "fontWeight": 35,
-    "radius": 21,
+    "fontSize": 49,
+    "fontWeight": 34,
+    "radius": 20,
     "shadow": 7,
     "zIndex": 2,
     "outlineNone": 6,
     "buttonClass": 7,
-    "darkOverride": 24
+    "darkOverride": 19
   },
   "Imports.css": {
     "rawColour": 1,
@@ -104,17 +104,17 @@
   },
   "OverviewScreen.css": {
     "rawColour": 2,
-    "fontSize": 23,
-    "fontWeight": 17,
-    "radius": 11,
+    "fontSize": 22,
+    "fontWeight": 16,
+    "radius": 10,
     "shadow": 2,
     "outlineNone": 2,
     "buttonClass": 2
   },
   "PromotionLedger.css": {
-    "rawColour": 85,
+    "rawColour": 82,
     "fontSize": 35,
-    "fontWeight": 21,
+    "fontWeight": 20,
     "radius": 13,
     "shadow": 7,
     "zIndex": 2,

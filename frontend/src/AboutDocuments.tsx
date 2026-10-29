@@ -244,7 +244,7 @@ export function AboutLicence() {
           <h2 id="ab-full">Full licence</h2>
           <p className="st-row-description">The licence file that ships with this version.</p>
           {/* A scrolling box has to be reachable by keyboard to be read. */}
-          <pre aria-label="Full licence text" className="ab-licence-text" role="region" tabIndex={0}>
+          <pre aria-label="Full licence text" className="code-block ab-licence-text" role="region" tabIndex={0}>
             {doc.content}
           </pre>
         </section>

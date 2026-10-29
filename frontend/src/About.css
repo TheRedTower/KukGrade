@@ -286,15 +286,12 @@
 
 .ab-licence-text {
   max-height: 24rem;
-  margin: 1rem 0 0;
-  overflow: auto;
-  padding: 1.25rem 1.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface-sunken);
-  font-family: var(--font-mono);
-  font-size: 0.82rem;
-  white-space: pre-wrap;
+  margin-top: 1rem;
+}
+
+.ab-credit-link {
+  color: var(--color-text);
+  font-weight: var(--font-weight-control);
 }
 
 .ab-doc-columns {
@@ -466,41 +463,3 @@
   border-top: 0;
 }
 
-.ab-table-wrap {
-  overflow-x: auto;
-}
-
-.ab-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.ab-table th {
-  padding: 0.6rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-sunken);
-  color: var(--color-text-muted);
-  font-size: 0.78rem;
-  letter-spacing: 0.04em;
-  text-align: left;
-  text-transform: uppercase;
-}
-
-.ab-table td {
-  padding: 0.7rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  vertical-align: top;
-}
-
-.ab-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.ab-table td:last-child {
-  white-space: nowrap;
-}
-
-.ab-table td:first-child a {
-  color: var(--color-text);
-  font-weight: 700;
-}

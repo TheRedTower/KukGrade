@@ -19,6 +19,7 @@ import { downloadStandardTemplate } from "./importTemplate";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { ResponsiveTable } from "./ResponsiveTable";
 
 const PAST_PAGE_SIZE = 10;
 const FINISHED = "COMMITTED,CANCELLED,EXPIRED";
@@ -254,46 +255,47 @@ function PastImports() {
           </p>
         ) : (
           <>
-            <div className="ix-table-wrap">
-              <table className="ix-table">
-                <thead>
-                  <tr>
-                    <th scope="col">File</th>
-                    <th scope="col">What</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Result</th>
-                    <th scope="col">When</th>
-                    <th scope="col">
-                      <span className="ix-visually-hidden">Open</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map((batch) => (
-                    <tr key={batch.id}>
-                      <td className="ix-strong">{batch.original_filename}</td>
-                      <td>{importKindLabel(batch.kind)}</td>
-                      <td>{statePill(batch)}</td>
-                      <td>{finishedResult(batch)}</td>
-                      <td className="ix-muted ix-nowrap">
-                        {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)}
-                        {" · "}
-                        {batch.committed_by_name || batch.uploaded_by_name}
-                      </td>
-                      <td className="ix-cell-action">
-                        <Link
-                          aria-label={`View ${batch.original_filename}`}
-                          className="ix-link-button"
-                          to={`/imports/${batch.id}`}
-                        >
-                          {batch.status === "COMMITTED" ? "View results" : "View"}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable
+              label="Past imports"
+              flush
+              rows={batches}
+              rowKey={(batch) => batch.id}
+              columns={[
+                {
+                  key: "file",
+                  header: "File",
+                  primary: true,
+                  render: (batch) => <strong>{batch.original_filename}</strong>,
+                },
+                { key: "what", header: "What", render: (batch) => importKindLabel(batch.kind) },
+                { key: "state", header: "State", render: (batch) => statePill(batch) },
+                { key: "result", header: "Result", render: (batch) => finishedResult(batch) },
+                {
+                  key: "when",
+                  header: "When",
+                  render: (batch) => (
+                    <span className="ix-muted">
+                      {formatShortDateTime(batch.committed_at ?? batch.cancelled_at ?? batch.uploaded_at)} ·{" "}
+                      {batch.committed_by_name || batch.uploaded_by_name}
+                    </span>
+                  ),
+                },
+                {
+                  key: "open",
+                  header: "Open",
+                  actions: "inline",
+                  render: (batch) => (
+                    <Link
+                      aria-label={`View ${batch.original_filename}`}
+                      className={buttonClass({ variant: "ghost", small: true })}
+                      to={`/imports/${batch.id}`}
+                    >
+                      {batch.status === "COMMITTED" ? "View results" : "View"}
+                    </Link>
+                  ),
+                },
+              ]}
+            />
             <ImportPager page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
           </>
         )}

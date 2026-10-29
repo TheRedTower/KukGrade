@@ -343,7 +343,6 @@
   border-radius: 999px;
   font-size: 0.82rem;
   font-weight: 600;
-  white-space: nowrap;
 }
 
 .ix-pill::before {
@@ -1182,6 +1181,11 @@
 .ix-name-main p,
 .ix-name-student p {
   margin: 0;
+}
+
+.ix-name-student {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ix-name-student .ix-pill {

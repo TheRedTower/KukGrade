@@ -136,6 +136,10 @@ serializers and the committed frontend types match the schema.
   `small` inside a table or card, `block` for one as wide as its box. Do not write a new
   `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
   (`buttonClass`) and fails if the count goes up.
+- **A badge is `<Badge tone="success|warning|danger|info|neutral">`**, and a grading session's
+  status is `<SessionStatusBadge status="OPEN" label={session.status_display} />`: the one way to
+  show it, so it cannot look different on two screens. Their look is in `controls.css`, and
+  the status colours (`--color-status-*`) are tokens in `theme.css`, with a dark value each.
 - **Database changes need a migration** and a test; model rules are tested at the model
   as well as through the API.
 - **Keep syllabus and grading rules in the backend.** Components render what the API

@@ -12,8 +12,10 @@ import {
 } from "./api";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { CheckIcon, LockIcon, SearchIcon } from "./Icons";
+import { SearchIcon } from "./Icons";
 import { Dialog } from "./Dialog";
+import { SESSION_STATUS_LABELS } from "./sessionStatus";
+import { SessionStatusBadge } from "./StatusBadge";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -39,40 +41,11 @@ function ArrowRightIcon() {
   );
 }
 
-function XCircleIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" height="13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 24 24" width="13">
-      <circle cx="12" cy="12" r="10" />
-      <line x1="15" x2="9" y1="9" y2="15" />
-      <line x1="9" x2="15" y1="9" y2="15" />
-    </svg>
-  );
-}
-
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
 
 const STATUS_ORDER: GradingSessionStatus[] = ["OPEN", "DRAFT", "LOCKED", "COMPLETED", "CANCELLED"];
-const STATUS_LABEL: Record<GradingSessionStatus, string> = {
-  DRAFT: "Draft",
-  OPEN: "Open",
-  LOCKED: "Locked",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-};
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-
-function SessionStatusBadge({ status }: { status: GradingSessionStatus }) {
-  const cls = `gs-status-badge gs-status-${status.toLowerCase()}`;
-  if (status === "OPEN") return <span className={cls}><span className="gs-status-dot" />Open</span>;
-  if (status === "DRAFT") return <span className={cls}><span className="gs-status-dot" />Draft</span>;
-  if (status === "LOCKED") return <span className={cls}><LockIcon size={13} /> Locked</span>;
-  if (status === "COMPLETED") return <span className={cls}><CheckIcon size={13} /> Completed</span>;
-  if (status === "CANCELLED") return <span className={cls}><XCircleIcon /> Cancelled</span>;
-  return <span className={cls}>{STATUS_LABEL[status]}</span>;
-}
 
 // ─── Current Session Spotlight ────────────────────────────────────────────────
 
@@ -94,7 +67,7 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
           <p className="gs-current-date">{formatSessionDate(session.grading_date)}</p>
           {session.location && <p className="gs-current-location">{session.location}</p>}
           <div className="gs-current-status-row">
-            <SessionStatusBadge status={session.status as GradingSessionStatus} />
+            <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
         </div>
         <div className="stats">
@@ -238,7 +211,7 @@ export function GradingSessionsScreen() {
           <label htmlFor="gs-status-filter">Status</label>
           <select className="gs-filter-select" id="gs-status-filter" onChange={(e) => handleStatusFilter(e.target.value as GradingSessionStatus | "ALL")} value={statusFilter}>
             <option value="ALL">All statuses</option>
-            {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            {STATUS_ORDER.map((s) => <option key={s} value={s}>{SESSION_STATUS_LABELS[s]}</option>)}
           </select>
         </div>
         <div className="field">
@@ -291,7 +264,7 @@ export function GradingSessionsScreen() {
                         ? `${session.completed_assessment_count ?? 0} of ${session.candidate_count} complete`
                         : "—",
                   },
-                  { key: "status", header: "Status", render: (session) => <SessionStatusBadge status={session.status as GradingSessionStatus} /> },
+                  { key: "status", header: "Status", render: (session) => <SessionStatusBadge status={session.status} label={session.status_display} /> },
                   {
                     key: "action",
                     header: "Action",

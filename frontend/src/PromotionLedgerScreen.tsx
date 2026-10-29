@@ -1,3 +1,4 @@
+import { Badge, type BadgeTone } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -391,18 +392,18 @@ export function PromotionLedgerScreen(): React.ReactElement {
                 const currentRankDisplay = row.candidate.from_rank_name;
                 const outcome = row.outcome;
 
-                let outcomeBadgeClass = "badge-neutral";
+                let outcomeTone: BadgeTone = "neutral";
                 let outcomeLabel = "Pending Outcome";
 
                 if (outcome?.status === "FINALISED") {
                   if (outcome.final_outcome === "PASS") {
-                    outcomeBadgeClass = "badge-success";
+                    outcomeTone = "success";
                     outcomeLabel = "Pass (Finalised)";
                   } else if (outcome.final_outcome === "CONDITIONAL") {
-                    outcomeBadgeClass = "badge-warning";
+                    outcomeTone = "warning";
                     outcomeLabel = "Conditional (Finalised)";
                   } else if (outcome.final_outcome === "FAIL") {
-                    outcomeBadgeClass = "badge-danger";
+                    outcomeTone = "danger";
                     outcomeLabel = "Fail (Finalised)";
                   }
                 } else if (outcome?.status === "PROPOSED") {
@@ -442,18 +443,16 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
                     {/* Outcome Badge */}
                     <td className="pl-cell-outcome">
-                      <span className={`badge ${outcomeBadgeClass}`}>
-                        {outcomeLabel}
-                      </span>
+                      <Badge tone={outcomeTone}>{outcomeLabel}</Badge>
                     </td>
 
                     {/* Promotion Eligibility */}
                     <td className="pl-cell-eligibility">
                       {row.isPromoted ? (
                         <div className="pl-eligibility-promoted">
-                          <span className="badge badge-success">
+                          <Badge tone="success">
                             Promoted to {row.promotion?.to_rank_name || row.candidate.testing_for_rank_name} ✓
-                          </span>
+                          </Badge>
                           {row.promotion?.effective_date && (
                             <span className="pl-promoted-date">
                               Effective {formatShortDate(row.promotion.effective_date)}
@@ -461,9 +460,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                           )}
                         </div>
                       ) : row.isEligible ? (
-                        <span className="badge badge-accent pl-eligible-badge">
-                          Eligible for {row.candidate.testing_for_rank_name}
-                        </span>
+                        <Badge tone="warning">Eligible for {row.candidate.testing_for_rank_name}</Badge>
                       ) : (
                         <span className="pl-ineligible-note">
                           {row.eligibility?.reason || "Eligibility unavailable"}

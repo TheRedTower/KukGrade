@@ -17,6 +17,7 @@ import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { SessionStatusBadge } from "./StatusBadge";
 
 function CalendarIcon() {
   return (
@@ -301,10 +302,7 @@ export function OverviewScreen() {
             <div className="card-content-now">
               <div className="session-title-row">
                 <h2 className="session-title">{openSession.title}</h2>
-                <span className="session-status-pill">
-                  <span aria-hidden="true" className="status-dot" />
-                  Open
-                </span>
+                <SessionStatusBadge status={openSession.status} label={openSession.status_display} />
               </div>
               {openSession.location && <p className="session-location">{openSession.location}</p>}
 

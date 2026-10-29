@@ -64,7 +64,7 @@ export function usedClasses(source: string): Set<string> {
   const names = new Set<string>();
   const add = (text: string) => {
     for (const token of text.replace(/\$\{[^}]*\}/g, " ").split(/\s+/)) {
-      // A fragment of a name built at run time (gsd-status-${x}) ends in a dash.
+      // A fragment of a name built at run time (status-${x}) ends in a dash.
       if (/^[a-zA-Z_][\w-]*[\w]$/.test(token) && !token.endsWith("-")) names.add(token);
     }
   };

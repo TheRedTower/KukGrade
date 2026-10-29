@@ -1,40 +1,39 @@
 import { creditsNoticesUrl, errorMessage, type Credit } from "./api";
 import { useCreditsQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
+import { ResponsiveTable } from "./ResponsiveTable";
 
-function CreditsTable({ credits }: { credits: Credit[] }) {
+function CreditsTable({ credits, label }: { credits: Credit[]; label: string }) {
   return (
-    <div className="ab-table-wrap">
-      <table className="ab-table">
-        <thead>
-          <tr>
-            <th scope="col">Project</th>
-            <th scope="col">What it is</th>
-            <th scope="col">Licence</th>
-          </tr>
-        </thead>
-        <tbody>
-          {credits.map((credit) => (
-            <tr key={credit.name}>
-              <td>
-                {credit.homepage ? (
-                  <a href={credit.homepage} rel="noopener noreferrer" target="_blank">
-                    {credit.name}
-                    <span className="visually-hidden"> (opens in a new tab)</span>
-                  </a>
-                ) : (
-                  <strong>{credit.name}</strong>
-                )}
-                <br />
-                <span className="st-row-description">{credit.version}</span>
-              </td>
-              <td>{credit.summary}</td>
-              <td>{credit.licence}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <ResponsiveTable
+      label={label}
+      flush
+      rows={credits}
+      rowKey={(credit) => credit.name}
+      columns={[
+        {
+          key: "project",
+          header: "Project",
+          primary: true,
+          render: (credit) => (
+            <>
+              {credit.homepage ? (
+                <a className="ab-credit-link" href={credit.homepage} rel="noopener noreferrer" target="_blank">
+                  {credit.name}
+                  <span className="visually-hidden"> (opens in a new tab)</span>
+                </a>
+              ) : (
+                <strong>{credit.name}</strong>
+              )}
+              <br />
+              <span className="st-row-description">{credit.version}</span>
+            </>
+          ),
+        },
+        { key: "summary", header: "What it is", render: (credit) => credit.summary },
+        { key: "licence", header: "Licence", render: (credit) => credit.licence },
+      ]}
+    />
   );
 }
 
@@ -74,7 +73,7 @@ export function AboutCredits() {
                 The server
               </h2>
             </div>
-            <CreditsTable credits={credits.server} />
+            <CreditsTable credits={credits.server} label="Server projects" />
           </section>
 
           {credits.browser.length > 0 ? (
@@ -84,7 +83,7 @@ export function AboutCredits() {
                   The screens you use
                 </h2>
               </div>
-              <CreditsTable credits={credits.browser} />
+              <CreditsTable credits={credits.browser} label="Screen projects" />
             </section>
           ) : null}
 

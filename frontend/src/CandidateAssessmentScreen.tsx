@@ -347,7 +347,7 @@ export function CandidateAssessmentScreen() {
       )}
 
       {isAssessmentMissing && (
-        <div className="caw-not-started-banner" data-testid="caw-missing-assessment-banner">
+        <div className="action-row caw-not-started-banner" data-testid="caw-missing-assessment-banner">
           <div className="caw-not-started-content">
             <h2>Prepare assessment form</h2>
             <p>
@@ -371,7 +371,7 @@ export function CandidateAssessmentScreen() {
 
       {/* A generated snapshot is started separately once the session is open. */}
       {isAssessmentNotStarted && (
-        <div className="caw-not-started-banner" data-testid="caw-not-started-banner">
+        <div className="action-row caw-not-started-banner" data-testid="caw-not-started-banner">
           <div className="caw-not-started-content">
             <h2>Assessment ready to begin</h2>
             <p>

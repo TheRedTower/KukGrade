@@ -1,8 +1,8 @@
 {
   "About.css": {
-    "fontSize": 20,
-    "fontWeight": 14,
-    "radius": 11,
+    "fontSize": 18,
+    "fontWeight": 13,
+    "radius": 10,
     "shadow": 1,
     "outlineNone": 1
   },

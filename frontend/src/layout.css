@@ -172,6 +172,12 @@
   overflow: clip;
 }
 
+.rtable--flush {
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
 .rtable table {
   width: 100%;
   border-collapse: collapse;
@@ -376,6 +382,7 @@
 }
 
 .code-block {
+  font-family: var(--font-mono);
   max-height: 14rem;
   margin: 0;
   padding: var(--space-3);

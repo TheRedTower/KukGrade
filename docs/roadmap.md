@@ -23,10 +23,9 @@ Want something here, or something that is missing? Open an
       on its own machine behind a tunnel, first from a release candidate and then following
       `latest` (the newest stable release, cut from `prod`), and to link it from the repository's
       About box.
-- [ ] **Phone and tablet layouts**: most screens still scroll sideways or clip at phone widths.
-      One layout system (`frontend/src/layout.css`) and a Playwright width check are in place;
-      each screen is converted to it in turn, and `frontend/e2e/widthDebt.json` lists those not
-      yet done. Done when that list is empty.
+- [ ] **Phone and tablet layouts**: every screen now fits at every width in the automated check
+      (`frontend/src/layout.css`, Playwright width check, `frontend/e2e/widthDebt.json` empty).
+      Done when the owner has checked the demo site on a real phone and tablet.
 - [ ] **One source for every repeated style and piece of logic**: buttons, badges, alerts, empty
       states, headers, form controls and every modal move to shared pieces; colours, type, radius,
       shadows, spacing and stacking come from tokens; the data layer (query keys, error

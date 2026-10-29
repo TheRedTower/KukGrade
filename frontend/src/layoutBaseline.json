@@ -1,8 +1,7 @@
 {
   "About.css": {
     "widthQueries": 1,
-    "nowrap": 2,
-    "overflowX": 2
+    "nowrap": 1
   },
   "App.css": {
     "widthQueries": 2,
@@ -10,7 +9,7 @@
     "fixedMinWidth": 3
   },
   "CandidateAssessment.css": {
-    "widthQueries": 3,
+    "widthQueries": 2,
     "fixedMinWidth": 4
   },
   "GradingAttendance.css": {

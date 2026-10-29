@@ -340,12 +340,6 @@
   box-shadow: 0 4px 14px rgb(21 19 15 / 3%);
 }
 
-/* The table is the section's own contents, not a second box in it. */
-.recent-activity-section .rtable {
-  border: 0;
-  background: transparent;
-}
-
 .activity-section-header {
   display: flex;
   justify-content: space-between;

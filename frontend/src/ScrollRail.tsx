@@ -35,34 +35,46 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
     setEdges((prev) => (prev.atStart === atStart && prev.atEnd === atEnd ? prev : { atStart, atEnd }));
   }, []);
 
-  // Fit the window to whole items: the first whole item sits at the start, and
-  // what is left over at the end is shared out between the items as extra gap,
-  // so no item is cut off, no gap is left beside the arrows, and the arrows stay
-  // where they are. Runs when the rail resizes and when scrolling settles.
+  // Fit the window to whole items: the item at the start stays there, and what
+  // is left over at the end is shared out between the items as extra gap, so no
+  // item is cut off, no gap is left beside the arrows, and the arrows stay where
+  // they are. Worked out from the items' widths, never by clearing the gap first
+  // (that shrinks the track, and the browser would move the scroll position).
+  // Runs when the rail resizes and when scrolling settles.
   const update = useCallback(() => {
     const el = track.current;
     if (!el) return;
     const items = [...el.children] as HTMLElement[];
     const view = el.getBoundingClientRect();
-    // The item at the start is the anchor: changing the gap moves every item, so
-    // after each change the rail is scrolled to put the anchor back at the start.
-    const anchor = items.find((item) => item.getBoundingClientRect().left >= view.left - 1);
-    const align = () => {
-      if (anchor) el.scrollLeft += anchor.getBoundingClientRect().left - view.left - RAIL_PADDING;
-    };
+    const rects = items.map((item) => item.getBoundingClientRect());
+    const widths = rects.map((box) => box.width);
+    const first = rects.findIndex((box) => box.left >= view.left - 1);
+    const inline = el.style.columnGap;
     el.style.columnGap = "";
-    align();
-    const whole = items
-      .map((item) => item.getBoundingClientRect())
-      .filter((box) => box.left >= view.left - 1 && box.right <= view.right + 1);
-    if (whole.length >= 1 && whole.length < items.length) {
-      const spare = view.right - RAIL_PADDING - Math.max(...whole.map((box) => box.right));
-      const base = parseFloat(getComputedStyle(el).columnGap) || 0;
-      if (spare > 0) {
-        el.style.columnGap = `${base + spare / Math.max(1, whole.length - 1)}px`;
-        align();
-      }
+    const base = parseFloat(getComputedStyle(el).columnGap) || 0;
+    el.style.columnGap = inline;
+    const room = view.width - RAIL_PADDING * 2;
+    // How many items, from `start`, fit in the room at the base gap.
+    const used = (start: number, count: number) =>
+      widths.slice(start, start + count).reduce((sum, width) => sum + width, 0) + Math.max(0, count - 1) * base;
+    const holds = (start: number) => {
+      let count = 0;
+      while (start + count < items.length && used(start, count + 1) <= room) count += 1;
+      return count;
+    };
+    if (items.length === 0 || first < 0 || holds(0) === items.length) {
+      el.style.columnGap = "";
+      readEdges();
+      return;
     }
+    // The last page starts as far back as it takes to fill the window.
+    let lastStart = items.length - 1;
+    while (lastStart > 0 && used(lastStart - 1, items.length - lastStart + 1) <= room) lastStart -= 1;
+    const start = Math.min(first, lastStart);
+    const count = Math.max(1, holds(start));
+    const spare = room - used(start, count);
+    el.style.columnGap = `${base + Math.max(0, spare) / Math.max(1, count - 1)}px`;
+    el.scrollLeft += items[start].getBoundingClientRect().left - view.left - RAIL_PADDING;
     readEdges();
   }, [readEdges]);
 

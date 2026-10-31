@@ -82,5 +82,28 @@ describe("ScrollRail", () => {
       expect(track.scrollLeft).toBeCloseTo(2 * (100 + newGap), 5);
       vi.useRealTimers();
     });
+
+    it("keeps the last page as it is, however the scroll range moves", () => {
+      vi.useFakeTimers();
+      mockLayout(250);
+      render(
+        <ScrollRail label="Ranks">
+          {Array.from({ length: 16 }, (_, index) => (
+            <button key={index} type="button">{`R${index}`}</button>
+          ))}
+        </ScrollRail>,
+      );
+      const track = screen.getByRole("region", { name: "Ranks" });
+      const gap = parseFloat(track.style.columnGap);
+      // The last two items (14 and 15) are the window.
+      track.scrollLeft = 14 * (100 + gap);
+      fireEvent.scroll(track);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(parseFloat(track.style.columnGap)).toBe(gap);
+      expect(track.scrollLeft).toBeCloseTo(14 * (100 + gap), 5);
+      vi.useRealTimers();
+    });
   });
 });

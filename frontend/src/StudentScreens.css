@@ -294,27 +294,6 @@
 
 /* Form Inputs */
 
-.form-text-input,
-.form-select-input {
-  width: 100%;
-  padding: 0.65rem 0.85rem;
-  font-size: 0.95rem;
-  color: var(--color-text);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  box-sizing: border-box;
-  min-height: 44px;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.form-text-input:focus,
-.form-select-input:focus {
-  border-color: var(--color-accent);
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 1px;
-}
-
 .form-text-input.input-error,
 .form-select-input.input-error {
   border-color: var(--color-danger);
@@ -346,16 +325,6 @@
 .privacy-icon {
   flex-shrink: 0;
   color: var(--color-accent-text);
-}
-
-/* Actions Bar */
-
-.form-actions-bar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 0.5rem;
 }
 
 /* ==========================================================================

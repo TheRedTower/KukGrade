@@ -283,7 +283,7 @@ export function AddStudentScreen() {
         </div>
 
         {/* Actions Row */}
-        <div className="form-actions-bar">
+        <div className="action-row action-row--end">
           <Button
             variant="secondary"
             onClick={() => navigate("/students")}

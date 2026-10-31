@@ -42,19 +42,26 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   const update = useCallback(() => {
     const el = track.current;
     if (!el) return;
-    el.style.columnGap = "";
     const items = [...el.children] as HTMLElement[];
-    let view = el.getBoundingClientRect();
-    const first = items.find((item) => item.getBoundingClientRect().left >= view.left - 1);
-    if (first) el.scrollLeft += first.getBoundingClientRect().left - view.left - RAIL_PADDING;
-    view = el.getBoundingClientRect();
+    const view = el.getBoundingClientRect();
+    // The item at the start is the anchor: changing the gap moves every item, so
+    // after each change the rail is scrolled to put the anchor back at the start.
+    const anchor = items.find((item) => item.getBoundingClientRect().left >= view.left - 1);
+    const align = () => {
+      if (anchor) el.scrollLeft += anchor.getBoundingClientRect().left - view.left - RAIL_PADDING;
+    };
+    el.style.columnGap = "";
+    align();
     const whole = items
       .map((item) => item.getBoundingClientRect())
       .filter((box) => box.left >= view.left - 1 && box.right <= view.right + 1);
     if (whole.length >= 1 && whole.length < items.length) {
       const spare = view.right - RAIL_PADDING - Math.max(...whole.map((box) => box.right));
       const base = parseFloat(getComputedStyle(el).columnGap) || 0;
-      if (spare > 0) el.style.columnGap = `${base + spare / Math.max(1, whole.length - 1)}px`;
+      if (spare > 0) {
+        el.style.columnGap = `${base + spare / Math.max(1, whole.length - 1)}px`;
+        align();
+      }
     }
     readEdges();
   }, [readEdges]);

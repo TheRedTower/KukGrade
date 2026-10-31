@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ScrollRail } from "./ScrollRail";
@@ -57,6 +57,30 @@ describe("ScrollRail", () => {
       mockLayout(500);
       renderRail();
       expect(screen.getByRole("region", { name: "Ranks" }).style.columnGap).toBe("");
+    });
+
+    it("keeps the item at the start when it fits again after a page", () => {
+      vi.useFakeTimers();
+      mockLayout(250);
+      render(
+        <ScrollRail label="Ranks">
+          {Array.from({ length: 16 }, (_, index) => (
+            <button key={index} type="button">{`R${index}`}</button>
+          ))}
+        </ScrollRail>,
+      );
+      const track = screen.getByRole("region", { name: "Ranks" });
+      const gap = parseFloat(track.style.columnGap);
+      // Paged so that the third item (index 2) is at the start, under the gap now set.
+      track.scrollLeft = 2 * (100 + gap);
+      fireEvent.scroll(track);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      const newGap = parseFloat(track.style.columnGap);
+      // The same item is still the first, however the gap came out.
+      expect(track.scrollLeft).toBeCloseTo(2 * (100 + newGap), 5);
+      vi.useRealTimers();
     });
   });
 });

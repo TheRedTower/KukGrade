@@ -110,7 +110,9 @@ serializers and the committed frontend types match the schema.
   does not fit at some width, look in `layout.css` and at how the screen uses it; nowhere else.
   Build with the shared pieces, not your own CSS: `ResponsiveTable` for every table (cards
   on a narrow page), `Dialog` for every modal (a sheet on a phone), `.filter-bar` and
-  `.field` for filters, `.action-row` for a row of buttons or a header, `.stats` for key figures, `.split` for a main
+  `.field` for every labelled text box, select and date box (one size and one iOS date-box fix, in
+  `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
+  Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
   column with a side panel, `.crumbs` for the trail above a title, `Pagination` for page controls, `ScrollRail` for a row
   of choices too long for the screen (it moves a page at a time and shows only whole items; the
   one place a screen may scroll sideways). A `ResponsiveTable` has one

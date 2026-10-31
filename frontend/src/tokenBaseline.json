@@ -129,9 +129,9 @@
   },
   "StudentScreens.css": {
     "rawColour": 5,
-    "fontSize": 36,
+    "fontSize": 35,
     "fontWeight": 25,
-    "radius": 9,
+    "radius": 8,
     "shadow": 6,
     "zIndex": 1,
     "outlineNone": 1,
@@ -155,7 +155,7 @@
     "rawColour": 2,
     "fontSize": 15,
     "fontWeight": 10,
-    "radius": 8,
+    "radius": 7,
     "shadow": 1,
     "zIndex": 1
   }

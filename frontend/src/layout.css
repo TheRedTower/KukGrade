@@ -75,6 +75,11 @@
   min-width: 0;
 }
 
+/* A form's Cancel and Save, at the end. */
+.action-row--end {
+  justify-content: flex-end;
+}
+
 /* ── Filters ───────────────────────────────────────────────────────────── */
 
 /* As many columns as fit, each at least 12rem, so it needs no breakpoint. */
@@ -109,17 +114,34 @@
   text-transform: uppercase;
 }
 
-/* No weight, so a screen's own control style (a custom select, say) still wins. */
-:where(.field input, .field select, .field textarea) {
+/* One size for every text box, select and date box, so a row of them matches
+   (the browser's own sizes differ). No weight, so a screen's own control
+   style (a custom select, say) still wins. */
+:where(.field input, .field select, .field textarea, .form-text-input, .form-select-input) {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   max-width: 100%;
   padding: 0.62rem 0.72rem;
-  border-radius: 0.45rem;
-  background: var(--color-surface-sunken);
+  color: var(--color-text);
+  font-size: var(--font-size-control);
+  line-height: 1.3;
 }
 
-:where(.field input, .field select, .field textarea):focus {
+/* iOS sizes a date box from its own content and draws it empty until it is
+   touched: take it back into the box, and show its value. */
+:where(.field, .form-field-group) input[type="date"] {
+  display: block;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+:where(.field, .form-field-group) input[type="date"]::-webkit-date-and-time-value {
+  min-height: 1.3em;
+  text-align: left;
+}
+
+:where(.field input, .field select, .field textarea, .form-text-input, .form-select-input):focus {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 1px;

@@ -213,7 +213,8 @@ jobs:
 
       # Every screen, rendered in a real browser from phone to desktop widths on
       # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
-      # check four widths; pushes to dev and prod check all nine.
+      # check four widths; pushes to dev and prod check all nine. WebKit
+      # (an iPhone and an iPad profile) always checks its own few widths.
       - name: Start the demo for the width check
         if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
         run: |
@@ -244,7 +245,7 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
           npm run test:widths
         env:
           KUKGRADE_E2E_QUICK: ${{ github.event_name == 'pull_request' && '1' || '' }}

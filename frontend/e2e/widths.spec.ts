@@ -1,8 +1,9 @@
 import { type APIRequestContext, type Browser, type BrowserContext, type Page, expect, test } from "@playwright/test";
 
 import debt from "./widthDebt.json" with { type: "json" };
+import webkitDebt from "./widthDebtWebkit.json" with { type: "json" };
 import { findOverflow } from "./overflow";
-import { ALL_WIDTHS, QUICK_WIDTHS } from "./widths";
+import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
 type Role = "master" | "administrator";
 
@@ -16,7 +17,7 @@ interface Ids {
 }
 
 interface Screen {
-  /** The name used in widthDebt.json. */
+  /** The name used in the width debt lists. */
   name: string;
   role: Role;
   path: (ids: Ids) => string;
@@ -29,9 +30,36 @@ const SCREENS: Screen[] = [
   { name: "students", role: "administrator", path: () => "/students" },
   { name: "student-new", role: "administrator", path: () => "/students/new" },
   { name: "student-detail", role: "administrator", path: (ids) => `/students/${ids.student}` },
+  {
+    name: "student-edit-dialog",
+    role: "administrator",
+    path: (ids) => `/students/${ids.student}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: "Edit student", exact: true }).click();
+      await page.getByRole("dialog").waitFor();
+    },
+  },
   { name: "gradings", role: "master", path: () => "/gradings" },
   { name: "grading-new", role: "master", path: () => "/gradings/new" },
   { name: "grading-open", role: "master", path: (ids) => `/gradings/${ids.sessions.OPEN}` },
+  {
+    name: "grading-draft-actions",
+    role: "master",
+    path: (ids) => `/gradings/${ids.sessions.DRAFT}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: /^Session actions/ }).click();
+      await page.getByRole("menu").waitFor();
+    },
+  },
+  {
+    name: "grading-locked-actions",
+    role: "master",
+    path: (ids) => `/gradings/${ids.sessions.LOCKED}`,
+    after: async (page) => {
+      await page.getByRole("button", { name: /^Session actions/ }).click();
+      await page.getByRole("menu").waitFor();
+    },
+  },
   { name: "grading-register", role: "master", path: (ids) => `/gradings/${ids.sessions.DRAFT}/register` },
   {
     name: "grading-register-filled",
@@ -102,10 +130,8 @@ const SCREENS: Screen[] = [
 ];
 
 const quick = Boolean(process.env.KUKGRADE_E2E_QUICK);
-const widths = quick ? QUICK_WIDTHS : ALL_WIDTHS;
-const owed = new Set<string>(debt);
-const authoritative = Boolean(process.env.CI);
 const known = new Set(SCREENS.map((screen) => screen.name));
+const authoritative = Boolean(process.env.CI);
 const contexts = new Map<Role, BrowserContext>();
 let ids: Ids;
 
@@ -150,20 +176,29 @@ test.beforeAll(async ({ browser }) => {
   };
 });
 
-test("widthDebt.json names only screens that exist", () => {
-  expect([...owed].filter((name) => !known.has(name))).toEqual([]);
+test("the debt lists name only screens that exist", () => {
+  const testInfo = test.info();
+  const webkitProjects = testInfo.config.projects.map((project) => project.name).filter((name) => name.startsWith("webkit"));
+  expect(Object.keys(webkitDebt).sort()).toEqual(webkitProjects.sort());
+  expect(Object.keys(WEBKIT_WIDTHS).sort()).toEqual(webkitProjects.sort());
+  expect([...debt, ...Object.values(webkitDebt).flat()].filter((name) => !known.has(name))).toEqual([]);
 });
 
 for (const screen of SCREENS) {
-  test(screen.name, async () => {
+  test(screen.name, async ({ browserName }, testInfo) => {
+    const webkit = browserName === "webkit";
+    const widths = webkit ? WEBKIT_WIDTHS[testInfo.project.name] : quick ? QUICK_WIDTHS : ALL_WIDTHS;
+    // WebKit checks the same few widths in every run, so only Chrome's quick run is partial.
+    const partial = quick && !webkit;
+    const debtFile = webkit ? `widthDebtWebkit.json (${testInfo.project.name})` : "widthDebt.json";
+    const owedHere = ((webkit ? webkitDebt[testInfo.project.name as keyof typeof webkitDebt] : debt) as string[]).includes(screen.name);
     // A screen on the debt list is expected not to fit yet. Where the run is
     // authoritative (CI, all widths) Playwright reports a pass of an expected
     // failure as a failure: remove the screen from widthDebt.json. Fonts differ
     // from machine to machine, so a local run only notes what it finds, and the
     // quick run checks too few widths to tell.
-    const owedHere = owed.has(screen.name);
-    test.skip(quick && owedHere, "owed: only the full run checks it");
-    test.fail(owedHere && authoritative && !quick, "still owed: listed in widthDebt.json");
+    test.skip(partial && owedHere, "owed: only the full run checks it");
+    test.fail(owedHere && authoritative && !partial, `still owed: listed in ${debtFile}`);
     const page = await contexts.get(screen.role)!.newPage();
     const problems: string[] = [];
     for (const width of widths) {
@@ -175,14 +210,14 @@ for (const screen of SCREENS) {
       expect(new URL(page.url()).pathname, "the screen was not shown").toBe(path.split("?")[0]);
       await page.waitForLoadState("networkidle");
       await screen.after?.(page);
-      for (const issue of await findOverflow(page)) problems.push(`${width}px  ${issue}`);
+      for (const issue of await findOverflow(page, width)) problems.push(`${width}px  ${issue}`);
     }
     await page.close();
     if (owedHere && !authoritative) {
       if (process.env.KUKGRADE_E2E_REPORT && problems.length) console.log(`${screen.name}:\n  ${problems.join("\n  ")}`);
       test.info().annotations.push({
         type: "owed",
-        description: problems.length ? "does not fit yet" : "fits here: remove it from widthDebt.json once CI agrees",
+        description: problems.length ? "does not fit yet" : `fits here: remove it from ${debtFile} once CI agrees`,
       });
       return;
     }

@@ -19,6 +19,7 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --card-pad: clamp(1rem, 3vw, 1.5rem);
+  --section-gap: var(--space-4);
   --radius: 0.75rem;
   --radius-control: 0.5rem;
   --radius-pill: 999px;
@@ -50,6 +51,17 @@
 
 .page--wide {
   max-width: var(--page-max-wide);
+}
+
+/* The space between sections stacked on a page, in one place. A screen puts
+   `stack` on the box that holds them instead of giving each its own margin. */
+.stack {
+  display: grid;
+  gap: var(--section-gap);
+}
+
+.stack > * {
+  min-width: 0;
 }
 
 /* ── Surfaces ──────────────────────────────────────────────────────────── */

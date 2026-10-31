@@ -1,6 +1,9 @@
 .users-page-header,
 .user-detail-header {
   align-items: flex-start;
+}
+
+.user-detail-header {
   margin-bottom: 1.75rem;
 }
 
@@ -59,7 +62,6 @@
   display: flex;
   align-items: center;
   gap: 0.7rem;
-  margin-bottom: 1rem;
   border: 1px solid var(--color-border);
   border-radius: 0.4rem;
   background: var(--color-surface);
@@ -295,6 +297,13 @@
 .users-authority-summary {
   display: block;
   color: var(--color-text-muted);
+}
+
+/* An address has no word breaks, so it may break anywhere rather than run on. */
+.users-email {
+  font-size: var(--font-size-control-sm);
+  font-weight: var(--font-weight-normal);
+  overflow-wrap: anywhere;
 }
 
 .users-ledger {

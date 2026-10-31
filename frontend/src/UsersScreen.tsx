@@ -175,7 +175,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page page--wide" aria-labelledby="users-heading">
+    <section className="page page--wide stack" aria-labelledby="users-heading">
       <header className="action-row users-page-header">
         <div>
           <div className="users-title-row">

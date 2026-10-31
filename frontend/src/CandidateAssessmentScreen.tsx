@@ -328,14 +328,14 @@ export function CandidateAssessmentScreen() {
           </span>
         )}
         {currentUser?.can_delete_assessments && assessment && (
-          <button
-            type="button"
-            className="caw-danger-btn"
+          <Button
+            variant="danger"
+            small
             onClick={() => setDeleteOpen(true)}
             data-testid="caw-delete-assessment-btn"
           >
             Delete assessment
-          </button>
+          </Button>
         )}
       </header>
 
@@ -589,9 +589,9 @@ function DeleteAssessmentDialog({
           >
             Cancel
           </Button>
-          <button type="button" className="caw-danger-btn" onClick={onConfirm} disabled={isPending}>
+          <Button variant="danger" onClick={onConfirm} disabled={isPending}>
             {isPending ? "Deleting…" : "Delete assessment"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -737,14 +737,13 @@ function AssessmentItemRow({
               <Button variant="secondary" onClick={onCancelClear} ref={keepButtonRef}>
                 Keep
               </Button>
-              <button
-                type="button"
-                className="caw-danger-btn"
+              <Button
+                variant="danger"
                 onClick={() => onUpdateResult("NOT_ASSESSED")}
                 data-testid={`btn-clear-confirm-${item.id}`}
               >
                 Clear result
-              </button>
+              </Button>
             </div>
           </div>
         ) : (

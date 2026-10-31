@@ -1,15 +1,7 @@
 /* About: the section under Settings. Tokens only, from theme.css. */
 
-.ab-layout {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 1.25rem;
-}
-
 .ab-rail {
   display: flex;
-  flex: 0 0 14.5rem;
   flex-direction: column;
   padding: 0.5rem;
 }
@@ -51,10 +43,8 @@
 .ab-main {
   line-height: 1.5;
   display: flex;
-  flex: 1 1 28rem;
   flex-direction: column;
   gap: 1.25rem;
-  min-width: 0;
 }
 
 .ab-main > header h2 {
@@ -295,20 +285,22 @@
 }
 
 .ab-doc-columns {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.25rem;
 }
 
+/* The sections, as a wrapping row of links above the text. */
 .ab-contents {
   display: flex;
-  flex: 0 0 13.5rem;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.5rem;
 }
 
 .ab-contents p {
+  flex: 0 0 100%;
   margin: 0;
   padding: 0.5rem 0.85rem;
   color: var(--color-text-muted);
@@ -333,10 +325,11 @@
   background: var(--color-surface-sunken);
 }
 
+/* Long text scrolls in its own box instead of running to the end of the page. */
 .ab-prose {
-  flex: 1 1 22rem;
-  min-width: 0;
+  max-height: 70vh;
   padding: 1.5rem;
+  overflow-y: auto;
 }
 
 .ab-prose h3 {

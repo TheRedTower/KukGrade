@@ -609,6 +609,7 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 180px;
+  max-width: calc(100vw - 2rem);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -616,6 +617,11 @@
   z-index: 50;
   display: flex;
   flex-direction: column;
+}
+
+.gsd-dropdown-menu[data-align="start"] {
+  right: auto;
+  left: 0;
 }
 
 .gsd-dropdown-item {

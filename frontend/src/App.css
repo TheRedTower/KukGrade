@@ -830,7 +830,8 @@ h2 {
 /* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
    focus like any other control. */
 [role="region"][tabindex="0"]:focus-visible,
-section[tabindex="0"]:focus-visible {
+section[tabindex="0"]:focus-visible,
+article[tabindex="0"]:focus-visible {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }

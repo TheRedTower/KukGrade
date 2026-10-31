@@ -24,8 +24,7 @@ export function AboutSupport() {
         </p>
       </header>
 
-      <div className="ab-layout">
-        <div className="ab-main">
+      <div className="ab-main">
           <section aria-labelledby="ab-steps" className="st-card st-pad">
             <h2 id="ab-steps">Asking for help</h2>
             <ol className="ab-steps">
@@ -101,9 +100,8 @@ export function AboutSupport() {
               </div>
             </section>
           ) : null}
-        </div>
 
-        <section aria-labelledby="ab-your-details" className="st-card st-pad" style={{ flex: "1 1 20rem" }}>
+        <section aria-labelledby="ab-your-details" className="st-card st-pad">
           <h2 id="ab-your-details">Your details</h2>
           <p className="st-row-description">Quote these with your question.</p>
           <DetailsList columns={1} details={details} />

@@ -113,8 +113,8 @@ serializers and the committed frontend types match the schema.
   `.field` for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
-  column with a side panel, `.crumbs` for the trail above a title, `Pagination` for page controls, `ScrollRail` for a row
-  of choices too long for the screen (it moves a page at a time and shows only whole items; the
+  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `.crumbs` for the trail above a title, `Pagination` for page controls, `ScrollRail` for a row
+  of choices too long for the screen (it moves a page at a time and sizes its window to the whole items that fit, so nothing is cut off and no gap is left; the
   one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
   the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card.

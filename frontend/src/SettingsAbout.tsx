@@ -21,8 +21,8 @@ export function SettingsAbout() {
   const about = useAboutQuery().data;
 
   return (
-    <div className="ab-layout">
-      <nav aria-label="About sections" className="st-card ab-rail">
+    <div className="split split--rail">
+      <nav aria-label="About sections" className="st-card split__aside ab-rail">
         {SECTIONS.map((section) => (
           <NavLink end={section.end} key={section.to} to={section.to}>
             {section.label}

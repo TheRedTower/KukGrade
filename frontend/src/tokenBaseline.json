@@ -42,7 +42,7 @@
     "radius": 14,
     "shadow": 3,
     "zIndex": 3,
-    "buttonClass": 6
+    "buttonClass": 5
   },
   "CohortAdjudication.css": {
     "fontSize": 9,

@@ -94,7 +94,9 @@
   border-radius: var(--radius-pill);
   font-size: var(--font-size-badge);
   font-weight: var(--font-weight-control);
-  /* A label breaks between words, never inside one, even in a table cell. */
+  /* A label breaks between words, never inside one, even in a table cell, and
+     never runs past the box it sits in. */
+  max-width: 100%;
   overflow-wrap: normal;
 }
 

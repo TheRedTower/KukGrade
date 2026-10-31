@@ -561,6 +561,23 @@
   }
 }
 
+/* A narrow menu beside the main column: above it on a phone (full width), at its
+   side where there is room. */
+.split--rail > .split__aside {
+  position: static;
+}
+
+@container (min-width: 40rem) {
+  .split--rail {
+    grid-template-columns: 14.5rem minmax(0, 1fr);
+  }
+
+  .split--rail > .split__aside {
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+
 /* ── Pagination ────────────────────────────────────────────────────────── */
 
 .pager {
@@ -625,6 +642,7 @@
   min-width: 0;
   padding: 4px 2px;
   overflow-x: auto;
+  scroll-padding-inline: 2px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
 }

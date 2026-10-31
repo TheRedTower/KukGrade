@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -56,6 +56,9 @@ function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
     wksaId: item.candidate.student_wksa_id,
   };
 }
+
+/** The least space left between an open menu and the screen's edge. */
+const MENU_EDGE_PX = 8;
 
 export function GradingSessionDetailScreen(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
@@ -121,6 +124,22 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
+  }, [actionsMenuOpen]);
+
+  // The menu opens from the button's right edge; where that would push it off the
+  // left of the screen (the button is near the left on a phone), open from the
+  // left edge instead.
+  useLayoutEffect(() => {
+    const menu = actionsMenuRef.current?.querySelector<HTMLElement>(".gsd-dropdown-menu");
+    if (!actionsMenuOpen || !menu) return;
+    const place = () => {
+      delete menu.dataset.align;
+      if (menu.getBoundingClientRect().left < MENU_EDGE_PX) menu.dataset.align = "start";
+    };
+    place();
+    // A phone turned round while the menu is open.
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
   }, [actionsMenuOpen]);
 
   // 1. Fetch session details
@@ -658,7 +677,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           )}
 
           {/* Actions Dropdown */}
-          <div className="gsd-dropdown-wrap" ref={actionsMenuRef}>
+          <div className="gsd-dropdown-wrap" ref={actionsMenuRef} data-clip-ok>
             <Button
               ref={actionsButtonRef}
               variant="ghost" className="gsd-actions-btn"
@@ -716,22 +735,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
                 {session.status === "LOCKED" && (
                   <>
-                    <Link
-                      to={`/gradings/${session.id}/decisions`}
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      Final decisions
-                    </Link>
-                    <Link
-                      to={`/gradings/${session.id}/promotions`}
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      Promotion ledger
-                    </Link>
                     <button
                       type="button"
                       role="menuitem"

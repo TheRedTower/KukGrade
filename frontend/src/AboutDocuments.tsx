@@ -117,7 +117,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
               ))}
             </nav>
           ) : null}
-          <article aria-label={`${label} text`} className="st-card ab-prose">
+          <article aria-label={`${label} text`} className="st-card ab-prose" tabIndex={0}>
             <MarkdownText content={doc.content} repositoryUrl={repositoryUrl} />
           </article>
         </div>

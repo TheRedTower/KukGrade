@@ -10,8 +10,9 @@ import type { Page } from "@playwright/test";
  *  - a date input is wider than the box it sits in (iOS sizes them itself);
  *  - two `.card` boxes stacked with no gap between them (only that class).
  * A deliberate sideways scroller carries data-scroll-ok (it and everything in
- * it is left alone); text meant to be shortened with an ellipsis carries
- * data-clip-ok (only that element is left alone).
+ * it is left alone); text meant to be shortened with an ellipsis, or the box a
+ * popup menu opens from (the menu is a child, still checked against the screen),
+ * carries data-clip-ok (only that element is left alone).
  */
 export async function findOverflow(page: Page, width: number): Promise<string[]> {
   return page.evaluate((width) => {

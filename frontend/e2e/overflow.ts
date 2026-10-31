@@ -6,16 +6,21 @@ import type { Page } from "@playwright/test";
  *  - the page itself scrolls sideways;
  *  - a box's content is wider than the box (it spills, is cut off, or sits in
  *    a sideways scroller);
- *  - something sits outside the screen.
+ *  - something sits outside the screen;
+ *  - a date input is wider than the box it sits in (iOS sizes them itself);
+ *  - two `.card` boxes stacked with no gap between them (only that class).
  * A deliberate sideways scroller carries data-scroll-ok (it and everything in
  * it is left alone); text meant to be shortened with an ellipsis carries
  * data-clip-ok (only that element is left alone).
  */
-export async function findOverflow(page: Page): Promise<string[]> {
-  return page.evaluate(() => {
+export async function findOverflow(page: Page, width: number): Promise<string[]> {
+  return page.evaluate((width) => {
     const found: { el: Element; why: string }[] = [];
+    const culpritsExtra: string[] = [];
     let pageScrolls = "";
-    const screenWidth = document.documentElement.clientWidth;
+    // A mobile browser may widen its layout viewport to fit a too-wide page;
+    // the width that was asked for is the one that counts.
+    const screenWidth = Math.min(document.documentElement.clientWidth, width);
     const label = (el: Element): string => {
       const id = el.id ? `#${el.id}` : "";
       const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
@@ -54,11 +59,29 @@ export async function findOverflow(page: Page): Promise<string[]> {
         found.push({ el, why: "sits outside the screen" });
       }
     }
+    for (const input of document.body.querySelectorAll('input[type="date"]')) {
+      if (skipped(input)) continue;
+      const box = (input.closest(".field") ?? input.parentElement)?.getBoundingClientRect();
+      const rect = input.getBoundingClientRect();
+      if (box && rect.width > 0 && rect.right > box.right + 1) {
+        culpritsExtra.push(`a date input is wider than its box: ${label(input)}`);
+      }
+    }
+    for (const card of document.body.querySelectorAll(".card")) {
+      const next = card.nextElementSibling;
+      if (!next?.classList.contains("card") || skipped(card) || skipped(next)) continue;
+      const rect = card.getBoundingClientRect();
+      const nextRect = next.getBoundingClientRect();
+      // Only cards that really stack (not side by side, not hidden).
+      if (nextRect.height === 0 || nextRect.top < rect.top + rect.height / 2) continue;
+      if (nextRect.top - rect.bottom < 1) culpritsExtra.push(`cards touch with no gap: ${label(card)}`);
+    }
     // Report the outermost culprit only; its children are the same fault.
     const culprits = found
       .filter(({ el }) => !found.some((other) => other.el !== el && other.el.contains(el)))
       .map(({ el, why }) => `${why}: ${label(el)}`)
-      .slice(0, 12);
+      .slice(0, 12)
+      .concat(culpritsExtra);
     if (!pageScrolls) return culprits;
     // The page is wider than the screen: name the innermost boxes that stick out.
     const sticking = [...document.body.querySelectorAll("*")].filter(
@@ -66,5 +89,5 @@ export async function findOverflow(page: Page): Promise<string[]> {
     );
     const innermost = sticking.filter((el) => !sticking.some((other) => other !== el && el.contains(other)));
     return [pageScrolls, ...innermost.slice(0, 5).map((el) => `sticks out: ${label(el)}`), ...culprits];
-  });
+  }, width);
 }

@@ -82,8 +82,8 @@ docker build --target production -t kukgrade:ci .
 
 ```sh
 cd frontend
-npx playwright install chromium     # once
-npm run test:widths                 # every screen at nine widths, 320px to 1280px
+npx playwright install chromium webkit   # once
+npm run test:widths                 # every screen: Chrome at nine widths, WebKit as an iPhone and an iPad
 ```
 
 The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
@@ -116,8 +116,8 @@ serializers and the committed frontend types match the schema.
   one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
   the table when there are no rows; `selected` marks the row a side panel shows; `flush` drops the border for a table that fills a card.
-  `e2e/widthDebt.json` lists screens that still do not fit: delete a screen from it when
-  you fix it.
+  `e2e/widthDebt.json` (Chrome) and `e2e/widthDebtWebkit.json` (per WebKit device) list screens that still do
+  not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
   `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,

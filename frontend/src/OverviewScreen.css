@@ -147,31 +147,6 @@
   background: var(--color-border);
 }
 
-.action-button-gold {
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  border: 1px solid var(--btn-primary-border);
-  border-radius: 6px;
-  padding: 0.75rem 1.25rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  min-height: 44px;
-  cursor: pointer;
-  box-shadow: var(--btn-primary-shadow);
-  transition: background 160ms ease, border-color 160ms ease;
-}
-
-.action-button-gold:hover {
-  background: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-  color: var(--btn-primary-hover-text);
-}
-
 .attention-list {
   display: flex;
   flex-direction: column;
@@ -321,27 +296,6 @@
 .all-clear-state .all-clear-icon-box {
   color: var(--color-success);
   margin-bottom: 0.4rem;
-}
-
-.card-link-button {
-  background: none;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 0.5rem 0.85rem;
-  color: var(--color-text);
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-top: 0.65rem;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  transition: background 140ms ease;
-}
-
-.card-link-button:hover {
-  background: var(--color-surface-sunken);
 }
 
 .recent-activity-section {

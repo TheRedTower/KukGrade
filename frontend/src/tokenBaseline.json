@@ -18,8 +18,7 @@
   "AuditScreen.css": {
     "fontSize": 8,
     "fontWeight": 4,
-    "radius": 2,
-    "buttonClass": 1
+    "radius": 2
   },
   "Belt.css": {
     "radius": 1
@@ -94,11 +93,10 @@
   },
   "OverviewScreen.css": {
     "rawColour": 2,
-    "fontSize": 22,
-    "fontWeight": 16,
-    "radius": 10,
-    "shadow": 2,
-    "buttonClass": 2
+    "fontSize": 20,
+    "fontWeight": 14,
+    "radius": 8,
+    "shadow": 2
   },
   "PromotionLedger.css": {
     "rawColour": 27,

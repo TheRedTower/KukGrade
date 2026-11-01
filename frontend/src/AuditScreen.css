@@ -37,7 +37,6 @@
 }
 
 .audit-filter-summary button:focus-visible,
-.audit-view-button:focus-visible,
 .audit-state-error button:focus-visible {
   border-color: var(--color-gold-strong);
   outline: 2px solid var(--color-accent-strong);
@@ -50,8 +49,7 @@
   font-size: 0.82rem;
 }
 
-.audit-filter-summary button,
-.audit-view-button {
+.audit-filter-summary button {
   border: 0;
   background: transparent;
   color: var(--color-accent-text);
@@ -61,8 +59,7 @@
   cursor: pointer;
 }
 
-.audit-filter-summary button:hover,
-.audit-view-button:hover {
+.audit-filter-summary button:hover {
   color: var(--color-accent-text);
   text-decoration: underline;
   text-underline-offset: 0.2rem;

@@ -652,10 +652,10 @@
   flex: 1 1 auto;
   gap: var(--space-2);
   min-width: 0;
-  padding: 4px 2px;
+  padding: 4px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  scroll-padding-inline: 2px;
+  scroll-padding-inline: 4px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
   --rail-fade: 1.5rem;
@@ -680,8 +680,8 @@
   mask-image: none;
 }
 
-/* The fade would clip the focus outline, which sits outside the track's box. */
-.rail__track:focus-visible {
+/* The fade would clip a focus outline, which sits outside the box it rings. */
+.rail__track:focus-within {
   mask-image: none;
 }
 

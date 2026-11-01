@@ -43,10 +43,12 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   const reveal = useCallback((item: HTMLElement | null | undefined) => {
     const el = track.current;
     if (!el || !item) return;
+    // The visible part is inside the track's padding, so a focus outline round the item is not clipped.
+    const padding = parseFloat(getComputedStyle(el).paddingLeft) || 0;
     const view = el.getBoundingClientRect();
     const box = item.getBoundingClientRect();
-    if (box.left < view.left) el.scrollLeft += box.left - view.left;
-    else if (box.right > view.right) el.scrollLeft += box.right - view.right;
+    if (box.left < view.left + padding) el.scrollLeft += box.left - view.left - padding;
+    else if (box.right > view.right - padding) el.scrollLeft += box.right - view.right + padding;
   }, []);
 
   // The chosen item is always in view.
@@ -80,7 +82,6 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
         className="rail__track"
         role="region"
         aria-label={label}
-        tabIndex={0}
         data-scroll-ok
         data-at-start={edges.atStart || undefined}
         data-at-end={edges.atEnd || undefined}

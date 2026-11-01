@@ -225,6 +225,8 @@
   flex-grow: 1;
   min-height: 0;
   overflow-y: auto;
+  /* A focused row scrolls in below the sticky band header, not under it. */
+  scroll-padding-top: 3rem;
 }
 
 .caw-band-header {

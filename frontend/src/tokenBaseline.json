@@ -8,11 +8,11 @@
   },
   "App.css": {
     "rawColour": 13,
-    "fontSize": 28,
+    "fontSize": 27,
     "fontWeight": 17,
-    "radius": 16,
+    "radius": 15,
     "shadow": 3,
-    "buttonClass": 4,
+    "buttonClass": 3,
     "darkOverride": 2
   },
   "AuditScreen.css": {
@@ -125,12 +125,11 @@
     "radius": 5
   },
   "StudentScreens.css": {
-    "rawColour": 5,
-    "fontSize": 35,
-    "fontWeight": 25,
-    "radius": 8,
-    "shadow": 6,
-    "zIndex": 1,
+    "rawColour": 3,
+    "fontSize": 34,
+    "fontWeight": 24,
+    "radius": 7,
+    "shadow": 5,
     "outlineNone": 1,
     "buttonClass": 2
   },

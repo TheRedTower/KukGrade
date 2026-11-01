@@ -113,6 +113,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setActionsMenuOpen(false);
+        actionsButtonRef.current?.focus();
       }
     }
 
@@ -125,6 +126,26 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [actionsMenuOpen]);
+
+  // A menu takes focus when it opens, and arrow keys, Home and End move within it.
+  useEffect(() => {
+    if (actionsMenuOpen) actionsMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [actionsMenuOpen]);
+
+  function handleMenuKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Tab") {
+      setActionsMenuOpen(false);
+      return;
+    }
+    const keys = ["ArrowDown", "ArrowUp", "Home", "End"];
+    if (!keys.includes(event.key)) return;
+    event.preventDefault();
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitem"]:not(:disabled)')];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const next =
+      event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : event.key === "ArrowDown" ? (at + 1) % items.length : (at - 1 + items.length) % items.length;
+    items[next]?.focus();
+  }
 
   // The menu opens from the button's right edge; where that would push it off the
   // left of the screen (the button is near the left on a phone), open from the
@@ -684,7 +705,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             </Button>
 
             {actionsMenuOpen && (
-              <div className="gsd-dropdown-menu" role="menu">
+              <div className="gsd-dropdown-menu" role="menu" onKeyDown={handleMenuKeyDown}>
                 {session.status === "DRAFT" && (
                   <>
                     <button

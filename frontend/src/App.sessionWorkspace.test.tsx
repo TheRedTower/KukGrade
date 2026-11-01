@@ -868,6 +868,35 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it("moves focus into the session actions menu, steps through it with the arrow keys and gives focus back on Escape", async () => {
+    vi.stubGlobal("fetch", setupStandardMock());
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Autumn Grading" });
+
+    const actionsBtn = screen.getByTestId("gsd-actions-btn");
+    await user.click(actionsBtn);
+    const items = screen.getAllByRole("menuitem");
+    expect(items[0]).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(items[1]).toHaveFocus();
+    await user.keyboard("{End}");
+    expect(items[items.length - 1]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(items[0]).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(items[items.length - 1]).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    expect(actionsBtn).toHaveFocus();
+
+    await user.click(actionsBtn);
+    await user.tab();
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
   it("closes confirmation modal on backdrop click and Escape key", async () => {
     const fetchMock = setupStandardMock();
     vi.stubGlobal("fetch", fetchMock);

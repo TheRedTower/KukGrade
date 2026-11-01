@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type AuditEvent,
@@ -359,33 +359,23 @@ export function OverviewScreen() {
           {attentionItems.length > 0 ? (
             <div className="attention-list" role="list">
               {attentionItems.map((item) => (
-                <div
-                  className="attention-item-row"
-                  key={item.id}
-                  onClick={() => navigate(item.path)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      navigate(item.path);
-                    }
-                  }}
-                  role="listitem"
-                  tabIndex={0}
-                >
-                  <span aria-hidden="true" className="attention-badge">
-                    !
-                  </span>
-                  <div className="attention-item-info">
-                    <strong className="attention-student-name">
-                      {item.candidate_student_name}
-                    </strong>
-                    <span className="attention-status-desc">
-                      {item.statusDescription}
+                <div key={item.id} role="listitem">
+                  <Link className="attention-item-row" to={item.path}>
+                    <span aria-hidden="true" className="attention-badge">
+                      !
                     </span>
-                  </div>
-                  <span aria-hidden="true" className="chevron-icon">
-                    &rsaquo;
-                  </span>
+                    <div className="attention-item-info">
+                      <strong className="attention-student-name">
+                        {item.candidate_student_name}
+                      </strong>
+                      <span className="attention-status-desc">
+                        {item.statusDescription}
+                      </span>
+                    </div>
+                    <span aria-hidden="true" className="chevron-icon">
+                      &rsaquo;
+                    </span>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -409,18 +399,7 @@ export function OverviewScreen() {
           </div>
 
           {upcomingSession ? (
-            <div
-              className="upcoming-session-row"
-              onClick={() => navigate(`/gradings/${upcomingSession.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigate(`/gradings/${upcomingSession.id}`);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
+            <Link className="upcoming-session-row" to={`/gradings/${upcomingSession.id}`}>
               <div aria-hidden="true" className="calendar-icon-box">
                 <CalendarIcon />
               </div>
@@ -438,7 +417,7 @@ export function OverviewScreen() {
               <span aria-hidden="true" className="chevron-icon">
                 &rsaquo;
               </span>
-            </div>
+            </Link>
           ) : (
             <div className="card-empty-state">
               <p className="empty-state-title">No upcoming gradings</p>

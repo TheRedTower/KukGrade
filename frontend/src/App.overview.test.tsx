@@ -304,6 +304,10 @@ describe("Overview screen (Operational Ledger)", () => {
     expect(screen.getByText("Summer Grading 2026")).toBeVisible();
     expect(screen.getByText("Ipswich Central")).toBeVisible();
 
+    // The rows are real links, so they can be opened in a new tab.
+    expect(screen.getByRole("link", { name: /Summer Grading 2026/ })).toHaveAttribute("href", "/gradings/102");
+    expect(screen.getByRole("link", { name: /Student One/ })).toHaveAttribute("href", expect.stringMatching(/^\/gradings\//));
+
     // Two small requests for the two sessions shown, never the whole history.
     const requested = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requested.some((url) => url.includes("page_size=200"))).toBe(false);

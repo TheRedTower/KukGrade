@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 
 import type { AuthUser } from "./api";
@@ -89,6 +89,18 @@ export function NavigationRail({
   // On a phone the sidebar is always the full menu; the strip is for desktops.
   const strip = collapsed && !narrow;
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  // Escape closes the phone menu and gives focus back to its button.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      menuButton.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
   const about = useAboutQuery().data;
   const version = about?.version;
   const initials = initialsOf(user);
@@ -113,6 +125,7 @@ export function NavigationRail({
           aria-controls="nav-panel"
           aria-expanded={menuOpen}
           className="nav-menu-button"
+          ref={menuButton}
           onClick={() => setMenuOpen((open) => !open)}
           type="button"
         >

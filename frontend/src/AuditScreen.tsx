@@ -10,6 +10,7 @@ import {
   getAuditLabels,
   errorMessage,
 } from "./api";
+import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -275,9 +276,9 @@ export function AuditScreen(): React.ReactElement {
                   header: "Event details",
                   actions: true,
                   render: (event) => (
-                    <button
-                      type="button"
-                      className="audit-view-button"
+                    <Button
+                      variant="ghost"
+                      small
                       onClick={(clickEvent) => {
                         eventTriggerRef.current = clickEvent.currentTarget;
                         setSelectedEvent(event);
@@ -285,7 +286,7 @@ export function AuditScreen(): React.ReactElement {
                       aria-label={`View ${event.action_display} event`}
                     >
                       View event <span aria-hidden="true">›</span>
-                    </button>
+                    </Button>
                   ),
                 },
               ]}

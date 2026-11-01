@@ -12,6 +12,7 @@ import {
   getAuditEvents,
 } from "./api";
 import { useAuth } from "./auth";
+import { Button } from "./Button";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
@@ -325,13 +326,9 @@ export function OverviewScreen() {
                 </div>
               </div>
 
-              <button
-                className="action-button-gold"
-                onClick={() => navigate(`/gradings/${openSession.id}`)}
-                type="button"
-              >
+              <Button variant="primary" block onClick={() => navigate(`/gradings/${openSession.id}`)}>
                 Open session <span aria-hidden="true">&rarr;</span>
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="card-empty-state">
@@ -339,13 +336,9 @@ export function OverviewScreen() {
               <p className="empty-state-desc">
                 No grading session in progress on the mat.
               </p>
-              <button
-                className="card-link-button"
-                onClick={() => navigate("/gradings")}
-                type="button"
-              >
+              <Button onClick={() => navigate("/gradings")}>
                 View all gradings <span aria-hidden="true">&rarr;</span>
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -424,13 +417,9 @@ export function OverviewScreen() {
               <p className="empty-state-desc">
                 No future grading sessions are currently scheduled.
               </p>
-              <button
-                className="card-link-button"
-                onClick={() => navigate("/gradings")}
-                type="button"
-              >
+              <Button onClick={() => navigate("/gradings")}>
                 Schedule a grading <span aria-hidden="true">&rarr;</span>
-              </button>
+              </Button>
             </div>
           )}
         </div>

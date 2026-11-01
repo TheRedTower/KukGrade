@@ -55,6 +55,21 @@ def test_about_serves_the_version_the_build_and_the_clubs_zone(settings: Any) ->
     assert served["database"] == "ok"
 
 
+def test_a_release_candidate_is_named_with_its_number(settings: Any) -> None:
+    settings.BUILD_PRE_RELEASE = "rc.4"
+
+    served = signed_in().get("/api/about/").json()
+
+    assert served["version"] == VERSION
+    assert served["release"] == f"{VERSION}-rc.4"
+
+
+def test_a_stable_build_or_a_checkout_is_named_by_its_version(settings: Any) -> None:
+    settings.BUILD_PRE_RELEASE = ""
+
+    assert signed_in().get("/api/about/").json()["release"] == VERSION
+
+
 def test_a_build_time_without_a_zone_is_taken_as_utc(settings: Any) -> None:
     settings.BUILD_TIME = "2026-10-21T09:30:00"
 

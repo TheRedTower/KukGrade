@@ -28,7 +28,7 @@ export function AboutOverview() {
         </div>
         <p className="st-version-tile">
           <span>Version</span>
-          <strong>{data?.version ?? "…"}</strong>
+          <strong>{data?.release ?? "…"}</strong>
         </p>
       </section>
 

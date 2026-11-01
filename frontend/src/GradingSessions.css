@@ -636,7 +636,9 @@
   cursor: pointer;
   transition: background 120ms ease;
   text-decoration: none;
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: var(--target-min);
 }
 
 .gsd-dropdown-item:hover {

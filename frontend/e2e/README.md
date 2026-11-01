@@ -2,7 +2,9 @@
 
 Renders the screens listed in `e2e/widths.spec.ts` at phone, tablet and desktop widths in a real browser and fails
 if anything does not fit (see `overflow.ts`). It runs against the demo image, which has
-a made-up club, so every screen has data.
+a made-up club, so every screen has data. The demo refuses file uploads, so the import
+steps that need an uploaded file (matching columns, reviewing rows) are not covered here;
+they are covered by the unit tests, and a real-device look is still needed for them.
 
 ```sh
 docker build --target production -t kukgrade:local .

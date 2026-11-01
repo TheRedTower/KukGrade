@@ -27,6 +27,12 @@
   --focus-outline: 2px solid var(--color-accent-strong);
   --focus-offset: 2px;
   --dialog-max: 43rem;
+  /* What sits over what: a sticky bar, a fixed bar, a menu, a dialog, a drawer. */
+  --z-sticky: 2;
+  --z-bar: 3;
+  --z-menu: 50;
+  --z-dialog: 100;
+  --z-drawer: 120;
 }
 
 /* A screen's root. Centred, never wider than its size, with room beneath. It
@@ -434,7 +440,8 @@
 
 .dialog-backdrop {
   position: fixed;
-  z-index: 100;
+  z-index: var(--z-dialog);
+  overscroll-behavior: contain;
   inset: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -452,6 +459,7 @@
   max-height: 100%;
   padding: var(--card-pad);
   overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);

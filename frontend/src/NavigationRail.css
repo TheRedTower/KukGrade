@@ -6,10 +6,11 @@
   flex-direction: column;
   gap: 1rem;
   width: 16.5rem;
-  height: 100vh;
+  height: 100dvh;
   position: sticky;
   top: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: 1px solid var(--color-rail-border);
   background: var(--color-rail);
   color: var(--color-text-on-ink);

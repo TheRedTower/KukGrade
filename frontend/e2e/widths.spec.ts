@@ -200,6 +200,21 @@ test("the edit-student dialog can be scrolled to Save on a short landscape scree
   await page.close();
 });
 
+for (const path of ["/", "/students", "/gradings"]) {
+  test(`on a phone and a tablet the logo and the page start at one left edge: ${path}`, async () => {
+    const page = await contexts.get("master")!.newPage();
+    for (const width of [390, 768]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(path);
+      await page.getByRole("heading", { level: 1 }).waitFor();
+      const left = (selector: string) => page.locator(selector).first().evaluate((el) => el.getBoundingClientRect().left);
+      const logo = await left(".nav-logo");
+      expect(Math.abs(logo - (await left("h1"))), `logo against the title at ${width}px`).toBeLessThanOrEqual(1);
+    }
+    await page.close();
+  });
+}
+
 for (const screen of SCREENS) {
   test(screen.name, async ({ browserName }, testInfo) => {
     const webkit = browserName === "webkit";

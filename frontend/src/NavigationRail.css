@@ -331,11 +331,16 @@
     grid-template-columns: 1fr;
   }
 
+  /* The logo lines up with the page's left edge, as the title below it does. */
+  .nav-brand {
+    padding-inline: 0;
+  }
+
   .nav-rail {
     position: static;
     width: auto;
     height: auto;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem var(--page-gutter);
     /* Here the page scrolls, not the rail: let a gesture over it reach the page. */
     overscroll-behavior: auto;
   }

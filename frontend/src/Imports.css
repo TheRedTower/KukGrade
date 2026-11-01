@@ -877,42 +877,11 @@
   white-space: nowrap;
 }
 
-.ix-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 12vh 1rem 1rem;
-  background: var(--color-scrim);
-}
-
-.ix-dialog {
-  width: 100%;
-  max-width: 30rem;
-  padding: 1.75rem;
-  border-radius: 12px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: 0 20px 50px rgb(0 0 0 / 30%);
-}
-
-.ix-dialog p {
+.ix-dialog-body p {
   margin: 0;
 }
 
-.ix-dialog-actions {
-  justify-content: flex-end;
-  margin-top: 1.25rem;
-}
-
-.ix-dialog h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-}
-
-.ix-dialog textarea {
+.ix-dialog-body textarea {
   width: 100%;
   min-height: 6rem;
   padding: 0.6rem 0.75rem;

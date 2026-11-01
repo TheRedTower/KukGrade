@@ -143,20 +143,6 @@
   margin: 0;
 }
 
-/* ── Delete assessment (administrator cleanup only) ──────────────────────── */
-
-.caw-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-scrim);
-  backdrop-filter: blur(2px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    Mat-side scoring — Single Column Run
    ═══════════════════════════════════════════════════════════════════════════ */

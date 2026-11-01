@@ -8,9 +8,9 @@
   },
   "App.css": {
     "rawColour": 13,
-    "fontSize": 27,
-    "fontWeight": 17,
-    "radius": 15,
+    "fontSize": 26,
+    "fontWeight": 16,
+    "radius": 14,
     "shadow": 3,
     "buttonClass": 3,
     "darkOverride": 2
@@ -40,7 +40,7 @@
     "fontWeight": 23,
     "radius": 14,
     "shadow": 3,
-    "zIndex": 3,
+    "zIndex": 2,
     "buttonClass": 5
   },
   "CohortAdjudication.css": {
@@ -54,30 +54,26 @@
   },
   "GradingAttendance.css": {
     "rawColour": 3,
-    "fontSize": 5,
-    "fontWeight": 4,
-    "radius": 4,
-    "zIndex": 1,
+    "fontSize": 3,
+    "fontWeight": 3,
+    "radius": 3,
     "buttonClass": 2
   },
   "GradingSessions.css": {
-    "rawColour": 57,
+    "rawColour": 56,
     "important": 18,
     "fontSize": 47,
     "fontWeight": 33,
     "radius": 19,
     "shadow": 1,
-    "zIndex": 2,
+    "zIndex": 1,
     "buttonClass": 7,
     "darkOverride": 14
   },
   "Imports.css": {
-    "rawColour": 1,
-    "fontSize": 39,
+    "fontSize": 38,
     "fontWeight": 30,
-    "radius": 20,
-    "shadow": 1,
-    "zIndex": 1,
+    "radius": 19,
     "buttonClass": 2
   },
   "NavigationRail.css": {

@@ -34,7 +34,7 @@ import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { AssessmentBadge, OutcomeBadge, SessionStatusBadge } from "./StatusBadge";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
@@ -209,12 +209,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   const isConfirmModalMutationPending =
     updateSessionMutation.isPending || deleteSessionMutation.isPending;
-
-  const confirmModalDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: confirmModal !== null,
-    onClose: () => setConfirmModal(null),
-    canClose: !isConfirmModalMutationPending,
-  });
 
   const refreshCandidateWork = () => {
     void queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
@@ -1154,74 +1148,54 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {confirmModal && (
-        <div
-          className="gsd-modal-backdrop gsd-modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isConfirmModalMutationPending) {
-              setConfirmModal(null);
-            }
-          }}
-        >
-          <div
-            ref={confirmModalDialogRef}
-            className="gsd-modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="gsd-confirm-modal-title"
-            tabIndex={-1}
-            data-testid="gsd-confirm-modal"
-          >
-            <h2 id="gsd-confirm-modal-title" className="gsd-modal-title">
-              {confirmModal.title}
-            </h2>
-            <p className="gsd-modal-message">{confirmModal.message}</p>
+        <Dialog title={confirmModal.title} onClose={() => setConfirmModal(null)} canClose={!isConfirmModalMutationPending}>
+          <p className="gsd-modal-message">{confirmModal.message}</p>
 
-            {confirmModal.actionType === "CANCEL" && (
-              <div className="gsd-modal-field gsd-cancel-reason-field">
-                <label htmlFor="cancellation-reason" className="gsd-field-label">
-                  {/* Abandoning a locked session must say why (server rule). */}
-                  {cancelReasonRequired ? "Cancellation reason (required)" : "Cancellation reason (optional)"}
-                </label>
-                <textarea
-                  id="cancellation-reason"
-                  className="gsd-modal-textarea gsd-textarea"
-                  rows={3}
-                  value={cancellationReason}
-                  onChange={(e) => setCancellationReason(e.target.value)}
-                  placeholder="Explain why the session is being cancelled…"
-                />
-              </div>
-            )}
-
-            <div className="gsd-modal-actions">
-              <Button
-                variant={confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE" ? "danger" : "primary"}
-                onClick={handleConfirmModalAction}
-                disabled={
-                  isConfirmModalMutationPending ||
-                  (confirmModal.actionType === "CANCEL" &&
-                    cancelReasonRequired &&
-                    !cancellationReason.trim())
-                }
-                data-testid="gsd-modal-confirm-btn"
-              >
-                {confirmModal.actionType === "DELETE"
-                  ? deleteSessionMutation.isPending
-                    ? "Deleting…"
-                    : "Delete session"
-                  : "Confirm"}
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setConfirmModal(null)}
-                disabled={isConfirmModalMutationPending}
-                data-dialog-autofocus
-              >
-                Cancel
-              </Button>
+          {confirmModal.actionType === "CANCEL" && (
+            <div className="gsd-modal-field gsd-cancel-reason-field">
+              <label htmlFor="cancellation-reason" className="gsd-field-label">
+                {/* Abandoning a locked session must say why (server rule). */}
+                {cancelReasonRequired ? "Cancellation reason (required)" : "Cancellation reason (optional)"}
+              </label>
+              <textarea
+                id="cancellation-reason"
+                className="gsd-modal-textarea gsd-textarea"
+                rows={3}
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="Explain why the session is being cancelled…"
+              />
             </div>
+          )}
+
+          <div className="action-row action-row--end">
+            <Button
+              variant={confirmModal.actionType === "CANCEL" || confirmModal.actionType === "DELETE" ? "danger" : "primary"}
+              onClick={handleConfirmModalAction}
+              disabled={
+                isConfirmModalMutationPending ||
+                (confirmModal.actionType === "CANCEL" &&
+                  cancelReasonRequired &&
+                  !cancellationReason.trim())
+              }
+              data-testid="gsd-modal-confirm-btn"
+            >
+              {confirmModal.actionType === "DELETE"
+                ? deleteSessionMutation.isPending
+                  ? "Deleting…"
+                  : "Delete session"
+                : "Confirm"}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmModal(null)}
+              disabled={isConfirmModalMutationPending}
+              data-dialog-autofocus
+            >
+              Cancel
+            </Button>
           </div>
-        </div>
+        </Dialog>
       )}
 
       {attendanceDialogOpen && (

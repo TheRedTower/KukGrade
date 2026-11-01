@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import "./GradingAttendance.css";
 import { Button } from "./Button";
 
@@ -21,40 +21,10 @@ type DialogFrameProps = {
 
 function DialogFrame({ title, eyebrow, pending, onClose, children }: DialogFrameProps) {
   // Nothing closes the dialog while its request is in flight.
-  const dialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: true,
-    onClose,
-    canClose: !pending,
-  });
-
   return (
-    <div
-      className="attendance-dialog-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !pending) onClose();
-      }}
-    >
-      <div
-        ref={dialogRef}
-        tabIndex={-1}
-        className="attendance-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="attendance-dialog-title"
-      >
-        <header className="attendance-dialog-header">
-          <div>
-            <p>{eyebrow}</p>
-            <h2 id="attendance-dialog-title">{title}</h2>
-          </div>
-          <Button variant="ghost" onClick={onClose} disabled={pending}>
-            Close
-          </Button>
-        </header>
-        {children}
-      </div>
-    </div>
+    <Dialog title={title} eyebrow={eyebrow} onClose={onClose} canClose={!pending}>
+      {children}
+    </Dialog>
   );
 }
 

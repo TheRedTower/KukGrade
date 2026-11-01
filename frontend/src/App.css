@@ -698,25 +698,6 @@ h2 {
   padding: 0 0.25rem;
 }
 
-.gsd-modal-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 1.75rem;
-  max-width: 480px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.gsd-modal-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
 .gsd-modal-message {
   font-size: 0.92rem;
   color: var(--color-text-muted);
@@ -725,8 +706,7 @@ h2 {
 }
 
 .gsd-modal-textarea,
-.gsd-textarea,
-.gsd-modal-card textarea {
+.gsd-textarea {
   width: 100%;
   padding: 0.65rem;
   border: 1px solid var(--color-border);
@@ -740,18 +720,10 @@ h2 {
 }
 
 .gsd-modal-textarea:focus,
-.gsd-textarea:focus,
-.gsd-modal-card textarea:focus {
+.gsd-textarea:focus {
   outline: var(--focus-outline);
   outline-offset: var(--focus-offset);
   border-color: var(--btn-primary-bg);
-}
-
-.gsd-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
 }
 
 /* ── Loading and Error States ────────────────────────────────────────────── */

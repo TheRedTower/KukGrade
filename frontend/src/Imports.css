@@ -902,7 +902,7 @@
 .ix-cell-input {
   width: 100%;
   min-width: 7rem;
-  min-height: 40px;
+  min-height: var(--target-min);
   padding: 0 0.5rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -938,7 +938,6 @@
 }
 
 .ix-fix-note button {
-  min-height: 28px;
   padding: 0 0.25rem;
   border: none;
   background: transparent;
@@ -983,7 +982,7 @@
 .ix-col-select {
   width: 100%;
   min-width: 8.5rem;
-  min-height: 40px;
+  min-height: var(--target-min);
   margin-top: 0.35rem;
   padding: 0 0.4rem;
   border: 1px solid var(--color-border);
@@ -1024,7 +1023,7 @@
 }
 
 .ix-field-grid select {
-  min-height: 40px;
+  min-height: var(--target-min);
   padding: 0 0.4rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -1089,8 +1088,18 @@
 .ix-tick {
   width: 22px;
   height: 22px;
-  margin: 0.15rem 0 0;
+  margin: 0;
   accent-color: var(--color-gold);
+}
+
+/* The box is small to look at; the label round it is the finger-sized target. */
+.ix-tick-hit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
 }
 
 /* The linking page: every name as written, one row each. */
@@ -1132,7 +1141,7 @@
 
 .ix-name-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.7fr) auto;
+  grid-template-columns: var(--target-min) minmax(0, 1.2fr) minmax(0, 1.3fr) minmax(0, 1.7fr) auto;
   gap: 1rem;
   align-items: center;
   padding: 0.75rem 1.25rem;
@@ -1235,7 +1244,7 @@
   }
 
   .ix-name-row {
-    grid-template-columns: 28px minmax(0, 1fr);
+    grid-template-columns: var(--target-min) minmax(0, 1fr);
     gap: 0.5rem 0.75rem;
   }
 

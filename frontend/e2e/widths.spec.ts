@@ -2,7 +2,7 @@ import { type APIRequestContext, type Browser, type BrowserContext, type Page, e
 
 import debt from "./widthDebt.json" with { type: "json" };
 import webkitDebt from "./widthDebtWebkit.json" with { type: "json" };
-import { findOverflow } from "./overflow";
+import { findOverflow, findSmallTargets } from "./overflow";
 import { ALL_WIDTHS, QUICK_WIDTHS, WEBKIT_WIDTHS } from "./widths";
 
 type Role = "master" | "administrator";
@@ -214,6 +214,22 @@ for (const path of ["/", "/students", "/gradings"]) {
     await page.close();
   });
 }
+
+test("every control on every screen is a finger-sized target on a phone", async () => {
+  test.skip(test.info().project.name !== "webkit-iphone", "touch targets are judged on the phone");
+  const problems: string[] = [];
+  for (const screen of SCREENS) {
+    const page = await contexts.get(screen.role)!.newPage();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(screen.path(ids));
+    await page.getByRole("heading").first().waitFor();
+    await page.waitForLoadState("networkidle");
+    await screen.after?.(page);
+    for (const small of await findSmallTargets(page)) problems.push(`${screen.name}: ${small}`);
+    await page.close();
+  }
+  expect(problems, `controls under 44px:\n  ${problems.join("\n  ")}`).toEqual([]);
+});
 
 for (const screen of SCREENS) {
   test(screen.name, async ({ browserName }, testInfo) => {

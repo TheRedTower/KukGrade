@@ -28,6 +28,7 @@ export function ThemeToggle() {
           <button
             aria-pressed={preference === option.value}
             className="theme-toggle-option"
+            data-target-ok
             key={option.value}
             onClick={() => setTheme(option.value)}
             title={option.label}

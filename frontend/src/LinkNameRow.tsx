@@ -79,13 +79,15 @@ function NameDetails({
           ) : (
             records.data.results.map((record) => (
               <li className="ix-detail-item" key={record.id}>
-                <input
-                  aria-label={`Link the ${recordMonth(record)} record`}
-                  checked={!unticked.includes(record.id)}
-                  className="ix-tick"
-                  type="checkbox"
-                  onChange={() => onTick(record.id)}
-                />
+                <label className="ix-tick-hit">
+                  <input
+                    aria-label={`Link the ${recordMonth(record)} record`}
+                    checked={!unticked.includes(record.id)}
+                    className="ix-tick"
+                    type="checkbox"
+                    onChange={() => onTick(record.id)}
+                  />
+                </label>
                 <div className="ix-row-main">
                   <p className="ix-bold">
                     {recordMonth(record)} · {recordRanks(record)}
@@ -231,14 +233,16 @@ export function NameRow({
         {done ? (
           <span />
         ) : (
-          <input
-            aria-label={`Select “${person.source_name}”`}
-            checked={selected}
-            className="ix-tick"
-            disabled={!chosen}
-            type="checkbox"
-            onChange={onSelect}
-          />
+          <label className="ix-tick-hit">
+            <input
+              aria-label={`Select “${person.source_name}”`}
+              checked={selected}
+              className="ix-tick"
+              disabled={!chosen}
+              type="checkbox"
+              onChange={onSelect}
+            />
+          </label>
         )}
         <div className="ix-name-main">
           <p className="ix-bold">“{person.source_name}”</p>

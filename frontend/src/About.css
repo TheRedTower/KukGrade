@@ -312,7 +312,7 @@
 }
 
 .ab-contents button {
-  min-height: 40px;
+  min-height: var(--target-min);
   padding: 0 0.85rem;
   border: 0;
   border-radius: 8px;

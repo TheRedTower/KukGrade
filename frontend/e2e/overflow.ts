@@ -98,8 +98,7 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
  * form control or a link styled as a button under 44px either way. Links that
  * run inside a sentence are left alone (a text link), as is anything visually
  * hidden or marked data-target-ok. A checkbox or radio counts as its label
- * (the label is what is tapped). Selects are left out: the browser sizes them
- * itself in an emulated phone.
+ * (the label is what is tapped).
  */
 export async function findSmallTargets(page: Page): Promise<string[]> {
   return page.evaluate(() => {
@@ -107,7 +106,7 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
     const min = 44;
     const seen = new Set<string>();
     const selector =
-      'button, input:not([type="hidden"]), textarea, [role="button"], [role="menuitem"], a.btn, summary';
+      'button, select, input:not([type="hidden"]), textarea, [role="button"], [role="menuitem"], a.btn, summary';
     for (const el of document.body.querySelectorAll(selector)) {
       if (el.closest("[data-target-ok], .visually-hidden, .ix-visually-hidden, svg")) continue;
       const style = getComputedStyle(el);

@@ -336,6 +336,8 @@
     width: auto;
     height: auto;
     padding: 0.5rem 1rem;
+    /* Here the page scrolls, not the rail: let a gesture over it reach the page. */
+    overscroll-behavior: auto;
   }
 
   .nav-menu-button {

@@ -609,6 +609,8 @@
   /* Clear the fixed bar so the last requirement is never hidden behind it. */
   .caw-run-scroll {
     padding-bottom: 7rem;
+    /* Here the page scrolls, not this: let a gesture over the rows reach it. */
+    overscroll-behavior: auto;
   }
 
   .caw-mat-track {

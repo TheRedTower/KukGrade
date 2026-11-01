@@ -157,7 +157,7 @@ WORKDIR /app/backend
 # Starts as root only to hand /var/lib/kukgrade to the app's user, then runs the
 # database and the app as that user (kukgrade/serve.py).
 EXPOSE 6942
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
     CMD ["python", "-m", "kukgrade.container_health"]
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["serve"]

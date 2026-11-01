@@ -156,7 +156,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  height: calc(100vh - 2rem);
+  height: calc(100dvh - 2rem);
   /* It fills the screen height, so it keeps no room beneath. */
   padding-block-end: 0;
 }
@@ -211,6 +211,7 @@
   flex-grow: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   /* A focused row scrolls in below the sticky band header, not under it. */
   scroll-padding-top: 3rem;
 }
@@ -218,7 +219,7 @@
 .caw-band-header {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-sticky);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -602,12 +603,14 @@
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 3;
+    z-index: var(--z-bar);
   }
 
   /* Clear the fixed bar so the last requirement is never hidden behind it. */
   .caw-run-scroll {
     padding-bottom: 7rem;
+    /* Here the page scrolls, not this: let a gesture over the rows reach it. */
+    overscroll-behavior: auto;
   }
 
   .caw-mat-track {

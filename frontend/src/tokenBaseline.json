@@ -40,7 +40,6 @@
     "fontWeight": 23,
     "radius": 14,
     "shadow": 3,
-    "zIndex": 2,
     "buttonClass": 5
   },
   "CohortAdjudication.css": {
@@ -66,7 +65,6 @@
     "fontWeight": 33,
     "radius": 19,
     "shadow": 1,
-    "zIndex": 1,
     "buttonClass": 7,
     "darkOverride": 14
   },
@@ -92,8 +90,7 @@
   "OutcomeDrawers.css": {
     "fontSize": 5,
     "fontWeight": 2,
-    "radius": 1,
-    "zIndex": 1
+    "radius": 1
   },
   "OverviewScreen.css": {
     "rawColour": 2,
@@ -148,7 +145,6 @@
     "fontSize": 15,
     "fontWeight": 10,
     "radius": 7,
-    "shadow": 1,
-    "zIndex": 1
+    "shadow": 1
   }
 }

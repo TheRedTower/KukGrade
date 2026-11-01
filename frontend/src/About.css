@@ -276,6 +276,7 @@
 
 .ab-licence-text {
   max-height: 24rem;
+  overscroll-behavior: contain;
   margin-top: 1rem;
 }
 

@@ -94,7 +94,8 @@ export function NavigationRail({
   useEffect(() => {
     if (!menuOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // A dialog open over the menu keeps Escape, and the focus, to itself.
+      if (event.key !== "Escape" || document.querySelector('[aria-modal="true"]')) return;
       setMenuOpen(false);
       menuButton.current?.focus();
     };

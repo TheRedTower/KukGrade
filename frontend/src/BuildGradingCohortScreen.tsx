@@ -826,7 +826,7 @@ export function BuildGradingCohortScreen() {
                           <Button
                             variant="ghost" className="bgc-student-added-btn"
                             onClick={() => handleRemoveStudentFromCohort(student.id)}
-                            aria-label={`Remove ${student.first_name} ${student.last_name} from the cohort`}
+                            aria-label={`Added: remove ${student.first_name} ${student.last_name} from the cohort`}
                             title="Click to remove from the cohort"
                             data-testid={`bgc-student-added-${student.id}`}
                           >
@@ -911,7 +911,7 @@ export function BuildGradingCohortScreen() {
                       <Button
                         variant="ghost" className="bgc-group-added-btn"
                         onClick={() => handleRemoveRankGroup(group.rank.id)}
-                        aria-label={`Remove the ${group.rank.name} group from the cohort`}
+                        aria-label={`Added: remove the ${group.rank.name} group from the cohort`}
                         title="Click to remove the group"
                         data-testid={`bgc-group-added-${group.rank.id}`}
                       >

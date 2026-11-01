@@ -140,9 +140,9 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
               <Link className={buttonClass({ variant: "primary" })} to="/imports/new?kind=STUDENT_ROSTER">
                 Import students
               </Link>
-              <button className="ix-link-button" type="button" onClick={downloadStandardTemplate}>
+              <Button variant="link" onClick={downloadStandardTemplate}>
                 Download the template
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -169,7 +169,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
                 {awaitingLink === 1 ? "is" : "are"} not linked to a student yet.
               </p>
               {canLink ? (
-                <Link className="ix-link-button" to="/imports/records">
+                <Link className={buttonClass({ variant: "link" })} to="/imports/records">
                   Link records
                 </Link>
               ) : null}

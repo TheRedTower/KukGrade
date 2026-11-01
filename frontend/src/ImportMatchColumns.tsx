@@ -261,24 +261,23 @@ export function ImportMatchColumns({
         {rankDefault && !columnFor.current_rank ? (
           <p className="ix-small ix-flush">
             Rank for everyone: <strong>{rankDefault}</strong>. A row can still be given its own.{" "}
-            <button
-              className="ix-link-button"
+            <Button
+              variant="link"
               disabled={save.isPending || correct.isPending}
-              type="button"
               onClick={() => {
                 setRankDefault("");
                 choose(choices, "");
               }}
             >
               Change
-            </button>
+            </Button>
           </p>
         ) : null}
 
         {save.isError ? (
           <div role="alert" className="ix-danger-text">
             {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}{" "}
-            <button className="ix-link-button" type="button" onClick={() => save.mutate(draftPayload)}>Retry saving columns</button>
+            <Button variant="link" onClick={() => save.mutate(draftPayload)}>Retry saving columns</Button>
           </div>
         ) : null}
         {correct.isError ? (
@@ -326,9 +325,9 @@ export function ImportMatchColumns({
                       {fieldName(field)} <span className="ix-pill ix-pill-info">Typed in</span>
                     </span>
                     {withFixes.has(field) ? null : (
-                      <button className="ix-link-button" type="button" onClick={() => setTyped(typed.filter((name) => name !== field))}>
+                      <Button variant="link" onClick={() => setTyped(typed.filter((name) => name !== field))}>
                         Remove this column
-                      </button>
+                      </Button>
                     )}
                   </th>
                 ))}

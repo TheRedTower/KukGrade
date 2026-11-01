@@ -69,9 +69,9 @@
   },
   "Imports.css": {
     "fontSize": 38,
-    "fontWeight": 30,
+    "fontWeight": 29,
     "radius": 19,
-    "buttonClass": 2
+    "buttonClass": 1
   },
   "NavigationRail.css": {
     "rawColour": 8,

@@ -520,23 +520,6 @@
   font-size: 0.875rem;
 }
 
-.ix-link-button {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 0.5rem;
-  border: none;
-  background: transparent;
-  color: var(--color-accent-text);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.ix-link-button:hover {
-  text-decoration: underline;
-}
-
 .ix-danger-text {
   color: var(--color-danger);
 }

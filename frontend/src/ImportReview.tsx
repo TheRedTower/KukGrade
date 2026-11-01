@@ -105,15 +105,14 @@ function useRowExclusion(batch: DataImportBatch, onRefresh: () => Promise<void>,
 function ExclusionButton({ row, kind, exclusion }: { row: DataImportRow; kind: DataImportKind; exclusion: Exclusion }) {
   const what = rowCalled(row, kind);
   return (
-    <button
+    <Button
       aria-label={row.excluded ? `Bring back ${what}` : `Leave out ${what}`}
-      className="ix-link-button"
+      variant="link"
       disabled={exclusion.isPending}
-      type="button"
       onClick={() => exclusion.mutate({ row, excluded: !row.excluded })}
     >
       {row.excluded ? "Bring back" : "Leave out"}
-    </button>
+    </Button>
   );
 }
 
@@ -448,9 +447,9 @@ function RosterReview({
                             </td>
                           ))}
                           <td className="ix-cell-action">
-                            <button className="ix-link-button" type="button" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
+                            <Button variant="link" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
                               {editing === row.row_number ? "Close editor" : `Edit row ${row.row_number}`}
-                            </button>
+                            </Button>
                             <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
                           </td>
                         </tr>

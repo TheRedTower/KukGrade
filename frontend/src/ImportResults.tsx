@@ -158,15 +158,14 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
                 {done ? (
                   <>
                     <span className="ix-success-text ix-bold">✓ Linked to {done.name}</span>
-                    <button
+                    <Button
                       aria-label={`Undo linking “${person.source_name}”`}
-                      className="ix-link-button"
+                      variant="link"
                       disabled={busy}
-                      type="button"
                       onClick={() => undoLink(person)}
                     >
                       Undo
-                    </button>
+                    </Button>
                   </>
                 ) : person.suggestion === "choose" ? (
                   <>
@@ -432,7 +431,7 @@ function RowsLedger({
                     </td>
                     <td className="ix-cell-action">
                       {roster && row.created_id ? (
-                        <Link aria-label={`Open ${name}`} className="ix-link-button" to={`/students/${row.created_id}`}>
+                        <Link aria-label={`Open ${name}`} className={buttonClass({ variant: "link" })} to={`/students/${row.created_id}`}>
                           Open
                         </Link>
                       ) : null}

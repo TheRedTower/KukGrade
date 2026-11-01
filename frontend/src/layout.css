@@ -680,6 +680,11 @@
   mask-image: none;
 }
 
+/* The fade would clip the focus outline, which sits outside the track's box. */
+.rail__track:focus-visible {
+  mask-image: none;
+}
+
 .rail__track::-webkit-scrollbar {
   display: none;
 }

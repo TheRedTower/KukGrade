@@ -325,11 +325,11 @@
   background: var(--color-surface-sunken);
 }
 
-/* Long text scrolls in its own box instead of running to the end of the page. */
+/* Long text runs down the page: the page is the one thing that scrolls up and
+   down, and long words and links wrap rather than push it sideways. */
 .ab-prose {
-  max-height: 70vh;
   padding: 1.5rem;
-  overflow-y: auto;
+  overflow-wrap: anywhere;
 }
 
 .ab-prose h3 {

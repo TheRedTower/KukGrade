@@ -771,9 +771,9 @@ h2 {
 .gsd-modal-textarea:focus,
 .gsd-textarea:focus,
 .gsd-modal-card textarea:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--btn-primary-bg);
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
 .gsd-modal-actions {

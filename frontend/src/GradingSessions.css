@@ -63,9 +63,9 @@
 }
 
 .gs-search-input:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .gs-filter-select {
@@ -85,9 +85,9 @@
 }
 
 .gs-filter-select:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 /* ── Current Session Spotlight ───────────────────────────────────────────── */
@@ -396,9 +396,9 @@
 .cgs-text-input:focus,
 .cgs-textarea:focus,
 .cgs-select:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--color-gold);
-  box-shadow: 0 0 0 3px rgba(242, 167, 27, 0.2);
 }
 
 .cgs-input-error {
@@ -855,9 +855,9 @@
 }
 
 .gsd-search-input:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--btn-primary-bg);
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
 .gsd-filter-wrap {
@@ -876,9 +876,9 @@
 }
 
 .gsd-filter-select:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--btn-primary-bg);
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
 .gsd-count-chip {
@@ -1047,9 +1047,9 @@
 }
 
 .gsd-notes-textarea:focus {
-  outline: none;
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-offset);
   border-color: var(--btn-primary-bg);
-  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
 }
 
 .gsd-notes-actions {

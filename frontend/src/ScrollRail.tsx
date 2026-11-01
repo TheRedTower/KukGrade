@@ -80,7 +80,6 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
         className="rail__track"
         role="region"
         aria-label={label}
-        tabIndex={0}
         data-scroll-ok
         data-at-start={edges.atStart || undefined}
         data-at-end={edges.atEnd || undefined}

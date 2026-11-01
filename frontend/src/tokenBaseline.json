@@ -7,12 +7,11 @@
     "outlineNone": 1
   },
   "App.css": {
-    "rawColour": 14,
+    "rawColour": 13,
     "fontSize": 28,
     "fontWeight": 17,
     "radius": 16,
-    "shadow": 4,
-    "outlineNone": 1,
+    "shadow": 3,
     "buttonClass": 4,
     "darkOverride": 2
   },
@@ -62,14 +61,13 @@
     "buttonClass": 2
   },
   "GradingSessions.css": {
-    "rawColour": 61,
+    "rawColour": 57,
     "important": 18,
     "fontSize": 47,
     "fontWeight": 33,
     "radius": 19,
-    "shadow": 7,
+    "shadow": 1,
     "zIndex": 2,
-    "outlineNone": 6,
     "buttonClass": 7,
     "darkOverride": 14
   },
@@ -107,7 +105,6 @@
     "fontWeight": 16,
     "radius": 10,
     "shadow": 2,
-    "outlineNone": 2,
     "buttonClass": 2
   },
   "PromotionLedger.css": {

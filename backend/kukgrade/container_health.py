@@ -70,8 +70,21 @@ def _arm_deadline(seconds: int) -> None:
     signal.alarm(seconds)
 
 
+def _disarm_deadline() -> None:
+    signal.alarm(0)
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
+
 def main() -> None:
     _arm_deadline(PROBE_DEADLINE_SECONDS)
+    try:
+        _check()
+    finally:
+        # Left set, the alarm would fire later in whatever called this (a test run).
+        _disarm_deadline()
+
+
+def _check() -> None:
     scheme = "https" if settings.SERVES_TLS else "http"
     request = urllib.request.Request(
         f"{scheme}://127.0.0.1:{settings.PORT}/api/health/",

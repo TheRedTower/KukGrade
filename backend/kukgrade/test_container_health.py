@@ -5,6 +5,7 @@ from __future__ import annotations
 import http.server
 import os
 import re
+import signal
 import socket
 import ssl
 import subprocess
@@ -186,6 +187,29 @@ def test_a_database_that_accepts_but_never_answers_fails_within_the_deadline(
 
     assert reachable is False
     assert took < 4
+
+
+def test_a_finished_probe_leaves_no_alarm_behind() -> None:
+    with (
+        patch("kukgrade.container_health.urllib.request.build_opener") as build,
+        patch("kukgrade.container_health._database_reachable", return_value=True),
+    ):
+        build.return_value.open.return_value.__enter__.return_value.status = 200
+        main()
+
+    assert signal.alarm(0) == 0  # nothing was still counting down
+
+
+def test_a_failed_probe_leaves_no_alarm_behind() -> None:
+    with (
+        patch("kukgrade.container_health.urllib.request.build_opener") as build,
+        patch("kukgrade.container_health._database_reachable", return_value=False),
+        pytest.raises(SystemExit),
+    ):
+        build.return_value.open.return_value.__enter__.return_value.status = 200
+        main()
+
+    assert signal.alarm(0) == 0
 
 
 def test_a_probe_that_is_stuck_stops_itself_with_a_failure() -> None:

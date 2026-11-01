@@ -184,6 +184,22 @@ test("the debt lists name only screens that exist", () => {
   expect([...debt, ...Object.values(webkitDebt).flat()].filter((name) => !known.has(name))).toEqual([]);
 });
 
+test("the edit-student dialog can be scrolled to Save on a short landscape screen", async () => {
+  const page = await contexts.get("administrator")!.newPage();
+  await page.setViewportSize({ width: 667, height: 320 });
+  await page.goto(`/students/${ids.student}`);
+  await page.getByRole("button", { name: "Edit student", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.waitFor();
+  const save = dialog.getByRole("button", { name: "Save changes" });
+  await save.scrollIntoViewIfNeeded();
+  const box = (await save.boundingBox())!;
+  expect(box.y + box.height, "Save is on screen once scrolled to").toBeLessThanOrEqual(320);
+  await save.click();
+  await dialog.waitFor({ state: "detached" });
+  await page.close();
+});
+
 for (const screen of SCREENS) {
   test(screen.name, async ({ browserName }, testInfo) => {
     const webkit = browserName === "webkit";

@@ -331,6 +331,11 @@
     grid-template-columns: 1fr;
   }
 
+  /* The logo lines up with the page's left edge, as the title below it does. */
+  .nav-brand {
+    padding-inline: 0;
+  }
+
   .nav-rail {
     position: static;
     width: auto;

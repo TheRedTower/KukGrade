@@ -15,7 +15,7 @@ import {
 import { failureMessage, useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import { Badge } from "./Badge";
 import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -115,21 +115,6 @@ export function StudentDetailScreen() {
     onError: (err) => setDeleteError(failureMessage(err, "Failed to delete student.")),
   });
   const isDeletingStudent = deleteMutation.isPending;
-  const statusDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: isStatusModalOpen,
-    onClose: () => setIsStatusModalOpen(false),
-    canClose: !isSavingStatus,
-  });
-  const editDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: isEditModalOpen,
-    onClose: () => setIsEditModalOpen(false),
-    canClose: !isSavingEdit,
-  });
-  const deleteDialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: isDeleteModalOpen,
-    onClose: () => setIsDeleteModalOpen(false),
-    canClose: !isDeletingStudent,
-  });
 
   // 1. Fetch Student Detail
   const studentQuery = useQuery({
@@ -544,36 +529,7 @@ export function StudentDetailScreen() {
 
       {/* Change Status Modal */}
       {isStatusModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => {
-            if (!isSavingStatus) setIsStatusModalOpen(false);
-          }}
-        >
-          <div
-            ref={statusDialogRef}
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="change-status-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2 id="change-status-title" className="modal-title">
-                Change student status
-              </h2>
-              <button
-                type="button"
-                className="modal-close-btn"
-                aria-label="Close dialog"
-                onClick={() => setIsStatusModalOpen(false)}
-                disabled={isSavingStatus}
-              >
-                ✕
-              </button>
-            </div>
+        <Dialog title="Change student status" closeLabel="Close dialog" onClose={() => setIsStatusModalOpen(false)} canClose={!isSavingStatus}>
 
             {statusError && (
               <div role="alert" className="form-alert-banner">
@@ -581,8 +537,8 @@ export function StudentDetailScreen() {
               </div>
             )}
 
-            <form onSubmit={handleSaveStatus}>
-              <div className="modal-body">
+            <form className="stack" onSubmit={handleSaveStatus}>
+              <div>
                 <p className="modal-lead-text">
                   Update status for <strong>{student.first_name} {student.last_name}</strong>:
                 </p>
@@ -647,7 +603,7 @@ export function StudentDetailScreen() {
                 </div>
               </div>
 
-              <div className="modal-actions">
+              <div className="action-row action-row--end">
                 <Button
                   variant="secondary"
                   onClick={() => setIsStatusModalOpen(false)}
@@ -664,42 +620,12 @@ export function StudentDetailScreen() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Delete Student Modal */}
       {isDeleteModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => {
-            if (!isDeletingStudent) setIsDeleteModalOpen(false);
-          }}
-        >
-          <div
-            ref={deleteDialogRef}
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="delete-student-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2 id="delete-student-title" className="modal-title">
-                Delete student
-              </h2>
-              <button
-                type="button"
-                className="modal-close-btn"
-                aria-label="Close dialog"
-                onClick={() => setIsDeleteModalOpen(false)}
-                disabled={isDeletingStudent}
-              >
-                ✕
-              </button>
-            </div>
+        <Dialog title="Delete student" closeLabel="Close dialog" onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
 
             {deleteError && (
               <div role="alert" className="form-alert-banner">
@@ -707,14 +633,14 @@ export function StudentDetailScreen() {
               </div>
             )}
 
-            <div className="modal-body">
+            <div>
               <p className="modal-lead-text">
                 Permanently delete <strong>{student.first_name} {student.last_name}</strong>&apos;s
                 record? This cannot be undone. It also deletes every grading registration, assessment, outcome and promotion of theirs, and puts back any rank they were promoted to. Historical grading records linked to them are kept, just no longer linked.
               </p>
             </div>
 
-            <div className="modal-actions">
+            <div className="action-row action-row--end">
               <Button
                 variant="secondary"
                 onClick={() => setIsDeleteModalOpen(false)}
@@ -731,42 +657,12 @@ export function StudentDetailScreen() {
                 {isDeletingStudent ? "Deleting…" : "Delete student"}
               </Button>
             </div>
-          </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Edit Student Details Modal */}
       {isEditModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => {
-            if (!isSavingEdit) setIsEditModalOpen(false);
-          }}
-        >
-          <div
-            ref={editDialogRef}
-            className="modal-card"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="edit-student-title"
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h2 id="edit-student-title" className="modal-title">
-                Edit student record
-              </h2>
-              <button
-                type="button"
-                className="modal-close-btn"
-                aria-label="Close dialog"
-                onClick={() => setIsEditModalOpen(false)}
-                disabled={isSavingEdit}
-              >
-                ✕
-              </button>
-            </div>
+        <Dialog title="Edit student record" closeLabel="Close dialog" onClose={() => setIsEditModalOpen(false)} canClose={!isSavingEdit}>
 
             {editForm.banner && (
               <div role="alert" className="form-alert-banner">
@@ -774,8 +670,8 @@ export function StudentDetailScreen() {
               </div>
             )}
 
-            <form onSubmit={handleSaveEdit} noValidate>
-              <div className="modal-body">
+            <form className="stack" onSubmit={handleSaveEdit} noValidate>
+              <div>
                 <div className="form-field-group" style={{ marginBottom: "1rem" }}>
                   <label htmlFor="edit-wksa-id" className="form-field-label">
                     WKSA ID
@@ -868,7 +764,7 @@ export function StudentDetailScreen() {
                 </div>
               </div>
 
-              <div className="modal-actions">
+              <div className="action-row action-row--end">
                 <Button
                   variant="secondary"
                   onClick={() => setIsEditModalOpen(false)}
@@ -885,8 +781,7 @@ export function StudentDetailScreen() {
                 </Button>
               </div>
             </form>
-          </div>
-        </div>
+        </Dialog>
       )}
     </section>
   );

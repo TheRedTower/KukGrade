@@ -6,7 +6,7 @@
   "App.css": {
     "widthQueries": 2,
     "nowrap": 1,
-    "fixedMinWidth": 3
+    "fixedMinWidth": 2
   },
   "CandidateAssessment.css": {
     "widthQueries": 2,

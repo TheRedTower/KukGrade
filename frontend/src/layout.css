@@ -638,9 +638,9 @@
 
 /* ── Scroll rail ───────────────────────────────────────────────────────── */
 
-/* A row of choices that scrolls a page at a time (ScrollRail.tsx): the one
-   deliberate sideways scroller. Items snap to the start, so none is left cut
-   off at the edge once it stops. */
+/* A row of choices that scrolls sideways (ScrollRail.tsx): the one deliberate
+   sideways scroller. It is the plain native scroller: items snap to the start,
+   and a fade at an edge shows there is more. */
 .rail {
   display: flex;
   align-items: center;
@@ -654,9 +654,30 @@
   min-width: 0;
   padding: 4px 2px;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
   scroll-padding-inline: 2px;
   scroll-snap-type: x proximity;
   scrollbar-width: none;
+  --rail-fade: 1.5rem;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    var(--color-text) var(--rail-fade),
+    var(--color-text) calc(100% - var(--rail-fade)),
+    transparent
+  );
+}
+
+.rail__track[data-at-start] {
+  mask-image: linear-gradient(to right, var(--color-text) calc(100% - var(--rail-fade)), transparent);
+}
+
+.rail__track[data-at-end] {
+  mask-image: linear-gradient(to right, transparent, var(--color-text) var(--rail-fade));
+}
+
+.rail__track[data-at-start][data-at-end] {
+  mask-image: none;
 }
 
 .rail__track::-webkit-scrollbar {
@@ -690,4 +711,11 @@
 
 .rail__arrow[hidden] {
   display: none;
+}
+
+/* On touch the way is to swipe, so the arrows give their room to the items. */
+@media (pointer: coarse) {
+  .rail__arrow {
+    display: none;
+  }
 }

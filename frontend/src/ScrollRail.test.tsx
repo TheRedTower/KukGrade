@@ -64,4 +64,15 @@ describe("ScrollRail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scroll ranks right" }));
     expect(scrollBy).toHaveBeenCalledWith({ left: 200, behavior: "smooth" });
   });
+  it("brings the chosen item in clear of the track's padding, so its focus outline is not clipped", () => {
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({ paddingLeft: "4px", getPropertyValue: () => "" } as unknown as CSSStyleDeclaration);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const box = (left: number, width: number) => ({ left, right: left + width, width, top: 0, bottom: 40, height: 40, x: left, y: 0, toJSON: () => ({}) });
+      if (this.classList.contains("rail__track")) return box(0, 250);
+      return box(this.textContent === "B" ? 260 : 0, 100);
+    });
+    renderRail();
+    // B ends 110px past the window; it is brought in to end 4px inside it.
+    expect(screen.getByRole("region", { name: "Ranks" }).scrollLeft).toBe(114);
+  });
 });

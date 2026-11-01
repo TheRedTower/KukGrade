@@ -13,8 +13,7 @@
     "fixedMinWidth": 4
   },
   "GradingAttendance.css": {
-    "widthQueries": 1,
-    "overflowX": 2
+    "widthQueries": 1
   },
   "GradingSessions.css": {
     "nowrap": 3,

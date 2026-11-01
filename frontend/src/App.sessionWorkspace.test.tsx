@@ -893,7 +893,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
 
     // Backdrop click closes modal
-    const backdrop = document.querySelector(".gsd-modal-backdrop");
+    const backdrop = document.querySelector(".dialog-backdrop");
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(screen.queryByText("Lock Grading Session")).not.toBeInTheDocument();
@@ -970,7 +970,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.keyboard("{Escape}");
     expect(screen.getByText("Lock Grading Session")).toBeVisible();
 
-    const backdrop = document.querySelector(".gsd-modal-backdrop");
+    const backdrop = document.querySelector(".dialog-backdrop");
     expect(backdrop).toBeInTheDocument();
     await user.click(backdrop!);
     expect(screen.getByText("Lock Grading Session")).toBeVisible();

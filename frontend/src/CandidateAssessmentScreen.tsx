@@ -37,7 +37,7 @@ import {
   forgetDeletedAssessment,
   useCandidateAssessmentData,
 } from "./candidateAssessmentData";
-import { useDialogFocus } from "./useDialogFocus";
+import { Dialog } from "./Dialog";
 import "./CandidateAssessment.css";
 import { formatDayMonth, formatTime } from "./dates";
 import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
@@ -547,54 +547,32 @@ function DeleteAssessmentDialog({
   onClose: () => void;
   onConfirm: () => void;
 }) {
-  const dialogRef = useDialogFocus<HTMLDivElement>({
-    isOpen: true,
-    onClose,
-    canClose: !isPending,
-  });
-
   return (
-    <div
-      className="caw-modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !isPending) onClose();
-      }}
-    >
-      <div
-        ref={dialogRef}
-        className="gsd-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="delete-assessment-title"
-        tabIndex={-1}
-      >
-        <h3 id="delete-assessment-title" className="gsd-modal-title">Delete assessment</h3>
-        <p className="gsd-modal-message">
-          Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
-          or promotion, those are deleted too and the student's rank is reverted. This cannot
-          be undone.
-        </p>
-        {error && (
-          <div className="caw-error-banner" role="alert">
-            <p>{error}</p>
-          </div>
-        )}
-        <div className="gsd-modal-actions">
-          <Button
-            variant="secondary"
-            onClick={onClose}
-            disabled={isPending}
-            data-dialog-autofocus
-          >
-            Cancel
-          </Button>
-          <Button variant="danger" onClick={onConfirm} disabled={isPending}>
-            {isPending ? "Deleting…" : "Delete assessment"}
-          </Button>
+    <Dialog title="Delete assessment" onClose={onClose} canClose={!isPending}>
+      <p className="gsd-modal-message">
+        Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
+        or promotion, those are deleted too and the student's rank is reverted. This cannot
+        be undone.
+      </p>
+      {error && (
+        <div className="caw-error-banner" role="alert">
+          <p>{error}</p>
         </div>
+      )}
+      <div className="action-row action-row--end">
+        <Button
+          variant="secondary"
+          onClick={onClose}
+          disabled={isPending}
+          data-dialog-autofocus
+        >
+          Cancel
+        </Button>
+        <Button variant="danger" onClick={onConfirm} disabled={isPending}>
+          {isPending ? "Deleting…" : "Delete assessment"}
+        </Button>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

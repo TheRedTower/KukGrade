@@ -30,7 +30,7 @@ export function SettingsAbout() {
         ))}
         {about ? (
           <p className="ab-rail-foot">
-            KukGrade {about.version}
+            KukGrade {about.release}
             <br />
             {about.licence}
             <br />

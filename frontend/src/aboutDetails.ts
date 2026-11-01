@@ -5,7 +5,7 @@ import { formatDateTime } from "./dates";
 export function versionDetails(about: About, you: [string, string][] = []): [string, string][] {
   return [
     ["Application", __APP_VERSION__],
-    ["Server", about.version],
+    ["Server", about.release],
     ["Built", about.built_at ? formatDateTime(about.built_at) : "Not recorded"],
     ["Commit", about.commit || "Not recorded"],
     ["Club time zone", about.time_zone],

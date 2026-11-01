@@ -2835,6 +2835,10 @@ components:
         version:
           type: string
           description: The version of KukGrade running.
+        release:
+          type: string
+          description: 'The version as it is named to people: the version, followed
+            by -rc.N on a release candidate.'
         commit:
           type: string
           description: The commit it was built from; blank when run from a checkout.
@@ -2886,6 +2890,7 @@ components:
       - database
       - issues_url
       - licence
+      - release
       - releases_url
       - repository_url
       - security_email

@@ -12,6 +12,12 @@ class SchoolSerializer(serializers.Serializer):
 
 class AboutSerializer(serializers.Serializer):
     version = serializers.CharField(help_text="The version of KukGrade running.")
+    release = serializers.CharField(
+        help_text=(
+            "The version as it is named to people: the version, followed by "
+            "-rc.N on a release candidate."
+        ),
+    )
     commit = serializers.CharField(
         help_text="The commit it was built from; blank when run from a checkout.",
     )

@@ -55,6 +55,25 @@ describe("About: the overview", () => {
     expect(screen.getByText(/does not look for updates by itself/)).toBeVisible();
   });
 
+  it("names a release candidate by its number, in the page, the sidebar and the support text", async () => {
+    const candidate = { ...ABOUT, release: "0.2.0-rc.4" };
+    const signedIn = fetchSignedInAs(authUser);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url.endsWith("/api/about/")
+          ? jsonResponse(200, candidate)
+          : signedIn(url),
+      ),
+    );
+
+    render(<App />);
+
+    const details = within(await screen.findByRole("region", { name: "Version details" }));
+    expect(await details.findByText("0.2.0-rc.4")).toBeVisible();
+    expect(screen.getByRole("link", { name: "KukGrade 0.2.0-rc.4" })).toBeInTheDocument();
+  });
+
   it("takes the links from the server, each opening in a new tab", async () => {
     vi.stubGlobal("fetch", fetchSignedInAs(authUser));
 

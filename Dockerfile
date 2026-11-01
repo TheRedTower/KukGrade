@@ -149,8 +149,10 @@ LABEL org.opencontainers.image.title="KukGrade" \
 # Which build this is, for the About page; empty when not passed.
 ARG KUKGRADE_BUILD_COMMIT=""
 ARG KUKGRADE_BUILD_TIME=""
+ARG KUKGRADE_BUILD_PRE_RELEASE=""
 ENV KUKGRADE_BUILD_COMMIT=$KUKGRADE_BUILD_COMMIT \
-    KUKGRADE_BUILD_TIME=$KUKGRADE_BUILD_TIME
+    KUKGRADE_BUILD_TIME=$KUKGRADE_BUILD_TIME \
+    KUKGRADE_BUILD_PRE_RELEASE=$KUKGRADE_BUILD_PRE_RELEASE
 WORKDIR /app/backend
 # Starts as root only to hand /var/lib/kukgrade to the app's user, then runs the
 # database and the app as that user (kukgrade/serve.py).

@@ -75,7 +75,11 @@ is running (only to signed-in users):
 ```sh
 export KUKGRADE_BUILD_COMMIT="$(git rev-parse --short HEAD)"
 export KUKGRADE_BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export KUKGRADE_BUILD_PRE_RELEASE="rc.4"   # only for a release candidate
 ```
+
+`KUKGRADE_BUILD_PRE_RELEASE` makes the About page and the sidebar name a candidate
+`0.2.0-rc.4` rather than `0.2.0`. The release workflow sets it from the tag.
 
 Credits and licence documents are not set here. The image copies `LICENSE`,
 `CODE_OF_CONDUCT.md` and `SECURITY.md` from the repository, and writes the Credits screen's

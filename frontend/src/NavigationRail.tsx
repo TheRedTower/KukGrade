@@ -103,7 +103,7 @@ export function NavigationRail({
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [menuOpen]);
   const about = useAboutQuery().data;
-  const version = about?.version;
+  const version = about?.release;
   const initials = initialsOf(user);
   const aboutLabel = version ? `About KukGrade, version ${version}` : "About KukGrade";
 

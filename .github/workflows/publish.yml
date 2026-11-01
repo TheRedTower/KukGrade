@@ -71,7 +71,14 @@ jobs:
 
       - name: Build arguments
         id: build
-        run: echo "time=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "time=$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" >> "$GITHUB_OUTPUT"
+          # v0.2.0-rc.4 -> rc.4; a stable tag, or a run from a branch, has none.
+          number="${GITHUB_REF_NAME#v}"
+          case "$GITHUB_REF_TYPE:$number" in
+            tag:*-*) echo "pre_release=${number#*-}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "pre_release=" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       # Built into the local Docker, started, then (for a tag) built again for
       # the registry from the same cache, which costs no rebuild.
@@ -86,6 +93,7 @@ jobs:
           build-args: |
             KUKGRADE_BUILD_COMMIT=${{ github.sha }}
             KUKGRADE_BUILD_TIME=${{ steps.build.outputs.time }}
+            KUKGRADE_BUILD_PRE_RELEASE=${{ steps.build.outputs.pre_release }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           cache-to: type=gha,scope=${{ matrix.platform }},mode=max
 
@@ -120,6 +128,7 @@ jobs:
           build-args: |
             KUKGRADE_BUILD_COMMIT=${{ github.sha }}
             KUKGRADE_BUILD_TIME=${{ steps.build.outputs.time }}
+            KUKGRADE_BUILD_PRE_RELEASE=${{ steps.build.outputs.pre_release }}
           cache-from: type=gha,scope=${{ matrix.platform }}
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
 

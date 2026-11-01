@@ -46,6 +46,9 @@ def about(request: Request) -> Response:
     """
     data: dict[str, object] = {
         "version": VERSION,
+        "release": f"{VERSION}-{settings.BUILD_PRE_RELEASE}"
+        if settings.BUILD_PRE_RELEASE
+        else VERSION,
         "commit": settings.BUILD_COMMIT,
         "built_at": _build_time(),
         "time_zone": settings.TIME_ZONE,

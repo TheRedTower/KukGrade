@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import http.server
 import os
+import re
 import socket
 import ssl
 import subprocess
@@ -12,6 +13,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -184,6 +186,33 @@ def test_a_database_that_accepts_but_never_answers_fails_within_the_deadline(
 
     assert reachable is False
     assert took < 4
+
+
+def test_a_probe_that_is_stuck_stops_itself_with_a_failure() -> None:
+    started = time.monotonic()
+    ran = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import time;"
+            "from kukgrade import container_health;"
+            "container_health._arm_deadline(1);"
+            "time.sleep(30)",
+        ],
+        capture_output=True,
+        check=False,
+        timeout=20,
+    )
+
+    assert ran.returncode == 1
+    assert time.monotonic() - started < 10
+
+
+def test_the_probe_stops_itself_before_docker_would() -> None:
+    dockerfile = (Path(__file__).resolve().parents[2] / "Dockerfile").read_text()
+    docker_timeout = int(re.search(r"--timeout=(\d+)s", dockerfile).group(1))  # type: ignore[union-attr]
+
+    assert container_health.PROBE_DEADLINE_SECONDS < docker_timeout
 
 
 def test_a_database_that_does_not_answer_fails_the_check() -> None:

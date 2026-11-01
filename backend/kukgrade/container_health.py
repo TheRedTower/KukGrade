@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import signal
 import ssl
+import sys
 import urllib.error
 import urllib.request
 
@@ -14,6 +16,11 @@ from kukgrade import settings
 # as a whole is bounded by the image's health-check timeout (Dockerfile): the
 # request (3s) and this (2s) leave room for starting Python on a busy host.
 DATABASE_TIMEOUT_SECONDS = 2
+# The whole probe stops itself here, whatever it is waiting on (an established
+# database connection that stops answering is not covered by the timeout above),
+# so a stuck probe fails on its own just inside Docker's 10 seconds, and a probe
+# run by hand has a bound too.
+PROBE_DEADLINE_SECONDS = 8
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -53,7 +60,18 @@ def _database_reachable() -> bool:
     return True
 
 
+def _arm_deadline(seconds: int) -> None:
+    """Fail the probe, with the same exit as any other failure, after `seconds`."""
+
+    def give_up(_signal: int, _frame: object) -> None:
+        sys.exit(1)
+
+    signal.signal(signal.SIGALRM, give_up)
+    signal.alarm(seconds)
+
+
 def main() -> None:
+    _arm_deadline(PROBE_DEADLINE_SECONDS)
     scheme = "https" if settings.SERVES_TLS else "http"
     request = urllib.request.Request(
         f"{scheme}://127.0.0.1:{settings.PORT}/api/health/",

@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import http.server
 import os
+import socket
 import ssl
 import subprocess
 import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 from unittest.mock import patch
 
 import pytest
 
-from kukgrade.container_health import _host, _NoRedirects, main
+from kukgrade import container_health
+from kukgrade import settings as app_settings
+from kukgrade.container_health import _database_reachable, _host, _NoRedirects, main
 
 
 def test_health_check_uses_first_allowed_host(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -105,6 +109,81 @@ def test_the_database_check_runs_on_its_own_with_nothing_but_the_environment() -
     )
 
     assert ran.stdout.strip() == "True", ran.stderr
+
+
+def test_the_database_check_does_not_start_django() -> None:
+    """Loading every app is what made the probe slow on a busy host."""
+    ran = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys;"
+            "from kukgrade.container_health import _database_reachable;"
+            "_database_reachable();"
+            "print('django.apps' in sys.modules)",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={k: v for k, v in os.environ.items() if k != "DJANGO_SETTINGS_MODULE"},
+    )
+
+    assert ran.stdout.strip() == "False", ran.stderr
+
+
+def test_the_database_check_uses_the_settings_connection_and_a_short_deadline() -> None:
+    with patch("kukgrade.container_health.psycopg.connect") as connect:
+        assert _database_reachable() is True
+
+    database = app_settings.DATABASES["default"]
+    assert connect.call_args.kwargs == {
+        "dbname": database["NAME"],
+        "user": database["USER"],
+        "password": database["PASSWORD"],
+        "host": database["HOST"],
+        "port": database["PORT"],
+        "connect_timeout": container_health.DATABASE_TIMEOUT_SECONDS,
+    }
+    connection = connect.return_value.__enter__.return_value
+    connection.execute.assert_called_once_with("SELECT 1")
+
+
+def test_a_refused_connection_is_an_unreachable_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with socket.socket() as closed:
+        closed.bind(("127.0.0.1", 0))
+        port = closed.getsockname()[1]
+    monkeypatch.setitem(app_settings.DATABASES["default"], "HOST", "127.0.0.1")
+    monkeypatch.setitem(app_settings.DATABASES["default"], "PORT", str(port))
+
+    assert _database_reachable() is False
+
+
+def test_a_database_that_accepts_but_never_answers_fails_within_the_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    held: list[socket.socket] = []
+    with socket.socket() as silent:
+        silent.bind(("127.0.0.1", 0))
+        silent.listen()
+        monkeypatch.setitem(app_settings.DATABASES["default"], "HOST", "127.0.0.1")
+        monkeypatch.setitem(
+            app_settings.DATABASES["default"],
+            "PORT",
+            str(silent.getsockname()[1]),
+        )
+        monkeypatch.setattr(container_health, "DATABASE_TIMEOUT_SECONDS", 1)
+        started = time.monotonic()
+        try:
+            reachable = _database_reachable()
+        finally:
+            for client in held:
+                client.close()
+        took = time.monotonic() - started
+
+    assert reachable is False
+    assert took < 4
 
 
 def test_a_database_that_does_not_answer_fails_the_check() -> None:

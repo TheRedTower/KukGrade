@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
-import os
 import ssl
 import urllib.error
 import urllib.request
 
-import django
+import psycopg
 
 from kukgrade import settings
+
+# How long a connection to the database may take, handshake included. The probe
+# as a whole is bounded by the image's health-check timeout (Dockerfile): the
+# request (3s) and this (2s) leave room for starting Python on a busy host.
+DATABASE_TIMEOUT_SECONDS = 2
 
 
 class _NoRedirects(urllib.request.HTTPRedirectHandler):
@@ -27,12 +31,26 @@ def _host() -> str:
 
 
 def _database_reachable() -> bool:
-    """Ask the database directly: nothing public reports whether it is up."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "kukgrade.settings")
-    django.setup()
-    from health.views import database_reachable
+    """Ask the database directly: nothing public reports whether it is up.
 
-    return database_reachable()
+    A plain connection and one query, with the settings' own connection details
+    and a short deadline. It does not start Django: loading every app takes a
+    second on a quiet host and several on a busy one, to run `SELECT 1`.
+    """
+    database = settings.DATABASES["default"]
+    try:
+        with psycopg.connect(
+            dbname=database["NAME"],
+            user=database["USER"],
+            password=database["PASSWORD"],
+            host=database["HOST"],
+            port=database["PORT"],
+            connect_timeout=DATABASE_TIMEOUT_SECONDS,
+        ) as connection:
+            connection.execute("SELECT 1").fetchone()
+    except psycopg.Error:
+        return False
+    return True
 
 
 def main() -> None:

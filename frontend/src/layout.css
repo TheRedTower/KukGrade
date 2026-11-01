@@ -147,11 +147,12 @@
 }
 
 /* Safari draws a plain select its own small way and ignores its height and
-   padding, so it sat beside text and date boxes at half their size. Drawn here
-   instead, with a chevron made from the theme's muted colour, a select is the
-   same size as the boxes beside it everywhere. No weight: a screen's own select
-   (its own chevron, say) still wins. */
-:where(select:not([multiple], [size])) {
+   padding, so it sat beside text and date boxes at half their size. Every select
+   is drawn here instead, with a chevron made from the theme's muted colour, so it
+   is the same size as the boxes beside it everywhere. Specific enough to beat a
+   screen's own `background` shorthand (which would wipe the chevron), and with
+   room kept for it; a screen still sets a select's own fill and border. */
+select:not([multiple]):not([size]) {
   appearance: none;
   -webkit-appearance: none;
   min-height: var(--target-min);
@@ -162,6 +163,15 @@
   background-size: 0.3rem 0.3rem;
   background-repeat: no-repeat;
   text-overflow: ellipsis;
+}
+
+/* Windows high contrast draws no background images: give the select back to the browser. */
+@media (forced-colors: active) {
+  select:not([multiple]):not([size]) {
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+  }
 }
 
 /* iOS sizes a date box from its own content and draws it empty until it is

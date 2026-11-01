@@ -117,6 +117,9 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
       const target = label ?? el;
       const rect = target.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
+      if (el instanceof HTMLSelectElement && style.backgroundImage === "none") {
+        out.push(`select${[...el.classList].slice(0, 1).map((c) => `.${c}`).join("")} has no arrow, so it does not look like a dropdown`);
+      }
       if (rect.height >= min - 0.5 && rect.width >= min - 0.5) continue;
       const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
       const text = (target.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 24);

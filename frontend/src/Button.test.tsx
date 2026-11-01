@@ -25,5 +25,6 @@ describe("Button", () => {
 
   it("gives a link the same classes", () => {
     expect(buttonClass({ variant: "primary" })).toBe("btn btn--primary");
+    expect(buttonClass({ variant: "link" })).toBe("btn btn--link");
   });
 });

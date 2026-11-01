@@ -61,6 +61,18 @@
   background: var(--color-surface-sunken);
 }
 
+/* Reads as a link, still a 44px target: for an action inside a sentence, a table cell or an
+   error message. */
+.btn--link {
+  padding-inline: 0.5rem;
+  background: transparent;
+  color: var(--color-accent-text);
+}
+
+.btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
 .btn--danger {
   border-color: var(--color-danger);
   background: var(--color-danger);

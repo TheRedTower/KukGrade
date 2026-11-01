@@ -1,4 +1,4 @@
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
 
 export interface ButtonStyle {
   variant?: ButtonVariant;

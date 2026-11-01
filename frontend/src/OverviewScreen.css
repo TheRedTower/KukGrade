@@ -181,6 +181,8 @@
 
 .attention-item-row {
   display: flex;
+  color: inherit;
+  text-decoration: none;
   align-items: center;
   gap: 0.85rem;
   padding: 0.65rem 0.75rem;
@@ -237,6 +239,8 @@
 }
 
 .upcoming-session-row {
+  color: inherit;
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 1rem;

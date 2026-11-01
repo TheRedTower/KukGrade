@@ -310,10 +310,17 @@ describe("The sidebar", () => {
       expect(menu).toHaveAttribute("aria-expanded", "true");
       expect(screen.getByText("Casey Instructor")).toBeVisible();
       expect(screen.queryByRole("button", { name: /sidebar/ })).not.toBeInTheDocument();
-      // Choosing a page closes the menu again.
-      await user.click(screen.getByRole("link", { name: "Students" }));
-      expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();
+      // Escape closes it and gives focus back to the button.
+      await user.keyboard("{Escape}");
       expect(menu).toHaveAttribute("aria-expanded", "false");
+      expect(menu).toHaveFocus();
+      await user.click(menu);
+      // A dialog open over the menu keeps Escape to itself.
+      const dialog = document.body.appendChild(document.createElement("div"));
+      dialog.setAttribute("aria-modal", "true");
+      await user.keyboard("{Escape}");
+      expect(menu).toHaveAttribute("aria-expanded", "true");
+      dialog.remove();
       // Choosing a page closes the menu again.
       await user.click(screen.getByRole("link", { name: "Students" }));
       expect(await screen.findByRole("heading", { name: "Students" })).toBeVisible();

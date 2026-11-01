@@ -92,3 +92,34 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
     return [pageScrolls, ...innermost.slice(0, 5).map((el) => `sticks out: ${label(el)}`), ...culprits];
   }, width);
 }
+
+/**
+ * Controls too small to hit with a finger, on a touch screen: a button, a
+ * form control or a link styled as a button under 44px either way. Links that
+ * run inside a sentence are left alone (a text link), as is anything visually
+ * hidden or marked data-target-ok. Selects are left out: the browser sizes
+ * them itself in an emulated phone.
+ */
+export async function findSmallTargets(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    const min = 44;
+    const seen = new Set<string>();
+    for (const el of document.body.querySelectorAll('button, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), textarea, [role="button"], a.btn, summary')) {
+      if (el.closest("[data-target-ok], .visually-hidden, .ix-visually-hidden, svg")) continue;
+      const style = getComputedStyle(el);
+      if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (rect.height >= min - 0.5 && rect.width >= min - 0.5) continue;
+      const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
+      const text = (el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 24);
+      const key = `${el.tagName.toLowerCase()}${cls} "${text}" ${Math.round(rect.width)}x${Math.round(rect.height)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(key);
+      }
+    }
+    return out;
+  });
+}

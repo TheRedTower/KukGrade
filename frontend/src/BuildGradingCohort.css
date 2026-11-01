@@ -177,7 +177,6 @@
 .bgc-add-filtered-btn {
   font-size: 0.85rem;
   padding: 0.45rem 1rem;
-  min-height: 38px;
 }
 
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
@@ -223,13 +222,11 @@
 .bgc-add-group-btn {
   font-size: 0.82rem;
   padding: 0.35rem 0.85rem;
-  min-height: 36px;
 }
 
 .bgc-group-added-btn {
   font-size: 0.82rem;
   padding: 0.35rem 0.85rem;
-  min-height: 36px;
   color: var(--color-success);
   border-color: var(--color-success);
 }
@@ -247,13 +244,11 @@
 .bgc-add-student-btn {
   font-size: 0.82rem;
   padding: 0.35rem 0.85rem;
-  min-height: 34px;
 }
 
 .bgc-student-added-btn {
   font-size: 0.82rem;
   padding: 0.35rem 0.85rem;
-  min-height: 34px;
   color: var(--color-success);
   border-color: var(--color-success);
 }

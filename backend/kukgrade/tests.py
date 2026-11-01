@@ -47,6 +47,7 @@ def load_settings(monkeypatch: pytest.MonkeyPatch, **env: str) -> ModuleType:
         "TZ",
         "KUKGRADE_TEMPORARY_PASSWORD_HOURS",
         "KUKGRADE_SCHOOL_PREFIX",
+        "KUKGRADE_BUILD_PRE_RELEASE",
     ]:
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
@@ -360,6 +361,38 @@ def test_a_temporary_password_lifetime_under_an_hour_refuses_to_start(
             **PRODUCTION_ENV,
             KUKGRADE_TEMPORARY_PASSWORD_HOURS="0",
         )
+
+
+def test_a_release_candidates_number_comes_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = load_settings(
+        monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE="rc.4"
+    )
+    padded = load_settings(
+        monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE=" rc.12 "
+    )
+    unset = load_settings(monkeypatch, **PRODUCTION_ENV)
+    blank = load_settings(
+        monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE="  "
+    )
+
+    assert candidate.BUILD_PRE_RELEASE == "rc.4"
+    assert padded.BUILD_PRE_RELEASE == "rc.12"
+    assert unset.BUILD_PRE_RELEASE == ""
+    assert blank.BUILD_PRE_RELEASE == ""
+
+
+@pytest.mark.parametrize("value", ["rc 4", "rc.4; drop", "<b>rc</b>", "x" * 21])
+def test_a_release_candidate_number_in_the_wrong_form_is_ignored(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    configured = load_settings(
+        monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE=value
+    )
+
+    assert configured.BUILD_PRE_RELEASE == ""
 
 
 def test_the_school_prefix_defaults_to_the_generic_prefix_unless_configured(

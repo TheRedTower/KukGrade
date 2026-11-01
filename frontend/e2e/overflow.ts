@@ -98,8 +98,7 @@ export async function findOverflow(page: Page, width: number): Promise<string[]>
  * form control or a link styled as a button under 44px either way. Links that
  * run inside a sentence are left alone (a text link), as is anything visually
  * hidden or marked data-target-ok. A checkbox or radio counts as its label
- * (the label is what is tapped). Selects are left out: the browser sizes them
- * itself in an emulated phone.
+ * (the label is what is tapped).
  */
 export async function findSmallTargets(page: Page): Promise<string[]> {
   return page.evaluate(() => {
@@ -107,7 +106,7 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
     const min = 44;
     const seen = new Set<string>();
     const selector =
-      'button, input:not([type="hidden"]), textarea, [role="button"], [role="menuitem"], a.btn, summary';
+      'button, select, input:not([type="hidden"]), textarea, [role="button"], [role="menuitem"], a.btn, summary';
     for (const el of document.body.querySelectorAll(selector)) {
       if (el.closest("[data-target-ok], .visually-hidden, .ix-visually-hidden, svg")) continue;
       const style = getComputedStyle(el);
@@ -118,6 +117,9 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
       const target = label ?? el;
       const rect = target.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) continue;
+      if (el instanceof HTMLSelectElement && style.backgroundImage === "none") {
+        out.push(`select${[...el.classList].slice(0, 1).map((c) => `.${c}`).join("")} has no arrow, so it does not look like a dropdown`);
+      }
       if (rect.height >= min - 0.5 && rect.width >= min - 0.5) continue;
       const cls = [...el.classList].slice(0, 2).map((c) => `.${c}`).join("");
       const text = (target.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 24);

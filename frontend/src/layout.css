@@ -621,6 +621,30 @@ select:not([multiple]):not([size]) {
   position: static;
 }
 
+/* The foot of a step in a flow (Back or Cancel, and the way on). On a phone the way on comes
+   first and every button is the width of the page, so nothing hangs off the edge or sits in a
+   row of its own; with room, Back is at one side and the way on at the other. */
+.step-foot {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-3);
+}
+
+.step-foot > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.step-foot button,
+.step-foot a {
+  width: 100%;
+}
+
+.step-foot span {
+  text-align: center;
+}
+
 @container (min-width: 40rem) {
   .step-foot {
     flex-direction: row;
@@ -652,30 +676,6 @@ select:not([multiple]):not([size]) {
     position: sticky;
     top: var(--space-5);
   }
-}
-
-/* The foot of a step in a flow (Back or Cancel, and the way on). On a phone the way on comes
-   first and every button is the width of the page, so nothing hangs off the edge or sits in a
-   row of its own; with room, Back is at one side and the way on at the other. */
-.step-foot {
-  display: flex;
-  flex-direction: column-reverse;
-  gap: var(--space-3);
-}
-
-.step-foot > div {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.step-foot button,
-.step-foot a {
-  width: 100%;
-}
-
-.step-foot span {
-  text-align: center;
 }
 
 /* ── Pagination ────────────────────────────────────────────────────────── */

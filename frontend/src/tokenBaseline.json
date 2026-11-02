@@ -24,8 +24,8 @@
   },
   "BuildGradingCohort.css": {
     "rawColour": 7,
-    "fontSize": 36,
-    "fontWeight": 24,
+    "fontSize": 35,
+    "fontWeight": 23,
     "radius": 9,
     "shadow": 1
   },
@@ -54,7 +54,7 @@
     "rawColour": 32,
     "important": 8,
     "fontSize": 40,
-    "fontWeight": 26,
+    "fontWeight": 22,
     "radius": 12,
     "shadow": 1,
     "darkOverride": 9

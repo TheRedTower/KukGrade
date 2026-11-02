@@ -8,26 +8,6 @@
   gap: 1.5rem;
 }
 
-.bgc-breadcrumb-link {
-  color: var(--color-text-muted);
-  text-decoration: none;
-  transition: color 120ms ease;
-}
-
-.bgc-breadcrumb-link:hover {
-  color: var(--color-text);
-}
-
-.bgc-breadcrumb-sep {
-  color: var(--color-border);
-  font-size: 0.8rem;
-}
-
-.bgc-breadcrumb-current {
-  color: var(--color-text);
-  font-weight: 500;
-}
-
 .bgc-header {
   display: flex;
   flex-direction: column;

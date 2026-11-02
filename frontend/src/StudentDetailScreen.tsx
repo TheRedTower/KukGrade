@@ -12,6 +12,7 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
@@ -240,16 +241,7 @@ export function StudentDetailScreen() {
 
   return (
     <section aria-labelledby="student-heading" className="page student-detail-view">
-      {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb navigation" className="crumbs form-breadcrumbs">
-        <Link to="/students">Students</Link>
-        <span className="crumbs__sep" aria-hidden="true">
-          /
-        </span>
-        <span aria-current="page">
-          {student.first_name} {student.last_name}
-        </span>
-      </nav>
+      <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]} />
 
       {/* Detail Header */}
       <div className="detail-header-card">

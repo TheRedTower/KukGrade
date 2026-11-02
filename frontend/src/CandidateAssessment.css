@@ -72,7 +72,7 @@
   padding-block-end: 0;
 }
 
-.caw-run > .caw-breadcrumbs {
+.caw-run > .crumbs {
   padding: 0.25rem 1.5rem 0;
 }
 
@@ -476,7 +476,7 @@
     height: auto;
   }
 
-  .caw-run > .caw-breadcrumbs,
+  .caw-run > .crumbs,
   .caw-identity,
   .caw-band-header,
   .caw-row,

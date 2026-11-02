@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -278,14 +279,13 @@ export function CandidateAssessmentScreen() {
 
   return (
     <section aria-labelledby="caw-title" className="page page--wide caw-run" data-testid="caw-workspace">
-      {/* One line of chrome, not four. */}
-      <nav aria-label="Breadcrumbs" className="crumbs caw-breadcrumbs">
-        <Link to="/gradings">Gradings</Link>
-        <span aria-hidden="true" className="crumbs__sep">/</span>
-        <Link to={`/gradings/${session.id}`}>{session.title}</Link>
-        <span aria-hidden="true" className="crumbs__sep">/</span>
-        <span aria-current="page">{candidate.student_display_name}</span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "Gradings", to: "/gradings" },
+          { label: session.title, to: `/gradings/${session.id}` },
+          { label: candidate.student_display_name },
+        ]}
+      />
 
       <header className="caw-identity">
         <h1 className="caw-candidate-name" id="caw-title">{candidate.student_display_name}</h1>

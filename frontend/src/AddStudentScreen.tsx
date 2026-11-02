@@ -1,12 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import {
   type Rank,
   type StudentStatus,
   createStudent,
 } from "./api";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
@@ -101,16 +102,7 @@ export function AddStudentScreen() {
 
   return (
     <section aria-labelledby="add-student-title" className="page page--reading add-student-view">
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb navigation" className="crumbs form-breadcrumbs">
-        <Link to="/students">Students</Link>
-        <span className="crumbs__sep" aria-hidden="true">
-          /
-        </span>
-        <span aria-current="page">
-          Add student
-        </span>
-      </nav>
+      <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: "Add student" }]} />
 
       {/* Header */}
       <div className="add-student-header">

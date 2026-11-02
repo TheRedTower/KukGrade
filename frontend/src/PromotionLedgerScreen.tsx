@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -6,7 +7,7 @@ import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import {
   type CandidateOutcome,
@@ -242,24 +243,13 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   return (
     <section aria-labelledby="pl-title" className="page pl-page" data-testid="promotion-ledger-screen">
-      {/* Breadcrumb & Navigation */}
-      <nav className="crumbs" aria-label="Breadcrumb">
-        <Link to="/gradings">
-          Grading Sessions
-        </Link>
-        <span className="crumbs__sep" aria-hidden="true">
-          ›
-        </span>
-        <Link to={`/gradings/${sessionId}`}>
-          {session?.title || "Session"}
-        </Link>
-        <span className="crumbs__sep" aria-hidden="true">
-          ›
-        </span>
-        <span aria-current="page">
-          Promotion Ledger
-        </span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "Grading Sessions", to: "/gradings" },
+          { label: session?.title || "Session", to: `/gradings/${sessionId}` },
+          { label: "Promotion Ledger" },
+        ]}
+      />
 
       {/* Screen Header */}
       <header className="action-row">

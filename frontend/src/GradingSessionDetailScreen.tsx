@@ -197,6 +197,25 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   });
 
   const session = sessionQuery.data;
+
+  // A finished session may leave this viewer nothing to do: then there is no menu.
+  const hasSessionActions = Boolean(
+    session &&
+      (session.status === "DRAFT" ||
+        session.status === "OPEN" ||
+        session.status === "LOCKED" ||
+        currentUser?.can_read_audit_log ||
+        session.can_be_deleted),
+  );
+  // Finishing a session can take the menu's button away with focus still on it.
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const hadSessionActions = useRef(false);
+  useEffect(() => {
+    if (hadSessionActions.current && !hasSessionActions && document.activeElement === document.body) {
+      headingRef.current?.focus();
+    }
+    hadSessionActions.current = hasSessionActions;
+  }, [hasSessionActions]);
   const cancelReasonRequired = session?.status === "LOCKED";
 
   // Mutations
@@ -629,14 +648,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     return { label, url, opensProposalDrawer };
   };
 
-  // A finished session may leave this viewer nothing to do: then there is no menu.
-  const hasSessionActions =
-    session.status === "DRAFT" ||
-    session.status === "OPEN" ||
-    session.status === "LOCKED" ||
-    Boolean(currentUser?.can_read_audit_log) ||
-    session.can_be_deleted;
-
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
       <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]} />
@@ -653,7 +664,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       <header className="action-row gsd-header">
         <div className="gsd-header-left">
           <div className="gsd-title-row">
-            <h1 className="gsd-title" id="gsd-title">{session.title}</h1>
+            <h1 ref={headingRef} className="gsd-title" id="gsd-title" tabIndex={-1}>{session.title}</h1>
             <SessionStatusBadge status={session.status} label={session.status_display} />
           </div>
           <p className="gsd-meta-row">

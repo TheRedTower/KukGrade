@@ -154,6 +154,24 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     expect(screen.queryByTestId("gsd-actions-btn")).not.toBeInTheDocument();
   });
 
+  it("moves focus to the heading when completing a session takes the menu away", async () => {
+    currentUser = instructorUser;
+    const completed = { ...lockedSession(), status: "COMPLETED", status_display: "Completed" };
+    mockUpdateGradingSession.mockImplementation(async () => {
+      mockGetGradingSession.mockResolvedValue(completed);
+      return completed;
+    });
+    const user = userEvent.setup();
+    renderScreen();
+
+    await user.click(await screen.findByTestId("gsd-actions-btn"));
+    await user.click(screen.getByRole("menuitem", { name: "Complete session" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Confirm" }));
+
+    await waitFor(() => expect(screen.queryByTestId("gsd-actions-btn")).not.toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "March 2027 Riverside Grading" })).toHaveFocus();
+  });
+
   it("keeps Session actions on a finished session for someone who can read its audit events", async () => {
     currentUser = adminUser;
     mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed" });

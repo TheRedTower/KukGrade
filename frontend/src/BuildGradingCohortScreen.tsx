@@ -318,7 +318,9 @@ export function BuildGradingCohortScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const errorKeys = Object.keys(response.errors);
-      if (errorKeys.length === 0) {
+      // A retry sends only the retryable rows, so the others stay as they are.
+      const unsent = request.retry ? flaggedItems.filter((item) => item.isAlreadyRegistered) : [];
+      if (errorKeys.length === 0 && unsent.length === 0) {
         // Everything registered: on to the grading session.
         navigate(`/gradings/${sessionId}`);
         return;
@@ -338,10 +340,7 @@ export function BuildGradingCohortScreen() {
           isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
         };
       });
-      // A retry sends only the retryable rows, so the others stay as they are.
-      setFlaggedItems((previous) =>
-        request.retry ? [...previous.filter((item) => item.isAlreadyRegistered), ...flagged] : flagged,
-      );
+      setFlaggedItems([...unsent, ...flagged]);
     },
     onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
   });
@@ -550,6 +549,7 @@ export function BuildGradingCohortScreen() {
                     </Link>
                     <Button
                       variant="danger-quiet" small
+                      disabled={isSubmitting}
                       onClick={() => handleRemoveFlaggedCandidate(item.key)}
                     >
                       Remove from list

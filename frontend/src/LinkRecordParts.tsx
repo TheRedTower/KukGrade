@@ -80,7 +80,7 @@ export function VoidRecord({ record, onClose, onDone }: { record: LegacyGradingR
       <label className="ix-field" htmlFor="ix-void-record-reason">
         Why
       </label>
-      <textarea id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      <textarea data-dialog-autofocus id="ix-void-record-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
     </ImportDialog>
   );
 }

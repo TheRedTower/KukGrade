@@ -1152,14 +1152,13 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
       instructorUser,
     );
     vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
 
     render(<App />);
 
     await screen.findByRole("heading", { name: "Autumn Grading" });
-    await user.click(screen.getByTestId("gsd-actions-btn"));
 
-    expect(screen.queryByRole("menuitem", { name: "Delete session" })).not.toBeInTheDocument();
+    // Nothing else is left for them to do here, so there is no menu at all.
+    expect(screen.queryByTestId("gsd-actions-btn")).not.toBeInTheDocument();
   });
 
   it("offers no proposal while the session is open, only the completed record", async () => {

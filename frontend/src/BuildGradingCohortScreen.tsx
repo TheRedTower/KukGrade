@@ -318,26 +318,29 @@ export function BuildGradingCohortScreen() {
       queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
 
       const errorKeys = Object.keys(response.errors);
-      if (errorKeys.length === 0) {
+      // A retry sends only the retryable rows, so the others stay as they are.
+      const unsent = request.retry ? flaggedItems.filter((item) => item.isAlreadyRegistered) : [];
+      if (errorKeys.length === 0 && unsent.length === 0) {
         // Everything registered: on to the grading session.
         navigate(`/gradings/${sessionId}`);
         return;
       }
       // Partial success or errors: the Exception Resolver lists what is left.
-      if (!request.retry) setRegistrationResult(response);
-      setFlaggedItems(
-        errorKeys.map((idxStr) => {
-          const row = request.rows[Number(idxStr)];
-          const errorMsg = (response.errors[idxStr] || []).join(", ");
-          return {
-            key: idxStr,
-            student: row?.student,
-            destinationRank: row?.destinationRank ?? null,
-            error: errorMsg || (request.retry ? "" : "Registration failed"),
-            isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
-          };
-        }),
+      setRegistrationResult((previous) =>
+        request.retry && previous ? { ...response, created: [...previous.created, ...response.created] } : response,
       );
+      const flagged = errorKeys.map((idxStr) => {
+        const row = request.rows[Number(idxStr)];
+        const errorMsg = (response.errors[idxStr] || []).join(", ");
+        return {
+          key: row ? String(row.student.id) : idxStr,
+          student: row?.student,
+          destinationRank: row?.destinationRank ?? null,
+          error: errorMsg || "Registration failed",
+          isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
+        };
+      });
+      setFlaggedItems([...unsent, ...flagged]);
     },
     onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
   });
@@ -363,7 +366,14 @@ export function BuildGradingCohortScreen() {
 
   // Exception Resolver: Remove flagged item from retry list
   const handleRemoveFlaggedCandidate = (key: string) => {
-    setFlaggedItems((prev) => prev.filter((item) => item.key !== key));
+    const removed = flaggedItems.find((item) => item.key === key);
+    const remaining = flaggedItems.filter((item) => item.key !== key);
+    setFlaggedItems(remaining);
+    setCohort((prev) => prev.filter((item) => item.student.id !== removed?.student?.id));
+    if (remaining.length > 0) return;
+    // Nothing left to resolve: on to the session, or back to a cohort that no longer has them.
+    if (registrationResult?.created.length) navigate(`/gradings/${sessionId}`);
+    else setRegistrationResult(null);
   };
 
   // Exception Resolver: Retry remaining flagged candidates
@@ -539,6 +549,7 @@ export function BuildGradingCohortScreen() {
                     </Link>
                     <Button
                       variant="danger-quiet" small
+                      disabled={isSubmitting}
                       onClick={() => handleRemoveFlaggedCandidate(item.key)}
                     >
                       Remove from list

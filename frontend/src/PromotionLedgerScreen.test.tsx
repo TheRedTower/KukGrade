@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
-import { NETWORK_ERROR } from "./api";
+import { ApiError, NETWORK_ERROR } from "./api";
 import type {
   AuthUser,
   CandidateOutcome,
@@ -666,6 +666,22 @@ describe("PromotionLedgerScreen", () => {
 
     expect(await screen.findByText(NETWORK_ERROR)).toBeVisible();
     expect(screen.queryByText("Load failed")).not.toBeInTheDocument();
+  });
+
+  it("does not carry an earlier result into the next confirmation", async () => {
+    const user = userEvent.setup();
+    mockPromoteCandidateOutcome.mockRejectedValue(new ApiError("That promotion was refused.", 400));
+
+    renderScreen(1);
+
+    await user.click(await screen.findByTestId("promote-candidate-btn-101"));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }));
+    await within(screen.getByRole("dialog")).findByText("That promotion was refused.");
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+    expect(screen.getByText("That promotion was refused.")).toBeVisible();
+
+    await user.click(screen.getByTestId("promote-candidate-btn-101"));
+    expect(within(screen.getByRole("dialog")).queryByText("That promotion was refused.")).not.toBeInTheDocument();
   });
 
   it("can cancel single candidate promotion modal without calling API", async () => {

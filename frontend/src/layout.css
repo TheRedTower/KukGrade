@@ -622,6 +622,28 @@ select:not([multiple]):not([size]) {
 }
 
 @container (min-width: 40rem) {
+  .step-foot {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .step-foot > div {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .step-foot button,
+  .step-foot a {
+    width: auto;
+  }
+
+  .step-foot span {
+    text-align: start;
+  }
+
   .split--rail {
     grid-template-columns: 14.5rem minmax(0, 1fr);
   }
@@ -630,6 +652,30 @@ select:not([multiple]):not([size]) {
     position: sticky;
     top: var(--space-5);
   }
+}
+
+/* The foot of a step in a flow (Back or Cancel, and the way on). On a phone the way on comes
+   first and every button is the width of the page, so nothing hangs off the edge or sits in a
+   row of its own; with room, Back is at one side and the way on at the other. */
+.step-foot {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-3);
+}
+
+.step-foot > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.step-foot button,
+.step-foot a {
+  width: 100%;
+}
+
+.step-foot span {
+  text-align: center;
 }
 
 /* ── Pagination ────────────────────────────────────────────────────────── */

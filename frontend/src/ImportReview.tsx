@@ -471,7 +471,7 @@ function RosterReview({
         )}
       </section>
 
-      <div className="ix-actions ix-actions-split">
+      <div className="step-foot">
         <Button variant="ghost" onClick={onMatch}>
           Back to matching
         </Button>
@@ -617,7 +617,7 @@ function LegacyReview({
           }
         </RowsList>
       </section>
-      <div className="ix-actions ix-actions-split">
+      <div className="step-foot">
         <Button variant="ghost" onClick={onMatch}>
           Back to matching ranks
         </Button>

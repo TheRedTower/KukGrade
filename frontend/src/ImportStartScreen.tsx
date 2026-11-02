@@ -448,7 +448,7 @@ export function ImportStartScreen() {
         </div>
       )}
 
-      <div className="ix-actions ix-actions-split">
+      <div className="step-foot">
         <Button variant="ghost" disabled={discard.isPending} onClick={cancelImport}>
           Cancel import
         </Button>

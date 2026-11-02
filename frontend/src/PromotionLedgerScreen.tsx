@@ -21,6 +21,7 @@ import {
   getGradingSession,
   getPromotionEligibility,
   promoteCandidateOutcome,
+  errorMessage,
 } from "./api";
 import { useAuth } from "./auth";
 import { RankBelt } from "./Belt";
@@ -161,7 +162,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: err.message || "Failed to promote candidate.",
+        message: errorMessage(err, "Failed to promote candidate."),
       });
     },
   });
@@ -207,7 +208,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
     onError: (err: Error) => {
       setActionFeedback({
         type: "error",
-        message: err.message || "Could not promote the selected candidates.",
+        message: errorMessage(err, "Could not promote the selected candidates."),
       });
     },
   });

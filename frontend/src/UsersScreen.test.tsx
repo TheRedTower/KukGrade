@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UsersScreen } from "./UsersScreen";
-import { ApiError, type ManagedUser } from "./api";
+import { ApiError, NETWORK_ERROR, type ManagedUser } from "./api";
 
 const mockGetManagedUsers = vi.fn();
 const mockCreateManagedUser = vi.fn();
@@ -204,8 +204,23 @@ describe("UsersScreen", () => {
 
     const fieldError = await screen.findByText("A user with that email already exists.");
     expect(fieldError.closest("[role='alert']")).not.toBeNull();
+    expect(fieldError).toHaveClass("error-text--field");
     expect(emailInput).toHaveAttribute("aria-invalid", "true");
     expect(emailInput).toHaveAttribute("aria-describedby", "cud-email-error");
+  });
+
+  it("says so when the connection fails, rather than doing nothing", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderScreen();
+    await screen.findByText("Riley Khan");
+
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(NETWORK_ERROR);
   });
 
   it("cannot be closed while the create request is in flight", async () => {

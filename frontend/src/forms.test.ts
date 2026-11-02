@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "./api";
-import { NETWORK_ERROR, failureMessage, splitServerErrors } from "./forms";
+import { ApiError, NETWORK_ERROR, errorMessage } from "./api";
+import { splitServerErrors } from "./forms";
 
 const shown = ["first_name", "wksa_id"];
 const invalid = (fields: ConstructorParameters<typeof ApiError>[3], message = "Some details need correcting.") =>
@@ -32,6 +32,7 @@ describe("splitServerErrors", () => {
       fields: {},
       banner: NETWORK_ERROR,
     });
-    expect(failureMessage(new TypeError("Failed to fetch"), "Failed.")).toBe(NETWORK_ERROR);
+    expect(errorMessage(new TypeError("Failed to fetch"), "Failed.")).toBe(NETWORK_ERROR);
+    expect(errorMessage(new TypeError("Load failed"), "Failed.")).toBe(NETWORK_ERROR);
   });
 });

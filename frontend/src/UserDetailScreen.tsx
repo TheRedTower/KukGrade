@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { Alert } from "./Alert";
+import { ErrorText } from "./ErrorText";
 import { LoadingState } from "./LoadingState";
 import { useAuth } from "./auth";
 import {
@@ -79,11 +80,9 @@ function AccountForm({
             aria-describedby={(error?.messagesFor("email").length ?? 0) > 0 ? "account-email-error" : undefined}
           />
           {(error?.messagesFor("email").length ?? 0) > 0 && (
-            <span id="account-email-error" role="alert">
-              {error?.messagesFor("email").map((message, index) => (
-                <small className="users-field-error" key={index}>{message}</small>
-              ))}
-            </span>
+            <ErrorText as="small" field id="account-email-error">
+              {error?.messagesFor("email").join(" ")}
+            </ErrorText>
           )}
         </label>
         <label className="field">
@@ -105,7 +104,7 @@ function AccountForm({
         The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
-      {error && <div className="users-error" role="alert">{error.message}</div>}
+      {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be saved.")}</Alert>}
       <Button type="submit" variant="primary" disabled={mutation.isPending}>
         {mutation.isPending ? "Saving…" : "Save account details"}
       </Button>
@@ -139,7 +138,6 @@ function AuthorityForm({
       onSaved("Master authority saved.");
     },
   });
-  const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   const options: {
     key: keyof UserAuthorityPayload;
@@ -207,7 +205,7 @@ function AuthorityForm({
           {mutation.isPending ? "Saving…" : "Save authority"}
         </Button>
       </div>
-      {error && <div className="users-error" role="alert">{error.message}</div>}
+      {mutation.error && <Alert>{errorMessage(mutation.error, "The authority could not be saved.")}</Alert>}
     </form>
   );
 }
@@ -235,7 +233,6 @@ function PasswordResetDialog({
     },
   });
   const issued = mutation.data;
-  const error = mutation.error instanceof ApiError ? mutation.error : null;
 
   return (
     <Dialog
@@ -256,7 +253,7 @@ function PasswordResetDialog({
             Reset the password for <strong>{user.full_name}</strong>? Their current password stops
             working straight away, and you'll be given a temporary one to pass on.
           </p>
-          {error && <div className="users-error" role="alert">{error.message}</div>}
+          {mutation.error && <Alert>{errorMessage(mutation.error, "The password could not be reset.")}</Alert>}
           <div className="action-row users-dialog-actions">
             <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>Cancel</Button>
             <Button data-dialog-autofocus type="submit" variant="primary" disabled={mutation.isPending}>{mutation.isPending ? "Resetting…" : "Reset password"}</Button>
@@ -290,7 +287,6 @@ function DeleteUserDialog({
       navigate("/users");
     },
   });
-  const error = mutation.error instanceof ApiError ? mutation.error : null;
   return (
     <Dialog
       title="Delete this account"
@@ -302,7 +298,7 @@ function DeleteUserDialog({
         Permanently delete <strong>{user.full_name}</strong>&apos;s account? This cannot be
         undone. Their grading history is kept, credited to a "Deleted user" account.
       </p>
-      {error && <div className="users-error" role="alert">{error.message}</div>}
+      {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be deleted.")}</Alert>}
       <div className="action-row users-dialog-actions">
         <Button
           variant="secondary"
@@ -409,7 +405,7 @@ export function UserDetailScreen(): React.ReactElement {
         )}
       </header>
 
-      {notice && <div className="users-success" role="status">{notice}</div>}
+      {notice && <Alert tone="success">{notice}</Alert>}
 
       <div className="split">
         <main>

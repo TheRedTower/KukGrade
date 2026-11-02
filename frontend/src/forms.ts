@@ -2,14 +2,6 @@ import { useCallback, useState } from "react";
 
 import { ApiError, errorMessage } from "./api";
 
-/** What a person sees when a request never reached the server. */
-export const NETWORK_ERROR = "A network error occurred. Please check your connection.";
-
-/** The line to show for any failed request: the server's reason, or the network error. */
-export function failureMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? errorMessage(err, fallback) : NETWORK_ERROR;
-}
-
 export interface ServerErrors {
   /** Messages for the fields the form shows, keyed by field name. */
   fields: Record<string, string[]>;
@@ -24,7 +16,7 @@ export interface ServerErrors {
  * error is never left unsaid.
  */
 export function splitServerErrors(err: unknown, shown: readonly string[], fallback: string): ServerErrors {
-  if (!(err instanceof ApiError)) return { fields: {}, banner: NETWORK_ERROR };
+  if (!(err instanceof ApiError)) return { fields: {}, banner: errorMessage(err, fallback) };
 
   const fields: Record<string, string[]> = {};
   const rest: string[] = [];

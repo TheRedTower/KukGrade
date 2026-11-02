@@ -51,13 +51,13 @@
     "radius": 2
   },
   "GradingSessions.css": {
-    "rawColour": 32,
+    "rawColour": 24,
     "important": 8,
-    "fontSize": 40,
-    "fontWeight": 22,
-    "radius": 12,
+    "fontSize": 38,
+    "fontWeight": 20,
+    "radius": 11,
     "shadow": 1,
-    "darkOverride": 9
+    "darkOverride": 7
   },
   "Imports.css": {
     "fontSize": 37,

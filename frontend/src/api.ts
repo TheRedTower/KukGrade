@@ -95,11 +95,18 @@ export class ApiError extends Error {
   }
 }
 
-/** The best single message for a failed request, or `fallback`. */
+/** What a person sees when a request never reached the server. */
+export const NETWORK_ERROR = "A network error occurred. Please check your connection.";
+
+/**
+ * The line to show for any failed request: the server's reason, the network
+ * error (fetch rejects with a TypeError when it gets no answer), or `fallback`.
+ */
 export function errorMessage(err: unknown, fallback: string): string {
   if (err instanceof ApiError) {
     return err.nonFieldMessages[0] || err.message || fallback;
   }
+  if (err instanceof TypeError) return NETWORK_ERROR;
   return fallback;
 }
 

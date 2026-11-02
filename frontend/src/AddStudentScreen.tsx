@@ -7,6 +7,7 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
+import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useRanksQuery, useSiteSettingsQuery } from "./queries";
 import "./StudentScreens.css";
@@ -119,9 +120,7 @@ export function AddStudentScreen() {
       </div>
 
       {form.banner && (
-        <div role="alert" className="form-alert-banner">
-          <p>{form.banner}</p>
-        </div>
+        <Alert className="form-alert">{form.banner}</Alert>
       )}
 
       <form onSubmit={handleSubmit} noValidate className="add-student-form-body">

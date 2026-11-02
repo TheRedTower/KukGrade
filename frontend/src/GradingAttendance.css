@@ -90,13 +90,8 @@
   margin-top: 1.25rem;
 }
 
-.attendance-dialog-error {
+.attendance-dialog-alert {
   margin-top: 1rem;
-  padding: 0.75rem;
-  border: 1px solid #fda29b;
-  border-radius: 0.5rem;
-  background: #fef3f2;
-  color: #912018;
 }
 
 .gsd-withdrawal-record {

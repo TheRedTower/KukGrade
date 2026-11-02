@@ -10,6 +10,7 @@ import {
   getGradingSessions,
   errorMessage,
 } from "./api";
+import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
 import { SearchIcon } from "./Icons";
@@ -337,9 +338,7 @@ export function GradingSessionsScreen() {
             Are you sure you want to permanently delete <strong>{deleteConfirmSession.title}</strong>? This action cannot be undone.
           </p>
           {deleteError && (
-            <div className="alert-banner alert-banner-error" role="alert">
-              <span>{deleteError}</span>
-            </div>
+            <Alert>{deleteError}</Alert>
           )}
           <div className="action-row dialog__actions">
             <Button

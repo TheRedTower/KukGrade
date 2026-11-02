@@ -1,3 +1,4 @@
+import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
@@ -226,25 +227,13 @@ export function PromotionLedgerScreen(): React.ReactElement {
   }
 
   const feedbackBanner = actionFeedback && (
-      <div
-        className={`pl-banner pl-banner-${actionFeedback.type}`}
-        role={actionFeedback.type === "error" ? "alert" : "status"}
-      >
-        <span className="pl-banner-icon" aria-hidden="true">
-          {actionFeedback.type === "success" ? "✓" : "✕"}
-        </span>
-        <div className="pl-banner-content">
-          <span>{actionFeedback.message}</span>
-          <button
-            type="button"
-            className="pl-banner-dismiss"
-            onClick={() => setActionFeedback(null)}
-            aria-label="Dismiss message"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+    <Alert
+      tone={actionFeedback.type === "error" ? "error" : "success"}
+      className="pl-alert"
+      onDismiss={() => setActionFeedback(null)}
+    >
+      {actionFeedback.message}
+    </Alert>
   );
 
   const isLoading = isLoadingSession || (!ledgerLoaded && !ledgerFailed);
@@ -292,17 +281,9 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
       {/* Authority Disclaimer if user lacks permission */}
       {!canPromote && (
-        <div className="pl-banner pl-banner-warning" role="alert">
-          <span className="pl-banner-icon" aria-hidden="true">
-            🔒
-          </span>
-          <div>
-            <strong>Promotion authority needed</strong>
-            <p>
-              You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
-            </p>
-          </div>
-        </div>
+        <Alert tone="warning" title="Promotion authority needed" className="pl-alert">
+          You can review this ledger, but promoting students needs promotion authority, which an administrator can grant.
+        </Alert>
       )}
 
       {!isBatchSummaryOpen && !singlePromoteCandidate && feedbackBanner}

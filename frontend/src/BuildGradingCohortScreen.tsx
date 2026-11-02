@@ -12,6 +12,7 @@ import {
   getAllStudents,
   getGradingSession,
 } from "./api";
+import { Alert } from "./Alert";
 import { failureMessage } from "./forms";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
@@ -466,17 +467,7 @@ export function BuildGradingCohortScreen() {
         </div>
 
         {submitError && (
-          <div className="gsd-error-banner" role="alert">
-            <span>⚠️ {submitError}</span>
-            <Button
-              variant="ghost"
-              small
-              onClick={() => setSubmitError(null)}
-              aria-label="Dismiss error"
-            >
-              ✕
-            </Button>
-          </div>
+          <Alert onDismiss={() => setSubmitError(null)}>{submitError}</Alert>
         )}
 
         {/* Flagged items table section */}
@@ -651,17 +642,7 @@ export function BuildGradingCohortScreen() {
       </div>
 
       {submitError && (
-        <div className="gsd-error-banner" role="alert">
-          <span>⚠️ {submitError}</span>
-          <Button
-            variant="ghost"
-            small
-            onClick={() => setSubmitError(null)}
-            aria-label="Dismiss error"
-          >
-            ✕
-          </Button>
-        </div>
+        <Alert onDismiss={() => setSubmitError(null)}>{submitError}</Alert>
       )}
 
       {/* Main Dual-Column Workspace */}

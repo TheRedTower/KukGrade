@@ -275,22 +275,6 @@
 
 /* ── Alert Banner ────────────────────────────────────────────────────────── */
 
-.cgs-alert-banner {
-  background: #fef2f2;
-  border: 1px solid #f87171;
-  color: #991b1b;
-  padding: 0.85rem 1.15rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-[data-theme="dark"] .cgs-alert-banner {
-  background: #2a1215;
-  border-color: #7f1d1d;
-  color: #fca5a5;
-}
-
 /* ── Grid Layout ─────────────────────────────────────────────────────────── */
 
 /* ── Form Panel ──────────────────────────────────────────────────────────── */

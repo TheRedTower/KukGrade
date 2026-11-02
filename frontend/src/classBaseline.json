@@ -1,7 +1,5 @@
 [
   "add-student-view",
-  "alert-banner",
-  "alert-banner-error",
   "audit-page",
   "bgc-info-text",
   "bgc-tray-header",
@@ -27,7 +25,6 @@
   "now-card",
   "overview-container",
   "pager__summary",
-  "pl-banner-icon",
   "pl-header-actions",
   "pl-header-main",
   "status-dot-pulse",

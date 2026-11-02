@@ -22,6 +22,7 @@ import {
   withdrawLockedCandidate,
   errorMessage,
 } from "./api";
+import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import {
   LockedWithdrawalDialog,
@@ -632,17 +633,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Action Error Banner ─────────────────────────────────────────── */}
       {actionError && (
-        <div className="gsd-error-banner" role="alert">
-          <span>⚠️ {actionError}</span>
-          <Button
-            variant="ghost"
-            small
-            onClick={() => setActionError(null)}
-            aria-label="Dismiss error"
-          >
-            ✕
-          </Button>
-        </div>
+        <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>
       )}
       {actionMessage && (
         <div className="gsd-action-banner" role="status">

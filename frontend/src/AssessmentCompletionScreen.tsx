@@ -32,6 +32,7 @@ import {
   updateCandidateAssessment,
   errorMessage,
 } from "./api";
+import { Alert } from "./Alert";
 import { RankBelt } from "./Belt";
 import { useSiteSettingsQuery } from "./queries";
 import {
@@ -41,7 +42,7 @@ import {
 } from "./candidateAssessmentData";
 import { formatShortDate, formatTime } from "./dates";
 import "./CandidateAssessment.css";
-import { CheckIcon, CrossIcon } from "./Icons";
+import { CheckIcon, CrossIcon, WarningIcon } from "./Icons";
 import { Button } from "./Button";
 import { RequirementBadge } from "./StatusBadge";
 import { buttonClass } from "./buttonClass";
@@ -162,15 +163,12 @@ export function AssessmentCompletionScreen() {
   if (hasLoadError) {
     return (
       <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-load-error">
-        <div className="caw-error-banner" role="alert">
-          <p>
-            The assessment summary could not be loaded, so the record cannot be reviewed or
-            sealed right now. Reload to try again.
-          </p>
-          <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
+        <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
-          </Link>
-        </div>
+          </Link>}>
+          The assessment summary could not be loaded, so the record cannot be reviewed or
+            sealed right now. Reload to try again.
+        </Alert>
       </section>
     );
   }
@@ -178,12 +176,11 @@ export function AssessmentCompletionScreen() {
   if (!session || !candidate) {
     return (
       <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-not-found">
-        <div className="caw-error-banner" role="alert">
-          <p>Candidate or grading session not found.</p>
-          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
+        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
-          </Link>
-        </div>
+          </Link>}>
+          Candidate or grading session not found.
+        </Alert>
       </section>
     );
   }
@@ -196,18 +193,15 @@ export function AssessmentCompletionScreen() {
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
       <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-unavailable">
-        <div className="caw-error-banner" role="alert">
-          <p>
-            {!assessment
+        <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
+            ← Return to scoring
+          </Link>}>
+          {!assessment
               ? "This candidate has no assessment form yet, so there is nothing to review."
               : `${stats.remainingRequired} required ${
                   stats.remainingRequired === 1 ? "item remains" : "items remain"
                 } unassessed. Finish scoring before completing the assessment.`}
-          </p>
-          <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
-            ← Return to scoring
-          </Link>
-        </div>
+        </Alert>
       </section>
     );
   }
@@ -253,13 +247,7 @@ export function AssessmentCompletionScreen() {
       </header>
 
       {actionError && (
-        <div className="caw-action-error" role="alert">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M12 3.5 21.5 20H2.5z" />
-            <path d="M12 10v4.5M12 17.2v.1" />
-          </svg>
-          <p>{actionError}</p>
-        </div>
+        <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>
       )}
 
       <div className="acp-layout">

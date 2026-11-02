@@ -1,3 +1,4 @@
+import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { useState, type FormEvent, type ReactNode } from "react";
 
@@ -158,9 +159,7 @@ export function ChangePasswordForm({
       </label>
 
       {error ? (
-        <div className="form-error-banner" role="alert">
-          {error}
-        </div>
+        <Alert>{error}</Alert>
       ) : null}
 
       <div className={actionsClassName}>

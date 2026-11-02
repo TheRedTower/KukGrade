@@ -11,6 +11,7 @@ import {
   getGradingSessions,
   getAuditEvents,
 } from "./api";
+import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { Button } from "./Button";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
@@ -284,11 +285,9 @@ export function OverviewScreen() {
       </div>
 
       {openQuery.isError || upcomingQuery.isError ? (
-        <div className="workspace-alert" role="alert">
-          <p className="form-error">
-            The overview could not be loaded. Check your connection and try again.
-          </p>
-        </div>
+        <div className="workspace-alert">
+            <Alert>The overview could not be loaded. Check your connection and try again.</Alert>
+          </div>
       ) : null}
 
       {/* Top 3-Column Grid */}

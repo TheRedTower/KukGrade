@@ -2,6 +2,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
+import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -150,9 +151,7 @@ export function CreateGradingSessionScreen() {
 
       {/* ── General Error Banner */}
       {form.banner && (
-        <div className="cgs-alert-banner" role="alert">
-          <p>{form.banner}</p>
-        </div>
+        <Alert>{form.banner}</Alert>
       )}
 
       {/* ── Two-Column Layout */}

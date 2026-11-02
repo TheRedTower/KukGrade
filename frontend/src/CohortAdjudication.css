@@ -65,16 +65,6 @@
   border-radius: 6px;
 }
 
-.cab-state {
-  padding: 2rem;
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.cab-state p {
-  margin: 0 0 0.75rem;
-}
-
 .cab-row-name {
   display: block;
   min-height: 44px;

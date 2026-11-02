@@ -123,24 +123,6 @@
 /* Actions */
 
 /* Empty States */
-
-.table-state-box {
-  padding: 4rem 1.5rem;
-  text-align: center;
-}
-
-.loading-state-text {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-}
-
-.empty-state-description {
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-  margin: 0 auto 1.5rem;
-  max-width: 26rem;
-}
-
 /* ==========================================================================
    Add Student Screen
    ========================================================================== */
@@ -421,24 +403,6 @@
   white-space: pre-wrap;
   color: var(--color-text-muted);
   font-size: 0.88rem;
-}
-
-.detail-empty-box {
-  padding: 2.5rem 1rem;
-  text-align: center;
-}
-
-.detail-empty-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0 0 0.35rem;
-}
-
-.detail-empty-desc {
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-  margin: 0;
 }
 
 /* Rank Timeline Track */

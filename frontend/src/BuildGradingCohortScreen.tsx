@@ -12,6 +12,8 @@ import {
   getAllStudents,
   getGradingSession,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { failureMessage } from "./forms";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
@@ -386,11 +388,14 @@ export function BuildGradingCohortScreen() {
   if (isNaN(sessionId)) {
     return (
       <section aria-labelledby="bgc-invalid-id-heading" className="page page--wide bgc-page" data-testid="bgc-page">
-        <div className="gsd-error-state">
-          <h2 id="bgc-invalid-id-heading">Grading session not found</h2>
-          <p>Please return to the grading sessions list.</p>
-          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
-        </div>
+        <EmptyState
+          titleAs="h2"
+          titleId="bgc-invalid-id-heading"
+          title="Grading session not found"
+          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
+        >
+          Please return to the grading sessions list.
+        </EmptyState>
       </section>
     );
   }
@@ -398,10 +403,7 @@ export function BuildGradingCohortScreen() {
   if (sessionQuery.isLoading) {
     return (
       <section aria-label="Build grading cohort" className="page page--wide bgc-page" data-testid="bgc-page">
-        <div className="gsd-loading-state" role="status">
-          <div className="gsd-spinner" aria-hidden="true" />
-          <p>Loading the grading session…</p>
-        </div>
+        <LoadingState>Loading the grading session…</LoadingState>
       </section>
     );
   }
@@ -409,11 +411,14 @@ export function BuildGradingCohortScreen() {
   if (sessionQuery.isError || !session) {
     return (
       <section aria-labelledby="bgc-error-heading" className="page page--wide bgc-page" data-testid="bgc-page">
-        <div className="gsd-error-state">
-          <h2 id="bgc-error-heading">Failed to load grading session</h2>
-          <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
-          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
-        </div>
+        <EmptyState
+          titleAs="h2"
+          titleId="bgc-error-heading"
+          title="Failed to load grading session"
+          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
+        >
+          {sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}
+        </EmptyState>
       </section>
     );
   }
@@ -749,9 +754,9 @@ export function BuildGradingCohortScreen() {
             {/* Filtered matching student records table */}
             <div data-testid="bgc-filtered-students-table">
               {filteredEligibleStudents.length === 0 ? (
-                <div className="bgc-empty-filtered" data-testid="bgc-empty-filtered">
+                <EmptyState framed data-testid="bgc-empty-filtered">
                   No eligible students match the selected filters.
-                </div>
+                </EmptyState>
               ) : (
                 <ResponsiveTable
                   label="Matching eligible students"

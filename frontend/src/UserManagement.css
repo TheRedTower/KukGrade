@@ -99,21 +99,6 @@
 .users-status.is-active { color: var(--color-success); }
 .users-status.is-inactive { color: var(--color-text-muted); }
 
-.users-state {
-  min-height: 18rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
-  color: var(--color-text-muted);
-  padding: 2rem;
-  text-align: center;
-}
-
-.users-state strong { color: var(--color-text); }
-.users-state-error p { color: var(--color-danger); }
-
 .users-dialog-form,
 .users-password-form {
   display: grid;

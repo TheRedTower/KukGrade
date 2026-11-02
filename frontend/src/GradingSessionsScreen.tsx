@@ -10,6 +10,8 @@ import {
   getGradingSessions,
   errorMessage,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { formatLongDate, formatSessionDate } from "./dates";
 import "./GradingSessions.css";
@@ -237,9 +239,7 @@ export function GradingSessionsScreen() {
 
       {/* ── Loading */}
       {isLoading && (
-        <div className="gs-loading-state" role="status">
-          <p>Loading grading sessions…</p>
-        </div>
+        <LoadingState>Loading grading sessions…</LoadingState>
       )}
 
       {/* ── Table + Empty States */}
@@ -293,19 +293,27 @@ export function GradingSessionsScreen() {
                 ]}
               />
             ) : isFiltered ? (
-              <div className="gs-empty-state">
-                <p className="gs-empty-message">No grading sessions match the selected filters.</p>
-                <Button variant="ghost" id="gs-reset-filters-btn" onClick={resetFilters}>
-                  Reset filters
-                </Button>
-              </div>
+              <EmptyState
+                framed
+                action={
+                  <Button variant="ghost" id="gs-reset-filters-btn" onClick={resetFilters}>
+                    Reset filters
+                  </Button>
+                }
+              >
+                No grading sessions match the selected filters.
+              </EmptyState>
             ) : (
-              <div className="gs-empty-state">
-                <p className="gs-empty-message">No grading sessions found. Create a new grading session to get started.</p>
-                <Button variant="primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")}>
-                  <PlusIcon /> Create grading
-                </Button>
-              </div>
+              <EmptyState
+                framed
+                action={
+                  <Button variant="primary" id="gs-create-first-btn" onClick={() => navigate("/gradings/new")}>
+                    <PlusIcon /> Create grading
+                  </Button>
+                }
+              >
+                No grading sessions found. Create a new grading session to get started.
+              </EmptyState>
             )}
           </div>
 

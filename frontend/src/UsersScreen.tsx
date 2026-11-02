@@ -10,6 +10,9 @@ import {
   type UserRole,
   errorMessage,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { Alert } from "./Alert";
+import { LoadingState } from "./LoadingState";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
@@ -241,17 +244,21 @@ export function UsersScreen(): React.ReactElement {
 
       <div className="users-ledger" aria-live="polite">
         {query.isLoading ? (
-          <div className="card users-state" role="status">Loading users…</div>
+          <LoadingState>Loading users…</LoadingState>
         ) : query.isError ? (
-          <div className="card users-state users-state-error" role="alert">
-            <p>{errorMessage(query.error, "Users could not be loaded.")}</p>
-            <Button variant="secondary" onClick={() => void query.refetch()}>Try again</Button>
-          </div>
+          <Alert
+            action={
+              <Button variant="secondary" onClick={() => void query.refetch()}>
+                Try again
+              </Button>
+            }
+          >
+            {errorMessage(query.error, "Users could not be loaded.")}
+          </Alert>
         ) : users.length === 0 ? (
-          <div className="card users-state">
-            <strong>No users found</strong>
-            <span>Try changing the filters or add a staff user.</span>
-          </div>
+          <EmptyState framed title="No users found">
+            Try changing the filters or add a staff user.
+          </EmptyState>
         ) : (
           <>
             <ResponsiveTable

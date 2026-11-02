@@ -214,16 +214,6 @@
   font-weight: 600;
 }
 
-.bgc-empty-filtered {
-  text-align: center;
-  padding: 2.25rem 1rem;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  border: 1px dashed var(--color-border);
-  border-radius: 8px;
-  font-size: 0.88rem;
-}
-
 .bgc-student-name-link {
   color: var(--color-text);
   font-weight: 600;

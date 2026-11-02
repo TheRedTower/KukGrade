@@ -1,3 +1,5 @@
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -320,25 +322,26 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
       {/* Candidates Promotion Ledger Table */}
       {ledgerFailed ? (
-        <div className="pl-loading-state" role="alert">
-          <p>The promotion ledger could not be loaded, so no one can be promoted from it yet.</p>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              for (const query of ledgerQueries) {
-                if (query.isError) void query.refetch();
-              }
-            }}
-          >
-            Try again
-          </Button>
-        </div>
+        <Alert
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                for (const query of ledgerQueries) {
+                  if (query.isError) void query.refetch();
+                }
+              }}
+            >
+              Try again
+            </Button>
+          }
+        >
+          The promotion ledger could not be loaded, so no one can be promoted from it yet.
+        </Alert>
       ) : isLoading ? (
-        <div className="pl-loading-state" role="status">Loading candidate promotion ledger…</div>
+        <LoadingState>Loading candidate promotion ledger…</LoadingState>
       ) : rows.length === 0 ? (
-        <div className="pl-empty-state">
-          <p>No candidates registered in this grading session.</p>
-        </div>
+        <EmptyState framed title="No candidates registered in this grading session." />
       ) : (
         <ResponsiveTable
           label="Student Promotion Ledger"

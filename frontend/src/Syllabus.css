@@ -183,31 +183,6 @@
   color: var(--color-text-muted);
 }
 
-.syl-loading-state,
-.syl-empty-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 3rem 1.5rem;
-  text-align: center;
-  color: var(--color-text-muted);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  font-size: 0.95rem;
-}
-
-.syl-spinner {
-  display: inline-block;
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 2px solid var(--color-border);
-  border-top-color: var(--color-gold-strong);
-  border-radius: 50%;
-  animation: sylSpin 0.8s linear infinite;
-}
-
 /* Footer Reference */
 
 .syl-footer {
@@ -250,8 +225,3 @@
   border-color: #332d24;
 }
 
-[data-theme="dark"] .syl-loading-state,
-[data-theme="dark"] .syl-empty-state {
-  background: #221e18;
-  border-color: #332d24;
-}

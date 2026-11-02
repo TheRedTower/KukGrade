@@ -12,6 +12,8 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { failureMessage, useServerForm } from "./forms";
@@ -207,11 +209,7 @@ export function StudentDetailScreen() {
   if (studentQuery.isLoading) {
     return (
       <section aria-labelledby="student-loading-title" className="page student-detail-view">
-        <div className="table-state-box" role="status">
-          <p id="student-loading-title" className="loading-state-text">
-            Loading student record...
-          </p>
-        </div>
+        <LoadingState id="student-loading-title">Loading student record…</LoadingState>
       </section>
     );
   }
@@ -219,20 +217,18 @@ export function StudentDetailScreen() {
   if (studentQuery.isError || !student || !student.id) {
     return (
       <section aria-labelledby="student-error-title" className="page student-detail-view">
-        <div className="table-state-box">
-          <h2 id="student-error-title" className="empty-state-title">
-            Student record not found
-          </h2>
-          <p className="empty-state-description">
-            The requested student record could not be loaded or may not exist.
-          </p>
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/students")}
-          >
-            ← Back to students
-          </Button>
-        </div>
+        <EmptyState
+          titleAs="h2"
+          titleId="student-error-title"
+          title="Student record not found"
+          action={
+            <Button variant="secondary" onClick={() => navigate("/students")}>
+              ← Back to students
+            </Button>
+          }
+        >
+          The requested student record could not be loaded or may not exist.
+        </EmptyState>
       </section>
     );
   }
@@ -400,12 +396,9 @@ export function StudentDetailScreen() {
                 ]}
               />
             ) : (
-              <div className="detail-empty-box">
-                <p className="detail-empty-title">No grading history recorded</p>
-                <p className="detail-empty-desc">
-                  This student has not yet completed any grading sessions.
-                </p>
-              </div>
+              <EmptyState framed title="No grading history recorded">
+                This student has not yet completed any grading sessions.
+              </EmptyState>
             )}
           </div>
 

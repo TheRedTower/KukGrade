@@ -290,6 +290,7 @@ function DeleteUserDialog({
   return (
     <Dialog
       title="Delete this account"
+      closeButton={false}
       eyebrow="Irreversible action"
       onClose={onClose}
       canClose={!mutation.isPending}

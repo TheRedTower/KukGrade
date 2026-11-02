@@ -101,7 +101,7 @@ export function AddStudentScreen() {
   }
 
   return (
-    <section aria-labelledby="add-student-title" className="page page--reading add-student-view">
+    <section aria-labelledby="add-student-title" className="page page--reading">
       <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: "Add student" }]} />
 
       {/* Header */}

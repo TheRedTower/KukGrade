@@ -192,7 +192,7 @@ export function UsersScreen(): React.ReactElement {
       </header>
 
       <form
-        className="filter-bar users-filters"
+        className="filter-bar"
         aria-label="User filters"
         onSubmit={(event) => {
           event.preventDefault();

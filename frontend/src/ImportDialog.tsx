@@ -31,7 +31,7 @@ export function ImportDialog({
   onClose: () => void;
 }) {
   return (
-    <Dialog title={title} onClose={onClose} canClose={!pending}>
+    <Dialog title={title} closeButton={false} onClose={onClose} canClose={!pending}>
       <div className="ix-section ix-dialog-body">{children}</div>
       {error ? (
         <ErrorText>

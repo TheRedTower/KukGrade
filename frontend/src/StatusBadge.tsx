@@ -1,6 +1,7 @@
 import type { CandidateAssessment, CandidateOutcome, GradingSessionStatus, StudentStatus } from "./api";
 import { Badge } from "./Badge";
 import { type BadgeTone, outcomeTone } from "./badgeClass";
+import { OUTCOME_LABELS } from "./OutcomeControls";
 import { SESSION_STATUS_LABELS } from "./sessionStatus";
 import { CheckIcon, CrossIcon, LockIcon, WarningIcon, XCircleIcon } from "./Icons";
 
@@ -55,7 +56,6 @@ export function AssessmentBadge({ assessment }: { assessment?: CandidateAssessme
   return <Badge tone="neutral">Not started</Badge>;
 }
 
-const OUTCOME_WORDS = { PASS: "Pass", CONDITIONAL: "Conditional", FAIL: "Fail" } as const;
 const OUTCOME_ICONS = {
   PASS: <CheckIcon size={12} />,
   CONDITIONAL: <WarningIcon size={12} />,
@@ -70,7 +70,7 @@ export function OutcomeBadge({ outcome }: { outcome?: CandidateOutcome }) {
   if (!result) return <Badge tone="neutral">{finalised ? "Finalised" : "Not proposed"}</Badge>;
   return (
     <Badge tone={outcomeTone(result)} icon={OUTCOME_ICONS[result]}>
-      {finalised ? "Finalised" : "Proposed"}: {OUTCOME_WORDS[result]}
+      {finalised ? "Finalised" : "Proposed"}: {OUTCOME_LABELS[result]}
     </Badge>
   );
 }

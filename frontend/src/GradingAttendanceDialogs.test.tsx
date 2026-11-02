@@ -35,7 +35,8 @@ describe("attendance dialog focus", () => {
 
     await user.keyboard("{Escape}");
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Close" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
 
     rerender(
       <NoShowDialog candidates={candidates} pending={false} error={null} onClose={onClose} onConfirm={() => {}} />,

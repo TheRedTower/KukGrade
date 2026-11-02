@@ -113,7 +113,7 @@ serializers and the committed frontend types match the schema.
   `.field` for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
-  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `.crumbs` for the trail above a title, `Pagination` for page controls, `ScrollRail` for a row
+  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `Breadcrumbs` for the trail above a title, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `Pagination` for page controls, `ScrollRail` for a row
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces
@@ -132,9 +132,9 @@ serializers and the committed frontend types match the schema.
   raise anything. Before adding a style, look for the shared piece that already does it; if
   there is none and a second screen will want it, add it to `layout.css` or `theme.css`
   once, not to the screen.
-- **A button is `<Button variant="primary|secondary|ghost|danger">`** (or a link given
+- **A button is `<Button variant="primary|secondary|ghost|danger|danger-quiet|link">`** (or a link given
   `buttonClass({ variant })`), styled in `frontend/src/controls.css` and nowhere else: primary
-  for the one thing to do, secondary or ghost beside it, danger for what cannot be undone,
+  for the one thing to do, secondary or ghost beside it, danger for what cannot be undone, danger-quiet for a smaller risky action in a list, link for one that reads as a link,
   `small` inside a table or card, `block` for one as wide as its box. Do not write a new
   `.xyz-btn` class; `tokenRules.test.ts` counts the button classes outside `controls.css`
   (`buttonClass`) and fails if the count goes up.

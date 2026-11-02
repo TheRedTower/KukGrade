@@ -179,6 +179,8 @@ jobs:
     # Not gated on the test jobs: it builds and starts the image on its own, so
     # it runs alongside them.
     runs-on: ubuntu-latest
+    env:
+      CHECK_WIDTHS: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -216,7 +218,7 @@ jobs:
       # check four widths; pushes to dev and prod check all nine. WebKit
       # (an iPhone and an iPad profile) always checks its own few widths.
       - name: Start the demo for the width check
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        if: env.CHECK_WIDTHS == 'true'
         run: |
           docker run -d --name kg-widths -p 127.0.0.1:6943:6942 \
             --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
@@ -234,14 +236,21 @@ jobs:
           exit 1
 
       - uses: actions/setup-node@v7
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        if: env.CHECK_WIDTHS == 'true'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
+      # The browsers are a large download and only change with Playwright's version.
+      - uses: actions/cache@v6
+        if: env.CHECK_WIDTHS == 'true'
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
       - name: Check every screen fits at every width
-        if: github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod'
+        if: env.CHECK_WIDTHS == 'true'
         working-directory: frontend
         run: |
           npm ci

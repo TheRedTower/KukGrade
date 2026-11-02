@@ -166,7 +166,6 @@ def test_a_refused_connection_is_an_unreachable_database(
 def test_a_database_that_accepts_but_never_answers_fails_within_the_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    held: list[socket.socket] = []
     with socket.socket() as silent:
         silent.bind(("127.0.0.1", 0))
         silent.listen()
@@ -178,11 +177,7 @@ def test_a_database_that_accepts_but_never_answers_fails_within_the_deadline(
         )
         monkeypatch.setattr(container_health, "DATABASE_TIMEOUT_SECONDS", 1)
         started = time.monotonic()
-        try:
-            reachable = _database_reachable()
-        finally:
-            for client in held:
-                client.close()
+        reachable = _database_reachable()
         took = time.monotonic() - started
 
     assert reachable is False

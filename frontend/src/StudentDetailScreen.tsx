@@ -210,7 +210,7 @@ export function StudentDetailScreen() {
 
   if (studentQuery.isLoading) {
     return (
-      <section aria-labelledby="student-loading-title" className="page student-detail-view">
+      <section aria-labelledby="student-loading-title" className="page">
         <LoadingState id="student-loading-title">Loading student record…</LoadingState>
       </section>
     );
@@ -218,7 +218,7 @@ export function StudentDetailScreen() {
 
   if (studentQuery.isError || !student || !student.id) {
     return (
-      <section aria-labelledby="student-error-title" className="page student-detail-view">
+      <section aria-labelledby="student-error-title" className="page">
         <EmptyState
           titleAs="h2"
           titleId="student-error-title"
@@ -241,7 +241,7 @@ export function StudentDetailScreen() {
   const statusDisplay = student.status_display || statusStr;
 
   return (
-    <section aria-labelledby="student-heading" className="page student-detail-view">
+    <section aria-labelledby="student-heading" className="page">
       <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]} />
 
       {/* Detail Header */}
@@ -605,7 +605,7 @@ export function StudentDetailScreen() {
 
       {/* Delete Student Modal */}
       {isDeleteModalOpen && (
-        <Dialog title="Delete student" closeLabel="Close dialog" onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
+        <Dialog title="Delete student" closeButton={false} onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
 
             {deleteError && (
               <Alert className="form-alert">{deleteError}</Alert>

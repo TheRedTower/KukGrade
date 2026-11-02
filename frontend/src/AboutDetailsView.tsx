@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Alert } from "./Alert";
 import { CopyIcon } from "./Icons";
 import { Button } from "./Button";
 
@@ -41,9 +42,9 @@ export function CopyDetailsButton({ details }: { details: [string, string][] }) 
         </p>
       ) : null}
       {copied === "failed" ? (
-        <p className="form-error" role="alert">
+        <Alert>
           Could not copy. Select the details and copy them by hand.
-        </p>
+        </Alert>
       ) : null}
     </>
   );

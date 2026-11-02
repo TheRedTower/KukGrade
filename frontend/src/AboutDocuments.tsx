@@ -1,6 +1,7 @@
 import Markdown from "react-markdown";
 import { Link } from "react-router-dom";
 
+import { Alert } from "./Alert";
 import { errorMessage } from "./api";
 import { useAboutDocumentQuery, useAboutQuery, usePledgeQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
@@ -81,9 +82,9 @@ function DocumentHeader({ title, subtitle, sourceUrl }: { title: string; subtitl
 
 function Problem({ error }: { error: unknown }) {
   return (
-    <p className="form-error" role="alert">
+    <Alert>
       {errorMessage(error, "This page could not be loaded.")}
-    </p>
+    </Alert>
   );
 }
 

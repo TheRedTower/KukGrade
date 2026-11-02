@@ -19,6 +19,7 @@ import {
   getAllCandidateOutcomes,
   proposeCandidateOutcome,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { RankBelt } from "./Belt";
 import { CheckIcon, CrossIcon } from "./Icons";
 import { OUTCOME_CHOICES } from "./OutcomeControls";
@@ -168,9 +169,9 @@ export function OutcomeProposalDrawer({
             </div>
 
             {submitError && (
-              <p className="opd-error" role="alert">
+              <ErrorText field>
                 {submitError}
-              </p>
+              </ErrorText>
             )}
           </div>
 

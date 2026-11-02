@@ -24,7 +24,7 @@ describe("Alert", () => {
     );
     const alert = screen.getByRole("alert");
     expect(alert).toHaveClass("alert", "alert--warning", "extra");
-    expect(alert).toHaveTextContent("CarefulLook twice");
+    expect(alert).toHaveTextContent("Careful Look twice");
   });
 
   it("closes only when it can be dismissed", async () => {

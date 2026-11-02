@@ -1,3 +1,4 @@
+import { Alert } from "./Alert";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -8,6 +9,7 @@ import {
   getDataImportRows,
   previewLegacyGradingImport,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
 
@@ -104,9 +106,9 @@ export function ImportMatchRanks({
             Reading the ranks…
           </p>
         ) : preview.isError ? (
-          <p className="ix-danger-text" role="alert">
+          <ErrorText>
             {errorMessage(preview.error, "The ranks could not be read. Try again in a moment.")}
-          </p>
+          </ErrorText>
         ) : spellings.length === 0 ? (
           <p className="ix-muted">The workbook writes no ranks, so there is nothing to match.</p>
         ) : current ? (
@@ -140,9 +142,9 @@ export function ImportMatchRanks({
                   ) : null}
                 </div>
                 {current.doubtful ? (
-                  <p className="ix-banner ix-banner-warning ix-small">
+                  <Alert tone="warning" role="status">
                     The workbook marks this with “?”. The records keep that doubt, whatever you choose.
-                  </p>
+                  </Alert>
                 ) : null}
                 <div className="ix-table-wrap">
                   <table className="ix-table ix-table-compact">
@@ -205,9 +207,9 @@ export function ImportMatchRanks({
         ) : null}
 
         {save.isError ? (
-          <p className="ix-danger-text" role="alert">
+          <ErrorText>
             {errorMessage(save.error, "That rank could not be saved.")}
-          </p>
+          </ErrorText>
         ) : null}
       </section>
 

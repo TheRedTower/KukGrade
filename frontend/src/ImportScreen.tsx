@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { ErrorText } from "./ErrorText";
 import { ApiError, errorMessage, getDataImportBatch } from "./api";
 import { ImportMatchColumns } from "./ImportMatchColumns";
 import { ImportMatchRanks } from "./ImportMatchRanks";
@@ -60,9 +61,9 @@ export function ImportScreen() {
   }
   if (batch.isError) {
     return (
-      <p className="ix-danger-text" role="alert">
+      <ErrorText>
         {errorMessage(batch.error, "The import could not be loaded. Try again in a moment.")}
-      </p>
+      </ErrorText>
     );
   }
 

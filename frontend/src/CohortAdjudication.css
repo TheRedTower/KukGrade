@@ -126,13 +126,6 @@
   outline-offset: 2px;
 }
 
-.cab-row-error {
-  margin: 0.35rem 0 0;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-danger);
-}
-
 .cab-detail {
   display: flex;
   flex-direction: column;

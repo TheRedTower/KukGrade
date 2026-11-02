@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 
+import { ErrorText } from "./ErrorText";
+import { Alert } from "./Alert";
 import { ApiError } from "./api";
 import { useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
@@ -69,9 +71,9 @@ export function SetupPage() {
 
   function errorsFor(field: Field) {
     return fieldErrors[field]?.map((message) => (
-      <p className="form-field-error" id={`setup-${field}-error`} key={message}>
+      <ErrorText field announce={false} id={`setup-${field}-error`} key={message}>
         {message}
-      </p>
+      </ErrorText>
     ));
   }
 
@@ -200,9 +202,9 @@ export function SetupPage() {
             </label>
             {errorsFor("confirm")}
             {error ? (
-              <p className="form-error" role="alert">
+              <Alert>
                 {error}
-              </p>
+              </Alert>
             ) : null}
             <Button variant="primary" disabled={isSubmitting} type="submit">
               {isSubmitting ? "Setting up" : "Create administrator"}

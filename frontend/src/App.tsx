@@ -165,7 +165,7 @@ function LoginPage() {
                 </button>
               </div>
             </label>
-            {error ? <p className="form-error" role="alert">{error}</p> : null}
+            {error ? <Alert>{error}</Alert> : null}
             <Button
               variant="primary"
               disabled={status === "loading" || isSubmitting}
@@ -194,9 +194,9 @@ function ConnectionErrorPage() {
       <section className="login-panel" aria-labelledby="connection-error-title">
         <p className="eyebrow">KukGrade</p>
         <h1 id="connection-error-title">Can&rsquo;t reach KukGrade</h1>
-        <p className="form-error" role="alert">
+        <Alert>
           {error ?? "Something went wrong."}
-        </p>
+        </Alert>
         <Button variant="primary" onClick={retry}>
           Try again
         </Button>

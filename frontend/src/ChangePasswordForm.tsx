@@ -1,3 +1,4 @@
+import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -91,9 +92,9 @@ export function ChangePasswordForm({
 
   function errorsFor(field: keyof FieldErrors) {
     return fieldErrors[field]?.map((message) => (
-      <p className="form-field-error" key={message}>
+      <ErrorText field announce={false} key={message}>
         {message}
-      </p>
+      </ErrorText>
     ));
   }
 

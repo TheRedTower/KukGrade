@@ -2,6 +2,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
+import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
 import { useServerForm } from "./forms";
@@ -177,7 +178,7 @@ export function CreateGradingSessionScreen() {
                 value={title}
               />
               {form.errorFor("title") && (
-                <p className="cgs-field-error" role="alert">{form.errorFor("title")}</p>
+                <ErrorText field>{form.errorFor("title")}</ErrorText>
               )}
             </div>
 
@@ -230,7 +231,7 @@ export function CreateGradingSessionScreen() {
                 </select>
               </div>
               {form.errorFor("grading_date") && (
-                <p className="cgs-field-error" role="alert">{form.errorFor("grading_date")}</p>
+                <ErrorText field>{form.errorFor("grading_date")}</ErrorText>
               )}
             </div>
 
@@ -250,7 +251,7 @@ export function CreateGradingSessionScreen() {
                 value={location}
               />
               {form.errorFor("location") && (
-                <p className="cgs-field-error" role="alert">{form.errorFor("location")}</p>
+                <ErrorText field>{form.errorFor("location")}</ErrorText>
               )}
             </div>
 
@@ -278,7 +279,7 @@ export function CreateGradingSessionScreen() {
                 </span>
               </div>
               {form.errorFor("notes") && (
-                <p className="cgs-field-error" role="alert">{form.errorFor("notes")}</p>
+                <ErrorText field>{form.errorFor("notes")}</ErrorText>
               )}
             </div>
 

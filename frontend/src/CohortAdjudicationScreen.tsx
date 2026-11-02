@@ -16,6 +16,7 @@
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
+import { ErrorText } from "./ErrorText";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
@@ -417,7 +418,7 @@ export function CohortAdjudicationScreen() {
                           <span className="cab-flags">Not open for decision</span>
                         )}
                         {failure && decision && (
-                          <p className="cab-row-error" role="alert">{failure}</p>
+                          <ErrorText field>{failure}</ErrorText>
                         )}
                       </>
                     );
@@ -530,9 +531,9 @@ export function CohortAdjudicationScreen() {
             Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are kept.
           </p>
           {incomplete.length > 0 && (
-            <p className="cab-row-error" role="alert">
+            <ErrorText field>
               Conditional decisions need re-test requirements before they can be recorded.
-            </p>
+            </ErrorText>
           )}
           {lastResult && (
             <p className="cab-bar-result" role="status" ref={resultRef} tabIndex={-1}>

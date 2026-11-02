@@ -256,3 +256,17 @@
   background: var(--color-info-surface);
   color: var(--color-info);
 }
+
+/* The one error line (ErrorText.tsx): red text for a short message; "field" is the smaller one
+   under a form control. */
+
+.error-text {
+  margin: 0;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-control);
+}
+
+.error-text--field {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-control-sm);
+}

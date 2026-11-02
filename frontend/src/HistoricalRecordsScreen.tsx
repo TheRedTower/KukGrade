@@ -10,6 +10,7 @@ import {
   linkLegacyGradingRecord,
   unlinkLegacyGradingRecord,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { formatMonthYear } from "./dates";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
@@ -89,7 +90,7 @@ export function HistoricalRecordsScreen() {
           ) : detail.isPending ? (
             <p role="status">Loading record…</p>
           ) : detail.isError || !record ? (
-            <p role="alert" className="ix-danger-text">{errorMessage(detail.error, "This record could not be loaded.")}</p>
+            <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
           ) : (
             <div className="ix-card ix-card-pad ix-section" key={record.id}>
               <h2 className="ix-title ix-flush">“{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}</h2>
@@ -103,8 +104,8 @@ export function HistoricalRecordsScreen() {
                   <RankFix record={record} onDone={refresh} showAll />
                   <p>Linked student: <strong>{record.student_display_name || "None"}</strong></p>
                   <SomeoneElse chosen={chosen} onChoose={setChosen} />
-                  {link.isError ? <p role="alert" className="ix-danger-text">{errorMessage(link.error, "The link could not be saved.")}</p> : null}
-                  {unlink.isError ? <p role="alert" className="ix-danger-text">{errorMessage(unlink.error, "The link could not be removed.")}</p> : null}
+                  {link.isError ? <ErrorText>{errorMessage(link.error, "The link could not be saved.")}</ErrorText> : null}
+                  {unlink.isError ? <ErrorText>{errorMessage(unlink.error, "The link could not be removed.")}</ErrorText> : null}
                   <div className="ix-actions">
                     <Button variant="primary" disabled={!chosen || link.isPending} onClick={() => {
                       if (record.student && record.student !== chosen?.student) setConfirm("replace");
@@ -141,7 +142,7 @@ export function HistoricalRecordsScreen() {
             </label>
           </div>
           {records.isPending ? <p role="status">Loading records…</p> : records.isError ? (
-            <p role="alert" className="ix-danger-text">{errorMessage(records.error, "Records could not be loaded.")}</p>
+            <ErrorText>{errorMessage(records.error, "Records could not be loaded.")}</ErrorText>
           ) : (
             <>
               {records.data.results.length === 0 ? <p className="ix-muted ix-card-pad">No records match these filters.</p> : null}

@@ -12,6 +12,7 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { failureMessage, useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
@@ -676,9 +677,9 @@ export function StudentDetailScreen() {
                     aria-describedby={editForm.errorFor("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
                   />
                   {editForm.errorFor("wksa_id") ? (
-                    <p className="form-field-error" id="edit-wksa-id-error" role="alert">
+                    <ErrorText field id="edit-wksa-id-error">
                       {editForm.errorFor("wksa_id")}
-                    </p>
+                    </ErrorText>
                   ) : (
                     <p className="form-field-help" id="edit-wksa-id-help">
                       {student.wksa_id_can_change
@@ -706,7 +707,7 @@ export function StudentDetailScreen() {
                       data-dialog-autofocus
                     />
                     {editForm.errorFor("first_name") && (
-                      <p className="form-field-error" id="edit-first-name-error" role="alert">{editForm.errorFor("first_name")}</p>
+                      <ErrorText field id="edit-first-name-error">{editForm.errorFor("first_name")}</ErrorText>
                     )}
                   </div>
 
@@ -726,7 +727,7 @@ export function StudentDetailScreen() {
                       aria-describedby={editForm.errorFor("last_name") ? "edit-last-name-error" : undefined}
                     />
                     {editForm.errorFor("last_name") && (
-                      <p className="form-field-error" id="edit-last-name-error" role="alert">{editForm.errorFor("last_name")}</p>
+                      <ErrorText field id="edit-last-name-error">{editForm.errorFor("last_name")}</ErrorText>
                     )}
                   </div>
                 </div>
@@ -748,7 +749,7 @@ export function StudentDetailScreen() {
                     aria-describedby={editForm.errorFor("date_of_birth") ? "edit-dob-error" : undefined}
                   />
                   {editForm.errorFor("date_of_birth") && (
-                    <p className="form-field-error" id="edit-dob-error" role="alert">{editForm.errorFor("date_of_birth")}</p>
+                    <ErrorText field id="edit-dob-error">{editForm.errorFor("date_of_birth")}</ErrorText>
                   )}
                 </div>
               </div>

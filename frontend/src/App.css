@@ -467,14 +467,6 @@ h2 {
   outline: 2px solid var(--color-accent-strong);
 }
 
-.form-error {
-  margin-bottom: 0;
-  border-left: 3px solid var(--color-danger);
-  background: var(--color-danger-surface);
-  color: var(--color-danger);
-  padding: 0.65rem 0.75rem;
-}
-
 .loading-state {
   color: var(--color-text-muted);
   font-weight: 700;
@@ -648,13 +640,6 @@ h2 {
 }
 
 /* Feedback & Helper Text */
-
-.form-field-error {
-  margin: 0.4rem 0 0;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--color-danger);
-}
 
 
 

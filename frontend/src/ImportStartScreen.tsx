@@ -13,6 +13,8 @@ import {
   errorMessage,
   getDataImportBatch,
 } from "./api";
+import { Alert } from "./Alert";
+import { ErrorText } from "./ErrorText";
 import { ImportStepBar } from "./ImportStepBar";
 import { counted, importKindTitle } from "./importSteps";
 import { downloadStandardTemplate } from "./importTemplate";
@@ -329,9 +331,9 @@ export function ImportStartScreen() {
           </div>
           <FoundChecklist batch={loaded} created={created} kind={kind} limit={limit} />
           {kind === "STUDENT_ROSTER" && (loaded.sheet_error || loaded.row_counts.total === 0) ? (
-            <p className="ix-banner ix-banner-warning" role="alert">
+            <Alert tone="warning">
               {loaded.sheet_error || "This sheet has no student rows."} Choose the sheet containing the roster before continuing.
-            </p>
+            </Alert>
           ) : null}
           {kind === "STUDENT_ROSTER" && loaded.sheet_names.length > 1 ? (
             <label className="ix-field ix-field-narrow">
@@ -355,9 +357,9 @@ export function ImportStartScreen() {
             </label>
           ) : null}
           {sheet.isError ? (
-            <p className="ix-danger-text" role="alert">
+            <ErrorText>
               {errorMessage(sheet.error, "That sheet could not be read.")}
-            </p>
+            </ErrorText>
           ) : null}
           <div className="ix-fold">
             <button
@@ -427,9 +429,9 @@ export function ImportStartScreen() {
               </p>
             </div>
             {fileError ? (
-              <p className="ix-danger-text ix-flush" role="alert">
+              <ErrorText className="ix-flush">
                 {fileError}
-              </p>
+              </ErrorText>
             ) : null}
           </section>
           <aside aria-labelledby="ix-looks-for" className="ix-card ix-card-pad ix-sunken ix-section">

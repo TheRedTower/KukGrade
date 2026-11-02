@@ -1299,11 +1299,6 @@
   min-width: 0;
 }
 
-.ix-seal-button {
-  min-height: 52px;
-  font-size: 1rem;
-}
-
 /* Last, so it wins over a component's own margin. */
 .ix-flush {
   margin: 0;

@@ -61,6 +61,12 @@
   background: var(--color-surface-sunken);
 }
 
+/* A button that stays down (aria-pressed): the choice in a row of choices. */
+.btn[aria-pressed="true"] {
+  border-color: var(--color-gold-strong);
+  background: var(--color-surface-sunken);
+}
+
 /* A destructive action that is one of many (remove from a list): red text, a ghost's outline. */
 .btn--danger-quiet {
   border-color: var(--color-border);

@@ -107,15 +107,13 @@ button:not(.theme-toggle-option, .visually-hidden) {
 
 /* Links that act as controls - breadcrumbs, names in a table - are inline
    text, which no height reaches; they become boxes of the same size. */
-.breadcrumb-link-btn,
 .cgs-breadcrumb-link,
 .gsd-breadcrumb-link,
 .bgc-breadcrumb-link,
 .users-back-link,
 .users-audit-link,
 .current-grading-link,
-.bgc-student-name-link,
-.bgc-review-exceptions-btn {
+.bgc-student-name-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -689,15 +687,6 @@ h2 {
   color: #fca5a5;
 }
 
-.gsd-error-dismiss-btn {
-  background: none;
-  border: none;
-  color: inherit;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 0 0.25rem;
-}
-
 .gsd-modal-message {
   font-size: 0.92rem;
   color: var(--color-text-muted);
@@ -752,16 +741,6 @@ h2 {
   to {
     transform: rotate(360deg);
   }
-}
-
-.breadcrumb-separator {
-  color: var(--color-border);
-  user-select: none;
-}
-
-.breadcrumb-current {
-  color: var(--color-text);
-  font-weight: 500;
 }
 
 @keyframes sylSpin {

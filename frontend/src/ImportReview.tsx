@@ -671,7 +671,7 @@ function Seal({
         </h2>
         <p className="ix-muted ix-small">{sentence.charAt(0).toUpperCase() + sentence.slice(1)}.</p>
       </div>
-      <Button variant="primary" className="ix-seal-button" disabled={count === 0 || pending || blocked} onClick={() => setOpen(true)}>
+      <Button variant="primary" disabled={count === 0 || pending || blocked} onClick={() => setOpen(true)}>
         {pending ? (roster ? "Adding…" : "Importing…") : count === 0 ? "Nothing to import" : action}
       </Button>
       {blocked ? <p className="ix-warning-text ix-small">Finish saving or retry row changes before adding students.</p> : null}

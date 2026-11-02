@@ -7,6 +7,7 @@ import {
   getAllEffectiveSyllabusRequirements,
 } from "./api";
 import { BeltSwatch } from "./Belt";
+import { Button } from "./Button";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -242,17 +243,16 @@ export function SyllabusScreen() {
         {ranks.map((rank) => {
           const isSelected = rank.code === selectedRankCode;
           return (
-            <button
+            <Button
               key={rank.code}
-              type="button"
-              className={`syl-belt-btn ${isSelected ? "syl-belt-btn-active" : ""}`}
+              className="syl-belt"
               onClick={() => setChosenRankCode(rank.code)}
               aria-pressed={isSelected}
               title={`Select ${rank.name}`}
             >
               <BeltSwatch rank={rank} />
               <span className="syl-belt-label">{rank.name}</span>
-            </button>
+            </Button>
           );
         })}
       </ScrollRail>
@@ -274,13 +274,9 @@ export function SyllabusScreen() {
           </div>
 
           {nextRank && (
-            <button
-              type="button"
-              className="syl-next-rank-btn"
-              onClick={() => setChosenRankCode(nextRank.code)}
-            >
+            <Button variant="link" onClick={() => setChosenRankCode(nextRank.code)}>
               Next rank: {nextRank.name} →
-            </button>
+            </Button>
           )}
         </div>
 

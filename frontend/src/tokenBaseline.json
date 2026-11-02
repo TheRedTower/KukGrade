@@ -8,11 +8,10 @@
   },
   "App.css": {
     "rawColour": 13,
-    "fontSize": 26,
-    "fontWeight": 16,
+    "fontSize": 25,
+    "fontWeight": 15,
     "radius": 14,
     "shadow": 3,
-    "buttonClass": 3,
     "darkOverride": 2
   },
   "AuditScreen.css": {
@@ -32,11 +31,10 @@
   },
   "CandidateAssessment.css": {
     "rawColour": 3,
-    "fontSize": 61,
-    "fontWeight": 23,
-    "radius": 14,
-    "shadow": 3,
-    "buttonClass": 5
+    "fontSize": 58,
+    "fontWeight": 22,
+    "radius": 13,
+    "shadow": 3
   },
   "CohortAdjudication.css": {
     "fontSize": 9,
@@ -51,8 +49,7 @@
     "rawColour": 3,
     "fontSize": 3,
     "fontWeight": 3,
-    "radius": 3,
-    "buttonClass": 1
+    "radius": 3
   },
   "GradingSessions.css": {
     "rawColour": 40,
@@ -64,10 +61,9 @@
     "darkOverride": 11
   },
   "Imports.css": {
-    "fontSize": 38,
+    "fontSize": 37,
     "fontWeight": 29,
-    "radius": 19,
-    "buttonClass": 1
+    "radius": 19
   },
   "NavigationRail.css": {
     "rawColour": 8,
@@ -113,21 +109,18 @@
   },
   "StudentScreens.css": {
     "rawColour": 3,
-    "fontSize": 34,
-    "fontWeight": 24,
-    "radius": 7,
+    "fontSize": 33,
+    "fontWeight": 23,
+    "radius": 6,
     "shadow": 5,
-    "outlineNone": 1,
-    "buttonClass": 2
+    "outlineNone": 1
   },
   "Syllabus.css": {
-    "rawColour": 13,
-    "fontSize": 20,
-    "fontWeight": 9,
-    "radius": 4,
-    "shadow": 2,
-    "buttonClass": 3,
-    "darkOverride": 5
+    "rawColour": 4,
+    "fontSize": 19,
+    "fontWeight": 7,
+    "radius": 2,
+    "darkOverride": 3
   },
   "UserManagement.css": {
     "fontSize": 11,

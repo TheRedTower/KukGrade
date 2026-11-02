@@ -283,12 +283,12 @@ export function CandidateAssessmentScreen() {
   return (
     <section aria-labelledby="caw-title" className="page page--wide caw-run" data-testid="caw-workspace">
       {/* One line of chrome, not four. */}
-      <nav aria-label="Breadcrumbs" className="caw-breadcrumbs">
+      <nav aria-label="Breadcrumbs" className="crumbs caw-breadcrumbs">
         <Link to="/gradings">Gradings</Link>
-        <span aria-hidden="true" className="breadcrumb-separator">/</span>
+        <span aria-hidden="true" className="crumbs__sep">/</span>
         <Link to={`/gradings/${session.id}`}>{session.title}</Link>
-        <span aria-hidden="true" className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">{candidate.student_display_name}</span>
+        <span aria-hidden="true" className="crumbs__sep">/</span>
+        <span aria-current="page">{candidate.student_display_name}</span>
       </nav>
 
       <header className="caw-identity">
@@ -468,13 +468,12 @@ export function CandidateAssessmentScreen() {
         <div className="caw-identity-spacer" />
 
         {isAssessmentCompleted ? (
-          <Link className={buttonClass({ variant: "secondary" }, "caw-review-btn")} to={reviewPath} data-testid="caw-view-review-btn">
+          <Link className={buttonClass({ variant: "secondary" })} to={reviewPath} data-testid="caw-view-review-btn">
             View completion record →
           </Link>
         ) : (
-          <button
-            type="button"
-            className={`caw-complete-action-btn ${canComplete ? "caw-complete-ready" : ""}`}
+          <Button
+            variant={canComplete ? "primary" : "secondary"}
             disabled={!canComplete}
             onClick={() => navigate(reviewPath)}
             title={
@@ -491,7 +490,7 @@ export function CandidateAssessmentScreen() {
               : stats.canComplete
               ? "Complete assessment →"
               : `Complete assessment (${stats.remainingRequired} required remaining)`}
-          </button>
+          </Button>
         )}
       </div>
 

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { ErrorText } from "./ErrorText";
 import { Dialog } from "./Dialog";
 import { Button } from "./Button";
 
@@ -33,9 +34,9 @@ export function ImportDialog({
     <Dialog title={title} onClose={onClose} canClose={!pending}>
       <div className="ix-section ix-dialog-body">{children}</div>
       {error ? (
-        <p className="ix-danger-text" role="alert">
+        <ErrorText>
           {error}
-        </p>
+        </ErrorText>
       ) : null}
       <div className="ix-actions dialog__actions">
         <Button variant="ghost" disabled={pending} onClick={onClose}>

@@ -9,6 +9,7 @@ import {
   getLegacyPeople,
   getLegacyPeopleSummary,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { ImportPager } from "./ImportPager";
 import { counted } from "./importSteps";
 import { NameRow, type NameView } from "./LinkNameRow";
@@ -267,14 +268,14 @@ export function LinkRecordsScreen() {
         </p>
       ) : null}
       {link.isError && !(linkedFrom && linkedFrom === open) ? (
-        <p className="ix-danger-text" role="alert">
+        <ErrorText>
           {errorMessage(link.error, "Those records could not be linked.")}
-        </p>
+        </ErrorText>
       ) : null}
       {undo.isError ? (
-        <p className="ix-danger-text" role="alert">
+        <ErrorText>
           {undo.error instanceof PartialUnlinkError ? undo.error.message : errorMessage(undo.error, "That link could not be undone.")}
-        </p>
+        </ErrorText>
       ) : null}
 
       <div className="ix-card">
@@ -291,9 +292,9 @@ export function LinkRecordsScreen() {
           </p>
         ) : people.isError ? (
           <div className="ix-card-pad ix-section">
-            <p className="ix-danger-text ix-flush" role="alert">
+            <ErrorText className="ix-flush">
               {errorMessage(people.error, "The names could not be loaded. Try again in a moment.")}
-            </p>
+            </ErrorText>
             {page > 1 ? (
               <Button variant="ghost" onClick={() => setPage(1)}>
                 Back to the first page

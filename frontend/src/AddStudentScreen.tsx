@@ -7,6 +7,7 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useRanksQuery, useSiteSettingsQuery } from "./queries";
@@ -146,7 +147,7 @@ export function AddStudentScreen() {
                 aria-describedby={form.errorFor("first_name") ? "first-name-error" : undefined}
               />
               {form.errorFor("first_name") && (
-                <p className="form-field-error" id="first-name-error" role="alert">{form.errorFor("first_name")}</p>
+                <ErrorText field id="first-name-error">{form.errorFor("first_name")}</ErrorText>
               )}
             </div>
 
@@ -167,7 +168,7 @@ export function AddStudentScreen() {
                 aria-describedby={form.errorFor("last_name") ? "last-name-error" : undefined}
               />
               {form.errorFor("last_name") && (
-                <p className="form-field-error" id="last-name-error" role="alert">{form.errorFor("last_name")}</p>
+                <ErrorText field id="last-name-error">{form.errorFor("last_name")}</ErrorText>
               )}
             </div>
           </div>
@@ -189,7 +190,7 @@ export function AddStudentScreen() {
               aria-describedby={form.errorFor("wksa_id") ? "wksa-id-error" : undefined}
             />
             {form.errorFor("wksa_id") ? (
-              <p className="form-field-error" id="wksa-id-error" role="alert">{form.errorFor("wksa_id")}</p>
+              <ErrorText field id="wksa-id-error">{form.errorFor("wksa_id")}</ErrorText>
             ) : (
               <p className="form-field-help">
                 {idScheme ? `${idScheme.hint} ` : ""}
@@ -221,7 +222,7 @@ export function AddStudentScreen() {
                 aria-describedby={form.errorFor("date_of_birth") ? "dob-error" : undefined}
               />
               {form.errorFor("date_of_birth") ? (
-                <p className="form-field-error" id="dob-error" role="alert">{form.errorFor("date_of_birth")}</p>
+                <ErrorText field id="dob-error">{form.errorFor("date_of_birth")}</ErrorText>
               ) : (
                 <div className="privacy-badge-line">
                   <LockIcon size={14} className="privacy-icon" />
@@ -251,7 +252,7 @@ export function AddStudentScreen() {
                 ))}
               </select>
               {form.errorFor("current_rank") && (
-                <p className="form-field-error" id="current-rank-error" role="alert">{form.errorFor("current_rank")}</p>
+                <ErrorText field id="current-rank-error">{form.errorFor("current_rank")}</ErrorText>
               )}
             </div>
 

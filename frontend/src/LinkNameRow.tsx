@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
+import { ErrorText } from "./ErrorText";
 import { type LegacyGradingRecord, type LegacyPerson, errorMessage, getAllLegacyGradingRecords } from "./api";
 import { counted } from "./importSteps";
 import { type Chosen, periodRange, recordMonth, recordsToLink } from "./linkRecords";
@@ -73,9 +74,9 @@ function NameDetails({
               Loading the records…
             </li>
           ) : records.isError ? (
-            <li className="ix-danger-text" role="alert">
+            <ErrorText as="li">
               {errorMessage(records.error, "The records could not be loaded.")}
-            </li>
+            </ErrorText>
           ) : (
             records.data.results.map((record) => (
               <li className="ix-detail-item" key={record.id}>
@@ -140,9 +141,9 @@ function NameDetails({
         )}
         <SomeoneElse chosen={chosen} onChoose={onChoose} />
         {error ? (
-          <p className="ix-danger-text" role="alert">
+          <ErrorText>
             {errorMessage(error, "Those records could not be linked.")}
-          </p>
+          </ErrorText>
         ) : null}
         <div className="ix-actions ix-actions-split">
           {onLeave ? (

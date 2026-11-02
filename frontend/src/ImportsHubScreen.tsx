@@ -10,6 +10,7 @@ import {
   getDataImportBatches,
   getLegacyGradingRecords,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
@@ -246,9 +247,9 @@ function PastImports() {
             Loading past imports…
           </p>
         ) : past.isError ? (
-          <p className="ix-danger-text ix-card-pad" role="alert">
+          <ErrorText className="ix-card-pad">
             {errorMessage(past.error, "Past imports could not be loaded. Try again in a moment.")}
-          </p>
+          </ErrorText>
         ) : batches.length === 0 ? (
           <p className="ix-muted ix-card-pad">
             {kind || state ? "No imports match these filters." : "No imports have finished yet."}
@@ -343,9 +344,9 @@ export function ImportsHubScreen() {
       </div>
 
       {unfinished.isError ? (
-        <p className="ix-danger-text" role="alert">
+        <ErrorText>
           {errorMessage(unfinished.error, "Unfinished imports could not be loaded.")}
-        </p>
+        </ErrorText>
       ) : null}
       {open.length > 0 ? (
         <UnfinishedImports batches={open} onCancel={(batch) => setCancelling(batch)} />

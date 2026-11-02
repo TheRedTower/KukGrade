@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 
+import { Alert } from "./Alert";
 import { errorMessage } from "./api";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
@@ -67,9 +68,9 @@ function NameRow() {
           {saving ? "Saving…" : "Save name"}
         </Button>
         {error ? (
-          <p className="form-error st-full" role="alert">
+          <Alert className="st-full">
             {error}
-          </p>
+          </Alert>
         ) : null}
         {saved ? (
           <p className="st-saved st-full" role="status">

@@ -1,3 +1,4 @@
+import { Alert } from "./Alert";
 import { errorMessage } from "./api";
 import { CopyDetailsButton, DetailsList } from "./AboutDetailsView";
 import { versionDetails } from "./aboutDetails";
@@ -33,9 +34,9 @@ export function AboutOverview() {
       </section>
 
       {about.isError ? (
-        <p className="form-error" role="alert">
+        <Alert>
           {errorMessage(about.error, "The version could not be loaded.")}
-        </p>
+        </Alert>
       ) : null}
 
       <section aria-labelledby="st-version-details" className="st-card st-pad">

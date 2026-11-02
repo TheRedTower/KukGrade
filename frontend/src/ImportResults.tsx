@@ -12,6 +12,7 @@ import {
   getLegacyPeople,
   voidDataImportRecords,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { useAuth } from "./auth";
 import { formatShortDateTime } from "./dates";
 import { ImportDialog } from "./ImportDialog";
@@ -137,9 +138,9 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
           Loading suggestions…
         </p>
       ) : people.isError ? (
-        <p className="ix-row ix-danger-text" role="alert">
+        <ErrorText className="ix-row">
           {errorMessage(people.error, "Suggestions could not be loaded.")}
-        </p>
+        </ErrorText>
       ) : shown.length === 0 ? (
         <p className="ix-row ix-success-text">Every record from this import is linked.</p>
       ) : (
@@ -216,9 +217,9 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
         })
       )}
       {failed ? (
-        <p className="ix-row ix-danger-text" role="alert">
+        <ErrorText className="ix-row">
           {failed}
-        </p>
+        </ErrorText>
       ) : null}
       {canLink ? (
         <div className="ix-row ix-actions-split">
@@ -391,9 +392,9 @@ function RowsLedger({
         ))}
       </div>
       {rows.query.isError ? (
-        <p className="ix-row ix-danger-text" role="alert">
+        <ErrorText className="ix-row">
           {errorMessage(rows.query.error, "The rows could not be loaded.")}
-        </p>
+        </ErrorText>
       ) : cleared ? (
         <p className="ix-row ix-muted">
           The row-by-row list is kept for 30 days after an import, and this one’s has been

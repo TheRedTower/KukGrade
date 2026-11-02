@@ -9,6 +9,8 @@ import {
   getDataImportRows,
   saveDataImportMapping,
 } from "./api";
+import { Alert } from "./Alert";
+import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { useRanksQuery } from "./queries";
 import { Button } from "./Button";
@@ -225,37 +227,43 @@ export function ImportMatchColumns({
         </div>
 
         {missing.map((field) => (
-          <div className="ix-banner ix-banner-warning" key={field.field}>
-            <p>
-              <strong>No column holds {field.name === "WKSA ID" ? "the WKSA ID" : field.name.toLowerCase()}.</strong>{" "}
-              {field.whole_file
-                ? "Choose the column above, set one value for everyone, or type each one in."
-                : "Choose the column above, or type each one in if you know them."}
-            </p>
-            {field.whole_file && field.field === "current_rank" ? (
-              <label className="ix-field">
-                Same for everyone
-                <select
-                  disabled={save.isPending || correct.isPending}
-                  value=""
-                  onChange={(event) => {
-                    setRankDefault(event.target.value);
-                    choose(choices, event.target.value);
-                  }}
-                >
-                  <option value="">Choose a rank…</option>
-                  {ranks.map((rank) => (
-                    <option key={rank.code} value={rank.name}>
-                      {rank.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            <Button variant="secondary" onClick={() => setTyped([...typed, field.field])}>
-              Type each one in
-            </Button>
-          </div>
+          <Alert
+            tone="warning"
+            role="status"
+            key={field.field}
+            title={`No column holds ${field.name === "WKSA ID" ? "the WKSA ID" : field.name.toLowerCase()}.`}
+            action={
+              <>
+                {field.whole_file && field.field === "current_rank" ? (
+                  <label className="ix-field">
+                    Same for everyone
+                    <select
+                      disabled={save.isPending || correct.isPending}
+                      value=""
+                      onChange={(event) => {
+                        setRankDefault(event.target.value);
+                        choose(choices, event.target.value);
+                      }}
+                    >
+                      <option value="">Choose a rank…</option>
+                      {ranks.map((rank) => (
+                        <option key={rank.code} value={rank.name}>
+                          {rank.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <Button variant="secondary" onClick={() => setTyped([...typed, field.field])}>
+                  Type each one in
+                </Button>
+              </>
+            }
+          >
+            {field.whole_file
+              ? "Choose the column above, set one value for everyone, or type each one in."
+              : "Choose the column above, or type each one in if you know them."}
+          </Alert>
         ))}
 
         {rankDefault && !columnFor.current_rank ? (
@@ -275,15 +283,20 @@ export function ImportMatchColumns({
         ) : null}
 
         {save.isError ? (
-          <div role="alert" className="ix-danger-text">
-            {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}{" "}
-            <Button variant="link" onClick={() => save.mutate(draftPayload)}>Retry saving columns</Button>
-          </div>
+          <Alert
+            action={
+              <Button variant="link" onClick={() => save.mutate(draftPayload)}>
+                Retry saving columns
+              </Button>
+            }
+          >
+            {errorMessage(save.error, "The columns could not be saved. Try again in a moment.")}
+          </Alert>
         ) : null}
         {correct.isError ? (
-          <p className="ix-danger-text" role="alert">
+          <ErrorText>
             {errorMessage(correct.error, "That fix could not be saved.")}
-          </p>
+          </ErrorText>
         ) : null}
 
         <div className="ix-card ix-table-wrap">

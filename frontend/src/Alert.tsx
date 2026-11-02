@@ -30,7 +30,11 @@ export function Alert({ tone = "error", title, icon, action, onDismiss, role, cl
     >
       {icon}
       <div className="alert__body">
-        {title ? <strong className="alert__title">{title}</strong> : null}
+        {title ? (
+          <>
+            <strong className="alert__title">{title}</strong>{" "}
+          </>
+        ) : null}
         {children}
       </div>
       {action}

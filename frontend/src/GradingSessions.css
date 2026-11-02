@@ -343,17 +343,6 @@
   border-color: #f87171 !important;
 }
 
-.cgs-field-error {
-  font-size: 0.8rem;
-  color: #dc2626;
-  margin: 0.15rem 0 0;
-  font-weight: 500;
-}
-
-[data-theme="dark"] .cgs-field-error {
-  color: #f87171;
-}
-
 /* Date 3-select row */
 
 .cgs-date-row {

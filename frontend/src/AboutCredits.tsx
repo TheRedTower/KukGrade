@@ -1,3 +1,4 @@
+import { Alert } from "./Alert";
 import { creditsNoticesUrl, errorMessage, type Credit } from "./api";
 import { useCreditsQuery } from "./queries";
 import { buttonClass } from "./buttonClass";
@@ -53,9 +54,9 @@ export function AboutCredits() {
       </header>
 
       {query.isError ? (
-        <p className="form-error" role="alert">
+        <Alert>
           {errorMessage(query.error, "The credits could not be loaded.")}
-        </p>
+        </Alert>
       ) : null}
 
       {credits && !credits.available ? (

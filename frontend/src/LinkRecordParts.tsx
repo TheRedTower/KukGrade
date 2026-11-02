@@ -9,6 +9,7 @@ import {
   resolveLegacyTestingForRank,
   voidLegacyGradingRecord,
 } from "./api";
+import { ErrorText } from "./ErrorText";
 import { ImportDialog } from "./ImportDialog";
 import { type Chosen, recordMonth } from "./linkRecords";
 import { useRanksQuery } from "./queries";
@@ -46,9 +47,9 @@ export function RankFix({ record, onDone, showAll = false }: { record: LegacyGra
         </label>
       ))}
       {fix.isError ? (
-        <span className="ix-danger-text ix-small" role="alert">
+        <ErrorText as="span" className="ix-small">
           {errorMessage(fix.error, "That rank could not be saved.")}
-        </span>
+        </ErrorText>
       ) : null}
     </span>
   );

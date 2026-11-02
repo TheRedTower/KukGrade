@@ -13,6 +13,8 @@ import {
   previewLegacyGradingImport,
   setDataImportRowExcluded,
 } from "./api";
+import { Alert } from "./Alert";
+import { ErrorText } from "./ErrorText";
 import { ImportCellInput } from "./ImportCellInput";
 import { ImportDialog } from "./ImportDialog";
 import { ImportPager } from "./ImportPager";
@@ -132,9 +134,9 @@ function RowsList({
   return (
     <>
       {rows.query.isError ? (
-        <p className="ix-row ix-danger-text" role="alert">
+        <ErrorText className="ix-row">
           {errorMessage(rows.query.error, "The rows could not be loaded.")}
-        </p>
+        </ErrorText>
       ) : rows.query.isPending ? (
         <p className="ix-row ix-muted" role="status">
           Loading…
@@ -145,9 +147,9 @@ function RowsList({
         children(list)
       )}
       {exclusion.isError ? (
-        <p className="ix-row ix-danger-text" role="alert">
+        <ErrorText className="ix-row">
           {errorMessage(exclusion.error, "That row could not be changed.")}
-        </p>
+        </ErrorText>
       ) : null}
       <ImportPager page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
     </>
@@ -315,9 +317,9 @@ function RosterRowEditor({
         })}
       </div>
       {fix.isError ? (
-        <p className="ix-danger-text ix-small ix-flush" role="alert">
+        <ErrorText className="ix-small ix-flush">
           {errorMessage(fix.error, "That fix could not be saved.")}
-        </p>
+        </ErrorText>
       ) : null}
     </div>
   );
@@ -487,9 +489,9 @@ function RosterReview({
         )}
       </div>
       {leaveRest.isError ? (
-        <p className="ix-danger-text" role="alert">
+        <ErrorText>
           {errorMessage(leaveRest.error, "Those rows could not be left out.")}
-        </p>
+        </ErrorText>
       ) : null}
     </>
   );
@@ -762,12 +764,9 @@ export function ImportReview({
         {announcement}
       </p>
       {commit.isError ? (
-        <div className="ix-banner ix-banner-danger" role="alert">
-          <p>
-            <strong>Nothing was saved.</strong>{" "}
-            {errorMessage(commit.error, "Something changed since the check. Look over the rows and try again.")}
-          </p>
-        </div>
+        <Alert title="Nothing was saved.">
+          {errorMessage(commit.error, "Something changed since the check. Look over the rows and try again.")}
+        </Alert>
       ) : null}
       {sorted ? (
         <Seal batch={batch} blocked={roster && dirtyRosterCells.length > 0} pending={commit.isPending} unresolvedRanks={unresolvedRanks} onImport={() => {

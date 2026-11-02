@@ -468,14 +468,14 @@ export function BuildGradingCohortScreen() {
         {submitError && (
           <div className="gsd-error-banner" role="alert">
             <span>⚠️ {submitError}</span>
-            <button
-              type="button"
-              className="gsd-error-dismiss-btn"
+            <Button
+              variant="ghost"
+              small
               onClick={() => setSubmitError(null)}
               aria-label="Dismiss error"
             >
               ✕
-            </button>
+            </Button>
           </div>
         )}
 
@@ -653,14 +653,14 @@ export function BuildGradingCohortScreen() {
       {submitError && (
         <div className="gsd-error-banner" role="alert">
           <span>⚠️ {submitError}</span>
-          <button
-            type="button"
-            className="gsd-error-dismiss-btn"
+          <Button
+            variant="ghost"
+            small
             onClick={() => setSubmitError(null)}
             aria-label="Dismiss error"
           >
             ✕
-          </button>
+          </Button>
         </div>
       )}
 

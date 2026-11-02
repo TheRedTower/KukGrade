@@ -316,8 +316,8 @@ describe("Add student screen (/students/new)", () => {
     // Header & breadcrumbs
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
     expect(screen.getByText("Create a staff-only student record")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Add student", { selector: ".breadcrumb-current" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb navigation" })).getByRole("link", { name: "Students" })).toBeVisible();
+    expect(screen.getByText("Add student", { selector: "[aria-current=\"page\"]" })).toBeVisible();
 
     // Section 1: Identity
     expect(screen.getByRole("heading", { name: "Identity" })).toBeVisible();
@@ -624,7 +624,7 @@ describe("Add student screen (/students/new)", () => {
     window.history.pushState({}, "", "/students/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     expect(await screen.findByRole("heading", { name: "Add student" })).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Students" }));
+    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumb navigation" })).getByRole("link", { name: "Students" }));
     expect(window.location.pathname).toBe("/students");
   });
 });
@@ -698,8 +698,8 @@ describe("Student detail screen (/students/:id)", () => {
     expect(screen.getByRole("button", { name: "Edit student" })).toBeVisible();
 
     // Breadcrumb
-    expect(screen.getByRole("button", { name: "Students" })).toBeVisible();
-    expect(screen.getByText("Alex Carter", { selector: ".breadcrumb-current" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumb navigation" })).getByRole("link", { name: "Students" })).toBeVisible();
+    expect(screen.getByText("Alex Carter", { selector: "[aria-current=\"page\"]" })).toBeVisible();
 
     // Student details card
     expect(screen.getByRole("heading", { name: "Student details" })).toBeVisible();
@@ -1117,7 +1117,7 @@ describe("Student detail screen (/students/:id)", () => {
 
     expect(await screen.findByRole("heading", { name: "Alex Carter" })).toBeVisible();
 
-    const breadcrumbBtn = screen.getByRole("button", { name: "Students" });
+    const breadcrumbBtn = within(screen.getByRole("navigation", { name: "Breadcrumb navigation" })).getByRole("link", { name: "Students" });
     await user.click(breadcrumbBtn);
 
     expect(window.location.pathname).toBe("/students");

@@ -151,9 +151,8 @@ export function StudentsScreen() {
             aria-label="Search students by name or WKSA ID"
           />
           {search && (
-            <button
-              type="button"
-              className="btn-clear-search"
+            <Button
+              variant="link"
               onClick={() => {
                 setSearch("");
                 setPage(1);
@@ -161,7 +160,7 @@ export function StudentsScreen() {
               aria-label="Clear search text"
             >
               <ClearIcon />
-            </button>
+            </Button>
           )}
         </div>
 

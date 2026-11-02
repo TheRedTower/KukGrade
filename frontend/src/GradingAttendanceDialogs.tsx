@@ -89,7 +89,7 @@ export function NoShowDialog({
           Cancel
         </Button>
         <Button
-          variant="primary" className="attendance-danger-button"
+          variant="danger"
           onClick={() => onConfirm(selected)}
           disabled={pending || selected.length === 0}
         >
@@ -176,7 +176,7 @@ export function LockedWithdrawalDialog({
           </Button>
           <Button
             type="submit"
-            variant="primary" className="attendance-danger-button"
+            variant="danger"
             disabled={pending || !reason || noteMissing}
           >
             {pending ? "Withdrawing…" : "Withdraw candidate"}
@@ -291,7 +291,7 @@ export function RemoveRegistrationDialog({
           Cancel
         </Button>
         <Button
-          variant="primary" className="attendance-danger-button"
+          variant="danger"
           onClick={onConfirm}
           disabled={pending}
         >

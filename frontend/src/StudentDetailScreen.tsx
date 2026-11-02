@@ -243,18 +243,12 @@ export function StudentDetailScreen() {
   return (
     <section aria-labelledby="student-heading" className="page student-detail-view">
       {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb navigation" className="form-breadcrumbs">
-        <button
-          type="button"
-          className="breadcrumb-link-btn"
-          onClick={() => navigate("/students")}
-        >
-          Students
-        </button>
-        <span className="breadcrumb-separator" aria-hidden="true">
+      <nav aria-label="Breadcrumb navigation" className="crumbs form-breadcrumbs">
+        <Link to="/students">Students</Link>
+        <span className="crumbs__sep" aria-hidden="true">
           /
         </span>
-        <span className="breadcrumb-current" aria-current="page">
+        <span aria-current="page">
           {student.first_name} {student.last_name}
         </span>
       </nav>

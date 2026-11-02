@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   type Rank,
@@ -100,18 +100,12 @@ export function AddStudentScreen() {
   return (
     <section aria-labelledby="add-student-title" className="page page--reading add-student-view">
       {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb navigation" className="form-breadcrumbs">
-        <button
-          type="button"
-          className="breadcrumb-link-btn"
-          onClick={() => navigate("/students")}
-        >
-          Students
-        </button>
-        <span className="breadcrumb-separator" aria-hidden="true">
+      <nav aria-label="Breadcrumb navigation" className="crumbs form-breadcrumbs">
+        <Link to="/students">Students</Link>
+        <span className="crumbs__sep" aria-hidden="true">
           /
         </span>
-        <span className="breadcrumb-current" aria-current="page">
+        <span aria-current="page">
           Add student
         </span>
       </nav>

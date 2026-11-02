@@ -634,14 +634,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       {actionError && (
         <div className="gsd-error-banner" role="alert">
           <span>⚠️ {actionError}</span>
-          <button
-            type="button"
-            className="gsd-error-dismiss-btn"
+          <Button
+            variant="ghost"
+            small
             onClick={() => setActionError(null)}
             aria-label="Dismiss error"
           >
             ✕
-          </button>
+          </Button>
         </div>
       )}
       {actionMessage && (

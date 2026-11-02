@@ -8,29 +8,6 @@
   gap: 1.25rem;
 }
 
-.caw-breadcrumbs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-}
-
-.caw-breadcrumbs a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.caw-breadcrumbs a:hover {
-  color: var(--color-gold-strong);
-  text-decoration: underline;
-}
-
 .caw-candidate-name {
   margin: 0;
   font-size: 1.85rem;
@@ -42,36 +19,6 @@
 .caw-rank-arrow {
   color: var(--color-text-muted);
   font-size: 0.9rem;
-}
-
-.caw-complete-action-btn {
-  font-size: 0.92rem;
-  font-weight: 600;
-  padding: 0.75rem 1.35rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text-muted);
-  transition: all 0.15s ease;
-  min-height: 48px;
-}
-
-.caw-complete-ready {
-  background: var(--btn-primary-bg);
-  border-color: var(--btn-primary-border);
-  color: var(--btn-primary-text);
-  box-shadow: var(--btn-primary-shadow);
-  cursor: pointer;
-}
-
-.caw-complete-ready:hover {
-  background: var(--btn-primary-hover-bg);
-  border-color: var(--btn-primary-hover-border);
-}
-
-.caw-review-btn {
-  min-height: 48px;
-  padding: 0.75rem 1.25rem;
 }
 
 /* ── Not Started Prompt Banner ───────────────────────────────────────────── */
@@ -1169,17 +1116,6 @@
   flex-shrink: 0;
 }
 
-.acp-seal-btn,
-.acp-return-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 44px;
-  font-size: 0.87rem;
-  text-decoration: none;
-}
-
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
 
 @media (max-width: 56rem) {
@@ -1215,7 +1151,7 @@
 
 }
 
-.acp-reopen-btn {
+.acp-reopen {
   margin-top: 0.75rem;
 }
 

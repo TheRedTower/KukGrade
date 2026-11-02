@@ -489,7 +489,7 @@ export function AssessmentCompletionScreen() {
               </div>
               {session.status === "OPEN" && (
                 <Button
-                  variant="secondary" className="acp-reopen-btn"
+                  className="acp-reopen"
                   onClick={() => reopenAssessmentMutation.mutate()}
                   disabled={reopenAssessmentMutation.isPending}
                   data-testid="acp-reopen-btn"
@@ -520,7 +520,7 @@ export function AssessmentCompletionScreen() {
               </div>
 
               <Button
-                variant="primary" className="acp-seal-btn"
+                variant="primary"
                 onClick={() => completeAssessmentMutation.mutate()}
                 disabled={!canSeal}
                 data-testid="confirm-complete-assessment-btn"
@@ -531,7 +531,7 @@ export function AssessmentCompletionScreen() {
             </>
           )}
 
-          <Link to={scoringPath} className={buttonClass({ variant: "secondary" }, "acp-return-btn")}>
+          <Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             Return to scoring
           </Link>
         </aside>

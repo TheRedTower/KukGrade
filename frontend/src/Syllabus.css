@@ -29,32 +29,9 @@
   margin-bottom: 2rem;
 }
 
-.syl-belt-btn {
-  display: flex;
-  align-items: center;
+.syl-belt {
   gap: 0.65rem;
-  padding: 0.45rem 0.85rem;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
   font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 42px;
-  transition: all 0.15s ease;
-}
-
-.syl-belt-btn:hover {
-  border-color: var(--color-accent);
-  background: var(--color-surface-sunken);
-}
-
-.syl-belt-btn-active {
-  border-color: var(--color-gold-strong);
-  background: rgba(245, 158, 11, 0.08);
-  box-shadow: 0 0 0 1px var(--color-gold-strong), 0 2px 6px rgba(180, 83, 9, 0.12);
-  color: var(--color-text);
 }
 
 .syl-belt-label {
@@ -99,26 +76,6 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
   margin: 0.35rem 0 0 0;
-}
-
-.syl-next-rank-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-accent-text);
-  font-weight: 600;
-  font-size: 0.95rem;
-  cursor: pointer;
-  padding: 0.4rem 0.65rem;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.syl-next-rank-btn:hover {
-  text-decoration: underline;
-  background: var(--color-surface-sunken);
 }
 
 /* Section Blocks */
@@ -288,21 +245,9 @@
 
 /* Dark Mode Parity */
 
-[data-theme="dark"] .syl-belt-btn-active {
-  background: rgba(245, 158, 11, 0.16);
-  border-color: #fbbf24;
-  box-shadow: 0 0 0 1px #fbbf24, 0 2px 8px rgba(245, 158, 11, 0.2);
-}
-
 [data-theme="dark"] .syl-core-card {
   background: #221e18;
   border-color: #332d24;
-}
-
-[data-theme="dark"] .syl-belt-btn {
-  background: #221e18;
-  border-color: #332d24;
-  color: #f3efe6;
 }
 
 [data-theme="dark"] .syl-loading-state,

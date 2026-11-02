@@ -1176,7 +1176,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {confirmModal && (
-        <Dialog title={confirmModal.title} onClose={() => setConfirmModal(null)} canClose={!isConfirmModalMutationPending}>
+        <Dialog title={confirmModal.title} closeButton={false} onClose={() => setConfirmModal(null)} canClose={!isConfirmModalMutationPending}>
           <p className="gsd-modal-message">{confirmModal.message}</p>
 
           {confirmModal.actionType === "CANCEL" && (

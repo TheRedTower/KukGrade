@@ -31,13 +31,15 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   useEffect(() => {
     const el = track.current;
     if (!el) return;
-    readEdges();
     // A browser always has it; the test environment does not.
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(readEdges);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [readEdges, children]);
+  }, [readEdges]);
+
+  // New items can change the width without changing the track's own size.
+  useEffect(readEdges, [readEdges, children]);
 
   // An item is brought in at the nearer edge if it is out of view.
   const reveal = useCallback((item: HTMLElement | null | undefined) => {
@@ -68,7 +70,7 @@ export function ScrollRail({ label, watch, className, children }: ScrollRailProp
   // An arrow at its edge is only marked as spent: a disabled button would drop
   // the keyboard focus of whoever just pressed it to get there.
   return (
-    <div className={`rail${className ? ` ${className}` : ""}`} data-fits={fits || undefined}>
+    <div className={`rail${className ? ` ${className}` : ""}`}>
       <button
         type="button"
         className="rail__arrow"

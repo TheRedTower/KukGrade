@@ -12,23 +12,6 @@ export type AttendanceCandidate = {
   wksaId: string;
 };
 
-type DialogFrameProps = {
-  title: string;
-  eyebrow: string;
-  pending: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-};
-
-function DialogFrame({ title, eyebrow, pending, onClose, children }: DialogFrameProps) {
-  // Nothing closes the dialog while its request is in flight.
-  return (
-    <Dialog title={title} eyebrow={eyebrow} onClose={onClose} canClose={!pending}>
-      {children}
-    </Dialog>
-  );
-}
-
 type NoShowDialogProps = {
   candidates: AttendanceCandidate[];
   pending: boolean;
@@ -47,11 +30,12 @@ export function NoShowDialog({
   const [selected, setSelected] = useState<number[]>([]);
 
   return (
-    <DialogFrame
+    <Dialog
       title="Confirm attendance"
       eyebrow="Before assessment"
-      pending={pending}
+      closeButton={false}
       onClose={onClose}
+      canClose={!pending}
     >
       <p className="attendance-dialog-copy">
         Select only the candidates who did not attend. Everyone else remains registered and unchanged.
@@ -97,7 +81,7 @@ export function NoShowDialog({
           {pending ? "Confirming…" : "Mark selected as no-show"}
         </Button>
       </div>
-    </DialogFrame>
+    </Dialog>
   );
 }
 
@@ -123,11 +107,12 @@ export function LockedWithdrawalDialog({
   const noteMissing = Boolean(reason?.note_required) && !note.trim();
 
   return (
-    <DialogFrame
+    <Dialog
       title={`Withdraw ${candidate.name}`}
       eyebrow="Locked-session override"
-      pending={pending}
+      closeButton={false}
       onClose={onClose}
+      canClose={!pending}
     >
       <p className="attendance-dialog-copy">
         Use this only when the candidate cannot finish the locked grading. Existing assessment work remains on record; any unfinalised outcome proposal is removed.
@@ -184,7 +169,7 @@ export function LockedWithdrawalDialog({
           </Button>
         </div>
       </form>
-    </DialogFrame>
+    </Dialog>
   );
 }
 
@@ -208,11 +193,12 @@ export function MoveRegistrationDialog({
   const [sessionId, setSessionId] = useState("");
 
   return (
-    <DialogFrame
+    <Dialog
       title={`Move ${candidate.name}`}
       eyebrow="Registration"
-      pending={pending}
+      closeButton={false}
       onClose={onClose}
+      canClose={!pending}
     >
       <p className="attendance-dialog-copy">
         Moves this registration to another draft or open session. It is refused once an assessment has been prepared.
@@ -252,7 +238,7 @@ export function MoveRegistrationDialog({
           </Button>
         </div>
       </form>
-    </DialogFrame>
+    </Dialog>
   );
 }
 
@@ -272,11 +258,12 @@ export function RemoveRegistrationDialog({
   onConfirm,
 }: RemoveRegistrationDialogProps) {
   return (
-    <DialogFrame
+    <Dialog
       title={`Remove ${candidate.name}`}
       eyebrow="Registration"
-      pending={pending}
+      closeButton={false}
       onClose={onClose}
+      canClose={!pending}
     >
       <p className="attendance-dialog-copy">
         Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
@@ -299,6 +286,6 @@ export function RemoveRegistrationDialog({
           {pending ? "Removing…" : "Remove registration"}
         </Button>
       </div>
-    </DialogFrame>
+    </Dialog>
   );
 }

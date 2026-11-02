@@ -270,7 +270,7 @@ export function OverviewScreen() {
   return (
     <section
       aria-labelledby="overview-heading"
-      className="page overview-container"
+      className="page"
     >
       {/* Top Header */}
       <div className="overview-header">

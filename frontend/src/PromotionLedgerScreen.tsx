@@ -5,6 +5,7 @@ import { Alert } from "./Alert";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
+import { OUTCOME_LABELS } from "./OutcomeControls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -377,9 +378,8 @@ export function PromotionLedgerScreen(): React.ReactElement {
               render: (row) => {
                 const outcome = row.outcome;
                 if (outcome?.status === "FINALISED") {
-                  const words = { PASS: "Pass", CONDITIONAL: "Conditional", FAIL: "Fail" } as const;
                   const result = outcome.final_outcome;
-                  if (result) return <Badge tone={outcomeTone(result)}>{words[result]} (Finalised)</Badge>;
+                  if (result) return <Badge tone={outcomeTone(result)}>{OUTCOME_LABELS[result]} (Finalised)</Badge>;
                 }
                 if (outcome?.status === "PROPOSED") {
                   return <Badge tone="neutral">Proposed: {outcome.proposed_outcome_display || "Pending"}</Badge>;

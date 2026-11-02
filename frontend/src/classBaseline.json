@@ -1,6 +1,4 @@
 [
-  "add-student-view",
-  "audit-page",
   "bgc-info-text",
   "bgc-tray-header",
   "button-icon",
@@ -19,18 +17,13 @@
   "gsd-notes-display",
   "needs-attention-card",
   "now-card",
-  "overview-container",
   "pager__summary",
   "pl-header-actions",
   "pl-header-main",
   "status-radio-header",
-  "student-detail-view",
-  "students-view",
-  "syl-container",
   "theme-toggle",
   "timeline-base-item",
   "timeline-body",
   "upcoming-card",
-  "user-authority-form",
-  "users-filters"
+  "user-authority-form"
 ]

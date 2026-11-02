@@ -538,7 +538,7 @@ function DeleteAssessmentDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog title="Delete assessment" onClose={onClose} canClose={!isPending}>
+    <Dialog title="Delete assessment" closeButton={false} onClose={onClose} canClose={!isPending}>
       <p className="gsd-modal-message">
         Permanently delete {candidateName}&apos;s assessment? If it has a finalised outcome
         or promotion, those are deleted too and the student's rank is reverted. This cannot

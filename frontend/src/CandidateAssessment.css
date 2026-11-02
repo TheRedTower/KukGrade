@@ -23,7 +23,7 @@
 
 /* ── Not Started Prompt Banner ───────────────────────────────────────────── */
 
-.caw-run > .caw-action-error {
+.caw-run > .alert {
   margin-top: var(--section-gap);
 }
 
@@ -71,23 +71,6 @@
   padding: 4rem 1rem;
   font-size: 1.05rem;
   color: var(--color-text-muted);
-}
-
-.caw-error-banner,
-.caw-action-error {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-radius: 8px;
-  background: var(--color-danger-surface);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
-  color: var(--color-danger);
-  font-size: 0.9rem;
-}
-
-.caw-action-error p {
-  margin: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

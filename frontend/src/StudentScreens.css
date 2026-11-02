@@ -173,19 +173,8 @@
 
 /* Form Alert Banner */
 
-.form-alert-banner {
-  background: var(--color-danger-surface);
-  border: 1px solid var(--color-danger);
-  color: var(--color-danger);
-  border-radius: 8px;
-  padding: 0.85rem 1.25rem;
+.form-alert {
   margin-bottom: 1.5rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.form-alert-banner p {
-  margin: 0;
 }
 
 /* Form Section Cards */

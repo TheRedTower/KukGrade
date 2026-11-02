@@ -27,54 +27,8 @@
 
 /* Banners */
 
-.pl-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 18px;
-  border-radius: 8px;
-  font-size: 0.88rem;
-  margin-bottom: 20px;
-  line-height: 1.5;
-}
-
-.pl-banner-warning {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #92400e;
-}
-
-.pl-banner-success {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #065f46;
-}
-
-.pl-banner-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
-}
-
-.pl-banner-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex: 1;
-  gap: 12px;
-}
-
-.pl-banner-dismiss {
-  background: transparent;
-  border: none;
-  font-size: 0.95rem;
-  cursor: pointer;
-  opacity: 0.7;
-  color: inherit;
-}
-
-.pl-banner-dismiss:hover {
-  opacity: 1;
+.pl-alert {
+  margin-bottom: 1.25rem;
 }
 
 /* Top Cohort Promotion Summary Card */

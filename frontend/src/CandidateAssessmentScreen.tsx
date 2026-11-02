@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import {
   ApiError,
@@ -236,14 +237,11 @@ export function CandidateAssessmentScreen() {
   if (hasLoadError) {
     return (
       <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-load-error">
-        <div className="caw-error-banner" role="alert">
-          <p>
-            The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
-          </p>
-          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
+        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
-          </Link>
-        </div>
+          </Link>}>
+          The assessment summary could not be loaded, so scoring is paused rather than shown with counts that may be wrong. Reload to try again.
+        </Alert>
       </section>
     );
   }
@@ -251,12 +249,11 @@ export function CandidateAssessmentScreen() {
   if (!session || !candidate) {
     return (
       <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-not-found">
-        <div className="caw-error-banner" role="alert">
-          <p>Candidate or grading session not found.</p>
-          <Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
+        <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
-          </Link>
-        </div>
+          </Link>}>
+          Candidate or grading session not found.
+        </Alert>
       </section>
     );
   }
@@ -340,10 +337,7 @@ export function CandidateAssessmentScreen() {
       </header>
 
       {actionError && (
-        <div className="caw-action-error" role="alert">
-          <WarningIcon size={16} />
-          <p>{actionError}</p>
-        </div>
+        <Alert icon={<WarningIcon size={16} />}>{actionError}</Alert>
       )}
 
       {isAssessmentMissing && (
@@ -554,9 +548,7 @@ function DeleteAssessmentDialog({
         be undone.
       </p>
       {error && (
-        <div className="caw-error-banner" role="alert">
-          <p>{error}</p>
-        </div>
+        <Alert>{error}</Alert>
       )}
       <div className="action-row action-row--end">
         <Button

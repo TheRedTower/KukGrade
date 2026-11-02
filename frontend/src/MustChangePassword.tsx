@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 
+import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { ChangePasswordForm } from "./ChangePasswordForm";
 import { KukGradeLogo } from "./KukGradeLogo";
@@ -85,9 +86,7 @@ export function MustChangePassword({ themeToggle }: MustChangePasswordProps) {
           submittingLabel="Updating password..."
         />
         {signOutError ? (
-          <div className="form-error-banner" role="alert">
-            {signOutError}
-          </div>
+          <Alert>{signOutError}</Alert>
         ) : null}
       </main>
     </div>

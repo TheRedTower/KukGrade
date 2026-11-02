@@ -12,6 +12,7 @@ import "./theme.css";
 import "./layout.css";
 import "./controls.css";
 import "./App.css";
+import { Alert } from "./Alert";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
@@ -257,9 +258,9 @@ function ApplicationShell() {
         <div className="app-main">
           <DemoBanner />
           {logoutError ? (
-            <div className="workspace-alert" role="alert">
-              <p className="form-error">{logoutError}</p>
-            </div>
+            <div className="workspace-alert">
+            <Alert>{logoutError}</Alert>
+          </div>
           ) : null}
 
           <main className="workspace">

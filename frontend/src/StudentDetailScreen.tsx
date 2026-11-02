@@ -12,6 +12,7 @@ import {
   getStudentRankHistory,
   updateStudent,
 } from "./api";
+import { Alert } from "./Alert";
 import { failureMessage, useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
@@ -526,9 +527,7 @@ export function StudentDetailScreen() {
         <Dialog title="Change student status" closeLabel="Close dialog" onClose={() => setIsStatusModalOpen(false)} canClose={!isSavingStatus}>
 
             {statusError && (
-              <div role="alert" className="form-alert-banner">
-                <p>{statusError}</p>
-              </div>
+              <Alert className="form-alert">{statusError}</Alert>
             )}
 
             <form className="stack" onSubmit={handleSaveStatus}>
@@ -622,9 +621,7 @@ export function StudentDetailScreen() {
         <Dialog title="Delete student" closeLabel="Close dialog" onClose={() => setIsDeleteModalOpen(false)} canClose={!isDeletingStudent}>
 
             {deleteError && (
-              <div role="alert" className="form-alert-banner">
-                <p>{deleteError}</p>
-              </div>
+              <Alert className="form-alert">{deleteError}</Alert>
             )}
 
             <div>
@@ -659,9 +656,7 @@ export function StudentDetailScreen() {
         <Dialog title="Edit student record" closeLabel="Close dialog" onClose={() => setIsEditModalOpen(false)} canClose={!isSavingEdit}>
 
             {editForm.banner && (
-              <div role="alert" className="form-alert-banner">
-                <p>{editForm.banner}</p>
-              </div>
+              <Alert className="form-alert">{editForm.banner}</Alert>
             )}
 
             <form className="stack" onSubmit={handleSaveEdit} noValidate>

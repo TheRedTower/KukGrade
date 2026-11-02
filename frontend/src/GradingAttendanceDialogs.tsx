@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Alert } from "./Alert";
 import type { LockedCandidateWithdrawal, WithdrawalReason } from "./api";
 import { Dialog } from "./Dialog";
 import "./GradingAttendance.css";
@@ -83,7 +84,7 @@ export function NoShowDialog({
           ? "No no-shows selected"
           : `${selected.length} no-show${selected.length === 1 ? "" : "s"} selected`}
       </div>
-      {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+      {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
       <div className="attendance-dialog-actions">
         <Button variant="ghost" onClick={onClose} disabled={pending}>
           Cancel
@@ -169,7 +170,7 @@ export function LockedWithdrawalDialog({
             placeholder="Record any useful context without adding unnecessary personal detail."
           />
         </label>
-        {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+        {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
         <div className="attendance-dialog-actions">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
@@ -241,7 +242,7 @@ export function MoveRegistrationDialog({
         {sessions.length === 0 && (
           <p className="attendance-dialog-copy">No other draft or open session to move to.</p>
         )}
-        {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+        {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
         <div className="attendance-dialog-actions">
           <Button variant="ghost" onClick={onClose} disabled={pending}>
             Cancel
@@ -280,7 +281,7 @@ export function RemoveRegistrationDialog({
       <p className="attendance-dialog-copy">
         Removes this registration and its assessment, which has not been started. Use it for a registration made in error; the removal is kept in the audit log. To record that a candidate did not grade, withdraw them instead.
       </p>
-      {error && <div className="attendance-dialog-error" role="alert">{error}</div>}
+      {error && <Alert className="attendance-dialog-alert">{error}</Alert>}
       <div className="attendance-dialog-actions">
         <Button
           variant="ghost"

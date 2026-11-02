@@ -107,9 +107,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
 
 /* Links that act as controls - breadcrumbs, names in a table - are inline
    text, which no height reaches; they become boxes of the same size. */
-.cgs-breadcrumb-link,
-.gsd-breadcrumb-link,
-.bgc-breadcrumb-link,
 .users-back-link,
 .users-audit-link,
 .current-grading-link,

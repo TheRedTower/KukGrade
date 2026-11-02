@@ -2,6 +2,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
+import { Breadcrumbs } from "./Breadcrumbs";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
@@ -130,19 +131,7 @@ export function CreateGradingSessionScreen() {
 
   return (
     <section aria-labelledby="create-session-heading" className="page cgs-page">
-      {/* ── Breadcrumbs */}
-      <nav aria-label="Breadcrumb navigation" className="crumbs">
-        <button
-          className="cgs-breadcrumb-link"
-          id="cgs-breadcrumb-gradings"
-          onClick={() => navigate("/gradings")}
-          type="button"
-        >
-          Gradings
-        </button>
-        <span aria-hidden="true" className="cgs-breadcrumb-sep">/</span>
-        <span aria-current="page" className="cgs-breadcrumb-current">New session</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: "New session" }]} />
 
       {/* ── Page Header */}
       <div className="cgs-page-header">

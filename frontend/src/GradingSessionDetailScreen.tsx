@@ -22,6 +22,7 @@ import {
   withdrawLockedCandidate,
   errorMessage,
 } from "./api";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -629,12 +630,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
-      {/* ── Breadcrumbs ─────────────────────────────────────────────────── */}
-      <nav className="crumbs" aria-label="Breadcrumbs">
-        <Link to="/gradings" className="gsd-breadcrumb-link">Gradings</Link>
-        <span className="gsd-breadcrumb-sep" aria-hidden="true">/</span>
-        <span className="gsd-breadcrumb-current">{session.title}</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]} />
 
       {/* ── Action Error Banner ─────────────────────────────────────────── */}
       {actionError && (

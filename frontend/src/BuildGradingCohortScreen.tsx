@@ -12,6 +12,7 @@ import {
   getAllStudents,
   getGradingSession,
 } from "./api";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -433,14 +434,13 @@ export function BuildGradingCohortScreen() {
 
     return (
       <section aria-labelledby="bgc-resolver-title" className="page page--wide bgc-page" data-testid="bgc-page">
-        {/* Breadcrumbs */}
-        <nav className="crumbs" aria-label="Breadcrumbs">
-          <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
-          <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
-          <Link to={`/gradings/${session.id}`} className="bgc-breadcrumb-link">{session.title}</Link>
-          <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
-          <span className="bgc-breadcrumb-current">Resolve flagged candidates</span>
-        </nav>
+        <Breadcrumbs
+          items={[
+            { label: "Gradings", to: "/gradings" },
+            { label: session.title, to: `/gradings/${session.id}` },
+            { label: "Resolve flagged candidates" },
+          ]}
+        />
 
         {/* Header */}
         <header className="bgc-header">
@@ -618,14 +618,13 @@ export function BuildGradingCohortScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   return (
     <section aria-labelledby="bgc-title" className="page page--wide bgc-page" data-testid="bgc-page">
-      {/* Breadcrumbs */}
-      <nav className="crumbs" aria-label="Breadcrumbs">
-        <Link to="/gradings" className="bgc-breadcrumb-link">Gradings</Link>
-        <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
-        <Link to={`/gradings/${session.id}`} className="bgc-breadcrumb-link">{session.title}</Link>
-        <span className="bgc-breadcrumb-sep" aria-hidden="true">/</span>
-        <span className="bgc-breadcrumb-current">Build grading cohort</span>
-      </nav>
+      <Breadcrumbs
+        items={[
+          { label: "Gradings", to: "/gradings" },
+          { label: session.title, to: `/gradings/${session.id}` },
+          { label: "Build grading cohort" },
+        ]}
+      />
 
       {/* Header */}
       <header className="bgc-header">

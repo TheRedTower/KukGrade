@@ -520,7 +520,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
 
     expect(await screen.findByRole("heading", { name: "Create grading session" })).toBeVisible();
     expect(screen.getByText("Set the details, then add candidates.")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Gradings" })).toBeVisible();
+    expect(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" })).toBeVisible();
     expect(screen.getByLabelText(/session title/i)).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading day" })).toBeVisible();
     expect(screen.getByRole("combobox", { name: "Grading month" })).toBeVisible();
@@ -703,7 +703,7 @@ describe("Create Grading Session Screen (/gradings/new)", () => {
     window.history.pushState({}, "", "/gradings/new");
     window.dispatchEvent(new PopStateEvent("popstate"));
     await screen.findByRole("heading", { name: "Create grading session" });
-    await user.click(screen.getByRole("button", { name: "Gradings" }));
+    await user.click(within(screen.getByRole("navigation", { name: "Breadcrumbs" })).getByRole("link", { name: "Gradings" }));
     expect(window.location.pathname).toBe("/gradings");
   });
 

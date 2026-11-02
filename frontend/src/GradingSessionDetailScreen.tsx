@@ -629,6 +629,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     return { label, url, opensProposalDrawer };
   };
 
+  // A finished session may leave this viewer nothing to do: then there is no menu.
+  const hasSessionActions =
+    session.status === "DRAFT" ||
+    session.status === "OPEN" ||
+    session.status === "LOCKED" ||
+    Boolean(currentUser?.can_read_audit_log) ||
+    session.can_be_deleted;
+
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
       <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]} />
@@ -676,73 +684,31 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           )}
 
           {/* Actions Dropdown */}
-          <div className="gsd-dropdown-wrap" ref={actionsMenuRef} data-clip-ok>
-            <Button
-              ref={actionsButtonRef}
-              variant="ghost"
-              onClick={() => setActionsMenuOpen((prev) => !prev)}
-              aria-expanded={actionsMenuOpen}
-              aria-haspopup="menu"
-              data-testid="gsd-actions-btn"
-            >
-              Session actions <span className="gsd-chevron-down" aria-hidden="true">⌵</span>
-            </Button>
+          {hasSessionActions && (
+            <div className="gsd-dropdown-wrap" ref={actionsMenuRef} data-clip-ok>
+              <Button
+                ref={actionsButtonRef}
+                variant="ghost"
+                onClick={() => setActionsMenuOpen((prev) => !prev)}
+                aria-expanded={actionsMenuOpen}
+                aria-haspopup="menu"
+                data-testid="gsd-actions-btn"
+              >
+                Session actions <span className="gsd-chevron-down" aria-hidden="true">⌵</span>
+              </Button>
 
-            {actionsMenuOpen && (
-              <div className="gsd-dropdown-menu" role="menu" onKeyDown={handleMenuKeyDown}>
-                {session.status === "DRAFT" && (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => handleActionClick("OPEN")}
-                    >
-                      Open session
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item gsd-danger-text"
-                      onClick={() => handleActionClick("CANCEL")}
-                    >
-                      Cancel session
-                    </button>
-                  </>
-                )}
-
-                {session.status === "OPEN" && (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => handleActionClick("LOCK")}
-                    >
-                      Lock session
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item gsd-danger-text"
-                      onClick={() => handleActionClick("CANCEL")}
-                    >
-                      Cancel session
-                    </button>
-                  </>
-                )}
-
-                {session.status === "LOCKED" && (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="gsd-dropdown-item"
-                      onClick={() => handleActionClick("COMPLETE")}
-                    >
-                      Complete session
-                    </button>
-                    {currentUser?.can_override_locked_session && (
+              {actionsMenuOpen && (
+                <div className="gsd-dropdown-menu" role="menu" onKeyDown={handleMenuKeyDown}>
+                  {session.status === "DRAFT" && (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item"
+                        onClick={() => handleActionClick("OPEN")}
+                      >
+                        Open session
+                      </button>
                       <button
                         type="button"
                         role="menuitem"
@@ -751,35 +717,79 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                       >
                         Cancel session
                       </button>
-                    )}
-                  </>
-                )}
+                    </>
+                  )}
 
-                {currentUser?.can_read_audit_log && (
-                  <Link
-                    to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
-                    role="menuitem"
-                    className="gsd-dropdown-item"
-                    onClick={() => setActionsMenuOpen(false)}
-                  >
-                    View audit events
-                  </Link>
-                )}
+                  {session.status === "OPEN" && (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item"
+                        onClick={() => handleActionClick("LOCK")}
+                      >
+                        Lock session
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item gsd-danger-text"
+                        onClick={() => handleActionClick("CANCEL")}
+                      >
+                        Cancel session
+                      </button>
+                    </>
+                  )}
 
-                {/* The server decides, for this user, by the delete's own rule. */}
-                {session.can_be_deleted && (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="gsd-dropdown-item gsd-danger-text"
-                    onClick={() => handleActionClick("DELETE")}
-                  >
-                    Delete session
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+                  {session.status === "LOCKED" && (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="gsd-dropdown-item"
+                        onClick={() => handleActionClick("COMPLETE")}
+                      >
+                        Complete session
+                      </button>
+                      {currentUser?.can_override_locked_session && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="gsd-dropdown-item gsd-danger-text"
+                          onClick={() => handleActionClick("CANCEL")}
+                        >
+                          Cancel session
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {currentUser?.can_read_audit_log && (
+                    <Link
+                      to={`/audit?entity_type=GradingSession&entity_id=${session.id}`}
+                      role="menuitem"
+                      className="gsd-dropdown-item"
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      View audit events
+                    </Link>
+                  )}
+
+                  {/* The server decides, for this user, by the delete's own rule. */}
+                  {session.can_be_deleted && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="gsd-dropdown-item gsd-danger-text"
+                      onClick={() => handleActionClick("DELETE")}
+                    >
+                      Delete session
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Add candidate button */}
           {(session.status === "DRAFT" || session.status === "OPEN") && (

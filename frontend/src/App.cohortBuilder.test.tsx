@@ -567,6 +567,79 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     expect(window.location.pathname).toBe("/gradings/10");
   });
 
+  it("counts what a retry registers and keeps the rows it did not touch", async () => {
+    const responses: BulkCandidateRegistrationResponse[] = [
+      {
+        created: [{ candidate: registeredRow(101), assessment: null }],
+        errors: { "1": ["Temporary problem."] },
+      },
+      { created: [], errors: { "0": ["Still a problem."] } },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      setupCohortMock({ bulkRegisterHandler: () => jsonResponse(200, responses.shift()) }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+    await user.click(screen.getByTestId("bgc-add-group-1"));
+    await user.click(screen.getByTestId("bgc-register-candidates-btn"));
+    expect(await screen.findByText("Temporary problem.")).toBeVisible();
+
+    await user.click(screen.getByTestId("bgc-retry-flagged-btn"));
+
+    expect(await screen.findByText("Still a problem.")).toBeVisible();
+    expect(screen.getByText("1 registered")).toBeVisible();
+    expect(screen.getByText("1 flagged")).toBeVisible();
+  });
+
+  it("goes on to the session once the last flagged row is removed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupCohortMock({
+        bulkRegisterHandler: () =>
+          jsonResponse(200, {
+            created: [{ candidate: registeredRow(101), assessment: null }],
+            errors: { "1": ["Temporary problem."] },
+          } satisfies BulkCandidateRegistrationResponse),
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+    await user.click(screen.getByTestId("bgc-add-group-1"));
+    await user.click(screen.getByTestId("bgc-register-candidates-btn"));
+    await screen.findByText("Temporary problem.");
+
+    await user.click(screen.getByRole("button", { name: "Remove from list" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/gradings/10"));
+  });
+
+  it("returns to an empty cohort when nothing was registered and the last row is removed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      setupCohortMock({
+        bulkRegisterHandler: () =>
+          jsonResponse(200, { created: [], errors: { "0": ["This student cannot be registered."] } }),
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Build grading cohort" });
+    await user.click(screen.getByTestId("bgc-add-student-101"));
+    await user.click(screen.getByTestId("bgc-register-candidates-btn"));
+    await screen.findByText("This student cannot be registered.");
+
+    await user.click(screen.getByRole("button", { name: "Remove from list" }));
+
+    expect(await screen.findByRole("heading", { name: "Build grading cohort" })).toBeVisible();
+    expect(screen.getByTestId("bgc-register-candidates-btn")).toHaveTextContent("Register 0 candidates");
+  });
+
   it("flags a student held by another grading without offering a retry", async () => {
     const heldElsewhere =
       "This student is already registered for 'Summer Grading', which has not reached its " +

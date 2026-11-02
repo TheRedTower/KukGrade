@@ -123,6 +123,8 @@ describe("Imports hub", () => {
     await user.click(await screen.findByRole("button", { name: "Cancel spring-roster.xlsx" }));
     const dialog = screen.getByRole("dialog", { name: "Cancel spring-roster.xlsx?" });
     expect(api.cancelDataImportBatch).not.toHaveBeenCalled();
+    // A second Enter must not be what removes the work.
+    expect(within(dialog).getByRole("button", { name: "Not yet" })).toHaveFocus();
     await user.click(within(dialog).getByRole("button", { name: "Cancel the import" }));
 
     await waitFor(() => expect(api.cancelDataImportBatch).toHaveBeenCalledWith(7));
@@ -498,6 +500,7 @@ describe("An import's results", () => {
       const dialog = screen.getByRole("dialog");
       const confirm = within(dialog).getByRole("button", { name: "Void every record" });
       expect(confirm).toBeDisabled();
+      expect(within(dialog).getByLabelText("Why")).toHaveFocus();
       await user.type(within(dialog).getByLabelText("Why"), "The wrong year's workbook");
       await user.click(confirm);
 

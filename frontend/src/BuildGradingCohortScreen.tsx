@@ -324,19 +324,23 @@ export function BuildGradingCohortScreen() {
         return;
       }
       // Partial success or errors: the Exception Resolver lists what is left.
-      if (!request.retry) setRegistrationResult(response);
-      setFlaggedItems(
-        errorKeys.map((idxStr) => {
-          const row = request.rows[Number(idxStr)];
-          const errorMsg = (response.errors[idxStr] || []).join(", ");
-          return {
-            key: idxStr,
-            student: row?.student,
-            destinationRank: row?.destinationRank ?? null,
-            error: errorMsg || (request.retry ? "" : "Registration failed"),
-            isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
-          };
-        }),
+      setRegistrationResult((previous) =>
+        request.retry && previous ? { ...response, created: [...previous.created, ...response.created] } : response,
+      );
+      const flagged = errorKeys.map((idxStr) => {
+        const row = request.rows[Number(idxStr)];
+        const errorMsg = (response.errors[idxStr] || []).join(", ");
+        return {
+          key: row ? String(row.student.id) : idxStr,
+          student: row?.student,
+          destinationRank: row?.destinationRank ?? null,
+          error: errorMsg || "Registration failed",
+          isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
+        };
+      });
+      // A retry sends only the retryable rows, so the others stay as they are.
+      setFlaggedItems((previous) =>
+        request.retry ? [...previous.filter((item) => item.isAlreadyRegistered), ...flagged] : flagged,
       );
     },
     onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
@@ -363,7 +367,14 @@ export function BuildGradingCohortScreen() {
 
   // Exception Resolver: Remove flagged item from retry list
   const handleRemoveFlaggedCandidate = (key: string) => {
-    setFlaggedItems((prev) => prev.filter((item) => item.key !== key));
+    const removed = flaggedItems.find((item) => item.key === key);
+    const remaining = flaggedItems.filter((item) => item.key !== key);
+    setFlaggedItems(remaining);
+    setCohort((prev) => prev.filter((item) => item.student.id !== removed?.student?.id));
+    if (remaining.length > 0) return;
+    // Nothing left to resolve: on to the session, or back to a cohort that no longer has them.
+    if (registrationResult?.created.length) navigate(`/gradings/${sessionId}`);
+    else setRegistrationResult(null);
   };
 
   // Exception Resolver: Retry remaining flagged candidates

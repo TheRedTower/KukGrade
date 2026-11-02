@@ -911,6 +911,7 @@ describe("Linking historical records", () => {
     await user.click(screen.getByRole("button", { name: "Void the Mar 2025 record" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Void the record" })).toBeDisabled();
+    expect(within(dialog).getByLabelText("Why")).toHaveFocus();
     await user.type(within(dialog).getByLabelText("Why"), "Entered twice");
     await user.click(within(dialog).getByRole("button", { name: "Void the record" }));
     await waitFor(() => expect(api.voidLegacyGradingRecord).toHaveBeenCalledWith(101, "Entered twice"));

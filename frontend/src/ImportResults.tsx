@@ -481,7 +481,7 @@ function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () =>
       <label className="ix-field" htmlFor="ix-void-reason">
         Why
       </label>
-      <textarea id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      <textarea data-dialog-autofocus id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
     </ImportDialog>
   );
 }

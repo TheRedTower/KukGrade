@@ -145,6 +145,23 @@ describe("GradingSessionDetailScreen delete action on a locked session", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("offers no Session actions button when a finished session leaves the viewer nothing to do", async () => {
+    currentUser = instructorUser;
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed" });
+    renderScreen();
+
+    await screen.findByRole("heading", { name: "March 2027 Riverside Grading" });
+    expect(screen.queryByTestId("gsd-actions-btn")).not.toBeInTheDocument();
+  });
+
+  it("keeps Session actions on a finished session for someone who can read its audit events", async () => {
+    currentUser = adminUser;
+    mockGetGradingSession.mockResolvedValue({ ...lockedSession(), status: "COMPLETED", status_display: "Completed" });
+    renderScreen();
+
+    expect(await screen.findByTestId("gsd-actions-btn")).toBeVisible();
+  });
+
   it("lets an administrator delete a locked session after confirming", async () => {
     currentUser = adminUser;
     // The server decides per user: an administrator may delete any status.

@@ -279,7 +279,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
         </Alert>
       )}
 
-      {!isBatchSummaryOpen && !singlePromoteCandidate && feedbackBanner}
+      {!(isBatchSummaryOpen && eligibleCohort.length > 0) && !singlePromoteCandidate && feedbackBanner}
 
       {/* Top Cohort Promotion Summary Card */}
       <section className="action-row pl-summary-card" aria-label="Cohort Promotion Summary">
@@ -296,7 +296,10 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
         <Button
           variant="primary"
-          onClick={() => setIsBatchSummaryOpen(true)}
+          onClick={() => {
+            setActionFeedback(null);
+            setIsBatchSummaryOpen(true);
+          }}
           disabled={eligibleCohort.length === 0 || !canPromote}
           title={
             !canPromote
@@ -418,6 +421,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
                   <Button
                     variant="secondary"
                     onClick={() => {
+                      setActionFeedback(null);
                       setSinglePromoteCandidate(row);
                       setSinglePromoteNotes("");
                     }}

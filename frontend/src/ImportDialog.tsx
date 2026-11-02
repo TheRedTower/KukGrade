@@ -39,12 +39,12 @@ export function ImportDialog({
         </ErrorText>
       ) : null}
       <div className="ix-actions dialog__actions">
-        <Button variant="ghost" disabled={pending} onClick={onClose}>
+        <Button variant="ghost" data-dialog-autofocus={danger || undefined} disabled={pending} onClick={onClose}>
           {cancelLabel}
         </Button>
         <Button
           variant={danger ? "danger" : "primary"}
-          data-dialog-autofocus
+          data-dialog-autofocus={danger ? undefined : true}
           disabled={pending || confirmDisabled}
           onClick={onConfirm}
         >

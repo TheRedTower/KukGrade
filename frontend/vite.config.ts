@@ -3,10 +3,15 @@ import { configDefaults, defineConfig } from "vitest/config";
 
 import packageJson from "./package.json" with { type: "json" };
 
+// A candidate's build names itself as the server does (0.2.0-rc.4), by the same
+// rule as BUILD_PRE_RELEASE in backend/kukgrade/settings.py.
+const preRelease = process.env.KUKGRADE_BUILD_PRE_RELEASE?.trim() ?? "";
+const version = /^[0-9A-Za-z.-]{1,20}$/.test(preRelease) ? `${packageJson.version}-${preRelease}` : packageJson.version;
+
 export default defineConfig({
   plugins: [react()],
   define: {
-    __APP_VERSION__: JSON.stringify(packageJson.version),
+    __APP_VERSION__: JSON.stringify(version),
   },
   test: {
     environment: "jsdom",

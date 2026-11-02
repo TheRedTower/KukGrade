@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   ApiError,
+  isAnonymousResponse,
   type AuthUser,
   changePassword as changePasswordApi,
   completeSetup,
@@ -53,20 +54,6 @@ export function hasSignedInBefore(): boolean {
   } catch {
     return false;
   }
-}
-
-/**
- * Only a genuine "you are not signed in" answer from the server counts as
- * anonymous. A dropped connection, a 5xx, or a CORS rejection is not
- * evidence about the viewer's session, and treating it as one signed people
- * out mid-grading.
- */
-function isAnonymousResponse(error: unknown): boolean {
-  return (
-    error instanceof ApiError &&
-    (error.status === 401 ||
-      (error.status === 403 && error.code === "authentication_required"))
-  );
 }
 
 function describeAuthFailure(error: unknown): string {

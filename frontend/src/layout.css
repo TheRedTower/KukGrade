@@ -797,9 +797,14 @@ select:not([multiple]):not([size]) {
   cursor: pointer;
 }
 
-.rail__arrow:hover:not(:disabled) {
+.rail__arrow:hover:not([aria-disabled="true"]) {
   border-color: var(--color-text-muted);
   background: var(--color-surface-sunken);
+}
+
+.rail__arrow[aria-disabled="true"] {
+  color: var(--color-text-muted);
+  cursor: default;
 }
 
 .rail__arrow[hidden] {

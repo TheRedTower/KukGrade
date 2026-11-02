@@ -41,15 +41,16 @@ interface ResponsiveTableProps<Row> {
  * A card expects one `primary` column and at most one `inline` action column.
  */
 export function ResponsiveTable<Row>({ label, rows, rowKey, columns, empty, testId, rowTestId, selected, flush }: ResponsiveTableProps<Row>) {
+  const box = flush ? "rtable rtable--flush" : "rtable";
   if (rows.length === 0 && empty !== undefined) {
     return (
-      <div className="rtable rtable__empty" aria-label={label} data-testid={testId}>
+      <div className={`${box} rtable__empty`} role="group" aria-label={label} data-testid={testId}>
         {empty}
       </div>
     );
   }
   return (
-    <div className={flush ? "rtable rtable--flush" : "rtable"}>
+    <div className={box}>
       <table aria-label={label} role="table" data-testid={testId}>
         <thead role="rowgroup">
           <tr role="row">

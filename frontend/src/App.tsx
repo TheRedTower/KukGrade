@@ -360,7 +360,7 @@ function createQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         // A dropped connection or a 403 is meaningful the moment it happens
-        // (see isAnonymousResponse in auth.tsx) - retrying in the background
+        // (see isAnonymousResponse in api.ts) - retrying in the background
         // would delay that answer and, in tests, call the fetch mock more
         // times than the test set up responses for.
         retry: false,

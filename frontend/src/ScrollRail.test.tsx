@@ -45,13 +45,27 @@ describe("ScrollRail", () => {
     const track = screen.getByRole("region", { name: "Ranks" });
     sizeTrack(track, 0);
     expect(document.querySelectorAll(".rail__arrow[hidden]")).toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Scroll ranks left" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Scroll ranks right" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Scroll ranks left" })).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("button", { name: "Scroll ranks right" })).toHaveAttribute("aria-disabled", "false");
     expect(track).toHaveAttribute("data-at-start");
     expect(track).not.toHaveAttribute("data-at-end");
     sizeTrack(track, 150);
-    expect(screen.getByRole("button", { name: "Scroll ranks right" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Scroll ranks right" })).toHaveAttribute("aria-disabled", "true");
     expect(track).toHaveAttribute("data-at-end");
+  });
+
+  it("keeps keyboard focus on an arrow that reaches its edge, and it no longer moves", () => {
+    renderRail();
+    const track = screen.getByRole("region", { name: "Ranks" });
+    sizeTrack(track, 0);
+    const scrollBy = vi.fn();
+    track.scrollBy = scrollBy;
+    const right = screen.getByRole("button", { name: "Scroll ranks right" });
+    right.focus();
+    sizeTrack(track, 150);
+    expect(right).toHaveFocus();
+    fireEvent.click(right);
+    expect(scrollBy).not.toHaveBeenCalled();
   });
 
   it("moves a page, most of the window, with an arrow", () => {

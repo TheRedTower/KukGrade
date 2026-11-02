@@ -1,7 +1,8 @@
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ApiError, NETWORK_ERROR, errorMessage } from "./api";
-import { splitServerErrors } from "./forms";
+import { splitServerErrors, useServerForm } from "./forms";
 
 const shown = ["first_name", "wksa_id"];
 const invalid = (fields: ConstructorParameters<typeof ApiError>[3], message = "Some details need correcting.") =>
@@ -34,5 +35,14 @@ describe("splitServerErrors", () => {
     });
     expect(errorMessage(new TypeError("Failed to fetch"), "Failed.")).toBe(NETWORK_ERROR);
     expect(errorMessage(new TypeError("Load failed"), "Failed.")).toBe(NETWORK_ERROR);
+  });
+});
+
+describe("useServerForm", () => {
+  it("shows every message a field has, not only the first", () => {
+    const { result } = renderHook(() => useServerForm(["email"]));
+    act(() => result.current.setClientErrors({ email: ["Enter an email.", "Use your club address."] }));
+    expect(result.current.errorFor("email")).toBe("Enter an email. Use your club address.");
+    expect(result.current.errorFor("name")).toBeNull();
   });
 });

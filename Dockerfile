@@ -8,6 +8,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
+ARG KUKGRADE_BUILD_PRE_RELEASE=""
 RUN VITE_API_BASE_URL= npm run build -- --base=/static/
 
 FROM ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 AS uv

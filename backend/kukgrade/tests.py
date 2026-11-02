@@ -372,6 +372,9 @@ def test_a_release_candidates_number_comes_from_the_environment(
     padded = load_settings(
         monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE=" rc.12 "
     )
+    hyphenated = load_settings(
+        monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE="rc-1.beta"
+    )
     unset = load_settings(monkeypatch, **PRODUCTION_ENV)
     blank = load_settings(
         monkeypatch, **PRODUCTION_ENV, KUKGRADE_BUILD_PRE_RELEASE="  "
@@ -379,6 +382,7 @@ def test_a_release_candidates_number_comes_from_the_environment(
 
     assert candidate.BUILD_PRE_RELEASE == "rc.4"
     assert padded.BUILD_PRE_RELEASE == "rc.12"
+    assert hyphenated.BUILD_PRE_RELEASE == "rc-1.beta"
     assert unset.BUILD_PRE_RELEASE == ""
     assert blank.BUILD_PRE_RELEASE == ""
 

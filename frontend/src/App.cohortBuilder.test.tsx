@@ -571,7 +571,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
       { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."], "2": ["Another problem."] } },
-      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "0": ["Still a problem."] } },
+      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "1": ["Still a problem."] } },
       { created: [{ candidate: registeredRow(103), assessment: null }], errors: {} },
     ];
     vi.stubGlobal(

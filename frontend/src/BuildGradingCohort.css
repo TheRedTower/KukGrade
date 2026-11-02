@@ -174,11 +174,6 @@
   color: var(--color-text);
 }
 
-.bgc-add-filtered-btn {
-  font-size: 0.85rem;
-  padding: 0.45rem 1rem;
-}
-
 /* ── Section 2 Tables & Rank Visuals ─────────────────────────────────────── */
 
 .bgc-rank-cell {
@@ -219,18 +214,6 @@
   font-weight: 600;
 }
 
-.bgc-add-group-btn {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.85rem;
-}
-
-.bgc-group-added-btn {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.85rem;
-  color: var(--color-success);
-  border-color: var(--color-success);
-}
-
 .bgc-empty-filtered {
   text-align: center;
   padding: 2.25rem 1rem;
@@ -239,18 +222,6 @@
   border: 1px dashed var(--color-border);
   border-radius: 8px;
   font-size: 0.88rem;
-}
-
-.bgc-add-student-btn {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.85rem;
-}
-
-.bgc-student-added-btn {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.85rem;
-  color: var(--color-success);
-  border-color: var(--color-success);
 }
 
 .bgc-student-name-link {
@@ -297,27 +268,6 @@
   margin: 0.35rem 0 0 0;
 }
 
-.bgc-btn-remove-group {
-  background: transparent;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.bgc-btn-remove-group:hover {
-  background: rgba(220, 38, 38, 0.1);
-  color: #dc2626;
-}
-
-[data-theme="dark"] .bgc-btn-remove-group:hover {
-  background: rgba(239, 68, 68, 0.18);
-  color: #f87171;
-}
-
 .bgc-exceptions-callout {
   display: flex;
   flex-direction: column;
@@ -325,29 +275,6 @@
   padding: 0.75rem 0;
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
-}
-
-.bgc-review-exceptions-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-accent-text);
-  font-size: 0.88rem;
-  font-weight: 600;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.bgc-review-exceptions-btn:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.bgc-review-exceptions-btn:disabled {
-  color: var(--color-text-muted);
-  cursor: not-allowed;
 }
 
 .bgc-exceptions-help {
@@ -445,12 +372,7 @@
   margin-top: 0.5rem;
 }
 
-.bgc-cancel-btn {
-  font-size: 0.9rem;
-  padding: 0.6rem 1.25rem;
-}
-
-.bgc-register-btn {
+.bgc-tray-primary {
   flex: 1 1 auto;
   justify-content: center;
 }
@@ -500,26 +422,6 @@
 .bgc-modal-rank-flow {
   font-size: 0.82rem;
   color: var(--color-text-muted);
-}
-
-.bgc-btn-remove-individual {
-  color: #dc2626 !important;
-  font-size: 0.82rem !important;
-  padding: 0.35rem 0.65rem !important;
-  min-height: 44px !important;
-}
-
-.bgc-btn-remove-individual:hover {
-  background: rgba(220, 38, 38, 0.1) !important;
-}
-
-[data-theme="dark"] .bgc-btn-remove-individual {
-  color: #f87171 !important;
-}
-
-[data-theme="dark"] .bgc-btn-remove-individual:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  color: #fca5a5 !important;
 }
 
 /* ── EXCEPTION RESOLVER ───────────────────────────────────────── */
@@ -600,30 +502,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
-}
-
-.bgc-row-btn {
-  font-size: 0.82rem !important;
-  padding: 0.35rem 0.65rem !important;
-  min-height: 44px !important;
-  text-decoration: none;
-}
-
-.bgc-btn-remove {
-  color: #dc2626 !important;
-}
-
-.bgc-btn-remove:hover {
-  background: rgba(220, 38, 38, 0.1) !important;
-}
-
-[data-theme="dark"] .bgc-btn-remove {
-  color: #f87171 !important;
-}
-
-[data-theme="dark"] .bgc-btn-remove:hover {
-  background: rgba(239, 68, 68, 0.18) !important;
-  color: #fca5a5 !important;
 }
 
 /* ── Collapsible Successful Registrations ───────────────────────────────── */
@@ -714,12 +592,6 @@
   gap: 1.5rem;
   flex-wrap: wrap;
   padding-top: 1rem;
-}
-
-.bgc-finish-btn {
-  font-size: 0.92rem;
-  padding: 0.65rem 1.25rem;
-  text-decoration: none;
 }
 
 .bgc-retry-action-wrap {

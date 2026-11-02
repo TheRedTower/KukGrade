@@ -156,27 +156,6 @@
   align-items: center;
 }
 
-.gs-open-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  padding: 0 1.4rem;
-  font-weight: 700;
-  font-size: 0.95rem;
-  border-radius: 8px;
-  border: 1px solid var(--btn-primary-border);
-  background: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
-  box-shadow: var(--btn-primary-shadow);
-  transition: filter 140ms ease;
-  white-space: nowrap;
-}
-
-.gs-open-btn:hover:not(:disabled) {
-  filter: brightness(1.07);
-}
-
 /* ── Table Section ───────────────────────────────────────────────────────── */
 
 .gs-table-section {
@@ -198,28 +177,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.gs-delete-row-btn {
-  color: #dc2626 !important;
-  border-color: rgba(220, 38, 38, 0.3) !important;
-}
-
-.gs-delete-row-btn:hover {
-  background: rgba(220, 38, 38, 0.08) !important;
-  color: #b91c1c !important;
-  border-color: rgba(220, 38, 38, 0.5) !important;
-}
-
-[data-theme="dark"] .gs-delete-row-btn {
-  color: #f87171 !important;
-  border-color: rgba(248, 113, 113, 0.35) !important;
-}
-
-[data-theme="dark"] .gs-delete-row-btn:hover {
-  background: rgba(239, 68, 68, 0.15) !important;
-  color: #fca5a5 !important;
-  border-color: rgba(239, 68, 68, 0.6) !important;
 }
 
 /* ── Status Badges ───────────────────────────────────────────────────────── */
@@ -457,11 +414,6 @@
   margin-top: 0.75rem;
 }
 
-.cgs-cancel-btn {
-  min-height: 44px;
-  padding: 0 1.25rem;
-}
-
 /* ── Preview Column ──────────────────────────────────────────────────────── */
 
 .cgs-preview-card {
@@ -572,24 +524,6 @@
 
 .gsd-dropdown-wrap {
   position: relative;
-}
-
-.gsd-actions-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.65rem 1rem;
-  font-weight: 600;
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  min-height: 44px;
-}
-
-.gsd-actions-btn:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-text-muted);
 }
 
 .gsd-chevron-down {
@@ -771,26 +705,6 @@
   color: #fcd34d;
 }
 
-.gsd-banner-btn {
-  border: 1px solid #d97706;
-  color: #92400e;
-  background: transparent;
-  font-weight: 600;
-  padding: 0.45rem 0.9rem;
-  border-radius: 6px;
-  min-height: var(--target-min);
-  white-space: nowrap;
-}
-
-[data-theme="dark"] .gsd-banner-btn {
-  color: #fcd34d;
-  border-color: #f59e0b;
-}
-
-.gsd-banner-btn:hover {
-  background: rgba(217, 119, 6, 0.15);
-}
-
 /* ── Candidates Roster Section ───────────────────────────────────────────── */
 
 .gsd-candidates-section {
@@ -906,28 +820,6 @@
 
 /* ── Row Action Button ───────────────────────────────────────────────────── */
 
-.gsd-row-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.9rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-decoration: none;
-  min-height: 44px;
-  transition: all 120ms ease;
-  white-space: nowrap;
-}
-
-.gsd-row-action-btn:hover {
-  background: var(--color-surface-sunken);
-  border-color: var(--color-text-muted);
-}
-
 /* ── Empty states ────────────────────────────────────────────────────────── */
 
 .gsd-empty-roster,
@@ -987,24 +879,6 @@
   font-size: 0.85rem;
   color: var(--color-text-muted);
   margin: 0.25rem 0 0;
-}
-
-.gsd-edit-notes-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  padding: 0.45rem 0.85rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  background: var(--color-surface);
-  color: var(--color-text);
-  min-height: 44px;
-}
-
-.gsd-edit-notes-btn:hover {
-  background: var(--color-surface-sunken);
 }
 
 .gsd-notes-text {

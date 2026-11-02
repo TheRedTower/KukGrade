@@ -286,7 +286,7 @@ export function CreateGradingSessionScreen() {
             {/* Form Actions */}
             <div className="action-row cgs-form-actions">
               <Button
-                variant="ghost" className="cgs-cancel-btn"
+                variant="ghost"
                 disabled={isSubmitting}
                 id="cgs-cancel-btn"
                 onClick={() => navigate("/gradings")}

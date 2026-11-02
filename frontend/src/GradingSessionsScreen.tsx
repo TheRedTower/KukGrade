@@ -85,7 +85,7 @@ function CurrentSessionCard({ session, candidateCount, assessmentsComplete, awai
           </div>
         </div>
         <div className="gs-current-action">
-          <Button variant="primary" className="gs-open-btn" id="open-current-grading-btn" onClick={onOpen}>
+          <Button variant="primary" id="open-current-grading-btn" onClick={onOpen}>
             Open grading <ArrowRightIcon />
           </Button>
         </div>
@@ -276,7 +276,7 @@ export function GradingSessionsScreen() {
                         </Button>
                         {session.can_be_deleted && (
                           <Button
-                            variant="ghost" small className="gs-delete-row-btn"
+                            variant="danger-quiet" small
                             onClick={() => {
                               setDeleteError(null);
                               setDeleteConfirmSession(session);

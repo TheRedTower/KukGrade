@@ -695,7 +695,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           <div className="gsd-dropdown-wrap" ref={actionsMenuRef} data-clip-ok>
             <Button
               ref={actionsButtonRef}
-              variant="ghost" className="gsd-actions-btn"
+              variant="ghost"
               onClick={() => setActionsMenuOpen((prev) => !prev)}
               aria-expanded={actionsMenuOpen}
               aria-haspopup="menu"
@@ -844,7 +844,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           </div>
           <Link
             to={`/gradings/${session.id}/decisions`}
-            className={buttonClass({ variant: "ghost" }, "gsd-banner-btn")}
+            className={buttonClass({ variant: "ghost", small: true })}
             data-testid="gsd-review-decisions-btn"
           >
             Review <span aria-hidden="true">→</span>
@@ -1048,20 +1048,20 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                           <span className="gsd-withdrawal-record">No further action</span>
                         ) : next.opensProposalDrawer ? (
                           <Button
-                            variant="ghost" className="gsd-row-action-btn"
+                            variant="ghost" small
                             onClick={() => setProposalDrawerItem(item)}
                             data-testid={`propose-outcome-btn-${candidateId}`}
                           >
                             {next.label}
                           </Button>
                         ) : (
-                          <Link to={next.url} className={buttonClass({ variant: "ghost" }, "gsd-row-action-btn")}>
+                          <Link to={next.url} className={buttonClass({ variant: "ghost", small: true })}>
                             {next.label}
                           </Link>
                         )}
                         {item.candidate.can_be_moved && (
                           <Button
-                            variant="ghost" className="gsd-row-action-btn"
+                            variant="ghost" small
                             onClick={() => setRegistrationAction({ kind: "move", item })}
                             aria-label={`Move ${item.candidate.student_display_name} to another session`}
                           >
@@ -1070,7 +1070,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         )}
                         {item.candidate.can_be_removed && (
                           <Button
-                            variant="ghost" className="gsd-row-action-btn gsd-withdraw-button"
+                            variant="danger-quiet" small
                             onClick={() => setRegistrationAction({ kind: "remove", item })}
                             aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
                           >
@@ -1079,7 +1079,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                         )}
                         {canWithdrawLocked && (
                           <Button
-                            variant="ghost" className="gsd-row-action-btn gsd-withdraw-button"
+                            variant="danger-quiet" small
                             onClick={() => {
                               setWithdrawalError(null);
                               setWithdrawalCandidate(item);
@@ -1110,7 +1110,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             </div>
             {!isEditingNotes && (
               <Button
-                variant="ghost" className="gsd-edit-notes-btn"
+                variant="ghost" small
                 onClick={() => {
                   setIsEditingNotes(true);
                   setNotesInput(session.notes || "");

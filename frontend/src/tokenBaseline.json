@@ -24,14 +24,11 @@
     "radius": 1
   },
   "BuildGradingCohort.css": {
-    "rawColour": 21,
-    "important": 16,
-    "fontSize": 48,
-    "fontWeight": 25,
-    "radius": 11,
-    "shadow": 1,
-    "buttonClass": 13,
-    "darkOverride": 5
+    "rawColour": 7,
+    "fontSize": 37,
+    "fontWeight": 24,
+    "radius": 10,
+    "shadow": 1
   },
   "CandidateAssessment.css": {
     "rawColour": 3,
@@ -55,17 +52,16 @@
     "fontSize": 3,
     "fontWeight": 3,
     "radius": 3,
-    "buttonClass": 2
+    "buttonClass": 1
   },
   "GradingSessions.css": {
-    "rawColour": 55,
-    "important": 18,
-    "fontSize": 47,
-    "fontWeight": 33,
-    "radius": 19,
+    "rawColour": 40,
+    "important": 8,
+    "fontSize": 44,
+    "fontWeight": 28,
+    "radius": 14,
     "shadow": 1,
-    "buttonClass": 7,
-    "darkOverride": 14
+    "darkOverride": 11
   },
   "Imports.css": {
     "fontSize": 38,

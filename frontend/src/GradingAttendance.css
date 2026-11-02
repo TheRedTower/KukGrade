@@ -120,10 +120,6 @@
   gap: 0.35rem;
 }
 
-.gsd-withdraw-button {
-  color: var(--color-danger);
-}
-
 @media (max-width: 600px) {
   .attendance-dialog {
     padding: 1.1rem;

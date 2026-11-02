@@ -11,13 +11,14 @@ import {
   getStudentGradingHistory,
   getStudentRankHistory,
   updateStudent,
+  errorMessage,
 } from "./api";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
-import { failureMessage, useServerForm } from "./forms";
+import { useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
 import { useAuth } from "./auth";
 import { Dialog } from "./Dialog";
@@ -90,7 +91,7 @@ export function StudentDetailScreen() {
       ]);
       setIsStatusModalOpen(false);
     },
-    onError: (err) => setStatusError(failureMessage(err, "Failed to update student status.")),
+    onError: (err) => setStatusError(errorMessage(err, "Failed to update student status.")),
   });
   const isSavingStatus = statusMutation.isPending;
 
@@ -117,7 +118,7 @@ export function StudentDetailScreen() {
       ]);
       navigate("/students");
     },
-    onError: (err) => setDeleteError(failureMessage(err, "Failed to delete student.")),
+    onError: (err) => setDeleteError(errorMessage(err, "Failed to delete student.")),
   });
   const isDeletingStudent = deleteMutation.isPending;
 

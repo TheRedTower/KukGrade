@@ -11,12 +11,12 @@ import {
   bulkRegisterCandidates,
   getAllStudents,
   getGradingSession,
+  errorMessage,
 } from "./api";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
-import { failureMessage } from "./forms";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Dialog } from "./Dialog";
@@ -339,7 +339,7 @@ export function BuildGradingCohortScreen() {
         }),
       );
     },
-    onError: (err) => setSubmitError(failureMessage(err, "Failed to register grading candidates.")),
+    onError: (err) => setSubmitError(errorMessage(err, "Failed to register grading candidates.")),
   });
   const isSubmitting = registerMutation.isPending;
 
@@ -418,7 +418,7 @@ export function BuildGradingCohortScreen() {
           title="Failed to load grading session"
           action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
         >
-          {sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}
+          {errorMessage(sessionQuery.error, "Session not found.")}
         </EmptyState>
       </section>
     );

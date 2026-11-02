@@ -26,7 +26,6 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import {
-  ApiError,
   CandidateAssessmentItem,
   CandidateAssessmentItemResult,
   deleteCandidateAssessment,
@@ -223,8 +222,9 @@ export function CandidateAssessmentScreen() {
       navigate(`/gradings/${numSessionId}`);
     },
   });
-  const deleteAssessmentError =
-    deleteAssessmentMutation.error instanceof ApiError ? deleteAssessmentMutation.error.message : null;
+  const deleteAssessmentError = deleteAssessmentMutation.error
+    ? errorMessage(deleteAssessmentMutation.error, "The assessment could not be deleted.")
+    : null;
 
   if (isLoading) {
     return (

@@ -244,8 +244,12 @@ describe("GradingSessionDetailScreen registration actions", () => {
     await user.click(within(dialog).getByRole("button", { name: "Move registration" }));
 
     await waitFor(() => expect(mockMoveGradingCandidate).toHaveBeenCalledWith(31, 10));
-    expect(await screen.findByText("Mia Okafor was moved to another session.")).toBeVisible();
+    const moved = await screen.findByText("Mia Okafor was moved to another session.");
+    expect(moved).toBeVisible();
     expect(screen.queryByRole("dialog")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss message" }));
+    expect(moved).not.toBeInTheDocument();
   });
 
   it("keeps the move dialog open with the server's reason when it is refused", async () => {

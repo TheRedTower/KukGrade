@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SyllabusScreen } from "./SyllabusScreen";
+import { NETWORK_ERROR } from "./api";
 import type { AgeBand, EffectiveSyllabusRequirement, Rank } from "./api";
 
 function renderScreen() {
@@ -263,7 +264,7 @@ function stubFetch(
       }
       if (url.includes("/api/syllabus/requirements/effective/")) {
         if (effectiveFails) {
-          return Promise.reject(new Error("Network connection lost"));
+          return Promise.reject(new TypeError("Failed to fetch"));
         }
         const match = /rank_code=([^&]+)/.exec(url);
         const rankCode = match ? match[1] : "";
@@ -531,7 +532,7 @@ describe("SyllabusScreen", () => {
     renderScreen();
 
     expect(await screen.findByRole("alert")).toBeVisible();
-    expect(screen.getByText("Network connection lost")).toBeVisible();
+    expect(screen.getByText(NETWORK_ERROR)).toBeVisible();
     // A failed load is not "no syllabus recorded".
     expect(screen.queryByText(/No syllabus is recorded/)).not.toBeInTheDocument();
   });

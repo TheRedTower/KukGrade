@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromotionLedgerScreen } from "./PromotionLedgerScreen";
+import { NETWORK_ERROR } from "./api";
 import type {
   AuthUser,
   CandidateOutcome,
@@ -652,6 +653,19 @@ describe("PromotionLedgerScreen", () => {
     });
     expect(queryClient.getQueryState(["students", "list", "", "ALL", "ALL", 1])?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(["students", "rankHistory", 50])?.isInvalidated).toBe(true);
+  });
+
+  it("shows the network line, not the browser's own text, when the connection fails", async () => {
+    const user = userEvent.setup();
+    mockPromoteCandidateOutcome.mockRejectedValue(new TypeError("Load failed"));
+
+    renderScreen(1);
+
+    await user.click(await screen.findByTestId("promote-candidate-btn-101"));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Promote to Yellow" }));
+
+    expect(await screen.findByText(NETWORK_ERROR)).toBeVisible();
+    expect(screen.queryByText("Load failed")).not.toBeInTheDocument();
   });
 
   it("can cancel single candidate promotion modal without calling API", async () => {

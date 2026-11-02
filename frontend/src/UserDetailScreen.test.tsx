@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UserDetailScreen } from "./UserDetailScreen";
-import type { AuthUser, ManagedUser } from "./api";
+import { NETWORK_ERROR, type AuthUser, type ManagedUser } from "./api";
 
 let currentUser: AuthUser;
 const mockGetManagedUser = vi.fn();
@@ -199,6 +199,20 @@ describe("UserDetailScreen", () => {
     await user.click(within(shown).getByRole("button", { name: "Done" }));
     expect(screen.queryByText("Kq7#mPx4!vRt9@Wa")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset password" })).toHaveFocus();
+  });
+
+  it("says so when the connection fails, rather than doing nothing", async () => {
+    const user = userEvent.setup();
+    mockResetManagedUserPassword.mockRejectedValue(new TypeError("Failed to fetch"));
+    renderScreen();
+    await screen.findByRole("heading", { name: "Riley Khan" });
+
+    await user.click(screen.getByRole("button", { name: "Reset password" }));
+    const dialog = screen.getByRole("dialog", { name: "Reset password" });
+    await user.click(within(dialog).getByRole("button", { name: "Reset password" }));
+
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(NETWORK_ERROR);
+    expect(within(dialog).getByRole("button", { name: "Reset password" })).toBeEnabled();
   });
 
   it("says when a temporary password has expired", async () => {

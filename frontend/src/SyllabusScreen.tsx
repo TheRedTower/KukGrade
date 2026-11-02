@@ -4,8 +4,10 @@ import {
   type AgeBandEnum,
   type EffectiveSyllabusRequirement,
   type Programme,
+  errorMessage,
   getAllEffectiveSyllabusRequirements,
 } from "./api";
+import { Alert } from "./Alert";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { BeltSwatch } from "./Belt";
@@ -146,11 +148,7 @@ export function SyllabusScreen() {
     ranksQuery.isLoading || ageBandsQuery.isLoading || requirementsQuery.isLoading;
 
   const loadError = ranksQuery.error ?? ageBandsQuery.error ?? requirementsQuery.error;
-  const error = loadError
-    ? loadError instanceof Error
-      ? loadError.message
-      : "Failed to load the syllabus."
-    : null;
+  const error = loadError ? errorMessage(loadError, "Failed to load the syllabus.") : null;
 
   // A programme change keeps the age band if it belongs to that programme,
   // otherwise moves to the programme's oldest band.
@@ -283,12 +281,7 @@ export function SyllabusScreen() {
         </div>
 
         {/* Error State */}
-        {error && (
-          <div className="error-banner" role="alert">
-            <span className="error-icon" aria-hidden="true">⚠️</span>
-            <span>{error}</span>
-          </div>
-        )}
+        {error && <Alert>{error}</Alert>}
 
         {isLoading ? (
           <LoadingState>Loading curriculum requirements…</LoadingState>

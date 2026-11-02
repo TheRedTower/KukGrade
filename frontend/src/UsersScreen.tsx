@@ -12,6 +12,7 @@ import {
 } from "./api";
 import { EmptyState } from "./EmptyState";
 import { Alert } from "./Alert";
+import { ErrorText } from "./ErrorText";
 import { LoadingState } from "./LoadingState";
 import { TemporaryPasswordIssued } from "./TemporaryPasswordIssued";
 import { Dialog } from "./Dialog";
@@ -97,11 +98,9 @@ function CreateUserDialog({
                   aria-describedby={(apiError?.messagesFor("email").length ?? 0) > 0 ? "cud-email-error" : undefined}
                 />
                 {(apiError?.messagesFor("email").length ?? 0) > 0 && (
-                  <span id="cud-email-error" role="alert">
-                    {apiError?.messagesFor("email").map((message, index) => (
-                      <small className="users-field-error" key={index}>{message}</small>
-                    ))}
-                  </span>
+                  <ErrorText as="small" field id="cud-email-error">
+                    {apiError?.messagesFor("email").join(" ")}
+                  </ErrorText>
                 )}
               </label>
               <label className="field users-form-wide">
@@ -116,11 +115,7 @@ function CreateUserDialog({
               A temporary password is created for them. They'll choose their own when they first
               sign in.
             </p>
-            {apiError && (
-              <div className="users-error" role="alert">
-                {apiError.message}
-              </div>
-            )}
+            {mutation.error && <Alert>{errorMessage(mutation.error, "The user could not be added.")}</Alert>}
             <div className="action-row users-dialog-actions">
               <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
                 Cancel

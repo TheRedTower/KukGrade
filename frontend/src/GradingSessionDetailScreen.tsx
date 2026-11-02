@@ -26,6 +26,7 @@ import { Breadcrumbs } from "./Breadcrumbs";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
+import { WarningIcon } from "./Icons";
 import { useAuth } from "./auth";
 import {
   LockedWithdrawalDialog,
@@ -499,7 +500,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           title="Failed to load grading session"
           action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
         >
-          {sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}
+          {errorMessage(sessionQuery.error, "Session not found.")}
         </EmptyState>
       </section>
     );
@@ -637,16 +638,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>
       )}
       {actionMessage && (
-        <div className="gsd-action-banner" role="status">
-          <span>{actionMessage}</span>
-          <Button
-            variant="ghost"
-            onClick={() => setActionMessage(null)}
-            aria-label="Dismiss status message"
-          >
-            Dismiss
-          </Button>
-        </div>
+        <Alert tone="success" onDismiss={() => setActionMessage(null)}>{actionMessage}</Alert>
       )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -827,21 +819,23 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Operational Action Banner ───────────────────────────────────── */}
       {awaitingDecisionCount > 0 && (
-        <section className="action-row gsd-action-banner" role="status" aria-label="Action required">
-          <div className="gsd-banner-left">
-            <span className="gsd-banner-icon" aria-hidden="true">!</span>
-            <span className="gsd-banner-text">
-              {awaitingDecisionCount} candidate{awaitingDecisionCount === 1 ? "" : "s"} awaiting final decision
-            </span>
-          </div>
-          <Link
-            to={`/gradings/${session.id}/decisions`}
-            className={buttonClass({ variant: "ghost", small: true })}
-            data-testid="gsd-review-decisions-btn"
-          >
-            Review <span aria-hidden="true">→</span>
-          </Link>
-        </section>
+        <Alert
+          tone="warning"
+          role="status"
+          aria-label="Action required"
+          icon={<WarningIcon size={18} />}
+          action={
+            <Link
+              to={`/gradings/${session.id}/decisions`}
+              className={buttonClass({ variant: "ghost", small: true })}
+              data-testid="gsd-review-decisions-btn"
+            >
+              Review <span aria-hidden="true">→</span>
+            </Link>
+          }
+        >
+          {awaitingDecisionCount} candidate{awaitingDecisionCount === 1 ? "" : "s"} awaiting final decision
+        </Alert>
       )}
 
       {/* ── Candidates Section ──────────────────────────────────────────── */}

@@ -467,11 +467,6 @@ h2 {
   outline: 2px solid var(--color-accent-strong);
 }
 
-.loading-state {
-  color: var(--color-text-muted);
-  font-weight: 700;
-}
-
 .app-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -632,13 +627,6 @@ h2 {
   background: currentColor;
 }
 
-.empty-state-title {
-  color: var(--color-text);
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin: 0 0 0.4rem;
-}
-
 /* Feedback & Helper Text */
 
 
@@ -674,39 +662,6 @@ h2 {
 }
 
 /* ── Loading and Error States ────────────────────────────────────────────── */
-
-.gsd-loading-state,
-.gsd-error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 1rem;
-  text-align: center;
-  gap: 1rem;
-}
-
-.gsd-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid var(--color-border);
-  border-top-color: var(--btn-primary-bg);
-  border-radius: 50%;
-  animation: gsd-spin 0.8s linear infinite;
-}
-
-@keyframes gsd-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes sylSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* A scrolling table wrapper a keyboard can reach (tabIndex 0): show it has
    focus like any other control. */
 [role="region"][tabindex="0"]:focus-visible,

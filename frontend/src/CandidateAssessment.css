@@ -53,26 +53,7 @@
 }
 
 /* ── Shared row badges and empty state ───────────────────────────────────── */
-
-.caw-empty-items {
-  padding: 1.5rem;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 0.9rem;
-}
-
 /* Loading & Error states */
-
-.caw-loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 4rem 1rem;
-  font-size: 1.05rem;
-  color: var(--color-text-muted);
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    Mat-side scoring — Single Column Run
    ═══════════════════════════════════════════════════════════════════════════ */

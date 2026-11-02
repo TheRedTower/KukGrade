@@ -22,6 +22,8 @@ import {
   withdrawLockedCandidate,
   errorMessage,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import {
@@ -467,11 +469,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   if (isNaN(sessionId)) {
     return (
       <section aria-labelledby="gsd-invalid-id-heading" className="page gsd-page" data-testid="gsd-page">
-        <div className="gsd-error-state">
-          <h2 id="gsd-invalid-id-heading">Grading session not found</h2>
-          <p>Please return to the sessions list.</p>
-          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
-        </div>
+        <EmptyState
+          titleAs="h2"
+          titleId="gsd-invalid-id-heading"
+          title="Grading session not found"
+          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
+        >
+          Please return to the sessions list.
+        </EmptyState>
       </section>
     );
   }
@@ -479,10 +484,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   if (sessionQuery.isLoading) {
     return (
       <section aria-label="Grading session" className="page gsd-page" data-testid="gsd-page">
-        <div className="gsd-loading-state" role="status">
-          <div className="gsd-spinner" aria-hidden="true" />
-          <p>Loading grading session...</p>
-        </div>
+        <LoadingState>Loading grading session…</LoadingState>
       </section>
     );
   }
@@ -490,11 +492,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   if (sessionQuery.isError || !session) {
     return (
       <section aria-labelledby="gsd-error-heading" className="page gsd-page" data-testid="gsd-page">
-        <div className="gsd-error-state">
-          <h2 id="gsd-error-heading">Failed to load grading session</h2>
-          <p>{sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}</p>
-          <Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>
-        </div>
+        <EmptyState
+          titleAs="h2"
+          titleId="gsd-error-heading"
+          title="Failed to load grading session"
+          action={<Link to="/gradings" className={buttonClass({ variant: "primary" })}>Back to Gradings</Link>}
+        >
+          {sessionQuery.error instanceof Error ? sessionQuery.error.message : "Session not found."}
+        </EmptyState>
       </section>
     );
   }

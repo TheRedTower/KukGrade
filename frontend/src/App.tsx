@@ -12,6 +12,7 @@ import "./theme.css";
 import "./layout.css";
 import "./controls.css";
 import "./App.css";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { ApiError, type AuthUser, getSetupStatus } from "./api";
 import { AuthProvider, hasSignedInBefore, useAuth } from "./auth";
@@ -68,11 +69,11 @@ const HistoricalRecordsScreen = lazy(() =>
 );
 
 function UserManagementFallback(): React.ReactElement {
-  return <div className="loading-state" role="status">Loading user management…</div>;
+  return <LoadingState>Loading user management…</LoadingState>;
 }
 
 function ImportFallback(): React.ReactElement {
-  return <div className="loading-state" role="status">Loading import…</div>;
+  return <LoadingState>Loading import…</LoadingState>;
 }
 
 function LoginPage() {
@@ -275,7 +276,7 @@ function ApplicationShell() {
 function LoadingPage() {
   return (
     <main className="auth-page">
-      <p className="loading-state">Loading KukGrade</p>
+      <LoadingState>Loading KukGrade…</LoadingState>
     </main>
   );
 }
@@ -402,7 +403,7 @@ function App() {
                 <Route element={<CandidateAssessmentScreen />} path="gradings/:sessionId/assessments/:candidateId" />
                 <Route
                   element={
-                    <Suspense fallback={<div className="loading-state" role="status">Loading grading session…</div>}>
+                    <Suspense fallback={<LoadingState>Loading grading session…</LoadingState>}>
                       <GradingSessionDetailScreen />
                     </Suspense>
                   }
@@ -412,7 +413,7 @@ function App() {
                 <Route element={<SyllabusScreen />} path="syllabus" />
                 <Route
                   element={
-                    <Suspense fallback={<div className="loading-state" role="status">Loading settings…</div>}>
+                    <Suspense fallback={<LoadingState>Loading settings…</LoadingState>}>
                       <SettingsScreen />
                     </Suspense>
                   }

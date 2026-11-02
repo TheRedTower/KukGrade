@@ -8,6 +8,8 @@ import {
   type StudentStatus,
   getStudents,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { useRanksQuery } from "./queries";
 import { Pagination } from "./Pagination";
 import { StudentStatusBadge } from "./StatusBadge";
@@ -226,39 +228,33 @@ export function StudentsScreen() {
       {/* Data Table / Empty State Container */}
       <div className="students-results">
         {studentsQuery.isLoading ? (
-          <div className="card table-state-box" role="status">
-            <p className="loading-state-text">Loading student records...</p>
-          </div>
+          <LoadingState>Loading student records…</LoadingState>
         ) : students.length === 0 ? (
-          <div className="card table-state-box">
-            {hasActiveFilters ? (
-              <div className="empty-filtered-container">
-                <p className="empty-state-title">No matching students found</p>
-                <p className="empty-state-description">
-                  No records match your active search and filter criteria.
-                </p>
-                <Button
-                  variant="secondary"
-                  onClick={handleClearFilters}
-                >
+          hasActiveFilters ? (
+            <EmptyState
+              framed
+              title="No matching students found"
+              action={
+                <Button variant="secondary" onClick={handleClearFilters}>
                   Clear all filters
                 </Button>
-              </div>
-            ) : (
-              <div className="empty-zero-container">
-                <p className="empty-state-title">No students registered yet</p>
-                <p className="empty-state-description">
-                  Add your first student to get started.
-                </p>
-                <Button
-                  variant="primary"
-                  onClick={() => navigate("/students/new")}
-                >
+              }
+            >
+              No records match your active search and filter criteria.
+            </EmptyState>
+          ) : (
+            <EmptyState
+              framed
+              title="No students registered yet"
+              action={
+                <Button variant="primary" onClick={() => navigate("/students/new")}>
                   Add student +
                 </Button>
-              </div>
-            )}
-          </div>
+              }
+            >
+              Add your first student to get started.
+            </EmptyState>
+          )
         ) : (
           <>
             <ResponsiveTable

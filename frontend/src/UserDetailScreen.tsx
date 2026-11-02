@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
+import { Alert } from "./Alert";
+import { LoadingState } from "./LoadingState";
 import { useAuth } from "./auth";
 import {
   ApiError,
@@ -343,12 +345,19 @@ export function UserDetailScreen(): React.ReactElement {
     enabled: Boolean(id),
   });
 
-  if (query.isLoading) return <div className="page users-state" role="status">Loading user…</div>;
+  if (query.isLoading) return <LoadingState className="page">Loading user…</LoadingState>;
   if (query.isError || !query.data) {
     return (
-      <div className="page users-state users-state-error" role="alert">
-        <p>{errorMessage(query.error, "This user could not be loaded.")}</p>
-        <Button variant="secondary" onClick={() => navigate("/users")}>Back to users</Button>
+      <div className="page">
+        <Alert
+          action={
+            <Button variant="secondary" onClick={() => navigate("/users")}>
+              Back to users
+            </Button>
+          }
+        >
+          {errorMessage(query.error, "This user could not be loaded.")}
+        </Alert>
       </div>
     );
   }

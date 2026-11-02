@@ -11,6 +11,8 @@ import {
   getGradingSessions,
   getAuditEvents,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { Button } from "./Button";
@@ -330,15 +332,17 @@ export function OverviewScreen() {
               </Button>
             </div>
           ) : (
-            <div className="card-empty-state">
-              <p className="empty-state-title">No active grading session</p>
-              <p className="empty-state-desc">
-                No grading session in progress on the mat.
-              </p>
-              <Button onClick={() => navigate("/gradings")}>
-                View all gradings <span aria-hidden="true">&rarr;</span>
-              </Button>
-            </div>
+            <EmptyState
+              fill
+              title="No active grading session"
+              action={
+                <Button onClick={() => navigate("/gradings")}>
+                  View all gradings <span aria-hidden="true">&rarr;</span>
+                </Button>
+              }
+            >
+              No grading session in progress on the mat.
+            </EmptyState>
           )}
         </div>
 
@@ -372,15 +376,9 @@ export function OverviewScreen() {
               ))}
             </div>
           ) : (
-            <div className="card-empty-state all-clear-state">
-              <div aria-hidden="true" className="all-clear-icon-box">
-                <CheckCircleIcon />
-              </div>
-              <p className="empty-state-title">All clear</p>
-              <p className="empty-state-desc">
-                No candidate assessments currently requiring review.
-              </p>
-            </div>
+            <EmptyState fill icon={<span className="all-clear-icon"><CheckCircleIcon /></span>} title="All clear">
+              No candidate assessments currently requiring review.
+            </EmptyState>
           )}
         </div>
 
@@ -411,15 +409,17 @@ export function OverviewScreen() {
               </span>
             </Link>
           ) : (
-            <div className="card-empty-state">
-              <p className="empty-state-title">No upcoming gradings</p>
-              <p className="empty-state-desc">
-                No future grading sessions are currently scheduled.
-              </p>
-              <Button onClick={() => navigate("/gradings")}>
-                Schedule a grading <span aria-hidden="true">&rarr;</span>
-              </Button>
-            </div>
+            <EmptyState
+              fill
+              title="No upcoming gradings"
+              action={
+                <Button onClick={() => navigate("/gradings")}>
+                  Schedule a grading <span aria-hidden="true">&rarr;</span>
+                </Button>
+              }
+            >
+              No future grading sessions are currently scheduled.
+            </EmptyState>
           )}
         </div>
       </div>
@@ -468,13 +468,11 @@ export function OverviewScreen() {
             ]}
           />
         ) : (
-          <div className="activity-empty-state" role="status">
-            <p>
-              {isInitialLoading
-                ? "Loading recent activity…"
-                : "No recent activity recorded."}
-            </p>
-          </div>
+          isInitialLoading ? (
+            <LoadingState>Loading recent activity…</LoadingState>
+          ) : (
+            <EmptyState title="No recent activity recorded." />
+          )
         )}
       </div>
       )}

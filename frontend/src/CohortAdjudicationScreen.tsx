@@ -16,6 +16,9 @@
  * recounted. Whether the viewer may decide comes from `/api/auth/me/`
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
+import { EmptyState } from "./EmptyState";
+import { Alert } from "./Alert";
+import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
@@ -239,7 +242,7 @@ export function CohortAdjudicationScreen() {
   ) {
     return (
       <section aria-label="Final decisions" className="page cab-page">
-        <div className="cab-state" role="status">Loading final decisions…</div>
+        <LoadingState>Loading final decisions…</LoadingState>
       </section>
     );
   }
@@ -252,17 +255,17 @@ export function CohortAdjudicationScreen() {
   if (!session || failedQueries.length > 0) {
     return (
       <section aria-label="Final decisions" className="page cab-page">
-        <div className="cab-state" role="alert">
-          <p>The final decisions could not be loaded.</p>
-          {failedQueries.length > 0 && (
-            <Button
-              variant="secondary"
-              onClick={() => failedQueries.forEach((query) => void query.refetch())}
-            >
-              Try again
-            </Button>
-          )}
-        </div>
+        <Alert
+          action={
+            failedQueries.length > 0 ? (
+              <Button variant="secondary" onClick={() => failedQueries.forEach((query) => void query.refetch())}>
+                Try again
+              </Button>
+            ) : undefined
+          }
+        >
+          The final decisions could not be loaded.
+        </Alert>
       </section>
     );
   }
@@ -311,7 +314,7 @@ export function CohortAdjudicationScreen() {
       <div className="split">
         <div>
           {rows.length === 0 ? (
-            <p className="cab-state">No candidates to decide in this session.</p>
+            <EmptyState framed title="No candidates to decide in this session." />
           ) : (
             <ResponsiveTable
               label="Final decisions"

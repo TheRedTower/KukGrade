@@ -10,6 +10,9 @@ import {
   getAuditLabels,
   errorMessage,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { Alert } from "./Alert";
+import { LoadingState } from "./LoadingState";
 import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { Pagination } from "./Pagination";
@@ -225,19 +228,21 @@ export function AuditScreen(): React.ReactElement {
 
       <div className="audit-ledger" aria-live="polite">
         {query.isLoading ? (
-          <div className="audit-state" role="status">Loading audit events…</div>
+          <LoadingState>Loading audit events…</LoadingState>
         ) : query.isError ? (
-          <div className="card audit-state audit-state-error" role="alert">
-            <p>
-              {errorMessage(query.error, "Audit events could not be loaded.")}
-            </p>
-            <button type="button" onClick={() => void query.refetch()}>Try again</button>
-          </div>
+          <Alert
+            action={
+              <Button variant="secondary" onClick={() => void query.refetch()}>
+                Try again
+              </Button>
+            }
+          >
+            {errorMessage(query.error, "Audit events could not be loaded.")}
+          </Alert>
         ) : events.length === 0 ? (
-          <div className="card audit-state">
-            <strong>No audit events found</strong>
-            <span>{hasFilters ? "Try clearing or changing the filters." : "No sensitive activity has been recorded yet."}</span>
-          </div>
+          <EmptyState framed title="No audit events found">
+            {hasFilters ? "Try clearing or changing the filters." : "No sensitive activity has been recorded yet."}
+          </EmptyState>
         ) : (
           <>
             <ResponsiveTable

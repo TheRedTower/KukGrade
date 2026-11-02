@@ -32,6 +32,7 @@ import {
   updateCandidateAssessment,
   errorMessage,
 } from "./api";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { RankBelt } from "./Belt";
 import { useSiteSettingsQuery } from "./queries";
@@ -152,10 +153,7 @@ export function AssessmentCompletionScreen() {
   if (isLoading) {
     return (
       <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-loading">
-        <div className="caw-loading-state" role="status">
-          <span className="status-dot status-dot-pulse" aria-hidden="true" />
-          <p>Loading completion review...</p>
-        </div>
+        <LoadingState>Loading completion review…</LoadingState>
       </section>
     );
   }

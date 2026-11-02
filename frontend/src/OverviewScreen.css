@@ -275,29 +275,6 @@
   color: var(--color-text-muted);
 }
 
-.card-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1.75rem 1rem;
-  flex: 1;
-  gap: 0.4rem;
-}
-
-.empty-state-desc {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  max-width: 18rem;
-}
-
-.all-clear-state .all-clear-icon-box {
-  color: var(--color-success);
-  margin-bottom: 0.4rem;
-}
-
 .recent-activity-section {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -379,13 +356,11 @@
   color: var(--color-text-muted);
 }
 
-.activity-empty-state {
-  padding: 2.5rem 1rem;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-}
-
 .overview-icon {
   flex-shrink: 0;
+}
+
+.all-clear-icon {
+  color: var(--color-success);
+  margin-bottom: 0.4rem;
 }

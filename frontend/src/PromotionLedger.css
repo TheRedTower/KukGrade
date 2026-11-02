@@ -60,15 +60,6 @@
 }
 
 /* Table Container & Table */
-
-.pl-loading-state,
-.pl-empty-state {
-  padding: 48px 24px;
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 0.95rem;
-}
-
 /* Candidate Identity Cell */
 
 .pl-candidate-cell {

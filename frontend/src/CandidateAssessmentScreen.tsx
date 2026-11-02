@@ -20,6 +20,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import {
@@ -226,10 +228,7 @@ export function CandidateAssessmentScreen() {
   if (isLoading) {
     return (
       <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-loading">
-        <div className="caw-loading-state" role="status">
-          <span className="status-dot status-dot-pulse" aria-hidden="true" />
-          <p>Loading the assessment…</p>
-        </div>
+        <LoadingState>Loading the assessment…</LoadingState>
       </section>
     );
   }
@@ -391,9 +390,7 @@ export function CandidateAssessmentScreen() {
       {/* The run itself: every requirement, in syllabus order, in one scroll. */}
       <div className="caw-run-scroll">
         {categoryGroups.length === 0 ? (
-          <div className="caw-empty-items">
-            <p>This assessment form has no items.</p>
-          </div>
+          <EmptyState title="This assessment form has no items." />
         ) : (
           categoryGroups.map((group) => (
             <div key={group.category} className="caw-band">

@@ -6,6 +6,8 @@ import {
   type Programme,
   getAllEffectiveSyllabusRequirements,
 } from "./api";
+import { EmptyState } from "./EmptyState";
+import { LoadingState } from "./LoadingState";
 import { BeltSwatch } from "./Belt";
 import { Button } from "./Button";
 import { useAgeBandsQuery, useRanksQuery } from "./queries";
@@ -289,17 +291,12 @@ export function SyllabusScreen() {
         )}
 
         {isLoading ? (
-          <div className="syl-loading-state" aria-live="polite">
-            <span className="syl-spinner" aria-hidden="true" />
-            <span>Loading curriculum requirements…</span>
-          </div>
+          <LoadingState>Loading curriculum requirements…</LoadingState>
         ) : hasNoSyllabus ? (
-          <div className="syl-empty-state">
-            <p>
-              No syllabus is recorded for {rankName} in this age group yet, so nobody can be
-              assessed for it.
-            </p>
-          </div>
+          <EmptyState framed>
+            No syllabus is recorded for {rankName} in this age group yet, so nobody can be assessed
+            for it.
+          </EmptyState>
         ) : (
           <>
             {coreAreas.length > 0 && (

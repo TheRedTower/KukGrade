@@ -242,6 +242,10 @@ export function StudentsScreen() {
             >
               No records match your active search and filter criteria.
             </EmptyState>
+          ) : sourceImport ? (
+            <EmptyState framed title="No students from this import">
+              It added none, or they are no longer on record.
+            </EmptyState>
           ) : (
             <EmptyState
               framed

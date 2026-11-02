@@ -58,7 +58,7 @@ export function useServerForm(shown: readonly string[]) {
     [key],
   );
 
-  const errorFor = useCallback((field: string): string | null => fields[field]?.[0] ?? null, [fields]);
+  const errorFor = useCallback((field: string): string | null => fields[field]?.join(" ") || null, [fields]);
 
   return { fields, banner, errorFor, reset, setClientErrors, handle };
 }

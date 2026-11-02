@@ -27,7 +27,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ApiError,
+  isAnonymousResponse,
   errorMessage,
   type CandidateAssessment,
   type CandidateOutcome,
@@ -189,7 +189,7 @@ export function CohortAdjudicationScreen() {
     setIsRecording(true);
     setLastResult(null);
     const failed: Record<number, string> = {};
-    let recorded = 0;
+    const recorded = new Set<number>();
     // One candidate at a time: each row stands or falls on its own.
     for (const outcomeId of outcomeIds) {
       const decision = staged[outcomeId];
@@ -203,18 +203,16 @@ export function CohortAdjudicationScreen() {
               decision.outcome === "CONDITIONAL" ? decision.conditionalRequirements.trim() : "",
           },
         });
-        recorded += 1;
+        recorded.add(outcomeId);
       } catch (err) {
         failed[outcomeId] = errorMessage(err, "The decision could not be recorded.");
         // The session has ended: the viewer is signed out, so the rest would only meet the same answer.
-        if (err instanceof ApiError && err.status === 401) break;
+        if (isAnonymousResponse(err)) break;
       }
     }
     setStaged((current) => {
       const next = { ...current };
-      outcomeIds.forEach((oid) => {
-        if (!(oid in failed)) delete next[oid];
-      });
+      recorded.forEach((oid) => delete next[oid]);
       return next;
     });
     setFailures((current) => {
@@ -222,11 +220,12 @@ export function CohortAdjudicationScreen() {
       outcomeIds.forEach((oid) => delete next[oid]);
       return { ...next, ...failed };
     });
-    const failedCount = Object.keys(failed).length;
+    // Rows the session's end stopped short of are still staged, like the failed ones.
+    const kept = outcomeIds.length - recorded.size;
     setLastResult(
-      failedCount === 0
-        ? `${recorded} ${recorded === 1 ? "decision" : "decisions"} recorded.`
-        : `${recorded} recorded, ${failedCount} could not be recorded and ${failedCount === 1 ? "remains" : "remain"} staged.`,
+      kept === 0
+        ? `${recorded.size} ${recorded.size === 1 ? "decision" : "decisions"} recorded.`
+        : `${recorded.size} recorded, ${kept} could not be recorded and ${kept === 1 ? "remains" : "remain"} staged.`,
     );
     setIsRecording(false);
     await queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });

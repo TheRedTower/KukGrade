@@ -95,6 +95,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Only a genuine "you are not signed in" answer from the server counts as
+ * anonymous. A dropped connection, a 5xx, or a CORS rejection is not
+ * evidence about the viewer's session, and treating it as one signed people
+ * out mid-grading.
+ */
+export function isAnonymousResponse(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.status === 401 ||
+      (error.status === 403 && error.code === "authentication_required"))
+  );
+}
+
 /** What a person sees when a request never reached the server. */
 export const NETWORK_ERROR = "A network error occurred. Please check your connection.";
 

@@ -321,6 +321,25 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockFinalise).toHaveBeenCalledWith(12, expect.objectContaining({ final_outcome: "FAIL" }));
   });
 
+  it("stops at the row that finds the session ended, and keeps the rows it never tried", async () => {
+    const user = userEvent.setup();
+    mockFinalise.mockImplementation(async (outcomeId: number) => {
+      if (outcomeId === 11) {
+        throw new ApiError("Authentication credentials were not provided.", 403, "authentication_required");
+      }
+      return { ...outcomes[0], status: "FINALISED" };
+    });
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
+    await user.click(screen.getByTestId("cab-record-staged"));
+
+    expect(await screen.findByText("0 recorded, 2 could not be recorded and remain staged.")).toBeVisible();
+    expect(mockFinalise).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("cab-record-staged")).toHaveTextContent("Record 2 staged decisions");
+  });
+
   it.each([
     ["candidates", () => mockGetCandidates],
     ["assessments", () => mockGetAssessments],

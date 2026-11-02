@@ -393,7 +393,7 @@ if not re.fullmatch("[0-9a-f]{7,40}", BUILD_COMMIT):
 # What follows the version on a release candidate's tag ("rc.4" for v0.2.0-rc.4);
 # empty for a stable release and for a checkout.
 BUILD_PRE_RELEASE = os.environ.get("KUKGRADE_BUILD_PRE_RELEASE", "").strip()
-if not re.fullmatch("[0-9A-Za-z.]{1,20}", BUILD_PRE_RELEASE):
+if not re.fullmatch("[0-9A-Za-z.-]{1,20}", BUILD_PRE_RELEASE):
     BUILD_PRE_RELEASE = ""
 BUILD_TIME = os.environ.get("KUKGRADE_BUILD_TIME", "").strip()
 try:

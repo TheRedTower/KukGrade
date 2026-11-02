@@ -67,6 +67,8 @@ describe("Students registry screen (/students)", () => {
     render(<App />);
 
     expect(await screen.findByText("Only the students one import added")).toBeVisible();
+    expect(await screen.findByText("No students from this import")).toBeVisible();
+    expect(screen.queryByText("No students registered yet")).not.toBeInTheDocument();
     const listed = () =>
       fetchMock.mock.calls.map(([url]) => String(url)).filter((url) => url.includes("/api/students/?"));
     await waitFor(() => expect(listed().some((url) => url.includes("source_import=7"))).toBe(true));
@@ -579,8 +581,8 @@ describe("Add student screen (/students/new)", () => {
         return jsonResponse(200, { count: 3, next: null, previous: null, results: testRanks });
       }
       if (url.includes("/api/students/") && options?.method === "POST") {
-        return jsonResponse(401, {
-          error: { code: "not_authenticated", message: "Authentication credentials were not provided." },
+        return jsonResponse(403, {
+          error: { code: "authentication_required", message: "Authentication credentials were not provided." },
         });
       }
       return jsonResponse(404, {});

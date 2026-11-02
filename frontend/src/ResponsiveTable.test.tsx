@@ -24,6 +24,13 @@ function renderTable() {
 }
 
 describe("ResponsiveTable", () => {
+  it("names its empty box, and keeps a flush table's look", () => {
+    render(<ResponsiveTable flush empty="Nothing yet." label="Sessions" rows={[]} rowKey={(row: { id: number }) => row.id} columns={[]} />);
+    const box = screen.getByRole("group", { name: "Sessions" });
+    expect(box).toHaveTextContent("Nothing yet.");
+    expect(box).toHaveClass("rtable--flush", "rtable__empty");
+  });
+
   it("is a real table with named columns and a row per item", () => {
     renderTable();
     const table = screen.getByRole("table", { name: "Sessions" });

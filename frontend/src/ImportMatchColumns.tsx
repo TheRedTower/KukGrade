@@ -406,7 +406,7 @@ export function ImportMatchColumns({
         </p>
       </section>
 
-      <div className="ix-actions ix-actions-split">
+      <div className="step-foot">
         <Button variant="ghost" onClick={onBack}>
           Back to Imports
         </Button>

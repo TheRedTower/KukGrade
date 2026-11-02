@@ -213,7 +213,7 @@ export function ImportMatchRanks({
         ) : null}
       </section>
 
-      <div className="ix-actions ix-actions-split">
+      <div className="step-foot">
         <Button variant="ghost" onClick={onBack}>
           Back to Imports
         </Button>

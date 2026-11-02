@@ -200,6 +200,24 @@ test("the edit-student dialog can be scrolled to Save on a short landscape scree
   await page.close();
 });
 
+test("an import step's Cancel and Continue stack on a phone and share a row with room", async () => {
+  const page = await contexts.get("administrator")!.newPage();
+  for (const [width, together] of [[390, false], [1400, true]] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/imports/new?kind=STUDENT_ROSTER");
+    const cancel = page.getByRole("button", { name: "Cancel import" });
+    const next = page.getByRole("button", { name: /^Continue to match/ });
+    await next.waitFor();
+    const [c, n] = [(await cancel.boundingBox())!, (await next.boundingBox())!];
+    expect(Math.abs(c.y - n.y) < 20, `${width}px: Cancel and Continue on one row`).toBe(together);
+    if (!together) {
+      expect(Math.abs(c.width - n.width), "stacked buttons are as wide as each other").toBeLessThan(2);
+      expect(n.y, "the way on is above Cancel").toBeLessThan(c.y);
+    }
+  }
+  await page.close();
+});
+
 for (const path of ["/", "/students", "/gradings"]) {
   test(`on a phone and a tablet the logo and the page start at one left edge: ${path}`, async () => {
     const page = await contexts.get("master")!.newPage();

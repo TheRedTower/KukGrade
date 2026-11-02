@@ -1022,7 +1022,8 @@
   gap: 0.6rem;
 }
 
-.ix-queue > li > button {
+.ix-queue > li > button,
+.ix-queue > li > a {
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -1036,10 +1037,24 @@
   color: var(--color-text);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.ix-queue > li:first-child > button {
+.ix-queue > li > a {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+}
+
+.ix-queue > li > button:hover,
+.ix-queue > li > a:hover {
+  background: var(--color-surface-sunken);
+}
+
+.ix-queue > li:first-child > button,
+.ix-queue > li:first-child > a {
   border-top: none;
 }
 

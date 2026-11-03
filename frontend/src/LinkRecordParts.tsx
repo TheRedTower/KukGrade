@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { keys } from "./queryKeys";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import {
@@ -90,7 +91,7 @@ export function SomeoneElse({ chosen, onChoose }: { chosen: Chosen | null; onCho
   const [search, setSearch] = useState("");
   const debounced = useDebouncedValue(search.trim());
   const found = useQuery({
-    queryKey: ["students", "linkSearch", debounced],
+    queryKey: keys.students.linkSearch(debounced),
     queryFn: () => getStudents({ search: debounced, page_size: 6 }),
     enabled: debounced.length >= 2,
   });

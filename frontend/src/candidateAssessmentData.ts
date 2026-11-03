@@ -14,6 +14,7 @@
  * and ledgers are per category. It no longer decides the counts.
  */
 import { useCallback, useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { type QueryClient, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CandidateAssessmentItem,
@@ -49,14 +50,14 @@ export function useCandidateAssessmentData(
 
   // 1. Grading session
   const sessionQuery = useQuery({
-    queryKey: ["gradingSessions", "detail", numSessionId],
+    queryKey: keys.gradingSessions.detail(numSessionId),
     queryFn: () => getGradingSession(numSessionId!),
     enabled: sessionEnabled,
   });
 
   // 2. The candidate, which must belong to the session in the URL
   const candidateQuery = useQuery({
-    queryKey: ["gradingCandidates", "detail", numCandidateId],
+    queryKey: keys.gradingCandidates.detail(numCandidateId),
     queryFn: () => getGradingCandidate(numCandidateId!),
     enabled: candidateEnabled,
   });
@@ -67,7 +68,7 @@ export function useCandidateAssessmentData(
   // 3. The assessment itself. `null` means the form has not been generated yet,
   // which is a distinct state from "still loading".
   const assessmentQuery = useQuery({
-    queryKey: ["candidateAssessments", "byCandidate", numCandidateId],
+    queryKey: keys.candidateAssessments.byCandidate(numCandidateId),
     queryFn: async () => {
       const res = await getCandidateAssessments({ candidate: numCandidateId! });
       return res.results.length > 0 ? res.results[0] : null;
@@ -235,20 +236,20 @@ export function forgetDeletedAssessment(
   { assessmentId, candidateId }: { assessmentId: number; candidateId: number },
 ) {
   for (const queryKey of [
-    ["candidateAssessments", "byCandidate", candidateId],
-    ["candidateAssessmentItems", assessmentId],
-    ["candidateAssessmentSummary", assessmentId],
+    keys.candidateAssessments.byCandidate(candidateId),
+    keys.candidateAssessmentItems(assessmentId),
+    keys.candidateAssessmentSummary(assessmentId),
     ["assessmentNotesDraft", assessmentId],
   ]) {
     queryClient.removeQueries({ queryKey, exact: true });
   }
   for (const queryKey of [
-    ["candidateAssessments"],
-    ["gradingCandidates"],
-    ["gradingSessions"],
-    ["candidateOutcomes"],
-    ["promotions"],
-    ["students"],
+    keys.candidateAssessments.all(),
+    keys.gradingCandidates.all(),
+    keys.gradingSessions.all(),
+    keys.candidateOutcomes.all(),
+    keys.promotions.all(),
+    keys.students.all(),
   ]) {
     void queryClient.invalidateQueries({ queryKey });
   }

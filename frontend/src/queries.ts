@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { keys } from "./queryKeys";
 
 import { setClubTimeZone } from "./dates";
 import {
@@ -56,7 +57,7 @@ export function useAgeBandsQuery() {
 // One key per assessment, so every screen and a scoring PATCH share the cache.
 export function useAssessmentSummaryQuery(assessmentId: number | undefined) {
   return useQuery({
-    queryKey: ["candidateAssessmentSummary", assessmentId],
+    queryKey: keys.candidateAssessmentSummary(assessmentId),
     queryFn: () => getAssessmentSummary(assessmentId!),
     enabled: assessmentId !== undefined,
   });
@@ -64,7 +65,7 @@ export function useAssessmentSummaryQuery(assessmentId: number | undefined) {
 
 export function useAssessmentItemsQuery(assessmentId: number | undefined) {
   return useQuery({
-    queryKey: ["candidateAssessmentItems", assessmentId],
+    queryKey: keys.candidateAssessmentItems(assessmentId),
     queryFn: () => getAllCandidateAssessmentItems({ assessment: assessmentId }),
     enabled: assessmentId !== undefined,
   });

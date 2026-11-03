@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { keys, refresh } from "./queryKeys";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -170,28 +171,28 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   // 1. Fetch session details
   const sessionQuery = useQuery({
-    queryKey: ["gradingSessions", "detail", sessionId],
+    queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
 
   // 2. Fetch candidates for this session
   const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", sessionId],
+    queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 
   // 3. Fetch candidate assessments for this session
   const assessmentsQuery = useQuery({
-    queryKey: ["candidateAssessments", sessionId],
+    queryKey: keys.candidateAssessments.session(sessionId),
     queryFn: () => getAllCandidateAssessments({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
 
   // 4. Fetch candidate outcomes for this session
   const outcomesQuery = useQuery({
-    queryKey: ["candidateOutcomes", sessionId],
+    queryKey: keys.candidateOutcomes.session(sessionId),
     queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled: !isNaN(sessionId),
   });
@@ -226,9 +227,9 @@ export function GradingSessionDetailScreen(): React.ReactElement {
       // The response is the new state of this session; every list that
       // summarises it (the current and upcoming sessions, the years, the
       // pages, the move targets) needs refetching, but not this session.
-      queryClient.setQueryData(["gradingSessions", "detail", sessionId], updated);
+      queryClient.setQueryData(keys.gradingSessions.detail(sessionId), updated);
       void queryClient.invalidateQueries({
-        queryKey: ["gradingSessions"],
+        queryKey: keys.gradingSessions.all(),
         predicate: (query) => query.queryKey[1] !== "detail",
       });
       setIsEditingNotes(false);
@@ -244,7 +245,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const deleteSessionMutation = useMutation({
     mutationFn: () => deleteGradingSession(sessionId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      void queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       void navigate("/gradings");
     },
     onError: (err: unknown) => {
@@ -255,11 +256,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const isConfirmModalMutationPending =
     updateSessionMutation.isPending || deleteSessionMutation.isPending;
 
-  const refreshCandidateWork = () => {
-    void queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-    void queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-    void queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
-  };
+  const refreshCandidateWork = () => refresh.sessionWork(queryClient, sessionId);
 
   const bulkPrepareMutation = useMutation({
     mutationFn: (candidateIds: number[]) => bulkGenerateCandidateAssessments(candidateIds),
@@ -339,14 +336,14 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   });
 
   const withdrawalReasonsQuery = useQuery({
-    queryKey: ["withdrawalReasons"],
+    queryKey: keys.withdrawalReasons(),
     queryFn: getWithdrawalReasons,
     enabled: withdrawalCandidate !== null,
   });
 
   // Sessions a registration can move to; loaded only when the move dialog opens.
   const moveTargetsQuery = useQuery({
-    queryKey: ["gradingSessions", "move-targets"],
+    queryKey: keys.gradingSessions.moveTargets(),
     queryFn: () => getAllGradingSessions({ status: "DRAFT,OPEN" }),
     enabled: registrationAction?.kind === "move",
   });
@@ -377,7 +374,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     onSuccess: (_result, { kind }) => {
       const name = registrationAction?.item.candidate.student_display_name ?? "The candidate";
       refreshCandidateWork();
-      void queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      void queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
       closeRegistrationAction();
       setActionError(null);
       setActionMessage(
@@ -1299,9 +1296,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           existingOutcome={proposalDrawerItem.outcome}
           onClose={() => setProposalDrawerItem(null)}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
-            queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
+            refreshCandidateWork();
             setProposalDrawerItem(null);
           }}
         />

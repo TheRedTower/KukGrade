@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -85,7 +86,7 @@ export function StudentsScreen() {
   // so a name is one request rather than one per keystroke.
   const debouncedSearch = useDebouncedValue(search.trim());
   const studentsQuery = useQuery({
-    queryKey: ["students", "list", debouncedSearch, statusFilter, rankFilter, sourceImport, page],
+    queryKey: keys.students.list(debouncedSearch, statusFilter, rankFilter, sourceImport, page),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getStudents({

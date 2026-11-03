@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -67,7 +68,7 @@ export function CreateGradingSessionScreen() {
   const createMutation = useMutation({
     mutationFn: (payload: Parameters<typeof createGradingSession>[0]) => createGradingSession(payload),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      await queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       navigate("/gradings");
     },
     onError: (err) => form.handle(err, "Failed to create grading session. Please check the form."),

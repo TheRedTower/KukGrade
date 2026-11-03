@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { keys } from "./queryKeys";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -184,11 +185,11 @@ export function OverviewScreen() {
   // 1. The session on the mat and the next one after it.
   const today = todayIsoDate();
   const openQuery = useQuery({
-    queryKey: ["gradingSessions", "current"],
+    queryKey: keys.gradingSessions.current(),
     queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
   });
   const upcomingQuery = useQuery({
-    queryKey: ["gradingSessions", "upcoming", today],
+    queryKey: keys.gradingSessions.upcoming(today),
     queryFn: () =>
       getGradingSessions({
         status: "DRAFT,OPEN,LOCKED",
@@ -204,7 +205,7 @@ export function OverviewScreen() {
 
   // 2. Fetch assessments for open session
   const assessmentsQuery = useQuery({
-    queryKey: ["candidateAssessments", "attention", openSession?.id],
+    queryKey: keys.candidateAssessments.attention(openSession?.id),
     queryFn: () =>
       getCandidateAssessments({
         session: openSession!.id,
@@ -216,7 +217,7 @@ export function OverviewScreen() {
 
   // 3. Fetch recent audit events
   const auditQuery = useQuery({
-    queryKey: ["auditEvents", "recent"],
+    queryKey: keys.auditEvents.recent(),
     queryFn: () => getAuditEvents({ page_size: 6 }),
     enabled: canViewAudit,
     retry: false,

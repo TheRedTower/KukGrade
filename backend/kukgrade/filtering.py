@@ -162,15 +162,22 @@ def boolean(
 
 
 def search(name: str, fields: Sequence[str], description: str = "") -> QueryFilter:
-    """Case-insensitive substring match across `fields`."""
+    """Case-insensitive match of every word in the term, each in any of `fields`.
+
+    "john smith" finds a first name of John and a last name of Smith, which
+    one substring of the whole term never could. Words may come in any order.
+    """
 
     def apply(queryset: QuerySet[Any], value: str) -> QuerySet[Any]:
-        term = value.strip()
-        if not term:
+        words = value.split()
+        if not words:
             return queryset
         condition = Q()
-        for lookup in fields:
-            condition |= Q(**{f"{lookup}__icontains": term})
+        for word in words:
+            any_field = Q()
+            for lookup in fields:
+                any_field |= Q(**{f"{lookup}__icontains": word})
+            condition &= any_field
         return queryset.filter(condition)
 
     return QueryFilter(name, apply, description=description)

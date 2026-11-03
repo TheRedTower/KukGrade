@@ -989,12 +989,15 @@ class LegacyGradingRecordViewSet(
                 for group in groups
                 if (group.key in aside) == (set_aside == "only")
             ]
-        needle = params.get("search", "").strip().lower()
-        if needle:
+        words = params.get("search", "").lower().split()
+        if words:
             groups = [
                 group
                 for group in groups
-                if needle in group.key or needle in group.source_name.lower()
+                if all(
+                    word in group.key or word in group.source_name.lower()
+                    for word in words
+                )
             ]
         if suggestion:
             suggest_for_groups(groups)

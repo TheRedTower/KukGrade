@@ -41,6 +41,10 @@ Status = GradingSession.Status
 demo_mode = override_settings(DEMO_MODE=True)
 
 
+# One worker builds the club once for all of these, rather than each worker its own.
+pytestmark = pytest.mark.xdist_group("demo_club")
+
+
 @pytest.fixture(scope="module", autouse=True)
 def club(django_db_setup: None, django_db_blocker: Any) -> Iterator[None]:
     with django_db_blocker.unblock():

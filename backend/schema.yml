@@ -1659,16 +1659,6 @@ paths:
           type: integer
         description: Only records from this import.
       - in: query
-        name: exclude_group_keys
-        schema:
-          type: string
-        description: Leave these names out (comma-separated group keys).
-      - in: query
-        name: group_keys
-        schema:
-          type: string
-        description: Only these names (comma-separated group keys).
-      - in: query
         name: linked
         schema:
           type: boolean
@@ -1690,6 +1680,14 @@ paths:
         schema:
           type: string
         description: Part of the name as written.
+      - in: query
+        name: set_aside
+        schema:
+          type: string
+          enum:
+          - exclude
+          - only
+        description: Only, or all but, the names the viewer has put aside for now.
       - in: query
         name: suggestion
         schema:
@@ -1723,10 +1721,13 @@ paths:
           type: integer
         description: Only records from this import.
       - in: query
-        name: exclude_group_keys
+        name: set_aside
         schema:
           type: string
-        description: Leave these names out (comma-separated group keys).
+          enum:
+          - exclude
+          - only
+        description: Only, or all but, the names the viewer has put aside for now.
       tags:
       - gradings
       security:
@@ -1738,6 +1739,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/LegacyPeopleSummary'
           description: ''
+  /api/gradings/legacy-records/people/set-aside/:
+    post:
+      operationId: gradings_legacy_records_people_set_aside_create
+      description: Add to the viewer's own names put aside for now, or put one back.
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetAsideNamesRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SetAsideNamesRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SetAsideNamesRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetAsideNames'
+          description: ''
+    delete:
+      operationId: gradings_legacy_records_people_set_aside_destroy
+      description: Add to the viewer's own names put aside for now, or put one back.
+      parameters:
+      - in: query
+        name: group_key
+        schema:
+          type: string
+        description: The name to put back.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/gradings/outcomes/:
     get:
       operationId: gradings_outcomes_list
@@ -4881,8 +4926,7 @@ components:
           description: Names with a record still to link.
         linked:
           type: integer
-          description: Names with every record linked; exclude_group_keys does not
-            apply.
+          description: Names with every record linked; set_aside does not apply.
         clear:
           type: integer
           description: One student fits clearly.
@@ -5864,6 +5908,33 @@ components:
       required:
       - club_name
       - school_id_prefix
+    SetAsideNames:
+      type: object
+      description: Names put aside on the linking page, as group keys.
+      properties:
+        group_keys:
+          type: array
+          items:
+            type: string
+            maxLength: 255
+          maxItems: 100
+          minItems: 1
+      required:
+      - group_keys
+    SetAsideNamesRequest:
+      type: object
+      description: Names put aside on the linking page, as group keys.
+      properties:
+        group_keys:
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 255
+          maxItems: 100
+          minItems: 1
+      required:
+      - group_keys
     SetupRequest:
       type: object
       description: |-

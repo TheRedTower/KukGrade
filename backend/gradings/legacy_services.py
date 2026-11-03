@@ -23,7 +23,7 @@ from django.utils import timezone
 from audit.models import AuditAction
 from audit.recording import record
 from gradings.locking import lock_student, lock_students
-from gradings.models import LegacyGradingRecord
+from gradings.models import LegacyGradingRecord, SetAsideName
 
 if TYPE_CHECKING:
     from accounts.models import User
@@ -363,3 +363,24 @@ __all__ = [
     "void_legacy_record",
     "void_legacy_records_from",
 ]
+
+
+def set_aside_keys(user: User) -> list[str]:
+    """The names this person has put aside on the linking page."""
+    return list(
+        SetAsideName.objects.filter(user=user).values_list("group_key", flat=True),
+    )
+
+
+def set_aside_names(user: User, keys: Sequence[str]) -> list[str]:
+    """Put names aside for now. A name already aside stays as it was."""
+    SetAsideName.objects.bulk_create(
+        [SetAsideName(user=user, group_key=key) for key in dict.fromkeys(keys)],
+        ignore_conflicts=True,
+    )
+    return set_aside_keys(user)
+
+
+def put_back_name(user: User, key: str) -> None:
+    """Return a name put aside to the list still to link."""
+    SetAsideName.objects.filter(user=user, group_key=key).delete()

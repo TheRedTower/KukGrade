@@ -1,38 +1,67 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-/**
- * Names on the linking page put aside for now. Per browser, like the
- * theme: a personal note about what to come back to, not data the club keeps.
- * The page sends these to the server as group keys, which accepts at most
- * this many, so the oldest drop off first.
- */
-const STORAGE_KEY = "kukgrade-left-names";
-const LEFT_NAMES_LIMIT = 100;
+import { putBackSetAsideName, setAsideNames } from "./api";
 
-function read(): string[] {
+/** Where an earlier version kept them, in the browser; moved to the server once. */
+const OLD_STORAGE_KEY = "kukgrade-left-names";
+
+function oldNames(): string[] {
   try {
-    const stored: unknown = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]");
-    return Array.isArray(stored) ? stored.filter((key): key is string => typeof key === "string") : [];
+    const stored: unknown = JSON.parse(window.localStorage.getItem(OLD_STORAGE_KEY) ?? "[]");
+    return Array.isArray(stored) ? stored.filter((key): key is string => typeof key === "string").slice(-100) : [];
   } catch {
     return [];
   }
 }
 
-export function useLeftNames() {
-  const [left, setLeft] = useState(read);
+function forgetOldNames() {
+  try {
+    window.localStorage.removeItem(OLD_STORAGE_KEY);
+  } catch {
+    // Nothing to forget, or the browser will not say.
+  }
+}
 
-  function save(next: string[]) {
-    setLeft(next);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // It still applies for this page load; it just will not be remembered.
-    }
+/**
+ * Names on the linking page put aside for now: the viewer's own note of what
+ * to come back to, kept on the server, so it follows them and leaves no
+ * names in the browser. The lists it filters are asked for again on a change.
+ */
+export function useLeftNames() {
+  const queryClient = useQueryClient();
+
+  // The server filters the lists by what is aside, so they are asked for again.
+  function changed() {
+    void queryClient.invalidateQueries({ queryKey: ["legacyPeople"] });
   }
 
+  const leave = useMutation({ mutationFn: (key: string) => setAsideNames([key]), onSuccess: changed });
+  const putBack = useMutation({ mutationFn: (key: string) => putBackSetAsideName(key), onSuccess: changed });
+  // Forgotten here only once the server has them; a failed move is tried
+  // again the next time the page opens.
+  const moveOld = useMutation({
+    mutationFn: (keys: string[]) => setAsideNames(keys),
+    onSuccess: () => {
+      forgetOldNames();
+      changed();
+    },
+  });
+  const moveOldNames = moveOld.mutate;
+
+  useEffect(() => {
+    const old = oldNames();
+    if (old.length > 0) moveOldNames(old);
+  }, [moveOldNames]);
+
   return {
-    left,
-    leave: (key: string) => save([...left.filter((other) => other !== key), key].slice(-LEFT_NAMES_LIMIT)),
-    putBack: (key: string) => save(left.filter((other) => other !== key)),
+    leave: leave.mutate,
+    putBack: putBack.mutate,
+    /** The last leave or put back that failed, until the next one is tried. */
+    error: leave.error ?? putBack.error,
+    reset: () => {
+      leave.reset();
+      putBack.reset();
+    },
   };
 }

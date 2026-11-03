@@ -35,8 +35,11 @@ from gradings.legacy_matching import (
 )
 from gradings.legacy_services import (
     bulk_link_legacy_records,
+    put_back_name,
     resolve_legacy_current_rank,
     resolve_legacy_testing_for_rank,
+    set_aside_keys,
+    set_aside_names,
     unlink_legacy_record_from_student,
 )
 from gradings.models import (
@@ -86,6 +89,7 @@ from gradings.serializers import (
     PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
+    SetAsideNamesSerializer,
     StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
     WithdrawalReasonSerializer,
@@ -114,23 +118,22 @@ _PEOPLE_PARAMETERS = frozenset(
         "linked",
         "search",
         "suggestion",
-        "group_keys",
-        "exclude_group_keys",
+        "set_aside",
         "page",
         "page_size",
         "format",
     },
 )
-_PEOPLE_SUMMARY_PARAMETERS = frozenset({"batch", "exclude_group_keys", "format"})
+_PEOPLE_SUMMARY_PARAMETERS = frozenset({"batch", "set_aside", "format"})
 _PEOPLE_SUGGESTIONS = ("clear", "choose", "none")
-_PEOPLE_KEY_LIMIT = 100
 _PEOPLE_BATCH = OpenApiParameter(
     "batch", int, description="Only records from this import."
 )
-_PEOPLE_EXCLUDE = OpenApiParameter(
-    "exclude_group_keys",
+_PEOPLE_SET_ASIDE = OpenApiParameter(
+    "set_aside",
     str,
-    description="Leave these names out (comma-separated group keys).",
+    enum=["only", "exclude"],
+    description="Only, or all but, the names the viewer has put aside for now.",
 )
 
 
@@ -836,6 +839,7 @@ class LegacyGradingRecordViewSet(
         "people": ("gradings.can_reconcile_imported_history",),
         "people_summary": ("gradings.can_reconcile_imported_history",),
         "bulk_link": ("gradings.can_reconcile_imported_history",),
+        "set_aside": ("gradings.can_reconcile_imported_history",),
     }
 
     query_filters = (
@@ -944,6 +948,7 @@ class LegacyGradingRecordViewSet(
         allowed: frozenset[str],
         *,
         linked: str | None = None,
+        viewer: User | None = None,
     ) -> list[PersonGroup]:
         """The name groups the people list and its summary are both about."""
         unknown = sorted(set(params) - allowed)
@@ -954,13 +959,9 @@ class LegacyGradingRecordViewSet(
         suggestion = params.get("suggestion", "")
         if suggestion and suggestion not in _PEOPLE_SUGGESTIONS:
             raise ValidationError({"suggestion": ["Choose clear, choose or none."]})
-        keys: dict[str, set[str]] = {}
-        for name in ("group_keys", "exclude_group_keys"):
-            keys[name] = {key for key in params.get(name, "").split(",") if key}
-            if len(keys[name]) > _PEOPLE_KEY_LIMIT:
-                raise ValidationError(
-                    {name: [f"Give at most {_PEOPLE_KEY_LIMIT} names."]},
-                )
+        set_aside = params.get("set_aside", "")
+        if set_aside not in ("", "only", "exclude"):
+            raise ValidationError({"set_aside": ["Choose only or exclude."]})
         records = LegacyGradingRecord.objects.select_related(
             "student",
             "current_rank",
@@ -981,11 +982,12 @@ class LegacyGradingRecordViewSet(
         elif linked:
             records = records.none()
         groups = group_records(records.order_by("pk"))
-        if keys["group_keys"]:
-            groups = [group for group in groups if group.key in keys["group_keys"]]
-        if keys["exclude_group_keys"]:
+        if set_aside and viewer is not None:
+            aside = set(set_aside_keys(viewer))
             groups = [
-                group for group in groups if group.key not in keys["exclude_group_keys"]
+                group
+                for group in groups
+                if (group.key in aside) == (set_aside == "only")
             ]
         needle = params.get("search", "").strip().lower()
         if needle:
@@ -1018,12 +1020,7 @@ class LegacyGradingRecordViewSet(
                 enum=list(_PEOPLE_SUGGESTIONS),
                 description="Only people whose suggested students are this clear.",
             ),
-            OpenApiParameter(
-                "group_keys",
-                str,
-                description="Only these names (comma-separated group keys).",
-            ),
-            _PEOPLE_EXCLUDE,
+            _PEOPLE_SET_ASIDE,
         ],
         responses=LegacyPersonSerializer(many=True),
     )
@@ -1036,7 +1033,11 @@ class LegacyGradingRecordViewSet(
         Only the names on the page are scored for suggested students, unless
         the list is filtered by how clear those are, which needs them all.
         """
-        groups = self._people_groups(request.query_params, _PEOPLE_PARAMETERS)
+        groups = self._people_groups(
+            request.query_params,
+            _PEOPLE_PARAMETERS,
+            viewer=cast(User, request.user),
+        )
         page: list[Any] | None = self.paginate_queryset(groups)  # type: ignore[arg-type]
         assert page is not None
         if page and not request.query_params.get("suggestion"):
@@ -1044,7 +1045,7 @@ class LegacyGradingRecordViewSet(
         return self.get_paginated_response(LegacyPersonSerializer(page, many=True).data)
 
     @extend_schema(
-        parameters=[_PEOPLE_BATCH, _PEOPLE_EXCLUDE],
+        parameters=[_PEOPLE_BATCH, _PEOPLE_SET_ASIDE],
         responses=LegacyPeopleSummarySerializer,
     )
     @action(
@@ -1066,6 +1067,7 @@ class LegacyGradingRecordViewSet(
             request.query_params.dict(),
             _PEOPLE_SUMMARY_PARAMETERS,
             linked="false",
+            viewer=cast(User, request.user),
         )
         suggest_for_groups(groups)
         counts = {kind: 0 for kind in _PEOPLE_SUGGESTIONS}
@@ -1088,6 +1090,42 @@ class LegacyGradingRecordViewSet(
                 {"names": len(groups), "linked": linked, **counts},
             ).data,
         )
+
+    @extend_schema(
+        methods=["POST"],
+        request=SetAsideNamesSerializer,
+        responses=SetAsideNamesSerializer,
+    )
+    @extend_schema(
+        methods=["DELETE"],
+        parameters=[
+            OpenApiParameter(
+                "group_key", str, required=True, description="The name to put back."
+            ),
+        ],
+        request=None,
+        responses={204: None},
+    )
+    @action(
+        detail=False,
+        methods=["post", "delete"],
+        url_path="people/set-aside",
+        filter_backends=[],
+        pagination_class=None,
+    )
+    def set_aside(self, request: Request, *args: object, **kwargs: object) -> Response:
+        """Add to the viewer's own names put aside for now, or put one back."""
+        viewer = cast(User, request.user)
+        if request.method == "DELETE":
+            key = request.query_params.get("group_key", "")
+            if not key:
+                raise ValidationError({"group_key": ["Choose a name to put back."]})
+            put_back_name(viewer, key)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        payload = SetAsideNamesSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        keys = set_aside_names(viewer, payload.validated_data["group_keys"])
+        return Response(SetAsideNamesSerializer({"group_keys": keys}).data)
 
     @extend_schema(
         request=BulkLinkLegacyRecordsSerializer,

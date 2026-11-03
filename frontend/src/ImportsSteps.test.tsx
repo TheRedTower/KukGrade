@@ -33,6 +33,8 @@ const api = vi.hoisted(() => ({
   resolveLegacyCurrentRank: vi.fn(),
   resolveLegacyTestingForRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
+  setAsideNames: vi.fn(),
+  putBackSetAsideName: vi.fn(),
 }));
 
 vi.mock("./api", async () => {
@@ -687,13 +689,12 @@ describe("Linking historical records", () => {
     candidates: [],
   });
   let waiting = [mia, zac, theo, noah];
+  // What the server holds as put aside, as the real endpoint would.
+  let setAside: string[] = [];
 
-  function names(params: { exclude_group_keys?: string; group_keys?: string; suggestion?: string; search?: string; linked?: boolean }) {
-    const left = (params.group_keys ?? "").split(",");
-    const out = (params.exclude_group_keys ?? "").split(",");
+  function names(params: { set_aside?: "only" | "exclude"; suggestion?: string; search?: string; linked?: boolean }) {
     return waiting
-      .filter((item) => !params.group_keys || left.includes(item.group_key))
-      .filter((item) => !params.exclude_group_keys || !out.includes(item.group_key))
+      .filter((item) => !params.set_aside || setAside.includes(item.group_key) === (params.set_aside === "only"))
       .filter((item) => !params.suggestion || item.suggestion === params.suggestion)
       .filter((item) => !params.search || item.source_name.toLowerCase().includes(params.search.toLowerCase()));
   }
@@ -715,6 +716,14 @@ describe("Linking historical records", () => {
       ),
     );
     api.bulkLinkLegacyRecords.mockResolvedValue([]);
+    setAside = [];
+    api.setAsideNames.mockImplementation(async (keys: string[]) => {
+      setAside = [...new Set([...setAside, ...keys])];
+      return [...setAside];
+    });
+    api.putBackSetAsideName.mockImplementation(async (key: string) => {
+      setAside = setAside.filter((other) => other !== key);
+    });
   });
 
   it("shows every name with its suggestion, the counts and the progress", async () => {
@@ -730,7 +739,7 @@ describe("Linking historical records", () => {
     expect(screen.getByText("2 students could be this person")).toBeInTheDocument();
     expect(screen.getByText("A rank is not matched yet")).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Select “Theo”" })).toBeDisabled();
-    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50 });
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, set_aside: "exclude" });
   });
 
   it("links every ticked clear suggestion in one go, each name to its own student", async () => {
@@ -818,35 +827,65 @@ describe("Linking historical records", () => {
 
     await user.click(await screen.findByRole("button", { name: /^Choose between/ }));
     await waitFor(() =>
-      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, suggestion: "choose" }),
+      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, set_aside: "exclude", suggestion: "choose" }),
     );
     expect(await screen.findByText("“Theo”")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^To link/ }));
     await user.type(screen.getByLabelText("Find a name"), "zac");
     await waitFor(() =>
-      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, search: "zac" }),
+      expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 1, page_size: 50, search: "zac", set_aside: "exclude" }),
     );
     await user.selectOptions(await screen.findByLabelText("Import"), await screen.findByRole("option", { name: "History 51.xlsx" }));
-    await waitFor(() => expect(api.getLegacyPeopleSummary).toHaveBeenCalledWith({ batch: 51, exclude_group_keys: undefined }));
+    await waitFor(() => expect(api.getLegacyPeopleSummary).toHaveBeenCalledWith({ batch: 51, set_aside: "exclude" }));
   });
 
-  it("puts a name aside, remembers it in this browser, and puts it back", async () => {
+  it("puts a name aside on the server, not in this browser, and puts it back", async () => {
     const user = userEvent.setup();
     renderAt("/imports/records");
 
     await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
     await user.click(screen.getByRole("button", { name: "Leave for now" }));
 
+    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
     await waitFor(() => expect(screen.queryByText("“Mia R”")).not.toBeInTheDocument());
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBe('["mia r"]');
-    expect(api.getLegacyPeopleSummary).toHaveBeenLastCalledWith({ batch: undefined, exclude_group_keys: "mia r" });
+    expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull();
     await user.click(screen.getByRole("button", { name: /^Left for now/ }));
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();
-    expect(api.getLegacyPeople).toHaveBeenCalledWith(expect.objectContaining({ group_keys: "mia r", linked: false }));
+    expect(api.getLegacyPeople).toHaveBeenCalledWith(expect.objectContaining({ set_aside: "only", linked: false }));
     await user.click(screen.getByRole("button", { name: "Review “Mia R”" }));
     expect(screen.queryByRole("button", { name: "Leave for now" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Put “Mia R” back" }));
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBe("[]");
+    await waitFor(() => expect(api.putBackSetAsideName).toHaveBeenCalledWith("mia r"));
+  });
+
+  it("keeps the row open and says so when a name cannot be left for now", async () => {
+    const user = userEvent.setup();
+    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
+    await user.click(screen.getByRole("button", { name: "Leave for now" }));
+
+    expect(await screen.findByText("Server error.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Leave for now" })).toBeVisible();
+  });
+
+  it("moves names an earlier version kept in this browser to the server, then forgets them", async () => {
+    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r", 7, "theo"]));
+    renderAt("/imports/records");
+
+    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r", "theo"]));
+    await waitFor(() => expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull());
+  });
+
+  it("keeps the browser's old names if the server could not take them, to try again", async () => {
+    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r"]));
+    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderAt("/imports/records");
+
+    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(window.localStorage.getItem("kukgrade-left-names")).toBe('["mia r"]');
   });
 
   it("lists names already linked, and can undo one", async () => {
@@ -928,7 +967,7 @@ describe("Linking historical records", () => {
     await user.click(screen.getByRole("button", { name: "Next" }));
 
     expect(await screen.findByText("“Noah”")).toBeInTheDocument();
-    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 2, page_size: 50 });
+    expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 2, page_size: 50, set_aside: "exclude" });
   });
 
   it("says when every record is linked", async () => {

@@ -1591,3 +1591,32 @@ class LegacyGradingRecord(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+class SetAsideName(models.Model):
+    """
+    A name on the linking page that a person has put aside for now: their own
+    note of what to come back to, kept on the server so it follows them and
+    leaves nothing in a browser. It changes no record.
+    """
+
+    if TYPE_CHECKING:
+        user_id: int
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="set_aside_names",
+    )
+    # A name as gradings.legacy_matching.group_key writes it.
+    group_key = models.CharField(max_length=255)
+    set_aside_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["set_aside_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "group_key"],
+                name="set_aside_name_once_per_user",
+            ),
+        ]

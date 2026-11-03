@@ -1008,6 +1008,21 @@ export async function getLegacyPeopleSummary(
   );
 }
 
+/** Put names aside for now on the linking page; the viewer's own list, on the server. */
+export async function setAsideNames(groupKeys: string[]): Promise<string[]> {
+  const kept = await apiRequest<Schemas["SetAsideNames"]>("/api/gradings/legacy-records/people/set-aside/", {
+    method: "POST",
+    body: JSON.stringify({ group_keys: groupKeys }),
+  });
+  return kept.group_keys;
+}
+
+export async function putBackSetAsideName(groupKey: string): Promise<void> {
+  await apiRequest<void>(withQuery("/api/gradings/legacy-records/people/set-aside/", { group_key: groupKey }), {
+    method: "DELETE",
+  });
+}
+
 /** Link many records at once, all or nothing. */
 export async function bulkLinkLegacyRecords(
   links: Schemas["LegacyRecordLinkRequest"][],

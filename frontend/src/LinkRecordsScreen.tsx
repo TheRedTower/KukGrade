@@ -45,7 +45,7 @@ function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen 
  */
 export function LinkRecordsScreen() {
   const { link, undo } = useLegacyLinking();
-  const { left, leave, putBack } = useLeftNames();
+  const { leave, putBack, error: leftError, reset: resetLeft } = useLeftNames();
   const [view, setView] = useState<NameView>("todo");
   const [batch, setBatch] = useState("");
   const [search, setSearch] = useState("");
@@ -61,29 +61,26 @@ export function LinkRecordsScreen() {
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const batchId = batch ? Number(batch) : undefined;
-  const leftKeys = left.join(",") || undefined;
 
   const imports = useQuery({
     queryKey: ["imports", "historical"],
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const summary = useQuery({
-    queryKey: ["legacyPeople", "summary", batchId, leftKeys],
-    queryFn: () => getLegacyPeopleSummary({ batch: batchId, exclude_group_keys: leftKeys }),
+    queryKey: ["legacyPeople", "summary", batchId],
+    queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
   const leftCount = useQuery({
-    queryKey: ["legacyPeople", "count", "left", batchId, leftKeys],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, group_keys: leftKeys, page_size: 1 }),
-    enabled: left.length > 0,
+    queryKey: ["legacyPeople", "count", "left", batchId],
+    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, set_aside: "only", page_size: 1 }),
   });
   const linkedCount = useQuery({
     queryKey: ["legacyPeople", "count", "linked", batchId],
     queryFn: () => getLegacyPeople({ batch: batchId, linked: true, page_size: 1 }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, leftKeys, page],
+    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, page],
     placeholderData: keepPreviousData,
-    enabled: view !== "left" || left.length > 0,
     queryFn: () =>
       getLegacyPeople({
         batch: batchId,
@@ -91,7 +88,7 @@ export function LinkRecordsScreen() {
         search: debouncedSearch || undefined,
         page,
         page_size: PAGE_SIZE,
-        ...(view === "left" ? { group_keys: leftKeys } : view === "done" ? {} : { exclude_group_keys: leftKeys }),
+        ...(view === "done" ? {} : { set_aside: view === "left" ? ("only" as const) : ("exclude" as const) }),
         ...(view === "clear" || view === "choose" || view === "none" ? { suggestion: view } : {}),
       }),
   });
@@ -101,17 +98,16 @@ export function LinkRecordsScreen() {
     clear: summary.data?.clear,
     choose: summary.data?.choose,
     none: summary.data?.none,
-    left: left.length > 0 ? leftCount.data?.count : 0,
+    left: leftCount.data?.count,
     done: linkedCount.data?.count,
   };
   // Disjoint, so a name partly linked counts once, as still to link.
   const linkedNames = summary.data?.linked ?? 0;
   const totalNames = linkedNames + (counts.todo ?? 0) + (counts.left ?? 0);
 
-  const noneLeft = view === "left" && left.length === 0;
-  const loading = !noneLeft && (people.isPending || people.isPlaceholderData);
-  const rows = loading || noneLeft ? [] : people.data?.results ?? [];
-  const listed = noneLeft ? 0 : people.data?.count ?? 0;
+  const loading = people.isPending || people.isPlaceholderData;
+  const rows = loading ? [] : people.data?.results ?? [];
+  const listed = people.data?.count ?? 0;
   const pageSelected = rows.filter(
     (person) => selected.includes(person.group_key) && chosenFor(person, picks) && recordsToLink(person, unticked).length > 0,
   );
@@ -159,11 +155,16 @@ export function LinkRecordsScreen() {
     });
   }
 
+  // The row closes once the server has the name aside; if it fails, it stays open and says so.
   function leaveName(key: string) {
-    leave(key);
-    setPage(1);
-    setOpen(null);
-    setSelected((current) => current.filter((other) => other !== key));
+    resetLeft();
+    leave(key, {
+      onSuccess: () => {
+        setPage(1);
+        setOpen(null);
+        setSelected((current) => current.filter((other) => other !== key));
+      },
+    });
   }
 
   const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
@@ -267,6 +268,9 @@ export function LinkRecordsScreen() {
           {notice}
         </p>
       ) : null}
+      {leftError ? (
+        <ErrorText>{errorMessage(leftError, "That name could not be left for now or put back. Try again.")}</ErrorText>
+      ) : null}
       {link.isError && !(linkedFrom && linkedFrom === open) ? (
         <ErrorText>
           {errorMessage(link.error, "Those records could not be linked.")}
@@ -309,7 +313,7 @@ export function LinkRecordsScreen() {
               <p className="ix-muted ix-flush">
                 {view === "todo" && !debouncedSearch && (counts.left ?? 0) > 0
                   ? `Nothing else to link. ${counted(counts.left ?? 0, "name is", "names are")} left for now.`
-                  : noneLeft
+                  : view === "left"
                     ? "No names are left for now."
                     : "No names match."}
               </p>
@@ -319,14 +323,14 @@ export function LinkRecordsScreen() {
           <ul className="ix-names">
             {rows.map((person) => {
               const chosen = chosenFor(person, picks);
-              const isLeft = left.includes(person.group_key);
               return (
                 <NameRow
                   batch={batchId}
                   chosen={chosen}
                   error={linkedFrom === person.group_key ? link.error : null}
                   key={person.group_key}
-                  left={isLeft}
+                  // The server keeps the list: only that view shows names left for now.
+                  left={view === "left"}
                   open={open === person.group_key}
                   pending={link.isPending || undo.isPending}
                   person={person}
@@ -338,8 +342,8 @@ export function LinkRecordsScreen() {
                   onLeave={() => leaveName(person.group_key)}
                   onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
                   onPutBack={() => {
-                    putBack(person.group_key);
-                    setPage(1);
+                    resetLeft();
+                    putBack(person.group_key, { onSuccess: () => setPage(1) });
                   }}
                   onSelect={() =>
                     setSelected((current) =>

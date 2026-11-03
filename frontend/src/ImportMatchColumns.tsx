@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { BadgeTone } from "./badgeClass";
+import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -64,7 +66,7 @@ function readChoices(choices: Choices) {
   return { columnFor, clashes };
 }
 
-function rowState(row: DataImportRow): { label: string; tone: string } {
+function rowState(row: DataImportRow): { label: string; tone: BadgeTone } {
   if (row.outcome === "READY") return { label: "Ready", tone: "success" };
   if (row.outcome === "SKIP_EXISTING") return { label: "Already in KukGrade", tone: "neutral" };
   if (row.outcome === "EXCLUDED") return { label: "Left out", tone: "neutral" };
@@ -207,7 +209,7 @@ export function ImportMatchColumns({
 
   return (
     <>
-      <section aria-labelledby="ix-match-h" className="ix-card ix-card-pad ix-section ix-roomy">
+      <section aria-labelledby="ix-match-h" className="card ix-section ix-roomy">
         <div className="ix-section-head ix-align-end">
           <div className="ix-head-text">
             <h2 className="ix-title" id="ix-match-h" tabIndex={-1}>
@@ -299,7 +301,7 @@ export function ImportMatchColumns({
           </ErrorText>
         ) : null}
 
-        <div className="ix-card ix-table-wrap">
+        <div className="card card--flush ix-table-wrap">
           <table className="ix-table ix-table-cells">
             <thead>
               <tr>
@@ -335,7 +337,7 @@ export function ImportMatchColumns({
                 {typedColumns.map((field) => (
                   <th key={`typed-${field}`} scope="col">
                     <span className="ix-col-name">
-                      {fieldName(field)} <span className="ix-pill ix-pill-info">Typed in</span>
+                      {fieldName(field)} <Badge dot tone="info">Typed in</Badge>
                     </span>
                     {withFixes.has(field) ? null : (
                       <Button variant="link" onClick={() => setTyped(typed.filter((name) => name !== field))}>
@@ -385,7 +387,7 @@ export function ImportMatchColumns({
                         <td key={`typed-${field}`}>{cell(row, field, null)}</td>
                       ))}
                       <td className="ix-cell-reading">
-                        <span className={`ix-pill ix-pill-${state.tone}`}>{state.label}</span>
+                        <Badge dot tone={state.tone}>{state.label}</Badge>
                         {row.outcome === "REVIEW_REQUIRED" && row.issues.length ? (
                           <span className="ix-muted ix-small">
                             {row.issues.slice(0, 2).join(" ")}

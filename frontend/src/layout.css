@@ -71,10 +71,16 @@
 /* ── Surfaces ──────────────────────────────────────────────────────────── */
 
 .card {
+  min-width: 0;
   padding: var(--card-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+}
+
+/* A card whose contents bring their own padding: a list, a table, rows. */
+.card--flush {
+  padding: 0;
 }
 
 /* Items in a row that wrap when there is no room, so a long button label

@@ -190,7 +190,7 @@ describe("StudentDetailScreen extra information", () => {
     renderScreen();
 
     const card = (await screen.findByRole("heading", { name: "Extra information" })).closest(
-      ".detail-section-card",
+      ".card",
     ) as HTMLElement;
     expect(within(card).getByText("Parent phone")).toBeVisible();
     expect(within(card).getByText("07700 900001")).toBeVisible();

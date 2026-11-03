@@ -6,6 +6,11 @@
   gap: 1.25rem;
 }
 
+/* The page's own gap already spaces its header. */
+.st-page > .page-header {
+  margin-bottom: 0;
+}
+
 .st-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -37,17 +42,7 @@
   outline-offset: -2px;
 }
 
-.st-card {
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-}
-
-.st-pad {
-  padding: 1.5rem;
-}
-
-.st-pad h2,
+.st-page .card h2,
 .st-hero h2 {
   margin: 0;
   font-size: 1.25rem;

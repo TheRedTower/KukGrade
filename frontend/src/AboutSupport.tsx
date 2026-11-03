@@ -25,7 +25,7 @@ export function AboutSupport() {
       </header>
 
       <div className="ab-main">
-          <section aria-labelledby="ab-steps" className="st-card st-pad">
+          <section aria-labelledby="ab-steps" className="card">
             <h2 id="ab-steps">Asking for help</h2>
             <ol className="ab-steps">
               <li>
@@ -70,7 +70,7 @@ export function AboutSupport() {
           </section>
 
           {data ? (
-            <section aria-label="Where to ask" className="st-card">
+            <section aria-label="Where to ask" className="card card--flush">
               <div className="ab-contact">
                 <div>
                   <strong>Email support</strong>
@@ -101,7 +101,7 @@ export function AboutSupport() {
             </section>
           ) : null}
 
-        <section aria-labelledby="ab-your-details" className="st-card st-pad">
+        <section aria-labelledby="ab-your-details" className="card">
           <h2 id="ab-your-details">Your details</h2>
           <p className="st-row-description">Quote these with your question.</p>
           <DetailsList columns={1} details={details} />

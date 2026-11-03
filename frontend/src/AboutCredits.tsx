@@ -68,7 +68,7 @@ export function AboutCredits() {
 
       {credits?.available ? (
         <>
-          <section aria-labelledby="ab-server" className="st-card">
+          <section aria-labelledby="ab-server" className="card card--flush">
             <div className="st-row">
               <h2 id="ab-server" className="st-row-title">
                 The server
@@ -78,7 +78,7 @@ export function AboutCredits() {
           </section>
 
           {credits.browser.length > 0 ? (
-            <section aria-labelledby="ab-browser" className="st-card">
+            <section aria-labelledby="ab-browser" className="card card--flush">
               <div className="st-row">
                 <h2 id="ab-browser" className="st-row-title">
                   The screens you use
@@ -88,7 +88,7 @@ export function AboutCredits() {
             </section>
           ) : null}
 
-          <section aria-labelledby="ab-all" className="st-card st-pad">
+          <section aria-labelledby="ab-all" className="card">
             <div className="ab-head">
               <div>
                 <h2 id="ab-all">Everything else</h2>

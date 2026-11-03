@@ -139,7 +139,7 @@ export function SettingsAccount() {
   if (!user) return null;
 
   return (
-    <section aria-label="Account" className="st-card">
+    <section aria-label="Account" className="card card--flush">
       <NameRow />
       <SettingsRow description="An administrator changes it on the Users page." title="Email">
         <span>{user.email}</span>

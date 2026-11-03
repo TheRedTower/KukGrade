@@ -126,7 +126,7 @@ describe("Matching a roster's columns", () => {
     );
     expect(await screen.findByLabelText("Date of birth, row 4")).toHaveAttribute("aria-invalid", "true");
     expect(await screen.findByLabelText("Date of birth, row 2")).toHaveAttribute("aria-invalid", "false");
-    expect(await screen.findAllByText("Needs attention", { selector: ".ix-pill" })).toHaveLength(2);
+    expect(await screen.findAllByText("Needs attention", { selector: ".badge" })).toHaveLength(2);
     expect(screen.getByText("Date of birth '31/02/2010' could not be parsed.")).toBeInTheDocument();
     expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Match columns");
   });

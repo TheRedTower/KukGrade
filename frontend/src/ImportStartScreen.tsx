@@ -310,7 +310,7 @@ export function ImportStartScreen() {
       <ImportStepBar current={0} kind={kind} />
 
       {loaded && created ? (
-        <section aria-labelledby="ix-your-file" className="ix-card ix-card-pad ix-section ix-roomy">
+        <section aria-labelledby="ix-your-file" className="card ix-section ix-roomy">
           <h2 className="ix-title ix-flush" id="ix-your-file" tabIndex={-1}>
             Your file
           </h2>
@@ -375,7 +375,7 @@ export function ImportStartScreen() {
         </section>
       ) : (
         <div className="ix-split">
-          <section aria-labelledby="ix-choose" className="ix-card ix-card-pad ix-section ix-roomy">
+          <section aria-labelledby="ix-choose" className="card ix-section ix-roomy">
             <div>
               <h2 className="ix-title" id="ix-choose">
                 Choose your file
@@ -428,7 +428,7 @@ export function ImportStartScreen() {
               </ErrorText>
             ) : null}
           </section>
-          <aside aria-labelledby="ix-looks-for" className="ix-card ix-card-pad ix-sunken ix-section">
+          <aside aria-labelledby="ix-looks-for" className="card ix-sunken ix-section">
             <h2 className="ix-minor" id="ix-looks-for">
               What KukGrade looks for
             </h2>

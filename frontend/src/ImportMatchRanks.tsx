@@ -1,4 +1,5 @@
 import { Alert } from "./Alert";
+import { Badge } from "./Badge";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -74,7 +75,7 @@ export function ImportMatchRanks({
 
   return (
     <>
-      <section aria-labelledby="ix-ranks-h" className="ix-card ix-card-pad ix-section ix-roomy">
+      <section aria-labelledby="ix-ranks-h" className="card ix-section ix-roomy">
         <div className="ix-section-head ix-align-end">
           <div className="ix-head-text">
             <h2 className="ix-title" id="ix-ranks-h" tabIndex={-1}>
@@ -113,7 +114,7 @@ export function ImportMatchRanks({
           <p className="ix-muted">The workbook writes no ranks, so there is nothing to match.</p>
         ) : current ? (
           <div className="ix-two-col ix-two-col-queue">
-            <div className="ix-card">
+            <div className="card card--flush">
               <div className="ix-section ix-focus-body">
                 <div className="ix-actions ix-align-end">
                   <label className="ix-field ix-field-wide">
@@ -177,7 +178,7 @@ export function ImportMatchRanks({
                 </p>
               </div>
             </div>
-            <div aria-label="Rank spellings in the workbook" className="ix-card" role="group">
+            <div aria-label="Rank spellings in the workbook" className="card card--flush" role="group">
               <ul className="ix-queue">
                 {spellings.map((spelling) => {
                   const choice = chosen[key(spelling.source_text)];
@@ -196,7 +197,9 @@ export function ImportMatchRanks({
                             {spelling.rows} {spelling.rows === 1 ? "record" : "records"}
                           </span>
                         </span>
-                        <span className={`ix-pill ix-pill-${tone}`}>{status}</span>
+                        <Badge dot tone={tone}>
+                          {status}
+                        </Badge>
                       </button>
                     </li>
                   );

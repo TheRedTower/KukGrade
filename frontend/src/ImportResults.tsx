@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import type { BadgeTone } from "./badgeClass";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -46,7 +47,7 @@ function rowDetail(row: DataImportRow, batch: DataImportBatch): string {
   return [ranks, values.outcome].filter(Boolean).join(" · ") || values.report || "";
 }
 
-function rowState(row: DataImportRow, roster: boolean): { label: string; tone: string } {
+function rowState(row: DataImportRow, roster: boolean): { label: string; tone: BadgeTone } {
   if (row.outcome === "EXCLUDED") return { label: "Left out", tone: "neutral" };
   if (row.outcome === "SKIP_EXISTING") return { label: "Already in KukGrade", tone: "neutral" };
   if (!roster) return { label: "Imported", tone: "success" };
@@ -115,7 +116,7 @@ function LinkPanel({ batch }: { batch: DataImportBatch }) {
       : null;
 
   return (
-    <section aria-labelledby="ix-link-h" className="ix-card ix-gold-edge">
+    <section aria-labelledby="ix-link-h" className="card card--flush ix-gold-edge">
       <div className="ix-row ix-align-end">
         <div className="ix-row-main">
           <p className="ix-eyebrow">Next job</p>
@@ -293,7 +294,7 @@ function SecondLook({ batch, onShow }: { batch: DataImportBatch; onShow: (filter
   }
 
   return (
-    <section aria-labelledby="ix-look-h" className="ix-card ix-gold-edge">
+    <section aria-labelledby="ix-look-h" className="card card--flush ix-gold-edge">
       <div className="ix-row">
         <div className="ix-row-main">
           <p className="ix-eyebrow">Worth a second look</p>
@@ -370,7 +371,7 @@ function RowsLedger({
   const cleared = !rows.query.isPending && rows.total === 0 && filter === "all" && !debounced;
 
   return (
-    <section aria-labelledby="ix-rows-h" className="ix-card">
+    <section aria-labelledby="ix-rows-h" className="card card--flush">
       <div className="ix-row ix-align-end">
         <h2 className="ix-heading ix-flush ix-grow" id="ix-rows-h">
           {roster ? "Every row" : "Every record"}
@@ -430,7 +431,7 @@ function RowsLedger({
                     <td className="ix-semibold">{name}</td>
                     <td className="ix-muted">{rowDetail(row, batch)}</td>
                     <td>
-                      <span className={`ix-pill ix-pill-${state.tone}`}>{state.label}</span>
+                      <Badge dot tone={state.tone}>{state.label}</Badge>
                     </td>
                     <td className="ix-cell-action">
                       {roster && row.created_id ? (
@@ -554,7 +555,7 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
 
       <div className="ix-two-col">
         <RowsLedger batch={batch} filter={filter} onFilter={setFilter} />
-        <aside aria-labelledby="ix-also-h" className="ix-card ix-card-pad ix-section">
+        <aside aria-labelledby="ix-also-h" className="card ix-section">
           <h2 className="ix-minor" id="ix-also-h">
             Also
           </h2>

@@ -232,7 +232,7 @@ export function LinkRecordsScreen() {
       </div>
 
       {view !== "done" ? (
-        <div className="ix-card ix-card-pad ix-gold-edge ix-bulk">
+        <div className="card ix-gold-edge ix-bulk">
           <p className="ix-flush">
             <strong>{counted(pageSelected.length, "name", "names")} selected.</strong>{" "}
             <span className="ix-muted">
@@ -278,7 +278,7 @@ export function LinkRecordsScreen() {
         </ErrorText>
       ) : null}
 
-      <div className="ix-card">
+      <div className="card card--flush">
         <div aria-hidden="true" className="ix-name-row ix-name-head">
           <span />
           <span>Name as written</span>

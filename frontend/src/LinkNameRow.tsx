@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -13,11 +14,11 @@ import { Button } from "./Button";
 export type NameView = "todo" | "clear" | "choose" | "none" | "left" | "done";
 
 const PILLS = {
-  clear: ["Clear suggestion", "ix-pill-info"],
-  choose: ["Choose between", "ix-pill-warning"],
-  none: ["No suggestion", "ix-pill-warning"],
-  left: ["Left for now", "ix-pill-neutral"],
-  done: ["Linked", "ix-pill-success"],
+  clear: ["Clear suggestion", "info"],
+  choose: ["Choose between", "warning"],
+  none: ["No suggestion", "warning"],
+  left: ["Left for now", "neutral"],
+  done: ["Linked", "success"],
 } as const;
 
 function recordRanks(record: LegacyGradingRecord): string {
@@ -256,7 +257,9 @@ export function NameRow({
           {person.needs_rank ? <span className="ix-warning-text ix-semibold ix-block">A rank is not matched yet</span> : null}
         </p>
         <div className="ix-name-student">
-          <span className={`ix-pill ${tone}`}>{pill}</span>
+          <Badge dot tone={tone}>
+            {pill}
+          </Badge>
           <p className="ix-semibold ix-flush">
             {done ? (
               person.linked_student ? (

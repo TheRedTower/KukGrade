@@ -7,7 +7,7 @@ export function SettingsAppearance() {
   const { collapsed, setCollapsed } = useSidebar();
 
   return (
-    <section aria-label="Appearance" className="st-card">
+    <section aria-label="Appearance" className="card card--flush">
       <SettingsRow description="For this browser only. System follows your device." title="Theme">
         <ThemeToggle />
       </SettingsRow>

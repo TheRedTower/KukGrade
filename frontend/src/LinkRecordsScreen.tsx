@@ -362,6 +362,7 @@ export function LinkRecordsScreen() {
           </ul>
         )}
         <ImportPager
+          label="Pages of names"
           page={page}
           pages={Math.ceil(listed / PAGE_SIZE)}
           total={listed}

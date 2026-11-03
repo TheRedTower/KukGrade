@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { type DataImportBatch, type DataImportRow, correctDataImportRow, errorMessage, leaveOutDataImportRowsNeedingAttention } from "./api";
 import { ErrorText } from "./ErrorText";
@@ -8,6 +8,7 @@ import { counted, importRowName } from "./importSteps";
 import { useRanksQuery } from "./queries";
 import { useDebouncedValue } from "./useDebouncedValue";
 import { Button } from "./Button";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { CountTiles, ExclusionButton, LastLook, ListHead, RowsList } from "./ImportReviewParts";
 import { Exclusion, PAGE_SIZE, RowParams, STATUSES, Tile, useRowExclusion } from "./importReviewRows";
 
@@ -217,56 +218,49 @@ export function RosterReview({
               view === "attention" ? (
                 list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)
               ) : view === "check" ? (
-                <div className="ix-table-wrap ix-ruled">
-                  <table className="ix-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Row</th>
-                        {batch.target_fields.map((field) => (
-                          <th key={field.field} scope="col">
-                            {field.name}
-                          </th>
-                        ))}
-                        {batch.extra_columns.map((column) => (
-                          <th key={column} scope="col">
-                            {column} (extra)
-                          </th>
-                        ))}
-                        <th scope="col">
-                          <span className="visually-hidden">Change</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {list.map((row) => (
-                        <Fragment key={row.row_number}>
-                        <tr>
-                          <td className="ix-muted">{row.row_number}</td>
-                          {batch.target_fields.map((field) => (
-                            <td key={field.field}>
-                              {row.values[field.field] || <span className="ix-muted">(blank)</span>}
-                              {row.corrected_fields.includes(field.field) ? <span className="ix-fix-note">Your fix</span> : null}
-                            </td>
-                          ))}
-                          {batch.extra_columns.map((column) => (
-                            <td className="ix-muted" key={column}>
-                              {row.extra[column] ?? ""}
-                            </td>
-                          ))}
-                          <td className="ix-cell-action">
+                <div className="ix-ruled">
+                  <ResponsiveTable
+                    flush
+                    label="New students to add"
+                    rows={list}
+                    rowKey={(row) => row.row_number}
+                    columns={[
+                      { key: "row", header: "Row", primary: true, render: (row) => `Row ${row.row_number}` },
+                      ...batch.target_fields.map((field) => ({
+                        key: field.field,
+                        header: field.name,
+                        render: (row: DataImportRow) => (
+                          <>
+                            {row.values[field.field] || <span className="ix-muted">(blank)</span>}
+                            {row.corrected_fields.includes(field.field) ? <span className="ix-fix-note">Your fix</span> : null}
+                          </>
+                        ),
+                      })),
+                      ...batch.extra_columns.map((column) => ({
+                        key: `extra-${column}`,
+                        header: `${column} (extra)`,
+                        render: (row: DataImportRow) => <span className="ix-muted">{row.extra[column] ?? ""}</span>,
+                      })),
+                      {
+                        key: "change",
+                        header: "Change",
+                        actions: true,
+                        render: (row) => (
+                          <>
                             <Button variant="link" aria-expanded={editing === row.row_number} onClick={() => setEditing(editing === row.row_number ? null : row.row_number)}>
                               {editing === row.row_number ? "Close editor" : `Edit row ${row.row_number}`}
                             </Button>
                             <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
-                          </td>
-                        </tr>
-                        {editing === row.row_number ? <tr><td colSpan={batch.target_fields.length + batch.extra_columns.length + 2}>
-                          <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />
-                        </td></tr> : null}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                          </>
+                        ),
+                      },
+                    ]}
+                    detail={(row) =>
+                      editing === row.row_number ? (
+                        <RosterRowEditor batch={batch} exclusion={exclusion} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />
+                      ) : null
+                    }
+                  />
                 </div>
               ) : (
                 list.map((row) => <RosterRowEditor batch={batch} exclusion={exclusion} key={row.row_number} row={row} onEditStateChange={onEditStateChange} onFixed={fixed} />)

@@ -31,6 +31,26 @@ describe("ResponsiveTable", () => {
     expect(box).toHaveClass("rtable--flush", "rtable__empty");
   });
 
+  it("shows a row's detail under it, across every column, only while it is open", () => {
+    render(
+      <ResponsiveTable
+        label="Sessions"
+        rows={rows}
+        rowKey={(row) => row.id}
+        columns={[
+          { key: "name", header: "Session", primary: true, render: (row) => row.name },
+          { key: "place", header: "Place", render: (row) => row.place },
+        ]}
+        detail={(row) => (row.id === 2 ? <p>Editing {row.name}</p> : null)}
+      />,
+    );
+    const body = screen.getAllByRole("rowgroup")[1];
+    const tableRows = within(body).getAllByRole("row");
+    expect(tableRows).toHaveLength(3);
+    expect(tableRows[2]).toHaveTextContent("Editing Summer");
+    expect(within(tableRows[2]).getByRole("cell")).toHaveAttribute("colspan", "2");
+  });
+
   it("is a real table with named columns and a row per item", () => {
     renderTable();
     const table = screen.getByRole("table", { name: "Sessions" });

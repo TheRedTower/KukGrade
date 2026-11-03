@@ -93,7 +93,7 @@ export function RowsList({
           {errorMessage(exclusion.error, "That row could not be changed.")}
         </ErrorText>
       ) : null}
-      <ImportPager page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
+      <ImportPager label="Pages of rows" page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
     </>
   );
 }

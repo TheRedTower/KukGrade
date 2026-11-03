@@ -154,7 +154,7 @@ export function HistoricalRecordsScreen() {
                   </Link>
                 </li>)}
               </ol>
-              <ImportPager page={page} pages={Math.ceil(records.data.count / 50)} total={records.data.count} onPage={(next) => update("page", String(next))} />
+              <ImportPager label="Pages of records" page={page} pages={Math.ceil(records.data.count / 50)} total={records.data.count} onPage={(next) => update("page", String(next))} />
             </>
           )}
         </div>

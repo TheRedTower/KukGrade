@@ -1,4 +1,4 @@
-import type { Key, ReactNode } from "react";
+import { Fragment, type Key, type ReactNode } from "react";
 
 export interface Column<Row> {
   key: string;
@@ -30,6 +30,11 @@ interface ResponsiveTableProps<Row> {
   selected?: (row: Row) => boolean;
   /** For a table that is the whole contents of a card: no second border. */
   flush?: boolean;
+  /**
+   * Shown under its row, across the table's width, while it returns something:
+   * an editor the row's own button opened, kept beside the row it changes.
+   */
+  detail?: (row: Row) => ReactNode;
 }
 
 /**
@@ -40,7 +45,7 @@ interface ResponsiveTableProps<Row> {
  * Each cell's content sits in one box, so a card pairs a label with one value.
  * A card expects one `primary` column and at most one `inline` action column.
  */
-export function ResponsiveTable<Row>({ label, rows, rowKey, columns, empty, testId, rowTestId, selected, flush }: ResponsiveTableProps<Row>) {
+export function ResponsiveTable<Row>({ label, rows, rowKey, columns, empty, testId, rowTestId, selected, flush, detail }: ResponsiveTableProps<Row>) {
   const box = flush ? "rtable rtable--flush" : "rtable";
   if (rows.length === 0 && empty !== undefined) {
     return (
@@ -62,22 +67,34 @@ export function ResponsiveTable<Row>({ label, rows, rowKey, columns, empty, test
           </tr>
         </thead>
         <tbody role="rowgroup">
-          {rows.map((row) => (
-            <tr key={rowKey(row)} role="row" data-testid={rowTestId?.(row)} data-selected={selected?.(row) ? "" : undefined}>
-              {columns.map((column) => (
-                <td
-                  key={column.key}
-                  role="cell"
-                  data-label={column.primary || column.actions ? undefined : column.header}
-                  data-primary={column.primary ? "" : undefined}
-                  data-actions={column.actions === "inline" ? "inline" : column.actions ? "" : undefined}
-                  data-align={column.align}
-                >
-                  <div className="rtable__value">{column.render(row)}</div>
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row) => {
+            const opened = detail?.(row);
+            return (
+              <Fragment key={rowKey(row)}>
+                <tr role="row" data-testid={rowTestId?.(row)} data-selected={selected?.(row) ? "" : undefined}>
+                  {columns.map((column) => (
+                    <td
+                      key={column.key}
+                      role="cell"
+                      data-label={column.primary || column.actions ? undefined : column.header}
+                      data-primary={column.primary ? "" : undefined}
+                      data-actions={column.actions === "inline" ? "inline" : column.actions ? "" : undefined}
+                      data-align={column.align}
+                    >
+                      <div className="rtable__value">{column.render(row)}</div>
+                    </td>
+                  ))}
+                </tr>
+                {opened != null && opened !== false && (
+                  <tr role="row" data-detail="">
+                    <td role="cell" colSpan={columns.length} data-detail="">
+                      {opened}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

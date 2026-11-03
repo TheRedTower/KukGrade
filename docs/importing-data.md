@@ -62,6 +62,8 @@ KukGrade:
 - They are not linked to a student automatically. KukGrade suggests matches, with
   the reason, and an administrator confirms each link (or a person's whole history
   at once). A wrong link can be moved; a wrong record can be **voided**, never deleted.
+  A name can be **left for now** to come back to; that list is each administrator's own
+  and is kept on the server, not in the browser.
 - A month stays a month: an exact day is never invented.
 - "Did not attend" counts as attendance, not as a fail.
 

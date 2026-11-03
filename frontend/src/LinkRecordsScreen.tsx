@@ -61,19 +61,18 @@ export function LinkRecordsScreen() {
   const debouncedSearch = useDebouncedValue(search.trim());
 
   const batchId = batch ? Number(batch) : undefined;
-  const leftKeys = left.join(",") || undefined;
 
   const imports = useQuery({
     queryKey: ["imports", "historical"],
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const summary = useQuery({
-    queryKey: ["legacyPeople", "summary", batchId, leftKeys],
-    queryFn: () => getLegacyPeopleSummary({ batch: batchId, exclude_group_keys: leftKeys }),
+    queryKey: ["legacyPeople", "summary", batchId],
+    queryFn: () => getLegacyPeopleSummary({ batch: batchId, set_aside: "exclude" }),
   });
   const leftCount = useQuery({
-    queryKey: ["legacyPeople", "count", "left", batchId, leftKeys],
-    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, group_keys: leftKeys, page_size: 1 }),
+    queryKey: ["legacyPeople", "count", "left", batchId],
+    queryFn: () => getLegacyPeople({ batch: batchId, linked: false, set_aside: "only", page_size: 1 }),
     enabled: left.length > 0,
   });
   const linkedCount = useQuery({
@@ -81,7 +80,7 @@ export function LinkRecordsScreen() {
     queryFn: () => getLegacyPeople({ batch: batchId, linked: true, page_size: 1 }),
   });
   const people = useQuery({
-    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, leftKeys, page],
+    queryKey: ["legacyPeople", "list", view, batchId, debouncedSearch, page],
     placeholderData: keepPreviousData,
     enabled: view !== "left" || left.length > 0,
     queryFn: () =>
@@ -91,7 +90,7 @@ export function LinkRecordsScreen() {
         search: debouncedSearch || undefined,
         page,
         page_size: PAGE_SIZE,
-        ...(view === "left" ? { group_keys: leftKeys } : view === "done" ? {} : { exclude_group_keys: leftKeys }),
+        ...(view === "done" ? {} : { set_aside: view === "left" ? ("only" as const) : ("exclude" as const) }),
         ...(view === "clear" || view === "choose" || view === "none" ? { suggestion: view } : {}),
       }),
   });

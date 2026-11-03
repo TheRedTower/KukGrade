@@ -960,12 +960,22 @@ class LegacyPersonSerializer(serializers.Serializer):
         return student.full_name if student else None
 
 
+class SetAsideNamesSerializer(serializers.Serializer):
+    """Names put aside on the linking page, as group keys."""
+
+    group_keys = serializers.ListField(
+        child=serializers.CharField(max_length=255),
+        min_length=1,
+        max_length=100,
+    )
+
+
 class LegacyPeopleSummarySerializer(serializers.Serializer):
     """Names still to link, by how clear their suggested students are."""
 
     names = serializers.IntegerField(help_text="Names with a record still to link.")
     linked = serializers.IntegerField(
-        help_text="Names with every record linked; exclude_group_keys does not apply.",
+        help_text="Names with every record linked; set_aside does not apply.",
     )
     clear = serializers.IntegerField(help_text="One student fits clearly.")
     choose = serializers.IntegerField(help_text="Several students fit equally well.")

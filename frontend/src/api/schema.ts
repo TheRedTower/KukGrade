@@ -953,6 +953,25 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/gradings/legacy-records/people/set-aside/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
+        get: operations["gradings_legacy_records_people_set_aside_retrieve"];
+        put?: never;
+        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
+        post: operations["gradings_legacy_records_people_set_aside_create"];
+        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
+        delete: operations["gradings_legacy_records_people_set_aside_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/outcomes/": {
         parameters: {
             query?: never;
@@ -2319,7 +2338,7 @@ export interface components {
         LegacyPeopleSummary: {
             /** @description Names with a record still to link. */
             names: number;
-            /** @description Names with every record linked; exclude_group_keys does not apply. */
+            /** @description Names with every record linked; set_aside does not apply. */
             linked: number;
             /** @description One student fits clearly. */
             clear: number;
@@ -2848,6 +2867,14 @@ export interface components {
             club_name: string;
             /** @description The school's own prefix in student IDs, such as 123-4. */
             school_id_prefix: string;
+        };
+        /** @description Names put aside on the linking page, as group keys. */
+        SetAsideNames: {
+            group_keys: string[];
+        };
+        /** @description Names put aside on the linking page, as group keys. */
+        SetAsideNamesRequest: {
+            group_keys: string[];
         };
         /**
          * @description POST /api/setup/: the first administrator, and the code proving it is
@@ -4468,10 +4495,6 @@ export interface operations {
             query?: {
                 /** @description Only records from this import. */
                 batch?: number;
-                /** @description Leave these names out (comma-separated group keys). */
-                exclude_group_keys?: string;
-                /** @description Only these names (comma-separated group keys). */
-                group_keys?: string;
                 /** @description Only people whose records are (or are not) linked. */
                 linked?: boolean;
                 /** @description A page number within the paginated result set. */
@@ -4480,6 +4503,8 @@ export interface operations {
                 page_size?: number;
                 /** @description Part of the name as written. */
                 search?: string;
+                /** @description Only, or all but, the names the viewer has put aside for now. */
+                set_aside?: "exclude" | "only";
                 /** @description Only people whose suggested students are this clear. */
                 suggestion?: "choose" | "clear" | "none";
             };
@@ -4504,8 +4529,8 @@ export interface operations {
             query?: {
                 /** @description Only records from this import. */
                 batch?: number;
-                /** @description Leave these names out (comma-separated group keys). */
-                exclude_group_keys?: string;
+                /** @description Only, or all but, the names the viewer has put aside for now. */
+                set_aside?: "exclude" | "only";
             };
             header?: never;
             path?: never;
@@ -4520,6 +4545,71 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LegacyPeopleSummary"];
                 };
+            };
+        };
+    };
+    gradings_legacy_records_people_set_aside_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetAsideNames"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_people_set_aside_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetAsideNamesRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SetAsideNamesRequest"];
+                "multipart/form-data": components["schemas"]["SetAsideNamesRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetAsideNames"];
+                };
+            };
+        };
+    };
+    gradings_legacy_records_people_set_aside_destroy: {
+        parameters: {
+            query: {
+                /** @description The name to put back. */
+                group_key: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -44,6 +44,7 @@ pytestmark = pytest.mark.django_db
 PEOPLE = "/api/gradings/legacy-records/people/"
 BULK = "/api/gradings/legacy-records/bulk-link/"
 SUMMARY = "/api/gradings/legacy-records/people-summary/"
+SET_ASIDE = "/api/gradings/legacy-records/people/set-aside/"
 
 
 def rank(code: str) -> Rank:
@@ -63,17 +64,22 @@ def student(
     )
 
 
-def admin() -> User:
+def admin(email: str = "people-admin@example.com") -> User:
     user, _ = User.objects.get_or_create(
-        email="people-admin@example.com",
+        email=email,
         defaults={"role": User.Role.ADMINISTRATOR},
     )
     return user
 
 
-def client_for(user: User) -> APIClient:
+def instructor(email: str) -> User:
+    return User.objects.create_user(email=email, role=User.Role.INSTRUCTOR)
+
+
+def client_for(user: User | None) -> APIClient:
     client = APIClient()
-    client.force_authenticate(user=user)
+    if user is not None:
+        client.force_authenticate(user=user)
     return client
 
 
@@ -385,17 +391,57 @@ def test_people_search_by_part_of_the_name_as_written() -> None:
     assert results(client.get(PEOPLE, {"search": "zzz"})) == []
 
 
-def test_people_can_leave_names_out_or_ask_for_only_some() -> None:
+def test_people_can_leave_out_or_show_only_the_names_put_aside() -> None:
     seeded_names()
     client = client_for(admin())
+    client.post(SET_ASIDE, {"group_keys": ["theo", "zac w"]}, format="json")
 
-    kept = results(client.get(PEOPLE, {"exclude_group_keys": "theo,zac w"}))
-    only = results(client.get(PEOPLE, {"group_keys": "theo,zac w"}))
+    kept = results(client.get(PEOPLE, {"set_aside": "exclude"}))
+    only = results(client.get(PEOPLE, {"set_aside": "only"}))
 
     assert [person["source_name"] for person in kept] == ["Nobody Known"]
     assert sorted(person["source_name"] for person in only) == ["Theo", "Zac W"]
-    too_many = ",".join(f"name {n}" for n in range(101))
-    assert client.get(PEOPLE, {"group_keys": too_many}).status_code == 400
+    assert client.get(PEOPLE, {"set_aside": "maybe"}).status_code == 400
+
+
+def test_names_put_aside_are_each_persons_own_and_can_be_put_back() -> None:
+    seeded_names()
+    first = client_for(admin("aside-first@example.com"))
+    second = client_for(admin("aside-second@example.com"))
+
+    added = first.post(
+        SET_ASIDE, {"group_keys": ["theo", "theo", "zac w"]}, format="json"
+    )
+    again = first.post(SET_ASIDE, {"group_keys": ["theo"]}, format="json")
+    put_back = first.delete(f"{SET_ASIDE}?group_key=theo")
+    missing_key = first.delete(SET_ASIDE)
+
+    assert added.json() == {"group_keys": ["theo", "zac w"]}
+    assert again.json() == {"group_keys": ["theo", "zac w"]}
+    assert put_back.status_code == 204
+    assert missing_key.status_code == 400
+    assert first.get(SET_ASIDE).json() == {"group_keys": ["zac w"]}
+    assert second.get(SET_ASIDE).json() == {"group_keys": []}
+    assert len(results(second.get(PEOPLE, {"set_aside": "exclude"}))) == 3
+    too_many = [f"name {n}" for n in range(101)]
+    assert (
+        first.post(SET_ASIDE, {"group_keys": too_many}, format="json").status_code
+        == 400
+    )
+
+
+@pytest.mark.parametrize("who", ["anonymous", "instructor"])
+def test_only_people_who_link_history_may_put_names_aside(who: str) -> None:
+    actor = None if who == "anonymous" else instructor(f"aside-{who}@example.com")
+    client = client_for(actor)
+
+    responses = [
+        client.get(SET_ASIDE),
+        client.post(SET_ASIDE, {"group_keys": ["theo"]}, format="json"),
+        client.delete(f"{SET_ASIDE}?group_key=theo"),
+    ]
+
+    assert [response.status_code for response in responses] == [403, 403, 403]
 
 
 def test_a_linked_person_names_the_student_they_are_linked_to() -> None:
@@ -465,7 +511,8 @@ def test_the_summary_counts_names_still_to_link_by_suggestion() -> None:
     client = client_for(admin())
 
     summary = client.get(SUMMARY).json()
-    left_out = client.get(SUMMARY, {"exclude_group_keys": "theo,done already"}).json()
+    client.post(SET_ASIDE, {"group_keys": ["theo", "done already"]}, format="json")
+    left_out = client.get(SUMMARY, {"set_aside": "exclude"}).json()
 
     assert summary == {"names": 3, "linked": 1, "clear": 1, "choose": 1, "none": 1}
     assert left_out == {"names": 2, "linked": 1, "clear": 1, "choose": 0, "none": 1}

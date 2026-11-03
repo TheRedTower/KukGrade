@@ -43,7 +43,7 @@ export function ImportScreen() {
 
   if (!Number.isInteger(batchId) || batchId <= 0 || (batch.error instanceof ApiError && batch.error.status === 404)) {
     return (
-      <section className="page page--narrow ix-page">
+      <section className="page ix-page">
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>
@@ -72,7 +72,7 @@ export function ImportScreen() {
 
   if (loaded.status !== "UPLOADED") {
     return (
-      <section aria-labelledby="ix-closed-title" className="page page--narrow ix-page">
+      <section aria-labelledby="ix-closed-title" className="page ix-page">
         <Link className="ix-back" to="/imports">
           ‹ Imports
         </Link>

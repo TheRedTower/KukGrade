@@ -372,7 +372,7 @@ describe("An import's results", () => {
     expect(await screen.findByText("2 students given the status Active")).toBeInTheDocument();
     expect(api.getDataImportRows).toHaveBeenCalledWith(7, { outcome: "READY", filled: "status", page_size: 1 });
     expect(screen.getByRole("link", { name: "Open Mia Reynolds" })).toHaveAttribute("href", "/students/31");
-    expect(screen.getByText("Already in KukGrade", { selector: ".ix-pill" })).toBeInTheDocument();
+    expect(screen.getByText("Already in KukGrade", { selector: ".badge" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to Students" })).toHaveAttribute(
       "href",
       "/students?source_import=7",

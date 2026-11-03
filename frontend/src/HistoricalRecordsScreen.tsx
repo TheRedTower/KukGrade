@@ -86,13 +86,13 @@ export function HistoricalRecordsScreen() {
       <div className="ix-two-col ix-two-col-queue">
         <div className="ix-section">
           {!id ? (
-            <p className="ix-card ix-card-pad ix-muted">Choose a record to inspect and correct it.</p>
+            <p className="card ix-muted">Choose a record to inspect and correct it.</p>
           ) : detail.isPending ? (
             <p role="status">Loading record…</p>
           ) : detail.isError || !record ? (
             <ErrorText>{errorMessage(detail.error, "This record could not be loaded.")}</ErrorText>
           ) : (
-            <div className="ix-card ix-card-pad ix-section" key={record.id}>
+            <div className="card ix-section" key={record.id}>
               <h2 className="ix-title ix-flush">“{record.source_name}” · {formatMonthYear(record.cycle_year, record.cycle_month)}</h2>
               <p className="ix-muted">{record.record_kind.replaceAll("_", " ")} · {record.source_section} · {record.outcome_display || record.attendance_status_display}</p>
               {record.report ? <p>Report as written: {record.report}</p> : null}
@@ -121,7 +121,7 @@ export function HistoricalRecordsScreen() {
             </div>
           )}
         </div>
-        <div className="ix-card ix-section">
+        <div className="card card--flush ix-section">
           <div className="ix-section ix-queue-head">
             <label className="ix-field">Show
               <select value={filter} onChange={(event) => update("filter", event.target.value)}>

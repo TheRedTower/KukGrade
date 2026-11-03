@@ -291,7 +291,7 @@ export function StudentDetailScreen() {
         {/* Left Column: Core Record, Grading History & Rank History */}
         <div className="detail-left-column">
           {/* Card 1: Student details */}
-          <div className="detail-section-card">
+          <div className="card">
             <h2 className="detail-section-title">Student details</h2>
             <dl className="detail-kv-grid">
               <div className="detail-kv-row">
@@ -323,7 +323,7 @@ export function StudentDetailScreen() {
 
           {/* What an imported file said that KukGrade has no field for. */}
           {student.extra_information.length > 0 ? (
-            <div className="detail-section-card">
+            <div className="card">
               <h2 className="detail-section-title">Extra information</h2>
               <dl className="detail-kv-grid">
                 {student.extra_information.map((info) => (
@@ -337,7 +337,7 @@ export function StudentDetailScreen() {
           ) : null}
 
           {/* Card 2: Grading history - native + linked historical records */}
-          <div className="detail-section-card">
+          <div className="card">
             <h2 className="detail-section-title">Grading history</h2>
             {gradingHistoryItems.length > 0 ? (
               <ResponsiveTable
@@ -396,7 +396,7 @@ export function StudentDetailScreen() {
           </div>
 
           {/* Card 3: Rank history timeline */}
-          <div className="detail-section-card">
+          <div className="card">
             <h2 className="detail-section-title">Rank history</h2>
             <div className="rank-timeline-track">
               {/* Promotion nodes from newest to oldest */}
@@ -435,7 +435,7 @@ export function StudentDetailScreen() {
         {/* Right Column: Operational Sidebar */}
         <div className="detail-right-column">
           {/* Card 1: Grading readiness */}
-          <div className="detail-section-card">
+          <div className="card">
             <h2 className="detail-section-title">Grading readiness</h2>
             <div className="readiness-body">
               <div className="readiness-row">
@@ -465,7 +465,7 @@ export function StudentDetailScreen() {
           </div>
 
           {/* Card 2: Record status */}
-          <div className="detail-section-card">
+          <div className="card">
             <h2 className="detail-section-title">Record status</h2>
             <div className="record-status-body">
               <div className="record-status-badge-row">

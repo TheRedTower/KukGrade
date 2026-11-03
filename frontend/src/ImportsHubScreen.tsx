@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Badge } from "./Badge";
 import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
@@ -58,9 +59,12 @@ function finishedResult(batch: DataImportBatch): string {
 }
 
 function statePill(batch: DataImportBatch) {
-  const tone =
-    batch.status === "COMMITTED" ? "success" : batch.status === "UPLOADED" ? "warning" : "neutral";
-  return <span className={`ix-pill ix-pill-${tone}`}>{batch.status_display}</span>;
+  const tone = batch.status === "COMMITTED" ? "success" : batch.status === "UPLOADED" ? "warning" : "neutral";
+  return (
+    <Badge dot tone={tone}>
+      {batch.status_display}
+    </Badge>
+  );
 }
 
 function UnfinishedImports({
@@ -78,7 +82,7 @@ function UnfinishedImports({
           An unfinished import is cleared a day after it was uploaded.
         </span>
       </div>
-      <div className="ix-card">
+      <div className="card card--flush">
         {batches.map((batch) => {
           const step = importStepIndex(batch);
           return (
@@ -132,7 +136,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
         Start an import
       </h2>
       <div className="ix-grid-2">
-        <div className="ix-card ix-panel">
+        <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Students</h3>
             <p className="ix-muted">
@@ -148,7 +152,7 @@ function StartPanels({ awaitingLink, canLink }: { awaitingLink: number | undefin
             </div>
           </div>
         </div>
-        <div className="ix-card ix-panel">
+        <div className="card card--flush ix-panel">
           <div className="ix-panel-body">
             <h3>Past gradings</h3>
             <p className="ix-muted">
@@ -242,7 +246,7 @@ function PastImports() {
           </label>
         </div>
       </div>
-      <div className="ix-card">
+      <div className="card card--flush">
         {past.isPending ? (
           <p className="ix-muted ix-card-pad" role="status">
             Loading past imports…

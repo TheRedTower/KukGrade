@@ -22,7 +22,7 @@ export function SettingsAbout() {
 
   return (
     <div className="split split--rail">
-      <nav aria-label="About sections" className="st-card split__aside ab-rail">
+      <nav aria-label="About sections" className="card card--flush split__aside ab-rail">
         {SECTIONS.map((section) => (
           <NavLink end={section.end} key={section.to} to={section.to}>
             {section.label}

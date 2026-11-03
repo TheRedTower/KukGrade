@@ -76,7 +76,7 @@ function CountTiles<View extends string>({
 /** The way to a last look at everything that will be saved. */
 function LastLook({ pressed, lead, label, onShow }: { pressed: boolean; lead: string; label: string; onShow: () => void }) {
   return (
-    <div className={`ix-banner ix-card${pressed ? " ix-picked" : ""}`}>
+    <div className={`ix-banner card card--flush${pressed ? " ix-picked" : ""}`}>
       <p className="ix-small">
         <strong>Last look before you confirm.</strong> {lead}
       </p>
@@ -398,7 +398,7 @@ function RosterReview({
         onShow={() => setView("check")}
       />
 
-      <section aria-labelledby="ix-review-list" className="ix-card">
+      <section aria-labelledby="ix-review-list" className="card card--flush">
         <ListHead
           lead={heads[view][1]}
           search={searchable ? { value: search, hint: "Name or WKSA ID", onChange: setSearch } : undefined}
@@ -568,7 +568,7 @@ function LegacyReview({
         pressed={view === "check"}
         onShow={() => setPicked("check")}
       />
-      <section aria-labelledby="ix-review-list" className="ix-card">
+      <section aria-labelledby="ix-review-list" className="card card--flush">
         <ListHead
           lead={heads[view][1]}
           search={searchable ? { value: search, hint: "Name or comment", onChange: setSearch } : undefined}
@@ -661,7 +661,7 @@ function Seal({
   const sentence = line.filter(Boolean).join(", ");
 
   return (
-    <section aria-labelledby="ix-seal-h" className="ix-banner ix-card ix-gold-edge">
+    <section aria-labelledby="ix-seal-h" className="card card--flush ix-banner ix-gold-edge">
       <span aria-hidden="true" className="ix-mark ix-mark-ok ix-mark-large">
         ✓
       </span>

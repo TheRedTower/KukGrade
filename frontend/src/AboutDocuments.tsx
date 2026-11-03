@@ -109,7 +109,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
       {doc ? (
         <div className="ab-doc-columns">
           {contents.length > 0 ? (
-            <nav aria-label={`${label}, on this page`} className="st-card ab-contents">
+            <nav aria-label={`${label}, on this page`} className="card card--flush ab-contents">
               <p>On this page</p>
               {contents.map((entry) => (
                 <button key={entry.id} onClick={() => jump(entry.id)} type="button">
@@ -118,7 +118,7 @@ function ReadableDocument({ slugName, label }: { slugName: string; label: string
               ))}
             </nav>
           ) : null}
-          <article aria-label={`${label} text`} className="st-card ab-prose">
+          <article aria-label={`${label} text`} className="card card--flush ab-prose">
             <MarkdownText content={doc.content} repositoryUrl={repositoryUrl} />
           </article>
         </div>
@@ -157,7 +157,7 @@ export function AboutConduct() {
 
       {pledge.isError ? <Problem error={pledge.error} /> : null}
       {pledge.data ? (
-        <section aria-labelledby="ab-pledge" className="st-card st-pad">
+        <section aria-labelledby="ab-pledge" className="card">
           <p className="st-eyebrow">Kuk Sool Won</p>
           <h2 id="ab-pledge">{pledge.data.title}</h2>
           <ol className="ab-pledge">
@@ -199,7 +199,7 @@ export function AboutLicence() {
       <DocumentHeader sourceUrl={doc?.source_url} subtitle={name} title="Licence" />
       {query.isError ? <Problem error={query.error} /> : null}
 
-      <section aria-labelledby="ab-plain" className="st-card st-pad">
+      <section aria-labelledby="ab-plain" className="card">
         <h2 id="ab-plain">In plain words</h2>
         <p className="st-row-description">
           KukGrade is free software. This is a short guide, not legal advice: the full licence
@@ -241,7 +241,7 @@ export function AboutLicence() {
       </section>
 
       {doc ? (
-        <section aria-labelledby="ab-full" className="st-card st-pad">
+        <section aria-labelledby="ab-full" className="card">
           <h2 id="ab-full">Full licence</h2>
           <p className="st-row-description">The licence file that ships with this version.</p>
           {/* A scrolling box has to be reachable by keyboard to be read. */}

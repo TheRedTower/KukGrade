@@ -59,9 +59,9 @@
     "darkOverride": 7
   },
   "Imports.css": {
-    "fontSize": 36,
-    "fontWeight": 29,
-    "radius": 19
+    "fontSize": 35,
+    "fontWeight": 28,
+    "radius": 17
   },
   "NavigationRail.css": {
     "rawColour": 8,
@@ -103,14 +103,14 @@
   "Settings.css": {
     "fontSize": 6,
     "fontWeight": 7,
-    "radius": 5
+    "radius": 4
   },
   "StudentScreens.css": {
-    "rawColour": 3,
+    "rawColour": 1,
     "fontSize": 24,
     "fontWeight": 18,
-    "radius": 5,
-    "shadow": 5,
+    "radius": 3,
+    "shadow": 3,
     "outlineNone": 1
   },
   "Syllabus.css": {

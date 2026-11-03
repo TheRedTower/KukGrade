@@ -13,7 +13,7 @@ export function AboutOverview() {
 
   return (
     <>
-      <section aria-labelledby="st-about-hero" className="st-card st-hero">
+      <section aria-labelledby="st-about-hero" className="card card--flush st-hero">
         <span aria-hidden="true" className="st-hero-mark">
           K
         </span>
@@ -39,7 +39,7 @@ export function AboutOverview() {
         </Alert>
       ) : null}
 
-      <section aria-labelledby="st-version-details" className="st-card st-pad">
+      <section aria-labelledby="st-version-details" className="card">
         <div className="ab-head">
           <div>
             <h2 id="st-version-details">Version details</h2>
@@ -51,7 +51,7 @@ export function AboutOverview() {
       </section>
 
       {data?.school ? (
-        <section aria-labelledby="st-school" className="st-card">
+        <section aria-labelledby="st-school" className="card card--flush">
           <div className="st-row">
             <div className="st-row-label">
               <h2 id="st-school" className="st-row-title">
@@ -79,7 +79,7 @@ export function AboutOverview() {
       ) : null}
 
       {data ? (
-        <section aria-label="Links" className="st-card st-links">
+        <section aria-label="Links" className="card card--flush st-links">
           <a href={data.repository_url} rel="noopener noreferrer" target="_blank">
             <GitHubIcon />
             <span>Source on GitHub</span>
@@ -105,7 +105,7 @@ export function AboutOverview() {
         </section>
       ) : null}
 
-      <section aria-labelledby="st-updates" className="st-card st-pad">
+      <section aria-labelledby="st-updates" className="card">
         <h2 id="st-updates">Updates</h2>
         <p className="st-row-description">
           KukGrade does not look for updates by itself. Your administrator installs new versions,

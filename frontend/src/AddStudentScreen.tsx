@@ -115,7 +115,7 @@ export function AddStudentScreen() {
 
       <form onSubmit={handleSubmit} noValidate className="add-student-form-body">
         {/* Card 1: Identity */}
-        <div className="form-section-card">
+        <div className="card">
           <h2 className="form-section-title">Identity</h2>
 
           <div className="form-row-grid-2">
@@ -190,7 +190,7 @@ export function AddStudentScreen() {
         </div>
 
         {/* Card 2: Grading details */}
-        <div className="form-section-card">
+        <div className="card">
           <h2 className="form-section-title">Grading details</h2>
 
           <div className="form-row-grid-3">

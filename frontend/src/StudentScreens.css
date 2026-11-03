@@ -325,7 +325,7 @@
 .timeline-indicator.indicator-active {
   border-color: var(--btn-primary-border);
   background: var(--btn-primary-bg);
-  box-shadow: 0 0 0 3px rgba(232, 168, 56, 0.25);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .timeline-indicator.indicator-base {

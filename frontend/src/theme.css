@@ -23,6 +23,11 @@
      seamless void instead of its own object */
   --color-rail: #15130f;
   --color-rail-border: transparent;
+  /* The rail is dark in both themes: a lighter wash for what is hovered or open, gold for where you are. */
+  --color-rail-wash-faint: rgb(255 255 255 / 4%);
+  --color-rail-wash: rgb(255 255 255 / 6%);
+  --color-rail-wash-strong: rgb(255 255 255 / 8%);
+  --color-rail-current: rgb(242 167 27 / 12%);
   --color-border: #e1dbcb;
 
   --color-text: #17140f;

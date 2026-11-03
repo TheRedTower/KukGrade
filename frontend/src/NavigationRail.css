@@ -34,7 +34,7 @@
 }
 
 .nav-brand:hover {
-  background: rgb(255 255 255 / 6%);
+  background: var(--color-rail-wash);
 }
 
 .nav-brand:focus-visible,
@@ -70,7 +70,7 @@
   display: none;
   border: 1px solid var(--color-rail-border);
   border-radius: 8px;
-  background: rgb(255 255 255 / 6%);
+  background: var(--color-rail-wash);
   color: var(--color-text-on-ink);
   font-weight: 700;
   padding: 0 1rem;
@@ -111,7 +111,7 @@
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--color-rail-border);
   border-radius: 10px;
-  background: rgb(255 255 255 / 4%);
+  background: var(--color-rail-wash-faint);
 }
 
 .nav-club-card p {
@@ -146,12 +146,12 @@
 
 .nav-link:hover {
   color: var(--color-text-on-ink);
-  background: rgb(255 255 255 / 6%);
+  background: var(--color-rail-wash);
 }
 
 .nav-link.active {
   color: var(--color-text-on-ink);
-  background: rgb(242 167 27 / 12%);
+  background: var(--color-rail-current);
   border-left: 3px solid var(--color-gold);
   padding-left: calc(0.85rem - 3px);
 }
@@ -174,7 +174,7 @@
   padding: 0.4rem 0.25rem 0.4rem 0.4rem;
   border: 1px solid var(--color-rail-border);
   border-radius: 10px;
-  background: rgb(255 255 255 / 4%);
+  background: var(--color-rail-wash-faint);
 }
 
 .nav-person-link {
@@ -222,7 +222,7 @@
 }
 
 .nav-icon-button:hover:not(:disabled) {
-  background: rgb(255 255 255 / 8%);
+  background: var(--color-rail-wash-strong);
   color: var(--color-text-on-ink);
 }
 
@@ -272,7 +272,7 @@
 
 .nav-collapse:hover {
   color: var(--color-text-on-ink);
-  background: rgb(255 255 255 / 6%);
+  background: var(--color-rail-wash);
 }
 
 /* The strip of icons (desktop only: a phone always gets the full menu). */

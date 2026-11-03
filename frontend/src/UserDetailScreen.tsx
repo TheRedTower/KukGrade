@@ -172,7 +172,6 @@ function AuthorityForm({
 
   return (
     <form
-      className="user-authority-form"
       onSubmit={(event) => {
         event.preventDefault();
         mutation.mutate();

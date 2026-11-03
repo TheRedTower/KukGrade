@@ -295,7 +295,7 @@ export function OverviewScreen() {
       {/* Top 3-Column Grid */}
       <div className="overview-grid">
         {/* Card 1: Now */}
-        <div className="ledger-card now-card">
+        <div className="ledger-card">
           <div className="card-top-label">
             <span>Now</span>
           </div>
@@ -347,7 +347,7 @@ export function OverviewScreen() {
         </div>
 
         {/* Card 2: Needs attention */}
-        <div className="ledger-card needs-attention-card">
+        <div className="ledger-card">
           <div className="card-top-label">
             <span>Needs attention</span>
           </div>
@@ -383,7 +383,7 @@ export function OverviewScreen() {
         </div>
 
         {/* Card 3: Upcoming */}
-        <div className="ledger-card upcoming-card">
+        <div className="ledger-card">
           <div className="card-top-label">
             <span>Upcoming</span>
           </div>

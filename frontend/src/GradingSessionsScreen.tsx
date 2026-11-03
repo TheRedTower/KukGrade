@@ -271,7 +271,7 @@ export function GradingSessionsScreen() {
                     actions: true,
                     render: (session) => (
                       <div className="gs-row-actions">
-                        <Button variant="ghost" small className="gs-view-btn" onClick={() => navigate(`/gradings/${session.id}`)}>
+                        <Button variant="ghost" small onClick={() => navigate(`/gradings/${session.id}`)}>
                           {session.status === "OPEN" ? "Open grading" : "View grading"} <ArrowRightIcon />
                         </Button>
                         {session.can_be_deleted && (

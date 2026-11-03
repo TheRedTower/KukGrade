@@ -105,7 +105,7 @@ export function AboutSupport() {
           <h2 id="ab-your-details">Your details</h2>
           <p className="st-row-description">Quote these with your question.</p>
           <DetailsList columns={1} details={details} />
-          <div style={{ marginTop: "1rem" }}>
+          <div className="ab-actions">
             <CopyDetailsButton details={details} />
           </div>
         </section>

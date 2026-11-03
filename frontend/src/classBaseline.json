@@ -1,27 +1,3 @@
 [
-  "bgc-info-text",
-  "bgc-tray-header",
-  "button-icon",
-  "caw-assessor-tag",
-  "caw-band",
-  "cgs-date-day",
-  "cgs-date-month",
-  "cgs-date-year",
-  "cgs-label-wrap",
-  "clear-icon",
-  "detail-header-actions",
-  "detail-previous-ids",
-  "filter-icon",
-  "gs-view-btn",
-  "gsd-notes-body",
-  "gsd-notes-display",
-  "needs-attention-card",
-  "now-card",
-  "pager__summary",
-  "status-radio-header",
-  "theme-toggle",
-  "timeline-base-item",
-  "timeline-body",
-  "upcoming-card",
-  "user-authority-form"
+  "theme-toggle"
 ]

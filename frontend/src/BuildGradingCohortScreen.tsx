@@ -740,7 +740,7 @@ export function BuildGradingCohortScreen() {
             <div className="action-row bgc-filter-summary-card">
               <div className="bgc-summary-info">
                 <span className="bgc-info-icon" aria-hidden="true">ℹ</span>
-                <span className="bgc-info-text">
+                <span>
                   Students who have left, or are still registered for another grading that has not reached its result, are not listed.
                 </span>
               </div>
@@ -932,7 +932,7 @@ export function BuildGradingCohortScreen() {
         {/* ── RIGHT COLUMN: Cohort Ledger & Confirmation ─────────────────── */}
         <div className="split__aside">
           <aside className="bgc-cohort-tray" aria-label="Cohort to register">
-            <div className="bgc-tray-header">
+            <div>
               <div className="action-row">
                 <h2 className="bgc-tray-title">Cohort to register</h2>
                 <span className="bgc-cohort-count" data-testid="bgc-cohort-count">

@@ -256,7 +256,7 @@ export function StudentDetailScreen() {
           <p className="detail-wksa-id">
             WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
             {student.previous_wksa_ids.length > 0 ? (
-              <span className="detail-previous-ids">
+              <span>
                 {" "}
                 Previously{" "}
                 {student.previous_wksa_ids.map((previous) => (
@@ -269,7 +269,7 @@ export function StudentDetailScreen() {
           </p>
         </div>
 
-        <div className="detail-header-actions">
+        <div>
           <Button
             variant="secondary"
             onClick={() => {
@@ -403,7 +403,7 @@ export function StudentDetailScreen() {
               {promotions.map((p, idx) => (
                 <div key={p.id} className="timeline-node-item">
                   <div className={`timeline-indicator ${idx === 0 ? "indicator-active" : ""}`} />
-                  <div className="timeline-body">
+                  <div>
                     <div className="timeline-date">{formatShortDate(p.effective_date || p.promoted_at)}</div>
                     <div className="timeline-rank-name">{p.to_rank_name}</div>
                     <div className="timeline-subtext">
@@ -414,9 +414,9 @@ export function StudentDetailScreen() {
               ))}
 
               {/* Base starting rank node */}
-              <div className="timeline-node-item timeline-base-item">
+              <div className="timeline-node-item">
                 <div className="timeline-indicator indicator-base" />
-                <div className="timeline-body">
+                <div>
                   <div className="timeline-date">{formatShortDate(student.created_at)}</div>
                   <div className="timeline-rank-name">
                     {promotions.length > 0
@@ -534,7 +534,7 @@ export function StudentDetailScreen() {
                       data-dialog-autofocus={selectedStatus === "ACTIVE" ? true : undefined}
                     />
                     <div className="status-radio-content">
-                      <div className="status-radio-header">
+                      <div>
                         <StudentStatusBadge status="ACTIVE" />
                       </div>
                       <p className="status-radio-desc">
@@ -553,7 +553,7 @@ export function StudentDetailScreen() {
                       data-dialog-autofocus={selectedStatus === "INACTIVE" ? true : undefined}
                     />
                     <div className="status-radio-content">
-                      <div className="status-radio-header">
+                      <div>
                         <StudentStatusBadge status="INACTIVE" />
                       </div>
                       <p className="status-radio-desc">
@@ -572,7 +572,7 @@ export function StudentDetailScreen() {
                       data-dialog-autofocus={selectedStatus === "LEFT" ? true : undefined}
                     />
                     <div className="status-radio-content">
-                      <div className="status-radio-header">
+                      <div>
                         <StudentStatusBadge status="LEFT" />
                       </div>
                       <p className="status-radio-desc">
@@ -647,8 +647,8 @@ export function StudentDetailScreen() {
             )}
 
             <form className="stack" onSubmit={handleSaveEdit} noValidate>
-              <div>
-                <div className="form-field-group" style={{ marginBottom: "1rem" }}>
+              <div className="stack">
+                <div className="form-field-group">
                   <label htmlFor="edit-wksa-id" className="form-field-label">
                     WKSA ID
                   </label>
@@ -718,7 +718,7 @@ export function StudentDetailScreen() {
                   </div>
                 </div>
 
-                <div className="form-field-group" style={{ marginTop: "1rem" }}>
+                <div className="form-field-group">
                   <label htmlFor="edit-dob" className="form-field-label">
                     Date of birth <span className="required-star">*</span>
                   </label>

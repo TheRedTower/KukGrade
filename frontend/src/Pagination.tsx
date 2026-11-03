@@ -27,7 +27,7 @@ function visiblePages(current: number, total: number): (number | "ellipsis")[] {
 export function Pagination({ label, page, totalPages, onPage, summary }: PaginationProps) {
   return (
     <nav className="action-row pager" aria-label={label}>
-      <span className="pager__summary">{summary}</span>
+      <span>{summary}</span>
       {totalPages > 1 && (
       <div className="pager__buttons">
         <button type="button" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Previous page">

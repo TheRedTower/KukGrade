@@ -1,4 +1,5 @@
 import { Fragment, useState, type ReactNode } from "react";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -581,35 +582,39 @@ function LegacyReview({
         >
           {(list) =>
             view === "check" ? (
-              <div className="ix-table-wrap ix-ruled">
-                <table className="ix-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Sheet · row</th>
-                      <th scope="col">Name</th>
-                      <th scope="col">Ranks</th>
-                      <th scope="col">Outcome</th>
-                      <th scope="col">Comments (the grading report)</th>
-                      <th scope="col">
-                        <span className="ix-visually-hidden">Change</span>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((row) => (
-                      <tr key={row.row_number}>
-                        <td className="ix-muted ix-nowrap">{where(row, batch.kind)}</td>
-                        <td className="ix-semibold">{row.values.name || (row.values.note ? "Sheet note" : "(no name)")}</td>
-                        <td>{[row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → ")}</td>
-                        <td>{row.values.outcome}</td>
-                        <td className="ix-muted ix-cell-words">{row.values.report || row.values.note}</td>
-                        <td className="ix-cell-action">
-                          <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="ix-ruled">
+                <ResponsiveTable
+                  flush
+                  label="Records to check"
+                  rows={list}
+                  rowKey={(row) => row.row_number}
+                  columns={[
+                    {
+                      key: "name",
+                      header: "Name",
+                      primary: true,
+                      render: (row) => row.values.name || (row.values.note ? "Sheet note" : "(no name)"),
+                    },
+                    { key: "where", header: "Sheet · row", render: (row) => where(row, batch.kind) },
+                    {
+                      key: "ranks",
+                      header: "Ranks",
+                      render: (row) => [row.values.current_rank, row.values.testing_for_rank].filter(Boolean).join(" → "),
+                    },
+                    { key: "outcome", header: "Outcome", render: (row) => row.values.outcome },
+                    {
+                      key: "report",
+                      header: "Comments (the grading report)",
+                      render: (row) => row.values.report || row.values.note,
+                    },
+                    {
+                      key: "change",
+                      header: "Change",
+                      actions: true,
+                      render: (row) => <ExclusionButton exclusion={exclusion} kind={batch.kind} row={row} />,
+                    },
+                  ]}
+                />
               </div>
             ) : (
               <RowLines exclusion={exclusion} kind={batch.kind} list={list} withIssues={view === "attention"} />

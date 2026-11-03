@@ -20,9 +20,9 @@
   },
   "Imports.css": {
     "widthQueries": 1,
-    "nowrap": 5,
+    "nowrap": 4,
     "overflowX": 1,
-    "fixedMinWidth": 7
+    "fixedMinWidth": 5
   },
   "NavigationRail.css": {
     "widthQueries": 1,

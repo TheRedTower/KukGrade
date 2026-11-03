@@ -33,8 +33,12 @@ import {
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
   type GradingCandidate,
+  discardStagedDecision,
   finaliseCandidateOutcome,
   getAllCandidateAssessments,
+  getStagedDecisions,
+  stageDecision,
+  type StagedDecision as ApiStagedDecision,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
   getGradingSession,
@@ -63,6 +67,22 @@ type BoardRow = {
   decidable: boolean;
 };
 
+// How long typing settles before a staged decision is kept on the server.
+const KEEP_DELAY_MS = 600;
+
+function fromServer(rows: ApiStagedDecision[]): Record<number, StagedDecision> {
+  return Object.fromEntries(
+    rows.map((row) => [
+      row.outcome,
+      {
+        outcome: row.final_outcome,
+        notes: row.decision_notes ?? "",
+        conditionalRequirements: row.conditional_requirements ?? "",
+      },
+    ]),
+  );
+}
+
 function missingRequirements(decision: StagedDecision): boolean {
   return decision.outcome === "CONDITIONAL" && !decision.conditionalRequirements.trim();
 }
@@ -83,6 +103,10 @@ export function CohortAdjudicationScreen() {
   const [failures, setFailures] = useState<Record<number, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
   const resultRef = useRef<HTMLParagraphElement>(null);
+  // What the server holds for each staged row, so only changes are sent.
+  const keptOnServer = useRef<Record<number, string> | null>(null);
+  const [restored, setRestored] = useState<ApiStagedDecision[] | null>(null);
+  const [keepError, setKeepError] = useState<string | null>(null);
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Recording unmounts or disables the control that started it, so focus
@@ -136,6 +160,64 @@ export function CohortAdjudicationScreen() {
 
   const canDecide =
     Boolean(user?.can_make_final_grading_decision) && session?.status === "LOCKED";
+
+  // Decisions staged earlier, and kept on the server, come back: a session
+  // that timed out, or a closed tab, loses nothing that was staged.
+  const keptQuery = useQuery({
+    queryKey: ["stagedDecisions", sessionId],
+    queryFn: () => getStagedDecisions(sessionId),
+    enabled: enabled && canDecide,
+    staleTime: Infinity,
+  });
+  // If they cannot be read, staging carries on and is kept from here.
+  if (restored === null && (keptQuery.data || keptQuery.isError)) {
+    const rows = keptQuery.data ?? [];
+    setRestored(rows);
+    setStaged((current) => ({ ...fromServer(rows), ...current }));
+  }
+
+  // Each write goes through the mutation cache, so an expired session signs the viewer out.
+  const keepMutation = useMutation({
+    mutationFn: async ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) => {
+      if (!decision) return discardStagedDecision(outcomeId);
+      await stageDecision(outcomeId, {
+        final_outcome: decision.outcome,
+        decision_notes: decision.notes,
+        conditional_requirements: decision.conditionalRequirements,
+      });
+    },
+  });
+  const keep = keepMutation.mutateAsync;
+
+  // Every change to what is staged is kept once typing settles. Not while
+  // recording: recording removes the server's copy itself.
+  useEffect(() => {
+    if (restored === null || isRecording) return;
+    const kept = (keptOnServer.current ??= Object.fromEntries(
+      Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+    ));
+    const timer = window.setTimeout(() => {
+      const ids = new Set([...Object.keys(staged), ...Object.keys(kept)].map(Number));
+      ids.forEach((outcomeId) => {
+        const decision = staged[outcomeId] ?? null;
+        const json = decision ? JSON.stringify(decision) : undefined;
+        const before = kept[outcomeId];
+        if (json === before) return;
+        if (json === undefined) delete kept[outcomeId];
+        else kept[outcomeId] = json;
+        keep({ outcomeId, decision }).then(
+          () => setKeepError(null),
+          (err: unknown) => {
+            // Put back as it was, so the next change sends it again.
+            if (before === undefined) delete kept[outcomeId];
+            else kept[outcomeId] = before;
+            setKeepError(errorMessage(err, "Your staged decisions could not be kept."));
+          },
+        );
+      });
+    }, KEEP_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [staged, restored, isRecording, keep]);
   const withdrawnCount =
     (candidatesQuery.data?.results ?? []).length - rows.length;
   const finalisedCount = rows.filter((row) => row.outcome?.status === "FINALISED").length;
@@ -215,6 +297,8 @@ export function CohortAdjudicationScreen() {
       recorded.forEach((oid) => delete next[oid]);
       return next;
     });
+    // Recording removed the server's copies.
+    recorded.forEach((oid) => delete keptOnServer.current?.[oid]);
     setFailures((current) => {
       const next = { ...current };
       outcomeIds.forEach((oid) => delete next[oid]);
@@ -531,7 +615,13 @@ export function CohortAdjudicationScreen() {
         <footer className="cab-bar">
           <p className="cab-bar-text">
             Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are kept.
+            What you stage is saved for you until it is recorded, even if you are signed out.
           </p>
+          {keepError && (
+            <ErrorText field>
+              {keepError} They are still here, but will be lost if you leave this page.
+            </ErrorText>
+          )}
           {incomplete.length > 0 && (
             <ErrorText field>
               Conditional decisions need re-test requirements before they can be recorded.

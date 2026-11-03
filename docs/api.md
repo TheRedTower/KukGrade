@@ -31,7 +31,7 @@ its password is refused with `password_change_required` until it does.
 | `/api/gradings/sessions/` | Grading sessions and their lifecycle |
 | `/api/gradings/candidates/` | Registrations, including bulk register and bulk status |
 | `/api/gradings/assessments/`, `/api/gradings/assessment-items/` | Assessments and item results |
-| `/api/gradings/outcomes/`, `/api/gradings/promotions/` | Proposals, final decisions and promotions |
+| `/api/gradings/outcomes/`, `/api/gradings/promotions/` | Proposals, final decisions and promotions; `outcomes/<id>/staged-decision/` and `outcomes/staged-decisions/` keep a Master's own unrecorded decisions |
 | `/api/gradings/legacy-records/` | Imported historical records and their reconciliation |
 | `/api/data-imports/` | Import batches, mapping, review and commit |
 | `/api/audit-events/` | The audit log |

@@ -863,6 +863,49 @@ class CandidateOutcome(models.Model):
             raise ValidationError(errors)
 
 
+class StagedDecision(models.Model):
+    """
+    A final decision the Master has chosen but not yet recorded. It is the
+    Master's own working copy, kept so a session that times out loses
+    nothing; it decides nothing, and recording the decision removes it.
+    """
+
+    if TYPE_CHECKING:
+        outcome_id: int
+        author_id: int
+
+    outcome = models.ForeignKey(
+        CandidateOutcome,
+        on_delete=models.CASCADE,
+        related_name="staged_decisions",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="staged_decisions",
+    )
+    final_outcome = models.CharField(
+        max_length=32,
+        choices=CandidateOutcome.Outcome.choices,
+    )
+    decision_notes = models.TextField(blank=True)
+    conditional_requirements = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["outcome_id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["outcome", "author"],
+                name="staged_decision_one_per_author",
+            ),
+            models.CheckConstraint(
+                condition=Q(final_outcome__in=["PASS", "FAIL", "CONDITIONAL"]),
+                name="staged_decision_outcome_valid",
+            ),
+        ]
+
+
 class CandidateAssessmentItem(models.Model):
     if TYPE_CHECKING:
         assessment_id: int

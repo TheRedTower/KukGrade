@@ -44,6 +44,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     Promotion,
+    StagedDecision,
 )
 from gradings.service_support import each_independently, unique_violation_on
 from ranks.models import Rank
@@ -267,6 +268,11 @@ def transition_grading_session(
             )
 
     previous_status = locked_session.status
+    if previous_status == GradingSession.Status.LOCKED:
+        # Unlocked or cancelled: what was staged there can no longer be recorded.
+        StagedDecision.objects.filter(
+            outcome__candidate__session=locked_session,
+        ).delete()
     locked_session.status = target_status
     locked_session.cancellation_reason = cancellation_reason
     locked_session.updated_at = timezone.now()

@@ -29,6 +29,7 @@ export type CandidateAssessment = components["schemas"]["CandidateAssessment"];
 export type CandidateAssessmentItem = components["schemas"]["CandidateAssessmentItem"];
 export type CandidateAssessmentItemResult = components["schemas"]["ResultEnum"];
 export type CandidateOutcome = components["schemas"]["CandidateOutcome"];
+export type StagedDecision = Schemas["StagedDecision"];
 export type CandidateOutcomeOutcome = components["schemas"]["CandidateOutcomeOutcomeEnum"];
 export type Promotion = components["schemas"]["Promotion"];
 export type CategoryAssessmentSummary = Schemas["AssessmentCategorySummary"];
@@ -650,6 +651,27 @@ export async function getAssessmentSummary(
   return apiRequest<CandidateAssessmentSummary>(
     `/api/gradings/assessments/${assessmentId}/summary/`,
   );
+}
+
+/** The viewer's own decisions staged in a session and not yet recorded. */
+export async function getStagedDecisions(session: number): Promise<StagedDecision[]> {
+  return apiRequest<StagedDecision[]>(withQuery("/api/gradings/outcomes/staged-decisions/", { session }));
+}
+
+export async function stageDecision(
+  outcomeId: number,
+  data: Schemas["StagedDecisionRequest"],
+): Promise<StagedDecision> {
+  return apiRequest<StagedDecision>(`/api/gradings/outcomes/${outcomeId}/staged-decision/`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function discardStagedDecision(outcomeId: number): Promise<void> {
+  await apiRequest<void>(`/api/gradings/outcomes/${outcomeId}/staged-decision/`, {
+    method: "DELETE",
+  });
 }
 
 export async function finaliseCandidateOutcome(

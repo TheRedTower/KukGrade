@@ -19,11 +19,13 @@ from gradings.models import (
     GradingSession,
     LegacyGradingRecord,
     Promotion,
+    StagedDecision,
 )
 from gradings.outcome_services import (
     finalise_candidate_outcome,
     promote_candidate,
     propose_candidate_outcome,
+    stage_final_decision,
 )
 from gradings.read_models import OverallAssessmentSummary, assessment_overall
 from gradings.services import (
@@ -513,6 +515,52 @@ class CandidateOutcomeProposalSerializer(serializers.Serializer):
             instance,
             proposed_outcome=str(validated_data["proposed_outcome"]),
             proposal_notes=str(validated_data.get("proposal_notes", "")),
+            actor=cast(User, request.user),
+        )
+
+
+class StagedDecisionSerializer(serializers.ModelSerializer):
+    """A final decision chosen but not yet recorded, seen only by whoever chose it."""
+
+    # Kept as typed, so it comes back as it was left; recording trims it.
+    decision_notes = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=False,
+    )
+    conditional_requirements = serializers.CharField(
+        allow_blank=True,
+        required=False,
+        trim_whitespace=False,
+    )
+
+    class Meta:
+        model = StagedDecision
+        fields = [
+            "outcome",
+            "final_outcome",
+            "decision_notes",
+            "conditional_requirements",
+            "updated_at",
+        ]
+        read_only_fields = ["outcome", "updated_at"]
+
+    def update(
+        self,
+        instance: StagedDecision,
+        validated_data: dict[str, Any],
+    ) -> StagedDecision:
+        raise NotImplementedError
+
+    def create(self, validated_data: dict[str, Any]) -> StagedDecision:
+        request = self.context["request"]
+        return stage_final_decision(
+            self.context["outcome"],
+            final_outcome=str(validated_data["final_outcome"]),
+            decision_notes=str(validated_data.get("decision_notes", "")),
+            conditional_requirements=str(
+                validated_data.get("conditional_requirements", ""),
+            ),
             actor=cast(User, request.user),
         )
 

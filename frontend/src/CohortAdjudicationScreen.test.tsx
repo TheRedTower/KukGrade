@@ -49,6 +49,9 @@ const mockGetOutcomes = vi.fn();
 const mockGetSummary = vi.fn();
 const mockGetItems = vi.fn();
 const mockFinalise = vi.fn();
+const mockGetStaged = vi.fn();
+const mockStage = vi.fn();
+const mockDiscard = vi.fn();
 
 vi.mock("./api", async () => {
   const actual = await vi.importActual<typeof import("./api")>("./api");
@@ -61,6 +64,9 @@ vi.mock("./api", async () => {
     getAssessmentSummary: (...args: unknown[]) => mockGetSummary(...args),
     getAllCandidateAssessmentItems: (...args: unknown[]) => mockGetItems(...args),
     finaliseCandidateOutcome: (...args: unknown[]) => mockFinalise(...args),
+    getStagedDecisions: (...args: unknown[]) => mockGetStaged(...args),
+    stageDecision: (...args: unknown[]) => mockStage(...args),
+    discardStagedDecision: (...args: unknown[]) => mockDiscard(...args),
   };
 });
 
@@ -246,6 +252,77 @@ describe("CohortAdjudicationScreen", () => {
       ...outcomes.find((o) => o.id === outcomeId)!,
       status: "FINALISED",
     }));
+    mockGetStaged.mockResolvedValue([]);
+    mockStage.mockImplementation(async (outcomeId: number) => ({ outcome: outcomeId }));
+    mockDiscard.mockResolvedValue(undefined);
+  });
+
+  it("brings back decisions staged earlier, so a timed-out session loses nothing", async () => {
+    mockGetStaged.mockResolvedValue([
+      {
+        outcome: 12,
+        final_outcome: "CONDITIONAL",
+        decision_notes: "Strong forms.",
+        conditional_requirements: "Re-test Dwi Cha Gi.",
+        updated_at: "2026-11-12T15:00:00Z",
+      },
+    ]);
+    renderBoard();
+
+    const recordAll = await screen.findByTestId("cab-record-staged");
+    await waitFor(() => expect(recordAll).toHaveTextContent("Record 1 staged decision"));
+    expect(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Conditional" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(mockGetStaged).toHaveBeenCalledWith(10);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    // Already on the server: nothing is sent back.
+    expect(mockStage).not.toHaveBeenCalled();
+  });
+
+  it("keeps each staged decision on the server, and drops it when it is unstaged", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await waitFor(() =>
+      expect(mockStage).toHaveBeenCalledWith(11, {
+        final_outcome: "PASS",
+        decision_notes: "",
+        conditional_requirements: "",
+      }),
+    );
+
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockDiscard).toHaveBeenCalledWith(11));
+    expect(mockStage).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not drop the server's copy of a recorded decision itself", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByTestId("cab-record-staged"));
+
+    expect(await screen.findByText("1 decision recorded.")).toBeVisible();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(mockDiscard).not.toHaveBeenCalled();
+  });
+
+  it("says so when a staged decision cannot be kept", async () => {
+    const user = userEvent.setup();
+    mockStage.mockRejectedValue(new ApiError("This candidate's decision can no longer be staged.", 400));
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+
+    expect(
+      await screen.findByText(/This candidate's decision can no longer be staged. They are still here/),
+    ).toBeVisible();
   });
 
   it("lists the non-withdrawn cohort with served counts, proposals and recorded decisions", async () => {

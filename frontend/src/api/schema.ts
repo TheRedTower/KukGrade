@@ -1017,6 +1017,24 @@ export interface paths {
         patch: operations["gradings_outcomes_propose_partial_update"];
         trace?: never;
     };
+    "/api/gradings/outcomes/{id}/staged-decision/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Keep, or drop, the viewer's chosen decision until it is recorded. */
+        put: operations["gradings_outcomes_staged_decision_update"];
+        post?: never;
+        /** @description Keep, or drop, the viewer's chosen decision until it is recorded. */
+        delete: operations["gradings_outcomes_staged_decision_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/gradings/outcomes/bulk-promote/": {
         parameters: {
             query?: never;
@@ -1041,6 +1059,23 @@ export interface paths {
             cookie?: never;
         };
         get: operations["gradings_outcomes_promotion_eligibility_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/gradings/outcomes/staged-decisions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The viewer's own decisions staged in a session and not yet recorded. */
+        get: operations["gradings_outcomes_staged_decisions_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2849,6 +2884,21 @@ export interface components {
          * @enum {string}
          */
         SourceEnum: "KUKGRADE" | "LEGACY";
+        /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
+        StagedDecision: {
+            readonly outcome: number;
+            final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+        };
+        /** @description A final decision chosen but not yet recorded, seen only by whoever chose it. */
+        StagedDecisionRequest: {
+            final_outcome: components["schemas"]["CandidateOutcomeOutcomeEnum"];
+            decision_notes?: string;
+            conditional_requirements?: string;
+        };
         /**
          * @description Detail, create and update.
          *
@@ -4583,6 +4633,55 @@ export interface operations {
             };
         };
     };
+    gradings_outcomes_staged_decision_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this candidate outcome. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StagedDecisionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StagedDecisionRequest"];
+                "multipart/form-data": components["schemas"]["StagedDecisionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagedDecision"];
+                };
+            };
+        };
+    };
+    gradings_outcomes_staged_decision_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A unique integer value identifying this candidate outcome. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     gradings_outcomes_bulk_promote_create: {
         parameters: {
             query?: never;
@@ -4625,6 +4724,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PromotionEligibility"][];
+                };
+            };
+        };
+    };
+    gradings_outcomes_staged_decisions_list: {
+        parameters: {
+            query: {
+                session: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StagedDecision"][];
                 };
             };
         };

@@ -169,4 +169,4 @@ a real club. See [demo.md](demo.md) for how to run it.
 ## What KukGrade does not do (yet)
 
 Reports and exports, certificates, notifications and offline use, and it has no syllabus
-for Pyung Kwahn Jung Nim. See the [roadmap](roadmap.md).
+for the ranks above Jo Kyo Nim. See the [roadmap](roadmap.md).

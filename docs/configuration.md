@@ -67,6 +67,16 @@ need setting to opt out.
 | `DJANGO_SESSION_COOKIE_SECURE`, `DJANGO_CSRF_COOKIE_SECURE` | on | Send the cookies over HTTPS only. |
 | `DJANGO_SESSION_COOKIE_SAMESITE`, `DJANGO_CSRF_COOKIE_SAMESITE` | `Lax` | SameSite policy. |
 
+## Set by the image
+
+The image sets these itself. Leave them alone unless you are running the app another way.
+
+| Variable | Set to | Meaning |
+| --- | --- | --- |
+| `KUKGRADE_IMPORT_UPLOAD_ROOT` | `/var/lib/kukgrade/import_uploads` | Where uploaded spreadsheets wait for review. Part of the folder you back up. |
+| `KUKGRADE_EMBEDDED_SOCKET` | `/tmp/kukgrade-pg` | The socket of the image's own PostgreSQL. |
+| `KUKGRADE_DOCUMENTS_DIR` | `/app/documents` | Where the About screens read the licence and policy files. |
+
 ## Build information
 
 Set these in the shell **before building** and the About page shows which build
@@ -81,7 +91,7 @@ export KUKGRADE_BUILD_PRE_RELEASE="rc.4"   # only for a release candidate
 `KUKGRADE_BUILD_PRE_RELEASE` makes the About page and the sidebar name a candidate
 `0.2.0-rc.4` rather than `0.2.0`. The release workflow sets it from the tag.
 
-Credits and licence documents are not set here. The image copies `LICENSE`,
+Credits and licence documents are not set here (`KUKGRADE_CREDITS_DIR` can point at the credits folder, which defaults to the one beside the app). The image copies `LICENSE`,
 `CODE_OF_CONDUCT.md` and `SECURITY.md` from the repository, and writes the Credits screen's
 data and the full third-party licence notices from the packages it really contains
 (`manage.py write_credits`), so the About section cannot drift from what is running.

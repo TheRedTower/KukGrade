@@ -49,9 +49,10 @@ cd backend
 uv sync --frozen
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy about kukgrade health accounts audit ranks students syllabus gradings data_imports demo
+uv run mypy .
 DJANGO_DEBUG=true uv run python manage.py check
 DJANGO_DEBUG=true uv run python manage.py makemigrations --check --dry-run
+DJANGO_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(64))')" DJANGO_DEBUG=false DJANGO_ALLOWED_HOSTS=kukgrade.example.com uv run python manage.py check --deploy --fail-level WARNING
 DJANGO_SETTINGS_MODULE=kukgrade.settings_test uv run python manage.py spectacular --file schema.yml --validate --fail-on-warn
 git diff --exit-code -- schema.yml
 uv run pytest -n auto
@@ -229,8 +230,7 @@ Each tag also gets a page under
 [Releases](https://github.com/TheRedTower/KukGrade/releases), with notes written from the
 pull requests merged since the last one; a candidate is marked as a pre-release.
 
-First time only: the package is private until it is made public (the package's own page,
-Package settings, Change visibility).
+The package is public, so a tag can be pulled without signing in.
 
 ### How the repository is protected
 

@@ -210,8 +210,10 @@ const outcomes = [
   }),
 ] satisfies CandidateOutcome[];
 
-function renderBoard(path = "/gradings/10/decisions") {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderBoard(
+  path = "/gradings/10/decisions",
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } }),
+) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[path]}>
@@ -313,6 +315,80 @@ describe("CohortAdjudicationScreen", () => {
     expect(mockDiscard).not.toHaveBeenCalled();
   });
 
+  it("reads the staged decisions afresh each time the board opens", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const first = renderBoard(undefined, queryClient);
+    await waitFor(() => expect(mockGetStaged).toHaveBeenCalledTimes(1));
+    first.unmount();
+    mockGetStaged.mockResolvedValue([
+      { outcome: 11, final_outcome: "FAIL", decision_notes: "", conditional_requirements: "", updated_at: "2026-11-12T15:00:00Z" },
+    ]);
+
+    renderBoard(undefined, queryClient);
+
+    await waitFor(() => expect(mockGetStaged).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Fail" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      ),
+    );
+  });
+
+  it("pauses staging, rather than overwrite, when the staged decisions cannot be read", async () => {
+    const user = userEvent.setup();
+    mockGetStaged.mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderBoard();
+
+    expect(await screen.findByText(/Your staged decisions could not be loaded/)).toBeVisible();
+    expect(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Pass" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() =>
+      expect(within(screen.getByTestId("cab-row-1")).getByRole("button", { name: "Pass" })).toBeEnabled(),
+    );
+    expect(screen.queryByText(/Your staged decisions could not be loaded/)).toBeNull();
+  });
+
+  it("sends one save at a time for a candidate, so the last edit is the one kept", async () => {
+    const user = userEvent.setup();
+    let finishFirst!: () => void;
+    mockStage.mockImplementationOnce(
+      (outcomeId: number) => new Promise((resolve) => (finishFirst = () => resolve({ outcome: outcomeId }))),
+    );
+    renderBoard();
+
+    const mia = await screen.findByTestId("cab-row-1");
+    await user.click(within(mia).getByRole("button", { name: "Pass" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
+    await user.click(within(mia).getByRole("button", { name: "Fail" }));
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    // The first is still on its way, so the newer one waits for it.
+    expect(mockStage).toHaveBeenCalledTimes(1);
+
+    finishFirst();
+
+    await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(2));
+    expect(mockStage).toHaveBeenLastCalledWith(11, expect.objectContaining({ final_outcome: "FAIL" }));
+  });
+
+  it("keeps warning while any candidate's decision is unsaved", async () => {
+    const user = userEvent.setup();
+    mockStage.mockImplementation(async (outcomeId: number) => {
+      if (outcomeId === 11) throw new ApiError("Could not save Mia.", 500);
+      return { outcome: outcomeId };
+    });
+    renderBoard();
+
+    await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
+    expect(await screen.findByText(/Could not save Mia\./)).toBeVisible();
+    await user.click(within(screen.getByTestId("cab-row-2")).getByRole("button", { name: "Fail" }));
+    await waitFor(() => expect(mockStage).toHaveBeenCalledWith(12, expect.anything()));
+
+    expect(screen.getByText(/Could not save Mia\./)).toBeVisible();
+  });
+
   it("says so when a staged decision cannot be kept", async () => {
     const user = userEvent.setup();
     mockStage.mockRejectedValue(new ApiError("This candidate's decision can no longer be staged.", 400));
@@ -321,7 +397,7 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
 
     expect(
-      await screen.findByText(/This candidate's decision can no longer be staged. They are still here/),
+      await screen.findByText(/This candidate's decision can no longer be staged. That decision is still/),
     ).toBeVisible();
   });
 

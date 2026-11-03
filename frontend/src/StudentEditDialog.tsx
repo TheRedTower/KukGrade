@@ -1,0 +1,180 @@
+import { useState, type FormEvent } from "react";
+
+import type { StudentDetail, updateStudent } from "./api";
+import { Alert } from "./Alert";
+import { Button } from "./Button";
+import { Dialog } from "./Dialog";
+import { ErrorText } from "./ErrorText";
+import { todayIsoDate } from "./dates";
+import type { useServerForm } from "./forms";
+
+/** Correcting a student's record: WKSA ID, names and date of birth, checked here and by the server. */
+export function StudentEditDialog({
+  student,
+  form,
+  saving,
+  onSave,
+  onClose,
+}: {
+  student: StudentDetail;
+  form: ReturnType<typeof useServerForm>;
+  saving: boolean;
+  onSave: (changes: Parameters<typeof updateStudent>[1]) => void;
+  onClose: () => void;
+}) {
+  const [wksaId, setWksaId] = useState(student.wksa_id);
+  const [firstName, setFirstName] = useState(student.first_name);
+  const [lastName, setLastName] = useState(student.last_name);
+  const [dob, setDob] = useState(student.date_of_birth);
+
+  function save(event: FormEvent) {
+    event.preventDefault();
+    form.reset();
+
+    const errors: Record<string, string[]> = {};
+    if (!firstName.trim()) {
+      errors.first_name = ["First name is required."];
+    }
+    if (!lastName.trim()) {
+      errors.last_name = ["Last name is required."];
+    }
+    if (!dob) {
+      errors.date_of_birth = ["Date of birth is required."];
+    }
+
+    if (Object.keys(errors).length > 0) {
+      form.setClientErrors(errors);
+      return;
+    }
+
+    onSave({
+      // Sent only when changed: the server allows one change, a student ID
+      // to the black belt ID, and refuses any other.
+      ...(wksaId !== student.wksa_id ? { wksa_id: wksaId } : {}),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      date_of_birth: dob,
+    });
+  }
+
+  return (
+    <Dialog title="Edit student record" closeLabel="Close dialog" onClose={onClose} canClose={!saving}>
+
+        {form.banner && (
+          <Alert className="form-alert">{form.banner}</Alert>
+        )}
+
+        <form className="stack" onSubmit={save} noValidate>
+          <div className="stack">
+            <div className="form-field-group">
+              <label htmlFor="edit-wksa-id" className="form-field-label">
+                WKSA ID
+              </label>
+              <input
+                id="edit-wksa-id"
+                type="text"
+                className={`form-text-input ${form.errorFor("wksa_id") ? "input-error" : ""}`}
+                value={wksaId}
+                onChange={(e) => setWksaId(e.target.value)}
+                disabled={saving}
+                aria-invalid={!!form.errorFor("wksa_id")}
+                aria-describedby={form.errorFor("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
+              />
+              {form.errorFor("wksa_id") ? (
+                <ErrorText field id="edit-wksa-id-error">
+                  {form.errorFor("wksa_id")}
+                </ErrorText>
+              ) : (
+                <p className="form-field-help" id="edit-wksa-id-help">
+                  {student.wksa_id_can_change
+                    ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
+                    : "Correct a mistyped black belt ID. It never goes back to a student ID."}
+                </p>
+              )}
+            </div>
+
+            <div className="form-row-grid-2">
+              <div className="form-field-group">
+                <label htmlFor="edit-first-name" className="form-field-label">
+                  First name <span className="required-star">*</span>
+                </label>
+                <input
+                  id="edit-first-name"
+                  type="text"
+                  className={`form-text-input ${form.errorFor("first_name") ? "input-error" : ""}`}
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={saving}
+                  aria-required="true"
+                  aria-invalid={!!form.errorFor("first_name")}
+                  aria-describedby={form.errorFor("first_name") ? "edit-first-name-error" : undefined}
+                  data-dialog-autofocus
+                />
+                {form.errorFor("first_name") && (
+                  <ErrorText field id="edit-first-name-error">{form.errorFor("first_name")}</ErrorText>
+                )}
+              </div>
+
+              <div className="form-field-group">
+                <label htmlFor="edit-last-name" className="form-field-label">
+                  Last name <span className="required-star">*</span>
+                </label>
+                <input
+                  id="edit-last-name"
+                  type="text"
+                  className={`form-text-input ${form.errorFor("last_name") ? "input-error" : ""}`}
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={saving}
+                  aria-required="true"
+                  aria-invalid={!!form.errorFor("last_name")}
+                  aria-describedby={form.errorFor("last_name") ? "edit-last-name-error" : undefined}
+                />
+                {form.errorFor("last_name") && (
+                  <ErrorText field id="edit-last-name-error">{form.errorFor("last_name")}</ErrorText>
+                )}
+              </div>
+            </div>
+
+            <div className="form-field-group">
+              <label htmlFor="edit-dob" className="form-field-label">
+                Date of birth <span className="required-star">*</span>
+              </label>
+              <input
+                id="edit-dob"
+                type="date"
+                className={`form-text-input ${form.errorFor("date_of_birth") ? "input-error" : ""}`}
+                value={dob}
+                max={todayIsoDate()}
+                onChange={(e) => setDob(e.target.value)}
+                disabled={saving}
+                aria-required="true"
+                aria-invalid={!!form.errorFor("date_of_birth")}
+                aria-describedby={form.errorFor("date_of_birth") ? "edit-dob-error" : undefined}
+              />
+              {form.errorFor("date_of_birth") && (
+                <ErrorText field id="edit-dob-error">{form.errorFor("date_of_birth")}</ErrorText>
+              )}
+            </div>
+          </div>
+
+          <div className="action-row action-row--end">
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          </div>
+        </form>
+    </Dialog>
+  );
+}

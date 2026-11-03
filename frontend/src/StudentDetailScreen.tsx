@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { keys, refresh } from "./queryKeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -15,9 +15,10 @@ import {
   errorMessage,
 } from "./api";
 import { PageHeader } from "./PageHeader";
+import { StudentEditDialog } from "./StudentEditDialog";
+import { StudentStatusDialog } from "./StudentStatusDialog";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
-import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
 import { useRanksQuery } from "./queries";
@@ -28,7 +29,7 @@ import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
-import { formatLongDate, formatShortDate, todayIsoDate } from "./dates";
+import { formatLongDate, formatShortDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
 import { Button } from "./Button";
 
@@ -69,14 +70,9 @@ export function StudentDetailScreen() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   // Status modal state
-  const [selectedStatus, setSelectedStatus] = useState<StudentStatus>("ACTIVE");
   const [statusError, setStatusError] = useState<string | null>(null);
 
   // Edit modal state
-  const [editWksaId, setEditWksaId] = useState("");
-  const [editFirstName, setEditFirstName] = useState("");
-  const [editLastName, setEditLastName] = useState("");
-  const [editDob, setEditDob] = useState("");
   const editForm = useServerForm(["first_name", "last_name", "wksa_id", "date_of_birth"]);
 
   // Delete modal state
@@ -155,52 +151,10 @@ export function StudentDetailScreen() {
     return next?.has_syllabus ? next : null;
   }, [student, ranks]);
 
-  function handleSaveStatus(e: FormEvent) {
-    e.preventDefault();
-    if (!student) return;
-    setStatusError(null);
-    statusMutation.mutate({ id: student.id, status: selectedStatus });
-  }
-
   function handleDeleteStudent() {
     if (!student) return;
     setDeleteError(null);
     deleteMutation.mutate(student.id);
-  }
-
-  function handleSaveEdit(e: FormEvent) {
-    e.preventDefault();
-    if (!student) return;
-
-    editForm.reset();
-
-    const errors: Record<string, string[]> = {};
-    if (!editFirstName.trim()) {
-      errors.first_name = ["First name is required."];
-    }
-    if (!editLastName.trim()) {
-      errors.last_name = ["Last name is required."];
-    }
-    if (!editDob) {
-      errors.date_of_birth = ["Date of birth is required."];
-    }
-
-    if (Object.keys(errors).length > 0) {
-      editForm.setClientErrors(errors);
-      return;
-    }
-
-    editMutation.mutate({
-      id: student.id,
-      changes: {
-        // Sent only when changed: the server allows one change, a student ID
-        // to the black belt ID, and refuses any other.
-        ...(editWksaId !== student.wksa_id ? { wksa_id: editWksaId } : {}),
-        first_name: editFirstName.trim(),
-        last_name: editLastName.trim(),
-        date_of_birth: editDob,
-      },
-    });
   }
 
   if (studentQuery.isLoading) {
@@ -262,10 +216,6 @@ export function StudentDetailScreen() {
           <Button
             variant="secondary"
             onClick={() => {
-              setEditWksaId(student.wksa_id);
-              setEditFirstName(student.first_name);
-              setEditLastName(student.last_name);
-              setEditDob(student.date_of_birth);
               editForm.reset();
               setIsEditModalOpen(true);
             }}
@@ -474,7 +424,6 @@ export function StudentDetailScreen() {
               <Button
                 variant="secondary" block
                 onClick={() => {
-                  setSelectedStatus(student.status as StudentStatus);
                   setStatusError(null);
                   setIsStatusModalOpen(true);
                 }}
@@ -498,98 +447,18 @@ export function StudentDetailScreen() {
         </div>
       </div>
 
-      {/* Change Status Modal */}
       {isStatusModalOpen && (
-        <Dialog title="Change student status" closeLabel="Close dialog" onClose={() => setIsStatusModalOpen(false)} canClose={!isSavingStatus}>
-
-            {statusError && (
-              <Alert className="form-alert">{statusError}</Alert>
-            )}
-
-            <form className="stack" onSubmit={handleSaveStatus}>
-              <div>
-                <p className="modal-lead-text">
-                  Update status for <strong>{student.first_name} {student.last_name}</strong>:
-                </p>
-
-                <div className="status-radio-options" role="radiogroup" aria-label="Student status options">
-                  <label className={`status-radio-card ${selectedStatus === "ACTIVE" ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="status"
-                      value="ACTIVE"
-                      checked={selectedStatus === "ACTIVE"}
-                      onChange={() => setSelectedStatus("ACTIVE")}
-                      data-dialog-autofocus={selectedStatus === "ACTIVE" ? true : undefined}
-                    />
-                    <div className="status-radio-content">
-                      <div>
-                        <StudentStatusBadge status="ACTIVE" />
-                      </div>
-                      <p className="status-radio-desc">
-                        Active student in regular training. Can be registered for gradings.
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className={`status-radio-card ${selectedStatus === "INACTIVE" ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="status"
-                      value="INACTIVE"
-                      checked={selectedStatus === "INACTIVE"}
-                      onChange={() => setSelectedStatus("INACTIVE")}
-                      data-dialog-autofocus={selectedStatus === "INACTIVE" ? true : undefined}
-                    />
-                    <div className="status-radio-content">
-                      <div>
-                        <StudentStatusBadge status="INACTIVE" />
-                      </div>
-                      <p className="status-radio-desc">
-                        Temporary break or medical leave. Blocks nothing, and keeps all history.
-                      </p>
-                    </div>
-                  </label>
-
-                  <label className={`status-radio-card ${selectedStatus === "LEFT" ? "selected" : ""}`}>
-                    <input
-                      type="radio"
-                      name="status"
-                      value="LEFT"
-                      checked={selectedStatus === "LEFT"}
-                      onChange={() => setSelectedStatus("LEFT")}
-                      data-dialog-autofocus={selectedStatus === "LEFT" ? true : undefined}
-                    />
-                    <div className="status-radio-content">
-                      <div>
-                        <StudentStatusBadge status="LEFT" />
-                      </div>
-                      <p className="status-radio-desc">
-                        Has left. Cannot be registered for gradings; all history is kept.
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="action-row action-row--end">
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsStatusModalOpen(false)}
-                  disabled={isSavingStatus}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isSavingStatus}
-                >
-                  {isSavingStatus ? "Updating..." : "Update status"}
-                </Button>
-              </div>
-            </form>
-        </Dialog>
+        <StudentStatusDialog
+          error={statusError}
+          name={`${student.first_name} ${student.last_name}`}
+          saving={isSavingStatus}
+          status={student.status as StudentStatus}
+          onClose={() => setIsStatusModalOpen(false)}
+          onSave={(status) => {
+            setStatusError(null);
+            statusMutation.mutate({ id: student.id, status });
+          }}
+        />
       )}
 
       {/* Delete Student Modal */}
@@ -627,126 +496,14 @@ export function StudentDetailScreen() {
         </Dialog>
       )}
 
-      {/* Edit Student Details Modal */}
       {isEditModalOpen && (
-        <Dialog title="Edit student record" closeLabel="Close dialog" onClose={() => setIsEditModalOpen(false)} canClose={!isSavingEdit}>
-
-            {editForm.banner && (
-              <Alert className="form-alert">{editForm.banner}</Alert>
-            )}
-
-            <form className="stack" onSubmit={handleSaveEdit} noValidate>
-              <div className="stack">
-                <div className="form-field-group">
-                  <label htmlFor="edit-wksa-id" className="form-field-label">
-                    WKSA ID
-                  </label>
-                  <input
-                    id="edit-wksa-id"
-                    type="text"
-                    className={`form-text-input ${editForm.errorFor("wksa_id") ? "input-error" : ""}`}
-                    value={editWksaId}
-                    onChange={(e) => setEditWksaId(e.target.value)}
-                    disabled={isSavingEdit}
-                    aria-invalid={!!editForm.errorFor("wksa_id")}
-                    aria-describedby={editForm.errorFor("wksa_id") ? "edit-wksa-id-error" : "edit-wksa-id-help"}
-                  />
-                  {editForm.errorFor("wksa_id") ? (
-                    <ErrorText field id="edit-wksa-id-error">
-                      {editForm.errorFor("wksa_id")}
-                    </ErrorText>
-                  ) : (
-                    <p className="form-field-help" id="edit-wksa-id-help">
-                      {student.wksa_id_can_change
-                        ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
-                        : "Correct a mistyped black belt ID. It never goes back to a student ID."}
-                    </p>
-                  )}
-                </div>
-
-                <div className="form-row-grid-2">
-                  <div className="form-field-group">
-                    <label htmlFor="edit-first-name" className="form-field-label">
-                      First name <span className="required-star">*</span>
-                    </label>
-                    <input
-                      id="edit-first-name"
-                      type="text"
-                      className={`form-text-input ${editForm.errorFor("first_name") ? "input-error" : ""}`}
-                      value={editFirstName}
-                      onChange={(e) => setEditFirstName(e.target.value)}
-                      disabled={isSavingEdit}
-                      aria-required="true"
-                      aria-invalid={!!editForm.errorFor("first_name")}
-                      aria-describedby={editForm.errorFor("first_name") ? "edit-first-name-error" : undefined}
-                      data-dialog-autofocus
-                    />
-                    {editForm.errorFor("first_name") && (
-                      <ErrorText field id="edit-first-name-error">{editForm.errorFor("first_name")}</ErrorText>
-                    )}
-                  </div>
-
-                  <div className="form-field-group">
-                    <label htmlFor="edit-last-name" className="form-field-label">
-                      Last name <span className="required-star">*</span>
-                    </label>
-                    <input
-                      id="edit-last-name"
-                      type="text"
-                      className={`form-text-input ${editForm.errorFor("last_name") ? "input-error" : ""}`}
-                      value={editLastName}
-                      onChange={(e) => setEditLastName(e.target.value)}
-                      disabled={isSavingEdit}
-                      aria-required="true"
-                      aria-invalid={!!editForm.errorFor("last_name")}
-                      aria-describedby={editForm.errorFor("last_name") ? "edit-last-name-error" : undefined}
-                    />
-                    {editForm.errorFor("last_name") && (
-                      <ErrorText field id="edit-last-name-error">{editForm.errorFor("last_name")}</ErrorText>
-                    )}
-                  </div>
-                </div>
-
-                <div className="form-field-group">
-                  <label htmlFor="edit-dob" className="form-field-label">
-                    Date of birth <span className="required-star">*</span>
-                  </label>
-                  <input
-                    id="edit-dob"
-                    type="date"
-                    className={`form-text-input ${editForm.errorFor("date_of_birth") ? "input-error" : ""}`}
-                    value={editDob}
-                    max={todayIsoDate()}
-                    onChange={(e) => setEditDob(e.target.value)}
-                    disabled={isSavingEdit}
-                    aria-required="true"
-                    aria-invalid={!!editForm.errorFor("date_of_birth")}
-                    aria-describedby={editForm.errorFor("date_of_birth") ? "edit-dob-error" : undefined}
-                  />
-                  {editForm.errorFor("date_of_birth") && (
-                    <ErrorText field id="edit-dob-error">{editForm.errorFor("date_of_birth")}</ErrorText>
-                  )}
-                </div>
-              </div>
-
-              <div className="action-row action-row--end">
-                <Button
-                  variant="secondary"
-                  onClick={() => setIsEditModalOpen(false)}
-                  disabled={isSavingEdit}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={isSavingEdit}
-                >
-                  {isSavingEdit ? "Saving..." : "Save changes"}
-                </Button>
-              </div>
-            </form>
-        </Dialog>
+        <StudentEditDialog
+          form={editForm}
+          saving={isSavingEdit}
+          student={student}
+          onClose={() => setIsEditModalOpen(false)}
+          onSave={(changes) => editMutation.mutate({ id: student.id, changes })}
+        />
       )}
     </section>
   );

@@ -83,7 +83,7 @@ docker build --target production -t kukgrade:ci .
 ```sh
 cd frontend
 npx playwright install chromium webkit   # once
-npm run test:widths                 # every screen: Chrome at nine widths, WebKit as an iPhone and an iPad
+npm run test:widths                 # every screen: Chrome at nine widths, WebKit as an iPhone and an iPad (CI: four widths, nine on a release tag)
 ```
 
 The two `git diff --exit-code` steps prove the committed OpenAPI schema matches the
@@ -188,6 +188,9 @@ The version is a single number in `backend/kukgrade/version.py`, kept equal to
 `backend/pyproject.toml` and `frontend/package.json` by a test.
 
 1. **Bump the version** on `dev` in a pull request, as for any change.
+   Pull requests and merges check every screen at four widths only. Before tagging, run
+   the full nine-width check on `dev` (Actions, CI, Run workflow); the tag's own CI run
+   repeats it, alongside the publish.
 2. **Cut a release candidate on `dev`**: `git tag v0.2.0-rc.1 && git push origin v0.2.0-rc.1`.
    The [Publish image](../.github/workflows/publish.yml) workflow builds
    `ghcr.io/theredtower/kukgrade:0.2.0-rc.1` for amd64 and arm64 on native runners, runs

@@ -7,7 +7,6 @@
      the breakpoints. .workspace applies it; a page never adds its own. */
   --page-gutter: clamp(1rem, 3vw, 2.5rem);
 
-  --page-max-narrow: 54rem;
   --page-max-reading: 60rem;
   --page-max: 76rem;
   --page-max-wide: 90rem;
@@ -45,10 +44,6 @@
   max-width: var(--page-max);
   margin-inline: auto;
   padding-block-end: var(--page-end-space);
-}
-
-.page--narrow {
-  max-width: var(--page-max-narrow);
 }
 
 .page--reading {

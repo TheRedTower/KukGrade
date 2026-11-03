@@ -102,7 +102,7 @@ serializers and the committed frontend types match the schema.
 - **Never hand-write an API type** in the frontend. Declare the shape in the backend
   (`@extend_schema`), regenerate `schema.yml`, then `npm run generate:types`.
 - **Layout numbers live in `frontend/src/layout.css`, nowhere else.** A screen adds its
-  root class `page` (with `page--narrow`, `page--reading` or `page--wide`) and writes no
+  root class `page` (with `page--reading` or `page--wide`) and writes no
   width, gutter, max-width or breakpoint of its own; `layoutRules.test.ts` fails if a
   stylesheet adds a width query, `nowrap`, sideways scroll or fixed `min-width`. The
   legacy ones are counted in `layoutBaseline.json`, which only ever shrinks. Breakpoints

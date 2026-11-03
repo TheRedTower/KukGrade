@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { ChoiceGroup } from "./ChoiceGroup";
 import type { BadgeTone } from "./badgeClass";
 import { PageHeader } from "./PageHeader";
@@ -407,45 +408,50 @@ function RowsLedger({
       ) : list.length === 0 && !rows.query.isPending ? (
         <p className="ix-row ix-muted">Nothing here.</p>
       ) : (
-        <div className="ix-table-wrap ix-ruled">
-          <table className="ix-table">
-            <thead>
-              <tr>
-                <th scope="col">{roster ? "Row" : "Sheet · row"}</th>
-                <th scope="col">Name</th>
-                <th scope="col">Details</th>
-                <th scope="col">{roster ? "What happened" : "Now"}</th>
-                <th scope="col">
-                  <span className="ix-visually-hidden">Open</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.map((row) => {
-                const state = rowState(row, roster);
-                const name = importRowName(row, batch.kind);
-                return (
-                  <tr key={row.row_number}>
-                    <td className="ix-muted ix-nowrap">
-                      {roster ? row.row_number : row.source_locator.replaceAll("!", " · ")}
-                    </td>
-                    <td className="ix-semibold">{name}</td>
-                    <td className="ix-muted">{rowDetail(row, batch)}</td>
-                    <td>
-                      <Badge dot tone={state.tone}>{state.label}</Badge>
-                    </td>
-                    <td className="ix-cell-action">
-                      {roster && row.created_id ? (
-                        <Link aria-label={`Open ${name}`} className={buttonClass({ variant: "link" })} to={`/students/${row.created_id}`}>
-                          Open
-                        </Link>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="ix-ruled">
+          <ResponsiveTable
+            flush
+            label="Imported rows"
+            rows={list}
+            rowKey={(row) => row.row_number}
+            columns={[
+              { key: "name", header: "Name", primary: true, render: (row) => importRowName(row, batch.kind) },
+              {
+                key: "where",
+                header: roster ? "Row" : "Sheet · row",
+                render: (row) => (roster ? row.row_number : row.source_locator.replaceAll("!", " · ")),
+              },
+              { key: "details", header: "Details", render: (row) => rowDetail(row, batch) },
+              {
+                key: "state",
+                header: roster ? "What happened" : "Now",
+                render: (row) => {
+                  const state = rowState(row, roster);
+                  return (
+                    <Badge dot tone={state.tone}>
+                      {state.label}
+                    </Badge>
+                  );
+                },
+              },
+              {
+                key: "open",
+                header: "Open",
+                actions: "inline",
+                align: "end",
+                render: (row) =>
+                  roster && row.created_id ? (
+                    <Link
+                      aria-label={`Open ${importRowName(row, batch.kind)}`}
+                      className={buttonClass({ variant: "link" })}
+                      to={`/students/${row.created_id}`}
+                    >
+                      Open
+                    </Link>
+                  ) : null,
+              },
+            ]}
+          />
         </div>
       )}
       <ImportPager page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />

@@ -1,4 +1,5 @@
 import { Alert } from "./Alert";
+import { ResponsiveTable } from "./ResponsiveTable";
 import { Badge } from "./Badge";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -147,31 +148,22 @@ export function ImportMatchRanks({
                     The workbook marks this with “?”. The records keep that doubt, whatever you choose.
                   </Alert>
                 ) : null}
-                <div className="ix-table-wrap">
-                  <table className="ix-table ix-table-compact">
-                    <caption className="ix-caption">
-                      Records using “{current.source_text}”
-                    </caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col">Sheet</th>
-                        <th scope="col">Held → Tested for</th>
-                        <th scope="col">Outcome</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(examples.data?.results ?? []).map((row) => (
-                        <tr key={row.row_number}>
-                          <td className="ix-semibold">{row.values.name || "(no name)"}</td>
-                          <td className="ix-nowrap">{row.source_locator.split("!")[0]}</td>
-                          <td>{`${row.values.current_rank || "(blank)"} → ${row.values.testing_for_rank || "(blank)"}`}</td>
-                          <td>{row.values.outcome || "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <h3 className="ix-caption">Records using “{current.source_text}”</h3>
+                <ResponsiveTable
+                  label={`Records using “${current.source_text}”`}
+                  rows={examples.data?.results ?? []}
+                  rowKey={(row) => row.row_number}
+                  columns={[
+                    { key: "name", header: "Name", primary: true, render: (row) => row.values.name || "(no name)" },
+                    { key: "sheet", header: "Sheet", render: (row) => row.source_locator.split("!")[0] },
+                    {
+                      key: "ranks",
+                      header: "Held → Tested for",
+                      render: (row) => `${row.values.current_rank || "(blank)"} → ${row.values.testing_for_rank || "(blank)"}`,
+                    },
+                    { key: "outcome", header: "Outcome", render: (row) => row.values.outcome || "—" },
+                  ]}
+                />
                 <p className="ix-muted ix-small ix-flush">
                   A rank left for later is still imported as written, and can be matched when you
                   link records to students.

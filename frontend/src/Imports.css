@@ -356,29 +356,14 @@
   vertical-align: top;
 }
 
-.ix-table td.ix-nowrap,
-.ix-nowrap {
-  white-space: nowrap;
-}
-
 .ix-table td.ix-cell-action {
   white-space: nowrap;
   text-align: right;
 }
 
-.ix-table td.ix-cell-words {
-  min-width: 16rem;
-}
-
-.ix-table-compact {
-  min-width: 30rem;
-}
-
 .ix-caption {
-  padding-bottom: 0.5rem;
-  caption-side: top;
+  margin: 0;
   font-weight: 700;
-  text-align: left;
 }
 
 .ix-table-foot {

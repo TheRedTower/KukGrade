@@ -535,12 +535,12 @@ h2 {
   width: 3.5rem;
   height: 3.5rem;
   border-radius: 50%;
-  background: rgba(212, 175, 55, 0.12);
+  background: var(--color-warning-surface);
   color: var(--color-accent);
   display: grid;
   place-items: center;
   margin-bottom: 1.25rem;
-  border: 1px solid rgba(212, 175, 55, 0.25);
+  border: 1px solid var(--color-border);
 }
 
 .must-change-password-card h1 {

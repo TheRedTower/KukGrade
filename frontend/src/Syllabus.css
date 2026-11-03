@@ -197,10 +197,4 @@
   color: var(--color-text-muted);
 }
 
-/* Dark Mode Parity */
-
-[data-theme="dark"] .syl-core-card {
-  background: #221e18;
-  border-color: #332d24;
-}
 

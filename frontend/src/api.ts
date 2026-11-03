@@ -1008,12 +1008,7 @@ export async function getLegacyPeopleSummary(
   );
 }
 
-/** The names the viewer has put aside for now on the linking page. */
-export async function getSetAsideNames(): Promise<string[]> {
-  const kept = await apiRequest<Schemas["SetAsideNames"]>("/api/gradings/legacy-records/people/set-aside/");
-  return kept.group_keys;
-}
-
+/** Put names aside for now on the linking page; the viewer's own list, on the server. */
 export async function setAsideNames(groupKeys: string[]): Promise<string[]> {
   const kept = await apiRequest<Schemas["SetAsideNames"]>("/api/gradings/legacy-records/people/set-aside/", {
     method: "POST",

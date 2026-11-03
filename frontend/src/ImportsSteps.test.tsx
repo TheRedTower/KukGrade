@@ -33,7 +33,6 @@ const api = vi.hoisted(() => ({
   resolveLegacyCurrentRank: vi.fn(),
   resolveLegacyTestingForRank: vi.fn(),
   voidLegacyGradingRecord: vi.fn(),
-  getSetAsideNames: vi.fn(),
   setAsideNames: vi.fn(),
   putBackSetAsideName: vi.fn(),
 }));
@@ -718,7 +717,6 @@ describe("Linking historical records", () => {
     );
     api.bulkLinkLegacyRecords.mockResolvedValue([]);
     setAside = [];
-    api.getSetAsideNames.mockImplementation(async () => [...setAside]);
     api.setAsideNames.mockImplementation(async (keys: string[]) => {
       setAside = [...new Set([...setAside, ...keys])];
       return [...setAside];

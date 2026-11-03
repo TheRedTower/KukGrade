@@ -420,8 +420,10 @@ def test_names_put_aside_are_each_persons_own_and_can_be_put_back() -> None:
     assert again.json() == {"group_keys": ["theo", "zac w"]}
     assert put_back.status_code == 204
     assert missing_key.status_code == 400
-    assert first.get(SET_ASIDE).json() == {"group_keys": ["zac w"]}
-    assert second.get(SET_ASIDE).json() == {"group_keys": []}
+    assert [
+        p["source_name"] for p in results(first.get(PEOPLE, {"set_aside": "only"}))
+    ] == ["Zac W"]
+    assert results(second.get(PEOPLE, {"set_aside": "only"})) == []
     assert len(results(second.get(PEOPLE, {"set_aside": "exclude"}))) == 3
     too_many = [f"name {n}" for n in range(101)]
     assert (
@@ -436,12 +438,11 @@ def test_only_people_who_link_history_may_put_names_aside(who: str) -> None:
     client = client_for(actor)
 
     responses = [
-        client.get(SET_ASIDE),
         client.post(SET_ASIDE, {"group_keys": ["theo"]}, format="json"),
         client.delete(f"{SET_ASIDE}?group_key=theo"),
     ]
 
-    assert [response.status_code for response in responses] == [403, 403, 403]
+    assert [response.status_code for response in responses] == [403, 403]
 
 
 def test_a_linked_person_names_the_student_they_are_linked_to() -> None:

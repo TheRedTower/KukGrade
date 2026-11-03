@@ -1091,7 +1091,6 @@ class LegacyGradingRecordViewSet(
             ).data,
         )
 
-    @extend_schema(methods=["GET"], responses=SetAsideNamesSerializer)
     @extend_schema(
         methods=["POST"],
         request=SetAsideNamesSerializer,
@@ -1109,13 +1108,13 @@ class LegacyGradingRecordViewSet(
     )
     @action(
         detail=False,
-        methods=["get", "post", "delete"],
+        methods=["post", "delete"],
         url_path="people/set-aside",
         filter_backends=[],
         pagination_class=None,
     )
     def set_aside(self, request: Request, *args: object, **kwargs: object) -> Response:
-        """The viewer's own names put aside for now: read, add to, or put one back."""
+        """Add to the viewer's own names put aside for now, or put one back."""
         viewer = cast(User, request.user)
         if request.method == "DELETE":
             key = request.query_params.get("group_key", "")
@@ -1123,12 +1122,9 @@ class LegacyGradingRecordViewSet(
                 raise ValidationError({"group_key": ["Choose a name to put back."]})
             put_back_name(viewer, key)
             return Response(status=status.HTTP_204_NO_CONTENT)
-        if request.method == "POST":
-            payload = SetAsideNamesSerializer(data=request.data)
-            payload.is_valid(raise_exception=True)
-            keys = set_aside_names(viewer, payload.validated_data["group_keys"])
-        else:
-            keys = set_aside_keys(viewer)
+        payload = SetAsideNamesSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        keys = set_aside_names(viewer, payload.validated_data["group_keys"])
         return Response(SetAsideNamesSerializer({"group_keys": keys}).data)
 
     @extend_schema(

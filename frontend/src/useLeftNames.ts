@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { getSetAsideNames, putBackSetAsideName, setAsideNames } from "./api";
+import { putBackSetAsideName, setAsideNames } from "./api";
 
 /** Where an earlier version kept them, in the browser; moved to the server once. */
 const OLD_STORAGE_KEY = "kukgrade-left-names";
@@ -30,23 +30,21 @@ function forgetOldNames() {
  */
 export function useLeftNames() {
   const queryClient = useQueryClient();
-  const names = useQuery({ queryKey: ["setAsideNames"], queryFn: getSetAsideNames });
 
-  function changed(keys?: string[]) {
-    if (keys) queryClient.setQueryData(["setAsideNames"], keys);
-    else void queryClient.invalidateQueries({ queryKey: ["setAsideNames"] });
+  // The server filters the lists by what is aside, so they are asked for again.
+  function changed() {
     void queryClient.invalidateQueries({ queryKey: ["legacyPeople"] });
   }
 
   const leave = useMutation({ mutationFn: (key: string) => setAsideNames([key]), onSuccess: changed });
-  const putBack = useMutation({ mutationFn: (key: string) => putBackSetAsideName(key), onSuccess: () => changed() });
+  const putBack = useMutation({ mutationFn: (key: string) => putBackSetAsideName(key), onSuccess: changed });
   // Forgotten here only once the server has them; a failed move is tried
   // again the next time the page opens.
   const moveOld = useMutation({
     mutationFn: (keys: string[]) => setAsideNames(keys),
-    onSuccess: (keys) => {
+    onSuccess: () => {
       forgetOldNames();
-      changed(keys);
+      changed();
     },
   });
   const moveOldNames = moveOld.mutate;
@@ -57,7 +55,6 @@ export function useLeftNames() {
   }, [moveOldNames]);
 
   return {
-    left: names.data ?? [],
     leave: leave.mutate,
     putBack: putBack.mutate,
   };

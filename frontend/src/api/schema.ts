@@ -960,12 +960,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
-        get: operations["gradings_legacy_records_people_set_aside_retrieve"];
+        get?: never;
         put?: never;
-        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
+        /** @description Add to the viewer's own names put aside for now, or put one back. */
         post: operations["gradings_legacy_records_people_set_aside_create"];
-        /** @description The viewer's own names put aside for now: read, add to, or put one back. */
+        /** @description Add to the viewer's own names put aside for now, or put one back. */
         delete: operations["gradings_legacy_records_people_set_aside_destroy"];
         options?: never;
         head?: never;
@@ -4544,25 +4543,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LegacyPeopleSummary"];
-                };
-            };
-        };
-    };
-    gradings_legacy_records_people_set_aside_retrieve: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SetAsideNames"];
                 };
             };
         };

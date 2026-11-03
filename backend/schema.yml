@@ -1740,25 +1740,9 @@ paths:
                 $ref: '#/components/schemas/LegacyPeopleSummary'
           description: ''
   /api/gradings/legacy-records/people/set-aside/:
-    get:
-      operationId: gradings_legacy_records_people_set_aside_retrieve
-      description: 'The viewer''s own names put aside for now: read, add to, or put
-        one back.'
-      tags:
-      - gradings
-      security:
-      - cookieAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SetAsideNames'
-          description: ''
     post:
       operationId: gradings_legacy_records_people_set_aside_create
-      description: 'The viewer''s own names put aside for now: read, add to, or put
-        one back.'
+      description: Add to the viewer's own names put aside for now, or put one back.
       tags:
       - gradings
       requestBody:
@@ -1784,8 +1768,7 @@ paths:
           description: ''
     delete:
       operationId: gradings_legacy_records_people_set_aside_destroy
-      description: 'The viewer''s own names put aside for now: read, add to, or put
-        one back.'
+      description: Add to the viewer's own names put aside for now, or put one back.
       parameters:
       - in: query
         name: group_key

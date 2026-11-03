@@ -23,7 +23,7 @@ import {
   withdrawLockedCandidate,
   errorMessage,
 } from "./api";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -647,31 +647,20 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
   return (
     <section aria-labelledby="gsd-title" className="page gsd-page" data-testid="gsd-page">
-      <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]} />
-
-      {/* ── Action Error Banner ─────────────────────────────────────────── */}
-      {actionError && (
-        <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>
-      )}
-      {actionMessage && (
-        <Alert tone="success" onDismiss={() => setActionMessage(null)}>{actionMessage}</Alert>
-      )}
-
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="action-row gsd-header">
-        <div className="gsd-header-left">
-          <div className="gsd-title-row">
-            <h1 ref={headingRef} className="gsd-title" id="gsd-title" tabIndex={-1}>{session.title}</h1>
-            <SessionStatusBadge status={session.status} label={session.status_display} />
-          </div>
-          <p className="gsd-meta-row">
-            <span>{formatSessionDate(session.grading_date)}</span>
-            <span className="gsd-meta-sep" aria-hidden="true">·</span>
+      <PageHeader
+        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: session.title }]}
+        title={session.title}
+        titleId="gsd-title"
+        titleRef={headingRef}
+        tag={<SessionStatusBadge status={session.status} label={session.status_display} />}
+        subtitle={
+          <>
+            <span>{formatSessionDate(session.grading_date)}</span> <span aria-hidden="true">·</span>{" "}
             <span>{session.location || "No location specified"}</span>
-          </p>
-        </div>
-
-        <div className="action-row gsd-header-actions">
+          </>
+        }
+        actions={
+          <>
           {(session.status === "LOCKED" || session.status === "COMPLETED") && (
             <Link
               to={`/gradings/${session.id}/decisions`}
@@ -809,8 +798,17 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               Add candidate <span aria-hidden="true">→</span>
             </Link>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
+
+      {/* ── Action Error Banner ─────────────────────────────────────────── */}
+      {actionError && (
+        <Alert onDismiss={() => setActionError(null)}>{actionError}</Alert>
+      )}
+      {actionMessage && (
+        <Alert tone="success" onDismiss={() => setActionMessage(null)}>{actionMessage}</Alert>
+      )}
 
       {/* ── Lifecycle Progression Track ─────────────────────────────────── */}
       <section className="gsd-lifecycle-section" aria-label="Session progress">

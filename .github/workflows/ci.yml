@@ -267,4 +267,6 @@ jobs:
           npx playwright install --with-deps chromium webkit
           npm run test:widths
         env:
-          KUKGRADE_E2E_QUICK: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && '' || '1' }}
+          # `cond && '' || '1'` would always give '1' ('' is falsy), so the
+          # quick case is the one tested.
+          KUKGRADE_E2E_QUICK: ${{ (github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')) && '1' || '' }}

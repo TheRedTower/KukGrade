@@ -312,7 +312,7 @@ export function ImportMatchColumns({
                   return (
                     <th key={header} scope="col">
                       <span className="ix-col-name">{header}</span>
-                      <label className="ix-visually-hidden" htmlFor={`ix-col-${index}`}>
+                      <label className="visually-hidden" htmlFor={`ix-col-${index}`}>
                         What “{header}” holds
                       </label>
                       <select

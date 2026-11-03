@@ -97,10 +97,6 @@
   color: var(--color-text);
 }
 
-.pl-belt-name {
-  white-space: nowrap;
-}
-
 /* Eligibility & Actions */
 
 .pl-eligibility-promoted {

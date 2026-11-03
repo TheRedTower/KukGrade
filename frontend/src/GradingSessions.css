@@ -226,7 +226,7 @@
 
 .cgs-date-row {
   display: grid;
-  grid-template-columns: minmax(0, 85px) minmax(0, 1fr) minmax(0, 100px);
+  grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr) minmax(0, 6.5rem);
   gap: 0.5rem;
 }
 

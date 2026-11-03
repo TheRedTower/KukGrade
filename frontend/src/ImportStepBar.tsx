@@ -20,7 +20,7 @@ export function ImportStepBar({ kind, current }: { kind: DataImportKind; current
                   {state === "done" ? "✓" : index + 1}
                 </span>
                 <span>{name}</span>
-                {state === "done" ? <span className="ix-visually-hidden">, done</span> : null}
+                {state === "done" ? <span className="visually-hidden">, done</span> : null}
               </span>
             </li>
           );

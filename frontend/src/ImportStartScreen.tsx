@@ -404,7 +404,7 @@ export function ImportStartScreen() {
                 ref={inputRef}
                 accept={accept}
                 aria-label="Choose a file"
-                className="ix-visually-hidden"
+                className="visually-hidden"
                 tabIndex={-1}
                 type="file"
                 onChange={onPicked}

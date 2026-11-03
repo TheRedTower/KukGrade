@@ -345,7 +345,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
               render: (row) => (
                 <div className="pl-belt-chip">
                   <RankBelt rankId={row.candidate.from_rank} />
-                  <span className="pl-belt-name">{row.candidate.from_rank_name}</span>
+                  <span>{row.candidate.from_rank_name}</span>
                 </div>
               ),
             },

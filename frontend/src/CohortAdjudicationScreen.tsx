@@ -17,6 +17,7 @@
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
 import { EmptyState } from "./EmptyState";
+import { keys } from "./queryKeys";
 import { BackLink } from "./BackLink";
 import { Alert } from "./Alert";
 import { LoadingState } from "./LoadingState";
@@ -129,22 +130,22 @@ export function CohortAdjudicationScreen() {
   const enabled = !Number.isNaN(sessionId) && sessionId > 0;
 
   const sessionQuery = useQuery({
-    queryKey: ["gradingSessions", "detail", sessionId],
+    queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
     enabled,
   });
   const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", sessionId],
+    queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled,
   });
   const assessmentsQuery = useQuery({
-    queryKey: ["candidateAssessments", sessionId],
+    queryKey: keys.candidateAssessments.session(sessionId),
     queryFn: () => getAllCandidateAssessments({ session: sessionId }),
     enabled,
   });
   const outcomesQuery = useQuery({
-    queryKey: ["candidateOutcomes", sessionId],
+    queryKey: keys.candidateOutcomes.session(sessionId),
     queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled,
   });
@@ -175,7 +176,7 @@ export function CohortAdjudicationScreen() {
   // Decisions staged earlier, and kept on the server, come back: a session
   // that timed out, or a closed tab, loses nothing that was staged.
   const keptQuery = useQuery({
-    queryKey: ["stagedDecisions", sessionId],
+    queryKey: keys.stagedDecisions(sessionId),
     queryFn: () => getStagedDecisions(sessionId),
     enabled: enabled && canDecide,
     // Read afresh each time the board opens: never an earlier visit's copy.
@@ -348,7 +349,7 @@ export function CohortAdjudicationScreen() {
         : `${recorded.size} recorded, ${kept} could not be recorded and ${kept === 1 ? "remains" : "remain"} staged.`,
     );
     setIsRecording(false);
-    await queryClient.invalidateQueries({ queryKey: ["candidateOutcomes", sessionId] });
+    await queryClient.invalidateQueries({ queryKey: keys.candidateOutcomes.session(sessionId) });
   }
 
   const failedIds = Object.keys(failures).map(Number).filter((oid) => oid in staged);

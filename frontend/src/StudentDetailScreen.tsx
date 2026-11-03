@@ -1,4 +1,5 @@
 import { type FormEvent, useMemo, useState } from "react";
+import { keys, refresh } from "./queryKeys";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -84,11 +85,7 @@ export function StudentDetailScreen() {
   const statusMutation = useMutation({
     mutationFn: (change: { id: number; status: StudentStatus }) => updateStudent(change.id, { status: change.status }),
     onSuccess: async (_saved, change) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "detail", change.id] }),
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
-      ]);
+      await refresh.afterStudentChange(queryClient, change.id);
       setIsStatusModalOpen(false);
     },
     onError: (err) => setStatusError(errorMessage(err, "Failed to update student status.")),
@@ -99,10 +96,8 @@ export function StudentDetailScreen() {
     mutationFn: (change: { id: number; changes: Parameters<typeof updateStudent>[1] }) =>
       updateStudent(change.id, change.changes),
     onSuccess: async (_saved, change) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "detail", change.id] }),
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-      ]);
+      // An edit is audited too, so the audit log is read again with the rest.
+      await refresh.afterStudentChange(queryClient, change.id);
       setIsEditModalOpen(false);
     },
     onError: (err) => editForm.handle(err, "Failed to update student details."),
@@ -113,8 +108,8 @@ export function StudentDetailScreen() {
     mutationFn: (id: number) => deleteStudent(id),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["students", "list"] }),
-        queryClient.invalidateQueries({ queryKey: ["auditEvents"] }),
+        queryClient.invalidateQueries({ queryKey: keys.students.list() }),
+        queryClient.invalidateQueries({ queryKey: keys.auditEvents.all() }),
       ]);
       navigate("/students");
     },
@@ -124,21 +119,21 @@ export function StudentDetailScreen() {
 
   // 1. Fetch Student Detail
   const studentQuery = useQuery({
-    queryKey: ["students", "detail", studentId],
+    queryKey: keys.students.detail(studentId),
     queryFn: () => getStudent(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
   // 2. Fetch Rank History
   const rankHistoryQuery = useQuery({
-    queryKey: ["students", "rankHistory", studentId],
+    queryKey: keys.students.rankHistory(studentId),
     queryFn: () => getStudentRankHistory(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });
 
   // 2b. Fetch unified grading history (native + linked historical records)
   const gradingHistoryQuery = useQuery({
-    queryKey: ["students", "gradingHistory", studentId],
+    queryKey: keys.students.gradingHistory(studentId),
     queryFn: () => getStudentGradingHistory(studentId),
     enabled: !isNaN(studentId) && studentId > 0,
   });

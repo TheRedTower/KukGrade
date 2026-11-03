@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -37,7 +38,7 @@ export function AddStudentScreen() {
   const createMutation = useMutation({
     mutationFn: (payload: Parameters<typeof createStudent>[0]) => createStudent(payload),
     onSuccess: async (newStudent) => {
-      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
+      await queryClient.invalidateQueries({ queryKey: keys.students.list() });
       navigate(`/students/${newStudent.id}`);
     },
     onError: (err) => form.handle(err, "Failed to create student. Please check the form."),

@@ -1,4 +1,5 @@
 import { PageHeader } from "./PageHeader";
+import { keys, refresh } from "./queryKeys";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -60,30 +61,30 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   // Queries
   const { data: session, isLoading: isLoadingSession } = useQuery({
-    queryKey: ["gradingSessions", "detail", sessionId],
+    queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
   const candidatesQuery = useQuery({
-    queryKey: ["gradingCandidates", sessionId],
+    queryKey: keys.gradingCandidates.session(sessionId),
     queryFn: () => getAllGradingCandidates({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
   const outcomesQuery = useQuery({
-    queryKey: ["candidateOutcomes", sessionId],
+    queryKey: keys.candidateOutcomes.session(sessionId),
     queryFn: () => getAllCandidateOutcomes({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
 
   const promotionsQuery = useQuery({
-    queryKey: ["promotions", sessionId],
+    queryKey: keys.promotions.session(sessionId),
     queryFn: () => getAllPromotions({ session: sessionId }),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
   const eligibilityQuery = useQuery({
-    queryKey: ["promotionEligibility", sessionId],
+    queryKey: keys.promotionEligibility(sessionId),
     queryFn: () => getPromotionEligibility(sessionId),
     enabled: !Number.isNaN(sessionId) && sessionId > 0,
   });
@@ -148,10 +149,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       return promoteCandidateOutcome(outcomeId, { notes });
     },
     onSuccess: (promotion) => {
-      queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["promotionEligibility", sessionId] });
+      refresh.afterPromotion(queryClient, sessionId);
       setSinglePromoteCandidate(null);
       setSinglePromoteNotes("");
       setActionFeedback({
@@ -173,10 +171,7 @@ export function PromotionLedgerScreen(): React.ReactElement {
       return bulkPromoteCandidateOutcomes({ outcomes });
     },
     onSuccess: (res, sentOutcomes) => {
-      queryClient.invalidateQueries({ queryKey: ["promotions", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["students"] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["promotionEligibility", sessionId] });
+      refresh.afterPromotion(queryClient, sessionId);
       setIsBatchSummaryOpen(false);
 
       const failures = Object.entries(res.errors);

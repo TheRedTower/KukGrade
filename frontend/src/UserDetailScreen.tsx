@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { keys } from "./queryKeys";
 import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +54,7 @@ function AccountForm({
       queryClient.setQueryData(["managedUser", user.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
       // The change is audited: the page's own activity list shows it.
-      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
       onSaved("Account details saved.");
     },
   });
@@ -137,7 +138,7 @@ function AuthorityForm({
     onSuccess: (updated) => {
       queryClient.setQueryData(["managedUser", user.id], updated);
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
-      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
       onSaved("Master authority saved.");
     },
   });
@@ -231,7 +232,7 @@ function PasswordResetDialog({
       // show the reset.
       void queryClient.invalidateQueries({ queryKey: ["managedUser", user.id] });
       void queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
-      void queryClient.invalidateQueries({ queryKey: ["auditEvents", "user", user.id] });
+      void queryClient.invalidateQueries({ queryKey: keys.auditEvents.user(user.id) });
     },
   });
   const issued = mutation.data;
@@ -339,7 +340,7 @@ export function UserDetailScreen(): React.ReactElement {
     enabled: Boolean(id),
   });
   const activityQuery = useQuery({
-    queryKey: ["auditEvents", "user", id],
+    queryKey: keys.auditEvents.user(id),
     queryFn: () => getAuditEvents({ entity_type: "User", entity_id: id, page_size: 4 }),
     enabled: Boolean(id),
   });

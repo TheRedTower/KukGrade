@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -102,7 +103,7 @@ export function BuildGradingCohortScreen() {
 
   // Queries
   const sessionQuery = useQuery({
-    queryKey: ["gradingSessions", "detail", sessionId],
+    queryKey: keys.gradingSessions.detail(sessionId),
     queryFn: () => getGradingSession(sessionId),
     enabled: !isNaN(sessionId),
   });
@@ -123,7 +124,7 @@ export function BuildGradingCohortScreen() {
     status: statusFilter === "ACTIVE_INACTIVE" ? undefined : statusFilter,
   };
   const studentsQuery = useQuery({
-    queryKey: ["students", "eligible", studentFilters],
+    queryKey: keys.students.eligible(studentFilters),
     queryFn: () => getAllStudents(studentFilters),
     enabled: !isNaN(sessionId),
     placeholderData: keepPreviousData,
@@ -312,10 +313,10 @@ export function BuildGradingCohortScreen() {
     }) => bulkRegisterCandidates(request.payload),
     onSuccess: (response, request) => {
       // Invalidate relevant queries so cache reflects newly registered candidates
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["students", "eligible"] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", sessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingSessions", "detail", sessionId] });
+      queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.session(sessionId) });
+      queryClient.invalidateQueries({ queryKey: keys.students.eligible() });
+      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(sessionId) });
+      queryClient.invalidateQueries({ queryKey: keys.gradingSessions.detail(sessionId) });
 
       const errorKeys = Object.keys(response.errors);
       // A retry sends only the retryable rows, so the others stay as they are.

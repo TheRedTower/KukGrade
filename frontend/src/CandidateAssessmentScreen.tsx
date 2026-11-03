@@ -18,6 +18,7 @@
  * `candidateAssessmentData.ts`.
  */
 import { useEffect, useRef, useState } from "react";
+import { keys } from "./queryKeys";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Breadcrumbs } from "./Breadcrumbs";
@@ -98,9 +99,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (generated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], generated);
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), generated);
+      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(numSessionId) });
+      queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
       setActionError(errorMessage(err, "Failed to prepare the assessment form."));
@@ -114,9 +115,9 @@ export function CandidateAssessmentScreen() {
     },
     onSuccess: (updated) => {
       setActionError(null);
-      queryClient.setQueryData(["candidateAssessments", "byCandidate", numCandidateId], updated);
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
+      queryClient.setQueryData(keys.candidateAssessments.byCandidate(numCandidateId), updated);
+      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.session(numSessionId) });
+      queryClient.invalidateQueries({ queryKey: keys.gradingCandidates.all() });
     },
     onError: (err) => {
       setActionError(errorMessage(err, "Failed to start assessment."));
@@ -129,7 +130,7 @@ export function CandidateAssessmentScreen() {
   // only that item, and only if nothing newer was written to it since; and
   // the item list and rollup are refetched once, when every write has landed,
   // because a refetch between writes would overwrite those still in flight.
-  const itemsKey = ["candidateAssessmentItems", assessment?.id];
+  const itemsKey = keys.candidateAssessmentItems(assessment?.id);
   const itemWriteKey = ["assessmentItemWrite", assessment?.id];
   const pendingItemWrites = useIsMutating({ mutationKey: itemWriteKey });
   const itemWriteChains = useRef(new Map<number, Promise<unknown>>());
@@ -201,8 +202,8 @@ export function CandidateAssessmentScreen() {
       queryClient.invalidateQueries({ queryKey: itemsKey });
       // The rollup is served, so a scored item has to refetch it or the mat
       // bar and category headers go stale.
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessmentSummary", assessment?.id] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
+      queryClient.invalidateQueries({ queryKey: keys.candidateAssessmentSummary(assessment?.id) });
+      queryClient.invalidateQueries({ queryKey: keys.candidateAssessments.byCandidate(numCandidateId) });
     },
   });
   const isSavingItems = pendingItemWrites > 0;

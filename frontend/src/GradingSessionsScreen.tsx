@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { keys } from "./queryKeys";
 import { PageHeader } from "./PageHeader";
 import { useNavigate } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -115,7 +116,7 @@ export function GradingSessionsScreen() {
   const deleteSessionMutation = useMutation({
     mutationFn: (id: number) => deleteGradingSession(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      queryClient.invalidateQueries({ queryKey: keys.gradingSessions.all() });
       setDeleteConfirmSession(null);
       setDeleteError(null);
     },
@@ -130,13 +131,13 @@ export function GradingSessionsScreen() {
   };
 
   const yearsQuery = useQuery({
-    queryKey: ["gradingSessions", "years"],
+    queryKey: keys.gradingSessions.years(),
     queryFn: getGradingSessionYears,
   });
   const availableYears = yearsQuery.data ?? [];
 
   const currentSessionQuery = useQuery({
-    queryKey: ["gradingSessions", "current"],
+    queryKey: keys.gradingSessions.current(),
     queryFn: () => getGradingSessions({ status: "OPEN", page_size: 1 }),
   });
   const currentSession = currentSessionQuery.data?.results[0] ?? null;
@@ -150,7 +151,7 @@ export function GradingSessionsScreen() {
   const serverSearch = useDebouncedValue(searchText.trim()) || undefined;
 
   const sessionsQuery = useQuery({
-    queryKey: ["gradingSessions", "page", page, serverStatus, selectedYear, serverSearch],
+    queryKey: keys.gradingSessions.page(page, serverStatus, selectedYear, serverSearch),
     placeholderData: keepPreviousData,
     queryFn: () =>
       getGradingSessions({

@@ -89,7 +89,9 @@ generated from it, and CI fails if either drifts. See [api.md](api.md).
 React with React Router and TanStack Query; styling is one stylesheet per feature on
 the design tokens in `frontend/src/theme.css` (a warm gold-on-charcoal palette with
 light and dark themes). API types are generated into `frontend/src/api/schema.ts`, and
-`frontend/src/api.ts` holds the fetch functions.
+`frontend/src/api.ts` holds the fetch functions. `frontend/src/queryKeys.ts` names every
+grading, student and audit list (`keys`) and says what to read again after the changes
+several screens make (`refresh`), so a screen that changes data and one that shows it agree.
 
 Two behaviours worth knowing:
 

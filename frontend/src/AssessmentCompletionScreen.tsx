@@ -24,6 +24,7 @@
  * is NOT_ASSESSED / MET / NOT_MET and carries no partial credit.
  */
 import { useState } from "react";
+import { refresh } from "./queryKeys";
 import { BackLink } from "./BackLink";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -119,11 +120,7 @@ export function AssessmentCompletionScreen() {
     onSuccess: () => {
       setActionError(null);
       clearNotesDraft();
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
-      // The session's served progress counts change with it.
-      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      refresh.afterAssessmentChange(queryClient, numSessionId, numCandidateId);
       navigate(`/gradings/${numSessionId}`);
     },
     onError: (err) => {
@@ -139,11 +136,7 @@ export function AssessmentCompletionScreen() {
     },
     onSuccess: () => {
       setActionError(null);
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", "byCandidate", numCandidateId] });
-      queryClient.invalidateQueries({ queryKey: ["candidateAssessments", numSessionId] });
-      queryClient.invalidateQueries({ queryKey: ["gradingCandidates"] });
-      // The session's served progress counts change with it.
-      queryClient.invalidateQueries({ queryKey: ["gradingSessions"] });
+      refresh.afterAssessmentChange(queryClient, numSessionId, numCandidateId);
       navigate(scoringPath);
     },
     onError: (err) => {

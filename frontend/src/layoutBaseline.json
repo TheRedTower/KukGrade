@@ -20,7 +20,7 @@
   },
   "Imports.css": {
     "widthQueries": 1,
-    "nowrap": 4,
+    "nowrap": 3,
     "overflowX": 1,
     "fixedMinWidth": 5
   },
@@ -30,9 +30,6 @@
   },
   "OverviewScreen.css": {
     "widthQueries": 1
-  },
-  "PromotionLedger.css": {
-    "nowrap": 1
   },
   "Settings.css": {
     "nowrap": 1

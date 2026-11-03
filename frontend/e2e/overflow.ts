@@ -108,7 +108,7 @@ export async function findSmallTargets(page: Page): Promise<string[]> {
     const selector =
       'button, select, input:not([type="hidden"]), textarea, [role="button"], [role="menuitem"], a.btn, summary';
     for (const el of document.body.querySelectorAll(selector)) {
-      if (el.closest("[data-target-ok], .visually-hidden, .ix-visually-hidden, svg")) continue;
+      if (el.closest("[data-target-ok], .visually-hidden, svg")) continue;
       const style = getComputedStyle(el);
       if (style.visibility === "hidden" || style.display === "none" || style.opacity === "0") continue;
       // A checkbox or radio is hit through its label where it has one.

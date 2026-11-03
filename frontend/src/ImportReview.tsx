@@ -141,7 +141,7 @@ export function ImportReview({
   const unresolvedRanks = (preview.data?.unresolved_current_rank ?? 0) + (preview.data?.unresolved_testing_for_rank ?? 0);
   return (
     <>
-      <p aria-live="polite" className="ix-visually-hidden">
+      <p aria-live="polite" className="visually-hidden">
         {announcement}
       </p>
       {commit.isError ? (

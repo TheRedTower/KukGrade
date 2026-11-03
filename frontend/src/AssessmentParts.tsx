@@ -200,6 +200,7 @@ export function AssessmentItemRow({
           <div
             role="alertdialog"
             aria-label={`Confirm clearing the result for ${item.item_name}`}
+            aria-describedby={`caw-clear-confirm-text-${item.id}`}
             className="caw-clear-confirm"
             data-testid={`caw-clear-confirm-${item.id}`}
             onKeyDown={(e) => {
@@ -209,7 +210,7 @@ export function AssessmentItemRow({
               }
             }}
           >
-            <p>
+            <p id={`caw-clear-confirm-text-${item.id}`}>
               Clearing also removes the record of who assessed it
               {attribution ? (
                 <>

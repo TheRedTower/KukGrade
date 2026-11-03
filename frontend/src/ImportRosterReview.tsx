@@ -233,7 +233,7 @@ export function RosterReview({
                           </th>
                         ))}
                         <th scope="col">
-                          <span className="ix-visually-hidden">Change</span>
+                          <span className="visually-hidden">Change</span>
                         </th>
                       </tr>
                     </thead>

@@ -678,6 +678,14 @@ class RegisteredCandidateSerializer(serializers.Serializer):
 
 class BulkCandidateRegistrationResultSerializer(BulkResultSerializer):
     created = RegisteredCandidateSerializer(many=True)
+    already_registered = serializers.DictField(
+        child=serializers.ChoiceField(choices=["THIS_SESSION", "ANOTHER_GRADING"]),
+        help_text=(
+            "The keys of `errors` whose student is already registered, for this "
+            "session or for another grading that has not settled: nothing to "
+            "retry, unlike the other failures."
+        ),
+    )
 
 
 class BulkAssessmentGenerationResultSerializer(BulkResultSerializer):

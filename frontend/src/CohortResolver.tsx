@@ -17,7 +17,8 @@ export interface FlaggedCandidateItem {
   student: StudentListItem;
   destinationRank: Rank | null;
   error: string;
-  isAlreadyRegistered: boolean;
+  /** Set when the student is already registered, which no retry changes. */
+  registered?: BulkCandidateRegistrationResponse["already_registered"][string];
 }
 
 /**
@@ -46,7 +47,7 @@ export function CohortResolver({
   const [showSuccessfulList, setShowSuccessfulList] = useState(false);
   const createdCount = registrationResult.created.length;
   const flaggedCount = flaggedItems.length;
-  const retryableCount = flaggedItems.filter((i) => !i.isAlreadyRegistered).length;
+  const retryableCount = flaggedItems.filter((i) => !i.registered).length;
 
   return (
     <section aria-labelledby="bgc-resolver-title" className="page page--wide bgc-page" data-testid="bgc-page">
@@ -130,10 +131,10 @@ export function CohortResolver({
               key: "status",
               header: "Status",
               render: (item) =>
-                item.isAlreadyRegistered ? (
+                item.registered ? (
                   <Badge tone="neutral">
                     {/* One grading at a time: held by another grading, not this one. */}
-                    {item.error.includes("for this session") ? "No retry needed" : "Registered for another grading"}
+                    {item.registered === "THIS_SESSION" ? "No retry needed" : "Registered for another grading"}
                   </Badge>
                 ) : (
                   <StudentStatusBadge status={item.student?.status} label={item.student?.status_display} />

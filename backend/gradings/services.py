@@ -555,7 +555,13 @@ def validate_not_already_in_session(candidate: GradingCandidate) -> None:
         .exclude(pk=candidate.pk)
         .exists()
     ):
-        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]})
+        raise ValidationError(
+            {
+                "student": [
+                    ValidationError(ALREADY_REGISTERED_MESSAGE, code=ALREADY_IN_SESSION)
+                ]
+            },
+        )
 
 
 def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
@@ -575,11 +581,14 @@ def validate_no_unsettled_registration(candidate: GradingCandidate) -> None:
         raise ValidationError(
             {
                 "student": [
-                    f"This student is already registered for "
-                    f"'{other.session.title}', which has not reached its "
-                    f"result yet. A student is registered for one grading at "
-                    f"a time; an administrator can correct a registration "
-                    f"made in error.",
+                    ValidationError(
+                        f"This student is already registered for "
+                        f"'{other.session.title}', which has not reached its "
+                        f"result yet. A student is registered for one grading "
+                        f"at a time; an administrator can correct a "
+                        f"registration made in error.",
+                        code=REGISTERED_ELSEWHERE,
+                    ),
                 ],
             },
         )
@@ -1016,6 +1025,10 @@ def register_candidate(
 
 
 ALREADY_REGISTERED_MESSAGE = "Student is already registered for this session."
+# The codes on the two "already registered" refusals - for this session, or
+# for another that has not settled - which a cohort builder does not retry.
+ALREADY_IN_SESSION = "already_in_session"
+REGISTERED_ELSEWHERE = "registered_elsewhere"
 
 
 def _save_candidate(candidate: GradingCandidate) -> None:
@@ -1030,7 +1043,13 @@ def _save_candidate(candidate: GradingCandidate) -> None:
     except IntegrityError as exc:
         if not unique_violation_on(exc, GradingCandidate):
             raise
-        raise ValidationError({"student": [ALREADY_REGISTERED_MESSAGE]}) from exc
+        raise ValidationError(
+            {
+                "student": [
+                    ValidationError(ALREADY_REGISTERED_MESSAGE, code=ALREADY_IN_SESSION)
+                ]
+            },
+        ) from exc
 
 
 @transaction.atomic
@@ -1040,6 +1059,7 @@ def bulk_register_candidates(
     rows: Sequence[Mapping[str, object]],
     actor: User | None = None,
     generate_assessments: bool = False,
+    codes: dict[str, set[str]] | None = None,
 ) -> tuple[
     list[tuple[GradingCandidate, CandidateAssessment | None]], dict[str, list[str]]
 ]:
@@ -1097,7 +1117,7 @@ def bulk_register_candidates(
             )
         return registered, generate_candidate_assessment(registered, actor)
 
-    return each_independently(rows, register_row)
+    return each_independently(rows, register_row, codes)
 
 
 def _candidate_snapshot(candidate: GradingCandidate) -> dict[str, object]:

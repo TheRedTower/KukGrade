@@ -225,7 +225,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         if (options?.bulkRegisterHandler) {
           return options.bulkRegisterHandler(JSON.parse(init.body as string));
         }
-        return jsonResponse(200, { created: [], errors: {} });
+        return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
       }
       if (url.includes("/api/gradings/sessions/10/")) return jsonResponse(200, testSession);
       if (url.includes("/api/syllabus/age-bands/")) {
@@ -495,6 +495,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
         return jsonResponse(200, {
           created: [{ candidate: registeredRow(103), assessment: null }],
           errors: {},
+          already_registered: {},
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
@@ -535,6 +536,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
           errors: {
             "1": ["Student is already registered for this session."],
           },
+          already_registered: { "1": "THIS_SESSION" },
         } satisfies BulkCandidateRegistrationResponse);
       },
     });
@@ -570,9 +572,9 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("counts what a retry registers and keeps the rows it did not send", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."], "2": ["Another problem."] } },
-      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "1": ["Still a problem."] } },
-      { created: [{ candidate: registeredRow(103), assessment: null }], errors: {} },
+      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."], "2": ["Another problem."] }, already_registered: { "0": "ANOTHER_GRADING" } },
+      { created: [{ candidate: registeredRow(102), assessment: null }], errors: { "1": ["Still a problem."] }, already_registered: {} },
+      { created: [{ candidate: registeredRow(103), assessment: null }], errors: {}, already_registered: {} },
     ];
     vi.stubGlobal(
       "fetch",
@@ -606,8 +608,8 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
   it("stays on the flagged list when a retry succeeds but rows it did not send remain", async () => {
     const heldElsewhere = "This student is already registered for 'Summer Grading'.";
     const responses: BulkCandidateRegistrationResponse[] = [
-      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."] } },
-      { created: [{ candidate: registeredRow(102), assessment: null }], errors: {} },
+      { created: [], errors: { "0": [heldElsewhere], "1": ["Temporary problem."] }, already_registered: { "0": "ANOTHER_GRADING" } },
+      { created: [{ candidate: registeredRow(102), assessment: null }], errors: {}, already_registered: {} },
     ];
     vi.stubGlobal(
       "fetch",
@@ -637,6 +639,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
           jsonResponse(200, {
             created: [{ candidate: registeredRow(101), assessment: null }],
             errors: { "1": ["Temporary problem."] },
+            already_registered: {},
           } satisfies BulkCandidateRegistrationResponse),
       }),
     );
@@ -658,7 +661,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "fetch",
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "0": ["This student cannot be registered."] } }),
+          jsonResponse(200, { created: [], errors: { "0": ["This student cannot be registered."] }, already_registered: {} }),
       }),
     );
     const user = userEvent.setup();
@@ -684,7 +687,7 @@ describe("Build Grading Cohort & Bulk Candidate Registration (/gradings/:id/regi
       "fetch",
       setupCohortMock({
         bulkRegisterHandler: () =>
-          jsonResponse(200, { created: [], errors: { "0": [heldElsewhere] } }),
+          jsonResponse(200, { created: [], errors: { "0": [heldElsewhere] }, already_registered: { "0": "ANOTHER_GRADING" } }),
       }),
     );
     const user = userEvent.setup();

@@ -819,6 +819,22 @@ describe("Student detail screen (/students/:id)", () => {
               note: "",
               promotion_id: 101,
             },
+            {
+              source: "LEGACY",
+              record_id: 7,
+              date: null,
+              cycle_year: 2025,
+              cycle_month: 3,
+              date_precision: "MONTH",
+              testing_for_rank_code: "Y",
+              testing_for_rank_name: "Yellow",
+              source_testing_for_rank_text: "Yellow",
+              outcome: "PASS",
+              attendance_status: "ATTENDED",
+              comments: "",
+              note: "",
+              promotion_id: null,
+            },
           ],
         });
       }
@@ -838,9 +854,11 @@ describe("Student detail screen (/students/:id)", () => {
     const tableScope = within(table);
 
     expect(tableScope.getByText("12 Dec 2025")).toBeVisible();
+    // A month-only record reads like every other month in the app.
+    expect(tableScope.getByText("Mar 2025")).toBeVisible();
     expect(tableScope.getByText("KukGrade")).toBeVisible();
     expect(tableScope.getByText("Yellow Stripe")).toBeVisible();
-    expect(tableScope.getByText("Pass")).toBeVisible();
+    expect(tableScope.getAllByText("Pass")).toHaveLength(2);
     expect(tableScope.getByText("Excellent forms and techniques.")).toBeVisible();
 
     // Rank history timeline

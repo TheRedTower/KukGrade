@@ -10,6 +10,7 @@ from psycopg import errors as pg_errors
 def each_independently[T, R](
     rows: Sequence[T],
     action: Callable[[T], R],
+    codes: dict[str, set[str]] | None = None,
 ) -> tuple[list[R], dict[str, list[str]]]:
     """Apply `action` to every row, each in its own savepoint.
 
@@ -20,6 +21,8 @@ def each_independently[T, R](
     a real failure and aborts the whole batch. Returns what
     succeeded plus a map of row index to that row's error messages.
     `.messages` flattens dict- and list-shaped ValidationErrors alike.
+    When `codes` is given, it is filled with each failed row's error codes,
+    for a caller that must tell one kind of refusal from the rest.
     """
     done: list[R] = []
     errors: dict[str, list[str]] = {}
@@ -29,7 +32,20 @@ def each_independently[T, R](
                 done.append(action(row))
         except ValidationError as exc:
             errors[str(index)] = exc.messages
+            if codes is not None:
+                codes[str(index)] = error_codes(exc)
     return done, errors
+
+
+def error_codes(exc: ValidationError) -> set[str]:
+    """Every code in a dict- or list-shaped ValidationError."""
+    found: set[str] = set()
+    if hasattr(exc, "error_dict"):
+        for errors in exc.error_dict.values():
+            found.update(error.code for error in errors if error.code)
+    else:
+        found.update(error.code for error in exc.error_list if error.code)
+    return found
 
 
 def unique_violation_on(exc: IntegrityError, model: type[models.Model]) -> bool:

@@ -1742,6 +1742,10 @@ export interface components {
                 [key: string]: string[];
             };
             created: components["schemas"]["RegisteredCandidate"][];
+            /** @description The keys of `errors` whose student is already registered, for this session or for another grading that has not settled: nothing to retry, unlike the other failures. */
+            already_registered: {
+                [key: string]: "THIS_SESSION" | "ANOTHER_GRADING";
+            };
         };
         BulkCandidateStatusUpdateRequest: {
             candidates: number[];

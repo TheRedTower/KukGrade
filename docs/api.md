@@ -55,7 +55,9 @@ so a misspelt filter never silently returns everything.
 
 **Bulk endpoints** (register, generate, start, update status, promote) process each row
 independently. The response lists what succeeded and an `errors` map keyed by row index
-for what did not; one refusal never blocks the others.
+for what did not; one refusal never blocks the others. Bulk register also returns
+`already_registered`, the error keys whose student is already registered (`THIS_SESSION`
+or `ANOTHER_GRADING`), so a client tells those apart without reading message text.
 
 **Errors** always use one envelope, including unknown URLs and server errors:
 

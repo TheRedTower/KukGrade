@@ -522,7 +522,7 @@ describe("Reviewing and confirming a roster", () => {
     ));
 
     renderAt("/imports/7?step=review");
-    await user.click(await screen.findByRole("button", { name: "Next" }));
+    await user.click(await screen.findByRole("button", { name: "Next page" }));
     await user.click(await screen.findByRole("button", { name: "Edit row 27" }));
     expect(screen.getByLabelText("First name, row 27")).toBeInTheDocument();
   });
@@ -535,9 +535,9 @@ describe("Reviewing and confirming a roster", () => {
     );
 
     renderAt("/imports/7?step=review");
-    await screen.findByRole("button", { name: "Next" });
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByRole("button", { name: "Next page" });
+    await user.click(screen.getByRole("button", { name: "Next page" }));
+    await user.click(screen.getByRole("button", { name: "Next page" }));
     await waitFor(() => expect(api.getDataImportRows).toHaveBeenLastCalledWith(7, expect.objectContaining({ outcome: "READY", page: 3 })));
 
     await user.click(screen.getByRole("button", { name: /Already in KukGrade/ }));
@@ -964,7 +964,7 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     await screen.findByText("“Mia R”");
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next page" }));
 
     expect(await screen.findByText("“Noah”")).toBeInTheDocument();
     expect(api.getLegacyPeople).toHaveBeenCalledWith({ batch: undefined, linked: false, page: 2, page_size: 50, set_aside: "exclude" });
@@ -1000,7 +1000,7 @@ describe("Linking historical records", () => {
     await user.click(await screen.findByRole("button", { name: /^Left for now/ }));
 
     expect(await screen.findByText("No names are left for now.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next page" })).not.toBeInTheDocument();
   });
 
   it("does not link a name whose records are all unticked", async () => {
@@ -1036,7 +1036,7 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     await screen.findByText("“Mia R”");
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(screen.getByRole("button", { name: "Next page" }));
     await user.click(await screen.findByRole("button", { name: "Back to the first page" }));
 
     expect(await screen.findByText("“Mia R”")).toBeInTheDocument();

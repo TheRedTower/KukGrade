@@ -1,10 +1,14 @@
-import { Button } from "./Button";
+import { Pagination } from "./Pagination";
+
+/** The shared page controls, at the foot of an import list's card. */
 export function ImportPager({
+  label,
   page,
   pages,
   total,
   onPage,
 }: {
+  label: string;
   page: number;
   pages: number;
   total: number;
@@ -13,17 +17,7 @@ export function ImportPager({
   if (pages <= 1) return null;
   return (
     <div className="ix-table-foot">
-      <span>
-        Page {page} of {pages} · {total} in all
-      </span>
-      <div className="ix-actions">
-        <Button variant="ghost" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
-        </Button>
-        <Button variant="ghost" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          Next
-        </Button>
-      </div>
+      <Pagination label={label} page={page} totalPages={pages} onPage={onPage} summary={`${total} in all`} />
     </div>
   );
 }

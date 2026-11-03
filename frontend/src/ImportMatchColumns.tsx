@@ -301,7 +301,9 @@ export function ImportMatchColumns({
           </ErrorText>
         ) : null}
 
-        <div className="card card--flush ix-table-wrap">
+        {/* The file's own columns side by side, as in the spreadsheet: this one
+            table scrolls sideways, so it can be reached and named by keyboard. */}
+        <div className="card card--flush ix-table-wrap" role="region" aria-label="Your file's columns and first rows" tabIndex={0}>
           <table className="ix-table ix-table-cells">
             <thead>
               <tr>

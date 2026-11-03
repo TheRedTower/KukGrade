@@ -302,7 +302,7 @@ function PastImports() {
                 },
               ]}
             />
-            <ImportPager page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
+            <ImportPager label="Pages of past imports" page={page} pages={Math.max(1, Math.ceil(total / PAST_PAGE_SIZE))} total={total} onPage={setPage} />
           </>
         )}
       </div>

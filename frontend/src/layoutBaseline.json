@@ -20,7 +20,7 @@
   },
   "Imports.css": {
     "widthQueries": 1,
-    "nowrap": 3,
+    "nowrap": 2,
     "overflowX": 1,
     "fixedMinWidth": 5
   },

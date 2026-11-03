@@ -283,6 +283,12 @@ select:not([multiple]):not([size]) {
   background: var(--color-surface-sunken);
 }
 
+/* An editor opened from the row above it, across the table's width. */
+.rtable tbody tr[data-detail],
+.rtable tbody tr[data-detail]:hover {
+  background: var(--color-surface-sunken);
+}
+
 .rtable tbody tr[data-selected] {
   background: var(--color-warning-surface);
   outline: 2px solid var(--color-gold);
@@ -385,8 +391,13 @@ select:not([multiple]):not([size]) {
     padding: 0;
   }
 
+  .rtable td[data-detail] {
+    display: block;
+  }
+
   .rtable td[data-primary]::before,
-  .rtable td[data-actions]::before {
+  .rtable td[data-actions]::before,
+  .rtable td[data-detail]::before {
     content: none;
   }
 }

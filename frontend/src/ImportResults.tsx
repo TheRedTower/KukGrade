@@ -454,7 +454,7 @@ function RowsLedger({
           />
         </div>
       )}
-      <ImportPager page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
+      <ImportPager label="Pages of results" page={rows.page} pages={rows.pages} total={rows.total} onPage={rows.setPage} />
     </section>
   );
 }

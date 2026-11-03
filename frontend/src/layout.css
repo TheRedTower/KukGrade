@@ -29,12 +29,11 @@
   --focus-outline: 2px solid var(--color-accent-strong);
   --focus-offset: 2px;
   --dialog-max: 43rem;
-  /* What sits over what: a sticky bar, a fixed bar, a menu, a dialog, a drawer. */
+  /* What sits over what: a sticky bar, a fixed bar, a menu, a dialog. */
   --z-sticky: 2;
   --z-bar: 3;
   --z-menu: 50;
   --z-dialog: 100;
-  --z-drawer: 120;
 }
 
 /* A screen's root. Centred, never wider than its size, with room beneath. It
@@ -480,7 +479,7 @@ select:not([multiple]):not([size]) {
   place-items: center;
   padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right))
     max(var(--space-4), env(safe-area-inset-bottom)) max(var(--space-4), env(safe-area-inset-left));
-  background: rgb(0 0 0 / 62%);
+  background: var(--color-scrim);
 }
 
 .dialog {

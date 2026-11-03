@@ -72,11 +72,6 @@
     "fontWeight": 4,
     "radius": 2
   },
-  "OutcomeDrawers.css": {
-    "fontSize": 4,
-    "fontWeight": 1,
-    "radius": 1
-  },
   "OverviewScreen.css": {
     "rawColour": 2,
     "fontSize": 17,
@@ -116,7 +111,7 @@
     "radius": 3
   },
   "layout.css": {
-    "rawColour": 2,
+    "rawColour": 1,
     "fontSize": 14,
     "fontWeight": 10,
     "radius": 7,

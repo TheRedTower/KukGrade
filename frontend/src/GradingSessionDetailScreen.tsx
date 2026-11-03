@@ -36,7 +36,7 @@ import {
   RemoveRegistrationDialog,
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
-import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
+import { OutcomeProposalDialog } from "./OutcomeProposalDialog";
 import { SessionStatusBadge } from "./StatusBadge";
 import { Dialog } from "./Dialog";
 import { formatSessionDate } from "./dates";
@@ -1040,7 +1040,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
 
       {/* ── Instructor Outcome Proposal Drawer ────────────────────── */}
       {proposalDrawerItem && session && (
-        <OutcomeProposalDrawer
+        <OutcomeProposalDialog
           key={proposalDrawerItem.candidate.id}
           candidate={proposalDrawerItem.candidate}
           assessment={proposalDrawerItem.assessment}

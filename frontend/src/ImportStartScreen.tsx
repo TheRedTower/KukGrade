@@ -1,6 +1,7 @@
 import { type ChangeEvent, type DragEvent, useRef, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
   ApiError,
@@ -304,14 +305,7 @@ export function ImportStartScreen() {
 
   return (
     <section aria-labelledby="ix-start-title" className="page ix-page">
-      <div>
-        <Link className="ix-back" to="/imports">
-          ‹ Imports
-        </Link>
-        <h1 className="ix-page-title" id="ix-start-title">
-          {importKindTitle(kind)}
-        </h1>
-      </div>
+      <PageHeader back={{ to: "/imports", label: "Imports" }} title={importKindTitle(kind)} titleId="ix-start-title" />
 
       <ImportStepBar current={0} kind={kind} />
 

@@ -1,41 +1,6 @@
-.users-page-header,
-.user-detail-header {
-  align-items: flex-start;
-}
 
-.user-detail-header {
-  margin-bottom: 1.75rem;
-}
-
-.users-page-header h1,
-.user-detail-header h1 {
-  margin: 0;
-  color: var(--color-text);
-  font-size: clamp(2.1rem, 4vw, 3.25rem);
-  line-height: 1;
-  letter-spacing: -0.04em;
-}
-
-.users-page-header p,
-.user-detail-header p {
-  margin: 0.55rem 0 0;
-  color: var(--color-text-muted);
-}
-
-.users-title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.9rem;
-}
-
-.users-title-row > span {
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
 
 .users-audit-link:focus-visible,
-.users-back-link:focus-visible,
 .users-form-grid input:focus,
 .users-form-grid select:focus,
 .user-authority-options input:focus-visible {
@@ -79,7 +44,6 @@
   font-size: 0.75rem;
   font-weight: 800;
 }
-
 
 .users-status {
   display: inline-flex;
@@ -146,25 +110,13 @@
   padding-top: 1rem;
 }
 
-.users-back-link,
 .users-audit-link {
   color: var(--color-accent-text);
   font-weight: 700;
   text-decoration: none;
 }
 
-.users-back-link {
-  display: inline-block;
-  margin-bottom: 1rem;
-  color: var(--color-text-muted);
-  font-size: 0.85rem;
-}
-
-.users-back-link:hover,
 .users-audit-link:hover { color: var(--color-accent-text); text-decoration: underline; }
-
-.user-detail-header { align-items: center; }
-.user-detail-header p { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.65rem; overflow-wrap: anywhere; }
 
 .user-detail-section,
 .user-detail-aside > section {

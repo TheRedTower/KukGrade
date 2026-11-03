@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -332,16 +333,12 @@ export function ImportsHubScreen() {
 
   return (
     <section aria-labelledby="ix-title" className="page ix-page">
-      <div className="ix-header">
-        <div className="ix-header-text">
-          <p className="ix-eyebrow">Administration</p>
-          <h1 id="ix-title">Imports</h1>
-          <p className="ix-lead">
-            Bring students and past gradings in from a spreadsheet. Nothing is saved until you
-            confirm the last step, and you can leave and come back.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Administration"
+        title="Imports"
+        titleId="ix-title"
+        subtitle="Bring students and past gradings in from a spreadsheet. Nothing is saved until you confirm the last step, and you can leave and come back."
+      />
 
       {unfinished.isError ? (
         <ErrorText>

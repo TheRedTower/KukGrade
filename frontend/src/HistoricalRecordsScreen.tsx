@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
@@ -75,14 +76,13 @@ export function HistoricalRecordsScreen() {
 
   return (
     <section aria-labelledby="ix-history-title" className="page page--wide ix-page">
-      <div className="ix-header">
-        <div className="ix-header-text">
-          <Link className="ix-back" to="/imports">‹ Imports</Link>
-          <h1 id="ix-history-title">Historical records</h1>
-          <p className="ix-lead">Find an imported record again to correct its link or mapped ranks. The workbook text stays as written.</p>
-        </div>
-        <Link className={buttonClass({ variant: "secondary" })} to="/imports/records">Link unassigned records</Link>
-      </div>
+      <PageHeader
+        back={{ to: "/imports", label: "Imports" }}
+        title="Historical records"
+        titleId="ix-history-title"
+        subtitle="Find an imported record again to correct its link or mapped ranks. The workbook text stays as written."
+        actions={<Link className={buttonClass({ variant: "secondary" })} to="/imports/records">Link unassigned records</Link>}
+      />
       <div className="ix-two-col ix-two-col-queue">
         <div className="ix-section">
           {!id ? (

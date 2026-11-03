@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
@@ -7,7 +8,6 @@ import {
   type StudentStatus,
   createStudent,
 } from "./api";
-import { Breadcrumbs } from "./Breadcrumbs";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { useServerForm } from "./forms";
@@ -102,15 +102,12 @@ export function AddStudentScreen() {
 
   return (
     <section aria-labelledby="add-student-title" className="page page--reading">
-      <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: "Add student" }]} />
-
-      {/* Header */}
-      <div className="add-student-header">
-        <h1 id="add-student-title" className="add-student-heading">
-          Add student
-        </h1>
-        <p className="add-student-subtitle">Create a staff-only student record</p>
-      </div>
+      <PageHeader
+        crumbs={[{ label: "Students", to: "/students" }, { label: "Add student" }]}
+        title="Add student"
+        titleId="add-student-title"
+        subtitle="Create a staff-only student record"
+      />
 
       {form.banner && (
         <Alert className="form-alert">{form.banner}</Alert>

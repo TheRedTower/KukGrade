@@ -396,7 +396,7 @@ describe("PromotionLedgerScreen", () => {
     });
 
     // Breadcrumb navigation
-    expect(screen.getByRole("link", { name: "Grading Sessions" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Gradings" })).toHaveAttribute(
       "href",
       "/gradings",
     );

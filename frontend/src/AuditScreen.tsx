@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { PageHeader } from "./PageHeader";
+import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 
@@ -124,16 +126,16 @@ export function AuditScreen(): React.ReactElement {
 
   return (
     <section aria-labelledby="audit-heading" className="page page--wide">
-      <header className="action-row audit-header">
-        <div>
-          <h1 id="audit-heading">Audit</h1>
-          <p>A permanent record of sensitive activity</p>
-        </div>
-        <div className="audit-append-only" aria-label="Audit events are permanent">
-          <span aria-hidden="true">●</span>
-          Permanent
-        </div>
-      </header>
+      <PageHeader
+        title="Audit"
+        titleId="audit-heading"
+        subtitle="A permanent record of sensitive activity"
+        tag={
+          <Badge tone="neutral" dot>
+            Permanent
+          </Badge>
+        }
+      />
 
       <form
         className="filter-bar"

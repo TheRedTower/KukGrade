@@ -107,7 +107,6 @@ button:not(.theme-toggle-option, .visually-hidden) {
 
 /* Links that act as controls - breadcrumbs, names in a table - are inline
    text, which no height reaches; they become boxes of the same size. */
-.users-back-link,
 .users-audit-link,
 .current-grading-link,
 .bgc-student-name-link {
@@ -413,8 +412,8 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .eyebrow {
   margin: 0 0 0.5rem;
   color: var(--color-accent-text);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-eyebrow);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -487,8 +486,6 @@ h2 {
 .workspace-alert {
   padding: 1rem var(--page-gutter) 0;
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 
@@ -625,8 +622,6 @@ h2 {
 }
 
 /* Feedback & Helper Text */
-
-
 
 /* ── Error Banner ────────────────────────────────────────────────────────── */
 

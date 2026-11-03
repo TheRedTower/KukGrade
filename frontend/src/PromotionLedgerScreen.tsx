@@ -1,4 +1,4 @@
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
@@ -8,7 +8,7 @@ import { outcomeTone } from "./badgeClass";
 import { OUTCOME_LABELS } from "./OutcomeControls";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import {
   type CandidateOutcome,
@@ -43,7 +43,6 @@ type PromotionRowItem = {
 export function PromotionLedgerScreen(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const sessionId = Number(id);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
 
@@ -245,33 +244,16 @@ export function PromotionLedgerScreen(): React.ReactElement {
 
   return (
     <section aria-labelledby="pl-title" className="page pl-page" data-testid="promotion-ledger-screen">
-      <Breadcrumbs
-        items={[
-          { label: "Grading Sessions", to: "/gradings" },
+      <PageHeader
+        crumbs={[
+          { label: "Gradings", to: "/gradings" },
           { label: session?.title || "Session", to: `/gradings/${sessionId}` },
           { label: "Promotion Ledger" },
         ]}
+        title={session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
+        titleId="pl-title"
+        subtitle="Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day."
       />
-
-      {/* Screen Header */}
-      <header className="action-row">
-        <div className="pl-header-main">
-          <h1 className="pl-title" id="pl-title">
-            {session ? `${session.title} — Promotion Ledger` : "Promotion Ledger"}
-          </h1>
-          <p className="pl-subtitle">
-            Review the candidates who passed, check their new ranks, and promote them. Every promotion is dated the grading day.
-          </p>
-        </div>
-        <div className="pl-header-actions">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/gradings/${sessionId}`)}
-          >
-            ← Back to session
-          </Button>
-        </div>
-      </header>
 
       {/* Authority Disclaimer if user lacks permission */}
       {!canPromote && (

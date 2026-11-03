@@ -17,6 +17,7 @@
  * (`can_make_final_grading_decision`); the server enforces it regardless.
  */
 import { EmptyState } from "./EmptyState";
+import { BackLink } from "./BackLink";
 import { Alert } from "./Alert";
 import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
@@ -24,7 +25,7 @@ import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   isAnonymousResponse,
@@ -393,12 +394,7 @@ export function CohortAdjudicationScreen() {
   return (
     <section aria-labelledby="cab-title" className="page cab-page">
       <header className="cab-topbar">
-        <Link to={`/gradings/${session.id}`} className="cab-back">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M20 12H5M10 7l-5 5 5 5" />
-          </svg>
-          Back to session
-        </Link>
+        <BackLink to={`/gradings/${session.id}`}>Back to session</BackLink>
         <div className="cab-heading">
           <h1 id="cab-title">Final decisions · {session.title}</h1>
           <p>

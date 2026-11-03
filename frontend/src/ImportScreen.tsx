@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { PageHeader } from "./PageHeader";
+import { Badge } from "./Badge";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -43,12 +45,13 @@ export function ImportScreen() {
 
   if (!Number.isInteger(batchId) || batchId <= 0 || (batch.error instanceof ApiError && batch.error.status === 404)) {
     return (
-      <section className="page ix-page">
-        <Link className="ix-back" to="/imports">
-          ‹ Imports
-        </Link>
-        <h1>Import not found</h1>
-        <p className="ix-muted">It may have been cleared. Start again from Imports.</p>
+      <section aria-labelledby="ix-missing-title" className="page ix-page">
+        <PageHeader
+          back={{ to: "/imports", label: "Imports" }}
+          title="Import not found"
+          titleId="ix-missing-title"
+          subtitle="It may have been cleared. Start again from Imports."
+        />
       </section>
     );
   }
@@ -73,20 +76,17 @@ export function ImportScreen() {
   if (loaded.status !== "UPLOADED") {
     return (
       <section aria-labelledby="ix-closed-title" className="page ix-page">
-        <Link className="ix-back" to="/imports">
-          ‹ Imports
-        </Link>
-        <h1 className="ix-wrap" id="ix-closed-title">
-          {loaded.original_filename}
-        </h1>
-        <p>
-          <span className="ix-pill ix-pill-neutral">{loaded.status_display}</span>
-        </p>
-        <p className="ix-muted">
-          {loaded.status === "EXPIRED"
-            ? "This import was not finished in time, so it was cleared. Nothing was saved."
-            : "This import was cancelled. Nothing was saved."}
-        </p>
+        <PageHeader
+          back={{ to: "/imports", label: "Imports" }}
+          title={loaded.original_filename}
+          titleId="ix-closed-title"
+          tag={<Badge tone="neutral">{loaded.status_display}</Badge>}
+          subtitle={
+            loaded.status === "EXPIRED"
+              ? "This import was not finished in time, so it was cleared. Nothing was saved."
+              : "This import was cancelled. Nothing was saved."
+          }
+        />
         <Link className={buttonClass({ variant: "primary" }, "ix-start")} to={`/imports/new?kind=${loaded.kind}`}>
           Start again
         </Link>
@@ -101,21 +101,20 @@ export function ImportScreen() {
 
   return (
     <section aria-labelledby="ix-step-title" className="page ix-page">
-      <div>
-        <Link className="ix-back" to="/imports">
-          ‹ Imports
-        </Link>
-        <h1 className="ix-page-title" id="ix-step-title">
-          {importKindTitle(loaded.kind)}
-        </h1>
-        <p className="ix-muted ix-small ix-wrap">
-          {loaded.original_filename}
-          {loaded.sheet ? ` · sheet “${loaded.sheet}”` : ""} ·{" "}
-          {loaded.kind === "STUDENT_ROSTER"
-            ? `${loaded.row_counts.total} rows`
-            : `${loaded.grading_sheets.length} grading sheets, ${loaded.row_counts.total} records`}
-        </p>
-      </div>
+      <PageHeader
+        back={{ to: "/imports", label: "Imports" }}
+        title={importKindTitle(loaded.kind)}
+        titleId="ix-step-title"
+        subtitle={
+          <>
+            {loaded.original_filename}
+            {loaded.sheet ? ` · sheet “${loaded.sheet}”` : ""} ·{" "}
+            {loaded.kind === "STUDENT_ROSTER"
+              ? `${loaded.row_counts.total} rows`
+              : `${loaded.grading_sheets.length} grading sheets, ${loaded.row_counts.total} records`}
+          </>
+        }
+      />
       <ImportStepBar current={current} kind={loaded.kind} />
       {matching ? (
         loaded.kind === "STUDENT_ROSTER" ? (

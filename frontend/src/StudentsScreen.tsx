@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -117,25 +118,17 @@ export function StudentsScreen() {
 
   return (
     <section aria-labelledby="students-page-heading" className="page">
-      {/* Header */}
-      <div className="action-row students-header">
-        <div className="students-header-copy">
-          <h1 id="students-page-heading" className="students-title">
-            Students
-          </h1>
-          <p className="students-subtitle">Manage student records and grading history</p>
-        </div>
-        <div className="students-header-actions">
-          <Button
-            variant="primary"
-            onClick={() => navigate("/students/new")}
-            aria-label="Add new student"
-          >
+      <PageHeader
+        title="Students"
+        titleId="students-page-heading"
+        subtitle="Manage student records and grading history"
+        actions={
+          <Button variant="primary" onClick={() => navigate("/students/new")} aria-label="Add new student">
             <UserPlusIcon />
             <span>Add student</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Filter and Search Bar */}
       <div className="filter-bar students-filter-bar" role="search" aria-label="Student filters">

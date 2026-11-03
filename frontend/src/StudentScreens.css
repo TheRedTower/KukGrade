@@ -1,40 +1,3 @@
-/* ==========================================================================
-   Students Registry View
-   ========================================================================== */
-
-.students-header {
-  margin-bottom: 2rem;
-}
-
-.students-header-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.students-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.students-title {
-  color: var(--color-text);
-  font-size: 2.2rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  line-height: 1.15;
-  margin: 0;
-}
-
-.students-subtitle {
-  color: var(--color-text-muted);
-  font-size: 1.05rem;
-  font-weight: 500;
-  margin: 0;
-}
-
 /* Filter Bar */
 
 .students-filter-bar {
@@ -131,26 +94,6 @@
 
 .form-breadcrumbs {
   margin-bottom: 1.25rem;
-}
-
-/* Header */
-
-.add-student-header {
-  margin-bottom: 2rem;
-}
-
-.add-student-heading {
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.025em;
-  color: var(--color-text);
-  margin: 0 0 0.35rem;
-}
-
-.add-student-subtitle {
-  font-size: 1rem;
-  color: var(--color-text-muted);
-  margin: 0;
 }
 
 /* Form Alert Banner */

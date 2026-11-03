@@ -1295,7 +1295,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     await user.click(proposeBtn);
 
     // Verify drawer is opened
-    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    const drawer = await screen.findByRole("dialog");
     expect(drawer).toBeVisible();
 
     // Candidate and the rank transition, from the candidate's own fields
@@ -1340,7 +1340,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     // Drawer closes on success
     await waitFor(() => {
-      expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
   });
 
@@ -1368,7 +1368,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     const proposeBtn = await screen.findByTestId("propose-outcome-btn-102");
     await user.click(proposeBtn);
 
-    const reopenedDrawer = await screen.findByTestId("outcome-proposal-drawer");
+    const reopenedDrawer = await screen.findByRole("dialog");
     expect(reopenedDrawer).toBeVisible();
     expect(
       reopenedDrawer.querySelector<HTMLInputElement>('input[value="PASS"]'),
@@ -1377,14 +1377,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     // Dismiss via Cancel button
     await user.click(within(reopenedDrawer).getByRole("button", { name: "Cancel" }));
 
-    expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     // Open drawer again and dismiss via Escape key
     await user.click(proposeBtn);
-    expect(await screen.findByTestId("outcome-proposal-drawer")).toBeVisible();
+    expect(await screen.findByRole("dialog")).toBeVisible();
 
     await user.keyboard("{Escape}");
-    expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(proposeBtn).toHaveFocus();
   });
 
@@ -1410,14 +1410,14 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
-    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    const drawer = await screen.findByRole("dialog");
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
     expect(await within(drawer).findByRole("alert")).toHaveTextContent(
       "The assessment is not completed.",
     );
-    expect(screen.getByTestId("outcome-proposal-drawer")).toBeVisible();
+    expect(screen.getByRole("dialog")).toBeVisible();
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/propose/"))).toBe(false);
   });
 
@@ -1451,13 +1451,13 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
-    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    const drawer = await screen.findByRole("dialog");
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
     expect(await within(drawer).findByRole("alert")).toHaveTextContent("Try again shortly.");
 
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
-    await waitFor(() => expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 
     const creates = fetchMock.mock.calls.filter(
       ([url, init]) => String(url).includes("/create-outcome/") && init?.method === "POST",
@@ -1496,10 +1496,10 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
-    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    const drawer = await screen.findByRole("dialog");
     await user.click(within(drawer).getByRole("button", { name: "Submit proposal" }));
 
-    await waitFor(() => expect(screen.queryByTestId("outcome-proposal-drawer")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const creates = fetchMock.mock.calls.filter(([url]) => String(url).includes("/create-outcome/"));
     expect(creates).toHaveLength(1);
     expect(
@@ -1528,7 +1528,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
 
     render(<App />);
     await user.click(await screen.findByTestId("propose-outcome-btn-102"));
-    const drawer = await screen.findByTestId("outcome-proposal-drawer");
+    const drawer = await screen.findByRole("dialog");
 
     expect(await within(drawer).findByText(/could not be loaded/)).toBeVisible();
     expect(within(drawer).getByRole("button", { name: "Submit proposal" })).toBeDisabled();

@@ -129,7 +129,7 @@ export const ABOUT = {
   copyright: "Copyright © 2026 Example Owner",
 };
 
-export const ABOUT_DOCUMENTS: Record<string, unknown> = {
+const ABOUT_DOCUMENTS: Record<string, unknown> = {
   licence: {
     slug: "licence",
     title: "Licence",
@@ -155,7 +155,7 @@ export const ABOUT_DOCUMENTS: Record<string, unknown> = {
   },
 };
 
-export const ABOUT_PLEDGE = {
+const ABOUT_PLEDGE = {
   title: "The Kuk Sool Won Pledge",
   points: [
     { english: "First promise.", korean: "첫째 맹세." },

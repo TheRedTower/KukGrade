@@ -18,7 +18,7 @@ export interface EnrichedCandidate {
 }
 
 /** What a candidate's row offers next: a link, or the proposal drawer. */
-export interface NextAction {
+interface NextAction {
   label: string;
   url: string;
   opensProposalDrawer: boolean;

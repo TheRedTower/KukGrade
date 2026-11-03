@@ -56,7 +56,7 @@ export type Programme = components["schemas"]["ProgrammeEnum"];
  * raised at serializer level rather than against a field are keyed under
  * `non_field_errors`.
  */
-export type FieldErrors = { [field: string]: string[] | FieldErrors };
+type FieldErrors = { [field: string]: string[] | FieldErrors };
 
 type ApiErrorBody = {
   error?: {
@@ -228,7 +228,7 @@ export async function getSiteSettings(): Promise<SiteSettings> {
 }
 
 export type About = Schemas["About"];
-export type AboutDocument = Schemas["Document"];
+type AboutDocument = Schemas["Document"];
 export type Pledge = Schemas["Pledge"];
 export type Credits = Schemas["Credits"];
 export type Credit = Schemas["Credit"];

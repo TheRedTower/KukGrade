@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 
 import { ApiError, errorMessage } from "./api";
 
-export interface ServerErrors {
+interface ServerErrors {
   /** Messages for the fields the form shows, keyed by field name. */
   fields: Record<string, string[]>;
   /** What belongs above the form: whatever the server said that no shown field can carry. */

@@ -6,25 +6,11 @@
   gap: 1rem;
 }
 
-.cab-topbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.5rem;
+/* The page's own gap already spaces its header. */
+.cab-page > .page-header {
+  margin-bottom: 0;
 }
 
-.cab-heading {
-  flex: 1 1 18rem;
-  min-width: 0;
-}
-
-.cab-heading h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  color: var(--color-text);
-}
-
-.cab-heading p,
 .cab-footnote,
 .cab-note-by {
   margin: 0.15rem 0 0;

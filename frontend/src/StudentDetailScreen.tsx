@@ -14,7 +14,7 @@ import {
   updateStudent,
   errorMessage,
 } from "./api";
-import { Breadcrumbs } from "./Breadcrumbs";
+import { PageHeader } from "./PageHeader";
 import { EmptyState } from "./EmptyState";
 import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
@@ -237,18 +237,13 @@ export function StudentDetailScreen() {
 
   return (
     <section aria-labelledby="student-heading" className="page">
-      <Breadcrumbs className="form-breadcrumbs" items={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]} />
-
-      {/* Detail Header */}
-      <div className="detail-header-card">
-        <div className="detail-header-left">
-          <div className="detail-name-row">
-            <h1 id="student-heading" className="student-detail-name">
-              {student.first_name} {student.last_name}
-            </h1>
-            <StudentStatusBadge status={student.status} label={statusDisplay} />
-          </div>
-          <p className="detail-wksa-id">
+      <PageHeader
+        crumbs={[{ label: "Students", to: "/students" }, { label: `${student.first_name} ${student.last_name}` }]}
+        title={`${student.first_name} ${student.last_name}`}
+        titleId="student-heading"
+        tag={<StudentStatusBadge status={student.status} label={statusDisplay} />}
+        subtitle={
+          <>
             WKSA ID <span className="wksa-id-pill">{student.wksa_id}</span>
             {student.previous_wksa_ids.length > 0 ? (
               <span>
@@ -261,10 +256,9 @@ export function StudentDetailScreen() {
                 ))}
               </span>
             ) : null}
-          </p>
-        </div>
-
-        <div>
+          </>
+        }
+        actions={
           <Button
             variant="secondary"
             onClick={() => {
@@ -278,8 +272,8 @@ export function StudentDetailScreen() {
           >
             Edit student
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Two-Column Grid Layout */}
       <div className="student-detail-grid">

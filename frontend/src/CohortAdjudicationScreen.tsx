@@ -18,7 +18,7 @@
  */
 import { EmptyState } from "./EmptyState";
 import { keys } from "./queryKeys";
-import { BackLink } from "./BackLink";
+import { PageHeader } from "./PageHeader";
 import { Alert } from "./Alert";
 import { LoadingState } from "./LoadingState";
 import { ErrorText } from "./ErrorText";
@@ -394,19 +394,17 @@ export function CohortAdjudicationScreen() {
 
   return (
     <section aria-labelledby="cab-title" className="page cab-page">
-      <header className="cab-topbar">
-        <BackLink to={`/gradings/${session.id}`}>Back to session</BackLink>
-        <div className="cab-heading">
-          <h1 id="cab-title">Final decisions · {session.title}</h1>
-          <p>
-            {session.status_display} · {formatSessionDate(session.grading_date)}
-            {session.location ? ` · ${session.location}` : ""}
+      <PageHeader
+        back={{ to: `/gradings/${session.id}`, label: "Back to session" }}
+        title={`Final decisions · ${session.title}`}
+        titleId="cab-title"
+        subtitle={`${session.status_display} · ${formatSessionDate(session.grading_date)}${session.location ? ` · ${session.location}` : ""}`}
+        actions={
+          <p className="cab-progress" role="status">
+            <strong>{finalisedCount}</strong> / {rows.length} finalised
           </p>
-        </div>
-        <p className="cab-progress" role="status">
-          <strong>{finalisedCount}</strong> / {rows.length} finalised
-        </p>
-      </header>
+        }
+      />
 
       {session.status !== "LOCKED" && (
         <p className="cab-notice" role="status">

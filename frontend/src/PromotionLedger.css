@@ -20,7 +20,7 @@
   padding: 18px 24px;
   background: var(--color-warning-surface);
   border: 1.5px solid var(--color-warning);
-  border-radius: 12px;
+  border-radius: var(--radius);
   margin-bottom: 24px;
 }
 
@@ -31,13 +31,13 @@
 }
 
 .pl-summary-count {
-  font-size: 1.08rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
   color: var(--color-warning);
 }
 
 .pl-summary-note {
-  font-size: 0.84rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -59,8 +59,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
-  font-size: 0.92rem;
+  font-weight: var(--font-weight-strong);
+  font-size: var(--font-size-base);
   flex-shrink: 0;
   border: 1px solid var(--color-warning);
 }
@@ -72,13 +72,13 @@
 }
 
 .pl-candidate-name {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
 }
 
 .pl-candidate-belt-sub {
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -89,11 +89,11 @@
   align-items: center;
   gap: 8px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
-  font-size: 0.84rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text);
 }
 
@@ -107,12 +107,12 @@
 }
 
 .pl-promoted-date {
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .pl-ineligible-note {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -120,14 +120,14 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-success);
 }
 
 .pl-action-disabled {
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
 }
 
 /* ── Promotion dialogs (the shared Dialog supplies the card) ─────────────── */
@@ -135,7 +135,7 @@
 .pl-batch-count {
   margin: 0;
   color: var(--color-text-muted);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .pl-batch-chips {
@@ -155,8 +155,8 @@
   padding: 0.25rem 0.65rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
-  font-size: 0.8rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
 }
 
 .pl-chip-num,
@@ -166,7 +166,7 @@
 }
 
 .pl-chip-num {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 .pl-chip-name {
@@ -188,8 +188,8 @@
 .pl-modal-name {
   display: block;
   margin-bottom: var(--space-2);
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
 }
 
 .pl-modal-ranks {
@@ -207,7 +207,7 @@
 .pl-modal-date-notice {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 

@@ -41,7 +41,8 @@ const COUNTED: Record<string, (prop: string, value: string) => number> = {
   fontWeight: (prop, value) => (prop === "font-weight" && !/^(?:inherit|var\()/.test(value) ? 1 : 0),
   fontFamily: (prop, value) => (prop === "font-family" && !/^(?:inherit|var\()/.test(value) ? 1 : 0),
   radius: (prop, value) =>
-    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "")) && value !== "50%" ? 1 : 0,
+    // A corner of 0 is square, not a size: only another number is hand-set.
+    prop === "border-radius" && /\d/.test(value.replace(/var\([^)]*\)/g, "").replace(/\b0\b/g, "")) && value !== "50%" ? 1 : 0,
   shadow: (prop, value) => (prop === "box-shadow" && !/^(?:none|var\()/.test(value) ? 1 : 0),
   zIndex: (prop, value) => (prop === "z-index" && !/^(?:var\(|1$)/.test(value) ? 1 : 0),
   outlineNone: (prop, value) => (prop === "outline" && /^(?:none|0)\b/.test(value) ? 1 : 0),

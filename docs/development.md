@@ -122,6 +122,11 @@ serializers and the committed frontend types match the schema.
   not fit: delete a screen from them when you fix it.
 - **Colours, sizes and every other design value come from `frontend/src/theme.css` (tokens)
   or `layout.css` (widths and the shared pieces), and every class a screen uses is defined.**
+  The scales are: type `--font-size-xs` to `-3xl` (eight steps, 0.75rem to 2rem) and
+  `--font-weight-normal` to `-title` (400 to 800); corners `--radius-xs`, `-sm`, `-control`,
+  `--radius` and `-pill`; elevation `--shadow-xs` to `-lg` and `--shadow-up`; and the focus and
+  validation marks `--ring-*` and `--edge-accent`. A value that sits between two steps takes the
+  nearer one; if a design really needs a new step, add it to the scale for everyone.
   `tokenRules.test.ts` counts what each stylesheet still holds outside them (raw colours,
   dark-mode patches, `!important`, type, radius and shadow literals, z-index) and fails if
   the count goes up; `tokenBaseline.json` only ever shrinks. It also fails on a `var()`

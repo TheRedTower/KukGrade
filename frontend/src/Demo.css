@@ -2,20 +2,20 @@
 .demo-card {
   margin-bottom: 1.5rem;
   border: 1px solid var(--color-info-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-info-surface);
   padding: 1rem 1.125rem;
 }
 
 .demo-card h2 {
   margin: 0 0 0.25rem;
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
 }
 
 .demo-card p {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
 }
 
 .demo-accounts {
@@ -32,7 +32,7 @@
   width: 100%;
   min-height: 44px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   padding: 0.625rem 0.75rem;
   color: var(--color-text);
@@ -56,12 +56,12 @@
 }
 
 .demo-account strong {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
 }
 
 .demo-account span {
   color: var(--color-text-muted);
-  font-size: 0.8125rem;
+  font-size: var(--font-size-sm);
 }
 
 .demo-password {
@@ -78,6 +78,6 @@
   background: var(--color-info-surface);
   padding: 0.5rem 1rem;
   color: var(--color-text);
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
   text-align: center;
 }

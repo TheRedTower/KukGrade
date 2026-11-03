@@ -28,10 +28,10 @@
   height: 44px;
   padding: 0 0.9rem 0 2.4rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-sunken);
   color: var(--color-text);
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
@@ -43,9 +43,9 @@
 
 .gs-filter-select {
   padding-left: 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background-color: var(--color-surface-sunken);
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   cursor: pointer;
   transition: border-color 140ms ease;
 }
@@ -60,7 +60,7 @@
 
 .gs-current-card {
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -68,8 +68,8 @@
 .gs-current-tag {
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   padding: 0.35rem 1rem;
@@ -93,20 +93,20 @@
 }
 
 .gs-current-title {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-title);
   margin: 0 0 0.3rem;
   color: var(--color-text);
 }
 
 .gs-current-date {
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-muted);
   margin: 0 0 0.25rem;
 }
 
 .gs-current-location {
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   margin: 0 0 0.6rem;
 }
@@ -129,8 +129,8 @@
 }
 
 .gs-table-heading {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0;
 }
@@ -177,8 +177,8 @@
 }
 
 .cgs-label {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
@@ -188,9 +188,9 @@
 }
 
 .cgs-optional-text {
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   margin-left: 0.2rem;
 }
 
@@ -198,11 +198,11 @@
 .cgs-textarea,
 .cgs-select {
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 0.65rem 0.85rem;
   transition: border-color 120ms ease, box-shadow 120ms ease;
   box-sizing: border-box;
@@ -243,14 +243,14 @@
 
 .cgs-char-counter {
   text-align: right;
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   margin-top: 0.15rem;
 }
 
 .cgs-char-near-limit {
   color: var(--color-warning);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 /* ── Actions ─────────────────────────────────────────────────────────────── */
@@ -267,19 +267,19 @@
 .cgs-preview-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 1.75rem 1.85rem;
 }
 
 .cgs-preview-title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0 0 0.35rem 0;
 }
 
 .cgs-preview-subtitle {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   margin: 0 0 1.35rem 0;
   line-height: 1.45;
@@ -310,7 +310,7 @@
 }
 
 .gsd-chevron-down {
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -322,7 +322,7 @@
   max-width: calc(100vw - 2rem);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   padding: 0.35rem 0;
   z-index: var(--z-menu);
   display: flex;
@@ -341,8 +341,8 @@
   background: none;
   border: none;
   color: var(--color-text);
-  font-size: 0.88rem;
-  font-weight: 500;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background 120ms ease;
   text-decoration: none;
@@ -369,7 +369,7 @@
   min-width: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: var(--card-pad);
 }
 
@@ -393,8 +393,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-title);
   border: 2px solid var(--color-text-muted);
   color: transparent;
   transition: all 150ms ease;
@@ -410,7 +410,7 @@
   background: var(--color-success);
   border-color: var(--color-success);
   color: var(--color-on-success);
-  box-shadow: 0 0 0 3px var(--color-success-surface);
+  box-shadow: var(--ring-success);
 }
 
 .gsd-step-upcoming .gsd-step-circle {
@@ -424,13 +424,13 @@
 }
 
 .gsd-step-label {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .gsd-step-subtext {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
 }
 
@@ -452,8 +452,8 @@
 }
 
 .gsd-section-title {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0;
 }
@@ -475,7 +475,7 @@
 .gsd-search-icon {
   position: absolute;
   left: 0.75rem;
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   pointer-events: none;
   opacity: 0.6;
 }
@@ -485,10 +485,10 @@
   min-width: 0;
   padding: 0.5rem 0.75rem 0.5rem 2.2rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   min-height: var(--target-min);
 }
 
@@ -505,10 +505,10 @@
 .gsd-filter-select {
   padding: 0.5rem 0.85rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   min-height: var(--target-min);
   cursor: pointer;
 }
@@ -520,8 +520,8 @@
 }
 
 .gsd-count-chip {
-  font-size: 0.88rem;
-  font-weight: 500;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
@@ -529,14 +529,14 @@
 
 .gsd-candidate-name {
   display: block;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .gsd-candidate-wksa {
   display: block;
-  font-size: 0.75rem;
-  font-weight: 400;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
   color: var(--color-text-muted);
   margin-top: 0.15rem;
 }
@@ -565,14 +565,14 @@
 }
 
 .gsd-empty-title {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   margin: 0;
 }
 
 .gsd-empty-sub {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   margin: 0 0 1rem;
 }
@@ -586,7 +586,7 @@
 .gsd-notes-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -598,20 +598,20 @@
 }
 
 .gsd-notes-title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0;
 }
 
 .gsd-notes-sub {
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   margin: 0.25rem 0 0;
 }
 
 .gsd-notes-text {
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   line-height: 1.6;
   color: var(--color-text);
   margin: 0;
@@ -619,7 +619,7 @@
 }
 
 .gsd-notes-empty {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   font-style: italic;
   margin: 0;
@@ -635,11 +635,11 @@
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   color: var(--color-text);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
   resize: vertical;
   box-sizing: border-box;
 }
@@ -664,8 +664,8 @@
 }
 
 .gsd-field-label {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 

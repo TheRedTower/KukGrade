@@ -14,37 +14,37 @@
 /* Headings inside a page, largest first. */
 .ix-title {
   margin: 0 0 0.25rem;
-  font-size: 1.375rem;
+  font-size: var(--font-size-2xl);
 }
 
 .ix-heading {
   margin: 0 0 0.25rem;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-minor {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-h3 {
   margin: 0 0 0.5rem;
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
 }
 
 .ix-headline {
-  font-size: 1.1rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-big-count {
-  font-size: 1.375rem;
+  font-size: var(--font-size-2xl);
 }
 
 .ix-eyebrow {
   margin: 0 0 0.5rem;
   color: var(--color-accent-text);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -55,15 +55,15 @@
 }
 
 .ix-small {
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
 }
 
 .ix-semibold {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ix-bold {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-block {
@@ -99,8 +99,8 @@
 .ix-why {
   margin: 0;
   color: var(--color-danger);
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ix-section {
@@ -119,7 +119,7 @@
 
 .ix-section-head h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-head-text {
@@ -196,15 +196,15 @@
 }
 
 .ix-strong {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   overflow-wrap: anywhere;
 }
 
 .ix-kind {
   margin: 0 0 0.15rem;
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -229,7 +229,7 @@
 
 .ix-progress span {
   height: 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--color-border);
 }
 
@@ -258,7 +258,7 @@
 
 .ix-panel-body h3 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-panel-foot p {
@@ -273,7 +273,7 @@
   gap: 0.6rem 1rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--color-border);
-  border-radius: 0 0 10px 10px;
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
   background: var(--color-surface-sunken);
 }
 
@@ -292,8 +292,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
@@ -307,7 +307,7 @@
 }
 
 .ix-hint {
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
 }
 
 .ix-field select,
@@ -316,11 +316,11 @@
   min-width: 10rem;
   padding: 0 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-weight: 400;
+  font-weight: var(--font-weight-normal);
 }
 
 .ix-chips-inset {
@@ -335,15 +335,15 @@
   width: 100%;
   min-width: 44rem;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ix-table th {
   padding: 0.75rem 1rem;
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-align: left;
   text-transform: uppercase;
@@ -358,7 +358,7 @@
 
 .ix-caption {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-table-foot {
@@ -384,7 +384,7 @@
   align-items: center;
   gap: 0.75rem 1rem;
   padding: 1rem 1.25rem;
-  border-radius: 10px;
+  border-radius: var(--radius-control);
 }
 
 .ix-banner p {
@@ -411,8 +411,8 @@
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
-  font-size: 0.85rem;
-  font-weight: 800;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-title);
 }
 
 .ix-mark-ok {
@@ -423,7 +423,7 @@
 .ix-mark-large {
   width: 2.5rem;
   height: 2.5rem;
-  font-size: 1.2rem;
+  font-size: var(--font-size-xl);
 }
 
 .ix-mark-on-surface {
@@ -469,12 +469,12 @@
   gap: 0.5rem;
   min-width: 0;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .ix-step-bar {
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color-border);
 }
 
@@ -494,8 +494,8 @@
   height: 1.5rem;
   border: 1px solid var(--color-border);
   border-radius: 50%;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-step-done,
@@ -515,7 +515,7 @@
 }
 
 .ix-step-current {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-step-current .ix-step-dot {
@@ -534,7 +534,7 @@
   gap: 0.75rem;
   padding: 3rem 1.5rem;
   border: 2px dashed var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-sunken);
   text-align: center;
 }
@@ -548,8 +548,8 @@
 }
 
 .ix-drop-title {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-split {
@@ -592,10 +592,10 @@
   flex: 0 0 auto;
   padding: 0.05rem 0.5rem;
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
 }
 
 .ix-file {
@@ -605,7 +605,7 @@
   gap: 0.75rem 1rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
 }
 
 .ix-file p {
@@ -635,7 +635,7 @@
   background: transparent;
   color: var(--color-accent-text);
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   cursor: pointer;
 }
 
@@ -697,7 +697,7 @@
   min-height: 6rem;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -716,11 +716,11 @@
   min-height: var(--target-min);
   padding: 0 0.5rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ix-cell-input:focus {
@@ -744,8 +744,8 @@
   gap: 0 0.35rem;
   margin-top: 0.25rem;
   color: var(--color-info);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ix-fix-note button {
@@ -754,7 +754,7 @@
   background: transparent;
   color: var(--color-accent-text);
   font: inherit;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   cursor: pointer;
 }
 
@@ -770,7 +770,7 @@
 .ix-col-name {
   display: block;
   color: var(--color-text);
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -797,12 +797,12 @@
   margin-top: 0.35rem;
   padding: 0 0.4rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   text-transform: none;
   letter-spacing: 0;
 }
@@ -831,19 +831,19 @@
 .ix-field-label {
   display: block;
   margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ix-field-grid select {
   min-height: var(--target-min);
   padding: 0 0.4rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ix-label-invalid {
@@ -910,7 +910,7 @@
 
 .ix-queue-name {
   display: block;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .ix-tick {
@@ -979,8 +979,8 @@
 .ix-name-head {
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -1016,7 +1016,7 @@
   margin: 0;
   padding: 0;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   list-style: none;
 }
@@ -1048,7 +1048,7 @@
   min-height: 56px;
   padding: 0.6rem 0.9rem;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -1105,7 +1105,7 @@
   min-height: 5.5rem;
   padding: 0.9rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
@@ -1121,18 +1121,18 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
-  font-size: 1.6rem;
-  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-title);
   line-height: 1.1;
 }
 
 .ix-tile-count [aria-hidden="true"] {
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
 }
 
 .ix-tile-label {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* The seal on the review page. */

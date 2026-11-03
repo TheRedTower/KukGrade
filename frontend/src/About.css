@@ -11,9 +11,9 @@
   align-items: center;
   min-height: 44px;
   padding: 0 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -23,8 +23,8 @@
 
 .ab-rail a.active {
   background: var(--color-surface-sunken);
-  box-shadow: inset 3px 0 0 var(--color-gold);
-  font-weight: 700;
+  box-shadow: var(--edge-accent);
+  font-weight: var(--font-weight-strong);
 }
 
 .ab-rail a:focus-visible {
@@ -37,7 +37,7 @@
   padding: 0.75rem 0.85rem 0.5rem;
   border-top: 1px solid var(--color-border);
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
 }
 
 .ab-main {
@@ -49,7 +49,7 @@
 
 .ab-main > header h2 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: var(--font-size-3xl);
 }
 
 .ab-main > header p {
@@ -66,26 +66,26 @@
 
 .ab-head h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
 }
 
 .ab-badge {
   padding: 0.05rem 0.6rem;
   border: 1px solid var(--color-info-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-info-surface);
   color: var(--color-info);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   white-space: nowrap;
 }
 
 .ab-note {
   padding: 0.85rem 1rem;
   border: 1px solid var(--color-info-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-info-surface);
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ab-note a {
@@ -108,11 +108,11 @@
   justify-content: center;
   width: 5.25rem;
   height: 5.25rem;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   background: var(--color-rail);
   color: var(--color-gold);
-  font-size: 2.75rem;
-  font-weight: 800;
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-title);
 }
 
 .st-hero-text {
@@ -121,7 +121,7 @@
 }
 
 .st-hero h2 {
-  font-size: 2rem;
+  font-size: var(--font-size-3xl);
   letter-spacing: -0.01em;
 }
 
@@ -132,8 +132,8 @@
 .st-eyebrow {
   margin: 0.1rem 0 0.5rem;
   color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -145,20 +145,20 @@
   margin: 0;
   padding: 0.6rem 1.25rem;
   border: 1px solid var(--color-border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--color-surface-sunken);
 }
 
 .st-version-tile span {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .st-version-tile strong {
-  font-size: 1.6rem;
+  font-size: var(--font-size-2xl);
 }
 
 .st-links a {
@@ -169,7 +169,7 @@
   padding: 0 1.5rem;
   border-top: 1px solid var(--color-border);
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -197,25 +197,25 @@
   margin: 1rem 0 0;
   padding: 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-sunken);
 }
 
 .st-details dt {
   color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
 .st-details dd {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   overflow-wrap: anywhere;
 }
 
 .st-mono {
   font-family: var(--font-mono);
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ab-facts {
@@ -238,7 +238,7 @@
 
 .ab-facts dd {
   margin: 0;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 /* Documents. */
@@ -252,19 +252,19 @@
 .ab-three > div {
   padding: 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface-sunken);
 }
 
 .ab-three h3 {
   margin: 0 0 0.4rem;
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
 }
 
 .ab-three ul {
   margin: 0;
   padding-left: 1.1rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .ab-actions {
@@ -287,7 +287,7 @@
 
 .ab-credit-link {
   color: var(--color-text);
-  font-weight: var(--font-weight-control);
+  font-weight: var(--font-weight-semibold);
 }
 
 .ab-doc-columns {
@@ -310,8 +310,8 @@
   margin: 0;
   padding: 0.5rem 0.85rem;
   color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -320,10 +320,10 @@
   min-height: var(--target-min);
   padding: 0 0.85rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-align: left;
 }
 
@@ -340,7 +340,7 @@
 
 .ab-prose h3 {
   margin: 1.5rem 0 0.4rem;
-  font-size: 1.15rem;
+  font-size: var(--font-size-xl);
   scroll-margin-top: 1rem;
 }
 
@@ -355,7 +355,7 @@
 
 .ab-prose h4 {
   margin: 1.1rem 0 0.3rem;
-  font-size: 1rem;
+  font-size: var(--font-size-lg);
   scroll-margin-top: 1rem;
 }
 
@@ -380,7 +380,7 @@
 
 .ab-prose code {
   padding: 0.05rem 0.3rem;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: var(--color-surface-sunken);
   font-size: 0.9em;
 }
@@ -414,11 +414,11 @@
   justify-content: center;
   width: 1.65rem;
   height: 1.65rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-title);
 }
 
 @media (max-width: 40rem) {

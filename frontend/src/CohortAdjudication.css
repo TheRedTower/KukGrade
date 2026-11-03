@@ -14,13 +14,13 @@
 .cab-footnote,
 .cab-note-by {
   margin: 0.15rem 0 0;
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
 .cab-progress {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-muted);
 }
 
@@ -34,7 +34,7 @@
   border-left: 3px solid var(--color-warning);
   background: var(--color-warning-surface);
   color: var(--color-text);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .cab-row-name {
@@ -45,32 +45,32 @@
   background: none;
   color: var(--color-text);
   font: inherit;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-align: left;
   cursor: pointer;
 }
 
 .cab-row-sub {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .cab-counts {
   display: block;
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
 .cab-flags {
   display: block;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .cab-flags-shortfall {
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-danger);
 }
 
@@ -78,7 +78,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
@@ -93,13 +93,13 @@
   gap: 1rem;
   padding: 1.1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
 }
 
 .cab-detail h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--font-size-xl);
   color: var(--color-text);
 }
 
@@ -113,7 +113,7 @@
 
 .cab-detail-section h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
   color: var(--color-text);
 }
 
@@ -136,20 +136,20 @@
   gap: 0.75rem 1rem;
   padding: 0.85rem 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
 }
 
 .cab-bar-text {
   flex: 1 1 18rem;
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .cab-bar-result {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 

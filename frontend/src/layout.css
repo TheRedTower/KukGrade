@@ -18,12 +18,27 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
-  --font-size-small: 0.88rem;
-  --font-size-eyebrow: 0.75rem;
+  /* Type: every font size is one of these eight steps. */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.82rem;
+  --font-size-md: 0.88rem;
+  --font-size-base: 0.92rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.2rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-strong: 700;
+  --font-weight-title: 800;
   --card-pad: clamp(1rem, 3vw, 1.5rem);
   --section-gap: var(--space-4);
-  --radius: 0.75rem;
+  /* Corners: a chip's edge, a small box, a control, a card; a pill is fully round. */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.375rem;
   --radius-control: 0.5rem;
+  --radius: 0.75rem;
   --radius-pill: 999px;
   --target-min: 44px;
   --focus-outline: 2px solid var(--color-accent-strong);
@@ -129,8 +144,8 @@
 .field > span,
 .field > label {
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -145,7 +160,7 @@
   max-width: 100%;
   padding: 0.62rem 0.72rem;
   color: var(--color-text);
-  font-size: var(--font-size-control);
+  font-size: var(--font-size-base);
   line-height: 1.3;
 }
 
@@ -204,18 +219,18 @@ select:not([multiple]):not([size]) {
 .field__row > input {
   flex: 1 1 auto;
   width: auto;
-  border-radius: 0.45rem 0 0 0.45rem;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
 }
 
 /* The button joined to a search box. */
 .field__row > button {
   border: 1px solid var(--btn-primary-border);
   border-left: 0;
-  border-radius: 0 0.45rem 0.45rem 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
   font: inherit;
-  font-weight: 750;
+  font-weight: var(--font-weight-strong);
   padding: 0.55rem 0.9rem;
   cursor: pointer;
 }
@@ -252,7 +267,7 @@ select:not([multiple]):not([size]) {
 .rtable table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .rtable th {
@@ -260,8 +275,8 @@ select:not([multiple]):not([size]) {
   border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
-  font-size: 0.72rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.06em;
   text-align: start;
   text-transform: uppercase;
@@ -360,8 +375,8 @@ select:not([multiple]):not([size]) {
     content: attr(data-label) / "";
     padding-top: 0.15rem;
     color: var(--color-text-muted);
-    font-size: 0.72rem;
-    font-weight: 800;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-title);
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -370,8 +385,8 @@ select:not([multiple]):not([size]) {
     grid-column: 1;
     grid-row: 1;
     display: block;
-    font-size: 1.05rem;
-    font-weight: 700;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-strong);
   }
 
   .rtable td[data-actions] {
@@ -405,7 +420,7 @@ select:not([multiple]):not([size]) {
 .rtable__empty {
   padding: 2.25rem var(--space-4);
   color: var(--color-text-muted);
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   text-align: center;
 }
 
@@ -425,13 +440,13 @@ select:not([multiple]):not([size]) {
 }
 
 .stat__value {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-title);
 }
 
 .stat__label {
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
 }
 
 /* ── Facts and recorded text, for dialogs and detail panes ─────────────── */
@@ -446,14 +461,14 @@ select:not([multiple]):not([size]) {
 .facts > div {
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
 }
 
 .facts dt {
   color: var(--color-text-muted);
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
@@ -470,9 +485,9 @@ select:not([multiple]):not([size]) {
   padding: var(--space-3);
   overflow: auto;
   border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -505,7 +520,7 @@ select:not([multiple]):not([size]) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+  box-shadow: var(--shadow-lg);
 }
 
 .dialog > * {
@@ -534,15 +549,15 @@ select:not([multiple]):not([size]) {
 .dialog__eyebrow {
   margin: 0 0 var(--space-1);
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 750;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
 .dialog__heading {
   margin: 0;
-  font-size: 1.45rem;
+  font-size: var(--font-size-2xl);
   overflow-wrap: anywhere;
 }
 
@@ -574,7 +589,7 @@ select:not([multiple]):not([size]) {
   align-items: center;
   gap: var(--space-1) var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-md);
 }
 
 .crumbs__item {
@@ -602,7 +617,7 @@ select:not([multiple]):not([size]) {
 
 .crumbs [aria-current="page"] {
   color: var(--color-text);
-  font-weight: var(--font-weight-control);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* The way back to the page above. */
@@ -613,8 +628,8 @@ select:not([multiple]):not([size]) {
   gap: var(--space-2);
   min-height: 44px;
   color: var(--color-text-muted);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-control);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -655,7 +670,7 @@ select:not([multiple]):not([size]) {
 .page-header__eyebrow {
   margin: 0;
   color: var(--color-accent-text);
-  font-size: var(--font-size-eyebrow);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -787,7 +802,7 @@ select:not([multiple]):not([size]) {
 
 .pager {
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .pager__buttons {
@@ -799,7 +814,7 @@ select:not([multiple]):not([size]) {
 
 .pager__buttons button {
   border: 1px solid transparent;
-  border-radius: 0.35rem;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--color-text);
   font: inherit;
@@ -815,7 +830,7 @@ select:not([multiple]):not([size]) {
   border-color: var(--color-gold-strong);
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-weight: 800;
+  font-weight: var(--font-weight-title);
 }
 
 .pager__buttons button:disabled {
@@ -893,11 +908,11 @@ select:not([multiple]):not([size]) {
 .rail__arrow {
   flex: 0 0 auto;
   border: 1px solid var(--color-border);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-strong);
   line-height: 1;
   cursor: pointer;
 }

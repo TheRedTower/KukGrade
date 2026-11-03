@@ -29,7 +29,7 @@
   align-items: center;
   min-height: 48px;
   padding: 0 0.4rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--color-text-on-ink);
 }
 
@@ -59,20 +59,20 @@
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: 1.1rem;
-  font-weight: 800;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-title);
 }
 
 .nav-menu-button {
   display: none;
   border: 1px solid var(--color-rail-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-rail-wash);
   color: var(--color-text-on-ink);
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   padding: 0 1rem;
 }
 
@@ -93,16 +93,16 @@
   border-radius: 50%;
   background: var(--color-gold);
   color: var(--color-on-gold);
-  font-size: 0.8rem;
-  font-weight: 800;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.04em;
 }
 
 .nav-eyebrow {
   margin: 0;
   color: var(--color-text-on-ink-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -110,7 +110,7 @@
 .nav-club-card {
   padding: 0.75rem 0.9rem;
   border: 1px solid var(--color-rail-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-rail-wash-faint);
 }
 
@@ -120,7 +120,7 @@
 
 .nav-club-name {
   margin-top: 0.15rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   overflow-wrap: anywhere;
 }
 
@@ -136,10 +136,10 @@
   gap: 0.85rem;
   min-height: 2.9rem;
   padding: 0.6rem 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--color-text-on-ink-muted);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
   transition: color 150ms ease, background-color 150ms ease;
 }
@@ -173,7 +173,7 @@
   gap: 0.15rem;
   padding: 0.4rem 0.25rem 0.4rem 0.4rem;
   border: 1px solid var(--color-rail-border);
-  border-radius: 10px;
+  border-radius: var(--radius-control);
   background: var(--color-rail-wash-faint);
 }
 
@@ -184,7 +184,7 @@
   gap: 0.6rem;
   min-width: 0;
   min-height: 44px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--color-text-on-ink);
   text-decoration: none;
 }
@@ -197,14 +197,14 @@
 }
 
 .nav-person-name {
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-strong);
   overflow-wrap: break-word;
 }
 
 .nav-person-role {
   color: var(--color-text-on-ink-muted);
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
 }
 
 .nav-icon-button {
@@ -215,7 +215,7 @@
   width: 44px;
   height: 44px;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--color-text-on-ink-muted);
   text-decoration: none;
@@ -238,7 +238,7 @@
   margin: 0;
   padding: 0 0.4rem;
   color: var(--color-text-on-ink-muted);
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
 }
 
 .nav-about-line a {
@@ -246,7 +246,7 @@
   align-items: center;
   min-height: 44px;
   color: var(--color-text-on-ink-muted);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -262,11 +262,11 @@
   width: 100%;
   border: 0;
   border-top: 1px solid var(--color-rail-border);
-  border-radius: 0 0 8px 8px;
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
   background: transparent;
   color: var(--color-text-on-ink-muted);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   padding: 0 0.85rem;
 }
 
@@ -305,7 +305,7 @@
 .nav-rail.strip .nav-link.active {
   padding-left: 0;
   border-left: 0;
-  box-shadow: inset 3px 0 0 var(--color-gold);
+  box-shadow: var(--edge-accent);
 }
 
 .nav-rail.strip .nav-strip-tools {
@@ -323,7 +323,7 @@
 .nav-rail.strip .avatar-circle {
   width: 2rem;
   height: 2rem;
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
 }
 
 @media (max-width: 56rem) {

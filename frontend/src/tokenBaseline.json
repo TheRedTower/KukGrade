@@ -1,120 +1,14 @@
 {
   "About.css": {
-    "fontSize": 18,
-    "fontWeight": 13,
-    "radius": 10,
-    "shadow": 1,
     "outlineNone": 1
   },
   "App.css": {
-    "rawColour": 3,
-    "fontSize": 20,
-    "fontWeight": 11,
-    "radius": 12,
-    "shadow": 3,
     "darkOverride": 1
   },
-  "AuditScreen.css": {
-    "fontSize": 4,
-    "fontWeight": 2
-  },
-  "Belt.css": {
-    "radius": 1
-  },
-  "BuildGradingCohort.css": {
-    "rawColour": 2,
-    "fontSize": 35,
-    "fontWeight": 23,
-    "radius": 9,
-    "shadow": 1
-  },
-  "CandidateAssessment.css": {
-    "rawColour": 3,
-    "fontSize": 54,
-    "fontWeight": 22,
-    "radius": 12,
-    "shadow": 3
-  },
-  "CohortAdjudication.css": {
-    "fontSize": 7,
-    "fontWeight": 5,
-    "radius": 3
-  },
-  "Demo.css": {
-    "fontSize": 5,
-    "radius": 2
-  },
-  "GradingAttendance.css": {
-    "fontSize": 3,
-    "fontWeight": 3,
-    "radius": 2
-  },
-  "GradingSessions.css": {
-    "fontSize": 32,
-    "fontWeight": 17,
-    "radius": 11,
-    "shadow": 1
-  },
-  "Imports.css": {
-    "fontSize": 31,
-    "fontWeight": 25,
-    "radius": 15
-  },
   "NavigationRail.css": {
-    "fontSize": 9,
-    "fontWeight": 9,
-    "radius": 9,
-    "shadow": 1,
     "buttonClass": 2
   },
-  "OutcomeControls.css": {
-    "fontSize": 4,
-    "fontWeight": 4,
-    "radius": 2
-  },
-  "OverviewScreen.css": {
-    "rawColour": 2,
-    "fontSize": 17,
-    "fontWeight": 13,
-    "radius": 7,
-    "shadow": 2
-  },
-  "PromotionLedger.css": {
-    "fontSize": 13,
-    "fontWeight": 8,
-    "radius": 3
-  },
-  "SealedAssessmentEvidence.css": {
-    "fontSize": 5,
-    "fontWeight": 4
-  },
-  "Settings.css": {
-    "fontSize": 6,
-    "fontWeight": 6,
-    "radius": 2
-  },
   "StudentScreens.css": {
-    "fontSize": 22,
-    "fontWeight": 16,
-    "radius": 2,
-    "shadow": 3,
     "outlineNone": 1
-  },
-  "Syllabus.css": {
-    "fontSize": 17,
-    "fontWeight": 7,
-    "radius": 1
-  },
-  "UserManagement.css": {
-    "fontSize": 8,
-    "fontWeight": 5,
-    "radius": 3
-  },
-  "layout.css": {
-    "rawColour": 1,
-    "fontSize": 14,
-    "fontWeight": 10,
-    "radius": 7,
-    "shadow": 1
   }
 }

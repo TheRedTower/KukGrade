@@ -37,23 +37,14 @@ import {
   type AttendanceCandidate,
 } from "./GradingAttendanceDialogs";
 import { OutcomeProposalDrawer } from "./OutcomeProposalDrawer";
-import { ResponsiveTable } from "./ResponsiveTable";
-import { SESSION_STATUS_LABELS } from "./sessionStatus";
-import { AssessmentBadge, OutcomeBadge, SessionStatusBadge } from "./StatusBadge";
+import { SessionStatusBadge } from "./StatusBadge";
 import { Dialog } from "./Dialog";
-import { RankBelt } from "./Belt";
 import { formatSessionDate } from "./dates";
 import "./GradingSessions.css";
-import { Badge } from "./Badge";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { type EnrichedCandidate, SessionCandidateTable, SessionLifecycle, SessionNotes } from "./SessionParts";
 
-
-interface EnrichedCandidate {
-  candidate: GradingCandidate;
-  assessment?: CandidateAssessment;
-  outcome?: CandidateOutcome;
-}
 
 function toAttendanceCandidate(item: EnrichedCandidate): AttendanceCandidate {
   return {
@@ -93,8 +84,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const actionsButtonRef = useRef<HTMLButtonElement>(null);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [notesInput, setNotesInput] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [confirmModal, setConfirmModal] = useState<{
@@ -232,7 +221,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         queryKey: keys.gradingSessions.all(),
         predicate: (query) => query.queryKey[1] !== "detail",
       });
-      setIsEditingNotes(false);
       setConfirmModal(null);
       setCancellationReason("");
       setActionError(null);
@@ -459,30 +447,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     )
     .map(toAttendanceCandidate);
 
-  // Lifecycle stage statuses
-  const lifecycle = useMemo(() => {
-    const currentStatus = session?.status || "DRAFT";
-    const stages = (["DRAFT", "OPEN", "LOCKED", "COMPLETED"] as const).map((key) => ({
-      key,
-      label: SESSION_STATUS_LABELS[key],
-    }));
-
-    const stageOrder = ["DRAFT", "OPEN", "LOCKED", "COMPLETED"];
-    const currentIndex = stageOrder.indexOf(currentStatus);
-
-    return stages.map((st, idx) => {
-      let state: "completed" | "current" | "upcoming" = "upcoming";
-      if (currentStatus === "CANCELLED") {
-        state = "upcoming";
-      } else if (currentIndex > idx) {
-        state = "completed";
-      } else if (currentIndex === idx) {
-        state = "current";
-      }
-      return { ...st, state };
-    });
-  }, [session?.status]);
-
   // Loading & Error states
   if (isNaN(sessionId)) {
     return (
@@ -596,11 +560,6 @@ export function GradingSessionDetailScreen(): React.ReactElement {
     } else if (confirmModal.actionType === "COMPLETE") {
       updateSessionMutation.mutate({ status: "COMPLETED" });
     }
-  };
-
-  const handleSaveNotes = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateSessionMutation.mutate({ notes: notesInput });
   };
 
   // What a candidate's row offers next, from where their assessment and outcome stand.
@@ -810,28 +769,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
         <Alert tone="success" onDismiss={() => setActionMessage(null)}>{actionMessage}</Alert>
       )}
 
-      {/* ── Lifecycle Progression Track ─────────────────────────────────── */}
-      <section className="gsd-lifecycle-section" aria-label="Session progress">
-        <div className="gsd-lifecycle-track">
-          {lifecycle.map((step) => (
-            <div key={step.key} className={`gsd-lifecycle-step gsd-step-${step.state}`}>
-              <div className="gsd-step-circle" aria-hidden="true">
-                {step.state === "completed" && "✓"}
-              </div>
-              <div className="gsd-step-content">
-                <span className="gsd-step-label">{step.label}</span>
-                <span className="gsd-step-subtext">
-                  {step.state === "completed"
-                    ? "Completed"
-                    : step.state === "current"
-                    ? "Current"
-                    : "Upcoming"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <SessionLifecycle status={session.status} />
 
       {/* ── Operational Action Banner ───────────────────────────────────── */}
       {awaitingDecisionCount > 0 && (
@@ -961,213 +899,28 @@ export function GradingSessionDetailScreen(): React.ReactElement {
               </Button>
             </div>
           ) : (
-            <ResponsiveTable
-              label="Candidates"
-              testId="gsd-candidates-table"
-              rows={filteredCandidates}
-              rowKey={(item) => item.candidate.id}
-              rowTestId={(item) => `candidate-row-${item.candidate.id}`}
-              columns={[
-                {
-                  key: "candidate",
-                  header: "Candidate",
-                  primary: true,
-                  render: (item) => (
-                    <>
-                      <span className="gsd-candidate-name">{item.candidate.student_display_name}</span>
-                      {item.candidate.student_wksa_id && (
-                        <span className="gsd-candidate-wksa">WKSA: {item.candidate.student_wksa_id}</span>
-                      )}
-                    </>
-                  ),
-                },
-                {
-                  key: "from",
-                  header: "Current rank",
-                  render: (item) => (
-                    <div className="gsd-rank-item">
-                      <RankBelt rankId={item.candidate.from_rank} />
-                      {/* The rank held at registration, not the live current rank. */}
-                      <span>{item.candidate.from_rank_name}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "to",
-                  header: "Grading for",
-                  render: (item) => (
-                    <div className="gsd-rank-item">
-                      <RankBelt rankId={item.candidate.testing_for_rank} />
-                      <span>{item.candidate.testing_for_rank_name}</span>
-                    </div>
-                  ),
-                },
-                {
-                  key: "assessment",
-                  header: "Assessment",
-                  render: (item) =>
-                    item.candidate.status === "WITHDRAWN" ? (
-                      <>
-                        <Badge tone="neutral">Withdrawn</Badge>
-                        <span className="gsd-withdrawal-record">
-                          {item.candidate.withdrawal_reason_display && (
-                            <span>{item.candidate.withdrawal_reason_display}</span>
-                          )}
-                          {item.candidate.withdrawal_note && <span>{item.candidate.withdrawal_note}</span>}
-                        </span>
-                      </>
-                    ) : (
-                      <AssessmentBadge assessment={item.assessment} />
-                    ),
-                },
-                {
-                  key: "outcome",
-                  header: "Outcome",
-                  render: (item) =>
-                    item.candidate.status === "WITHDRAWN" ? (
-                      <Badge tone="neutral">No outcome</Badge>
-                    ) : (
-                      <OutcomeBadge outcome={item.outcome} />
-                    ),
-                },
-                {
-                  key: "action",
-                  header: "Next action",
-                  actions: true,
-                  render: (item) => {
-                    const candidateId = item.candidate.id;
-                    const outcomeStatus = item.outcome?.status;
-                    const isWithdrawn = item.candidate.status === "WITHDRAWN";
-                    const canWithdrawLocked =
-                      session.status === "LOCKED" &&
-                      Boolean(currentUser?.can_override_locked_session) &&
-                      !isWithdrawn &&
-                      outcomeStatus !== "FINALISED";
-                    const next = nextActionFor(item);
-                    return (
-                      <div className="gsd-row-actions">
-                        {isWithdrawn ? (
-                          <span className="gsd-withdrawal-record">No further action</span>
-                        ) : next.opensProposalDrawer ? (
-                          <Button
-                            variant="ghost" small
-                            onClick={() => setProposalDrawerItem(item)}
-                            data-testid={`propose-outcome-btn-${candidateId}`}
-                          >
-                            {next.label}
-                          </Button>
-                        ) : (
-                          <Link to={next.url} className={buttonClass({ variant: "ghost", small: true })}>
-                            {next.label}
-                          </Link>
-                        )}
-                        {item.candidate.can_be_moved && (
-                          <Button
-                            variant="ghost" small
-                            onClick={() => setRegistrationAction({ kind: "move", item })}
-                            aria-label={`Move ${item.candidate.student_display_name} to another session`}
-                          >
-                            Move…
-                          </Button>
-                        )}
-                        {item.candidate.can_be_removed && (
-                          <Button
-                            variant="danger-quiet" small
-                            onClick={() => setRegistrationAction({ kind: "remove", item })}
-                            aria-label={`Remove ${item.candidate.student_display_name}'s registration`}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                        {canWithdrawLocked && (
-                          <Button
-                            variant="danger-quiet" small
-                            onClick={() => {
-                              setWithdrawalError(null);
-                              setWithdrawalCandidate(item);
-                            }}
-                          >
-                            Withdraw candidate
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  },
-                },
-              ]}
+            <SessionCandidateTable
+              candidates={filteredCandidates}
+              canOverrideLocked={Boolean(currentUser?.can_override_locked_session)}
+              nextActionFor={nextActionFor}
+              sessionStatus={session.status}
+              onMove={(item) => setRegistrationAction({ kind: "move", item })}
+              onPropose={setProposalDrawerItem}
+              onRemove={(item) => setRegistrationAction({ kind: "remove", item })}
+              onWithdraw={(item) => {
+                setWithdrawalError(null);
+                setWithdrawalCandidate(item);
+              }}
             />
           )}
         </div>
       </section>
 
-      {/* ── Session Notes Section ───────────────────────────────────────── */}
-      <section className="gsd-notes-section" aria-labelledby="notes-heading">
-        <div className="gsd-notes-card">
-          <div className="action-row gsd-notes-header">
-            <div>
-              <h2 id="notes-heading" className="gsd-notes-title">Session notes</h2>
-              <p className="gsd-notes-sub">
-                Notes are only visible to authorised instructors for this session.
-              </p>
-            </div>
-            {!isEditingNotes && (
-              <Button
-                variant="ghost" small
-                onClick={() => {
-                  setIsEditingNotes(true);
-                  setNotesInput(session.notes || "");
-                }}
-                data-testid="gsd-edit-notes-btn"
-              >
-                <span aria-hidden="true">📝</span> {session.notes ? "Edit notes" : "Add note"}
-              </Button>
-            )}
-          </div>
-
-          <div>
-            {isEditingNotes ? (
-              <form onSubmit={handleSaveNotes} className="gsd-notes-form">
-                <textarea
-                  className="gsd-notes-textarea"
-                  value={notesInput}
-                  onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="Enter notes, observations, or logistics for this grading session..."
-                  rows={4}
-                  data-testid="gsd-notes-textarea"
-                />
-                <div className="action-row gsd-notes-actions">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={updateSessionMutation.isPending}
-                    data-testid="gsd-save-notes-btn"
-                  >
-                    {updateSessionMutation.isPending ? "Saving..." : "Save notes"}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setIsEditingNotes(false);
-                      setNotesInput(session.notes || "");
-                    }}
-                    disabled={updateSessionMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div>
-                {session.notes ? (
-                  <p className="gsd-notes-text">{session.notes}</p>
-                ) : (
-                  <p className="gsd-notes-empty">No notes recorded for this session.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <SessionNotes
+        notes={session.notes}
+        saving={updateSessionMutation.isPending}
+        onSave={(notes, saved) => updateSessionMutation.mutate({ notes }, { onSuccess: saved })}
+      />
 
       {/* ── Confirmation Modal ──────────────────────────────────────────── */}
       {confirmModal && (

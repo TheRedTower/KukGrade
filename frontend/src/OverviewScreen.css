@@ -298,27 +298,6 @@
   color: var(--color-text);
 }
 
-.view-all-activity-link {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: 0.88rem;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  cursor: pointer;
-  min-height: 44px;
-  padding: 0.25rem 0.5rem;
-  border-radius: 4px;
-  transition: color 140ms ease;
-}
-
-.view-all-activity-link:hover {
-  color: var(--color-text);
-  text-decoration: underline;
-}
-
 .cell-time {
   color: var(--color-text-muted);
   font-size: 0.85rem;

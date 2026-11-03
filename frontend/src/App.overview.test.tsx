@@ -319,7 +319,7 @@ describe("Overview screen (Operational Ledger)", () => {
     // Recent activity table
     expect(await screen.findByText("Assessment complete (ready for review)")).toBeVisible();
     expect(screen.getByText("Assessment started on the mat")).toBeVisible();
-    expect(screen.getByRole("button", { name: /View all activity/i })).toBeVisible();
+    expect(screen.getByRole("link", { name: /View all activity/i })).toBeVisible();
 
     // An attention item opens that candidate's assessment, not a list to
     // search: the finished one at its record, the unfinished one to score.
@@ -398,7 +398,7 @@ describe("Overview screen (Operational Ledger)", () => {
     await user.click(screen.getByRole("link", { name: "Overview" }));
 
     // Click "View all activity →"
-    const viewAllButton = await screen.findByRole("button", { name: /View all activity/i });
+    const viewAllButton = await screen.findByRole("link", { name: /View all activity/i });
     await user.click(viewAllButton);
     expect(window.location.pathname).toBe("/audit");
   });

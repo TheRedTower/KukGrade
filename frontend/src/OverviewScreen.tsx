@@ -17,6 +17,7 @@ import { LoadingState } from "./LoadingState";
 import { Alert } from "./Alert";
 import { useAuth } from "./auth";
 import { Button } from "./Button";
+import { buttonClass } from "./buttonClass";
 import { calendarDaysAgo, formatApiDate, formatSessionDate, formatTime, todayIsoDate } from "./dates";
 import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
@@ -432,13 +433,9 @@ export function OverviewScreen() {
       <div className="recent-activity-section">
         <div className="activity-section-header">
           <h2 className="activity-section-title">Recent activity</h2>
-          <button
-            className="view-all-activity-link"
-            onClick={() => navigate("/audit")}
-            type="button"
-          >
+          <Link className={buttonClass({ variant: "link" })} to="/audit">
             View all activity <span aria-hidden="true">&rarr;</span>
-          </button>
+          </Link>
         </div>
 
         {recentActivities.length > 0 ? (

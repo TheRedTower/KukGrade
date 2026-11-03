@@ -858,6 +858,18 @@ describe("Linking historical records", () => {
     await waitFor(() => expect(api.putBackSetAsideName).toHaveBeenCalledWith("mia r"));
   });
 
+  it("keeps the row open and says so when a name cannot be left for now", async () => {
+    const user = userEvent.setup();
+    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderAt("/imports/records");
+
+    await user.click(await screen.findByRole("button", { name: "Review “Mia R”" }));
+    await user.click(screen.getByRole("button", { name: "Leave for now" }));
+
+    expect(await screen.findByText("Server error.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Leave for now" })).toBeVisible();
+  });
+
   it("moves names an earlier version kept in this browser to the server, then forgets them", async () => {
     window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r", 7, "theo"]));
     renderAt("/imports/records");

@@ -57,5 +57,11 @@ export function useLeftNames() {
   return {
     leave: leave.mutate,
     putBack: putBack.mutate,
+    /** The last leave or put back that failed, until the next one is tried. */
+    error: leave.error ?? putBack.error,
+    reset: () => {
+      leave.reset();
+      putBack.reset();
+    },
   };
 }

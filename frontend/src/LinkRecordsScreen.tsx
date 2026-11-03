@@ -45,7 +45,7 @@ function chosenFor(person: LegacyPerson, picks: Record<string, Chosen>): Chosen 
  */
 export function LinkRecordsScreen() {
   const { link, undo } = useLegacyLinking();
-  const { leave, putBack } = useLeftNames();
+  const { leave, putBack, error: leftError, reset: resetLeft } = useLeftNames();
   const [view, setView] = useState<NameView>("todo");
   const [batch, setBatch] = useState("");
   const [search, setSearch] = useState("");
@@ -155,11 +155,16 @@ export function LinkRecordsScreen() {
     });
   }
 
+  // The row closes once the server has the name aside; if it fails, it stays open and says so.
   function leaveName(key: string) {
-    leave(key);
-    setPage(1);
-    setOpen(null);
-    setSelected((current) => current.filter((other) => other !== key));
+    resetLeft();
+    leave(key, {
+      onSuccess: () => {
+        setPage(1);
+        setOpen(null);
+        setSelected((current) => current.filter((other) => other !== key));
+      },
+    });
   }
 
   const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
@@ -263,6 +268,9 @@ export function LinkRecordsScreen() {
           {notice}
         </p>
       ) : null}
+      {leftError ? (
+        <ErrorText>{errorMessage(leftError, "That name could not be left for now or put back. Try again.")}</ErrorText>
+      ) : null}
       {link.isError && !(linkedFrom && linkedFrom === open) ? (
         <ErrorText>
           {errorMessage(link.error, "Those records could not be linked.")}
@@ -334,8 +342,8 @@ export function LinkRecordsScreen() {
                   onLeave={() => leaveName(person.group_key)}
                   onLink={() => linkNames([person], open === person.group_key ? person.group_key : null)}
                   onPutBack={() => {
-                    putBack(person.group_key);
-                    setPage(1);
+                    resetLeft();
+                    putBack(person.group_key, { onSuccess: () => setPage(1) });
                   }}
                   onSelect={() =>
                     setSelected((current) =>

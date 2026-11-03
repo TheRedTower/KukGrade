@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useNavigate } from "react-router-dom";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -183,18 +184,16 @@ export function GradingSessionsScreen() {
   return (
     <section aria-labelledby="gradings-heading" className="page gs-page">
 
-      {/* ── Header */}
-      <div className="action-row gs-page-header">
-        <div>
-          <h1 className="gs-page-title" id="gradings-heading">Gradings</h1>
-          <p className="gs-page-subtitle">Plan and manage grading sessions</p>
-        </div>
-        <div className="gs-page-header-actions">
+      <PageHeader
+        title="Gradings"
+        titleId="gradings-heading"
+        subtitle="Plan and manage grading sessions"
+        actions={
           <Button variant="primary" id="create-grading-btn" onClick={() => navigate("/gradings/new")}>
             <PlusIcon /> Create grading
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Filters */}
       <div className="filter-bar" role="search">

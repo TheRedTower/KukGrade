@@ -113,7 +113,7 @@ serializers and the committed frontend types match the schema.
   `.field` for every labelled text box, select and date box (one size and one iOS date-box fix, in
   `layout.css`; `.form-text-input` and `.form-select-input` share it), `.action-row` (`--end` for a form's
   Cancel and Save) for a row of buttons or a header, `.stats` for key figures, `.split` for a main
-  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `Breadcrumbs` for the trail above a title, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `Pagination` for page controls, `ScrollRail` for a row
+  column with a side panel (`.split--rail` for a narrow menu: above the page on a phone, at its side beside it), `PageHeader` for every page's title area (title, subtitle, `back` link or `crumbs`, and the page's `actions`), `BackLink` for a way back outside one, `Alert` for a boxed message, `ErrorText` for one line of error text, `EmptyState` and `LoadingState` for a list with nothing to show yet, `Pagination` for page controls, `ScrollRail` for a row
   of choices too long for the screen (a plain native scroller: swipe or wheel, snap to an item, an edge fade; arrows page it on a pointer screen and are hidden on touch; the
   one place a screen may scroll sideways). A `ResponsiveTable` has one
   `primary` column (the card's title) and at most one `actions: "inline"` column; `empty` replaces

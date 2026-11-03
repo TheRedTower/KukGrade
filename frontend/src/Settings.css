@@ -6,10 +6,6 @@
   gap: 1.25rem;
 }
 
-.st-page h1 {
-  margin: 0;
-}
-
 .st-tabs {
   display: flex;
   flex-wrap: wrap;

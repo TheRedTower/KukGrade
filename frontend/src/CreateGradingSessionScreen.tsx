@@ -1,8 +1,8 @@
 import { type FormEvent, useMemo, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { Breadcrumbs } from "./Breadcrumbs";
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
 import { createGradingSession } from "./api";
@@ -131,13 +131,12 @@ export function CreateGradingSessionScreen() {
 
   return (
     <section aria-labelledby="create-session-heading" className="page cgs-page">
-      <Breadcrumbs items={[{ label: "Gradings", to: "/gradings" }, { label: "New session" }]} />
-
-      {/* ── Page Header */}
-      <div className="cgs-page-header">
-        <h1 className="cgs-page-title" id="create-session-heading">Create grading session</h1>
-        <p className="cgs-page-subtitle">Set the details, then add candidates.</p>
-      </div>
+      <PageHeader
+        crumbs={[{ label: "Gradings", to: "/gradings" }, { label: "New session" }]}
+        title="Create grading session"
+        titleId="create-session-heading"
+        subtitle="Set the details, then add candidates."
+      />
 
       {/* ── General Error Banner */}
       {form.banner && (

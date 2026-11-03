@@ -24,6 +24,7 @@
  * is NOT_ASSESSED / MET / NOT_MET and carries no partial credit.
  */
 import { useState } from "react";
+import { BackLink } from "./BackLink";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -228,12 +229,7 @@ export function AssessmentCompletionScreen() {
   return (
     <section aria-labelledby="acp-title" className="page page--wide acp-page" data-testid="caw-review-workspace">
       <header className="acp-topbar">
-        <Link to={scoringPath} className="acp-back" data-testid="acp-back-to-scoring">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-            <path d="M20 12H5M10 7l-5 5 5 5" />
-          </svg>
-          Back to scoring
-        </Link>
+        <BackLink to={scoringPath}>Back to scoring</BackLink>
         <span aria-hidden="true" className="acp-topbar-divider" />
         <span className="acp-topbar-note">
           {isSealed

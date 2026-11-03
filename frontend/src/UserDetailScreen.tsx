@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
@@ -389,22 +390,30 @@ export function UserDetailScreen(): React.ReactElement {
 
   return (
     <section className="page page--wide" aria-labelledby="user-detail-heading">
-      <Link className="users-back-link" to="/users">Users <span aria-hidden="true">/</span> {managedUser.full_name}</Link>
-      <header className="action-row user-detail-header">
-        <div>
-          <h1 id="user-detail-heading">{managedUser.full_name}</h1>
-          <p>{managedUser.email} <span aria-hidden="true">·</span> <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>{managedUser.is_active ? "Active" : "Inactive"}</span></p>
-        </div>
-        {/* A reset sets someone else's password and asks for no current one;
-            the server refuses it on your own account. */}
-        {isSelf ? (
-          <p className="users-self-password-hint">Change your own password in Settings.</p>
-        ) : viewOnly ? (
-          <p className="users-self-password-hint">Only a superuser can change this account.</p>
-        ) : (
-          <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
-        )}
-      </header>
+      <PageHeader
+        back={{ to: "/users", label: "Users" }}
+        title={managedUser.full_name}
+        titleId="user-detail-heading"
+        subtitle={
+          <>
+            {managedUser.email} <span aria-hidden="true">·</span>{" "}
+            <span className={`users-status ${managedUser.is_active ? "is-active" : "is-inactive"}`}>
+              {managedUser.is_active ? "Active" : "Inactive"}
+            </span>
+          </>
+        }
+        actions={
+          // A reset sets someone else's password and asks for no current one;
+          // the server refuses it on your own account.
+          isSelf ? (
+            <p className="users-self-password-hint">Change your own password in Settings.</p>
+          ) : viewOnly ? (
+            <p className="users-self-password-hint">Only a superuser can change this account.</p>
+          ) : (
+            <Button ref={passwordButtonRef} variant="secondary" onClick={() => setPasswordOpen(true)}>Reset password</Button>
+          )
+        }
+      />
 
       {notice && <Alert tone="success">{notice}</Alert>}
 

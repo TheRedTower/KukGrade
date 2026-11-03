@@ -1,4 +1,6 @@
 import { useState, type ReactNode } from "react";
+import { PageHeader } from "./PageHeader";
+import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -530,18 +532,13 @@ export function ImportResults({ batch }: { batch: DataImportBatch }) {
 
   return (
     <section aria-labelledby="ix-results-title" className="page ix-page">
-      <div>
-        <Link className="ix-back" to="/imports">
-          ‹ Imports
-        </Link>
-        <h1 className="ix-page-title ix-results-title" id="ix-results-title">
-          {batch.original_filename}
-          <span className="ix-pill ix-pill-success">Imported</span>
-        </h1>
-        <p className="ix-muted ix-small">
-          {importKindLabel(batch.kind)} · imported by {batch.committed_by_name} on {formatShortDateTime(batch.committed_at)}
-        </p>
-      </div>
+      <PageHeader
+        back={{ to: "/imports", label: "Imports" }}
+        title={batch.original_filename}
+        titleId="ix-results-title"
+        tag={<Badge tone="success">Imported</Badge>}
+        subtitle={`${importKindLabel(batch.kind)} · imported by ${batch.committed_by_name} on ${formatShortDateTime(batch.committed_at)}`}
+      />
 
       <div className="ix-banner ix-banner-success" role="status">
         <span aria-hidden="true" className="ix-mark ix-mark-ok ix-mark-large ix-mark-on-surface">

@@ -13,20 +13,6 @@
   gap: 0.75rem 1.5rem;
 }
 
-.cab-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-height: 44px;
-  color: var(--color-text-muted);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.cab-back:hover {
-  color: var(--color-text);
-}
-
 .cab-heading {
   flex: 1 1 18rem;
   min-width: 0;
@@ -110,8 +96,7 @@
   color: var(--color-text-muted);
 }
 
-.cab-row-name:focus-visible,
-.cab-back:focus-visible {
+.cab-row-name:focus-visible{
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
 }

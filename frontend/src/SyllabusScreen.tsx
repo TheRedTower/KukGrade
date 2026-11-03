@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { PageHeader } from "./PageHeader";
 import { useQuery } from "@tanstack/react-query";
 import {
   type AgeBandEnum,
@@ -181,13 +182,7 @@ export function SyllabusScreen() {
 
   return (
     <section aria-labelledby="syllabus-heading" className="page">
-      {/* Header */}
-      <div className="section-header syl-header">
-        <div>
-          <h1 id="syllabus-heading">Syllabus</h1>
-          <p className="section-subtitle">Teaching and grading requirements</p>
-        </div>
-      </div>
+      <PageHeader title="Syllabus" titleId="syllabus-heading" subtitle="Teaching and grading requirements" />
 
       {/* Top Filter Controls */}
       <div className="filter-bar syl-filter-bar" aria-label="Syllabus filters">

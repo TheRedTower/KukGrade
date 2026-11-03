@@ -1,4 +1,5 @@
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
+import { PageHeader } from "./PageHeader";
 
 import { SettingsAbout } from "./SettingsAbout";
 import { SettingsAccount } from "./SettingsAccount";
@@ -15,7 +16,7 @@ const TABS = [
 export function SettingsScreen() {
   return (
     <section aria-labelledby="st-title" className="page page--reading st-page">
-      <h1 id="st-title">Settings</h1>
+      <PageHeader title="Settings" titleId="st-title" />
       <nav aria-label="Settings sections" className="st-tabs">
         {TABS.map((tab) => (
           <NavLink className={({ isActive }) => `st-tab${isActive ? " active" : ""}`} key={tab.to} to={tab.to}>

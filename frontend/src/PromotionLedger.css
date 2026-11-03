@@ -8,23 +8,6 @@
   gap: var(--space-4);
 }
 
-.pl-title {
-  font-family: inherit;
-  font-size: 1.85rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-text);
-  margin: 0 0 6px 0;
-}
-
-.pl-subtitle {
-  font-size: 0.94rem;
-  color: var(--color-text-muted);
-  margin: 0;
-  max-width: 720px;
-  line-height: 1.5;
-}
-
 /* Banners */
 
 .pl-alert {

@@ -8,16 +8,15 @@
   },
   "App.css": {
     "rawColour": 5,
-    "fontSize": 21,
-    "fontWeight": 12,
+    "fontSize": 20,
+    "fontWeight": 11,
     "radius": 12,
     "shadow": 3,
     "darkOverride": 1
   },
   "AuditScreen.css": {
-    "fontSize": 7,
-    "fontWeight": 3,
-    "radius": 1
+    "fontSize": 4,
+    "fontWeight": 2
   },
   "Belt.css": {
     "radius": 1
@@ -31,14 +30,14 @@
   },
   "CandidateAssessment.css": {
     "rawColour": 3,
-    "fontSize": 55,
+    "fontSize": 54,
     "fontWeight": 22,
     "radius": 12,
     "shadow": 3
   },
   "CohortAdjudication.css": {
     "fontSize": 8,
-    "fontWeight": 6,
+    "fontWeight": 5,
     "radius": 3
   },
   "Demo.css": {
@@ -53,14 +52,14 @@
   "GradingSessions.css": {
     "rawColour": 24,
     "important": 8,
-    "fontSize": 38,
-    "fontWeight": 20,
+    "fontSize": 34,
+    "fontWeight": 18,
     "radius": 11,
     "shadow": 1,
     "darkOverride": 7
   },
   "Imports.css": {
-    "fontSize": 37,
+    "fontSize": 36,
     "fontWeight": 29,
     "radius": 19
   },
@@ -91,8 +90,8 @@
   },
   "PromotionLedger.css": {
     "rawColour": 18,
-    "fontSize": 15,
-    "fontWeight": 9,
+    "fontSize": 13,
+    "fontWeight": 8,
     "radius": 3,
     "shadow": 2,
     "darkOverride": 4
@@ -108,27 +107,27 @@
   },
   "StudentScreens.css": {
     "rawColour": 3,
-    "fontSize": 28,
-    "fontWeight": 21,
+    "fontSize": 24,
+    "fontWeight": 18,
     "radius": 5,
     "shadow": 5,
     "outlineNone": 1
   },
   "Syllabus.css": {
     "rawColour": 2,
-    "fontSize": 18,
+    "fontSize": 17,
     "fontWeight": 7,
     "radius": 1,
     "darkOverride": 1
   },
   "UserManagement.css": {
-    "fontSize": 11,
+    "fontSize": 8,
     "fontWeight": 5,
     "radius": 3
   },
   "layout.css": {
     "rawColour": 2,
-    "fontSize": 15,
+    "fontSize": 14,
     "fontWeight": 10,
     "radius": 7,
     "shadow": 1

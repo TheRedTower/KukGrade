@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { PageHeader } from "./PageHeader";
+import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -174,22 +176,17 @@ export function UsersScreen(): React.ReactElement {
 
   return (
     <section className="page page--wide stack" aria-labelledby="users-heading">
-      <header className="action-row users-page-header">
-        <div>
-          <div className="users-title-row">
-            <h1 id="users-heading">Users</h1>
-            <span>Admin only</span>
-          </div>
-          <p>Manage staff access and authority</p>
-        </div>
-        <Button
-          ref={addButtonRef}
-          variant="primary"
-          onClick={() => setCreateOpen(true)}
-        >
-          Add user
-        </Button>
-      </header>
+      <PageHeader
+        title="Users"
+        titleId="users-heading"
+        subtitle="Manage staff access and authority"
+        tag={<Badge tone="neutral">Admin only</Badge>}
+        actions={
+          <Button ref={addButtonRef} variant="primary" onClick={() => setCreateOpen(true)}>
+            Add user
+          </Button>
+        }
+      />
 
       <form
         className="filter-bar"

@@ -558,21 +558,6 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-.acp-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 44px;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  text-decoration: none;
-}
-
-.acp-back:hover {
-  color: var(--color-text);
-  text-decoration: underline;
-}
-
 .acp-topbar-divider {
   width: 1px;
   height: 1.1rem;

@@ -151,7 +151,7 @@ export function CohortResolver({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    View student
+                    View student<span className="visually-hidden"> (opens in a new tab)</span>
                   </Link>
                   <Button
                     variant="danger-quiet" small

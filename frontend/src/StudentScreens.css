@@ -20,6 +20,11 @@
   color: var(--color-text-muted);
 }
 
+.search-input-wrapper:focus-within {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 2px;
+}
+
 .student-search-input {
   flex: 1;
   min-width: 0;
@@ -29,12 +34,6 @@
   color: var(--color-text);
   outline: none;
   padding: 0.25rem 0;
-  border-radius: 4px;
-}
-
-.student-search-input:focus-visible {
-  outline: 2px solid var(--color-accent-strong);
-  outline-offset: 2px;
 }
 
 .student-search-input::placeholder {

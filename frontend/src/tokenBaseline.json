@@ -79,9 +79,9 @@
   },
   "OverviewScreen.css": {
     "rawColour": 2,
-    "fontSize": 18,
-    "fontWeight": 14,
-    "radius": 8,
+    "fontSize": 17,
+    "fontWeight": 13,
+    "radius": 7,
     "shadow": 2
   },
   "PromotionLedger.css": {
@@ -101,7 +101,7 @@
   "StudentScreens.css": {
     "fontSize": 22,
     "fontWeight": 16,
-    "radius": 3,
+    "radius": 2,
     "shadow": 3,
     "outlineNone": 1
   },

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
@@ -225,7 +225,16 @@ function renderBoard(
   );
 }
 
+/** Past the pause after typing that the board waits for before keeping a change. */
+async function passTypingPause() {
+  await act(() => vi.advanceTimersByTimeAsync(700));
+}
+
 describe("CohortAdjudicationScreen", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockCurrentUser = masterUser;
@@ -260,6 +269,7 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("brings back decisions staged earlier, so a timed-out session loses nothing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     mockGetStaged.mockResolvedValue([
       {
         outcome: 12,
@@ -278,7 +288,7 @@ describe("CohortAdjudicationScreen", () => {
       "true",
     );
     expect(mockGetStaged).toHaveBeenCalledWith(10);
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await passTypingPause();
     // Already on the server: nothing is sent back.
     expect(mockStage).not.toHaveBeenCalled();
   });
@@ -303,7 +313,8 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("does not drop the server's copy of a recorded decision itself", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderBoard();
 
     await user.click(within(await screen.findByTestId("cab-row-1")).getByRole("button", { name: "Pass" }));
@@ -311,7 +322,7 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(screen.getByTestId("cab-record-staged"));
 
     expect(await screen.findByText("1 decision recorded.")).toBeVisible();
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await passTypingPause();
     expect(mockDiscard).not.toHaveBeenCalled();
   });
 
@@ -352,7 +363,8 @@ describe("CohortAdjudicationScreen", () => {
   });
 
   it("sends one save at a time for a candidate, so the last edit is the one kept", async () => {
-    const user = userEvent.setup();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     let finishFirst!: () => void;
     mockStage.mockImplementationOnce(
       (outcomeId: number) => new Promise((resolve) => (finishFirst = () => resolve({ outcome: outcomeId }))),
@@ -363,7 +375,7 @@ describe("CohortAdjudicationScreen", () => {
     await user.click(within(mia).getByRole("button", { name: "Pass" }));
     await waitFor(() => expect(mockStage).toHaveBeenCalledTimes(1));
     await user.click(within(mia).getByRole("button", { name: "Fail" }));
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    await passTypingPause();
     // The first is still on its way, so the newer one waits for it.
     expect(mockStage).toHaveBeenCalledTimes(1);
 

@@ -15,6 +15,9 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // Each file still gets its own context, but the jsdom set-up is not
+    // rebuilt in a fresh worker per file: about a third faster.
+    pool: "vmThreads",
     globals: true,
     // The width check is Playwright's (npm run test:widths), not Vitest's.
     exclude: [...configDefaults.exclude, "e2e/**"],

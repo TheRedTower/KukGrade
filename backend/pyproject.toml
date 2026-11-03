@@ -28,6 +28,9 @@ dev = [
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "kukgrade.settings_test"
+# With -n, tests marked xdist_group stay on one worker (demo/test_club.py builds
+# its club once per worker); every other test is spread one by one as before.
+addopts = "--dist loadgroup"
 python_files = ["tests.py", "test_*.py", "*_tests.py"]
 markers = [
     "concurrency: real-thread tests of database locking under a genuine race. Deselect with -m 'not concurrency' if one proves flaky in a given CI environment.",

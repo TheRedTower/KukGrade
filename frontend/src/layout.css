@@ -697,6 +697,11 @@ select:not([multiple]):not([size]) {
   .split__aside {
     position: sticky;
     top: var(--space-5);
+    /* Taller than the window, it scrolls itself; otherwise its foot could
+       only be reached at the very end of the page. */
+    max-height: calc(100dvh - 2 * var(--space-5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 
@@ -760,6 +765,11 @@ select:not([multiple]):not([size]) {
   .split--rail > .split__aside {
     position: sticky;
     top: var(--space-5);
+    /* Taller than the window, it scrolls itself; otherwise its foot could
+       only be reached at the very end of the page. */
+    max-height: calc(100dvh - 2 * var(--space-5));
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }
 

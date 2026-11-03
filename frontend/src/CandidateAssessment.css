@@ -179,8 +179,9 @@
 
 .caw-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.6rem 1rem;
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid var(--color-border);
 }
@@ -198,7 +199,9 @@
 }
 
 .caw-row-detail {
-  flex-grow: 1;
+  /* Takes all the room beside the verdicts; when there is not enough for
+     both, the verdicts wrap underneath and take the full width. */
+  flex: 999 1 20rem;
   min-width: 0;
 }
 
@@ -262,11 +265,10 @@
 /* ── Two verdict targets, and the row tools ──────────────────────────────── */
 
 .caw-row-actions {
-  flex-shrink: 0;
-  width: 262px;
+  flex: 1 1 16.5rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 0.4rem;
 }
 
@@ -276,6 +278,7 @@
 }
 
 .caw-verdict {
+  flex: 1 1 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -318,6 +321,7 @@
 
 .caw-row-tools {
   display: flex;
+  justify-content: flex-end;
   gap: 0.35rem;
   align-items: center;
 }
@@ -463,6 +467,8 @@
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
 
+/* The run and its bar follow the window, because the sidebar does: below this
+   width it becomes a top row, which is what makes a fixed bottom bar safe. */
 @media (max-width: 56rem) {
   /*
     The run stops owning the viewport and flows with the page, so the mat bar
@@ -484,29 +490,6 @@
   .caw-run-end {
     padding-left: 1rem;
     padding-right: 1rem;
-  }
-
-  /* Stacked, the verdicts belong under the requirement they judge. */
-  .caw-row {
-    flex-direction: column;
-    gap: 0.6rem;
-  }
-
-  .caw-row-actions {
-    width: 100%;
-    align-items: stretch;
-  }
-
-  .caw-verdicts {
-    width: 100%;
-  }
-
-  .caw-verdict {
-    flex: 1 1 0;
-  }
-
-  .caw-row-tools {
-    justify-content: flex-end;
   }
 
   .caw-mat-bar {
@@ -942,6 +925,11 @@
   gap: 0.9rem;
   position: sticky;
   top: 1rem;
+  /* Taller than the window, it scrolls itself; otherwise its foot could
+     only be reached at the very end of the page. */
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .acp-card {
@@ -1067,7 +1055,9 @@
 
 /* ── Tablet and phone ────────────────────────────────────────────────────── */
 
-@media (max-width: 56rem) {
+/* Measured on the page: the record and the 19rem side column need about
+   56rem between them, which a laptop beside the sidebar may not have. */
+@container (max-width: 56rem) {
   .acp-topbar,
   .acp-layout {
     padding-left: 1rem;

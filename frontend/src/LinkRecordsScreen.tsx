@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { PageHeader } from "./PageHeader";
+import { ChoiceGroup } from "./ChoiceGroup";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
 
 import {
   type LegacyPerson,
@@ -171,25 +172,19 @@ export function LinkRecordsScreen() {
 
   return (
     <section aria-labelledby="ix-link-title" className="page page--wide ix-page">
-      <div className="ix-header">
-        <div className="ix-header-text">
-          <Link className="ix-back" to="/imports">
-            ‹ Imports
-          </Link>
-          <h1 id="ix-link-title">Link historical records</h1>
-          <p className="ix-lead">
-            Each row is a name as written in the workbook. Tick the ones whose suggestion is right and link them
-            together, or open a row to choose a student, match a rank or void a record. Nothing is linked until you say
-            so, and a link can be undone.
-          </p>
-        </div>
+      <PageHeader
+        back={{ to: "/imports", label: "Imports" }}
+        title="Link historical records"
+        titleId="ix-link-title"
+        subtitle="Each row is a name as written in the workbook. Tick the ones whose suggestion is right and link them together, or open a row to choose a student, match a rank or void a record. Nothing is linked until you say so, and a link can be undone."
+      >
         <div className="ix-link-progress">
           <p className="ix-small ix-flush">
             <strong className="ix-big-count">{linkedNames}</strong> of {totalNames} names linked
           </p>
           <progress aria-label="Names linked" max={Math.max(totalNames, 1)} value={linkedNames} />
         </div>
-      </div>
+      </PageHeader>
 
       <div className="ix-filters">
         <label className="ix-field ix-field-wide">
@@ -224,13 +219,13 @@ export function LinkRecordsScreen() {
         </label>
       </div>
 
-      <div aria-label="Show" className="ix-chips" role="group">
-        {VIEWS.map((item) => (
-          <button aria-pressed={view === item.view} className="ix-chip" key={item.view} type="button" onClick={() => show(item.view)}>
-            {item.label} <span className="ix-chip-count">{counts[item.view] ?? "–"}</span>
-          </button>
-        ))}
-      </div>
+      <ChoiceGroup
+        choices={VIEWS.map((item) => ({ value: item.view, label: item.label, count: counts[item.view] ?? "–" }))}
+        label="Show"
+        look="chips"
+        value={view}
+        onChange={show}
+      />
 
       {view !== "done" ? (
         <div className="card ix-gold-edge ix-bulk">

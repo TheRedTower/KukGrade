@@ -191,25 +191,3 @@
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
 }
-
-.st-segments {
-  display: inline-flex;
-  padding: 3px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface-sunken);
-}
-
-.st-segments button {
-  padding: 0 1rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--color-text);
-  font-weight: 700;
-}
-
-.st-segments button[aria-pressed="true"] {
-  background: var(--color-gold);
-  color: var(--color-on-gold);
-}

@@ -393,7 +393,7 @@ export function CandidateAssessmentScreen() {
           <EmptyState title="This assessment form has no items." />
         ) : (
           categoryGroups.map((group) => (
-            <div key={group.category} className="caw-band">
+            <div key={group.category}>
               <CategoryHeader group={group} />
               {group.items.map((item) => (
                 <AssessmentItemRow
@@ -664,7 +664,7 @@ function AssessmentItemRow({
         {(attribution || item.assessor_notes) && (
           <div className="caw-row-meta">
             {attribution && (
-              <span className="caw-assessor-tag">
+              <span>
                 <AssessorIcon />
                 {attribution}
               </span>

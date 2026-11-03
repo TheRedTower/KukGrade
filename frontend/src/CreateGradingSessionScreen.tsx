@@ -146,7 +146,7 @@ export function CreateGradingSessionScreen() {
       {/* ── Two-Column Layout */}
       <div className="split">
         {/* Left Column: Form */}
-        <div >
+        <div>
           <form className="cgs-form" noValidate onSubmit={handleSubmit}>
             {/* Session Title */}
             <div className="cgs-field-group">
@@ -178,7 +178,7 @@ export function CreateGradingSessionScreen() {
               <div className="cgs-date-row">
                 <select
                   aria-label="Grading day"
-                  className={`cgs-select cgs-date-day ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-day-select"
                   onChange={(e) => setDay(e.target.value)}
@@ -192,7 +192,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading month"
-                  className={`cgs-select cgs-date-month ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-month-select"
                   onChange={(e) => setMonth(e.target.value)}
@@ -206,7 +206,7 @@ export function CreateGradingSessionScreen() {
 
                 <select
                   aria-label="Grading year"
-                  className={`cgs-select cgs-date-year ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
+                  className={`cgs-select ${form.errorFor("grading_date") ? "cgs-input-error" : ""}`}
                   disabled={isSubmitting}
                   id="cgs-year-select"
                   onChange={(e) => setYear(e.target.value)}
@@ -245,7 +245,7 @@ export function CreateGradingSessionScreen() {
 
             {/* Staff Notes */}
             <div className="cgs-field-group">
-              <div className="cgs-label-wrap">
+              <div>
                 <label className="cgs-label" htmlFor="cgs-notes-input">
                   Staff notes <span className="cgs-optional-text">(optional)</span>
                 </label>

@@ -1129,7 +1129,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
             )}
           </div>
 
-          <div className="gsd-notes-body">
+          <div>
             {isEditingNotes ? (
               <form onSubmit={handleSaveNotes} className="gsd-notes-form">
                 <textarea
@@ -1162,7 +1162,7 @@ export function GradingSessionDetailScreen(): React.ReactElement {
                 </div>
               </form>
             ) : (
-              <div className="gsd-notes-display">
+              <div>
                 {session.notes ? (
                   <p className="gsd-notes-text">{session.notes}</p>
                 ) : (

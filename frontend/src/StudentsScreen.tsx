@@ -24,7 +24,6 @@ function ClearIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="clear-icon"
       fill="none"
       height="14"
       stroke="currentColor"
@@ -44,7 +43,6 @@ function UserPlusIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="button-icon"
       fill="none"
       height="16"
       stroke="currentColor"
@@ -133,7 +131,7 @@ export function StudentsScreen() {
       {/* Filter and Search Bar */}
       <div className="filter-bar students-filter-bar" role="search" aria-label="Student filters">
         <div className="filter-bar__full search-input-wrapper">
-          <SearchIcon size={18} className="filter-icon" />
+          <SearchIcon size={18} />
           <input
             type="text"
             className="student-search-input"

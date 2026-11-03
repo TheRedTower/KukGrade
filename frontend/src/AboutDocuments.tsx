@@ -237,7 +237,7 @@ export function AboutLicence() {
             </a>
           ) : null}
         </div>
-        {about ? <p className="st-row-description" style={{ marginTop: "0.75rem" }}>{about.copyright}</p> : null}
+        {about ? <p className="st-row-description ab-note">{about.copyright}</p> : null}
       </section>
 
       {doc ? (

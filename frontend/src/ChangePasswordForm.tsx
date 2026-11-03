@@ -1,17 +1,14 @@
 import { ErrorText } from "./ErrorText";
+import { useServerForm } from "./forms";
 import { Alert } from "./Alert";
 import { Button } from "./Button";
 import { useState, type FormEvent, type ReactNode } from "react";
 
-import { ApiError } from "./api";
 import { useAuth } from "./auth";
 import { PasswordRequirements } from "./PasswordRequirements";
 
-type FieldErrors = {
-  current_password?: string[];
-  new_password?: string[];
-  confirm_password?: string[];
-};
+const FIELDS = ["current_password", "new_password", "confirm_password"] as const;
+type Field = (typeof FIELDS)[number];
 
 type ChangePasswordFormProps = {
   /** "Temporary password" on the forced screen, "Current password" in Settings. */
@@ -54,16 +51,14 @@ export function ChangePasswordForm({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const form = useServerForm(FIELDS);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setFieldErrors({});
+    form.reset();
 
     if (newPassword !== confirmPassword) {
-      setFieldErrors({ confirm_password: ["New passwords do not match."] });
+      form.setClientErrors({ confirm_password: ["New passwords do not match."] });
       return;
     }
 
@@ -72,26 +67,14 @@ export function ChangePasswordForm({
       await changePassword(currentPassword, newPassword);
       onChanged?.();
     } catch (submitError) {
-      if (submitError instanceof ApiError) {
-        const current = submitError.messagesFor("current_password");
-        const next = submitError.messagesFor("new_password");
-        setFieldErrors({ current_password: current, new_password: next });
-        // Anything not shown beside a field goes in the banner, so no error
-        // the server sends is left unsaid.
-        const banner =
-          submitError.nonFieldMessages.join(" ") ||
-          (current.length || next.length ? "" : submitError.message);
-        if (banner) setError(banner);
-      } else {
-        setError("Could not update password. Check your connection and try again.");
-      }
+      form.handle(submitError, "Could not update password. Try again in a moment.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  function errorsFor(field: keyof FieldErrors) {
-    return fieldErrors[field]?.map((message) => (
+  function errorsFor(field: Field) {
+    return form.fields[field]?.map((message) => (
       <ErrorText field announce={false} key={message}>
         {message}
       </ErrorText>
@@ -159,8 +142,8 @@ export function ChangePasswordForm({
         {errorsFor("confirm_password")}
       </label>
 
-      {error ? (
-        <Alert>{error}</Alert>
+      {form.banner ? (
+        <Alert>{form.banner}</Alert>
       ) : null}
 
       <div className={actionsClassName}>

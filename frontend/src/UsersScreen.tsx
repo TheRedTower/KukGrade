@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
+import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import {
-  ApiError,
   createManagedUser,
   getManagedUsers,
   type ManagedUser,
@@ -53,7 +53,9 @@ function CreateUserDialog({
   });
   const issued = mutation.data;
   const close = issued ? () => onCreated(issued) : onClose;
-  const apiError = mutation.error instanceof ApiError ? mutation.error : null;
+  // The email has its place beside its box; anything else the server says goes above the buttons.
+  const errors = mutation.error ? splitServerErrors(mutation.error, ["email"], "The user could not be added.") : null;
+  const emailError = errors?.fields.email?.join(" ");
 
   return (
     <Dialog
@@ -96,12 +98,12 @@ function CreateUserDialog({
                   type="email"
                   name="email"
                   autoComplete="off"
-                  aria-invalid={(apiError?.messagesFor("email").length ?? 0) > 0}
-                  aria-describedby={(apiError?.messagesFor("email").length ?? 0) > 0 ? "cud-email-error" : undefined}
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={emailError ? "cud-email-error" : undefined}
                 />
-                {(apiError?.messagesFor("email").length ?? 0) > 0 && (
+                {emailError && (
                   <ErrorText as="small" field id="cud-email-error">
-                    {apiError?.messagesFor("email").join(" ")}
+                    {emailError}
                   </ErrorText>
                 )}
               </label>
@@ -117,7 +119,7 @@ function CreateUserDialog({
               A temporary password is created for them. They'll choose their own when they first
               sign in.
             </p>
-            {mutation.error && <Alert>{errorMessage(mutation.error, "The user could not be added.")}</Alert>}
+            {errors?.banner && <Alert>{errors.banner}</Alert>}
             <div className="action-row users-dialog-actions">
               <Button variant="secondary" onClick={onClose} disabled={mutation.isPending}>
                 Cancel

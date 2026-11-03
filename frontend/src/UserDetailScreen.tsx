@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -8,7 +9,6 @@ import { ErrorText } from "./ErrorText";
 import { LoadingState } from "./LoadingState";
 import { useAuth } from "./auth";
 import {
-  ApiError,
   deleteManagedUser,
   getAuditEvents,
   getManagedUser,
@@ -57,7 +57,9 @@ function AccountForm({
       onSaved("Account details saved.");
     },
   });
-  const error = mutation.error instanceof ApiError ? mutation.error : null;
+  // The email has its place beside its box; anything else the server says goes above the buttons.
+  const errors = mutation.error ? splitServerErrors(mutation.error, ["email"], "The account could not be saved.") : null;
+  const emailError = errors?.fields.email?.join(" ");
 
   return (
     <form
@@ -77,12 +79,12 @@ function AccountForm({
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={(error?.messagesFor("email").length ?? 0) > 0}
-            aria-describedby={(error?.messagesFor("email").length ?? 0) > 0 ? "account-email-error" : undefined}
+            aria-invalid={Boolean(emailError)}
+            aria-describedby={emailError ? "account-email-error" : undefined}
           />
-          {(error?.messagesFor("email").length ?? 0) > 0 && (
+          {emailError && (
             <ErrorText as="small" field id="account-email-error">
-              {error?.messagesFor("email").join(" ")}
+              {emailError}
             </ErrorText>
           )}
         </label>
@@ -105,7 +107,7 @@ function AccountForm({
         The role decides what someone can do in KukGrade. Master authority is granted separately.
         {isSelf ? " You cannot change your own role or account status here." : ""}
       </p>
-      {mutation.error && <Alert>{errorMessage(mutation.error, "The account could not be saved.")}</Alert>}
+      {errors?.banner && <Alert>{errors.banner}</Alert>}
       <Button type="submit" variant="primary" disabled={mutation.isPending}>
         {mutation.isPending ? "Saving…" : "Save account details"}
       </Button>

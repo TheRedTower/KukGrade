@@ -1,14 +1,15 @@
 import { useState, type FormEvent } from "react";
+import { useServerForm } from "./forms";
 
 import { ErrorText } from "./ErrorText";
 import { Alert } from "./Alert";
-import { ApiError } from "./api";
 import { useAuth } from "./auth";
 import { LoginBrandPanel, ThemeToggle } from "./AuthChrome";
 import { PasswordRequirements } from "./PasswordRequirements";
 import { Button } from "./Button";
 
-type Field = "code" | "email" | "first_name" | "last_name" | "password" | "confirm";
+const FIELDS = ["code", "email", "first_name", "last_name", "password", "confirm"] as const;
+type Field = (typeof FIELDS)[number];
 
 /**
  * A new deployment's first screen: creating the main administrator.
@@ -29,15 +30,14 @@ export function SetupPage() {
   const [confirm, setConfirm] = useState("");
   const [showPasswords, setShowPasswords] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<Field, string[]>>>({});
+  const form = useServerForm(FIELDS);
+  const fieldErrors: Partial<Record<Field, string[]>> = form.fields;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setFieldErrors({});
+    form.reset();
     if (password !== confirm) {
-      setFieldErrors({ confirm: ["The passwords do not match."] });
+      form.setClientErrors({ confirm: ["The passwords do not match."] });
       return;
     }
 
@@ -51,19 +51,7 @@ export function SetupPage() {
         password,
       });
     } catch (submitError) {
-      if (submitError instanceof ApiError) {
-        const fields: Partial<Record<Field, string[]>> = {};
-        for (const name of ["code", "email", "first_name", "last_name", "password"] as const) {
-          const messages = submitError.messagesFor(name);
-          if (messages.length) fields[name] = messages;
-        }
-        setFieldErrors(fields);
-        if (Object.keys(fields).length === 0) {
-          setError(submitError.nonFieldMessages.join(" ") || submitError.message);
-        }
-      } else {
-        setError("KukGrade could not be reached. Check your connection and try again.");
-      }
+      form.handle(submitError, "KukGrade could not be set up. Try again in a moment.");
     } finally {
       setIsSubmitting(false);
     }
@@ -201,9 +189,9 @@ export function SetupPage() {
               />
             </label>
             {errorsFor("confirm")}
-            {error ? (
+            {form.banner ? (
               <Alert>
-                {error}
+                {form.banner}
               </Alert>
             ) : null}
             <Button variant="primary" disabled={isSubmitting} type="submit">

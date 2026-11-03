@@ -6,13 +6,20 @@ import { getSetAsideNames, putBackSetAsideName, setAsideNames } from "./api";
 /** Where an earlier version kept them, in the browser; moved to the server once. */
 const OLD_STORAGE_KEY = "kukgrade-left-names";
 
-function takeOldNames(): string[] {
+function oldNames(): string[] {
   try {
     const stored: unknown = JSON.parse(window.localStorage.getItem(OLD_STORAGE_KEY) ?? "[]");
-    window.localStorage.removeItem(OLD_STORAGE_KEY);
     return Array.isArray(stored) ? stored.filter((key): key is string => typeof key === "string").slice(-100) : [];
   } catch {
     return [];
+  }
+}
+
+function forgetOldNames() {
+  try {
+    window.localStorage.removeItem(OLD_STORAGE_KEY);
+  } catch {
+    // Nothing to forget, or the browser will not say.
   }
 }
 
@@ -33,11 +40,19 @@ export function useLeftNames() {
 
   const leave = useMutation({ mutationFn: (key: string) => setAsideNames([key]), onSuccess: changed });
   const putBack = useMutation({ mutationFn: (key: string) => putBackSetAsideName(key), onSuccess: () => changed() });
-  const moveOld = useMutation({ mutationFn: (keys: string[]) => setAsideNames(keys), onSuccess: changed });
+  // Forgotten here only once the server has them; a failed move is tried
+  // again the next time the page opens.
+  const moveOld = useMutation({
+    mutationFn: (keys: string[]) => setAsideNames(keys),
+    onSuccess: (keys) => {
+      forgetOldNames();
+      changed(keys);
+    },
+  });
   const moveOldNames = moveOld.mutate;
 
   useEffect(() => {
-    const old = takeOldNames();
+    const old = oldNames();
     if (old.length > 0) moveOldNames(old);
   }, [moveOldNames]);
 

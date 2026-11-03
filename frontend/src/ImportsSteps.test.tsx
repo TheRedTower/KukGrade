@@ -865,7 +865,17 @@ describe("Linking historical records", () => {
     renderAt("/imports/records");
 
     await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r", "theo"]));
-    expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull();
+    await waitFor(() => expect(window.localStorage.getItem("kukgrade-left-names")).toBeNull());
+  });
+
+  it("keeps the browser's old names if the server could not take them, to try again", async () => {
+    window.localStorage.setItem("kukgrade-left-names", JSON.stringify(["mia r"]));
+    api.setAsideNames.mockRejectedValueOnce(new ApiError("Server error.", 500));
+    renderAt("/imports/records");
+
+    await waitFor(() => expect(api.setAsideNames).toHaveBeenCalledWith(["mia r"]));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(window.localStorage.getItem("kukgrade-left-names")).toBe('["mia r"]');
   });
 
   it("lists names already linked, and can undo one", async () => {

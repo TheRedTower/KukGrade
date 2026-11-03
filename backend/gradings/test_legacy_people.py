@@ -391,6 +391,20 @@ def test_people_search_by_part_of_the_name_as_written() -> None:
     assert results(client.get(PEOPLE, {"search": "zzz"})) == []
 
 
+def test_people_and_records_search_match_every_word_in_any_order() -> None:
+    legacy_record(source_name="JKN Zac Wood")
+    legacy_record(source_name="Zac Hale")
+    client = client_for(admin())
+
+    people = results(client.get(PEOPLE, {"search": "wood zac"}))
+    records = results(
+        client.get("/api/gradings/legacy-records/", {"search": "wood  zac"})
+    )
+
+    assert [person["source_name"] for person in people] == ["JKN Zac Wood"]
+    assert [record["source_name"] for record in records] == ["JKN Zac Wood"]
+
+
 def test_people_can_leave_out_or_show_only_the_names_put_aside() -> None:
     seeded_names()
     client = client_for(admin())

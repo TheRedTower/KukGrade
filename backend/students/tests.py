@@ -449,6 +449,22 @@ def test_status_filter_and_search_and_rank_filter_work() -> None:
     assert unknown_status["count"] == 0
 
 
+def test_search_matches_every_word_across_the_name_fields() -> None:
+    # A full name spans first and last name, so no single field holds it.
+    client = auth_client("search-words@example.com")
+    create_via_api(client, wksa_id="123-4-530", first_name="Alex", last_name="Kim")
+    create_via_api(client, wksa_id="123-4-531", first_name="Alex", last_name="Diaz")
+
+    def found(term: str) -> set[str]:
+        body = client.get("/api/students/", {"search": term}).json()
+        return {row["wksa_id"] for row in body["results"]}
+
+    assert found("alex kim") == {"123-4-530"}
+    assert found("  Kim   Alex ") == {"123-4-530"}
+    assert found("alex") == {"123-4-530", "123-4-531"}
+    assert found("alex nobody") == set()
+
+
 def test_can_be_graded_reflects_status_in_the_student_list() -> None:
     # The cohort builder reads eligibility from the list, so the rule is
     # stated once, on the model, rather than re-derived from status in React.

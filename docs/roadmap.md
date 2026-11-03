@@ -9,10 +9,10 @@ Want something here, or something that is missing? Open an
 
 ## Next: getting to 1.0
 
-- [ ] **First published image**: the release workflow is in place, but `latest` appears
-      only when the first stable tag is cut on `prod`, after the first `dev` to `prod` merge
-      and once the repository and the package are public. A release candidate publishes only
-      its own tag.
+- [ ] **First stable image**: the release workflow is in place and release candidates are
+      published (the repository and the package are public), but `latest` appears only when
+      the first stable tag is cut on `prod`, after the first `dev` to `prod` merge. Until then
+      the install guide tells people to use a release candidate tag.
 - [ ] **Bare-metal Linux release**: a tarball with its own Python, the built frontend and a
       systemd unit (amd64 and arm64), plus documented build-from-source, for people who do not
       use Docker.

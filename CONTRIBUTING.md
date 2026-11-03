@@ -43,7 +43,7 @@ cd ../frontend && npm ci
 5. Run the checks (CI runs the same ones):
 
    ```sh
-   cd backend  && uv run ruff check . && uv run ruff format --check . && uv run pytest -n auto
+   cd backend  && uv run ruff check . && uv run ruff format --check . && uv run mypy . && uv run pytest -n auto
    cd frontend && npm run lint && npm run typecheck && npm run test
    ```
 

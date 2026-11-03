@@ -70,7 +70,10 @@ cp .env.example .env
 docker compose up -d
 ```
 
-The first run pulls the image, which takes a minute or two. Then:
+The first run pulls the image, which takes a minute or two. There is no `latest` image
+until the first stable release, so first set the `image:` line in `deploy/compose.yml` to the
+newest release candidate under [Releases](https://github.com/TheRedTower/KukGrade/releases)
+(for example `ghcr.io/theredtower/kukgrade:0.2.0-rc.6`). Then:
 
 ```sh
 docker compose logs | grep "setup code"

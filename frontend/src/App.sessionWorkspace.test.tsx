@@ -288,7 +288,7 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
         url.includes("/api/gradings/candidates/bulk-generate-assessments/") &&
         init?.method === "POST"
       ) {
-        return jsonResponse(200, { created: [], errors: {} });
+        return jsonResponse(200, { created: [], errors: {}, already_registered: {} });
       }
       if (
         url.includes("/api/gradings/assessments/bulk-start/") &&

@@ -313,7 +313,7 @@ export function BuildGradingCohortScreen() {
 
       const errorKeys = Object.keys(response.errors);
       // A retry sends only the retryable rows, so the others stay as they are.
-      const unsent = request.retry ? flaggedItems.filter((item) => item.isAlreadyRegistered) : [];
+      const unsent = request.retry ? flaggedItems.filter((item) => item.registered) : [];
       if (errorKeys.length === 0 && unsent.length === 0) {
         // Everything registered: on to the grading session.
         navigate(`/gradings/${sessionId}`);
@@ -331,7 +331,7 @@ export function BuildGradingCohortScreen() {
           student: row?.student,
           destinationRank: row?.destinationRank ?? null,
           error: errorMsg || "Registration failed",
-          isAlreadyRegistered: errorMsg.toLowerCase().includes("already registered"),
+          registered: response.already_registered[idxStr],
         };
       });
       setFlaggedItems([...unsent, ...flagged]);
@@ -372,7 +372,7 @@ export function BuildGradingCohortScreen() {
 
   // Exception Resolver: Retry remaining flagged candidates
   const handleRetryFlagged = () => {
-    const retryableItems = flaggedItems.filter((item) => !item.isAlreadyRegistered);
+    const retryableItems = flaggedItems.filter((item) => !item.registered);
     if (retryableItems.length === 0 || !session) return;
     setSubmitError(null);
     registerMutation.mutate({

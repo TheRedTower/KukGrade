@@ -21,6 +21,7 @@ import { useLegacyLinking } from "./useLegacyLinking";
 import "./Imports.css";
 import { Button } from "./Button";
 import { buttonClass } from "./buttonClass";
+import { useDebouncedValue } from "./useDebouncedValue";
 
 type Filter = "all" | "unlinked" | "linked" | "voided";
 
@@ -32,6 +33,8 @@ export function HistoricalRecordsScreen() {
   const page = Math.max(1, Number(params.get("page")) || 1);
   const batch = Number(params.get("batch")) || undefined;
   const search = params.get("search") ?? "";
+  // One request when typing pauses, not one per keystroke.
+  const searched = useDebouncedValue(search.trim());
   const [chosen, setChosen] = useState<Chosen | null>(null);
   const [confirm, setConfirm] = useState<"replace" | "unlink" | "void" | null>(null);
   const { refresh } = useLegacyLinking();
@@ -41,12 +44,12 @@ export function HistoricalRecordsScreen() {
     queryFn: () => getAllDataImportBatches({ kind: "LEGACY_GRADINGS", status: "COMMITTED" }),
   });
   const records = useQuery({
-    queryKey: ["legacyRecords", "browse", filter, page, batch, search],
+    queryKey: ["legacyRecords", "browse", filter, page, batch, searched],
     queryFn: () => getLegacyGradingRecords({
       page,
       page_size: 50,
       batch,
-      search: search || undefined,
+      search: searched || undefined,
       linked: filter === "linked" ? true : filter === "unlinked" ? false : undefined,
       voided: filter === "voided" ? true : filter === "linked" || filter === "unlinked" ? false : undefined,
     }),

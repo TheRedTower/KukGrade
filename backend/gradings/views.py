@@ -95,6 +95,8 @@ from gradings.serializers import (
     WithdrawalReasonSerializer,
 )
 from gradings.services import (
+    ALREADY_IN_SESSION,
+    REGISTERED_ELSEWHERE,
     bulk_register_candidates,
     bulk_update_candidate_status,
     delete_candidate,
@@ -301,6 +303,7 @@ class GradingCandidateViewSet(
     ) -> Response:
         input_serializer = BulkCandidateRegistrationSerializer(data=request.data)
         input_serializer.is_valid(raise_exception=True)
+        codes: dict[str, set[str]] = {}
         created, errors = bulk_register_candidates(
             session=input_serializer.validated_data["session"],
             rows=input_serializer.validated_data["candidates"],
@@ -308,6 +311,7 @@ class GradingCandidateViewSet(
             generate_assessments=input_serializer.validated_data[
                 "generate_assessments"
             ],
+            codes=codes,
         )
         result = BulkCandidateRegistrationResultSerializer(
             {
@@ -316,6 +320,13 @@ class GradingCandidateViewSet(
                     for candidate, assessment in created
                 ],
                 "errors": errors,
+                "already_registered": {
+                    index: "THIS_SESSION"
+                    if ALREADY_IN_SESSION in row_codes
+                    else "ANOTHER_GRADING"
+                    for index, row_codes in codes.items()
+                    if row_codes & {ALREADY_IN_SESSION, REGISTERED_ELSEWHERE}
+                },
             },
             context={"request": request},
         )

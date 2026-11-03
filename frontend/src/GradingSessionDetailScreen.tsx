@@ -62,7 +62,8 @@ export function GradingSessionDetailScreen(): React.ReactElement {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const sessionId = id ? parseInt(id, 10) : NaN;
+  // Number(), not parseInt: "12abc" is no session, not session 12.
+  const sessionId = Number(id);
   const { user: currentUser } = useAuth();
 
   // Drawer state for the instructor outcome proposal

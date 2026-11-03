@@ -3436,7 +3436,21 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/RegisteredCandidate'
+        already_registered:
+          type: object
+          additionalProperties:
+            enum:
+            - THIS_SESSION
+            - ANOTHER_GRADING
+            type: string
+            description: |-
+              * `THIS_SESSION` - THIS_SESSION
+              * `ANOTHER_GRADING` - ANOTHER_GRADING
+          description: 'The keys of `errors` whose student is already registered,
+            for this session or for another grading that has not settled: nothing
+            to retry, unlike the other failures.'
       required:
+      - already_registered
       - created
       - errors
     BulkCandidateStatusUpdateRequest:

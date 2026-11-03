@@ -29,21 +29,16 @@ import { badgeClass } from "./badgeClass";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { StudentStatusBadge } from "./StatusBadge";
 import "./StudentScreens.css";
-import { formatLongDate, formatShortDate } from "./dates";
+import { formatLongDate, formatMonthYear, formatShortDate } from "./dates";
 import { CheckIcon, LockIcon } from "./Icons";
 import { Button } from "./Button";
-
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
 
 function formatGradingHistoryDate(item: GradingHistoryItem): string {
   if (item.date_precision === "DAY" && item.date) {
     return formatShortDate(item.date);
   }
   if (item.cycle_year && item.cycle_month) {
-    return `${MONTH_NAMES[item.cycle_month - 1]} ${item.cycle_year}`;
+    return formatMonthYear(item.cycle_year, item.cycle_month);
   }
   return "—";
 }

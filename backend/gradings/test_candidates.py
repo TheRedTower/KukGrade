@@ -791,10 +791,44 @@ def test_bulk_register_is_independent_per_row_when_one_row_is_invalid() -> None:
         valid_student.id,
     ]
     assert list(payload["errors"].keys()) == ["1"]
+    assert payload["already_registered"] == {"1": "THIS_SESSION"}
     assert GradingCandidate.objects.filter(student=valid_student).exists()
     assert (
         GradingCandidate.objects.filter(student=already_registered_student).count() == 1
     )
+
+
+def test_bulk_register_names_only_the_already_registered_rows() -> None:
+    # The cohort builder offers a retry for every failure except these, so
+    # they are told apart by the server, not by matching message text.
+    session = grading_session()
+    elsewhere = grading_session(title="Summer Grading")
+    registered = student(wksa_id="123-4-516")
+    left = student(wksa_id="123-4-517", status=Student.Status.LEFT)
+    held = student(wksa_id="123-4-518")
+    candidate(session=session, student=registered)
+    candidate(session=elsewhere, student=held)
+    client = auth_client("bulk-register-already@example.com")
+
+    payload = client.post(
+        "/api/gradings/candidates/bulk-register/",
+        {
+            "session": session.id,
+            "candidates": [
+                {"student": left.id},
+                {"student": registered.id},
+                {"student": held.id},
+            ],
+        },
+        format="json",
+    ).json()
+
+    assert sorted(payload["errors"]) == ["0", "1", "2"]
+    assert "Summer Grading" in payload["errors"]["2"][0]
+    assert payload["already_registered"] == {
+        "1": "THIS_SESSION",
+        "2": "ANOTHER_GRADING",
+    }
 
 
 def test_bulk_register_can_generate_assessments_in_the_same_request() -> None:

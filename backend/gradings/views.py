@@ -51,7 +51,9 @@ from gradings.models import (
 from gradings.outcome_services import (
     bulk_promote_candidates,
     create_candidate_outcome,
+    discard_staged_decision,
     promotion_eligibility_for_session,
+    staged_decisions_for_session,
 )
 from gradings.read_models import candidate_assessment_summary, with_overall_counts
 from gradings.serializers import (
@@ -84,6 +86,7 @@ from gradings.serializers import (
     PromotionEligibilitySerializer,
     PromotionSerializer,
     ResolveLegacyRankSerializer,
+    StagedDecisionSerializer,
     VoidLegacyRecordSerializer,
     WithdrawalReasonSerializer,
 )
@@ -539,10 +542,12 @@ class CandidateOutcomeViewSet(
 ):
     serializer_class = CandidateOutcomeSerializer
     permission_classes = [HasRequiredPermissions]
-    http_method_names = ["get", "patch", "post", "head", "options"]
+    http_method_names = ["get", "patch", "post", "put", "delete", "head", "options"]
     permission_map = {
         "list": ("gradings.view_candidateoutcome",),
         "propose": ("gradings.change_candidateoutcome",),
+        "staged_decision": ("gradings.view_candidateoutcome",),
+        "staged_decisions": ("gradings.view_candidateoutcome",),
         # The sensitive half of these two is enforced by the dedicated
         # permission class on the action, which also gives a better message.
         "finalise": ("gradings.view_candidateoutcome",),
@@ -585,6 +590,58 @@ class CandidateOutcomeViewSet(
             raise ValidationError({"session": ["Choose a grading session."]})
         rows = promotion_eligibility_for_session(int(raw_session))
         return Response(PromotionEligibilitySerializer(rows, many=True).data)
+
+    @extend_schema(
+        parameters=[OpenApiParameter("session", int, required=True)],
+        responses=StagedDecisionSerializer(many=True),
+    )
+    @action(
+        detail=False,
+        methods=["get"],
+        url_path="staged-decisions",
+        filter_backends=[],
+        pagination_class=None,
+        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
+    )
+    def staged_decisions(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> Response:
+        """The viewer's own decisions staged in a session and not yet recorded."""
+        raw_session = request.query_params.get("session", "")
+        if not raw_session.isdecimal() or int(raw_session) < 1:
+            raise ValidationError({"session": ["Choose a grading session."]})
+        staged = staged_decisions_for_session(
+            int(raw_session),
+            cast(User, request.user),
+        )
+        return Response(StagedDecisionSerializer(staged, many=True).data)
+
+    @extend_schema(
+        methods=["PUT"],
+        request=StagedDecisionSerializer,
+        responses=StagedDecisionSerializer,
+    )
+    @extend_schema(methods=["DELETE"], request=None, responses={204: None})
+    @action(
+        detail=True,
+        methods=["put", "delete"],
+        url_path="staged-decision",
+        permission_classes=[HasRequiredPermissions, CanMakeFinalGradingDecision],
+    )
+    def staged_decision(
+        self, request: Request, *args: object, **kwargs: object
+    ) -> Response:
+        """Keep, or drop, the viewer's chosen decision until it is recorded."""
+        outcome = self.get_object()
+        if request.method == "DELETE":
+            discard_staged_decision(outcome, cast(User, request.user))
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = StagedDecisionSerializer(
+            data=request.data,
+            context={"request": request, "outcome": outcome},
+        )
+        serializer.is_valid(raise_exception=True)
+        return Response(StagedDecisionSerializer(serializer.save()).data)
 
     @extend_schema(
         request=CandidateOutcomeProposalSerializer,

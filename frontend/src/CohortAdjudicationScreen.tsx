@@ -23,7 +23,7 @@ import { ErrorText } from "./ErrorText";
 import { Badge } from "./Badge";
 import { ResponsiveTable } from "./ResponsiveTable";
 import { outcomeTone } from "./badgeClass";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,8 +33,12 @@ import {
   type CandidateOutcome,
   type CandidateOutcomeOutcome,
   type GradingCandidate,
+  discardStagedDecision,
   finaliseCandidateOutcome,
   getAllCandidateAssessments,
+  getStagedDecisions,
+  stageDecision,
+  type StagedDecision as ApiStagedDecision,
   getAllCandidateOutcomes,
   getAllGradingCandidates,
   getGradingSession,
@@ -63,6 +67,28 @@ type BoardRow = {
   decidable: boolean;
 };
 
+// How long typing settles before a staged decision is kept on the server.
+const KEEP_DELAY_MS = 600;
+
+function fromServer(rows: ApiStagedDecision[]): Record<number, StagedDecision> {
+  return Object.fromEntries(
+    rows.map((row) => [
+      row.outcome,
+      {
+        outcome: row.final_outcome,
+        notes: row.decision_notes ?? "",
+        conditionalRequirements: row.conditional_requirements ?? "",
+      },
+    ]),
+  );
+}
+
+function without<T>(map: Record<number, T>, key: number): Record<number, T> {
+  const next = { ...map };
+  delete next[key];
+  return next;
+}
+
 function missingRequirements(decision: StagedDecision): boolean {
   return decision.outcome === "CONDITIONAL" && !decision.conditionalRequirements.trim();
 }
@@ -83,6 +109,14 @@ export function CohortAdjudicationScreen() {
   const [failures, setFailures] = useState<Record<number, string>>({});
   const [lastResult, setLastResult] = useState<string | null>(null);
   const resultRef = useRef<HTMLParagraphElement>(null);
+  // What the server holds for each staged row, so only changes are sent.
+  // What the server has acknowledged for each staged row, what the screen
+  // wants it to hold once typing settles, and the one write in flight per row.
+  const keptOnServer = useRef<Record<number, string> | null>(null);
+  const wanted = useRef<Record<number, string>>({});
+  const saving = useRef<Record<number, Promise<void>>>({});
+  const [restored, setRestored] = useState<ApiStagedDecision[] | null>(null);
+  const [keepFailures, setKeepFailures] = useState<Record<number, string>>({});
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Recording unmounts or disables the control that started it, so focus
@@ -136,6 +170,83 @@ export function CohortAdjudicationScreen() {
 
   const canDecide =
     Boolean(user?.can_make_final_grading_decision) && session?.status === "LOCKED";
+
+  // Decisions staged earlier, and kept on the server, come back: a session
+  // that timed out, or a closed tab, loses nothing that was staged.
+  const keptQuery = useQuery({
+    queryKey: ["stagedDecisions", sessionId],
+    queryFn: () => getStagedDecisions(sessionId),
+    enabled: enabled && canDecide,
+    // Read afresh each time the board opens: never an earlier visit's copy.
+    gcTime: 0,
+  });
+  // Until they are read, nothing can be staged, so none is overwritten.
+  if (restored === null && keptQuery.isSuccess && keptQuery.isFetchedAfterMount) {
+    setRestored(keptQuery.data);
+    setStaged((current) => ({ ...fromServer(keptQuery.data), ...current }));
+  }
+  const canStage = restored !== null && !isRecording;
+
+  // Each write goes through the mutation cache, so an expired session signs the viewer out.
+  const keepMutation = useMutation({
+    mutationFn: async ({ outcomeId, decision }: { outcomeId: number; decision: StagedDecision | null }) => {
+      if (!decision) return discardStagedDecision(outcomeId);
+      await stageDecision(outcomeId, {
+        final_outcome: decision.outcome,
+        decision_notes: decision.notes,
+        conditional_requirements: decision.conditionalRequirements,
+      });
+    },
+  });
+  const keep = keepMutation.mutateAsync;
+
+  // Sends a row's wanted state, one write at a time, so the last edit is the
+  // last write; a change made meanwhile is sent when the write in flight ends.
+  const flush = useCallback(
+    function flush(outcomeId: number) {
+      const kept = keptOnServer.current;
+      if (!kept || outcomeId in saving.current) return;
+      const json = wanted.current[outcomeId];
+      if (json === kept[outcomeId]) return;
+      const decision = json === undefined ? null : (JSON.parse(json) as StagedDecision);
+      saving.current[outcomeId] = keep({ outcomeId, decision }).then(
+        () => {
+          delete saving.current[outcomeId];
+          if (json === undefined) delete kept[outcomeId];
+          else kept[outcomeId] = json;
+          setKeepFailures((current) => without(current, outcomeId));
+          flush(outcomeId);
+        },
+        (err: unknown) => {
+          delete saving.current[outcomeId];
+          // Changed, recorded or unstaged since: what is wanted now is tried instead.
+          if (wanted.current[outcomeId] !== json) return flush(outcomeId);
+          setKeepFailures((current) => ({
+            ...current,
+            [outcomeId]: errorMessage(err, "Your staged decisions could not be kept."),
+          }));
+        },
+      );
+    },
+    [keep],
+  );
+
+  // Every change to what is staged is kept once typing settles. Not while
+  // recording: recording removes the server's copy itself.
+  useEffect(() => {
+    if (restored === null || isRecording) return;
+    keptOnServer.current ??= Object.fromEntries(
+      Object.entries(fromServer(restored)).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+    );
+    const kept = keptOnServer.current;
+    const timer = window.setTimeout(() => {
+      wanted.current = Object.fromEntries(
+        Object.entries(staged).map(([outcomeId, decision]) => [outcomeId, JSON.stringify(decision)]),
+      );
+      new Set([...Object.keys(staged), ...Object.keys(kept)].map(Number)).forEach(flush);
+    }, KEEP_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [staged, restored, isRecording, flush]);
   const withdrawnCount =
     (candidatesQuery.data?.results ?? []).length - rows.length;
   const finalisedCount = rows.filter((row) => row.outcome?.status === "FINALISED").length;
@@ -188,6 +299,8 @@ export function CohortAdjudicationScreen() {
     }
     setIsRecording(true);
     setLastResult(null);
+    // A save still in flight would otherwise land after its decision is recorded.
+    await Promise.allSettled(Object.values(saving.current));
     const failed: Record<number, string> = {};
     const recorded = new Set<number>();
     // One candidate at a time: each row stands or falls on its own.
@@ -215,6 +328,12 @@ export function CohortAdjudicationScreen() {
       recorded.forEach((oid) => delete next[oid]);
       return next;
     });
+    // Recording removed the server's copies.
+    recorded.forEach((oid) => {
+      delete keptOnServer.current?.[oid];
+      delete wanted.current[oid];
+    });
+    setKeepFailures((current) => [...recorded].reduce(without, current));
     setFailures((current) => {
       const next = { ...current };
       outcomeIds.forEach((oid) => delete next[oid]);
@@ -298,6 +417,17 @@ export function CohortAdjudicationScreen() {
             ? "This session is completed. Its decisions are the permanent record."
             : "Final decisions open once the session is locked, after every assessment is completed."}
         </p>
+      )}
+      {canDecide && keptQuery.isError && (
+        <Alert
+          action={
+            <Button variant="secondary" onClick={() => void keptQuery.refetch()}>
+              Try again
+            </Button>
+          }
+        >
+          Your staged decisions could not be loaded. Staging is paused until they are, so none is overwritten.
+        </Alert>
       )}
       {session.status === "LOCKED" && !user?.can_make_final_grading_decision && (
         <p className="cab-notice" role="status">
@@ -408,7 +538,7 @@ export function CohortAdjudicationScreen() {
                                 type="button"
                                 className={`outcome-segment outcome-segment-${option.value.toLowerCase()}`}
                                 aria-pressed={decision?.outcome === option.value}
-                                disabled={isRecording}
+                                disabled={!canStage}
                                 onClick={() => stage(row, option.value)}
                               >
                                 {decision?.outcome === option.value && <CheckIcon size={14} />}
@@ -498,7 +628,7 @@ export function CohortAdjudicationScreen() {
                       onChange={(e) =>
                         updateStaged(focusRow.outcome!.id, { conditionalRequirements: e.target.value })
                       }
-                      disabled={isRecording}
+                      disabled={!canStage}
                       rows={3}
                     />
                   </label>
@@ -508,7 +638,7 @@ export function CohortAdjudicationScreen() {
                   <textarea
                     value={focusDecision.notes}
                     onChange={(e) => updateStaged(focusRow.outcome!.id, { notes: e.target.value })}
-                    disabled={isRecording}
+                    disabled={!canStage}
                     rows={3}
                   />
                 </label>
@@ -531,7 +661,14 @@ export function CohortAdjudicationScreen() {
         <footer className="cab-bar">
           <p className="cab-bar-text">
             Decisions are recorded one candidate at a time. Any that cannot be recorded stay here to try again; the rest are kept.
+            What you stage is saved for you until it is recorded, even if you are signed out.
           </p>
+          {Object.keys(keepFailures).length > 0 && (
+            <ErrorText field>
+              {Object.values(keepFailures)[0]} {Object.keys(keepFailures).length === 1 ? "That decision is" : "Those decisions are"} still
+              here, but will be lost if you leave this page.
+            </ErrorText>
+          )}
           {incomplete.length > 0 && (
             <ErrorText field>
               Conditional decisions need re-test requirements before they can be recorded.

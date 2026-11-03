@@ -34,6 +34,10 @@ flowchart LR
    **Conditional**. A conditional result must say what the candidate still has to do.
 5. **Final decision.** Only a person with *final grading decision* authority
    (the Master) can finalise an outcome. A finalised outcome can never be edited.
+   Decisions the Master has chosen but not yet recorded ("staged") are saved on the
+   server for that Master alone, so a session that times out or a closed tab loses
+   nothing; recording a decision, or the session leaving the locked state, removes
+   them. Staging is not audited, because it decides nothing; recording is.
 6. **Promote.** A Pass is promoted in a separate, deliberate step, which updates the
    student's rank and writes a permanent rank-history record. A whole cohort can be
    promoted at once.

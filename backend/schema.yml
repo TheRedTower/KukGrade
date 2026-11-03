@@ -1873,6 +1873,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/CandidateOutcome'
           description: ''
+  /api/gradings/outcomes/{id}/staged-decision/:
+    put:
+      operationId: gradings_outcomes_staged_decision_update
+      description: Keep, or drop, the viewer's chosen decision until it is recorded.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StagedDecisionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StagedDecisionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StagedDecisionRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StagedDecision'
+          description: ''
+    delete:
+      operationId: gradings_outcomes_staged_decision_destroy
+      description: Keep, or drop, the viewer's chosen decision until it is recorded.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this candidate outcome.
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/gradings/outcomes/bulk-promote/:
     post:
       operationId: gradings_outcomes_bulk_promote_create
@@ -1920,6 +1971,29 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/PromotionEligibility'
+          description: ''
+  /api/gradings/outcomes/staged-decisions/:
+    get:
+      operationId: gradings_outcomes_staged_decisions_list
+      description: The viewer's own decisions staged in a session and not yet recorded.
+      parameters:
+      - in: query
+        name: session
+        schema:
+          type: integer
+        required: true
+      tags:
+      - gradings
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StagedDecision'
           description: ''
   /api/gradings/promotions/:
     get:
@@ -5867,6 +5941,41 @@ components:
       description: |-
         * `KUKGRADE` - KUKGRADE
         * `LEGACY` - LEGACY
+    StagedDecision:
+      type: object
+      description: A final decision chosen but not yet recorded, seen only by whoever
+        chose it.
+      properties:
+        outcome:
+          type: integer
+          readOnly: true
+        final_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - final_outcome
+      - outcome
+      - updated_at
+    StagedDecisionRequest:
+      type: object
+      description: A final decision chosen but not yet recorded, seen only by whoever
+        chose it.
+      properties:
+        final_outcome:
+          $ref: '#/components/schemas/CandidateOutcomeOutcomeEnum'
+        decision_notes:
+          type: string
+        conditional_requirements:
+          type: string
+      required:
+      - final_outcome
     Student:
       type: object
       description: |-

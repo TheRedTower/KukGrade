@@ -6,6 +6,7 @@ from datetime import date
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from accounts.models import User
@@ -28,6 +29,7 @@ from gradings.models import (
     GradingCandidate,
     GradingSession,
     Promotion,
+    StagedDecision,
 )
 from gradings.service_support import each_independently, unique_violation_on
 from gradings.services import get_next_active_rank
@@ -281,6 +283,8 @@ def finalise_candidate_outcome(
             },
         )
 
+    # Recorded, so nobody's staged copy of this decision is wanted any more.
+    StagedDecision.objects.filter(outcome=locked_outcome).delete()
     locked_outcome.final_outcome = final_outcome
     locked_outcome.decision_notes = decision_notes
     locked_outcome.conditional_requirements = cleaned_conditions
@@ -310,6 +314,70 @@ def finalise_candidate_outcome(
         },
     )
     return locked_outcome
+
+
+def _can_still_be_decided(outcome: CandidateOutcome) -> bool:
+    return (
+        outcome.status == CandidateOutcome.Status.PROPOSED
+        and outcome.candidate.session.status == GradingSession.Status.LOCKED
+    )
+
+
+@transaction.atomic
+def stage_final_decision(
+    outcome: CandidateOutcome,
+    final_outcome: str,
+    decision_notes: str,
+    conditional_requirements: str,
+    actor: User,
+) -> StagedDecision:
+    """Keep the actor's chosen decision, unrecorded, until they record it.
+
+    Not audited: it decides nothing and changes no record. Recording it is
+    what is audited, by finalise_candidate_outcome.
+    """
+    validate_final_decision_actor(actor)
+    locked_outcome = lock_in_session(
+        CandidateOutcome.objects.select_related("candidate__session"),
+        outcome.pk,
+        session_path="candidate__session_id",
+        name="outcome",
+    )
+    if not _can_still_be_decided(locked_outcome):
+        raise ValidationError(
+            {"status": ["This candidate's decision can no longer be staged."]},
+        )
+    _validate_outcome_choice(final_outcome, "final_outcome")
+    staged, _created = StagedDecision.objects.update_or_create(
+        outcome=locked_outcome,
+        author=actor,
+        defaults={
+            "final_outcome": final_outcome,
+            "decision_notes": decision_notes,
+            "conditional_requirements": conditional_requirements,
+        },
+    )
+    return staged
+
+
+def discard_staged_decision(outcome: CandidateOutcome, actor: User) -> None:
+    """Drop the actor's staged decision for this outcome, if there is one."""
+    validate_final_decision_actor(actor)
+    StagedDecision.objects.filter(outcome=outcome, author=actor).delete()
+
+
+def staged_decisions_for_session(
+    session_id: int,
+    actor: User,
+) -> QuerySet[StagedDecision]:
+    """The actor's own staged decisions in a session that can still be recorded."""
+    validate_final_decision_actor(actor)
+    return StagedDecision.objects.filter(
+        author=actor,
+        outcome__candidate__session_id=session_id,
+        outcome__status=CandidateOutcome.Status.PROPOSED,
+        outcome__candidate__session__status=GradingSession.Status.LOCKED,
+    ).order_by("outcome_id")
 
 
 def validate_promotion_eligibility(

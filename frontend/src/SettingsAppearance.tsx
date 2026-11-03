@@ -1,4 +1,5 @@
 import { ThemeToggle } from "./AuthChrome";
+import { ChoiceGroup } from "./ChoiceGroup";
 import { SettingsRow } from "./SettingsRow";
 import { useSidebar } from "./useSidebar";
 
@@ -12,14 +13,15 @@ export function SettingsAppearance() {
         <ThemeToggle />
       </SettingsRow>
       <SettingsRow description="Start with it open, or as a strip of icons." title="Sidebar">
-        <div aria-label="Sidebar" className="st-segments" role="group">
-          <button aria-pressed={!collapsed} onClick={() => setCollapsed(false)} type="button">
-            Open
-          </button>
-          <button aria-pressed={collapsed} onClick={() => setCollapsed(true)} type="button">
-            Icons only
-          </button>
-        </div>
+        <ChoiceGroup
+          choices={[
+            { value: "open", label: "Open" },
+            { value: "icons", label: "Icons only" },
+          ]}
+          label="Sidebar"
+          value={collapsed ? "icons" : "open"}
+          onChange={(choice) => setCollapsed(choice === "icons")}
+        />
       </SettingsRow>
     </section>
   );

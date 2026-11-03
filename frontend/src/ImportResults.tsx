@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { ChoiceGroup } from "./ChoiceGroup";
 import type { BadgeTone } from "./badgeClass";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
@@ -386,14 +387,14 @@ function RowsLedger({
           />
         </label>
       </div>
-      <div aria-label="Show" className="ix-chips ix-chips-inset" role="group">
-        {tabs.map((tab) => (
-          <button aria-pressed={filter === tab.key} className="ix-chip" key={tab.key} type="button" onClick={() => onFilter(tab.key)}>
-            {tab.label}
-            {tab.count !== undefined ? <span className="ix-chip-count">{tab.count}</span> : null}
-          </button>
-        ))}
-      </div>
+      <ChoiceGroup
+        choices={tabs.map((tab) => ({ value: tab.key, label: tab.label, count: tab.count }))}
+        className="ix-chips-inset"
+        label="Show"
+        look="chips"
+        value={filter}
+        onChange={onFilter}
+      />
       {rows.query.isError ? (
         <ErrorText className="ix-row">
           {errorMessage(rows.query.error, "The rows could not be loaded.")}

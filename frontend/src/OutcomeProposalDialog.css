@@ -30,6 +30,6 @@
 
 .opd-footer-text {
   margin: 0;
-  font-size: var(--font-size-small);
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }

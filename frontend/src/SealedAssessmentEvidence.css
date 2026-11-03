@@ -6,27 +6,27 @@
 
 .evd h3 {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
   color: var(--color-text);
 }
 
 .evd-counts {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
 .evd-muted,
 .evd-note-by {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
 .evd-error {
   margin: 0;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-danger);
 }
 
@@ -70,8 +70,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
@@ -80,7 +80,7 @@
 }
 
 .evd-note q {
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text);
 }
 
@@ -89,7 +89,7 @@
   min-height: 44px;
   display: inline-flex;
   align-items: center;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   text-decoration-color: var(--color-accent);
   text-underline-offset: 3px;

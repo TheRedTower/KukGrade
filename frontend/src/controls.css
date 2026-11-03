@@ -14,8 +14,8 @@
   padding: 0.4rem 1.25rem;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  font-size: var(--font-size-control);
-  font-weight: var(--font-weight-control);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
   cursor: pointer;
   transition:
@@ -107,7 +107,7 @@
 
 .btn--sm {
   padding: 0.3rem 0.85rem;
-  font-size: var(--font-size-control-sm);
+  font-size: var(--font-size-sm);
 }
 
 /* The one badge (Badge.tsx): a short label with a tone. A tone is a meaning (success,
@@ -121,8 +121,8 @@
   padding: 0.22rem 0.65rem;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  font-size: var(--font-size-badge);
-  font-weight: var(--font-weight-control);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   /* A label breaks between words, never inside one, even in a table cell, and
      never runs past the box it sits in. */
   max-width: 100%;
@@ -208,7 +208,7 @@
   padding: 0.85rem 1.15rem;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  font-size: var(--font-size-control);
+  font-size: var(--font-size-base);
 }
 
 .alert__body {
@@ -263,12 +263,12 @@
 .error-text {
   margin: 0;
   color: var(--color-danger);
-  font-weight: var(--font-weight-control);
+  font-weight: var(--font-weight-semibold);
 }
 
 .error-text--field {
   margin-top: var(--space-1);
-  font-size: var(--font-size-control-sm);
+  font-size: var(--font-size-sm);
 }
 
 /* The one loading state (LoadingState.tsx) and its spinner. */
@@ -280,7 +280,7 @@
   gap: var(--space-3);
   padding: 3rem var(--space-4);
   color: var(--color-text-muted);
-  font-weight: var(--font-weight-control);
+  font-weight: var(--font-weight-semibold);
   text-align: center;
 }
 
@@ -333,7 +333,7 @@
   margin: 0;
   color: var(--color-text);
   font-size: 1.2em;
-  font-weight: var(--font-weight-control);
+  font-weight: var(--font-weight-semibold);
 }
 
 .empty-state__text {
@@ -367,7 +367,7 @@
   background: transparent;
   color: var(--color-text);
   font: inherit;
-  font-size: var(--font-size-control);
+  font-size: var(--font-size-base);
   cursor: pointer;
 }
 
@@ -380,7 +380,7 @@
   padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
   background: var(--color-surface-sunken);
-  font-size: var(--font-size-badge);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-strong);
 }
 

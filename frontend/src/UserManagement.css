@@ -11,8 +11,8 @@
 .users-dialog-form label > span,
 .users-issued-password-value span {
   color: var(--color-text-muted);
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.04em;
 }
 
@@ -20,7 +20,7 @@
 .users-form-note,
 .user-authority-footer p {
   color: var(--color-text-muted);
-  font-size: 0.84rem;
+  font-size: var(--font-size-sm);
 }
 
 .users-info-note {
@@ -28,7 +28,7 @@
   align-items: center;
   gap: 0.7rem;
   border: 1px solid var(--color-border);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   padding: 0.8rem 1rem;
 }
@@ -41,15 +41,15 @@
   border-radius: 50%;
   background: var(--color-text);
   color: var(--color-surface);
-  font-size: 0.75rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
 }
 
 .users-status {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
 }
 
 .users-status::before {
@@ -85,13 +85,13 @@
   display: grid;
   gap: 0.4rem;
   border: 1px solid var(--color-border);
-  border-radius: 0.4rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   padding: 0.75rem 0.9rem;
 }
 .users-issued-password-value code {
   font-family: var(--font-mono);
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
   letter-spacing: 0.08em;
   overflow-wrap: anywhere;
   user-select: all;
@@ -100,7 +100,7 @@
   border-left: 3px solid var(--color-warning);
   background: var(--color-warning-surface);
   color: var(--color-text);
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   padding: 0.6rem 0.8rem;
 }
 .users-dialog-actions {
@@ -112,7 +112,7 @@
 
 .users-audit-link {
   color: var(--color-accent-text);
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   text-decoration: none;
 }
 
@@ -128,7 +128,7 @@
 .user-detail-aside h2 {
   margin: 0 0 0.35rem;
   color: var(--color-text);
-  font-size: 1.2rem;
+  font-size: var(--font-size-xl);
 }
 
 .user-detail-section > p,
@@ -137,7 +137,7 @@
 
 .user-authority-options {
   border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   overflow: hidden;
 }
@@ -202,12 +202,12 @@
   padding: 0.75rem 0;
 }
 
-.user-activity-list li span { color: var(--color-text-muted); font-size: 0.82rem; }
+.user-activity-list li span { color: var(--color-text-muted); font-size: var(--font-size-sm); }
 
 .users-self-password-hint {
   margin: 0;
   max-width: 16rem;
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
@@ -217,7 +217,7 @@
 .users-count {
   align-self: center;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
 }
 
 .users-email,
@@ -228,7 +228,7 @@
 
 /* An address has no word breaks, so it may break anywhere rather than run on. */
 .users-email {
-  font-size: var(--font-size-control-sm);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-normal);
   overflow-wrap: anywhere;
 }

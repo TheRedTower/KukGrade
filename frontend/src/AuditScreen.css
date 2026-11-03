@@ -7,7 +7,7 @@
 .audit-filter-summary {
   min-height: 1.5rem;
   color: var(--color-text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
 }
 
 .audit-filter-summary button {
@@ -15,7 +15,7 @@
   background: transparent;
   color: var(--color-accent-text);
   font: inherit;
-  font-weight: 750;
+  font-weight: var(--font-weight-strong);
   padding: 0.2rem;
   cursor: pointer;
 }
@@ -38,28 +38,35 @@
   display: block;
 }
 
+/* A date and a time are short and never overflow: keep each in one piece, so
+   the column is as wide as they are and never splits "Today" or "20:55". */
+.audit-date,
+.audit-time {
+  overflow-wrap: normal;
+}
+
 .audit-time,
 .audit-entity-id {
   display: block;
   margin-top: 0.15rem;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
 }
 
 .audit-entity-type {
-  font-weight: 650;
+  font-weight: var(--font-weight-semibold);
 }
 
 .audit-integrity-note {
   margin: 0.8rem 0 0;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   text-align: right;
 }
 
 .audit-detail-section h3 {
   margin: 0 0 0.55rem;
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .audit-detail-section p {

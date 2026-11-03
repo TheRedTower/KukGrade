@@ -15,7 +15,7 @@
   gap: 0.6rem;
   padding: 0 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   color: var(--color-text-muted);
 }
@@ -30,7 +30,7 @@
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   color: var(--color-text);
   outline: none;
   padding: 0.25rem 0;
@@ -42,32 +42,32 @@
 }
 
 .results-count-text {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
 .student-full-name {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .wksa-id-pill {
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
   letter-spacing: 0.02em;
 }
 
 .cell-current-grading {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
 }
 
 .current-grading-link {
   display: block;
   color: var(--color-text);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
 }
 
@@ -104,8 +104,8 @@
 }
 
 .form-section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0 0 1.5rem;
   padding-bottom: 0.75rem;
@@ -143,15 +143,15 @@
 }
 
 .form-field-label {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   margin-bottom: 0.45rem;
 }
 
 .required-star {
   color: var(--color-danger);
-  font-weight: bold;
+  font-weight: var(--font-weight-strong);
 }
 
 /* Form Inputs */
@@ -159,7 +159,7 @@
 .form-text-input.input-error,
 .form-select-input.input-error {
   border-color: var(--color-danger);
-  box-shadow: 0 0 0 3px var(--color-danger-surface);
+  box-shadow: var(--ring-danger);
 }
 
 .form-text-input:disabled,
@@ -170,7 +170,7 @@
 
 .form-field-help {
   margin: 0.4rem 0 0;
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   line-height: 1.35;
 }
@@ -180,7 +180,7 @@
   align-items: center;
   gap: 0.4rem;
   margin-top: 0.4rem;
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
@@ -219,8 +219,8 @@
 /* Cards */
 
 .detail-section-title {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   margin: 0 0 1.25rem;
   padding-bottom: 0.75rem;
@@ -249,14 +249,14 @@
 }
 
 .detail-kv-label {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
 .detail-kv-value {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
   display: flex;
   align-items: center;
@@ -265,7 +265,7 @@
 }
 
 .cell-rank-highlight {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   color: var(--color-accent-text);
 }
 
@@ -278,7 +278,7 @@
 .grading-history-comments-cell {
   white-space: pre-wrap;
   color: var(--color-text-muted);
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
 }
 
 /* Rank Timeline Track */
@@ -324,7 +324,7 @@
 .timeline-indicator.indicator-active {
   border-color: var(--btn-primary-border);
   background: var(--btn-primary-bg);
-  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  box-shadow: var(--ring-focus);
 }
 
 .timeline-indicator.indicator-base {
@@ -333,19 +333,19 @@
 }
 
 .timeline-date {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
 .timeline-rank-name {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .timeline-subtext {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
 }
 
@@ -366,20 +366,20 @@
 }
 
 .readiness-label {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
 .readiness-value {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
   text-align: right;
 }
 
 .readiness-guidance {
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   line-height: 1.45;
   margin: 0;
@@ -402,13 +402,13 @@
 }
 
 .record-status-label {
-  font-size: 0.92rem;
-  font-weight: 600;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text-muted);
 }
 
 .record-status-policy-note {
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
   color: var(--color-text-muted);
   line-height: 1.45;
   display: flex;
@@ -423,7 +423,7 @@
 /* The change-status dialog */
 
 .modal-lead-text {
-  font-size: 0.95rem;
+  font-size: var(--font-size-base);
   color: var(--color-text);
   margin: 0 0 1.25rem;
 }
@@ -440,7 +440,7 @@
   gap: 0.85rem;
   padding: 1rem;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   transition: all 140ms ease;
   background: var(--color-surface);
@@ -454,7 +454,7 @@
 .status-radio-card.selected {
   border-color: var(--color-accent);
   background: var(--color-surface-sunken);
-  box-shadow: 0 0 0 1px var(--color-accent);
+  box-shadow: var(--ring-accent);
 }
 
 .status-radio-card input[type="radio"] {
@@ -469,7 +469,7 @@
 }
 
 .status-radio-desc {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   margin: 0;
   line-height: 1.35;

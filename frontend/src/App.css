@@ -18,13 +18,13 @@
 
 ::-webkit-scrollbar-track {
   background: var(--color-scrollbar-track);
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-scrollbar-thumb);
   border: 2px solid var(--color-scrollbar-track);
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   min-width: 48px;
   min-height: 48px;
 }
@@ -57,7 +57,7 @@ input {
   background-color: var(--color-field);
   color: var(--color-text);
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 :root[data-theme="dark"] {
@@ -125,10 +125,10 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .login-panel {
   width: min(100%, 24rem);
   border: 1px solid var(--color-border);
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: var(--color-surface);
   padding: 1.5rem;
-  box-shadow: 0 18px 38px rgb(21 19 15 / 10%);
+  box-shadow: var(--shadow-md);
 }
 
 /* A permanent ink brand panel beside the sign-in
@@ -174,8 +174,8 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .auth-brand-tagline {
   margin: 0 0 1.5rem;
   color: var(--color-text-on-ink-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -185,8 +185,8 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-top: 2px solid var(--color-gold);
   padding-top: 1rem;
   color: var(--color-text-on-ink);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-strong);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -195,7 +195,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-top: 1px solid var(--color-text-on-ink-muted);
   padding-top: 1.5rem;
   color: var(--color-text-on-ink-muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .auth-brand-footer p {
@@ -219,7 +219,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   display: grid;
   grid-template-columns: repeat(3, 1.75rem);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface-sunken);
   padding: 0.2rem;
 }
@@ -228,9 +228,9 @@ button:not(.theme-toggle-option, .visually-hidden) {
   position: absolute;
   inset: 0.2rem auto 0.2rem 0.2rem;
   width: 1.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-surface);
-  box-shadow: 0 1px 3px rgb(21 19 15 / 15%);
+  box-shadow: var(--shadow-xs);
   transform: translateX(calc(var(--theme-toggle-active-index) * 1.75rem));
   transition: transform 200ms ease;
 }
@@ -247,7 +247,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   place-items: center;
   min-height: 1.75rem;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--color-text-muted);
   padding: 0;
@@ -295,16 +295,16 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border: none;
   background: none;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-strong);
   padding: 0.35rem 0.5rem;
   transform: translateY(-50%);
 }
 
 .password-requirements {
   margin-top: -0.4rem;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
@@ -348,7 +348,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .login-help {
   margin-top: 1.25rem;
   color: var(--color-text-muted);
-  font-size: 0.9rem;
+  font-size: var(--font-size-md);
 }
 
 .login-help strong {
@@ -360,7 +360,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
   border-top: 1px solid var(--color-border);
   padding-top: 1.25rem;
   color: var(--color-text-muted);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
 }
 
 /* The first-time setup page (SetupPage.tsx), on the sign-in layout. */
@@ -370,21 +370,21 @@ button:not(.theme-toggle-option, .visually-hidden) {
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   padding: 0.9rem 1rem;
 }
 
 .setup-theme-label {
   color: var(--color-text);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-strong);
 }
 
 .setup-theme-help {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: 0.85rem;
+  font-size: var(--font-size-md);
 }
 
 .setup-name-row {
@@ -412,7 +412,7 @@ button:not(.theme-toggle-option, .visually-hidden) {
 .eyebrow {
   margin: 0 0 0.5rem;
   color: var(--color-accent-text);
-  font-size: var(--font-size-eyebrow);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-strong);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -427,13 +427,13 @@ p {
 h1 {
   margin-bottom: 1.25rem;
   color: var(--color-text);
-  font-size: 2rem;
+  font-size: var(--font-size-3xl);
   line-height: 1.1;
 }
 
 h2 {
   margin-bottom: 0.75rem;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
 }
 
 .login-form {
@@ -445,14 +445,14 @@ h2 {
   display: grid;
   gap: 0.4rem;
   color: var(--color-text);
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-strong);
 }
 
 .login-form input {
   width: 100%;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface);
   color: var(--color-text);
   padding: 0.7rem 0.75rem;
@@ -522,9 +522,9 @@ h2 {
   width: 100%;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 0.85rem;
+  border-radius: var(--radius);
   padding: var(--card-pad);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -544,15 +544,15 @@ h2 {
 }
 
 .must-change-password-card h1 {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-title);
   color: var(--color-text);
   margin: 0 0 0.5rem 0;
 }
 
 .must-change-password-subtitle {
   color: var(--color-text-muted);
-  font-size: 0.875rem;
+  font-size: var(--font-size-md);
   line-height: 1.5;
   margin: 0 0 1.25rem 0;
 }
@@ -563,21 +563,21 @@ h2 {
   gap: 0.5rem;
   background: var(--color-surface-sunken);
   border: 1px solid var(--color-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.35rem 0.85rem;
   margin-bottom: 1.75rem;
-  font-size: 0.825rem;
+  font-size: var(--font-size-sm);
 }
 
 .account-pill-name {
-  font-weight: 700;
+  font-weight: var(--font-weight-strong);
   color: var(--color-text);
 }
 
 .account-pill-role {
   text-transform: uppercase;
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-title);
   letter-spacing: 0.05em;
   color: var(--color-accent);
 }
@@ -594,8 +594,8 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--color-text);
 }
 
@@ -608,10 +608,10 @@ h2 {
 
 .chevron-icon {
   transition: transform 200ms ease;
-  font-size: 1.25rem;
+  font-size: var(--font-size-xl);
   color: var(--color-text-muted);
   flex-shrink: 0;
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
 }
 
 .status-dot {
@@ -626,7 +626,7 @@ h2 {
 /* ── Error Banner ────────────────────────────────────────────────────────── */
 
 .gsd-modal-message {
-  font-size: 0.92rem;
+  font-size: var(--font-size-base);
   color: var(--color-text-muted);
   line-height: 1.5;
   margin: 0;
@@ -637,11 +637,11 @@ h2 {
   width: 100%;
   padding: 0.65rem;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-sunken);
   color: var(--color-text);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: var(--font-size-md);
   resize: vertical;
   box-sizing: border-box;
 }

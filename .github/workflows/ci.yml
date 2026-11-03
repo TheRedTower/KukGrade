@@ -1,11 +1,15 @@
 name: CI
 
 on:
-  # Every branch, not just dev/prod. The repo convention is to merge feature
-  # branches into dev directly, so triggering on dev alone would only verify
-  # a change after it had already landed.
+  # A feature branch is checked through its pull request, before it lands;
+  # running on its pushes as well checked every commit twice. dev and prod
+  # are checked once more after a merge, and a release tag gets the full
+  # width check (below). "Run workflow" runs that full check on demand.
   push:
+    branches: [dev, prod]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 # A superseded run on the same branch is cancelled rather than left to finish.
 concurrency:
@@ -68,7 +72,7 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Type check
-        run: uv run mypy about kukgrade health accounts audit ranks students syllabus gradings data_imports demo
+        run: uv run mypy .
 
       - name: Django system checks
         run: uv run python manage.py check
@@ -179,8 +183,6 @@ jobs:
     # Not gated on the test jobs: it builds and starts the image on its own, so
     # it runs alongside them.
     runs-on: ubuntu-latest
-    env:
-      CHECK_WIDTHS: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/prod' }}
 
     steps:
       - uses: actions/checkout@v7
@@ -195,8 +197,19 @@ jobs:
           for file in compose*.yml; do docker compose -f "$file" config --quiet; done
           docker compose -f compose.yml -f compose.build.yml config --quiet
 
+      - uses: docker/setup-buildx-action@v4
+
+      # Layers that did not change come from the GitHub Actions cache rather
+      # than being rebuilt (dependencies, mostly).
       - name: Build production image
-        run: docker build --target production -t kukgrade:ci .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: production
+          load: true
+          tags: kukgrade:ci
+          cache-from: type=gha,scope=ci
+          cache-to: type=gha,scope=ci,mode=max
 
       - name: Check production settings in image
         run: >-
@@ -215,10 +228,10 @@ jobs:
 
       # Every screen, rendered in a real browser from phone to desktop widths on
       # the demo's made-up club, must fit (frontend/e2e/README.md). Pull requests
-      # check four widths; pushes to dev and prod check all nine. WebKit
-      # (an iPhone and an iPad profile) always checks its own few widths.
+      # and pushes to dev and prod check four widths; a release tag and "Run
+      # workflow" check all nine. WebKit (an iPhone and an iPad profile) always
+      # checks its own few widths.
       - name: Start the demo for the width check
-        if: env.CHECK_WIDTHS == 'true'
         run: |
           docker run -d --name kg-widths -p 127.0.0.1:6943:6942 \
             --user 10001:10001 --read-only --cap-drop ALL --security-opt no-new-privileges:true \
@@ -236,7 +249,6 @@ jobs:
           exit 1
 
       - uses: actions/setup-node@v7
-        if: env.CHECK_WIDTHS == 'true'
         with:
           node-version: "22"
           cache: npm
@@ -244,17 +256,17 @@ jobs:
 
       # The browsers are a large download and only change with Playwright's version.
       - uses: actions/cache@v6
-        if: env.CHECK_WIDTHS == 'true'
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
       - name: Check every screen fits at every width
-        if: env.CHECK_WIDTHS == 'true'
         working-directory: frontend
         run: |
           npm ci
           npx playwright install --with-deps chromium webkit
           npm run test:widths
         env:
-          KUKGRADE_E2E_QUICK: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          # `cond && '' || '1'` would always give '1' ('' is falsy), so the
+          # quick case is the one tested.
+          KUKGRADE_E2E_QUICK: ${{ (github.event_name != 'workflow_dispatch' && !startsWith(github.ref, 'refs/tags/')) && '1' || '' }}

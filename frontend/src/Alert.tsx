@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { Button } from "./Button";
 
-export type AlertTone = "error" | "warning" | "success" | "info";
+type AlertTone = "error" | "warning" | "success" | "info";
 
 interface AlertProps extends Omit<ComponentProps<"div">, "title"> {
   tone?: AlertTone;

@@ -38,7 +38,7 @@ export function readSource(file: string): string {
   return readFileSync(join(SRC, file), "utf8");
 }
 
-export interface Declaration {
+interface Declaration {
   prop: string;
   value: string;
 }

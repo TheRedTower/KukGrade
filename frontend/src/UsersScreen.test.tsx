@@ -207,6 +207,26 @@ describe("UsersScreen", () => {
     expect(fieldError).toHaveClass("error-text--field");
     expect(emailInput).toHaveAttribute("aria-invalid", "true");
     expect(emailInput).toHaveAttribute("aria-describedby", "cud-email-error");
+    // Said once, beside the box, not repeated above the buttons.
+    expect(screen.queryByText("Validation failed.")).not.toBeInTheDocument();
+  });
+
+  it("says a refusal about a field it has no message box for, rather than dropping it", async () => {
+    const user = userEvent.setup();
+    mockCreateManagedUser.mockRejectedValue(
+      new ApiError("Validation failed.", 400, "validation_error", {
+        first_name: ["Enter a first name."],
+      }),
+    );
+    renderScreen();
+    await screen.findByText("Riley Khan");
+
+    await user.click(screen.getByRole("button", { name: "Add user" }));
+    const dialog = screen.getByRole("dialog", { name: "Add staff user" });
+    await user.type(within(dialog).getByLabelText("Email address"), "riley.khan@example.com");
+    await user.click(within(dialog).getByRole("button", { name: "Add user" }));
+
+    expect(await within(dialog).findByText("Enter a first name.")).toBeVisible();
   });
 
   it("says so when the connection fails, rather than doing nothing", async () => {

@@ -146,6 +146,33 @@ describe("First-time setup", () => {
     expect(screen.getByRole("heading", { name: "Set up KukGrade" })).toBeVisible();
   });
 
+  it("says a refusal no field shows, even beside a field's own", async () => {
+    vi.stubGlobal(
+      "fetch",
+      newDeployment(() =>
+        jsonResponse(400, {
+          error: {
+            code: "validation_error",
+            message: "Setup could not finish.",
+            fields: {
+              email: ["Enter a valid email address."],
+              non_field_errors: ["Setup is already under way in another browser."],
+            },
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Set up KukGrade" });
+    await fillIn(user);
+    await user.click(screen.getByRole("button", { name: "Create administrator" }));
+
+    expect(await screen.findByText("Enter a valid email address.")).toBeVisible();
+    expect(screen.getByText("Setup is already under way in another browser.")).toBeVisible();
+  });
+
   it("checks the confirmation before sending anything", async () => {
     const fetchMock = newDeployment(() => jsonResponse(201, owner));
     vi.stubGlobal("fetch", fetchMock);

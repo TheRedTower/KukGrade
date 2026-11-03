@@ -77,6 +77,62 @@ describe("App authentication", () => {
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeVisible();
   });
 
+  it("goes back, after signing in again, to the page the session ended on", async () => {
+    window.history.replaceState({}, "", "/students?status=ACTIVE");
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return jsonResponse(200, authUser);
+        }
+        if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+        if (url.includes("/api/site/")) return jsonResponse(200, {});
+        if (url.includes("/api/students/") || url.includes("/api/ranks/")) {
+          return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+        }
+        return jsonResponse(404, {});
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/students"));
+    expect(window.location.search).toBe("?status=ACTIVE");
+  });
+
+  it("follows only a path inside the app after signing in", async () => {
+    window.history.replaceState({ usr: { from: "//evil.example/steal" }, key: "x", idx: 0 }, "", "/login");
+    let signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes("/api/auth/login/")) {
+          signedIn = true;
+          return jsonResponse(200, authUser);
+        }
+        if (url.includes("/api/auth/me/")) return signedIn ? jsonResponse(200, authUser) : signedOutResponse(url);
+        if (url.includes("/api/site/")) return jsonResponse(200, {});
+        return jsonResponse(200, { count: 0, next: null, previous: null, results: [] });
+      }),
+    );
+    const user = userEvent.setup();
+
+    render(<App />);
+    await screen.findByRole("heading", { name: "Welcome back" });
+    await user.type(screen.getByLabelText("Email address"), "casey@example.com");
+    await user.type(screen.getByLabelText("Password"), "StrongPass123!");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+  });
+
   it("protects authenticated routes from anonymous users", async () => {
     window.history.replaceState({}, "", "/sessions");
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => signedOutResponse(url)));

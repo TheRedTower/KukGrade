@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 
 import "./theme.css";
 import "./layout.css";
@@ -76,9 +76,21 @@ function ImportFallback(): React.ReactElement {
   return <LoadingState>Loading import…</LoadingState>;
 }
 
+/**
+ * Where sign-in leads: the page that sent the viewer to it (a session that
+ * ended mid-work), or the Overview. Only a path inside the app is followed.
+ */
+function useReturnPath(): string {
+  const from: unknown = (useLocation().state as { from?: unknown } | null)?.from;
+  return typeof from === "string" && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/login")
+    ? from
+    : "/";
+}
+
 function LoginPage() {
   const { login, status } = useAuth();
   const navigate = useNavigate();
+  const returnPath = useReturnPath();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -99,7 +111,7 @@ function LoginPage() {
 
     try {
       await login(address, secret);
-      navigate("/");
+      navigate(returnPath, { replace: true });
     } catch (loginError) {
       if (loginError instanceof ApiError) {
         if (loginError.status === 403) {
@@ -288,6 +300,7 @@ function LoadingPage() {
  */
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status, user } = useAuth();
+  const location = useLocation();
 
   if (status === "loading") {
     return <LoadingPage />;
@@ -298,7 +311,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (user === null) {
-    return <Navigate replace to="/login" />;
+    return <Navigate replace state={{ from: `${location.pathname}${location.search}` }} to="/login" />;
   }
 
   if (user.must_change_password) {
@@ -336,6 +349,7 @@ function SetupGate({ children }: { children: ReactNode }) {
 
 function LoginRoute() {
   const { status, user } = useAuth();
+  const returnPath = useReturnPath();
 
   if (status === "loading") {
     return <LoadingPage />;
@@ -346,7 +360,7 @@ function LoginRoute() {
   }
 
   if (user !== null) {
-    return <Navigate replace to="/" />;
+    return <Navigate replace to={returnPath} />;
   }
 
   return <LoginPage />;

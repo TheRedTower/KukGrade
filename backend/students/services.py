@@ -212,13 +212,10 @@ def _unsettled_sessions(student_id: int) -> set[int]:
     )
 
 
-def _lock_registration_sessions(
-    student_id: int,
-    date_of_birth: date | None,
-) -> set[int]:
-    """Lock the sessions a date-of-birth correction may re-band, before the
+def _lock_registration_sessions(student_id: int, needed: bool) -> set[int]:
+    """Lock the sessions a date-of-birth or rank change may touch, before the
     student, as every grading write orders its locks (gradings/locking.py)."""
-    if date_of_birth is None:
+    if not needed:
         return set()
     sessions = _unsettled_sessions(student_id)
     lock_sessions(sessions)
@@ -228,15 +225,34 @@ def _lock_registration_sessions(
 def _check_registrations_still_in_session(
     student_id: int,
     locked_sessions: set[int],
+    field: str,
 ) -> None:
     if _unsettled_sessions(student_id) - locked_sessions:
         # Registered for another grading between reading and locking. Locking
         # that session now would break the order, so start again instead.
         raise ValidationError(
             {
-                "date_of_birth": [
+                field: [
                     "This student was registered for another grading while "
                     "being changed. Try again.",
+                ],
+            },
+        )
+
+
+def check_rank_change(student_id: int) -> None:
+    """Refuse a rank change while the student has a grading still to reach its
+    result: the rank they test for depends on the rank they hold.
+
+    Read-only, so a form can show the refusal before `update_student` runs.
+    """
+    if _unsettled_sessions(student_id):
+        raise ValidationError(
+            {
+                "current_rank": [
+                    "This student is registered for a grading that has not "
+                    "reached its result, and the rank they test for depends "
+                    "on their current rank. Withdraw them from it first.",
                 ],
             },
         )
@@ -319,11 +335,21 @@ def update_student(
     # saving it as received wrote back every field another edit changed in
     # the meantime. The requested changes go onto the locked row -
     # the same student lock promotion and rank rollback take.
-    registered_in = _lock_registration_sessions(student.pk, date_of_birth)
+    registered_in = _lock_registration_sessions(
+        student.pk,
+        date_of_birth is not None or current_rank is not None,
+    )
     locked = lock_student(student.pk)
     before = _snapshot(locked)
     if date_of_birth is not None:
-        _check_registrations_still_in_session(locked.pk, registered_in)
+        _check_registrations_still_in_session(
+            locked.pk,
+            registered_in,
+            "date_of_birth",
+        )
+    if current_rank is not None and current_rank.pk != locked.current_rank_id:
+        _check_registrations_still_in_session(locked.pk, registered_in, "current_rank")
+        check_rank_change(locked.pk)
 
     # A student ID becoming the black belt ID, or a mistyped ID corrected;
     # Student.clean() refuses anything else (students/wksa_ids.py).

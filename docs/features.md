@@ -61,6 +61,7 @@ Every step is recorded in the [audit log](#audit-log).
   their age band and, for a Conditional result, what is still required, and links
   to its assessment.
 - Correcting a date of birth moves the student's open registrations to the right age band, unless an assessment form is already prepared in a different band: then it is refused until the form is removed.
+- A student's rank cannot be edited while they are registered for a grading that has not reached its result: withdraw them first.
 - Search by name or ID (every word must match, in any order, so "Alex Kim" finds Alex Kim); filter by rank and status.
 
 ## The syllabus

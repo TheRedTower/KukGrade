@@ -4,6 +4,14 @@
   font-size: var(--font-size-sm);
 }
 
+/* A name keeps its words whole: the column grows to fit it, up to a limit, and
+   breaks only between words (an email address, longer, may break anywhere). */
+.audit-actor {
+  display: block;
+  width: max-content;
+  max-width: min(100%, 14rem);
+}
+
 .audit-ledger {
   display: grid;
   gap: var(--space-4);

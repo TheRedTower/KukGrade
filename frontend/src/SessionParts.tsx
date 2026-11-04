@@ -179,23 +179,21 @@ export function SessionCandidateTable({
           ),
         },
         {
-          key: "from",
-          header: "Current rank",
+          key: "ranks",
+          header: "Rank",
           render: (item) => (
-            <div className="gsd-rank-item">
-              <RankBelt rankId={item.candidate.from_rank} />
+            <div className="gsd-rank-flow">
               {/* The rank held at registration, not the live current rank. */}
-              <span>{item.candidate.from_rank_name}</span>
-            </div>
-          ),
-        },
-        {
-          key: "to",
-          header: "Grading for",
-          render: (item) => (
-            <div className="gsd-rank-item">
-              <RankBelt rankId={item.candidate.testing_for_rank} />
-              <span>{item.candidate.testing_for_rank_name}</span>
+              <span className="gsd-rank-item">
+                <RankBelt rankId={item.candidate.from_rank} />
+                <span>{item.candidate.from_rank_name}</span>
+              </span>
+              <span aria-hidden="true">→</span>
+              <span className="visually-hidden">, grading for: </span>
+              <span className="gsd-rank-item">
+                <RankBelt rankId={item.candidate.testing_for_rank} />
+                <span>{item.candidate.testing_for_rank_name}</span>
+              </span>
             </div>
           ),
         },

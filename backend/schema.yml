@@ -4129,16 +4129,49 @@ components:
         note:
           type: string
           description: Anything else a historical sheet said beside the record.
+        conditional_requirements:
+          type: string
+          description: What a Conditional result still requires; blank otherwise.
+        from_rank_name:
+          type: string
+          nullable: true
+          description: The rank held when registered; null for a historical record.
+        age_band:
+          nullable: true
+          description: |-
+            The age band assessed in; null for a historical record.
+
+            * `AGE_8_AND_UNDER` - 8 and under
+            * `AGE_9_TO_12` - 9-12
+            * `AGE_13_TO_17` - 13-17
+            * `AGE_18_AND_OVER` - 18+
+          oneOf:
+          - $ref: '#/components/schemas/AgeBandEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        age_band_display:
+          type: string
+        session_id:
+          type: integer
+          nullable: true
+        candidate_id:
+          type: integer
+          nullable: true
       required:
+      - age_band
+      - age_band_display
       - attendance_status
+      - candidate_id
       - comments
+      - conditional_requirements
       - cycle_month
       - cycle_year
       - date
       - date_precision
+      - from_rank_name
       - note
       - outcome
       - record_id
+      - session_id
       - source
       - source_testing_for_rank_text
       - testing_for_rank_name

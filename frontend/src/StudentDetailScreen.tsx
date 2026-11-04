@@ -288,6 +288,13 @@ export function StudentDetailScreen() {
                         <Link className={badgeClass("neutral")} to={`/imports/history/${item.record_id}`}>
                           Historical · correct
                         </Link>
+                      ) : item.session_id && item.candidate_id ? (
+                        <Link
+                          className={badgeClass("info")}
+                          to={`/gradings/${item.session_id}/assessments/${item.candidate_id}/review`}
+                        >
+                          KukGrade · view assessment
+                        </Link>
                       ) : (
                         <Badge tone={item.source === "KUKGRADE" ? "info" : "neutral"}>
                           {item.source === "KUKGRADE" ? "KukGrade" : "Historical"}
@@ -298,9 +305,16 @@ export function StudentDetailScreen() {
                     key: "rank",
                     header: "Testing for",
                     render: (item) => (
-                      <span className="cell-rank-highlight">
-                        {item.testing_for_rank_name || item.source_testing_for_rank_text || "—"}
-                      </span>
+                      <>
+                        <span className="cell-rank-highlight">
+                          {item.testing_for_rank_name || item.source_testing_for_rank_text || "—"}
+                        </span>
+                        {item.from_rank_name ? (
+                          <small className="grading-history-detail">
+                            From {item.from_rank_name} · {item.age_band_display}
+                          </small>
+                        ) : null}
+                      </>
                     ),
                   },
                   {
@@ -318,7 +332,16 @@ export function StudentDetailScreen() {
                   {
                     key: "comments",
                     header: "Comments",
-                    render: (item) => <span className="grading-history-comments-cell">{item.comments || "—"}</span>,
+                    render: (item) => (
+                      <span className="grading-history-comments-cell">
+                        {item.comments || "—"}
+                        {item.conditional_requirements ? (
+                          <small className="grading-history-detail">
+                            Still required: {item.conditional_requirements}
+                          </small>
+                        ) : null}
+                      </span>
+                    ),
                   },
                 ]}
               />

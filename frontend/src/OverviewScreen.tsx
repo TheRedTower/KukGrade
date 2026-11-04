@@ -23,6 +23,7 @@ import "./OverviewScreen.css";
 import { CheckIcon } from "./Icons";
 import { OUTCOME_LABELS } from "./OutcomeControls";
 import { ResponsiveTable } from "./ResponsiveTable";
+import { PageHeader } from "./PageHeader";
 import { SessionStatusBadge } from "./StatusBadge";
 
 function CalendarIcon() {
@@ -274,19 +275,17 @@ export function OverviewScreen() {
       aria-labelledby="overview-heading"
       className="page"
     >
-      {/* Top Header */}
-      <div className="overview-header">
-        <div className="overview-header-left">
-          <h1 className="overview-title" id="overview-heading">
-            Overview
-          </h1>
-          <p className="overview-date">{currentDateDisplay}</p>
-        </div>
-        <div aria-hidden="true" className="overview-motto">
-          <span>TRADITION BUILDS PEOPLE</span>
-          <span>PEOPLE BUILD TOMORROW</span>
-        </div>
-      </div>
+      <PageHeader
+        title="Overview"
+        titleId="overview-heading"
+        subtitle={currentDateDisplay}
+        actions={
+          <div aria-hidden="true" className="overview-motto">
+            <span>TRADITION BUILDS PEOPLE</span>
+            <span>PEOPLE BUILD TOMORROW</span>
+          </div>
+        }
+      />
 
       {openQuery.isError || upcomingQuery.isError ? (
         <div className="workspace-alert">

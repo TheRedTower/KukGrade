@@ -391,7 +391,7 @@ export function UserDetailScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page page--wide" aria-labelledby="user-detail-heading">
+    <section className="page" aria-labelledby="user-detail-heading">
       <PageHeader
         back={{ to: "/users", label: "Users" }}
         title={managedUser.full_name}

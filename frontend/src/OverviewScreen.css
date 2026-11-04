@@ -2,36 +2,6 @@
    Operational Ledger (Overview Screen)
    ========================================================================== */
 
-.overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: var(--space-6);
-  gap: var(--space-5);
-  flex-wrap: wrap;
-}
-
-.overview-header-left {
-  display: flex;
-  flex-direction: column;
-}
-
-.overview-title {
-  margin: 0;
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-title);
-  letter-spacing: var(--tracking-tight);
-  color: var(--color-text);
-  line-height: var(--line-height-tight);
-}
-
-.overview-date {
-  margin: var(--space-1) 0 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-medium);
-}
-
 .overview-motto {
   display: flex;
   flex-direction: column;

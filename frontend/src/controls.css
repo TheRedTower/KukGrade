@@ -9,6 +9,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* A short label sits in the middle; one that wraps reads from the start, so an
+     arrow stays beside its words. (A badge is a label, and centres: see .badge.) */
+  text-align: start;
   gap: var(--space-2);
   min-height: var(--target-min);
   padding: var(--space-2) var(--space-4);
@@ -444,10 +447,9 @@
   color: var(--color-on-gold);
 }
 
-/* A button in the actions column keeps its label whole and reads left to right:
-   the column grows to fit it, and the label wraps only between words. */
+/* A button in the actions column keeps its label whole: the column grows to fit
+   it, and the label wraps only between words. */
 .rtable [data-actions] .btn {
   width: max-content;
   max-width: 100%;
-  text-align: start;
 }

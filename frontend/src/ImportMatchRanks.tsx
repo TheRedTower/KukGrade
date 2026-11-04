@@ -118,8 +118,8 @@ export function ImportMatchRanks({
             <div className="card card--flush">
               <div className="ix-section ix-focus-body">
                 <div className="ix-actions ix-align-end">
-                  <label className="ix-field ix-field-wide">
-                    “{current.source_text}” means
+                  <label className="field field--sentence ix-field-wide">
+                    <span>“{current.source_text}” means</span>
                     <select
                       disabled={save.isPending}
                       value={chosen[key(current.source_text)] ?? ""}

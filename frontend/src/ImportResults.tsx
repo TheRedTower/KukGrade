@@ -378,8 +378,7 @@ function RowsLedger({
         <h2 className="section-title ix-grow" id="ix-rows-h">
           {roster ? "Every row" : "Every record"}
         </h2>
-        <label className="ix-field">
-          Search
+        <label className="field field--sentence"><span>Search</span>
           <input
             placeholder={roster ? "Name or WKSA ID" : "Name or comment"}
             type="search"
@@ -488,10 +487,10 @@ function VoidDialog({ batch, onClose }: { batch: DataImportBatch; onClose: () =>
         They are kept, marked void with your reason, and leave every student’s history. This
         cannot be undone except by importing the workbook again.
       </p>
-      <label className="ix-field" htmlFor="ix-void-reason">
-        Why
-      </label>
-      <textarea data-dialog-autofocus id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      <div className="field field--sentence">
+        <label htmlFor="ix-void-reason">Why</label>
+        <textarea data-dialog-autofocus id="ix-void-reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      </div>
     </ImportDialog>
   );
 }

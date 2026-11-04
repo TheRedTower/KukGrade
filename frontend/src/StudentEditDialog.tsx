@@ -66,14 +66,13 @@ export function StudentEditDialog({
 
         <form className="stack" onSubmit={save} noValidate>
           <div className="stack">
-            <div className="form-field-group">
-              <label htmlFor="edit-wksa-id" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="edit-wksa-id">
                 WKSA ID
               </label>
               <input
                 id="edit-wksa-id"
                 type="text"
-                className={`form-text-input ${form.errorFor("wksa_id") ? "input-error" : ""}`}
                 value={wksaId}
                 onChange={(e) => setWksaId(e.target.value)}
                 disabled={saving}
@@ -85,7 +84,7 @@ export function StudentEditDialog({
                   {form.errorFor("wksa_id")}
                 </ErrorText>
               ) : (
-                <p className="form-field-help" id="edit-wksa-id-help">
+                <p className="field__hint" id="edit-wksa-id-help">
                   {student.wksa_id_can_change
                     ? "Correct a mistyped ID, or record the black belt ID handed out at the national grading."
                     : "Correct a mistyped black belt ID. It never goes back to a student ID."}
@@ -94,14 +93,13 @@ export function StudentEditDialog({
             </div>
 
             <div className="form-row-grid-2">
-              <div className="form-field-group">
-                <label htmlFor="edit-first-name" className="form-field-label">
+              <div className="field field--sentence">
+                <label htmlFor="edit-first-name">
                   First name <span className="required-star">*</span>
                 </label>
                 <input
                   id="edit-first-name"
                   type="text"
-                  className={`form-text-input ${form.errorFor("first_name") ? "input-error" : ""}`}
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   disabled={saving}
@@ -115,14 +113,13 @@ export function StudentEditDialog({
                 )}
               </div>
 
-              <div className="form-field-group">
-                <label htmlFor="edit-last-name" className="form-field-label">
+              <div className="field field--sentence">
+                <label htmlFor="edit-last-name">
                   Last name <span className="required-star">*</span>
                 </label>
                 <input
                   id="edit-last-name"
                   type="text"
-                  className={`form-text-input ${form.errorFor("last_name") ? "input-error" : ""}`}
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   disabled={saving}
@@ -136,14 +133,13 @@ export function StudentEditDialog({
               </div>
             </div>
 
-            <div className="form-field-group">
-              <label htmlFor="edit-dob" className="form-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="edit-dob">
                 Date of birth <span className="required-star">*</span>
               </label>
               <input
                 id="edit-dob"
                 type="date"
-                className={`form-text-input ${form.errorFor("date_of_birth") ? "input-error" : ""}`}
                 value={dob}
                 max={todayIsoDate()}
                 onChange={(e) => setDob(e.target.value)}

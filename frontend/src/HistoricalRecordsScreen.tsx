@@ -126,7 +126,7 @@ export function HistoricalRecordsScreen() {
         </div>
         <div className="card card--flush ix-section">
           <div className="ix-section ix-queue-head">
-            <label className="ix-field">Show
+            <label className="field field--sentence"><span>Show</span>
               <select value={filter} onChange={(event) => update("filter", event.target.value)}>
                 <option value="all">All records</option>
                 <option value="unlinked">Unlinked</option>
@@ -134,13 +134,13 @@ export function HistoricalRecordsScreen() {
                 <option value="voided">Voided</option>
               </select>
             </label>
-            <label className="ix-field">Import
+            <label className="field field--sentence"><span>Import</span>
               <select value={batch ?? ""} onChange={(event) => update("batch", event.target.value)}>
                 <option value="">Every import</option>
                 {(imports.data?.results ?? []).map((item) => <option key={item.id} value={item.id}>{item.original_filename}</option>)}
               </select>
             </label>
-            <label className="ix-field">Name as written
+            <label className="field field--sentence"><span>Name as written</span>
               <input type="search" value={search} onChange={(event) => update("search", event.target.value)} />
             </label>
           </div>

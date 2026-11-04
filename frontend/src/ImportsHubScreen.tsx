@@ -227,16 +227,14 @@ function PastImports() {
       <div className="ix-section-head ix-align-end">
         <h2 id="ix-past">Past imports</h2>
         <div className="ix-filters">
-          <label className="ix-field">
-            What
+          <label className="field field--sentence"><span>What</span>
             <select value={kind} onChange={(event) => setFilter("kind", event.target.value)}>
               <option value="">Everything</option>
               <option value="STUDENT_ROSTER">Students</option>
               <option value="LEGACY_GRADINGS">Past gradings</option>
             </select>
           </label>
-          <label className="ix-field">
-            State
+          <label className="field field--sentence"><span>State</span>
             <select value={state} onChange={(event) => setFilter("state", event.target.value)}>
               <option value="">Any</option>
               <option value="COMMITTED">Imported</option>

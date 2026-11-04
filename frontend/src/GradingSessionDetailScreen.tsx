@@ -935,14 +935,13 @@ export function GradingSessionDetailScreen(): React.ReactElement {
           <p className="gsd-modal-message">{confirmModal.message}</p>
 
           {confirmModal.actionType === "CANCEL" && (
-            <div className="gsd-modal-field gsd-cancel-reason-field">
-              <label htmlFor="cancellation-reason" className="gsd-field-label">
+            <div className="field field--sentence">
+              <label htmlFor="cancellation-reason">
                 {/* Abandoning a locked session must say why (server rule). */}
                 {cancelReasonRequired ? "Cancellation reason (required)" : "Cancellation reason (optional)"}
               </label>
               <textarea
                 id="cancellation-reason"
-                className="gsd-modal-textarea gsd-textarea"
                 rows={3}
                 value={cancellationReason}
                 onChange={(e) => setCancellationReason(e.target.value)}

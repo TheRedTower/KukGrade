@@ -237,8 +237,7 @@ export function ImportMatchColumns({
             action={
               <>
                 {field.whole_file && field.field === "current_rank" ? (
-                  <label className="ix-field">
-                    Same for everyone
+                  <label className="field field--sentence"><span>Same for everyone</span>
                     <select
                       disabled={save.isPending || correct.isPending}
                       value=""

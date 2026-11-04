@@ -798,7 +798,6 @@ describe("Grading Session Workspace Screen (/gradings/:id)", () => {
     expect(screen.getByText("Cancel Grading Session")).toBeVisible();
     const reasonInput = screen.getByLabelText("Cancellation reason (optional)");
     expect(reasonInput).toBeInTheDocument();
-    expect(reasonInput).toHaveClass("gsd-modal-textarea");
 
     await user.type(reasonInput, "Hall booking unavailable due to maintenance.");
     await user.click(screen.getByTestId("gsd-modal-confirm-btn"));

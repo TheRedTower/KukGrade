@@ -397,6 +397,7 @@
 }
 
 .bgc-summary-pill {
+  text-align: center;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

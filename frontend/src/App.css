@@ -418,28 +418,6 @@ h2 {
   gap: 1rem;
 }
 
-.login-form label {
-  display: grid;
-  gap: 0.4rem;
-  color: var(--color-text);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-strong);
-}
-
-.login-form input {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  padding: 0.7rem 0.75rem;
-}
-
-.login-form input:focus {
-  border-color: var(--color-gold-strong);
-  outline: 2px solid var(--color-accent-strong);
-}
-
 .app-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -535,6 +513,7 @@ h2 {
 }
 
 .account-pill {
+  text-align: center;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -565,15 +544,6 @@ h2 {
   flex-direction: column;
   gap: 1.15rem;
   text-align: left;
-}
-
-.must-change-password-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text);
 }
 
 .must-change-password-actions {
@@ -607,27 +577,6 @@ h2 {
   color: var(--color-text-muted);
   line-height: var(--line-height-body);
   margin: 0;
-}
-
-.gsd-modal-textarea,
-.gsd-textarea {
-  width: 100%;
-  padding: 0.65rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-sunken);
-  color: var(--color-text);
-  font-family: inherit;
-  font-size: var(--font-size-md);
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.gsd-modal-textarea:focus,
-.gsd-textarea:focus {
-  outline: var(--focus-outline);
-  outline-offset: var(--focus-offset);
-  border-color: var(--btn-primary-bg);
 }
 
 /* ── Loading and Error States ────────────────────────────────────────────── */

@@ -290,6 +290,7 @@
 }
 
 .status-pill-badge {
+  text-align: center;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;

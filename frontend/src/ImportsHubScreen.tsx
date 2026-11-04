@@ -338,7 +338,6 @@ export function ImportsHubScreen() {
   return (
     <section aria-labelledby="ix-title" className="page ix-page">
       <PageHeader
-        eyebrow="Administration"
         title="Imports"
         titleId="ix-title"
         subtitle="Bring students and past gradings in from a spreadsheet. Nothing is saved until you confirm the last step, and you can leave and come back."

@@ -102,7 +102,7 @@ export function AddStudentScreen() {
   }
 
   return (
-    <section aria-labelledby="add-student-title" className="page page--reading">
+    <section aria-labelledby="add-student-title" className="page">
       <PageHeader
         crumbs={[{ label: "Students", to: "/students" }, { label: "Add student" }]}
         title="Add student"

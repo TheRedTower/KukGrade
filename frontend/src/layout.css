@@ -7,10 +7,10 @@
      the breakpoints. .workspace applies it; a page never adds its own. */
   --page-gutter: clamp(1rem, 3vw, 2.5rem);
 
-  --page-max-reading: 60rem;
   --page-max: 76rem;
-  --page-max-wide: 90rem;
   --page-end-space: 3rem;
+  /* The height of a crumb row and the gap under it, where a header has none. */
+  --crumb-row: 3.25rem;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -71,14 +71,6 @@
   max-width: var(--page-max);
   margin-inline: auto;
   padding-block-end: var(--page-end-space);
-}
-
-.page--reading {
-  max-width: var(--page-max-reading);
-}
-
-.page--wide {
-  max-width: var(--page-max-wide);
 }
 
 /* The space between sections stacked on a page, in one place. A screen puts
@@ -181,6 +173,15 @@
 /* A form's Cancel and Save, at the end. */
 .action-row--end {
   justify-content: flex-end;
+}
+
+/* A menu opened from a button (anchored to its wrapper, which is `position:
+   relative`): as wide as the button, or as its widest item when that is more,
+   and never wider than the screen. */
+.menu-panel {
+  min-width: 100%;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
 }
 
 /* ── Filters ───────────────────────────────────────────────────────────── */
@@ -821,6 +822,15 @@ select:not([multiple]):not([size]) {
   flex-direction: column;
   gap: var(--space-2);
   margin-bottom: var(--space-6);
+}
+
+/* A page with no way back above its title still starts it at the same height as
+   one that has (the room a crumb row takes), so a title does not jump when you
+   move between pages on a desktop. A phone keeps its own, tighter top. */
+@media (min-width: 56rem) {
+  .page-header--bare {
+    padding-top: var(--crumb-row);
+  }
 }
 
 /* In a .stack the stack's own gap is part of the same space. */

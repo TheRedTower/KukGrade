@@ -114,7 +114,7 @@ export function AssessmentCompletionScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-loading">
+      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-loading">
         <LoadingState>Loading completion review…</LoadingState>
       </section>
     );
@@ -122,7 +122,7 @@ export function AssessmentCompletionScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-load-error">
+      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-load-error">
         <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>}>
@@ -135,7 +135,7 @@ export function AssessmentCompletionScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-not-found">
+      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-not-found">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -152,7 +152,7 @@ export function AssessmentCompletionScreen() {
   // this state explains itself rather than showing an empty proof.
   if (!assessment || (!isSealed && !stats.canComplete)) {
     return (
-      <section aria-label="Assessment completion review" className="page page--wide caw-page" data-testid="caw-review-unavailable">
+      <section aria-label="Assessment completion review" className="page caw-page" data-testid="caw-review-unavailable">
         <Alert action={<Link to={scoringPath} className={buttonClass({ variant: "secondary" })}>
             ← Return to scoring
           </Link>}>
@@ -188,7 +188,7 @@ export function AssessmentCompletionScreen() {
   const canSeal = hasProofread && !completeAssessmentMutation.isPending;
 
   return (
-    <section aria-labelledby="acp-title" className="page page--wide acp-page" data-testid="caw-review-workspace">
+    <section aria-labelledby="acp-title" className="page acp-page" data-testid="caw-review-workspace">
       <header className="acp-topbar">
         <BackLink to={scoringPath}>Back to scoring</BackLink>
         <span aria-hidden="true" className="acp-topbar-divider" />

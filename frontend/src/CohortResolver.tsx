@@ -50,7 +50,7 @@ export function CohortResolver({
   const retryableCount = flaggedItems.filter((i) => !i.registered).length;
 
   return (
-    <section aria-labelledby="bgc-resolver-title" className="page page--wide bgc-page" data-testid="bgc-page">
+    <section aria-labelledby="bgc-resolver-title" className="page bgc-page" data-testid="bgc-page">
       <Breadcrumbs
         items={[
           { label: "Gradings", to: "/gradings" },

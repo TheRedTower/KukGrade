@@ -171,7 +171,7 @@ export function LinkRecordsScreen() {
   const everyNameLinked = view === "todo" && !debouncedSearch && counts.todo === 0 && counts.left === 0;
 
   return (
-    <section aria-labelledby="ix-link-title" className="page page--wide ix-page">
+    <section aria-labelledby="ix-link-title" className="page ix-page">
       <PageHeader
         back={{ to: "/imports", label: "Imports" }}
         title="Link historical records"

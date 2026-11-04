@@ -183,7 +183,7 @@ export function CandidateAssessmentScreen() {
 
   if (isLoading) {
     return (
-      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-loading">
+      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-loading">
         <LoadingState>Loading the assessment…</LoadingState>
       </section>
     );
@@ -191,7 +191,7 @@ export function CandidateAssessmentScreen() {
 
   if (hasLoadError) {
     return (
-      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-load-error">
+      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-load-error">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -203,7 +203,7 @@ export function CandidateAssessmentScreen() {
 
   if (!session || !candidate) {
     return (
-      <section aria-label="Candidate assessment" className="page page--wide caw-page" data-testid="caw-not-found">
+      <section aria-label="Candidate assessment" className="page caw-page" data-testid="caw-not-found">
         <Alert action={<Link to={`/gradings/${sessionId}`} className={buttonClass({ variant: "secondary" })}>
             ← Return to session roster
           </Link>}>
@@ -233,7 +233,7 @@ export function CandidateAssessmentScreen() {
   const notMetWidth = stats.totalItems > 0 ? (stats.notMetCount / stats.totalItems) * 100 : 0;
 
   return (
-    <section aria-labelledby="caw-title" className="page page--wide caw-run" data-testid="caw-workspace">
+    <section aria-labelledby="caw-title" className="page caw-run" data-testid="caw-workspace">
       <Breadcrumbs
         items={[
           { label: "Gradings", to: "/gradings" },

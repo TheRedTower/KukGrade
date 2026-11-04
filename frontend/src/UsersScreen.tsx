@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { splitServerErrors } from "./forms";
 import { PageHeader } from "./PageHeader";
 import { Badge } from "./Badge";
+import { UserPlusIcon } from "./Icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -177,7 +178,7 @@ export function UsersScreen(): React.ReactElement {
   };
 
   return (
-    <section className="page page--wide stack" aria-labelledby="users-heading">
+    <section className="page stack" aria-labelledby="users-heading">
       <PageHeader
         title="Users"
         titleId="users-heading"
@@ -185,7 +186,8 @@ export function UsersScreen(): React.ReactElement {
         tag={<Badge tone="neutral">Admin only</Badge>}
         actions={
           <Button ref={addButtonRef} variant="primary" onClick={() => setCreateOpen(true)}>
-            Add user
+            <UserPlusIcon />
+            <span>Add user</span>
           </Button>
         }
       />

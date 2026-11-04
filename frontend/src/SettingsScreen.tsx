@@ -15,7 +15,7 @@ const TABS = [
 /** Settings as tabs of rows: Account, Appearance and About. */
 export function SettingsScreen() {
   return (
-    <section aria-labelledby="st-title" className="page page--reading st-page">
+    <section aria-labelledby="st-title" className="page st-page">
       <PageHeader title="Settings" titleId="st-title" />
       <nav aria-label="Settings sections" className="st-tabs">
         {TABS.map((tab) => (

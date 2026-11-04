@@ -125,7 +125,7 @@ export function AuditScreen(): React.ReactElement {
   };
 
   return (
-    <section aria-labelledby="audit-heading" className="page page--wide">
+    <section aria-labelledby="audit-heading" className="page">
       <PageHeader
         title="Audit"
         titleId="audit-heading"
